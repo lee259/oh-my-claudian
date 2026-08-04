@@ -17,6 +17,16 @@
 
 An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, Grok, Opencode, Pi, and more to come) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
 
+> This repository is a fork of [YishenTu/claudian](https://github.com/YishenTu/claudian), maintained as an OMP-focused variant. It keeps the upstream providers and adds first-class Oh My Pi support through ACP.
+
+## What This Fork Adds
+
+- **OMP ACP provider** — Run Oh My Pi (OMP) directly in the Claudian chat sidebar, with OMP-native model discovery and selection.
+- **OMP-aware context** — The current note and editor selection are included with each OMP request; image attachments are supported as well.
+- **Useful session feedback** — OMP streams plan/thinking output, reports live context-window usage, and restores the context meter after restarting Obsidian.
+- **Simple OMP permissions** — The shared **Safe / YOLO** control determines whether OMP tool operations ask for confirmation; OMP does not add a separate Plan mode.
+- **OMP visual identity** — OMP has its own cyan accent color instead of inheriting Claude's styling.
+
 ## Features & Usage
 
 Open the chat sidebar from the ribbon icon or command palette. Select text and use the hotkey for inline edit. Everything works like your familiar coding agent, Claude Code, Codex, Grok, Opencode, and Pi — talk to the agent, and it reads, writes, edits, and searches files in your vault.
@@ -42,6 +52,7 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
   - [Codex CLI](https://github.com/openai/codex)
   - [Grok Build](https://github.com/xai-org/grok-build)
   - [OpenCode](https://github.com/anomalyco/opencode)
+  - Oh My Pi (OMP, via ACP)
   - [Pi](https://github.com/earendil-works/pi)
 - A compatible subscription or API provider, such as [OpenRouter](https://openrouter.ai/docs/guides/guides/claude-code-integration), [Kimi](https://platform.kimi.ai/docs/guide/claude-code-kimi), [GLM](https://docs.z.ai/devpack/tool/claude), or [DeepSeek](https://api-docs.deepseek.com/quick_start/agent_integrations/claude_code).
 - Obsidian v1.7.2+
@@ -62,7 +73,7 @@ Or install directly from the [community plugin page](https://community.obsidian.
 1. Clone this repository into your vault's plugins folder:
    ```bash
    cd /path/to/vault/.obsidian/plugins
-   git clone https://github.com/YishenTu/claudian.git
+   git clone https://github.com/lee259/claudian.git
    cd claudian
    ```
 
@@ -148,6 +159,7 @@ src/
 │   ├── codex/                   # Codex app-server adaptor, JSON-RPC transport, JSONL history
 │   ├── grok/                    # Grok Build ACP adaptor, native history, models, and tools
 │   ├── opencode/                # Opencode adaptor
+│   ├── omp/                     # Oh My Pi ACP adaptor, model discovery, and history
 │   ├── pi/                      # Pi RPC adaptor, model discovery, JSONL history
 │   └── acp/                     # Agent Client Protocol shared transport
 ├── features/
