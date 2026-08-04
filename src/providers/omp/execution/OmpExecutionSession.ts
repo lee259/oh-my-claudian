@@ -166,8 +166,14 @@ export class OmpExecutionSession implements ProviderExecutionSession {
         this.kernel = this.createKernel({
           config: this.config,
           getActiveTurnId: () => this.activeRun?.turnId ?? null,
-          onClosed: error => this.failRun(run, error),
-          onNotification: notification => this.handleNotification(run, notification),
+          onClosed: error => {
+            const activeRun = this.activeRun;
+            if (activeRun) this.failRun(activeRun, error);
+          },
+          onNotification: notification => {
+            const activeRun = this.activeRun;
+            if (activeRun) this.handleNotification(activeRun, notification);
+          },
           plugin: this.plugin,
         });
         await this.kernel.connect();
