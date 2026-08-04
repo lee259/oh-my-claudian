@@ -28,6 +28,14 @@ describe('OMP chat configuration', () => {
     ]);
     expect(ompChatUIConfig.getDefaultReasoningValue('omp:openai/gpt-5-mini', settings)).toBe('auto');
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
+    expect(ompChatUIConfig.getModeSelector?.(settings)).toEqual({
+      label: 'Mode',
+      options: [
+        { label: 'Default', value: 'default' },
+        { label: 'Plan', value: 'plan' },
+      ],
+      value: 'plan',
+    });
   });
 
   it('maps the shared plan control to OMP native mode selection', () => {
@@ -35,5 +43,12 @@ describe('OMP chat configuration', () => {
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
     ompChatUIConfig.applyPermissionMode?.('plan', settings);
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
+  });
+
+  it('updates the visible OMP mode selector', () => {
+    ompChatUIConfig.applyModeSelection?.('default', settings);
+    expect(ompChatUIConfig.getModeSelector?.(settings)?.value).toBe('default');
+    ompChatUIConfig.applyModeSelection?.('plan', settings);
+    expect(ompChatUIConfig.getModeSelector?.(settings)?.value).toBe('plan');
   });
 });
