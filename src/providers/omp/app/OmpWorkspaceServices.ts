@@ -21,9 +21,13 @@ export const ompWorkspaceRegistration: ProviderWorkspaceRegistration<OmpWorkspac
       modelDiscoveryService,
       refreshModelCatalog: async () => {
         try {
-          const discoveredModels = await modelDiscoveryService.discover();
+          const catalog = await modelDiscoveryService.discoverCatalog();
           await plugin.mutateSettings(settings => {
-            updateOmpProviderSettings(settings, { discoveredModels });
+            updateOmpProviderSettings(settings, {
+              availableModes: catalog.modes,
+              discoveredModels: catalog.models,
+              ...(catalog.thinking ? { thinking: catalog.thinking } : {}),
+            });
           });
           return { changed: true };
         } catch (error) {

@@ -6,9 +6,20 @@ import {
   type OmpAcpSessionKernelOptions,
 } from '../execution/OmpAcpSessionKernel';
 import {
+  normalizeOmpConfigChoices,
   normalizeOmpConfigOptionModels,
   type OmpDiscoveredModel,
 } from '../models';
+
+export interface OmpModelCatalog {
+  models: OmpDiscoveredModel[];
+  modes: Array<{ description?: string; id: string; name: string }>;
+  thinking: {
+    configId: string;
+    currentValue: string | null;
+    options: Array<{ description?: string; id: string; name: string }>;
+  } | null;
+}
 
 export interface OmpModelDiscoveryServiceOptions {
   readonly createKernel?: (options: OmpAcpSessionKernelOptions) => OmpAcpSessionKernel;
@@ -26,6 +37,10 @@ export class OmpModelDiscoveryService {
   }
 
   async discover(signal?: AbortSignal): Promise<OmpDiscoveredModel[]> {
+    return (await this.discoverCatalog(signal)).models;
+  }
+
+  async discoverCatalog(signal?: AbortSignal): Promise<OmpModelCatalog> {
     signal?.throwIfAborted();
     const kernel = this.createKernel({
       config: getMetadataSessionConfig(this.plugin),
@@ -39,8 +54,19 @@ export class OmpModelDiscoveryService {
       signal?.throwIfAborted();
       const session = await kernel.openSession();
       signal?.throwIfAborted();
-      const models = normalizeOmpConfigOptionModels(session.configOptions);
-      return models;
+      const modes = normalizeOmpConfigChoices(session.configOptions, 'mode');
+      const thinking = normalizeOmpConfigChoices(session.configOptions, 'thought_level');
+      return {
+        models: normalizeOmpConfigOptionModels(session.configOptions),
+        modes: modes.options,
+        thinking: thinking.configId
+          ? {
+            configId: thinking.configId,
+            currentValue: thinking.currentValue,
+            options: thinking.options,
+          }
+          : null,
+      };
     } finally {
       await kernel.dispose();
     }

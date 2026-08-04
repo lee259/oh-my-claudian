@@ -4,6 +4,51 @@ export interface OmpDiscoveredModel {
   rawId: string;
 }
 
+export interface OmpConfigChoice {
+  description?: string;
+  id: string;
+  name: string;
+}
+
+export interface OmpThinkingConfig {
+  configId: string;
+  currentValue: string | null;
+  options: OmpConfigChoice[];
+}
+
+export function normalizeOmpConfigChoiceList(value: unknown): OmpConfigChoice[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: OmpConfigChoice[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    const id = typeof record.id === 'string' ? record.id.trim() : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const name = typeof record.name === 'string' && record.name.trim() ? record.name.trim() : id;
+    const description = typeof record.description === 'string' && record.description.trim()
+      ? record.description.trim()
+      : undefined;
+    result.push({ ...(description ? { description } : {}), id, name });
+  }
+  return result;
+}
+
+export function normalizeOmpThinkingConfig(value: unknown): OmpThinkingConfig | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const configId = typeof record.configId === 'string' ? record.configId.trim() : '';
+  if (!configId) return null;
+  return {
+    configId,
+    currentValue: typeof record.currentValue === 'string' && record.currentValue.trim()
+      ? record.currentValue
+      : null,
+    options: normalizeOmpConfigChoiceList(record.options),
+  };
+}
+
 const OMP_MODEL_PREFIX = 'omp:';
 
 export function encodeOmpModelId(rawId: string): string {
@@ -52,6 +97,43 @@ export function normalizeOmpConfigOptionModels(value: unknown): OmpDiscoveredMod
       modelId: record.value,
     };
   }));
+}
+
+export function normalizeOmpConfigChoices(
+  value: unknown,
+  category: 'mode' | 'thought_level',
+): { configId: string | null; currentValue: string | null; options: OmpConfigChoice[] } {
+  if (!Array.isArray(value)) return { configId: null, currentValue: null, options: [] };
+  const configOption = value.find(option => {
+    if (!option || typeof option !== 'object' || Array.isArray(option)) return false;
+    const record = option as Record<string, unknown>;
+    return record.type === 'select'
+      && (record.category === category || (category === 'thought_level' && record.id === 'thinking'));
+  }) as Record<string, unknown> | undefined;
+  if (!configOption || !Array.isArray(configOption.options)) {
+    return { configId: null, currentValue: null, options: [] };
+  }
+  const seen = new Set<string>();
+  const options: OmpConfigChoice[] = [];
+  for (const option of configOption.options) {
+    if (!option || typeof option !== 'object' || Array.isArray(option)) continue;
+    const record = option as Record<string, unknown>;
+    const id = typeof record.value === 'string' ? record.value.trim() : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const name = typeof record.name === 'string' && record.name.trim() ? record.name.trim() : id;
+    const description = typeof record.description === 'string' && record.description.trim()
+      ? record.description.trim()
+      : undefined;
+    options.push({ ...(description ? { description } : {}), id, name });
+  }
+  return {
+    configId: typeof configOption.id === 'string' && configOption.id.trim() ? configOption.id : null,
+    currentValue: typeof configOption.currentValue === 'string' && configOption.currentValue.trim()
+      ? configOption.currentValue
+      : null,
+    options,
+  };
 }
 
 export function normalizeOmpVisibleModels(

@@ -16,9 +16,11 @@ import {
   type AcpContentBlock,
   AcpExecutionEventNormalizer,
   type AcpSessionNotification,
+  extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 
 import { decodeOmpModelId } from '../models';
+import { getOmpProviderSettings } from '../settings';
 import {
   DefaultOmpAcpSessionKernel,
   type OmpAcpSessionKernel,
@@ -167,12 +169,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       }
       const native = await this.kernel.openSession(this.nativeSessionId ?? undefined);
       this.nativeSessionId = native.sessionId;
-      const modelId = request.configuration.model
-        ? decodeOmpModelId(request.configuration.model)
-        : null;
-      if (modelId) {
-        await this.kernel.setModel({ modelId, sessionId: native.sessionId });
-      }
+      await this.applyConfiguration(native, request);
       this.snapshot = this.makeSnapshot('executing');
       this.emitSnapshot(run);
       const normalizer = new AcpExecutionEventNormalizer({
@@ -200,6 +197,38 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   }
 
   private readonly normalizers = new WeakMap<OmpExecutionRun, AcpExecutionEventNormalizer>();
+
+  private async applyConfiguration(
+    native: Awaited<ReturnType<OmpAcpSessionKernel['openSession']>>,
+    request: ProviderExecutionRequest,
+  ): Promise<void> {
+    if (!this.kernel) return;
+    const modelId = request.configuration.model
+      ? decodeOmpModelId(request.configuration.model)
+      : null;
+    if (modelId) await this.kernel.setModel({ modelId, sessionId: native.sessionId });
+
+    const thinking = extractAcpSessionThoughtLevelState({ configOptions: native.configOptions });
+    if (
+      request.configuration.reasoning
+      && thinking.configId
+      && thinking.availableLevels.some(level => level.id === request.configuration.reasoning)
+    ) {
+      await this.kernel.setConfigOption({
+        configId: thinking.configId,
+        sessionId: native.sessionId,
+        type: 'select',
+        value: request.configuration.reasoning,
+      });
+    }
+
+    const mode = getOmpProviderSettings(this.plugin.settings).selectedMode;
+    if (mode && (mode === 'default' || mode === 'plan')) {
+      await this.kernel.setConfigOption({
+        configId: 'mode', sessionId: native.sessionId, type: 'select', value: mode,
+      });
+    }
+  }
 
   private handleNotification(run: OmpExecutionRun, notification: AcpSessionNotification): void {
     if (run.terminal || notification.sessionId !== this.nativeSessionId) return;

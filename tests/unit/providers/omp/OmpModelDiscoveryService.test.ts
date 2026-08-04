@@ -1,6 +1,53 @@
 import { OmpModelDiscoveryService } from '@/providers/omp/metadata/OmpModelDiscoveryService';
 
 describe('OmpModelDiscoveryService', () => {
+  it('discovers OMP native mode and thinking choices alongside models', async () => {
+    const kernel = {
+      cancel: jest.fn(),
+      connect: jest.fn().mockResolvedValue(undefined),
+      dispose: jest.fn().mockResolvedValue(undefined),
+      openSession: jest.fn().mockResolvedValue({
+        configOptions: [{
+          category: 'mode', currentValue: 'default', id: 'mode', name: 'Mode', options: [
+            { name: 'Default', value: 'default' },
+            { name: 'Plan', value: 'plan' },
+          ], type: 'select',
+        }, {
+          category: 'thought_level', currentValue: 'auto', id: 'thinking', name: 'Thinking', options: [
+            { name: 'Off', value: 'off' },
+            { name: 'Auto', value: 'auto' },
+          ], type: 'select',
+        }, {
+          category: 'model', currentValue: 'openai/gpt-5-mini', id: 'model', name: 'Model', options: [
+            { name: 'GPT-5 mini', value: 'openai/gpt-5-mini' },
+          ], type: 'select',
+        }],
+        sessionId: 'metadata-session',
+      }),
+      prompt: jest.fn(),
+      setModel: jest.fn(),
+      setConfigOption: jest.fn(),
+    };
+    const plugin = { app: { vault: { adapter: { basePath: '/vault' } } } } as never;
+    const service = new OmpModelDiscoveryService(plugin, { createKernel: () => kernel });
+
+    await expect(service.discoverCatalog()).resolves.toEqual({
+      models: [{ label: 'GPT-5 mini', rawId: 'openai/gpt-5-mini' }],
+      modes: [
+        { id: 'default', name: 'Default' },
+        { id: 'plan', name: 'Plan' },
+      ],
+      thinking: {
+        configId: 'thinking',
+        currentValue: 'auto',
+        options: [
+          { id: 'off', name: 'Off' },
+          { id: 'auto', name: 'Auto' },
+        ],
+      },
+    });
+  });
+
   it('returns models advertised through OMP ACP config options', async () => {
     const kernel = {
       cancel: jest.fn(),
@@ -27,6 +74,7 @@ describe('OmpModelDiscoveryService', () => {
       }),
       prompt: jest.fn(),
       setModel: jest.fn(),
+      setConfigOption: jest.fn(),
     };
     const plugin = {
       app: { vault: { adapter: { basePath: '/vault' } } },
@@ -66,6 +114,7 @@ describe('OmpModelDiscoveryService', () => {
       }),
       prompt: jest.fn(),
       setModel: jest.fn(),
+      setConfigOption: jest.fn(),
     };
     const plugin = {
       app: { vault: { adapter: { basePath: '/vault' } } },

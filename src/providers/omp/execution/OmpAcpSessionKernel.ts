@@ -41,6 +41,12 @@ export interface OmpAcpSessionKernel {
   connect(): Promise<void>;
   openSession(resumeSessionId?: string): Promise<OmpNativeSessionInfo>;
   setModel(request: { modelId: string; sessionId: string }): Promise<void>;
+  setConfigOption(request: {
+    configId: string;
+    sessionId: string;
+    type: 'select';
+    value: string;
+  }): Promise<void>;
   prompt(request: AcpPromptRequest): Promise<Pick<AcpPromptResponse, 'usage' | 'userMessageId'>>;
   cancel(sessionId: string): void;
   dispose(): Promise<void>;
@@ -135,6 +141,16 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       type: 'select',
       value: request.modelId,
     });
+  }
+
+  async setConfigOption(request: {
+    configId: string;
+    sessionId: string;
+    type: 'select';
+    value: string;
+  }): Promise<void> {
+    if (!this.connection) throw new Error('OMP ACP kernel is not connected');
+    await this.connection.setConfigOption(request);
   }
 
   prompt(request: AcpPromptRequest): Promise<Pick<AcpPromptResponse, 'usage' | 'userMessageId'>> {
