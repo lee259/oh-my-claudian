@@ -5,7 +5,6 @@ import type {
 import {
   decodeOmpModelId,
   encodeOmpModelId,
-  type OmpConfigChoice,
 } from '../models';
 import { getOmpProviderSettings, updateOmpProviderSettings } from '../settings';
 
@@ -17,11 +16,6 @@ const PERMISSION_MODE: ProviderPermissionModeToggleConfig = {
   planValue: 'plan',
   planLabel: 'Plan',
 };
-
-const OMP_FALLBACK_MODES = [
-  { id: 'default', name: 'Default' },
-  { id: 'plan', name: 'Plan' },
-] as const;
 
 export const ompChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings) {
@@ -64,31 +58,5 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
     const target = settings as Record<string, unknown>;
     target.permissionMode = value;
     updateOmpProviderSettings(target, { selectedMode: value === 'plan' ? 'plan' : 'default' });
-  },
-  getModeSelector(settings) {
-    const omp = getOmpProviderSettings(settings);
-    const modes: readonly OmpConfigChoice[] = omp.availableModes.length === 2
-      ? omp.availableModes
-      : OMP_FALLBACK_MODES;
-    return {
-      label: 'Mode',
-      options: modes.map(mode => ({
-        ...(mode.description ? { description: mode.description } : {}),
-        label: mode.name,
-        value: mode.id,
-      })),
-      value: modes.some(mode => mode.id === omp.selectedMode) ? omp.selectedMode : modes[0].id,
-    };
-  },
-  applyModeSelection(value, settings) {
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
-    const target = settings as Record<string, unknown>;
-    const available = getOmpProviderSettings(target).availableModes;
-    const modes: readonly OmpConfigChoice[] = available.length === 2
-      ? available
-      : OMP_FALLBACK_MODES;
-    if (!modes.some(mode => mode.id === value)) return;
-    target.permissionMode = value === 'plan' ? 'plan' : 'normal';
-    updateOmpProviderSettings(target, { selectedMode: value });
   },
 };

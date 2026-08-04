@@ -457,7 +457,6 @@ export class PermissionToggle {
     const canShowPlan = Boolean(planValue) && capabilities.supportsPlanMode;
 
     if (canShowPlan && planValue && mode === planValue) {
-      this.toggleEl.addClass('claudian-hidden');
       this.labelEl.setText(planLabel);
       this.labelEl.addClass('plan-active');
     } else {
@@ -478,9 +477,13 @@ export class PermissionToggle {
     if (!toggleConfig) return;
 
     const current = this.callbacks.getSettings().permissionMode;
-    const newMode = current === toggleConfig.activeValue
-      ? toggleConfig.inactiveValue
-      : toggleConfig.activeValue;
+    const canCyclePlan = Boolean(toggleConfig.planValue)
+      && this.callbacks.getCapabilities().supportsPlanMode;
+    const newMode = current === toggleConfig.inactiveValue
+      ? toggleConfig.activeValue
+      : current === toggleConfig.activeValue && canCyclePlan
+        ? toggleConfig.planValue!
+        : toggleConfig.inactiveValue;
     await this.callbacks.onPermissionModeChange(newMode);
     this.updateDisplay();
   }
