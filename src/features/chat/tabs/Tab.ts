@@ -1858,6 +1858,9 @@ export function initializeTabControllers(
       ensureExecutionInitialized,
       getProviderId: () => getTabProviderId(tab, plugin),
       getSelectedModel: () => getTabSelectedModel(tab, plugin),
+      getInitialUsage: (providerId, model) => ProviderRegistry
+        .getChatUIConfig(providerId)
+        .getInitialUsage?.(model, plugin.settings) ?? null,
       dismissPendingInlinePrompts: () => tab.controllers.inputController?.dismissPendingApproval(),
       awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
       isDisposed: () => tab.lifecycleState === 'closing',

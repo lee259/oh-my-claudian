@@ -2,6 +2,7 @@ import type {
   ProviderChatUIConfig,
   ProviderPermissionModeToggleConfig,
 } from '../../../core/providers/types';
+import { buildInitialOmpUsageInfo } from '../execution/OmpExecutionSession';
 import {
   decodeOmpModelId,
   encodeOmpModelId,
@@ -42,6 +43,9 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
     value: option.id,
   })) ?? [],
   getDefaultReasoningValue: (_model, settings) => getOmpProviderSettings(settings).thinking?.currentValue ?? 'default',
+  getInitialUsage(model) {
+    return buildInitialOmpUsageInfo(decodeOmpModelId(model) ?? undefined);
+  },
   getContextWindowSize: (_model, customLimits) => customLimits?.omp ?? 200_000,
   isDefaultModel: model => decodeOmpModelId(model) !== null,
   applyModelDefaults: () => undefined,

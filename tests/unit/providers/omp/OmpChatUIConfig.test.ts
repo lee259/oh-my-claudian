@@ -38,4 +38,13 @@ describe('OMP chat configuration', () => {
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
   });
 
+  it('provides a context snapshot when restoring an OMP conversation', () => {
+    expect(ompChatUIConfig.getInitialUsage?.('omp:openai/gpt-5-mini', settings)).toMatchObject({
+      contextTokens: 0,
+      contextWindow: 200_000,
+      model: 'openai/gpt-5-mini',
+      percentage: 0,
+    });
+  });
+
 });
