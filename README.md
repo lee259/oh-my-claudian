@@ -1,8 +1,8 @@
-# Claudian
+# Oh My Claudian
 
 ![Preview](assets/Preview.png)
 
-Claudian is an Obsidian plugin that embeds coding agents in your vault. Agents can read, write, search, run commands, and carry out multi-step workflows in the vault working directory.
+Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Agents can read, write, search, run commands, and carry out multi-step workflows in the vault working directory.
 
 > This repository is based on [YishenTu/claudian](https://github.com/YishenTu/claudian) and adds Oh My Pi (OMP) support through ACP.
 
@@ -34,8 +34,8 @@ Claudian is an Obsidian plugin that embeds coding agents in your vault. Agents c
 
 ```bash
 cd /path/to/vault/.obsidian/plugins
-git clone https://github.com/lee259/claudian.git
-cd claudian
+git clone https://github.com/lee259/oh-my-claudian.git
+cd oh-my-claudian
 npm install
 npm run build
 ```
@@ -54,11 +54,11 @@ npm run test
 
 ## Privacy
 
-Your input, attachments, and tool results are sent only to the provider you select: Claude, Codex, Grok, OMP, OpenCode, Pi, or their configured model providers. Claudian does not send telemetry. Network activity is limited to explicit provider work and configured MCP endpoints.
+Your input, attachments, and tool results are sent only to the provider you select: Claude, Codex, Grok, OMP, OpenCode, Pi, or their configured model providers. Oh My Claudian does not send telemetry. Network activity is limited to explicit provider work and configured MCP endpoints.
 
 ## Troubleshooting
 
-If a provider CLI is not found, first leave its configured path blank so Claudian can auto-detect it. If detection fails, set the executable path in the provider settings and ensure its runtime is available to Obsidian's `PATH`.
+If a provider CLI is not found, first leave its configured path blank so Oh My Claudian can auto-detect it. If detection fails, set the executable path in the provider settings and ensure its runtime is available to Obsidian's `PATH`.
 
 ## Architecture
 
