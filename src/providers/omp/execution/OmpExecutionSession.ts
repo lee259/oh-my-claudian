@@ -18,6 +18,8 @@ import {
   type AcpSessionNotification,
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
+import { appendCurrentNote } from '@/utils/context';
+import { appendEditorContext } from '@/utils/editor';
 
 import { decodeOmpModelId } from '../models';
 import { getOmpProviderSettings } from '../settings';
@@ -182,7 +184,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       });
       this.normalizers.set(run, normalizer);
       const response = await this.kernel.prompt({
-        prompt: buildPrompt(request),
+        prompt: buildOmpPrompt(request),
         sessionId: native.sessionId,
       });
       if (run.terminal) return;
@@ -272,8 +274,14 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   }
 }
 
-function buildPrompt(request: ProviderExecutionRequest): AcpContentBlock[] {
-  const text = request.input.filter(block => block.type === 'text').map(block => block.text).join('\n');
+export function buildOmpPrompt(request: ProviderExecutionRequest): AcpContentBlock[] {
+  let text = request.input.filter(block => block.type === 'text').map(block => block.text).join('\n');
+  if (request.context?.currentNote?.path) {
+    text = appendCurrentNote(text, request.context.currentNote.path);
+  }
+  if (request.context?.editorSelection) {
+    text = appendEditorContext(text, request.context.editorSelection);
+  }
   const blocks: AcpContentBlock[] = [{ type: 'text', text }];
   for (const block of request.input) {
     if (block.type === 'image' && block.image.data) {
