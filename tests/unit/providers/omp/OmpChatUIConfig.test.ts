@@ -5,7 +5,6 @@ describe('OMP chat configuration', () => {
   const settings: Record<string, unknown> = {
     providerConfigs: {
       omp: {
-        selectedMode: 'plan',
         thinking: {
           configId: 'thinking',
           currentValue: 'auto',
@@ -19,31 +18,29 @@ describe('OMP chat configuration', () => {
     },
   };
 
-  it('exposes OMP ACP thinking levels and the native plan mode', () => {
-    expect(OMP_PROVIDER_CAPABILITIES.supportsPlanMode).toBe(true);
+  it('exposes OMP ACP thinking levels without a provider plan mode', () => {
+    expect(OMP_PROVIDER_CAPABILITIES.supportsPlanMode).toBe(false);
     expect(ompChatUIConfig.getReasoningOptions('omp:openai/gpt-5-mini', settings)).toEqual([
       { label: 'Off', value: 'off' },
       { label: 'Auto', value: 'auto' },
       { label: 'High', value: 'high' },
     ]);
     expect(ompChatUIConfig.getDefaultReasoningValue('omp:openai/gpt-5-mini', settings)).toBe('auto');
-    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
     expect(ompChatUIConfig.getModeSelector?.(settings) ?? null).toBeNull();
   });
 
-  it('exposes only Build and Plan through the shared control', () => {
+  it('reuses the shared Safe and YOLO permission control', () => {
     expect(ompChatUIConfig.getPermissionModeToggle?.()).toEqual({
-      activeLabel: 'Build',
+      activeLabel: 'YOLO',
       activeValue: 'yolo',
-      inactiveLabel: 'Plan',
-      inactiveValue: 'plan',
-      planLabel: 'Plan',
-      planValue: 'plan',
+      inactiveLabel: 'Safe',
+      inactiveValue: 'normal',
     });
     ompChatUIConfig.applyPermissionMode?.('yolo', settings);
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('yolo');
-    ompChatUIConfig.applyPermissionMode?.('plan', settings);
-    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
+    ompChatUIConfig.applyPermissionMode?.('normal', settings);
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
   });
 
   it('provides a context snapshot when restoring an OMP conversation', () => {

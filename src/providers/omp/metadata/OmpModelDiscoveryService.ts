@@ -13,7 +13,6 @@ import {
 
 export interface OmpModelCatalog {
   models: OmpDiscoveredModel[];
-  modes: Array<{ description?: string; id: string; name: string }>;
   thinking: {
     configId: string;
     currentValue: string | null;
@@ -54,11 +53,9 @@ export class OmpModelDiscoveryService {
       signal?.throwIfAborted();
       const session = await kernel.openSession();
       signal?.throwIfAborted();
-      const modes = normalizeOmpConfigChoices(session.configOptions, 'mode');
       const thinking = normalizeOmpConfigChoices(session.configOptions, 'thought_level');
       return {
         models: normalizeOmpConfigOptionModels(session.configOptions),
-        modes: modes.options,
         thinking: thinking.configId
           ? {
             configId: thinking.configId,

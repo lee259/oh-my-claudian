@@ -3,7 +3,7 @@ import type { ProviderCapabilities } from '../../core/providers/types';
 export const OMP_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Object.freeze({
   providerId: 'omp',
   supportsNativeHistory: true,
-  supportsPlanMode: true,
+  supportsPlanMode: false,
   supportsRewind: false,
   supportsFork: true,
   supportsProviderCommands: false,

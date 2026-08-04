@@ -245,12 +245,6 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       });
     }
 
-    const mode = getOmpProviderSettings(this.plugin.settings).selectedMode;
-    if (mode && (mode === 'default' || mode === 'plan')) {
-      await this.kernel.setConfigOption({
-        configId: 'mode', sessionId: native.sessionId, type: 'select', value: mode,
-      });
-    }
   }
 
   private handleNotification(run: OmpExecutionRun, notification: AcpSessionNotification): void {

@@ -24,7 +24,6 @@ export const ompWorkspaceRegistration: ProviderWorkspaceRegistration<OmpWorkspac
           const catalog = await modelDiscoveryService.discoverCatalog();
           await plugin.mutateSettings(settings => {
             updateOmpProviderSettings(settings, {
-              availableModes: catalog.modes,
               discoveredModels: catalog.models,
               ...(catalog.thinking ? { thinking: catalog.thinking } : {}),
             });

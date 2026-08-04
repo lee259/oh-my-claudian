@@ -7,15 +7,13 @@ import {
   decodeOmpModelId,
   encodeOmpModelId,
 } from '../models';
-import { getOmpProviderSettings, updateOmpProviderSettings } from '../settings';
+import { getOmpProviderSettings } from '../settings';
 
 const PERMISSION_MODE: ProviderPermissionModeToggleConfig = {
-  inactiveValue: 'plan',
-  inactiveLabel: 'Plan',
+  inactiveValue: 'normal',
+  inactiveLabel: 'Safe',
   activeValue: 'yolo',
-  activeLabel: 'Build',
-  planValue: 'plan',
-  planLabel: 'Plan',
+  activeLabel: 'YOLO',
 };
 
 export const ompChatUIConfig: ProviderChatUIConfig = {
@@ -53,14 +51,11 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
   getCustomModelIds: () => new Set<string>(),
   getPermissionModeToggle: (): ProviderPermissionModeToggleConfig => PERMISSION_MODE,
   resolvePermissionMode(settings) {
-    const omp = getOmpProviderSettings(settings);
-    if (omp.selectedMode === 'plan') return 'plan';
-    return 'yolo';
+    return settings.permissionMode === 'yolo' ? 'yolo' : 'normal';
   },
   applyPermissionMode(value, settings) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
     const target = settings as Record<string, unknown>;
-    target.permissionMode = value;
-    updateOmpProviderSettings(target, { selectedMode: value === 'plan' ? 'plan' : 'default' });
+    target.permissionMode = value === 'yolo' ? 'yolo' : 'normal';
   },
 };

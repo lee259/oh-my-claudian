@@ -1,7 +1,7 @@
 import { OmpModelDiscoveryService } from '@/providers/omp/metadata/OmpModelDiscoveryService';
 
 describe('OmpModelDiscoveryService', () => {
-  it('discovers OMP native mode and thinking choices alongside models', async () => {
+  it('discovers OMP thinking choices alongside models', async () => {
     const kernel = {
       cancel: jest.fn(),
       connect: jest.fn().mockResolvedValue(undefined),
@@ -33,10 +33,6 @@ describe('OmpModelDiscoveryService', () => {
 
     await expect(service.discoverCatalog()).resolves.toEqual({
       models: [{ label: 'GPT-5 mini', rawId: 'openai/gpt-5-mini' }],
-      modes: [
-        { id: 'default', name: 'Default' },
-        { id: 'plan', name: 'Plan' },
-      ],
       thinking: {
         configId: 'thinking',
         currentValue: 'auto',
