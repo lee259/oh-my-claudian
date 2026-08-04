@@ -1121,10 +1121,10 @@ describe('ContextUsageMeter', () => {
     expect(container?.style.display).toBe('none');
   });
 
-  it('should remain hidden when contextTokens is 0', () => {
+  it('should show a known context window even when contextTokens is 0', () => {
     meter.update(makeUsage({ contextTokens: 0, contextWindow: 200000, percentage: 0 }));
     const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.style.display).toBe('none');
+    expect(container?.style.display).toBe('flex');
   });
 
   it('should become visible when contextTokens > 0', () => {

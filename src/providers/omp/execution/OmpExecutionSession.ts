@@ -12,6 +12,7 @@ import type {
   ProviderSessionStatus,
 } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
+import type { UsageInfo } from '@/core/types';
 import {
   type AcpContentBlock,
   AcpExecutionEventNormalizer,
@@ -189,6 +190,14 @@ export class OmpExecutionSession implements ProviderExecutionSession {
         },
       });
       this.normalizers.set(run, normalizer);
+      const selectedModel = decodeOmpModelId(request.configuration.model ?? '')
+        ?? getOmpProviderSettings(this.plugin.settings).visibleModels[0]
+        ?? undefined;
+      run.queue.push({
+        scope: run.scope(),
+        type: 'usage_updated',
+        usage: buildInitialOmpUsageInfo(selectedModel),
+      });
       const response = await this.kernel.prompt({
         prompt: buildOmpPrompt(request),
         sessionId: native.sessionId,
@@ -303,4 +312,17 @@ export function buildOmpUsageInfo(usage: AcpUsageUpdate, model?: string) {
     model,
     promptUsage: null,
   });
+}
+
+export function buildInitialOmpUsageInfo(model?: string): UsageInfo {
+  return {
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: 0,
+    contextTokens: 0,
+    contextWindow: 200_000,
+    contextWindowIsAuthoritative: false,
+    inputTokens: 0,
+    ...(model ? { model } : {}),
+    percentage: 0,
+  };
 }

@@ -1,4 +1,7 @@
-import { buildOmpUsageInfo } from '@/providers/omp/execution/OmpExecutionSession';
+import {
+  buildInitialOmpUsageInfo,
+  buildOmpUsageInfo,
+} from '@/providers/omp/execution/OmpExecutionSession';
 
 describe('OMP usage projection', () => {
   it('projects ACP context usage into the chat context meter', () => {
@@ -11,6 +14,16 @@ describe('OMP usage projection', () => {
       inputTokens: 0,
       model: 'openai/gpt-5-mini',
       percentage: 21,
+    });
+  });
+
+  it('provides an initial context snapshot before ACP emits usage', () => {
+    expect(buildInitialOmpUsageInfo('openai/gpt-5-mini')).toMatchObject({
+      contextTokens: 0,
+      contextWindow: 200_000,
+      contextWindowIsAuthoritative: false,
+      model: 'openai/gpt-5-mini',
+      percentage: 0,
     });
   });
 });

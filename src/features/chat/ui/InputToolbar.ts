@@ -1227,7 +1227,7 @@ export class ContextUsageMeter {
   }
 
   update(usage: UsageInfo | null): void {
-    if (!usage || usage.contextTokens <= 0) {
+    if (!usage || usage.contextWindow <= 0) {
       this.container.addClass('claudian-hidden');
       return;
     }
