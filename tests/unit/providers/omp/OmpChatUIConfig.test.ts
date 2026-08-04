@@ -31,9 +31,17 @@ describe('OMP chat configuration', () => {
     expect(ompChatUIConfig.getModeSelector?.(settings) ?? null).toBeNull();
   });
 
-  it('maps the shared plan control to OMP native mode selection', () => {
-    ompChatUIConfig.applyPermissionMode?.('normal', settings);
-    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
+  it('exposes only Build and Plan through the shared control', () => {
+    expect(ompChatUIConfig.getPermissionModeToggle?.()).toEqual({
+      activeLabel: 'Build',
+      activeValue: 'yolo',
+      inactiveLabel: 'Plan',
+      inactiveValue: 'plan',
+      planLabel: 'Plan',
+      planValue: 'plan',
+    });
+    ompChatUIConfig.applyPermissionMode?.('yolo', settings);
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('yolo');
     ompChatUIConfig.applyPermissionMode?.('plan', settings);
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('plan');
   });

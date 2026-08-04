@@ -10,10 +10,10 @@ import {
 import { getOmpProviderSettings, updateOmpProviderSettings } from '../settings';
 
 const PERMISSION_MODE: ProviderPermissionModeToggleConfig = {
-  inactiveValue: 'normal',
-  inactiveLabel: 'Read-only',
+  inactiveValue: 'plan',
+  inactiveLabel: 'Plan',
   activeValue: 'yolo',
-  activeLabel: 'All tools',
+  activeLabel: 'Build',
   planValue: 'plan',
   planLabel: 'Plan',
 };
@@ -55,7 +55,7 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
   resolvePermissionMode(settings) {
     const omp = getOmpProviderSettings(settings);
     if (omp.selectedMode === 'plan') return 'plan';
-    return typeof settings.permissionMode === 'string' ? settings.permissionMode : 'normal';
+    return 'yolo';
   },
   applyPermissionMode(value, settings) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;

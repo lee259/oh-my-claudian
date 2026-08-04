@@ -451,7 +451,7 @@ export class PermissionToggle {
     }
 
     this.container.removeClass('claudian-hidden');
-    const mode = this.callbacks.getSettings().permissionMode;
+    const mode = this.getCurrentMode();
     const planValue = toggleConfig.planValue;
     const planLabel = toggleConfig.planLabel ?? 'PLAN';
     const canShowPlan = Boolean(planValue) && capabilities.supportsPlanMode;
@@ -476,7 +476,7 @@ export class PermissionToggle {
     const toggleConfig = this.getToggleConfig();
     if (!toggleConfig) return;
 
-    const current = this.callbacks.getSettings().permissionMode;
+    const current = this.getCurrentMode();
     const canCyclePlan = Boolean(toggleConfig.planValue)
       && this.callbacks.getCapabilities().supportsPlanMode;
     const newMode = current === toggleConfig.inactiveValue
@@ -486,6 +486,12 @@ export class PermissionToggle {
         : toggleConfig.inactiveValue;
     await this.callbacks.onPermissionModeChange(newMode);
     this.updateDisplay();
+  }
+
+  private getCurrentMode(): string {
+    const settings = this.callbacks.getSettings();
+    return this.callbacks.getUIConfig().resolvePermissionMode?.(settings)
+      ?? settings.permissionMode;
   }
 }
 
