@@ -17,15 +17,11 @@
 
 An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, Grok, Opencode, Pi, and more to come) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
 
-> This repository is a fork of [YishenTu/claudian](https://github.com/YishenTu/claudian), maintained as an OMP-focused variant. It keeps the upstream providers and adds first-class Oh My Pi support through ACP.
+> This repository is a fork of [YishenTu/claudian](https://github.com/YishenTu/claudian). In addition to the upstream providers, it adds Oh My Pi (OMP) support through ACP.
 
 ## What This Fork Adds
 
-- **OMP ACP provider** — Run Oh My Pi (OMP) directly in the Claudian chat sidebar, with OMP-native model discovery and selection.
-- **OMP-aware context** — The current note and editor selection are included with each OMP request; image attachments are supported as well.
-- **Useful session feedback** — OMP streams plan/thinking output, reports live context-window usage, and restores the context meter after restarting Obsidian.
-- **Simple OMP permissions** — The shared **Safe / YOLO** control determines whether OMP tool operations ask for confirmation; OMP does not add a separate Plan mode.
-- **OMP visual identity** — OMP has its own cyan accent color instead of inheriting Claude's styling.
+- **Oh My Pi (OMP)** — Adds an ACP-backed OMP provider to the chat sidebar, including model discovery and selection.
 
 ## Features & Usage
 
