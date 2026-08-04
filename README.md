@@ -25,7 +25,7 @@ Claudian is an Obsidian plugin that embeds coding agents in your vault. Agents c
   - [Codex CLI](https://github.com/openai/codex)
   - [Grok Build](https://github.com/xai-org/grok-build)
   - [OpenCode](https://github.com/anomalyco/opencode)
-  - Oh My Pi (OMP, via ACP)
+  - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) via ACP
   - [Pi](https://github.com/earendil-works/pi)
 - A compatible subscription or API provider.
 - Obsidian v1.7.2+ on macOS, Linux, or Windows.
