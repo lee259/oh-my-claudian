@@ -16,6 +16,8 @@ import {
   type AcpContentBlock,
   AcpExecutionEventNormalizer,
   type AcpSessionNotification,
+  type AcpUsageUpdate,
+  buildAcpUsageInfo,
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 import { appendCurrentNote } from '@/utils/context';
@@ -175,6 +177,10 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       this.snapshot = this.makeSnapshot('executing');
       this.emitSnapshot(run);
       const normalizer = new AcpExecutionEventNormalizer({
+        mapUsage: usage => buildOmpUsageInfo(
+          usage,
+          decodeOmpModelId(request.configuration.model ?? '') ?? undefined,
+        ),
         scope: {
           executionId: run.executionId,
           kind: 'requested',
@@ -289,4 +295,12 @@ export function buildOmpPrompt(request: ProviderExecutionRequest): AcpContentBlo
     }
   }
   return blocks;
+}
+
+export function buildOmpUsageInfo(usage: AcpUsageUpdate, model?: string) {
+  return buildAcpUsageInfo({
+    contextWindow: usage,
+    model,
+    promptUsage: null,
+  });
 }
