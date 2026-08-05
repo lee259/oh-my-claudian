@@ -67,22 +67,15 @@ export function renderProviderReadinessPanel(
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {
   const row = container.createDiv({ cls: 'claudian-provider-readiness-check' });
   if (row.dataset) row.dataset.status = check.status;
-  const createSpan = typeof row.createSpan === 'function'
-    ? row.createSpan.bind(row)
-    : (options: { cls: string; text: string }) => {
-      // Some lightweight settings test doubles do not implement Obsidian's createSpan helper.
-      // eslint-disable-next-line obsidianmd/prefer-create-el
-      return row.createEl('span', options);
-    };
-  createSpan({
+  row.createSpan({
     cls: 'claudian-provider-readiness-check-icon',
     text: getStatusIcon(check.status),
   });
-  createSpan({
+  row.createSpan({
     cls: 'claudian-provider-readiness-check-label',
     text: t(`settings.providerReadiness.check.${check.id}`),
   });
-  createSpan({
+  row.createSpan({
     cls: 'claudian-provider-readiness-check-status',
     text: t(`settings.providerReadiness.status.${check.status}`),
   });
