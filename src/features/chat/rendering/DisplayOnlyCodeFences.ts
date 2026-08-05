@@ -87,12 +87,3 @@ export async function restoreDisplayOnlyCodeFences(
     // Language restoration is authoritative; highlighting is best-effort.
   }
 }
-
-function isPrismHighlighter(value: unknown): value is {
-  highlightElement(element: HTMLElement): void;
-} {
-  if (typeof value !== 'object' || value === null || !('highlightElement' in value)) {
-    return false;
-  }
-  return typeof value.highlightElement === 'function';
-}
