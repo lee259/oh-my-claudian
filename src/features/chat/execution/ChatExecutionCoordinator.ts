@@ -537,6 +537,10 @@ export class ChatExecutionCoordinator {
     assistantMessageId: string | undefined,
     mode?: ChatRewindMode,
   ): Promise<ChatRewindPreview> {
+    const activeExecutionError = this.getActiveExecutionMutationError('rewind');
+    if (activeExecutionError) {
+      return { canRewind: false, error: activeExecutionError };
+    }
     return this.runProtectedOperation(() => this.previewRewindProtected(
       userMessageId,
       assistantMessageId,
@@ -558,6 +562,7 @@ export class ChatExecutionCoordinator {
   }
 
   async setMode(mode: string): Promise<boolean> {
+    if (this.getActiveExecutionMutationError('change execution mode')) return false;
     return this.runProtectedOperation(() => this.setModeProtected(mode));
   }
 
@@ -576,6 +581,10 @@ export class ChatExecutionCoordinator {
     assistantMessageId: string | undefined,
     mode?: ChatRewindMode,
   ): Promise<ChatRewindResult> {
+    const activeExecutionError = this.getActiveExecutionMutationError('rewind');
+    if (activeExecutionError) {
+      return { canRewind: false, error: activeExecutionError };
+    }
     return this.runProtectedOperation(() => this.rewindProtected(
       userMessageId,
       assistantMessageId,
