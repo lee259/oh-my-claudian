@@ -48,7 +48,9 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getCodexProviderSettings(settingsBag);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('codex'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('codex')
+            : null,
           discoveredModelCount: current.discoveredModels.length,
           enabled: current.enabled,
           selectedModelCount: getCodexModelOptions(settingsBag).length,

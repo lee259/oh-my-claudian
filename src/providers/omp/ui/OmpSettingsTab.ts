@@ -35,7 +35,9 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const provider = getOmpProviderSettings(settings);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('omp'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('omp')
+            : null,
           discoveredModelCount: provider.discoveredModels.length,
           enabled: provider.enabled,
           selectedModelCount: provider.visibleModels.length,

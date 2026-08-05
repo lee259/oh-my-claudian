@@ -25,19 +25,19 @@ export function renderProviderReadinessPanel(
 
   const summary = root.createDiv({ cls: 'claudian-provider-readiness-summary' });
   const checks = root.createDiv({ cls: 'claudian-provider-readiness-checks' });
-  const action = new Setting(root);
-  let refreshButton: HTMLButtonElement | null = null;
+  const refreshButton = options.onRefresh
+    ? root.createEl('button', {
+      cls: 'claudian-provider-readiness-refresh',
+      text: t('settings.providerReadiness.refresh'),
+    })
+    : null;
 
-  action.addButton(button => {
-    refreshButton = button.buttonEl;
-    button.setButtonText(t('settings.providerReadiness.refresh'));
-    button.onClick(() => { void refresh(true); });
-  });
+  refreshButton?.addEventListener?.('click', () => { void refresh(true); });
 
   const renderSnapshot = (snapshot: ProviderReadinessSnapshot): void => {
     summary.setText(t(`settings.providerReadiness.status.${snapshot.status}`));
-    summary.dataset.status = snapshot.status;
-    checks.empty();
+    if (summary.dataset) summary.dataset.status = snapshot.status;
+    checks.empty?.();
     for (const check of snapshot.checks) {
       renderCheck(checks, check);
     }
@@ -61,16 +61,23 @@ export function renderProviderReadinessPanel(
 
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {
   const row = container.createDiv({ cls: 'claudian-provider-readiness-check' });
-  row.dataset.status = check.status;
-  row.createSpan({
+  if (row.dataset) row.dataset.status = check.status;
+  const createSpan = typeof row.createSpan === 'function'
+    ? row.createSpan.bind(row)
+    : (options: { cls: string; text: string }) => {
+      // Some lightweight settings test doubles do not implement Obsidian's createSpan helper.
+      // eslint-disable-next-line obsidianmd/prefer-create-el
+      return row.createEl('span', options);
+    };
+  createSpan({
     cls: 'claudian-provider-readiness-check-icon',
     text: getStatusIcon(check.status),
   });
-  row.createSpan({
+  createSpan({
     cls: 'claudian-provider-readiness-check-label',
     text: t(`settings.providerReadiness.check.${check.id}`),
   });
-  row.createSpan({
+  createSpan({
     cls: 'claudian-provider-readiness-check-status',
     text: t(`settings.providerReadiness.status.${check.status}`),
   });

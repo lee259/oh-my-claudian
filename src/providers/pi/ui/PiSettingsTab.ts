@@ -46,7 +46,9 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getPiProviderSettings(settingsBag);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('pi'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('pi')
+            : null,
           discoveredModelCount: current.discoveredModels.length,
           enabled: current.enabled,
           selectedModelCount: current.visibleModels.length,

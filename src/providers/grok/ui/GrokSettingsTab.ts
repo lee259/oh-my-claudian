@@ -64,7 +64,9 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getGrokProviderSettings(settingsBag);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('grok'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('grok')
+            : null,
           discoveredModelCount: current.currentCatalog?.models.length ?? 0,
           enabled: current.enabled,
           selectedModelCount: current.visibleModels?.length

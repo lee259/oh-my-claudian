@@ -39,7 +39,9 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         const model = typeof settingsBag.model === 'string' ? settingsBag.model : '';
         const modelOptions = getClaudeModelOptions(settingsBag);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('claude'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('claude')
+            : null,
           discoveredModelCount: modelOptions.length,
           enabled: getClaudeProviderSettings(settingsBag).enabled,
           selectedModelCount: findClaudeModelOption(modelOptions, model) ? 1 : 0,

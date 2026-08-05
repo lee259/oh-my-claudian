@@ -54,7 +54,9 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getOpencodeProviderSettings(settingsBag);
         return assessProviderReadiness({
-          cliPath: await context.plugin.getResolvedProviderCliPath('opencode'),
+          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
+            ? await context.plugin.getResolvedProviderCliPath('opencode')
+            : null,
           discoveredModelCount: current.discoveredModels.length,
           enabled: current.enabled,
           selectedModelCount: current.visibleModels.length,
