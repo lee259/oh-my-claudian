@@ -67,18 +67,45 @@ export function renderProviderReadinessPanel(
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {
   const row = container.createDiv({ cls: 'claudian-provider-readiness-check' });
   if (row.dataset) row.dataset.status = check.status;
-  row.createSpan({
+  createReadinessSpan(row, {
     cls: 'claudian-provider-readiness-check-icon',
     text: getStatusIcon(check.status),
   });
-  row.createSpan({
+  createReadinessSpan(row, {
     cls: 'claudian-provider-readiness-check-label',
     text: t(`settings.providerReadiness.check.${check.id}`),
   });
-  row.createSpan({
+  createReadinessSpan(row, {
     cls: 'claudian-provider-readiness-check-status',
     text: t(`settings.providerReadiness.status.${check.status}`),
   });
+}
+
+interface ReadinessSpanOptions {
+  cls: string;
+  text: string;
+}
+
+interface ObsidianElementHelpers {
+  createSpan?: (options: ReadinessSpanOptions) => HTMLElement;
+  createEl?: (tag: string, options: ReadinessSpanOptions) => HTMLElement;
+}
+
+function createReadinessSpan(
+  row: HTMLElement,
+  options: ReadinessSpanOptions,
+): HTMLElement {
+  const helpers = row as HTMLElement & ObsidianElementHelpers;
+  if (typeof helpers.createSpan === 'function') {
+    return helpers.createSpan(options);
+  }
+
+  const createElement = helpers['createEl'];
+  if (typeof createElement === 'function') {
+    return createElement.call(row, 'span', options);
+  }
+
+  throw new Error('Obsidian element does not support span creation.');
 }
 
 function getStatusIcon(status: ProviderReadinessStatus): string {
