@@ -6,11 +6,12 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
 
 [Install from Obsidian Community Plugins](https://community.obsidian.md/plugins/oh-my-claudian) · [View on GitHub](https://github.com/lee259/oh-my-claudian)
 
-> This repository is based on [YishenTu/claudian](https://github.com/YishenTu/claudian) and adds Oh My Pi (OMP) support through ACP.
+> This repository is based on [YishenTu/claudian](https://github.com/YishenTu/claudian) and adds Oh My Pi (OMP) and Cursor support through ACP.
 
 ## Added in This Repository
 
 - **Oh My Pi (OMP)** — An ACP-backed OMP provider with model discovery and selection in the chat sidebar.
+- **Cursor** — A Cursor Agent ACP provider with model discovery and selection in the chat sidebar.
 
 ## Features
 
@@ -28,7 +29,7 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
 
 **Instruction Mode (`#`)** — Refined custom instructions added from the chat input.
 
-**MCP Servers** — Connect external tools via Model Context Protocol (stdio, SSE, HTTP). Claude manages vault MCP in-app; Other harnesses uses its own CLI-managed MCP configuration.
+**MCP Servers** — Connect external tools via Model Context Protocol (stdio, SSE, HTTP). Claude manages vault MCP in-app; other harnesses use their own CLI-managed MCP configuration.
 
 **Tabs & Session Management** — Use multiple tabs in single-panel mode or a persistent session manager beside the chat in dual-pane mode.
 
@@ -40,6 +41,7 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
   - [Grok Build](https://github.com/xai-org/grok-build)
   - [OpenCode](https://github.com/anomalyco/opencode)
   - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)
+  - [Cursor Agent CLI](https://cursor.com/docs/cli/acp)
   - [Pi](https://github.com/earendil-works/pi)
 - A compatible subscription or API provider.
 - Obsidian v1.7.2+ on macOS, Linux, or Windows.
@@ -67,7 +69,7 @@ Then enable the plugin in Obsidian under **Settings → Community plugins**.
 
 ## Usage
 
-Open the chat sidebar from the ribbon icon or command palette. Select text and use the inline-edit hotkey to edit notes with a diff preview. Use `/` for commands and skills, `@` to reference vault files or provider resources, and the provider selector to choose Claude, Codex, Grok, OMP, OpenCode, or Pi.
+Open the chat sidebar from the ribbon icon or command palette. Select text and use the inline-edit hotkey to edit notes with a diff preview. Use `/` for commands and skills, `@` to reference vault files or provider resources, and the provider selector to choose Claude, Codex, Cursor, Grok, OMP, OpenCode, or Pi.
 
 ### First run
 
@@ -78,6 +80,8 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
 Each provider has a readiness panel in its settings tab. Use it to see whether the provider is enabled, its CLI is available, models have been discovered, and a chat model is selected. The panel refreshes after enablement changes and lets you recheck the current provider state; installation and authentication remain provider-native. Model pickers also show whether the catalog is fresh, cached, or failed to refresh, along with the provider default and current selection mode.
 
 OMP requires its CLI to be installed and logged in separately. In **Settings → Oh My Claudian → OMP**, enable the provider, set the CLI path if it is not detected automatically, and use **Discover** to load available models.
+
+Cursor requires the Cursor Agent CLI (`agent`) to be installed and authenticated separately. Run `agent login`, then enable **Cursor** in **Settings → Oh My Claudian → Cursor**. Leave the CLI path blank for automatic detection; if Obsidian cannot see your shell `PATH`, set the absolute path to `agent` and click **Discover** to load models. Cursor sessions support Agent, Ask, and Plan modes, image attachments, and Cursor-owned MCP configuration. Native history enumeration, fork, rewind, turn steering, and provider commands are not currently exposed by the Cursor integration.
 
 ## Development
 
@@ -118,7 +122,7 @@ The workflow validates the version, builds the plugin, runs the performance chec
 
 ## Privacy
 
-Your input, attachments, and tool results are sent only to the provider you select: Claude, Codex, Grok, OMP, OpenCode, Pi, or their configured model providers. Oh My Claudian does not send telemetry. Network activity is limited to explicit provider work and configured MCP endpoints.
+Your input, attachments, and tool results are sent only to the provider you select: Claude, Codex, Cursor, Grok, OMP, OpenCode, Pi, or their configured model providers. Oh My Claudian does not send telemetry. Network activity is limited to explicit provider work and configured MCP endpoints.
 
 ## Troubleshooting
 
@@ -126,13 +130,15 @@ If a provider CLI is not found, first leave its configured path blank so Oh My C
 
 For OMP specifically, verify that the CLI is installed, logged in, and executable by the Obsidian desktop process. If model discovery fails, set the absolute OMP path in the OMP settings tab and try **Discover** again.
 
+For Cursor, verify that `agent` is installed and that `agent login` completed. If the CLI is not found or model discovery fails, set the absolute `agent` path in the Cursor settings tab and try **Discover** again. Cursor MCP servers remain configured by Cursor (for example, in `.cursor/mcp.json`) rather than duplicated in Claudian.
+
 ## Architecture
 
 ```text
 src/
 ├── app/          # Application services and persistence
 ├── core/         # Provider-neutral contracts and runtime
-├── providers/    # Provider adaptors, including ACP and OMP
+├── providers/    # Provider adaptors, including ACP, Cursor, and OMP
 ├── features/     # Chat, inline edit, and settings UI
 ├── shared/       # Reusable UI components
 └── style/        # Modular CSS
