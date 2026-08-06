@@ -7,6 +7,7 @@ import type {
   ClaudianSettings,
   Conversation,
   ConversationMeta,
+  StoredChatModelSelection,
 } from '../core/types';
 import type { ChatExecutionPersistence } from './chat/execution/ChatExecutionCoordinator';
 import type { WarmExecutionPool } from './chat/execution/WarmExecutionPool';
@@ -27,15 +28,23 @@ export interface FeatureViewHost extends TabManagerViewHost {
   notifyConversationListChanged(): void;
   refreshModelSelector(providerId?: ProviderId): void;
   refreshTabControls(): void;
-  refreshMessageTimestamps?(): void;
   refreshDualPaneLayout(): void;
   updateHiddenProviderCommands(): void;
   invalidateProviderResources(providerIds: ProviderId[], generation: number): void;
 }
 
+export interface ChatModelSelectionPort {
+  beginIntent(): number;
+  commitIntent(
+    intent: number,
+    selection: StoredChatModelSelection,
+  ): Promise<boolean>;
+}
+
 /** Application capabilities consumed by user-facing features. */
 export interface FeatureHost {
   readonly app: App;
+  readonly chatModelSelection: ChatModelSelectionPort;
   readonly executionPersistence: ChatExecutionPersistence;
   readonly providerHost: ProviderHost;
   readonly settings: ClaudianSettings;
@@ -48,6 +57,7 @@ export interface FeatureHost {
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
   getAgentSkillResourceGeneration(): number;
   notifyAgentSkillsChanged(): Promise<void>;
+  notifyProviderChatOptionsChanged(providerId: ProviderId): void;
 
   createConversation(options?: {
     providerId?: ProviderId;

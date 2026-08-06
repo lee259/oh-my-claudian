@@ -713,40 +713,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
       });
   }
 
-  private renderProviderCapabilityMatrix(container: HTMLElement): void {
-    new Setting(container)
-      .setName(t('settings.capabilityMatrix.title'))
-      .setDesc(t('settings.capabilityMatrix.desc'))
-      .setHeading();
-
-    const matrix = container.createDiv({ cls: 'claudian-provider-capability-matrix' });
-    const table = matrix.createEl('table');
-    const headRow = table.createEl('thead').createEl('tr');
-    headRow.createEl('th', { text: t('settings.capabilityMatrix.provider') });
-    for (const row of PROVIDER_CAPABILITY_ROWS) {
-      headRow.createEl('th', { text: t(row.label) });
-    }
-
-    const body = table.createEl('tbody');
-    for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
-      const bodyRow = body.createEl('tr');
-      bodyRow.createEl('th', { text: ProviderRegistry.getProviderDisplayName(providerId) });
-      const capabilities = ProviderRegistry.getCapabilities(providerId);
-      for (const row of PROVIDER_CAPABILITY_ROWS) {
-        bodyRow.createEl('td', {
-          cls: capabilities[row.key] ? 'claudian-capability-supported' : 'claudian-capability-unsupported',
-          text: capabilities[row.key]
-            ? t('settings.capabilityMatrix.supported')
-            : t('settings.capabilityMatrix.unsupported'),
-        });
-      }
-    }
-  }
-
   private notifyProviderModelOptionsChanged(providerId: ProviderId): void {
-    for (const view of this.plugin.getAllViews()) {
-      view.refreshModelSelector(providerId);
-    }
+    this.plugin.notifyProviderChatOptionsChanged(providerId);
     this.refreshTitleModelOptions?.();
   }
 

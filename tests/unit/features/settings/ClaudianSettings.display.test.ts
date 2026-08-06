@@ -58,11 +58,6 @@ jest.mock('obsidian', () => {
       callback(createChainableComponent());
       return this;
     }
-
-    addButton(callback: (button: MockChainableComponent) => void): this {
-      callback(createChainableComponent());
-      return this;
-    }
   }
 
   function createChainableComponent(): MockChainableComponent {
@@ -74,9 +69,6 @@ jest.mock('obsidian', () => {
       'setPlaceholder',
       'setLimits',
       'setDynamicTooltip',
-      'setButtonText',
-      'setCta',
-      'onClick',
     ]) {
       component[method] = jest.fn(() => component);
     }
@@ -141,7 +133,7 @@ function createTab(enableDualPane: boolean): {
 function createContainer(): Record<string, jest.Mock> {
   const element: Record<string, jest.Mock> = {
     createSpan: jest.fn(() => ({})),
-    createEl: jest.fn(() => createContainer()),
+    createEl: jest.fn(() => ({ addEventListener: jest.fn() })),
     addEventListener: jest.fn(),
     addClass: jest.fn(),
     removeClass: jest.fn(),
@@ -170,32 +162,6 @@ describe('ClaudianSettingTab display settings', () => {
     (disabled.tab as any).renderGeneralTab(createContainer());
 
     expect(mockRenderedSettingNames).not.toContain(t('settings.dualPaneSide.name'));
-  });
-
-  it('renders a first-run getting started checklist with an open-chat action', () => {
-    const { tab } = createTab(true);
-
-    (tab as any).renderGeneralTab(createContainer());
-
-    expect(mockRenderedSettingNames).toContain(t('settings.gettingStarted.title'));
-    expect(mockRenderedSettingNames).toContain(t('settings.gettingStarted.openChat.name'));
-  });
-
-  it('renders the provider capability matrix in the general settings tab', () => {
-    const { tab } = createTab(true);
-
-    (tab as any).renderGeneralTab(createContainer());
-
-    expect(mockRenderedSettingNames).toContain(t('settings.capabilityMatrix.title'));
-  });
-
-  it('renders language settings before onboarding content', () => {
-    const { tab } = createTab(true);
-
-    (tab as any).renderGeneralTab(createContainer());
-
-    expect(mockRenderedSettingNames.indexOf(t('settings.language.name')))
-      .toBeLessThan(mockRenderedSettingNames.indexOf(t('settings.gettingStarted.title')));
   });
 
   it('rerenders display settings after dual-pane mode changes', async () => {

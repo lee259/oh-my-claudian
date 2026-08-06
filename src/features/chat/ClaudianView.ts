@@ -2001,12 +2001,6 @@ export class ClaudianView extends ItemView {
     this.updateHistoryDropdown();
   }
 
-  refreshMessageTimestamps(): void {
-    this.tabManager?.getAllTabs().forEach((tab) => {
-      tab.renderer?.refreshMessageTimestamps();
-    });
-  }
-
   private notifyConversationNavigationChanged(): void {
     this.updateHistoryDropdown();
     for (const view of this.plugin.getAllViews()) {

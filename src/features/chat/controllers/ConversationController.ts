@@ -12,7 +12,6 @@ import type {
   ProviderId,
   SessionManagerOrganization,
   SessionManagerSort,
-  UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { createProviderIconSvg } from '../../../shared/icons';

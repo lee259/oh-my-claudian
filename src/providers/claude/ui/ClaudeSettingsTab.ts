@@ -14,7 +14,11 @@ import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderR
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { getClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
-import { findClaudeModelOption, getClaudeModelOptions, resolveClaudeModelSelection } from '../modelOptions';
+import {
+  getClaudeModelOptions,
+  resolveClaudeModelEnvironmentTypePreference,
+  resolveClaudeModelSelection,
+} from '../modelOptions';
 import {
   CLAUDE_SAFE_MODES,
   type ClaudeSafeMode,
@@ -160,6 +164,28 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     // --- Models ---
 
     new Setting(container).setName(t('settings.models')).setHeading();
+
+    new Setting(container)
+      .setName('Default model')
+      .setDesc('Used when a new conversation needs a Claude fallback model.')
+      .addDropdown((dropdown) => {
+        for (const option of getClaudeModelOptions(settingsBag)) {
+          dropdown.addOption(option.value, option.label);
+        }
+        dropdown
+          .setValue(claudeChatUIConfig.getDefaultModel?.(settingsBag) ?? '')
+          .onChange(async (value) => {
+            await context.plugin.mutateSettings((settings) => {
+              const preference = resolveClaudeModelEnvironmentTypePreference(
+                getClaudeModelOptions(settings),
+                value,
+              );
+              updateClaudeProviderSettings(settings, {
+                defaultModel: preference ?? value,
+              });
+            });
+          });
+      });
 
     new Setting(container)
       .setName(t('settings.customModels.name'))
