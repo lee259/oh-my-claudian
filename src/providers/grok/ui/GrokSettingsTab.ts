@@ -3,8 +3,6 @@ import * as path from 'node:path';
 
 import { Notice, Setting } from 'obsidian';
 
-import { deriveProviderModelCatalogStatus } from '../../../core/providers/modelCatalog';
-import { assessProviderReadiness } from '../../../core/providers/ProviderReadiness';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import { ProviderWorkspaceRegistry } from '../../../core/providers/ProviderWorkspaceRegistry';
 import type {
@@ -26,7 +24,6 @@ import {
   type ProviderModelPickerState,
   renderProviderModelPicker,
 } from '../../../shared/settings/ProviderModelPicker';
-import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import type { GrokWorkspaceServices } from '../app/GrokWorkspaceServices';
@@ -59,25 +56,6 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
         ? 'loaded'
         : 'empty';
     };
-
-    const readinessPanel = renderProviderReadinessPanel({
-      container,
-      providerName: 'Grok',
-      async getSnapshot() {
-        const current = getGrokProviderSettings(settingsBag);
-        return assessProviderReadiness({
-          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
-            ? await context.plugin.getResolvedProviderCliPath('grok')
-            : null,
-          discoveredModelCount: current.currentCatalog?.models.length ?? 0,
-          enabled: current.enabled,
-          selectedModelCount: current.visibleModels?.length
-            ?? current.currentCatalog?.models.length
-            ?? 0,
-        });
-      },
-      onRefresh: async () => { await refreshModelCatalog(); },
-    });
 
     new Setting(container).setName('Setup').setHeading();
 
@@ -112,7 +90,6 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
         } else {
           lastProviderWarning.showFor();
         }
-        await readinessPanel.refresh();
         modelWarning.context.notifyProviderModelOptionsChanged(GROK_PROVIDER_ID);
       },
     });
@@ -213,19 +190,8 @@ function renderGrokModelPicker(
     const selectedIds = getOrderedGrokVisibleModelIds(settings);
     return {
       aliases: settings.modelAliases,
-      catalogRefreshedAt: settings.currentCatalog?.refreshedAt,
-      catalogStatus: deriveProviderModelCatalogStatus({
-        modelCount: catalogModels.length,
-        refreshedAt: settings.currentCatalog?.refreshedAt,
-      }),
-      defaultModelId: settings.currentCatalog?.defaultModelId ?? undefined,
       discoveredCount: catalogModels.length,
-      models: buildGrokPickerModels(
-        catalogModels,
-        selectedIds,
-        settings.currentCatalog?.defaultModelId ?? undefined,
-      ),
-      selectionMode: settings.visibleModels === null ? 'all' : 'explicit',
+      models: buildGrokPickerModels(catalogModels, selectedIds),
       selectedIds,
     };
   };
@@ -268,10 +234,8 @@ function renderGrokModelPicker(
 function buildGrokPickerModels(
   catalogModels: GrokDiscoveredModel[],
   selectedIds: string[],
-  defaultModelId?: string,
 ): ProviderModelPickerModel[] {
   const models: ProviderModelPickerModel[] = catalogModels.map(model => ({
-    ...(model.rawId === defaultModelId ? { catalogBadge: 'Default' } : {}),
     description: model.description,
     id: model.rawId,
     isAvailable: true,

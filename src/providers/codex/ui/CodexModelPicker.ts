@@ -1,6 +1,5 @@
 import { Notice } from 'obsidian';
 
-import { deriveProviderModelCatalogStatus } from '../../../core/providers/modelCatalog';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRendererContext } from '../../../core/providers/types';
 import {
@@ -12,7 +11,6 @@ import {
 import type { CodexWorkspaceServices } from '../app/CodexWorkspaceServices';
 import {
   getCodexModelsInPickerOrder,
-  getDefaultCodexModel,
   isCodexModelAvailable,
 } from '../models';
 import {

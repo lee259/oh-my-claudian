@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import { Setting } from 'obsidian';
 
-import { assessProviderReadiness } from '../../../core/providers/ProviderReadiness';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
@@ -10,7 +9,6 @@ import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameC
 import { McpSettingsManager } from '../../../shared/settings/McpSettingsManager';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import { renderLastEnabledProviderWarning } from '../../../shared/settings/ProviderModelEnablementWarning';
-import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { getClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
@@ -35,23 +33,6 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const claudeWorkspace = getClaudeWorkspaceServices();
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const claudeSettings = getClaudeProviderSettings(settingsBag);
-
-    const readinessPanel = renderProviderReadinessPanel({
-      container,
-      providerName: 'Claude',
-      async getSnapshot() {
-        const model = typeof settingsBag.model === 'string' ? settingsBag.model : '';
-        const modelOptions = getClaudeModelOptions(settingsBag);
-        return assessProviderReadiness({
-          cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
-            ? await context.plugin.getResolvedProviderCliPath('claude')
-            : null,
-          discoveredModelCount: modelOptions.length,
-          enabled: getClaudeProviderSettings(settingsBag).enabled,
-          selectedModelCount: findClaudeModelOption(modelOptions, model) ? 1 : 0,
-        });
-      },
-    });
 
     const reconcileActiveClaudeModelSelection = (settings: Record<string, unknown>): void => {
       const activeProvider = settings.settingsProvider;
@@ -103,7 +84,6 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         } else {
           lastProviderWarning.showFor();
         }
-        await readinessPanel.refresh();
         context.notifyProviderModelOptionsChanged('claude');
       },
     });

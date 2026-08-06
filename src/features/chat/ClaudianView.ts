@@ -204,6 +204,12 @@ export class ClaudianView extends ItemView {
     }
   }
 
+  refreshMessageTimestamps(): void {
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      tab.renderer?.refreshMessageTimestamps();
+    }
+  }
+
   invalidateProviderCommandCaches(providerIds?: ProviderId[]): void {
     this.tabManager?.invalidateProviderCommandCaches(providerIds);
   }

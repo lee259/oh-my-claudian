@@ -1,7 +1,5 @@
 import { Setting } from 'obsidian';
 
-import type { ProviderModelCatalogStatus } from '../../core/providers/modelCatalog';
-
 const ALL_PROVIDERS_KEY = 'all';
 const VISIBLE_MODELS_DESCRIPTION = 'Choose which models are available in the chat selector. Drag to reorder them; the provider uses the first currently usable model as its default. Select at least one model to use this provider.';
 
@@ -37,6 +35,8 @@ export interface ProviderModelPickerModel {
 
 export interface ProviderModelPickerState {
   aliases: Record<string, string>;
+  catalogRefreshedAt?: number;
+  catalogStatus?: 'empty' | 'ready' | 'stale' | 'failed';
   defaultModelId?: string | null;
   discoveredCount: number;
   models: ProviderModelPickerModel[];
@@ -136,14 +136,6 @@ export function renderProviderModelPicker(
   const renderSummary = (): void => {
     summaryEl.empty();
     const state = options.getState();
-    const catalogStatus = catalogLoadFailed
-      ? 'failed'
-      : state.catalogStatus
-      ?? (state.discoveredCount > 0 ? 'ready' : 'empty');
-    pickerEl.setAttribute('data-catalog-status', catalogStatus);
-    catalogSummaryEl.title = state.catalogRefreshedAt
-      ? `Last refreshed ${new Date(state.catalogRefreshedAt).toLocaleString()}`
-      : '';
     const providerCount = new Set(
       state.models.map(model => model.providerKey).filter((key): key is string => Boolean(key)),
     ).size;
@@ -151,28 +143,17 @@ export function renderProviderModelPicker(
     summaryEl.createSpan({ text: 'Visible: ' });
     summaryEl.createSpan({
       cls: 'claudian-provider-model-picker-summary-value',
-      text: state.selectionMode === 'all' ? 'All' : String(state.selectedIds.length),
+      text: String(state.selectedIds.length),
     });
     summaryEl.createSpan({
       text: providerCount > 0
         ? ` of ${state.discoveredCount} discovered | ${providerCount} ${providerCount === 1 ? 'provider' : 'providers'}`
         : ` of ${state.discoveredCount} discovered`,
     });
-    if (state.defaultModelId) {
-      const defaultModel = state.models.find(model => model.id === state.defaultModelId);
-      summaryEl.createSpan({
-        cls: 'claudian-provider-model-picker-summary-default',
-        text: `Default: ${defaultModel?.name ?? state.defaultModelId}`,
-      });
-    }
 
     catalogSummaryCountEl.setText(
       loadingCatalog
         ? 'Loading models...'
-        : catalogLoadFailed
-        ? `${state.discoveredCount} cached · refresh failed`
-        : catalogStatus === 'stale'
-        ? `${state.discoveredCount} cached · refresh recommended`
         : state.discoveredCount > 0
         ? `${state.discoveredCount} available`
         : 'No models discovered yet',
