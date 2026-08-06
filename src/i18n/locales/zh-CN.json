@@ -84,6 +84,22 @@
         "button": "打开聊天"
       }
     },
+    "capabilityMatrix": {
+      "title": "Provider 能力",
+      "desc": "对比 Claudian 中各 Provider 可用的功能。此处仅供参考，不会改变 Provider 原生行为。",
+      "provider": "Provider",
+      "supported": "支持",
+      "unsupported": "—",
+      "rows": {
+        "planMode": "计划模式",
+        "rewind": "回退",
+        "fork": "分叉会话",
+        "providerCommands": "Provider 命令",
+        "imageAttachments": "图片附件",
+        "mcpTools": "MCP 工具",
+        "turnSteer": "回合控制"
+      }
+    },
     "tabs": {
       "general": "通用",
       "claude": "Claude",

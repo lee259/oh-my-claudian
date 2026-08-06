@@ -84,6 +84,22 @@
         "button": "Open chat"
       }
     },
+    "capabilityMatrix": {
+      "title": "Provider capabilities",
+      "desc": "Compare the provider features available in Claudian. This is informational; provider-native behavior remains unchanged.",
+      "provider": "Provider",
+      "supported": "Yes",
+      "unsupported": "—",
+      "rows": {
+        "planMode": "Plan mode",
+        "rewind": "Rewind",
+        "fork": "Fork",
+        "providerCommands": "Provider commands",
+        "imageAttachments": "Image attachments",
+        "mcpTools": "MCP tools",
+        "turnSteer": "Turn steering"
+      }
+    },
     "tabs": {
       "general": "Allgemein",
       "claude": "Claude",
