@@ -84,7 +84,7 @@ describe('CodexBinaryLocator', () => {
     fs.writeFileSync(localBinary, '');
     process.env.PATH = pathDir;
 
-    expect(findCodexBinaryPath('', 'darwin')).toBe(pathBinary);
+    expect(findCodexBinaryPath('', process.platform)).toBe(pathBinary);
   });
 
   it('prefers a hostname-specific configured path', () => {
