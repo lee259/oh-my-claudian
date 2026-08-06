@@ -17,6 +17,7 @@ import {
   type AcpContentBlock,
   AcpExecutionEventNormalizer,
   type AcpSessionNotification,
+  type AcpUsage,
   type AcpUsageUpdate,
   buildAcpUsageInfo,
 } from '@/providers/acp';
@@ -214,6 +215,17 @@ export class CursorExecutionSession implements ProviderExecutionSession {
         sessionId: native.sessionId,
       });
       if (run.terminal) return;
+      if (response.usage) {
+        const usage = buildCursorPromptUsageInfo(
+          response.usage,
+          decodeCursorModelId(request.configuration.model ?? '') ?? undefined,
+          this.lastUsage?.contextWindow,
+        );
+        if (usage) {
+          this.lastUsage = usage;
+          run.queue.push({ scope: run.scope(), type: 'usage_updated', usage });
+        }
+      }
       run.queue.push({ accepted: true, nativeUserMessageId: response.userMessageId ?? undefined, scope: run.scope(), type: 'turn_started' });
       this.snapshot = this.makeSnapshot('idle');
       this.emitSnapshot(run);
@@ -314,6 +326,18 @@ export function buildCursorUsageInfo(usage: AcpUsageUpdate, model?: string) {
     contextWindow: usage,
     model,
     promptUsage: null,
+  });
+}
+
+export function buildCursorPromptUsageInfo(
+  usage: AcpUsage,
+  model?: string,
+  fallbackContextWindow = 200_000,
+): UsageInfo | null {
+  return buildAcpUsageInfo({
+    fallbackContextWindow,
+    model,
+    promptUsage: usage,
   });
 }
 

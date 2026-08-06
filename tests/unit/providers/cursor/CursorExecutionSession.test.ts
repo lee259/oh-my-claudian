@@ -12,7 +12,14 @@ async function flush(): Promise<void> {
 
 describe('CursorExecutionSession', () => {
   it('configures the ACP model and mode before streaming a turn', async () => {
-    const prompt = deferred<{ userMessageId: string }>();
+    const prompt = deferred<{
+      userMessageId: string;
+      usage: {
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+      };
+    }>();
     let kernelOptions: any;
     const kernel = {
       cancel: jest.fn(),
@@ -67,12 +74,27 @@ describe('CursorExecutionSession', () => {
         sessionUpdate: 'agent_message_chunk',
       },
     });
-    prompt.resolve({ userMessageId: 'user-message' });
+    prompt.resolve({
+      usage: {
+        inputTokens: 120,
+        outputTokens: 80,
+        totalTokens: 200,
+      },
+      userMessageId: 'user-message',
+    });
     await collecting;
 
     expect(events).toContainEqual(expect.objectContaining({
       text: 'Proposed plan',
       type: 'text_delta',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'usage_updated',
+      usage: expect.objectContaining({
+        contextTokens: 200,
+        inputTokens: 120,
+        percentage: 0,
+      }),
     }));
     expect(session.getSnapshot()).toMatchObject({
       providerId: 'cursor',
