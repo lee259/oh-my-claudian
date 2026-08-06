@@ -120,6 +120,10 @@ export class MessageRenderer {
     return this.plugin.settings?.expandFileEditsByDefault === true;
   }
 
+  private shouldShowMessageTimestamps(): boolean {
+    return this.plugin.settings?.showMessageTimestamps === true;
+  }
+
   private getUserMessageTextToShow(msg: ChatMessage): string {
     return msg.displayContent ?? extractUserDisplayContent(msg.content) ?? msg.content;
   }
@@ -162,6 +166,7 @@ export class MessageRenderer {
       attr: {
         'data-message-id': msg.id,
         'data-role': msg.role,
+        ...(msg.role === 'user' ? { 'data-message-timestamp': String(msg.timestamp) } : {}),
       },
     });
 
@@ -180,6 +185,9 @@ export class MessageRenderer {
       }
     }
 
+    if (msg.role === 'user') {
+      this.renderMessageTimestamp(msgEl, msg.timestamp);
+    }
     this.scrollToBottom();
     return msgEl;
   }
@@ -219,6 +227,30 @@ export class MessageRenderer {
     if (textToShow) {
       this.addUserCopyButton(msgEl, textToShow);
     }
+  }
+
+  refreshMessageTimestamps(): void {
+    this.messagesEl.querySelectorAll('.claudian-message-timestamp').forEach((element) => {
+      element.remove();
+    });
+
+    if (!this.shouldShowMessageTimestamps()) {
+      return;
+    }
+
+    this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message[data-message-timestamp]')
+      .forEach((messageEl) => {
+        const timestamp = Number(messageEl.dataset.messageTimestamp);
+        if (Number.isFinite(timestamp)) {
+          this.renderMessageTimestamp(messageEl, timestamp);
+        }
+      });
+  }
+
+  renderFinalMessageTimestamp(msgEl: HTMLElement | null, msg: ChatMessage): void {
+    if (!msgEl || !this.shouldRenderMessageTimestamp(msg)) return;
+    msgEl.dataset.messageTimestamp = String(msg.timestamp);
+    this.renderMessageTimestamp(msgEl, msg.timestamp);
   }
 
   removeMessage(messageId: string): void {
@@ -291,11 +323,13 @@ export class MessageRenderer {
       return;
     }
 
+    const shouldRenderTimestamp = this.shouldRenderMessageTimestamp(msg);
     const msgEl = this.messagesEl.createDiv({
       cls: `claudian-message claudian-message-${msg.role}`,
       attr: {
         'data-message-id': msg.id,
         'data-role': msg.role,
+        ...(shouldRenderTimestamp ? { 'data-message-timestamp': String(msg.timestamp) } : {}),
       },
     });
 
@@ -323,6 +357,33 @@ export class MessageRenderer {
         this.appendInterruptIndicator(contentEl);
       }
     }
+
+    if (shouldRenderTimestamp) {
+      this.renderMessageTimestamp(msgEl, msg.timestamp);
+    }
+  }
+
+  private shouldRenderMessageTimestamp(msg: ChatMessage): boolean {
+    if (msg.role === 'user') return true;
+    if (msg.isInterrupt) return false;
+    if (msg.content.trim().length > 0) return true;
+    return msg.contentBlocks?.some((block) => (
+      block.type === 'text' && block.content.trim().length > 0
+    )) ?? false;
+  }
+
+  private renderMessageTimestamp(msgEl: HTMLElement, timestamp: number): void {
+    if (!this.shouldShowMessageTimestamps() || !Number.isFinite(timestamp)) {
+      return;
+    }
+
+    msgEl.createSpan({
+      cls: 'claudian-message-timestamp',
+      text: new Date(timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    });
   }
 
   private hasVisibleContent(msg: ChatMessage): boolean {

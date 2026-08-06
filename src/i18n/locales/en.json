@@ -349,6 +349,10 @@
       "name": "Expand file edits by default",
       "desc": "Show Write and Edit diffs expanded when they first appear."
     },
+    "showMessageTimestamps": {
+      "name": "Show message timestamps",
+      "desc": "Show the local time when each message was sent or received."
+    },
     "chatViewPlacement": {
       "name": "Open Oh My Claudian in",
       "desc": "Choose where the chat panel opens when it is created",

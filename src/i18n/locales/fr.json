@@ -326,6 +326,7 @@
       "name": "Développer les modifications de fichiers par défaut",
       "desc": "Afficher les diffs Write et Edit développés lors de leur première apparition."
     },
+    "showMessageTimestamps": { "name": "Afficher l’heure des messages", "desc": "Afficher l’heure locale à laquelle chaque message a été envoyé ou reçu." },
     "chatViewPlacement": {
       "name": "Ouvrir Oh My Claudian dans",
       "desc": "Choisissez où le panneau de chat s'ouvre lors de sa création",

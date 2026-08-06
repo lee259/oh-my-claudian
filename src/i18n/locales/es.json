@@ -326,6 +326,7 @@
       "name": "Expandir ediciones de archivo por defecto",
       "desc": "Mostrar los diffs de Write y Edit expandidos cuando aparecen por primera vez."
     },
+    "showMessageTimestamps": { "name": "Mostrar marcas de tiempo de los mensajes", "desc": "Mostrar la hora local en que se envió o recibió cada mensaje." },
     "chatViewPlacement": {
       "name": "Abrir Oh My Claudian en",
       "desc": "Elige dónde se abre el panel de chat cuando se crea",

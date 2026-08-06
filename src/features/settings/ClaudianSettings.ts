@@ -430,6 +430,22 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(container)
+      .setName(t('settings.showMessageTimestamps.name'))
+      .setDesc(t('settings.showMessageTimestamps.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showMessageTimestamps ?? false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.showMessageTimestamps = value;
+            });
+            this.plugin.getAllViews().forEach((view) => {
+              view.refreshMessageTimestamps?.();
+            });
+          })
+      );
+
     // --- Conversations ---
 
     new Setting(container).setName(t('settings.conversations')).setHeading();

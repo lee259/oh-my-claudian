@@ -76,6 +76,10 @@ describe('types.ts', () => {
       expect(DEFAULT_SETTINGS.expandFileEditsByDefault).toBe(false);
     });
 
+    it('should hide message timestamps by default', () => {
+      expect(DEFAULT_SETTINGS.showMessageTimestamps).toBe(false);
+    });
+
     it('should keep five agent processes warm by default', () => {
       expect(DEFAULT_SETTINGS.maxWarmAgentProcesses).toBe(5);
     });
@@ -121,6 +125,7 @@ describe('types.ts', () => {
         enableAutoScroll: true,
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: false,
+        showMessageTimestamps: false,
         chatViewPlacement: 'right-sidebar',
         enableDualPane: true,
         dualPaneSide: 'right',
@@ -177,6 +182,7 @@ describe('types.ts', () => {
         enableAutoScroll: true,
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: false,
+        showMessageTimestamps: false,
         chatViewPlacement: 'right-sidebar',
         enableDualPane: true,
         dualPaneSide: 'right',
@@ -234,6 +240,7 @@ describe('types.ts', () => {
         enableAutoScroll: false,
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: true,
+        showMessageTimestamps: true,
         chatViewPlacement: 'right-sidebar',
         enableDualPane: false,
         dualPaneSide: 'left',

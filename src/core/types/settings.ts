@@ -170,6 +170,7 @@ export interface ClaudianSettings {
   enableAutoScroll: boolean;
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
+  showMessageTimestamps: boolean;
   chatViewPlacement: ChatViewPlacement;
   enableDualPane: boolean;
   dualPaneSide: DualPaneSide;
