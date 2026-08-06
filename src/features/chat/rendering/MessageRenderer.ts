@@ -355,7 +355,10 @@ export class MessageRenderer {
       return;
     }
 
-    msgEl.createSpan({
+    const timestampContainer = msgEl.classList.contains('claudian-message-user')
+      ? this.getOrCreateActionsToolbar(msgEl)
+      : msgEl;
+    timestampContainer.createSpan({
       cls: 'claudian-message-timestamp',
       text: new Date(timestamp).toLocaleTimeString([], {
         hour: '2-digit',

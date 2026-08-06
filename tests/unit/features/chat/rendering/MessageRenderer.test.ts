@@ -251,6 +251,23 @@ describe('MessageRenderer', () => {
     expect(messagesEl.querySelector('.claudian-message-timestamp')).not.toBeNull();
   });
 
+  it('renders user timestamps inside the hover actions toolbar', () => {
+    const { renderer, messagesEl } = createRenderer();
+
+    renderer.renderStoredMessage({
+      id: 'user-message-with-timestamp',
+      role: 'user',
+      content: 'Question',
+      timestamp: 1_700_000_000_000,
+    });
+
+    const toolbar = messagesEl.querySelector('.claudian-user-msg-actions');
+    const timestamp = messagesEl.querySelector('.claudian-message-timestamp');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar?.querySelector('.claudian-message-timestamp')).toBe(timestamp);
+    expect(toolbar?.querySelector('.claudian-user-msg-copy-btn')).not.toBeNull();
+  });
+
   it('does not render a timestamp for an empty streaming assistant placeholder', () => {
     const { renderer, messagesEl } = createRenderer();
 
