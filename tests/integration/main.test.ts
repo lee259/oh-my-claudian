@@ -188,7 +188,7 @@ describe('ClaudianPlugin', () => {
 
       expect((plugin.addRibbonIcon as jest.Mock)).toHaveBeenCalledWith(
         'bot',
-        'Open Oh My Claudian',
+        'Open Claudian',
         expect.any(Function)
       );
     });

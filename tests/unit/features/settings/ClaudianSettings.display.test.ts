@@ -58,6 +58,11 @@ jest.mock('obsidian', () => {
       callback(createChainableComponent());
       return this;
     }
+
+    addButton(callback: (button: MockChainableComponent) => void): this {
+      callback(createChainableComponent());
+      return this;
+    }
   }
 
   function createChainableComponent(): MockChainableComponent {
@@ -69,6 +74,9 @@ jest.mock('obsidian', () => {
       'setPlaceholder',
       'setLimits',
       'setDynamicTooltip',
+      'setButtonText',
+      'setCta',
+      'onClick',
     ]) {
       component[method] = jest.fn(() => component);
     }
@@ -133,7 +141,7 @@ function createTab(enableDualPane: boolean): {
 function createContainer(): Record<string, jest.Mock> {
   const element: Record<string, jest.Mock> = {
     createSpan: jest.fn(() => ({})),
-    createEl: jest.fn(() => ({ addEventListener: jest.fn() })),
+    createEl: jest.fn(() => createContainer()),
     addEventListener: jest.fn(),
     addClass: jest.fn(),
     removeClass: jest.fn(),

@@ -559,6 +559,10 @@ export class ChatExecutionCoordinator {
     mode?: ChatRewindMode,
   ): Promise<ChatRewindPreview> {
     await this.prepare();
+    const activeExecutionError = this.getActiveExecutionMutationError('rewind');
+    if (activeExecutionError) {
+      return { canRewind: false, error: activeExecutionError };
+    }
     const session = this.requireCurrentSessionBinding().session;
     if (!isRewindableExecutionSession(session)) {
       return { canRewind: false, error: 'Rewind is not supported by this provider.' };
@@ -572,6 +576,9 @@ export class ChatExecutionCoordinator {
 
   private async setModeProtected(mode: string): Promise<boolean> {
     await this.prepare();
+    if (this.getActiveExecutionMutationError('change mode')) {
+      return false;
+    }
     const binding = this.requireCurrentSessionBinding();
     if (!isModeConfigurableExecutionSession(binding.session)) return false;
     const applied = await binding.session.setMode(mode);
@@ -598,6 +605,10 @@ export class ChatExecutionCoordinator {
     mode?: ChatRewindMode,
   ): Promise<ChatRewindResult> {
     await this.prepare();
+    const activeExecutionError = this.getActiveExecutionMutationError('rewind');
+    if (activeExecutionError) {
+      return { canRewind: false, error: activeExecutionError };
+    }
     const binding = this.requireCurrentSessionBinding();
     if (!isRewindableExecutionSession(binding.session)) {
       return { canRewind: false, error: 'Rewind is not supported by this provider.' };

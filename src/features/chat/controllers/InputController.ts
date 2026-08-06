@@ -625,7 +625,7 @@ export class InputController {
 
           await streamController.finalizeCurrentThinkingBlock(finalAssistantMsg);
           await streamController.finalizeCurrentTextBlock(finalAssistantMsg);
-          renderer.renderFinalMessageTimestamp(finalMessageEl, finalAssistantMsg);
+          renderer.renderFinalMessageTimestamp?.(finalMessageEl, finalAssistantMsg);
           this.deps.getSubagentManager().resetStreamingState();
 
           // Auto-hide completed todo panel on response end

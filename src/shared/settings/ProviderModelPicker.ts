@@ -136,6 +136,10 @@ export function renderProviderModelPicker(
   const renderSummary = (): void => {
     summaryEl.empty();
     const state = options.getState();
+    pickerEl.setAttribute(
+      'data-catalog-status',
+      catalogLoadFailed ? 'failed' : state.catalogStatus ?? 'empty',
+    );
     const providerCount = new Set(
       state.models.map(model => model.providerKey).filter((key): key is string => Boolean(key)),
     ).size;
