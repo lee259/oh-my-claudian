@@ -87,7 +87,7 @@ Cursor requires the Cursor Agent CLI (`agent`) to be installed and authenticated
 
 Cursor's current ACP implementation does not expose token usage in `session/prompt` responses and does not emit the standard `usage_update` notification. Claudian therefore cannot display real Cursor token counts or context usage; any initial context indicator is only a local placeholder. This is an upstream Cursor Agent CLI limitation, not a Claudian setting. See the [Cursor report about missing `PromptResponse.usage`](https://forum.cursor.com/t/cursor-acp-doesn-t-seem-to-return-token-usage-in-promptresponse-usage/160395) and the [request to emit `usage_update`](https://forum.cursor.com/t/cli-emit-acp-usage-update-so-clients-like-zed-can-show-a-context-window-indicator/165358).
 
-Claudian can restore conversations that already have a persisted Cursor session ID by reading Cursor's local ACP transcript store. This is read-only hydration of Claudian's own conversation records; it is not an import or live listing of every session in the Cursor client.
+Cursor itself has local conversation history and supports CLI resume commands such as `cursor-agent ls` and `cursor-agent resume`. Claudian can restore conversations that already have a persisted Cursor session ID by reading Cursor's local ACP transcript store. The limitation is that Cursor's ACP channel does not currently expose a stable session-list API, so Claudian does not yet import or live-list every standalone Cursor session. This is read-only hydration of Claudian's own conversation records.
 
 ## Development
 
