@@ -85,8 +85,8 @@
       }
     },
     "capabilityMatrix": {
-      "title": "Provider 能力",
-      "desc": "对比 Claudian 中各 Provider 可用的功能。此处仅供参考，不会改变 Provider 原生行为。",
+      "title": "Claudian 接入能力",
+      "desc": "对比 Claudian 当前接入的能力。此处不是各 Provider 原生功能的完整清单。",
       "provider": "Provider",
       "supported": "支持",
       "unsupported": "—",
