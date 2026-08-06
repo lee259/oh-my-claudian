@@ -59,7 +59,7 @@ function runSqliteQuery(databasePath: string, sql: string): Promise<string | nul
   return new Promise(resolve => {
     let settled = false;
     let size = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timer: number | null = null;
     const chunks: Buffer[] = [];
     let child: ReturnType<typeof defaultSpawn>;
     try {
