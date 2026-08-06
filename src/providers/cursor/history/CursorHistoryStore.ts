@@ -1,9 +1,12 @@
+import { spawn as defaultSpawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { ProviderHistoryPathContext } from '@/core/providers/types';
 import type { ChatMessage, ContentBlock } from '@/core/types';
+
+const MAX_SQLITE_OUTPUT_BYTES = 100 * 1024 * 1024;
 
 interface StoredRow {
   rowid: number;
@@ -24,9 +27,73 @@ export async function loadCursorSessionMessages(
   const databasePath = resolveCursorSessionDatabase(sessionId, context);
   if (!databasePath) return [];
 
-  const rows = readCursorRows(databasePath);
+  const rows = readCursorRows(databasePath)
+    ?? await readCursorRowsWithSqliteCli(databasePath);
   if (!rows) return [];
   return rows.flatMap(row => parseCursorMessage(row, sessionId));
+}
+
+async function readCursorRowsWithSqliteCli(databasePath: string): Promise<StoredRow[] | null> {
+  const output = await runSqliteQuery(
+    databasePath,
+    'SELECT rowid, hex(data) AS dataHex FROM blobs ORDER BY rowid',
+  );
+  if (output === null) return null;
+  try {
+    const rows = JSON.parse(output) as unknown;
+    if (!Array.isArray(rows)) return null;
+    return rows.flatMap(row => {
+      if (!isRecord(row) || typeof row.rowid !== 'number' || typeof row.dataHex !== 'string') return [];
+      try {
+        return [{ rowid: row.rowid, data: Buffer.from(row.dataHex, 'hex') }];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return null;
+  }
+}
+
+function runSqliteQuery(databasePath: string, sql: string): Promise<string | null> {
+  return new Promise(resolve => {
+    let settled = false;
+    let size = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const chunks: Buffer[] = [];
+    let child: ReturnType<typeof defaultSpawn>;
+    try {
+      child = defaultSpawn('sqlite3', ['-json', databasePath, sql], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+      });
+    } catch {
+      resolve(null);
+      return;
+    }
+    const finish = (value: string | null): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) window.clearTimeout(timer);
+      resolve(value);
+    };
+    child.stdout?.on('data', (chunk: Buffer | string) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += buffer.length;
+      if (size > MAX_SQLITE_OUTPUT_BYTES) {
+        child.kill('SIGKILL');
+        finish(null);
+        return;
+      }
+      chunks.push(buffer);
+    });
+    child.once('error', () => finish(null));
+    child.once('close', code => finish(code === 0 ? Buffer.concat(chunks).toString('utf8') : null));
+    timer = window.setTimeout(() => {
+      child.kill('SIGKILL');
+      finish(null);
+    }, 10_000);
+  });
 }
 
 export function resolveCursorSessionDatabase(
