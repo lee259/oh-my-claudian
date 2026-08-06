@@ -6,7 +6,7 @@
 
 - Cursor launch, authentication expectations, modes, model discovery, extension requests, and provider state remain in this directory.
 - Reuse `src/providers/acp/` for protocol transport, standard session updates, permissions, and event normalization.
-- Cursor sessions resume through ACP `session/load`. Native transcript replay and history enumeration are not supported until Cursor exposes a stable read-only history interface.
+- Cursor sessions resume through ACP `session/load`; read-only transcript replay is loaded from Cursor's local ACP SQLite store. Native session enumeration is not supported until Cursor exposes a stable list/history interface.
 
 ## Protocol Rules
 
