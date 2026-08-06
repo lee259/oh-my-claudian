@@ -334,7 +334,6 @@
       "name": "파일 편집을 기본적으로 펼치기",
       "desc": "Write 및 Edit diff가 처음 표시될 때 펼친 상태로 보여줍니다."
     },
-    "showMessageTimestamps": { "name": "메시지 타임스탬프 표시", "desc": "각 메시지를 보내거나 받은 현지 시간을 표시합니다." },
     "chatViewPlacement": {
       "name": "Oh My Claudian 열 위치",
       "desc": "채팅 패널이 생성될 때 열릴 위치를 선택합니다",

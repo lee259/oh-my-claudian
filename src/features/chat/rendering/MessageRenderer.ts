@@ -120,10 +120,6 @@ export class MessageRenderer {
     return this.plugin.settings?.expandFileEditsByDefault === true;
   }
 
-  private shouldShowMessageTimestamps(): boolean {
-    return this.plugin.settings?.showMessageTimestamps === true;
-  }
-
   private getUserMessageTextToShow(msg: ChatMessage): string {
     return msg.displayContent ?? extractUserDisplayContent(msg.content) ?? msg.content;
   }
@@ -227,24 +223,6 @@ export class MessageRenderer {
     if (textToShow) {
       this.addUserCopyButton(msgEl, textToShow);
     }
-  }
-
-  refreshMessageTimestamps(): void {
-    this.messagesEl.querySelectorAll('.claudian-message-timestamp').forEach((element) => {
-      element.remove();
-    });
-
-    if (!this.shouldShowMessageTimestamps()) {
-      return;
-    }
-
-    this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message[data-message-timestamp]')
-      .forEach((messageEl) => {
-        const timestamp = Number(messageEl.dataset.messageTimestamp);
-        if (Number.isFinite(timestamp)) {
-          this.renderMessageTimestamp(messageEl, timestamp);
-        }
-      });
   }
 
   renderFinalMessageTimestamp(msgEl: HTMLElement | null, msg: ChatMessage): void {
@@ -373,7 +351,7 @@ export class MessageRenderer {
   }
 
   private renderMessageTimestamp(msgEl: HTMLElement, timestamp: number): void {
-    if (!this.shouldShowMessageTimestamps() || !Number.isFinite(timestamp)) {
+    if (!Number.isFinite(timestamp)) {
       return;
     }
 

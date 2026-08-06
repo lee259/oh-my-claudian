@@ -219,13 +219,11 @@ describe('MessageRenderer', () => {
     expect(renderCitationGroup).toHaveBeenCalledWith(expect.anything(), citations);
   });
 
-  it('renders message timestamps when the setting is enabled', () => {
+  it('renders message timestamps by default', () => {
     const timestampSpy = jest
       .spyOn(Date.prototype, 'toLocaleTimeString')
       .mockReturnValue('10:02 AM');
-    const { renderer, messagesEl } = createRenderer(undefined, 'claude', {
-      showMessageTimestamps: true,
-    });
+    const { renderer, messagesEl } = createRenderer();
 
     renderer.renderStoredMessage({
       id: 'timestamped-message',
@@ -240,7 +238,7 @@ describe('MessageRenderer', () => {
     timestampSpy.mockRestore();
   });
 
-  it('does not render message timestamps by default', () => {
+  it('renders timestamps without a settings toggle', () => {
     const { renderer, messagesEl } = createRenderer();
 
     renderer.renderStoredMessage({
@@ -250,13 +248,11 @@ describe('MessageRenderer', () => {
       timestamp: 1_700_000_000_000,
     });
 
-    expect(messagesEl.querySelector('.claudian-message-timestamp')).toBeNull();
+    expect(messagesEl.querySelector('.claudian-message-timestamp')).not.toBeNull();
   });
 
   it('does not render a timestamp for an empty streaming assistant placeholder', () => {
-    const { renderer, messagesEl } = createRenderer(undefined, 'claude', {
-      showMessageTimestamps: true,
-    });
+    const { renderer, messagesEl } = createRenderer();
 
     renderer.addMessage({
       id: 'streaming-assistant',
@@ -272,9 +268,7 @@ describe('MessageRenderer', () => {
     const timestampSpy = jest
       .spyOn(Date.prototype, 'toLocaleTimeString')
       .mockReturnValue('10:02 AM');
-    const { renderer, messagesEl } = createRenderer(undefined, 'claude', {
-      showMessageTimestamps: true,
-    });
+    const { renderer, messagesEl } = createRenderer();
 
     renderer.renderStoredMessage({
       id: 'thinking-only',
@@ -299,9 +293,7 @@ describe('MessageRenderer', () => {
     const timestampSpy = jest
       .spyOn(Date.prototype, 'toLocaleTimeString')
       .mockReturnValue('10:02 AM');
-    const { renderer, messagesEl } = createRenderer(undefined, 'claude', {
-      showMessageTimestamps: true,
-    });
+    const { renderer, messagesEl } = createRenderer();
     const msgEl = renderer.addMessage({
       id: 'streaming-final',
       role: 'assistant',

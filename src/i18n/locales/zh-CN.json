@@ -349,10 +349,6 @@
       "name": "默认展开文件编辑",
       "desc": "Write 和 Edit diff 首次出现时以展开状态显示。"
     },
-    "showMessageTimestamps": {
-      "name": "显示消息时间",
-      "desc": "显示每条消息发送或接收时的本地时间。"
-    },
     "chatViewPlacement": {
       "name": "Oh My Claudian 打开位置",
       "desc": "选择新建聊天面板时的打开位置",

@@ -334,7 +334,6 @@
       "name": "Dateibearbeitungen standardmäßig ausklappen",
       "desc": "Write- und Edit-Diffs beim ersten Erscheinen ausgeklappt anzeigen."
     },
-    "showMessageTimestamps": { "name": "Nachrichtenzeitstempel anzeigen", "desc": "Die lokale Uhrzeit anzeigen, zu der jede Nachricht gesendet oder empfangen wurde." },
     "chatViewPlacement": {
       "name": "Oh My Claudian öffnen in",
       "desc": "Wählen Sie, wo das Chat-Panel beim Erstellen geöffnet wird",
