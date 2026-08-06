@@ -41,7 +41,7 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
   - [Grok Build](https://github.com/xai-org/grok-build)
   - [OpenCode](https://github.com/anomalyco/opencode)
   - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)
-  - [Cursor Agent CLI](https://cursor.com/docs/cli/acp)
+  - [Cursor Agent CLI](https://cursor.com/docs/cli/overview)
   - [Pi](https://github.com/earendil-works/pi)
 - A compatible subscription or API provider.
 - Obsidian v1.7.2+ on macOS, Linux, or Windows.
@@ -81,7 +81,13 @@ Each provider has a readiness panel in its settings tab. Use it to see whether t
 
 OMP requires its CLI to be installed and logged in separately. In **Settings → Oh My Claudian → OMP**, enable the provider, set the CLI path if it is not detected automatically, and use **Discover** to load available models.
 
-Cursor requires the Cursor Agent CLI (`agent`) to be installed and authenticated separately. Run `agent login`, then enable **Cursor** in **Settings → Oh My Claudian → Cursor**. Leave the CLI path blank for automatic detection; if Obsidian cannot see your shell `PATH`, set the absolute path to `agent` and click **Discover** to load models. Cursor sessions support Agent, Ask, and Plan modes, image attachments, and Cursor-owned MCP configuration. Native history enumeration, fork, rewind, turn steering, and provider commands are not currently exposed by the Cursor integration.
+Cursor requires the Cursor Agent CLI (`agent`) to be installed and authenticated separately. Run `agent login`, then enable **Cursor** in **Settings → Oh My Claudian → Cursor**. Leave the CLI path blank for automatic detection; if Obsidian cannot see your shell `PATH`, set the absolute path to `agent` and click **Discover** to load models. Cursor sessions support Agent, Ask, and Plan modes, image attachments, and Cursor-owned MCP configuration. Persisted Cursor transcripts are restored from Cursor's local ACP session store; native session enumeration, fork, rewind, turn steering, and provider commands are not currently exposed by the Cursor integration.
+
+#### Cursor ACP limitations
+
+Cursor's current ACP implementation does not expose token usage in `session/prompt` responses and does not emit the standard `usage_update` notification. Claudian therefore cannot display real Cursor token counts or context usage; any initial context indicator is only a local placeholder. This is an upstream Cursor Agent CLI limitation, not a Claudian setting. See the [Cursor report about missing `PromptResponse.usage`](https://forum.cursor.com/t/cursor-acp-doesn-t-seem-to-return-token-usage-in-promptresponse-usage/160395) and the [request to emit `usage_update`](https://forum.cursor.com/t/cli-emit-acp-usage-update-so-clients-like-zed-can-show-a-context-window-indicator/165358).
+
+Claudian can restore conversations that already have a persisted Cursor session ID by reading Cursor's local ACP transcript store. This is read-only hydration of Claudian's own conversation records; it is not an import or live listing of every session in the Cursor client.
 
 ## Development
 
