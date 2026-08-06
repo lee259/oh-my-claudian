@@ -180,7 +180,7 @@ export default class ClaudianPlugin extends Plugin {
         });
       }));
 
-      this.addRibbonIcon('bot', 'Open Claudian', () => {
+      this.addRibbonIcon('bot', 'Open Oh My Claudian', () => {
         void this.activateView();
       });
 
