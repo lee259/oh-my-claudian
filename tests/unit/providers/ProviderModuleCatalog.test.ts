@@ -65,8 +65,10 @@ describe('built-in ProviderModule catalog', () => {
     const defaultEnabled: Record<string, boolean> = {
       claude: true,
       codex: false,
+      cursor: false,
       grok: false,
       opencode: false,
+      omp: false,
       pi: false,
     };
 
@@ -77,10 +79,11 @@ describe('built-in ProviderModule catalog', () => {
 
     const normalizedSettings: Record<string, unknown> = {};
     for (const module of BUILT_IN_PROVIDER_MODULES) {
-      expect(module.settingsStorage.normalizeStored(
+      const normalized = module.settingsStorage.normalizeStored(
         normalizedSettings,
         malformedSettings,
-      )).toBe(true);
+      );
+      expect(normalized).toBe(!['cursor', 'omp'].includes(module.id));
       const config = getProviderConfig(normalizedSettings, module.id);
       expect(config.enabled).toBe(defaultEnabled[module.id]);
       expect(config.cliPath).toEqual(expect.any(String));
