@@ -54,7 +54,7 @@ export function renderProviderReadinessPanel(
   const refresh = async (refreshCatalog = false): Promise<void> => {
     if (refreshButton) {
       refreshButton.disabled = true;
-      refreshButton.setAttribute('aria-busy', 'true');
+      refreshButton.setAttribute?.('aria-busy', 'true');
       refreshButton.setText?.(t('settings.providerReadiness.checking'));
     }
     summary.setText(t('settings.providerReadiness.checking'));
@@ -71,7 +71,7 @@ export function renderProviderReadinessPanel(
     } finally {
       if (refreshButton) {
         refreshButton.disabled = false;
-        refreshButton.removeAttribute('aria-busy');
+        refreshButton.removeAttribute?.('aria-busy');
         refreshButton.setText?.(t('settings.providerReadiness.refresh'));
       }
     }

@@ -120,7 +120,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderHostnameCliPathSetting({
       container,
-      description: 'Optional absolute path to the Pi CLI for this computer. Leave empty to use `pi` from PATH.',
+      description: t('settings.pi.cliPathDesc'),
       getValue: () => getPiProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: 'CLI path',
       onChange: async (value) => {

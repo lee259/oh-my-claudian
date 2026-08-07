@@ -130,7 +130,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderHostnameCliPathSetting({
       container,
-      description: 'Optional absolute path to the Grok CLI for this computer. Leave empty to prefer known installs, then `grok` from PATH.',
+      description: t('settings.grok.cliPathDesc'),
       getValue: () => {
         const current = getGrokProviderSettings(settingsBag);
         return current.cliPathsByHost[hostnameKey] ?? current.cliPath ?? '';

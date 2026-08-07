@@ -122,7 +122,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderHostnameCliPathSetting({
       container,
-      description: 'Optional absolute path to the OpenCode CLI for this computer. Leave empty to use `opencode` from PATH.',
+      description: t('settings.opencode.cliPathDesc'),
       getValue: () => getOpencodeProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: 'CLI path',
       onChange: async (value) => {
