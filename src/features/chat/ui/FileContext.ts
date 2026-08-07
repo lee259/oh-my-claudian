@@ -42,6 +42,12 @@ export class FileContextManager {
   private ownedContextTray: ComposerContextTray | null = null;
   private deleteEventRef: EventRef | null = null;
   private renameEventRef: EventRef | null = null;
+  private dropTargetEl: HTMLElement | null = null;
+  private dropOverlayEl: HTMLElement | null = null;
+  private dragEnterHandler: ((event: DragEvent) => void) | null = null;
+  private dragOverHandler: ((event: DragEvent) => void) | null = null;
+  private dragLeaveHandler: ((event: DragEvent) => void) | null = null;
+  private dropHandler: ((event: DragEvent) => void) | null = null;
 
   // Current note (shown as chip)
   private currentNotePath: string | null = null;
@@ -111,6 +117,7 @@ export class FileContextManager {
         normalizePathForVault: (rawPath) => this.normalizePathForVault(rawPath),
       }
     );
+    this.setupDragAndDrop();
 
     this.deleteEventRef = this.app.vault.on('delete', (file) => {
       if (file instanceof TFile) this.handleFileDeleted(file.path);
@@ -274,12 +281,84 @@ export class FileContextManager {
     this.chipsView.destroy();
     this.ownedContextTray?.destroy();
     this.ownedContextTray = null;
+    if (this.dropTargetEl) {
+      if (this.dragEnterHandler) this.dropTargetEl.removeEventListener('dragenter', this.dragEnterHandler as EventListener);
+      if (this.dragOverHandler) this.dropTargetEl.removeEventListener('dragover', this.dragOverHandler as EventListener);
+      if (this.dragLeaveHandler) this.dropTargetEl.removeEventListener('dragleave', this.dragLeaveHandler as EventListener);
+      if (this.dropHandler) this.dropTargetEl.removeEventListener('drop', this.dropHandler as EventListener);
+    }
+    this.dropOverlayEl?.remove();
+    this.dropTargetEl = null;
+    this.dropOverlayEl = null;
   }
 
   /** Normalizes a file path to be vault-relative with forward slashes. */
   normalizePathForVault(rawPath: string | undefined | null): string | null {
     const vaultPath = getVaultPath(this.app);
     return normalizePathForVaultUtil(rawPath, vaultPath);
+  }
+
+  private setupDragAndDrop(): void {
+    const target = this.inputEl.closest<HTMLElement>('.claudian-input-wrapper');
+    if (!target) return;
+    const overlay = target.createDiv();
+    overlay.className = 'claudian-file-drop-overlay';
+    overlay.textContent = 'Drop files or folders to attach';
+    overlay.style.display = 'none';
+    target.appendChild(overlay);
+    let dragDepth = 0;
+    this.dragEnterHandler = (event) => {
+      event.preventDefault();
+      dragDepth += 1;
+      overlay.style.display = '';
+    };
+    this.dragOverHandler = (event) => event.preventDefault();
+    this.dragLeaveHandler = (event) => {
+      event.preventDefault();
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) overlay.style.display = 'none';
+    };
+    this.dropHandler = (event) => {
+      event.preventDefault();
+      dragDepth = 0;
+      overlay.style.display = 'none';
+      const paths = this.resolveDroppedPaths(event.dataTransfer);
+      for (const path of paths) this.attachDroppedPath(path);
+    };
+    target.addEventListener('dragenter', this.dragEnterHandler as EventListener);
+    target.addEventListener('dragover', this.dragOverHandler as EventListener);
+    target.addEventListener('dragleave', this.dragLeaveHandler as EventListener);
+    target.addEventListener('drop', this.dropHandler as EventListener);
+    this.dropTargetEl = target;
+    this.dropOverlayEl = overlay;
+  }
+
+  private resolveDroppedPaths(dataTransfer: DataTransfer | null): string[] {
+    if (!dataTransfer) return [];
+    const paths: string[] = [];
+    const text = dataTransfer.getData('text/plain');
+    const uri = text.match(/^obsidian:\/\/open\?file=(.+)$/i)?.[1];
+    if (uri) paths.push(decodeURIComponent(uri));
+    for (const file of Array.from(dataTransfer.files ?? [])) {
+      const rawPath = (file as File & { path?: string }).path;
+      if (rawPath) paths.push(rawPath);
+    }
+    return paths;
+  }
+
+  private attachDroppedPath(rawPath: string): void {
+    const normalized = this.normalizePathForVault(rawPath);
+    if (!normalized) return;
+    const abstract = this.app.vault.getAbstractFileByPath(normalized);
+    const path = abstract instanceof TFolder && !normalized.endsWith('/') ? `${normalized}/` : normalized;
+    this.state.attachFile(path);
+    const mention = `@${path}`;
+    const start = this.inputEl.selectionStart ?? this.inputEl.value.length;
+    const end = this.inputEl.selectionEnd ?? start;
+    this.inputEl.setRangeText(mention, start, end, 'end');
+    this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    this.inputEl.focus();
+    this.callbacks.onUserChipsChanged?.();
   }
 
   private refreshCurrentNoteChip(): void {
