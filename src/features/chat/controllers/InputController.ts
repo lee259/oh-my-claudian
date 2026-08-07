@@ -564,11 +564,11 @@ export class InputController {
           this.finishAcceptedMissingSession(streamGeneration);
         }
         const notice = resolution === 'deleted'
-            ? 'The provider session no longer exists. Its Claudian record was removed; send again to start a new session.'
+            ? 'The provider session no longer exists. Its Oh My Claudian record was removed; send again to start a new session.'
             : resolution === 'reset'
-              ? 'The provider session no longer exists. Claudian preserved the recoverable history; send again to rebuild the session.'
+              ? 'The provider session no longer exists. Oh My Claudian preserved the recoverable history; send again to rebuild the session.'
               : resolution === 'preserved'
-                ? 'The provider session no longer exists. Claudian preserved its record because the remaining history could not be verified.'
+                ? 'The provider session no longer exists. Oh My Claudian preserved its record because the remaining history could not be verified.'
                 : 'The provider session no longer exists. Send again to start a new session.';
         new Notice(notice);
         wasInvalidated = true;

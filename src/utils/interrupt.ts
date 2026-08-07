@@ -7,7 +7,7 @@ const COMPACTION_CANCELED_STDERR_PATTERN =
   /^<local-command-stderr>\s*Error:\s*Compaction canceled\.?\s*<\/local-command-stderr>$/i;
 
 const LEGACY_INTERRUPT_INDICATOR_HTML =
-  '<span class="claudian-interrupted">Interrupted</span> <span class="claudian-interrupted-hint">· What should Claudian do instead?</span>';
+  '<span class="claudian-interrupted">Interrupted</span> <span class="claudian-interrupted-hint">· What should Oh My Claudian do instead?</span>';
 
 function normalize(text: string): string {
   return text.trim();
