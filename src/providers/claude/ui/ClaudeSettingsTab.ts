@@ -53,6 +53,10 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
           ) ? 1 : 0,
         });
       },
+      async onRefresh() {
+        claudeWorkspace.cliResolver.reset();
+        context.notifyProviderModelOptionsChanged('claude');
+      },
     });
 
     const reconcileActiveClaudeModelSelection = (settings: Record<string, unknown>): void => {
