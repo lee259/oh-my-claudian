@@ -89,15 +89,16 @@ export class FileContextManager {
       },
       onOpenFile: (filePath) => {
         void (async (): Promise<void> => {
-          const file = this.app.vault.getAbstractFileByPath(filePath);
-          if (!(file instanceof TFile)) {
-            new Notice(`Could not open file: ${filePath}`);
-            return;
-          }
           try {
-            await this.app.workspace.getLeaf().openFile(file);
+            const normalizedPath = filePath.replace(/\/$/, '');
+            const file = this.app.vault.getAbstractFileByPath(normalizedPath);
+            if (file instanceof TFile) {
+              await this.app.workspace.getLeaf().openFile(file);
+              return;
+            }
+            await this.app.workspace.openLinkText(normalizedPath, '', false);
           } catch (error) {
-            new Notice(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
+            new Notice(`Could not open file: ${filePath}`);
           }
         })();
       },
@@ -371,12 +372,6 @@ export class FileContextManager {
     const path = abstract instanceof TFolder && !normalized.endsWith('/') ? `${normalized}/` : normalized;
     this.state.attachFile(path);
     this.renderAttachedFiles();
-    const mention = `@${path}`;
-    const start = this.inputEl.selectionStart ?? this.inputEl.value.length;
-    const end = this.inputEl.selectionEnd ?? start;
-    this.inputEl.setRangeText(mention, start, end, 'end');
-    this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-    this.inputEl.focus();
     this.callbacks.onUserChipsChanged?.();
   }
 
