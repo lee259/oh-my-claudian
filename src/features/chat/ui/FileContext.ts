@@ -82,8 +82,10 @@ export class FileContextManager {
           this.currentNotePath = null;
           this.state.detachFile(filePath);
           this.refreshCurrentNoteChip();
-          this.callbacks.onUserChipsChanged?.();
         }
+        this.state.detachFile(filePath);
+        this.renderAttachedFiles();
+        this.callbacks.onUserChipsChanged?.();
       },
       onOpenFile: (filePath) => {
         void (async (): Promise<void> => {
@@ -105,7 +107,10 @@ export class FileContextManager {
       this.dropdownContainerEl,
       this.inputEl,
       {
-        onAttachFile: (filePath) => this.state.attachFile(filePath),
+        onAttachFile: (filePath) => {
+          this.state.attachFile(filePath);
+          this.renderAttachedFiles();
+        },
         onMcpMentionChange: (servers) => this.onMcpMentionChange?.(servers),
         onAgentMentionSelect: (agentId) => this.callbacks.onAgentMentionSelect?.(agentId),
         getMentionedMcpServers: () => this.state.getMentionedMcpServers(),
@@ -339,13 +344,24 @@ export class FileContextManager {
     if (!dataTransfer) return [];
     const paths: string[] = [];
     const text = dataTransfer.getData('text/plain');
-    const uri = text.match(/^obsidian:\/\/open\?file=(.+)$/i)?.[1];
-    if (uri) paths.push(decodeURIComponent(uri));
+    const uriList = dataTransfer.getData('text/uri-list');
+    for (const candidate of [text, uriList]) {
+      if (!candidate) continue;
+      const uri = candidate.trim().split('\n').find(value => /^obsidian:\/\/open\?/i.test(value));
+      if (!uri) continue;
+      try {
+        const filePath = new URL(uri).searchParams.get('file');
+        if (filePath) paths.push(filePath);
+      } catch {
+        const filePath = uri.match(/[?&]file=([^&]+)/i)?.[1];
+        if (filePath) paths.push(decodeURIComponent(filePath));
+      }
+    }
     for (const file of Array.from(dataTransfer.files ?? [])) {
       const rawPath = (file as File & { path?: string }).path;
       if (rawPath) paths.push(rawPath);
     }
-    return paths;
+    return [...new Set(paths)];
   }
 
   private attachDroppedPath(rawPath: string): void {
@@ -354,6 +370,7 @@ export class FileContextManager {
     const abstract = this.app.vault.getAbstractFileByPath(normalized);
     const path = abstract instanceof TFolder && !normalized.endsWith('/') ? `${normalized}/` : normalized;
     this.state.attachFile(path);
+    this.renderAttachedFiles();
     const mention = `@${path}`;
     const start = this.inputEl.selectionStart ?? this.inputEl.value.length;
     const end = this.inputEl.selectionEnd ?? start;
@@ -365,7 +382,12 @@ export class FileContextManager {
 
   private refreshCurrentNoteChip(): void {
     this.chipsView.renderCurrentNote(this.currentNotePath);
+    this.renderAttachedFiles();
     this.callbacks.onChipsChanged?.();
+  }
+
+  private renderAttachedFiles(): void {
+    this.chipsView.renderAttachedFiles(this.state.getAttachedFiles(), this.currentNotePath);
   }
 
   private handleFileRenamed(
