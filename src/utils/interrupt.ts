@@ -31,20 +31,19 @@ export function stripLegacyInterruptIndicator(text: string): {
   content: string;
   interrupted: boolean;
 } {
-  const markerIndex = Math.max(
-    ...INTERRUPT_INDICATOR_HTML_VARIANTS.map(marker => text.lastIndexOf(marker)),
-  );
-  const marker = INTERRUPT_INDICATOR_HTML_VARIANTS.find(candidate => text.includes(candidate));
+  const markerMatch = INTERRUPT_INDICATOR_HTML_VARIANTS
+    .map(marker => ({ marker, index: text.lastIndexOf(marker) }))
+    .sort((left, right) => right.index - left.index)[0];
   if (
-    markerIndex === -1
-    || !marker
-    || text.slice(markerIndex + marker.length).trim().length > 0
+    !markerMatch
+    || markerMatch.index === -1
+    || text.slice(markerMatch.index + markerMatch.marker.length).trim().length > 0
   ) {
     return { content: text, interrupted: false };
   }
 
   return {
-    content: text.slice(0, markerIndex).trimEnd(),
+    content: text.slice(0, markerMatch.index).trimEnd(),
     interrupted: true,
   };
 }
