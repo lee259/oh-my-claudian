@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Setting } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 
 import { assessProviderReadiness } from '../../../core/providers/ProviderReadiness';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
@@ -56,6 +56,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async onRefresh() {
         claudeWorkspace.cliResolver.reset();
         context.notifyProviderModelOptionsChanged('claude');
+        new Notice('Claude readiness rechecked.');
       },
     });
 
