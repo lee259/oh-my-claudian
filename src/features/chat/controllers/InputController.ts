@@ -1013,7 +1013,7 @@ export class InputController {
       ? fileContextManager.transformContextMentions(options.content)
       : options.content;
     const enabledMcpServers = mcpServerSelector?.getEnabledServers();
-    const contextFiles = fileContextManager?.getAttachedFiles();
+    const contextFiles = fileContextManager?.getAttachedFiles?.();
 
     return {
       displayContent: options.content,

@@ -299,8 +299,10 @@ export class FileContextManager {
   }
 
   private setupDragAndDrop(): void {
+    if (typeof this.inputEl.closest !== 'function') return;
     const target = this.inputEl.closest<HTMLElement>('.claudian-input-wrapper');
     if (!target) return;
+    if (typeof (target as HTMLElement & { createDiv?: unknown }).createDiv !== 'function') return;
     const overlay = target.createDiv();
     overlay.className = 'claudian-file-drop-overlay';
     overlay.textContent = 'Drop files or folders to attach';
