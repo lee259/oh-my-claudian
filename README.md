@@ -8,16 +8,6 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
 
 > This repository is based on [YishenTu/claudian](https://github.com/YishenTu/claudian) and adds Oh My Pi (OMP) and Cursor support through ACP.
 
-## What's new in 2.1.12
-
-- **Cursor Agent** — ACP-backed Cursor provider with model discovery, Agent/Ask/Plan modes, image attachments, and read-only transcript restoration.
-- **More reliable Codex turns** — recover when the Codex app-server finishes a turn without sending a completion event, including safe cancellation recovery.
-- **Provider readiness** — every provider settings tab now reports enablement, CLI detection, model discovery, and model selection with provider-specific CLI path guidance and refresh actions.
-- **Safer command execution** — warn before approving commands containing hidden, bidirectional, or other suspicious control characters.
-- **Better command and output UX** — provider-native slash commands are filtered by trigger, exact command matches rank first, and long tool-output lines wrap in the expanded view.
-- **Safer image failures** — failed image turns no longer leave unusable image input permanently attached to a conversation.
-- **File and folder context** — drag files or folders from Obsidian or your desktop into the composer, see them as clickable context chips, and send them through the provider request.
-
 ## Added in This Repository
 
 - **Oh My Pi (OMP)** — An ACP-backed OMP provider with model discovery and selection in the chat sidebar.
