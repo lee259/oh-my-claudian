@@ -76,7 +76,7 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
 
 1. Open **Settings → Oh My Claudian** and choose a provider tab.
 2. Enable the provider, confirm its **Readiness** checks, and select a chat model.
-3. Open the chat view and send your first message. Use the **Open chat** button in the General settings tab whenever you need to return to the chat.
+3. Open the chat view and send your first message. Claudian performs a lightweight preflight before sending and preserves your input if the Provider is not ready. Use the inline recovery card to retry, rebuild a session, or view detailed diagnostics.
 
 Each provider has a readiness panel in its settings tab. Use it to see whether the provider is enabled, its CLI is available, models have been discovered, and a chat model is selected. The panel refreshes after enablement changes and lets you recheck the current provider state; installation and authentication remain provider-native. Model pickers also show whether the catalog is fresh, cached, or failed to refresh, along with the provider default and current selection mode.
 
@@ -119,11 +119,11 @@ Releases are created automatically by [`.github/workflows/release.yml`](.github/
 3. Create a tag that exactly matches the `manifest.json` version, for example:
 
    ```bash
-   git tag 2.1.13
-   git push origin 2.1.13
+   git tag 2.1.14
+   git push origin 2.1.14
    ```
 
-   If your writable remote is named `fork`, use `git push fork 2.1.13` instead.
+   If your writable remote is named `fork`, use `git push fork 2.1.14` instead.
 
 The workflow validates the version, builds the plugin, runs the performance check, generates release notes, and publishes `main.js`, `manifest.json`, and `styles.css` to the GitHub Release. These are the files used for the Obsidian Community Plugins release.
 

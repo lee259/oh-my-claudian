@@ -123,6 +123,16 @@
       "check": { "enabled": "提供者已啟用", "cli": "CLI 可用", "models": "模型目錄可用", "selection": "已選擇聊天模型" },
       "hint": { "enableProvider": "啟用此提供者後才能在聊天中使用。", "configureCli": "設定有效的 CLI 路徑，或讓 Obsidian 可以從 PATH 找到它。", "refreshModels": "檢查提供者的登入或工作階段狀態，然後重新檢查以載入模型。", "selectModel": "在下方至少選擇一個聊天模型。" }
     },
+    "providerDiagnostics": {
+      "kicker": "疑難排解", "title": "Provider 診斷", "whatHappened": "發生了什麼", "readiness": "就緒檢查",
+      "provider": "Provider", "category": "錯誤類型", "status": "執行狀態", "platform": "平台", "time": "時間",
+      "retry": "重試訊息", "rebuild": "重建工作階段", "details": "查看詳情", "copy": "複製報告", "close": "關閉", "copied": "Provider 診斷報告已複製。", "copyFailed": "無法複製 Provider 診斷報告。",
+      "statusValue": { "idle": "閒置", "starting": "啟動中", "running": "執行中", "failed": "失敗" },
+      "check": { "enabled": "Provider 已啟用", "cli": "CLI 可用", "models": "模型目錄可用", "selection": "已選擇聊天模型" },
+      "checkStatus": { "disabled": "未啟用", "blocked": "受阻", "attention": "需要注意", "ready": "已就緒" },
+      "remediation": { "enableProvider": "啟用 Provider", "configureCli": "設定 CLI", "refreshModels": "重新整理模型", "selectModel": "選擇模型" },
+      "categoryValue": { "unknown": "未知錯誤", "cli-not-found": "找不到 CLI", "cli-start-failed": "CLI 啟動失敗", "session-resume-failed": "工作階段恢復失敗", "model-unavailable": "模型不可用", "permission-denied": "權限不足", "timeout": "請求逾時", "rate-limited": "請求受限", "protocol-error": "通訊協定錯誤", "authentication": "驗證失敗", "not-configured": "未設定", "provider": "Provider 錯誤" }
+    },
     "display": "顯示",
     "conversations": "對話",
     "content": "內容",

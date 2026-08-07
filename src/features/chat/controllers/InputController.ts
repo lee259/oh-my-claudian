@@ -6,6 +6,7 @@ import {
   isBuiltInCommandSupported,
 } from '../../../core/commands/builtInCommands';
 import type { ProviderExecutionEvent } from '../../../core/execution';
+import { stringifyDiagnosticError } from '../../../core/providers/ProviderDiagnostics';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import {
@@ -145,6 +146,10 @@ export interface InputControllerDeps {
   restorePrePlanPermissionModeIfNeeded?: () => void | Promise<void>;
   /** Captures a review reporter when a terminal provider turn becomes visible. */
   captureReviewableSettlement?: () => () => void;
+  /** Opens provider diagnostics for failures before execution handoff. */
+  onDiagnosticError?: (error: unknown) => void;
+  /** Performs a lightweight provider check before starting a new turn. */
+  preflightExecution?: () => Promise<Error | null>;
   turnOwner?: ActiveTurnOwner;
 }
 
@@ -337,6 +342,15 @@ export class InputController {
       }
       await this.executeBuiltInCommand(builtInCmd.command, builtInCmd.args);
       return;
+    }
+
+    if (this.deps.preflightExecution) {
+      const preflightError = await this.deps.preflightExecution();
+      if (preflightError) {
+        this.deps.onDiagnosticError?.(preflightError);
+        this.reportDeferredReviewableSettlement();
+        return;
+      }
     }
 
     // If agent is working, queue the message instead of dropping it
@@ -570,10 +584,11 @@ export class InputController {
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         didRollbackUnsentTurn = true;
         new Notice('Message was not sent. Please try again.');
+        this.deps.onDiagnosticError?.(error);
         this.reportDeferredReviewableSettlement();
       } else {
         shouldReportReviewableSettlement = true;
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const errorMsg = stringifyDiagnosticError(error);
         await streamController.appendText(`\n\n**Error:** ${errorMsg}`);
         currentReviewableSettlementReporter =
           this.deps.captureReviewableSettlement?.() ?? null;
@@ -1822,7 +1837,7 @@ export class InputController {
         instructionModeManager?.clear();
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const errorMsg = stringifyDiagnosticError(error);
       new Notice(`Error: ${errorMsg}`);
       modal?.showError(errorMsg);
       instructionModeManager?.clear();

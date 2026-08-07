@@ -273,6 +273,20 @@ describe('InputController coordinator execution', () => {
     expect(fixture.deps.conversationController.save).toHaveBeenCalledTimes(2);
   });
 
+  it('blocks the first turn when provider preflight reports a blocking error', async () => {
+    const onDiagnosticError = jest.fn();
+    const preflightExecution = jest.fn().mockResolvedValue(new Error('Provider CLI not found.'));
+    const fixture = createFixture({ preflightExecution, onDiagnosticError });
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    expect(preflightExecution).toHaveBeenCalledTimes(1);
+    expect(onDiagnosticError).toHaveBeenCalledWith(expect.any(Error));
+    expect(fixture.coordinator.execute).not.toHaveBeenCalled();
+    expect(fixture.input.value).toBe('first');
+  });
+
   it('numbers canonical submissions without counting interrupt markers', async () => {
     const fixture = createFixture({
       getFileContextManager: () => ({
