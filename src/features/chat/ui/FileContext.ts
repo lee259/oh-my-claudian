@@ -97,7 +97,7 @@ export class FileContextManager {
               return;
             }
             await this.app.workspace.openLinkText(normalizedPath, '', false);
-          } catch (error) {
+          } catch {
             new Notice(`Could not open file: ${filePath}`);
           }
         })();
