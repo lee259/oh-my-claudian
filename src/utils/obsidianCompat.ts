@@ -1,5 +1,5 @@
-import { Notice, TFile } from 'obsidian';
 import type { App, Workspace, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile } from 'obsidian';
 
 import { getVaultPath, normalizePathForVault } from './path';
 

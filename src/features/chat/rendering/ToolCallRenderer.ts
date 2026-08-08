@@ -859,7 +859,7 @@ function makeFileSummaryInteractive(
   };
   summaryEl.addEventListener('click', open);
   summaryEl.addEventListener('keydown', (event) => {
-    const keyboardEvent = event as KeyboardEvent;
+    const keyboardEvent = event;
     if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
       keyboardEvent.preventDefault();
       open(event);
