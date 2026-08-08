@@ -27,6 +27,7 @@ import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLi
 import { replaceImageEmbedsWithHtml } from '../../../utils/imageEmbed';
 import { stripLegacyInterruptIndicator } from '../../../utils/interrupt';
 import { escapeRawHtmlTags } from '../../../utils/markdownHtml';
+import { openVaultFile } from '../../../utils/obsidianCompat';
 import {
   escapeMathDelimitersForStreaming,
   normalizeLatexMathDelimiters,
@@ -517,6 +518,9 @@ export class MessageRenderer {
     if (isWriteEditTool(toolCall.name)) {
       renderStoredWriteEdit(contentEl, toolCall, {
         initiallyExpanded: this.shouldExpandFileEditsByDefault(),
+        onOpenFile: (filePath) => runRendererAction(async () => {
+          await openVaultFile(this.app, filePath);
+        }),
       });
     } else if (
       subagentAdapter?.protocol === 'managed-agent'
@@ -532,6 +536,9 @@ export class MessageRenderer {
     } else {
       renderStoredToolCall(contentEl, toolCall, {
         initiallyExpanded: toolCall.name === TOOL_APPLY_PATCH && this.shouldExpandFileEditsByDefault(),
+        onOpenFile: (filePath) => runRendererAction(async () => {
+          await openVaultFile(this.app, filePath);
+        }),
       });
     }
   }
