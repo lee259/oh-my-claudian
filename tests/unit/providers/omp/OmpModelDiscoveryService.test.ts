@@ -1,4 +1,35 @@
-import { OmpModelDiscoveryService } from '@/providers/omp/metadata/OmpModelDiscoveryService';
+import {
+  OmpModelDiscoveryService,
+  parseOmpModelsOutput,
+} from '@/providers/omp/metadata/OmpModelDiscoveryService';
+
+describe('parseOmpModelsOutput', () => {
+  it('parses the complete OMP catalog without using Pi model ids', () => {
+    expect(parseOmpModelsOutput(JSON.stringify({
+      models: [{
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash · Bailian',
+        provider: 'bailian',
+        selector: 'bailian/deepseek-v4-flash',
+      }, {
+        id: 'gpt-5',
+        name: 'GPT-5 · OpenRouter',
+        provider: 'openrouter',
+      }],
+    }))).toEqual([
+      {
+        description: 'bailian/deepseek-v4-flash',
+        label: 'DeepSeek V4 Flash · Bailian',
+        rawId: 'bailian/deepseek-v4-flash',
+      },
+      {
+        description: 'openrouter/gpt-5',
+        label: 'GPT-5 · OpenRouter',
+        rawId: 'openrouter/gpt-5',
+      },
+    ]);
+  });
+});
 
 describe('OmpModelDiscoveryService', () => {
   it('discovers OMP thinking choices alongside models', async () => {
