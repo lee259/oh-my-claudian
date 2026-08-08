@@ -3,6 +3,12 @@ import {
   parseOmpModelsOutput,
 } from '@/providers/omp/metadata/OmpModelDiscoveryService';
 
+function createCatalogRunner() {
+  return {
+    run: jest.fn().mockResolvedValue({ exitCode: 1, stdout: '' }),
+  };
+}
+
 describe('parseOmpModelsOutput', () => {
   it('parses the complete OMP catalog without using Pi model ids', () => {
     expect(parseOmpModelsOutput(JSON.stringify({
@@ -60,7 +66,10 @@ describe('OmpModelDiscoveryService', () => {
       setConfigOption: jest.fn(),
     };
     const plugin = { app: { vault: { adapter: { basePath: '/vault' } } } } as never;
-    const service = new OmpModelDiscoveryService(plugin, { createKernel: () => kernel });
+    const service = new OmpModelDiscoveryService(plugin, {
+      createKernel: () => kernel,
+      runner: createCatalogRunner(),
+    });
 
     await expect(service.discoverCatalog()).resolves.toEqual({
       models: [{ label: 'GPT-5 mini', rawId: 'openai/gpt-5-mini' }],
@@ -109,6 +118,7 @@ describe('OmpModelDiscoveryService', () => {
 
     const service = new OmpModelDiscoveryService(plugin, {
       createKernel: () => kernel,
+      runner: createCatalogRunner(),
     });
 
     await expect(service.discover()).resolves.toEqual([
@@ -149,6 +159,7 @@ describe('OmpModelDiscoveryService', () => {
 
     const service = new OmpModelDiscoveryService(plugin, {
       createKernel: () => kernel,
+      runner: createCatalogRunner(),
     });
 
     await expect(service.discover()).resolves.toEqual([

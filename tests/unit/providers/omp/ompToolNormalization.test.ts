@@ -17,4 +17,11 @@ describe('OMP tool normalization', () => {
     const adapter = createOmpToolStreamAdapter();
     expect(adapter).toBeDefined();
   });
+
+  it('does not reinterpret custom tools that happen to start with a tool verb', () => {
+    expect(normalizeOmpToolName('Write release notes')).toBe('Write release notes');
+    expect(resolveOmpRawToolName(undefined, {
+      title: 'Write release notes',
+    })).toEqual({ provenance: 'title', rawName: 'Write release notes' });
+  });
 });

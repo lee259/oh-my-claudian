@@ -17,20 +17,25 @@ export async function revealWorkspaceLeaf(workspace: Workspace, leaf: WorkspaceL
 
 /** Opens a provider-reported vault path in Obsidian. */
 export async function openVaultFile(app: App, rawPath: string): Promise<boolean> {
-  const relativePath = normalizePathForVault(rawPath, getVaultPath(app));
-  if (!relativePath || relativePath.startsWith('/')) {
+  try {
+    const relativePath = normalizePathForVault(rawPath, getVaultPath(app));
+    if (!relativePath || relativePath.startsWith('/')) {
+      new Notice(`Could not open vault file: ${rawPath}`);
+      return false;
+    }
+
+    const file = app.vault.getAbstractFileByPath(relativePath);
+    if (!(file instanceof TFile)) {
+      new Notice(`File not found in vault: ${relativePath}`);
+      return false;
+    }
+
+    await app.workspace.getLeaf().openFile(file);
+    return true;
+  } catch {
     new Notice(`Could not open vault file: ${rawPath}`);
     return false;
   }
-
-  const file = app.vault.getAbstractFileByPath(relativePath);
-  if (!(file instanceof TFile)) {
-    new Notice(`File not found in vault: ${relativePath}`);
-    return false;
-  }
-
-  await app.workspace.getLeaf().openFile(file);
-  return true;
 }
 
 function isVaultFile(value: unknown): value is TFile {

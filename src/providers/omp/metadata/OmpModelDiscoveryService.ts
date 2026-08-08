@@ -160,13 +160,7 @@ export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
     }
     return new Promise(resolve => {
       const spawnSpec = resolveWindowsCmdShimSpawnSpec(request);
-      const child = spawn(spawnSpec.command, spawnSpec.args, {
-        cwd: request.cwd,
-        env: request.env,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        windowsHide: true,
-        ...(spawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-      });
+      let child: ReturnType<typeof spawn> | null = null;
       const chunks: Buffer[] = [];
       let byteLength = 0;
       let settled = false;
@@ -178,18 +172,43 @@ export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
         resolve(result);
       };
       const terminate = (): void => {
-        terminateSpawnedProcess(child, 'SIGKILL', spawn, spawnSpec);
+        if (child) terminateSpawnedProcess(child, 'SIGKILL', spawn, spawnSpec);
       };
       const onAbort = (): void => {
         terminate();
         finish({ exitCode: null, stdout: '', termination: 'abort' });
       };
-      const timeout = window.setTimeout(() => {
+      request.signal?.addEventListener('abort', onAbort, { once: true });
+      const timeout = globalThis.setTimeout(() => {
         terminate();
         finish({ exitCode: null, stdout: '', termination: 'timeout' });
       }, request.timeoutMs);
-      request.signal?.addEventListener('abort', onAbort, { once: true });
-      child.stdout.on('data', (chunk: Buffer | string) => {
+      if (request.signal?.aborted) {
+        finish({ exitCode: null, stdout: '', termination: 'abort' });
+        return;
+      }
+      try {
+        child = spawn(spawnSpec.command, spawnSpec.args, {
+          cwd: request.cwd,
+          env: request.env,
+          stdio: ['ignore', 'pipe', 'ignore'],
+          windowsHide: true,
+          ...(spawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+        });
+      } catch {
+        finish({ exitCode: null, stdout: '', termination: 'error' });
+        return;
+      }
+      if (request.signal?.aborted) {
+        onAbort();
+        return;
+      }
+      const spawnedChild = child;
+      if (!spawnedChild.stdout) {
+        finish({ exitCode: null, stdout: '', termination: 'error' });
+        return;
+      }
+      spawnedChild.stdout.on('data', (chunk: Buffer | string) => {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         byteLength += buffer.byteLength;
         if (byteLength > MAX_STDOUT_BYTES) {
@@ -199,8 +218,8 @@ export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
         }
         chunks.push(buffer);
       });
-      child.once('error', () => finish({ exitCode: null, stdout: '', termination: 'error' }));
-      child.once('close', exitCode => finish({
+      spawnedChild.once('error', () => finish({ exitCode: null, stdout: '', termination: 'error' }));
+      spawnedChild.once('close', exitCode => finish({
         exitCode,
         stdout: Buffer.concat(chunks).toString('utf8'),
       }));

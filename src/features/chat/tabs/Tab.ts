@@ -1162,7 +1162,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     attr: {
       type: 'button',
       'aria-label': 'Send message',
-      title: 'Send message (Enter)',
+      title: 'Send message (enter)',
     },
   });
   setIcon(sendButtonEl, 'send');
@@ -1184,7 +1184,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
   };
 }
 
-function updateSendButton(tab: TabData): void {
+export function updateSendButton(tab: TabData): void {
   const { inputEl, sendButtonEl } = tab.dom;
   const isStreaming = tab.state.isStreaming;
   const canSend = inputEl.value.trim().length > 0;

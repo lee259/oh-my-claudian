@@ -50,8 +50,8 @@ function normalizeOmpToolInput(
 function mapOmpToolName(value: string | undefined | null): string | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
-  if (/^(?:read|reading)\b/u.test(normalized)) return TOOL_READ;
-  if (/^(?:write|writing)\b/u.test(normalized)) return TOOL_WRITE;
-  if (/^(?:edit|editing)\b/u.test(normalized)) return TOOL_EDIT;
+  if (normalized === 'read' || /^reading\s+.+\s+for\s+context$/u.test(normalized)) return TOOL_READ;
+  if (normalized === 'write' || /^writing\s+.+\s+for\s+context$/u.test(normalized)) return TOOL_WRITE;
+  if (normalized === 'edit' || /^editing\s+.+\s+for\s+context$/u.test(normalized)) return TOOL_EDIT;
   return undefined;
 }
