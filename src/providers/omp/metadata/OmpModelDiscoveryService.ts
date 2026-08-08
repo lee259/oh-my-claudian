@@ -167,7 +167,7 @@ export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
       const finish = (result: OmpCatalogCommandResult): void => {
         if (settled) return;
         settled = true;
-        window.clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         request.signal?.removeEventListener('abort', onAbort);
         resolve(result);
       };
