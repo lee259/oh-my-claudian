@@ -1094,7 +1094,6 @@ export class ClaudianView extends ItemView {
     return new VaultFileTree({
       app: this.plugin.app,
       hostEl,
-      sourceLeaf: this.leaf,
     });
   }
 
