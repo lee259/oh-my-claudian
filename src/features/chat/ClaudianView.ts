@@ -410,6 +410,10 @@ export class ClaudianView extends ItemView {
     this.sidebarSurfaceSwitcherEl = this.sessionSidebarEl.createDiv({
       cls: 'claudian-sidebar-surface-switcher',
     });
+    this.sessionSidebarEl.insertBefore(
+      this.sidebarSurfaceSwitcherEl,
+      this.sessionSidebarEl.firstChild,
+    );
     this.sidebarSurfaceSwitcherEl.setAttribute('role', 'group');
     this.sidebarSurfaceSwitcherEl.setAttribute('aria-label', 'Sidebar view');
     this.sessionsSurfaceButtonEl = this.sidebarSurfaceSwitcherEl.createEl('button', {

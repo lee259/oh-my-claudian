@@ -58,36 +58,15 @@
 }
 
 .claudian-sidebar-surface-switcher {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 5;
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   box-sizing: border-box;
-  height: var(--claudian-sidebar-surface-footer-height);
+  flex: 0 0 auto;
   gap: 6px;
-  padding: 6px 8px 8px;
+  padding: 8px 12px;
   background: var(--background-primary);
-  opacity: 1;
-  transition: opacity 0.12s ease;
-}
-
-.claudian-sidebar-surface-switcher:hover,
-.claudian-sidebar-surface-switcher:focus-within {
-  opacity: 1;
-}
-
-.claudian-session-sidebar:has(> .claudian-sidebar-surface-switcher:hover)
-  > .claudian-session-surface,
-.claudian-session-sidebar:has(> .claudian-sidebar-surface-switcher:hover)
-  > .claudian-files-surface,
-.claudian-session-sidebar:has(> .claudian-sidebar-surface-switcher:focus-within)
-  > .claudian-session-surface,
-.claudian-session-sidebar:has(> .claudian-sidebar-surface-switcher:focus-within)
-  > .claudian-files-surface {
-  clip-path: inset(0 0 var(--claudian-sidebar-surface-footer-height) 0);
 }
 
 .claudian-session-sidebar .claudian-sidebar-surface-button {
@@ -125,13 +104,8 @@
 }
 
 .claudian-session-sidebar .claudian-sidebar-surface-button:focus-visible {
-  background: transparent;
+  background: var(--background-modifier-hover);
   box-shadow: none;
-  outline: none;
-}
-
-.claudian-session-sidebar .claudian-sidebar-surface-button:focus-visible::before {
-  opacity: 0.72;
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
