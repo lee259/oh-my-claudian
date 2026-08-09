@@ -1422,7 +1422,13 @@ export class CodexNotificationRouter {
       ? item.exitCode !== 0
       : rawResult?.isError ?? isCodexToolOutputError(output);
 
-    this.emit({ type: 'tool_result', id: resultId, content, isError });
+    this.emit({
+      type: 'tool_result',
+      id: resultId,
+      content,
+      isError,
+      ...(item.status === 'declined' ? { isBlocked: true } : {}),
+    });
   }
 
   // -- fileChange -------------------------------------------------------------
@@ -1457,6 +1463,7 @@ export class CodexNotificationRouter {
       id: item.id,
       content: paths || 'File change completed',
       isError: item.status === 'failed' || item.status === 'declined',
+      ...(item.status === 'declined' ? { isBlocked: true } : {}),
     });
   }
 

@@ -43,6 +43,7 @@ export interface AcpExecutionEventNormalizerOptions {
     context: AcpToolScopeContext,
   ) => ToolExecutionScope;
   readonly mapUsage?: (usage: AcpUsageUpdate) => UsageInfo | null;
+  readonly isToolBlocked?: (toolCallId: string) => boolean;
   readonly toolStreamAdapter?: AcpToolStreamAdapter;
 }
 
@@ -200,7 +201,12 @@ export class AcpExecutionEventNormalizer {
               return [{
                 content: chunk.content,
                 isError: chunk.isError,
-                isBlocked: chunk.isBlocked,
+                ...(
+                  chunk.isBlocked === true
+                  || this.options.isToolBlocked?.(chunk.id) === true
+                    ? { isBlocked: true }
+                    : {}
+                ),
                 scope: this.nextScope(),
                 toolCallId: chunk.id,
                 toolScope,

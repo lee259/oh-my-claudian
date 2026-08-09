@@ -3280,6 +3280,26 @@ describe('CodexNotificationRouter', () => {
       ]);
     });
 
+    it('marks a declined file change result as blocked', () => {
+      router.handleNotification('item/completed', {
+        item: {
+          type: 'fileChange',
+          id: 'call_fc_declined',
+          status: 'declined',
+          changes: [{ path: '/workspace/foo.ts', type: 'modify' }],
+        },
+        threadId: 't1',
+        turnId: 'turn1',
+      });
+
+      expect(chunks).toContainEqual(expect.objectContaining({
+        id: 'call_fc_declined',
+        isBlocked: true,
+        isError: true,
+        type: 'tool_result',
+      }));
+    });
+
     it('maps fileChange patchUpdated diffs into apply_patch tool input', () => {
       router.handleNotification('item/fileChange/patchUpdated', {
         threadId: 't1',
