@@ -67,10 +67,10 @@
   justify-content: center;
   box-sizing: border-box;
   height: var(--claudian-sidebar-surface-footer-height);
-  gap: 14px;
-  padding: 8px 12px 12px;
-  background: transparent;
-  opacity: 0;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  background: var(--background-primary);
+  opacity: 1;
   transition: opacity 0.12s ease;
 }
 
@@ -94,40 +94,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0;
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  gap: 6px;
+  padding: 4px 8px;
   color: var(--text-normal);
+  font-size: 12px;
   cursor: pointer;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
   background: transparent;
   box-shadow: none;
 }
 
 .claudian-session-sidebar .claudian-sidebar-surface-button:hover,
 .claudian-session-sidebar .claudian-sidebar-surface-button:active {
-  background: transparent;
+  background: var(--background-modifier-hover);
   box-shadow: none;
 }
 
 .claudian-session-sidebar .claudian-sidebar-surface-button::before {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  content: "";
-  opacity: 0.22;
-  transition: opacity 0.12s ease;
+  display: none;
 }
 
-.claudian-session-sidebar .claudian-sidebar-surface-button:hover::before {
-  opacity: 0.45;
-}
-
-.claudian-session-sidebar .claudian-sidebar-surface-button.is-active::before {
-  opacity: 0.72;
+.claudian-session-sidebar .claudian-sidebar-surface-button.is-active {
+  color: var(--text-accent);
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
 }
 
 .claudian-session-sidebar .claudian-sidebar-surface-button:focus-visible {
