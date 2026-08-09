@@ -49,7 +49,6 @@ import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
-import { InputController } from '../controllers/InputController';
 import { NavigationController } from '../controllers/NavigationController';
 import {
   providerOutputEventToStreamChunk,
@@ -75,6 +74,7 @@ import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { initializeTabPresentationControllers } from './TabControllerFactory';
 import { createTabConversationController } from './TabConversationControllerFactory';
+import { createTabInputController } from './TabInputControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
@@ -1848,37 +1848,10 @@ export function initializeTabControllers(
     },
   });
 
-  tab.controllers.inputController = new InputController({
-    plugin,
-    state,
-    renderer: tab.renderer!,
-    streamController: tab.controllers.streamController,
-    selectionController: tab.controllers.selectionController!,
-    browserSelectionController: tab.controllers.browserSelectionController ?? undefined,
-    canvasSelectionController: tab.controllers.canvasSelectionController!,
-    conversationController: tab.controllers.conversationController,
-    getInputEl: () => dom.inputEl,
-    getInputContainerEl: () => dom.inputContainerEl,
-    getWelcomeEl: () => dom.welcomeEl,
-    getMessagesEl: () => dom.messagesEl,
-    getFileContextManager: () => ui.fileContextManager,
-    getImageContextManager: () => ui.imageContextManager,
-    getMcpServerSelector: () => ui.mcpServerSelector,
-    getExternalContextSelector: () => ui.externalContextSelector,
-    getInstructionModeManager: () => ui.instructionModeManager,
-    getInstructionRefineService: () => services.instructionRefineService,
-    getTitleGenerationService: () => services.titleGenerationService,
-    getStatusPanel: () => ui.statusPanel,
-    generateId: generateMessageId,
-    resetInputHeight: () => {
-      autoResizeTextarea(dom.inputEl);
-    },
-    getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
-    getExecutionCoordinator: () => tab.executionCoordinator,
-    getSubagentManager: () => services.subagentManager,
-    getTabProviderId: () => getTabProviderId(tab, plugin),
-    turnOwner: tab.session,
+  tab.controllers.inputController = createTabInputController(tab, plugin, {
     ensureExecutionInitialized,
+    generateId: generateMessageId,
+    getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
     openConversation,
     handleNewConversationCommand: viewHost.handleNewConversationCommand
       ? () => viewHost.handleNewConversationCommand!()
@@ -1902,28 +1875,7 @@ export function initializeTabControllers(
         }
       }
     },
-    captureReviewableSettlement: tab.captureReviewableSettlement ?? undefined,
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
-    preflightExecution: async () => {
-      let diagnostics;
-      try {
-        diagnostics = await ProviderRegistry.collectDiagnostics(tab.providerId, {
-          settings: plugin.settings,
-          resolveCliPath: () => plugin.providerHost.getResolvedProviderCliPath(tab.providerId),
-        });
-      } catch {
-        return new Error('Provider CLI not found.');
-      }
-      if (diagnostics?.readiness?.status === 'disabled') {
-        return new Error('Provider is not enabled.');
-      }
-      const blockedCheck = diagnostics?.readiness?.checks.find(check => check.status === 'blocked');
-      if (!blockedCheck) return null;
-      if (blockedCheck.id === 'cli') return new Error('Provider CLI not found.');
-      if (blockedCheck.id === 'selection') return new Error('No chat model is selected.');
-      if (blockedCheck.id === 'enabled') return new Error('Provider is not enabled.');
-      return new Error('Provider model catalog is unavailable.');
-    },
   });
 
   tab.controllers.navigationController = new NavigationController({
