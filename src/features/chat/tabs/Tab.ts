@@ -49,7 +49,6 @@ import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
-import { NavigationController } from '../controllers/NavigationController';
 import {
   providerOutputEventToStreamChunk,
 } from '../controllers/StreamController';
@@ -76,6 +75,7 @@ import { initializeTabPresentationControllers } from './TabControllerFactory';
 import { createTabConversationController } from './TabConversationControllerFactory';
 import { createTabInputController } from './TabInputControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
+import { initializeTabNavigationController } from './TabNavigationControllerFactory';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
 import { createTabStreamController } from './TabStreamControllerFactory';
@@ -1694,7 +1694,7 @@ async function handleForkAll(
   });
 }
 
-export function initializeTabControllers(
+export function initializeTabRuntimeControllers(
   tab: TabData,
   plugin: FeatureHost,
   component: Component,
@@ -1703,7 +1703,7 @@ export function initializeTabControllers(
   getProviderCatalogConfig?: () => ProviderCatalogInfo,
 ): void;
 /** @deprecated Legacy 7-arg overload — 4th arg was previously an MCP manager. */
-export function initializeTabControllers(
+export function initializeTabRuntimeControllers(
   tab: TabData,
   plugin: FeatureHost,
   component: Component,
@@ -1712,7 +1712,7 @@ export function initializeTabControllers(
   openConversation?: (conversationId: string) => Promise<void>,
   getProviderCatalogConfig?: () => ProviderCatalogInfo,
 ): void;
-export function initializeTabControllers(
+export function initializeTabRuntimeControllers(
   tab: TabData,
   plugin: FeatureHost,
   component: Component,
@@ -1731,7 +1731,7 @@ export function initializeTabControllers(
     (() => ProviderCatalogInfo) | undefined;
   const viewHost = component as Partial<TabManagerViewHost>;
 
-  const { dom, state, services, ui } = tab;
+  const { dom, services } = tab;
   const ensureExecutionInitialized = async (): Promise<boolean> => {
     if (
       tab.lifecycleState === 'warm'
@@ -1878,22 +1878,11 @@ export function initializeTabControllers(
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
   });
 
-  tab.controllers.navigationController = new NavigationController({
-    getMessagesEl: () => dom.messagesEl,
-    getInputEl: () => dom.inputEl,
-    getSettings: () => plugin.settings.keyboardNavigation,
-    isStreaming: () => state.isStreaming,
-    shouldSkipEscapeHandling: () => {
-      if (ui.instructionModeManager?.isActive()) return true;
-      if (ui.bangBashModeManager?.isActive()) return true;
-      if (tab.controllers.inputController?.isResumeDropdownVisible()) return true;
-      if (ui.slashCommandDropdown?.isVisible()) return true;
-      if (ui.fileContextManager?.isMentionDropdownVisible()) return true;
-      return false;
-    },
-  });
-  tab.controllers.navigationController.initialize();
+  initializeTabNavigationController(tab, plugin);
 }
+
+/** @deprecated Use initializeTabRuntimeControllers. */
+export const initializeTabControllers = initializeTabRuntimeControllers;
 
 /**
  * Wires up input event handlers for a tab.

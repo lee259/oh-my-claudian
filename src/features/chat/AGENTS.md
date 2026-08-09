@@ -22,6 +22,7 @@
 | `TabStreamControllerFactory` | Assembly of one tab's stream controller, provider-owned subagent history recovery, and background-work/persistence adapters |
 | `TabConversationControllerFactory` | Assembly of ConversationController and its tab-owned state accessors; provider binding transitions are supplied as one atomic hook |
 | `TabInputControllerFactory` | Assembly of InputController, provider preflight diagnostics, and layout/plan-mode hooks for the tab composer |
+| `TabNavigationControllerFactory` | Assembly and initialization of keyboard navigation for a tab, including escape-handling suppression for active composer modes |
 | `TabRuntimeCleanup` | Reverse-order, idempotent teardown of tab-owned resources; cleanup failures are collected so later resources still release |
 | `TabModelSelectionCoordinator` | Per-tab model-selection request ordering, blank-tab provider-transition serialization, and stable-draft rollback |
 | `ChatExecutionCoordinator` | One tab's provider-session binding, active execution, interaction fencing, cancellation, and disposal |
@@ -32,6 +33,8 @@
 | `ClaudianView` | View assembly, rendered DOM placement, presentation coordination, layout-mode navigation, and assembly of the persisted current-tab snapshot |
 
 `TabRuntimeFactory` must not create provider execution sessions or feature controllers; those are attached by the owning initialization flow after the shell exists. `TabRuntimeCleanup` must run after conversation save and execution drain, and before the tab DOM is removed. `TabSession` stores lifecycle values, while lifecycle operations in `Tab.ts` and `TabManager` perform the transitions. Controllers, renderers, and UI components must request those operations instead of assigning lifecycle state themselves.
+
+`initializeTabRuntimeControllers` is the current orchestration entry point. `initializeTabControllers` remains only as a deprecated compatibility alias for existing feature tests and integrations.
 
 `TabStatePersistenceCoordinator` owns write sequencing, not semantic tab state. It receives the active tab identity assembled by `ClaudianView`; it must not infer, add, or remove runtime tabs.
 
