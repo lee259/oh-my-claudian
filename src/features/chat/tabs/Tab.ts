@@ -54,7 +54,6 @@ import { InputController } from '../controllers/InputController';
 import { NavigationController } from '../controllers/NavigationController';
 import {
   providerOutputEventToStreamChunk,
-  StreamController,
 } from '../controllers/StreamController';
 import {
   ChatExecutionCoordinator,
@@ -79,6 +78,7 @@ import { initializeTabPresentationControllers } from './TabControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
+import { createTabStreamController } from './TabStreamControllerFactory';
 import type {
   ProviderCatalogInfo,
   ProviderCatalogResolver,
@@ -1771,51 +1771,11 @@ export function initializeTabControllers(
     onCommitProvisional: () => commitProvisionalTab(tab),
   });
 
-  tab.controllers.streamController = new StreamController({
+  tab.controllers.streamController = createTabStreamController(
+    tab,
     plugin,
-    state,
-    renderer: tab.renderer!,
-    subagentManager: services.subagentManager,
-    getMessagesEl: () => dom.messagesEl,
-    getFileContextManager: () => ui.fileContextManager,
-    updateQueueIndicator: () => tab.controllers.inputController?.updateQueueIndicator(),
-    getProviderId: () => getTabProviderId(tab, plugin),
-    getProviderSessionId: () => tab.executionCoordinator?.snapshot?.providerSessionId ?? null,
-    loadSubagentToolCalls: async (request) => {
-      const vaultPath = getVaultPath(plugin.app);
-      if (!vaultPath) return undefined;
-      const service = ProviderRegistry.createSubagentHistoryService(
-        plugin.providerHost,
-        request.providerId,
-      );
-      if (!service) return undefined;
-      return service.loadToolCalls({
-        providerSessionId: request.providerSessionId,
-        subagentId: request.subagentId,
-        vaultPath,
-      });
-    },
-    loadSubagentFinalResult: async (request) => {
-      const vaultPath = getVaultPath(plugin.app);
-      if (!vaultPath) return undefined;
-      const service = ProviderRegistry.createSubagentHistoryService(
-        plugin.providerHost,
-        request.providerId,
-      );
-      if (!service) return undefined;
-      return service.loadFinalResult({
-        providerSessionId: request.providerSessionId,
-        subagentId: request.subagentId,
-        vaultPath,
-      });
-    },
-    enqueueBackgroundWork: (work) => enqueueTabBackgroundWork(tab, work),
-    persistConversation: async () => {
-      if (tab.state.currentConversationId) {
-        await tab.controllers.conversationController?.save(false);
-      }
-    },
-  });
+    (work) => enqueueTabBackgroundWork(tab, work),
+  );
   tab.controllers.streamController.setTabActive(
     !dom.contentEl.hasClass('claudian-hidden')
   );
