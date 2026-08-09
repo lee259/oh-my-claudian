@@ -1418,16 +1418,17 @@ export class CodexNotificationRouter {
     const normalizedName = normalizeCodexToolName('command_execution');
     const output = item.aggregatedOutput ?? '';
     const content = rawResult?.content ?? normalizeCodexToolResult(normalizedName, output);
-    const isError = item.exitCode !== null
+    const isDeclined = item.status === 'declined';
+    const isError = isDeclined || (item.exitCode !== null
       ? item.exitCode !== 0
-      : rawResult?.isError ?? isCodexToolOutputError(output);
+      : rawResult?.isError ?? isCodexToolOutputError(output));
 
     this.emit({
       type: 'tool_result',
       id: resultId,
       content,
       isError,
-      ...(item.status === 'declined' ? { isBlocked: true } : {}),
+      ...(isDeclined ? { isBlocked: true } : {}),
     });
   }
 

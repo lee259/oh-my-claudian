@@ -3300,6 +3300,33 @@ describe('CodexNotificationRouter', () => {
       }));
     });
 
+    it('marks a declined command result as both blocked and error', () => {
+      router.handleNotification('item/completed', {
+        item: {
+          type: 'commandExecution',
+          id: 'call_command_declined',
+          command: 'rm -rf workspace',
+          cwd: '/workspace',
+          processId: 'process-1',
+          source: 'shell',
+          status: 'declined',
+          commandActions: [],
+          aggregatedOutput: null,
+          exitCode: null,
+          durationMs: null,
+        },
+        threadId: 't1',
+        turnId: 'turn1',
+      });
+
+      expect(chunks).toContainEqual(expect.objectContaining({
+        id: 'call_command_declined',
+        isBlocked: true,
+        isError: true,
+        type: 'tool_result',
+      }));
+    });
+
     it('maps fileChange patchUpdated diffs into apply_patch tool input', () => {
       router.handleNotification('item/fileChange/patchUpdated', {
         threadId: 't1',
