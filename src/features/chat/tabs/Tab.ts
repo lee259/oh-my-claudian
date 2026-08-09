@@ -84,6 +84,7 @@ import { autoResizeTextarea } from '../ui/textareaResize';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
+import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { TabSession } from './TabSession';
 import type {
   ProviderCatalogInfo,
@@ -2459,45 +2460,73 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.services.subagentManager.clear();
   await cleanupTabExecution(tab);
 
-  tab.controllers.selectionController?.stop();
-  tab.controllers.selectionController?.clear();
-  tab.controllers.browserSelectionController?.stop();
-  tab.controllers.browserSelectionController?.clear();
-  tab.controllers.canvasSelectionController?.stop();
-  tab.controllers.canvasSelectionController?.clear();
-  tab.controllers.navigationController?.dispose();
+  const cleanup = new TabRuntimeCleanup();
+  cleanup.register('tab DOM root', () => tab.dom.contentEl.remove());
+  cleanup.register('tab DOM event handlers', () => {
+    for (const eventCleanup of tab.dom.eventCleanups) {
+      eventCleanup();
+    }
+    tab.dom.eventCleanups.length = 0;
+  });
+  cleanup.register('tab stream controller', () => tab.controllers.streamController?.dispose());
+  cleanup.register('tab navigation sidebar', () => {
+    tab.ui.navigationSidebar?.destroy();
+    tab.ui.navigationSidebar = null;
+  });
+  cleanup.register('tab status panel', () => {
+    tab.ui.statusPanel?.destroy();
+    tab.ui.statusPanel = null;
+  });
+  cleanup.register('tab title generation', () => {
+    tab.services.titleGenerationService?.cancel();
+    tab.services.titleGenerationService = null;
+  });
+  cleanup.register('tab instruction refinement', () => {
+    tab.services.instructionRefineService?.cancel();
+    tab.services.instructionRefineService?.resetConversation();
+    tab.services.instructionRefineService = null;
+  });
+  cleanup.register('tab bang-bash mode', () => {
+    tab.ui.bangBashModeManager?.destroy();
+    tab.ui.bangBashModeManager = null;
+  });
+  cleanup.register('tab instruction mode', () => {
+    tab.ui.instructionModeManager?.destroy();
+    tab.ui.instructionModeManager = null;
+  });
+  cleanup.register('tab slash command dropdown', () => {
+    tab.ui.slashCommandDropdown?.destroy();
+    tab.ui.slashCommandDropdown = null;
+  });
+  cleanup.register('tab composer context tray', () => {
+    tab.ui.contextTray?.destroy();
+    tab.ui.contextTray = null;
+  });
+  cleanup.register('tab image context manager', () => tab.ui.imageContextManager?.destroy());
+  cleanup.register('tab file context manager', () => tab.ui.fileContextManager?.destroy());
+  cleanup.register('tab resume dropdown', () => tab.controllers.inputController?.destroyResumeDropdown());
+  cleanup.register('tab thinking state', () => {
+    cleanupThinkingBlock(tab.state.currentThinkingState);
+    tab.state.currentThinkingState = null;
+  });
+  cleanup.register('tab navigation controller', () => tab.controllers.navigationController?.dispose());
+  cleanup.register('tab canvas selection controller', () => {
+    tab.controllers.canvasSelectionController?.stop();
+    tab.controllers.canvasSelectionController?.clear();
+  });
+  cleanup.register('tab browser selection controller', () => {
+    tab.controllers.browserSelectionController?.stop();
+    tab.controllers.browserSelectionController?.clear();
+  });
+  cleanup.register('tab selection controller', () => {
+    tab.controllers.selectionController?.stop();
+    tab.controllers.selectionController?.clear();
+  });
 
-  cleanupThinkingBlock(tab.state.currentThinkingState);
-  tab.state.currentThinkingState = null;
-
-  tab.controllers.inputController?.destroyResumeDropdown();
-  tab.ui.fileContextManager?.destroy();
-  tab.ui.imageContextManager?.destroy();
-  tab.ui.contextTray?.destroy();
-  tab.ui.contextTray = null;
-  tab.ui.slashCommandDropdown?.destroy();
-  tab.ui.slashCommandDropdown = null;
-  tab.ui.instructionModeManager?.destroy();
-  tab.ui.instructionModeManager = null;
-  tab.ui.bangBashModeManager?.destroy();
-  tab.ui.bangBashModeManager = null;
-  tab.services.instructionRefineService?.cancel();
-  tab.services.instructionRefineService?.resetConversation();
-  tab.services.instructionRefineService = null;
-  tab.services.titleGenerationService?.cancel();
-  tab.services.titleGenerationService = null;
-  tab.ui.statusPanel?.destroy();
-  tab.ui.statusPanel = null;
-  tab.ui.navigationSidebar?.destroy();
-  tab.ui.navigationSidebar = null;
-  tab.controllers.streamController?.dispose();
-
-  for (const cleanup of tab.dom.eventCleanups) {
-    cleanup();
+  const failures = await cleanup.dispose();
+  for (const failure of failures) {
+    new Notice(`Tab cleanup failed for ${failure.resource}.`);
   }
-  tab.dom.eventCleanups.length = 0;
-
-  tab.dom.contentEl.remove();
 }
 
 /**
