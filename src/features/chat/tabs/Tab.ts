@@ -49,7 +49,6 @@ import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
-import { ConversationController } from '../controllers/ConversationController';
 import { InputController } from '../controllers/InputController';
 import { NavigationController } from '../controllers/NavigationController';
 import {
@@ -75,6 +74,7 @@ import { autoResizeTextarea } from '../ui/textareaResize';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { initializeTabPresentationControllers } from './TabControllerFactory';
+import { createTabConversationController } from './TabConversationControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
@@ -1800,87 +1800,53 @@ export function initializeTabControllers(
     }
   );
 
-  tab.controllers.conversationController = new ConversationController(
-    {
-      plugin,
-      state,
-      renderer: tab.renderer!,
-      subagentManager: services.subagentManager,
-      getHistoryDropdown: () => null, // Tab doesn't have its own history dropdown
-      getWelcomeEl: () => dom.welcomeEl,
-      setWelcomeEl: (el) => { dom.welcomeEl = el; },
-      getMessagesEl: () => dom.messagesEl,
-      getInputEl: () => dom.inputEl,
-      restoreMessageToComposer: message => (
-        tab.controllers.inputController!.restoreRewoundMessageToComposer(message)
-      ),
-      getFileContextManager: () => ui.fileContextManager,
-      getImageContextManager: () => ui.imageContextManager,
-      getMcpServerSelector: () => ui.mcpServerSelector,
-      getExternalContextSelector: () => ui.externalContextSelector,
-      clearQueuedMessage: () => tab.controllers.inputController?.clearQueuedMessage(),
-      getTitleGenerationService: () => services.titleGenerationService,
-      getStatusPanel: () => ui.statusPanel,
-      getExecutionCoordinator: () => tab.executionCoordinator,
-      ensureExecutionInitialized,
-      getProviderId: () => getTabProviderId(tab, plugin),
-      getSelectedModel: () => getTabSelectedModel(tab, plugin),
-      getInitialUsage: (providerId, model) => ProviderRegistry
-        .getChatUIConfig(providerId)
-        .getInitialUsage?.(model, plugin.settings) ?? null,
-      dismissPendingInlinePrompts: () => tab.controllers.inputController?.dismissPendingApproval(),
-      awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
-      isDisposed: () => tab.lifecycleState === 'closing',
-      ensureExecutionForConversation: async (conversation) => {
-        const nextProviderId = getTabProviderId(tab, plugin, conversation);
-        const providerChanged = tab.providerId !== nextProviderId;
-        tab.providerId = nextProviderId;
+  tab.controllers.conversationController = createTabConversationController(tab, plugin, {
+    ensureExecutionInitialized,
+    getProviderId: () => getTabProviderId(tab, plugin),
+    getSelectedModel: () => getTabSelectedModel(tab, plugin),
+    onConversationBindingChanged: async (conversation) => {
+      const nextProviderId = getTabProviderId(tab, plugin, conversation);
+      const providerChanged = tab.providerId !== nextProviderId;
+      tab.providerId = nextProviderId;
 
-        if (providerChanged) {
-          syncTabProviderServices(tab, plugin);
-        }
+      if (providerChanged) {
+        syncTabProviderServices(tab, plugin);
+      }
 
-        tab.conversationId = conversation?.id ?? null;
-        tab.draftModel = null;
-        if (tab.lifecycleState !== 'provisional') {
-          tab.lifecycleState = 'cold';
-        }
-        syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig, conversation);
-
-        await tab.executionCoordinator?.bindConversation(conversation
-          ? createConversationExecutionBinding(conversation)
-          : null);
-
-        refreshTabProviderUI(tab, plugin);
-        applyProviderUIGating(tab, plugin);
-      },
-    },
-    {
-      onNewConversation: () => {
-        const previousProviderId = tab.providerId;
-        const nextModel = resolveNewConversationModel(plugin.settings);
-        void tab.executionCoordinator?.bindConversation(null);
+      tab.conversationId = conversation?.id ?? null;
+      tab.draftModel = null;
+      if (tab.lifecycleState !== 'provisional') {
         tab.lifecycleState = 'cold';
-        tab.draftModel = nextModel?.model ?? null;
-        tab.conversationId = null;
-        tab.providerId = nextModel?.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
-        if (tab.providerId !== previousProviderId) {
-          syncTabProviderServices(tab, plugin);
-        }
-        refreshTabProviderUI(tab, plugin);
-        applyProviderUIGating(tab, plugin);
-        syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
-      },
-      onConversationLoaded: () => {
-        invalidateTabProviderCommands(tab, getProviderCatalogConfig);
-        tab.controllers.inputController?.onConversationActivated();
-      },
-      onConversationSwitched: () => {
-        invalidateTabProviderCommands(tab, getProviderCatalogConfig);
-        tab.controllers.inputController?.onConversationActivated();
-      },
-    }
-  );
+      }
+      syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig, conversation);
+
+      await tab.executionCoordinator?.bindConversation(conversation
+        ? createConversationExecutionBinding(conversation)
+        : null);
+
+      refreshTabProviderUI(tab, plugin);
+      applyProviderUIGating(tab, plugin);
+    },
+    onNewConversation: () => {
+      const previousProviderId = tab.providerId;
+      const nextModel = resolveNewConversationModel(plugin.settings);
+      void tab.executionCoordinator?.bindConversation(null);
+      tab.lifecycleState = 'cold';
+      tab.draftModel = nextModel?.model ?? null;
+      tab.conversationId = null;
+      tab.providerId = nextModel?.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
+      if (tab.providerId !== previousProviderId) {
+        syncTabProviderServices(tab, plugin);
+      }
+      refreshTabProviderUI(tab, plugin);
+      applyProviderUIGating(tab, plugin);
+      syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
+    },
+    onConversationActivated: () => {
+      invalidateTabProviderCommands(tab, getProviderCatalogConfig);
+      tab.controllers.inputController?.onConversationActivated();
+    },
+  });
 
   tab.controllers.inputController = new InputController({
     plugin,

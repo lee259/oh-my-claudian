@@ -20,6 +20,7 @@
 | `TabRuntimeFactory` | Allocation of the provider-neutral runtime shell: per-tab DOM, `ChatState`, `TabSession`, placeholder controllers/services/UI slots, and initial draft/provider resolution |
 | `TabControllerFactory` | Installation of the renderer and selection controllers for a tab; execution controllers remain in the tab orchestration flow until their dependencies are separated |
 | `TabStreamControllerFactory` | Assembly of one tab's stream controller, provider-owned subagent history recovery, and background-work/persistence adapters |
+| `TabConversationControllerFactory` | Assembly of ConversationController and its tab-owned state accessors; provider binding transitions are supplied as one atomic hook |
 | `TabRuntimeCleanup` | Reverse-order, idempotent teardown of tab-owned resources; cleanup failures are collected so later resources still release |
 | `TabModelSelectionCoordinator` | Per-tab model-selection request ordering, blank-tab provider-transition serialization, and stable-draft rollback |
 | `ChatExecutionCoordinator` | One tab's provider-session binding, active execution, interaction fencing, cancellation, and disposal |
