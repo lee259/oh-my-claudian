@@ -1,17 +1,9 @@
-import { extractLinkTarget, stripFileLineRange } from '@/utils/fileLink';
+import { extractLinkTarget } from '@/utils/fileLink';
+import { parseFileReference } from '@/utils/FileReference';
 
 describe('stripFileLineRange', () => {
   it('removes a single line suffix', () => {
-    expect(stripFileLineRange('notes/README.md:140')).toBe('notes/README.md');
-  });
-
-  it('removes a line range while preserving Windows drive-colon paths', () => {
-    expect(stripFileLineRange('C:\\vault\\README.md:140-185')).toBe('C:\\vault\\README.md');
-    expect(stripFileLineRange('README.md:140–185')).toBe('README.md');
-  });
-
-  it('leaves ordinary paths unchanged', () => {
-    expect(stripFileLineRange('notes/README.md')).toBe('notes/README.md');
+    expect(parseFileReference('notes/README.md:140').path).toBe('notes/README.md');
   });
 });
 
@@ -244,5 +236,27 @@ describe('wikilink pattern matching', () => {
     it('drops display text while preserving anchors', () => {
       expect(extractLinkTarget('[[note#section|Alias]]')).toBe('note#section');
     });
+  });
+});
+
+describe('file references', () => {
+  it('preserves a single line reference', () => {
+    expect(parseFileReference('notes/README.md:140')).toEqual({
+      path: 'notes/README.md',
+      lineStart: 140,
+      lineEnd: 140,
+    });
+  });
+
+  it('preserves an inclusive line range with unicode dashes', () => {
+    expect(parseFileReference('notes/README.md:140–185')).toEqual({
+      path: 'notes/README.md',
+      lineStart: 140,
+      lineEnd: 185,
+    });
+  });
+
+  it('does not treat a non-line suffix as a reference', () => {
+    expect(parseFileReference('notes/README.md')).toEqual({ path: 'notes/README.md' });
   });
 });

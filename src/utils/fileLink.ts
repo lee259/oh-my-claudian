@@ -8,6 +8,7 @@
 import type { App, Component } from 'obsidian';
 
 import { getVaultFileByPath } from './obsidianCompat';
+export { stripFileLineRange } from './FileReference';
 
 /**
  * Regex pattern to match Obsidian wikilinks in text content.
@@ -56,13 +57,6 @@ export function extractLinkTarget(fullMatch: string): string {
   const inner = fullMatch.slice(2, -2);
   const pipeIndex = inner.indexOf('|');
   return pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner;
-}
-
-/** Removes a trailing line or line-range suffix from a provider file reference. */
-export function stripFileLineRange(fileReference: string): string {
-  const normalized = fileReference.trim();
-  const match = normalized.match(/^(.*):\d+(?:[-–—]\d+)?$/u);
-  return match?.[1]?.trim() || normalized;
 }
 
 /**
