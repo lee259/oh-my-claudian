@@ -3,6 +3,7 @@ import { setIcon } from 'obsidian';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import type { ToolCallInfo, ToolDiffData } from '../../../core/types';
 import type { DiffLine } from '../../../core/types/diff';
+import { stripFileLineRange } from '../../../utils/fileLink';
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { fileNameOnly } from './ToolCallRenderer';
@@ -99,7 +100,7 @@ export function createWriteEditBlock(
   nameEl.setText(toolName);
   const summaryEl = headerEl.createDiv({ cls: 'claudian-write-edit-summary' });
   summaryEl.setText(fileNameOnly(filePath) || 'file');
-  makeFileSummaryInteractive(summaryEl, filePath, options.onOpenFile);
+  makeFileSummaryInteractive(summaryEl, stripFileLineRange(filePath), options.onOpenFile);
 
   // Populated when diff is computed
   const statsEl = headerEl.createDiv({ cls: 'claudian-write-edit-stats' });
@@ -218,7 +219,7 @@ export function renderStoredWriteEdit(
   nameEl.setText(toolName);
   const summaryEl = headerEl.createDiv({ cls: 'claudian-write-edit-summary' });
   summaryEl.setText(fileNameOnly(filePath) || 'file');
-  makeFileSummaryInteractive(summaryEl, filePath, options.onOpenFile);
+  makeFileSummaryInteractive(summaryEl, stripFileLineRange(filePath), options.onOpenFile);
 
   const statsEl = headerEl.createDiv({ cls: 'claudian-write-edit-stats' });
   if (toolCall.diffData) {

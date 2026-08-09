@@ -28,6 +28,7 @@ import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo } from '.
 import type { DiffStats } from '../../../core/types/diff';
 import { appendMcpIcon } from '../../../shared/icons';
 import { parseApplyPatchDiffs, parseFileUpdateChangeDiffs } from '../../../utils/diff';
+import { stripFileLineRange } from '../../../utils/fileLink';
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { renderTodoItems } from './todoUtils';
@@ -839,7 +840,9 @@ function getToolFilePath(toolCall: ToolCallInfo): string | undefined {
     return undefined;
   }
   const filePath = toolCall.input.file_path;
-  return typeof filePath === 'string' && filePath.trim() ? filePath : undefined;
+  return typeof filePath === 'string' && filePath.trim()
+    ? stripFileLineRange(filePath)
+    : undefined;
 }
 
 function makeFileSummaryInteractive(

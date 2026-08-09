@@ -1,4 +1,19 @@
-import { extractLinkTarget } from '@/utils/fileLink';
+import { extractLinkTarget, stripFileLineRange } from '@/utils/fileLink';
+
+describe('stripFileLineRange', () => {
+  it('removes a single line suffix', () => {
+    expect(stripFileLineRange('notes/README.md:140')).toBe('notes/README.md');
+  });
+
+  it('removes a line range while preserving Windows drive-colon paths', () => {
+    expect(stripFileLineRange('C:\\vault\\README.md:140-185')).toBe('C:\\vault\\README.md');
+    expect(stripFileLineRange('README.md:140–185')).toBe('README.md');
+  });
+
+  it('leaves ordinary paths unchanged', () => {
+    expect(stripFileLineRange('notes/README.md')).toBe('notes/README.md');
+  });
+});
 
 // Extract the pattern from the module for testing
 // This matches the pattern in src/utils/fileLink.ts
