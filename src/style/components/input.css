@@ -1,7 +1,7 @@
 /* Input area */
 .claudian-input-container {
   position: relative;
-  padding: 12px 0 0 0;
+  padding: 12px 0 0;
 }
 
 .claudian-input-footer {
@@ -16,16 +16,22 @@
 
 /* Input wrapper (border container) - flex column so textarea expands when no chips */
 .claudian-input-wrapper {
-  --claudian-input-wrapper-border-color: var(--background-modifier-border);
+  --claudian-input-wrapper-border-color: color-mix(in srgb, var(--background-modifier-border) 85%, var(--text-normal));
   --claudian-input-wrapper-box-shadow: none;
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 140px;
+  min-height: 144px;
   border: 1px solid var(--claudian-input-wrapper-border-color);
-  border-radius: 6px;
+  border-radius: 16px;
   background: var(--background-primary);
   box-shadow: var(--claudian-input-wrapper-box-shadow);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.claudian-input-wrapper:focus-within {
+  --claudian-input-wrapper-border-color: var(--text-muted);
+  --claudian-input-wrapper-box-shadow: 0 0 0 1px var(--background-modifier-border);
 }
 
 /* Nav row (tab badges start, action icons end) - above input wrapper */
@@ -33,7 +39,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 6px 0;
+  padding: 0 2px 6px;
   min-height: 0;
 }
 
@@ -52,7 +58,7 @@
 .claudian-input-nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   flex-shrink: 0;
   margin-inline-start: auto;
 }
@@ -61,11 +67,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
   cursor: pointer;
   color: var(--text-faint);
@@ -90,12 +96,12 @@
 .claudian-input-wrapper textarea.claudian-input {
   width: 100%;
   flex: 1 1 0;
-  min-height: var(--claudian-textarea-min-height, 60px);
+  min-height: var(--claudian-textarea-min-height, 64px);
   max-height: var(--claudian-textarea-max-height, none);
   resize: none;
-  padding: 8px 10px 10px 10px;
+  padding: 13px 15px 48px;
   border: none;
-  border-radius: 6px;
+  border-radius: 15px;
   background: transparent;
   color: var(--text-normal);
   font-family: inherit;
@@ -119,18 +125,21 @@
 }
 
 .claudian-input-send-button {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  margin-inline-start: 8px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
+  border: 1px solid var(--claudian-brand);
+  border-radius: 50%;
+  background: var(--claudian-brand);
+  color: var(--background-primary);
   cursor: pointer;
   transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
@@ -141,18 +150,17 @@
 }
 
 .claudian-input-send-button:hover:not(:disabled) {
-  background: var(--claudian-brand);
-  border-color: var(--claudian-brand);
+  background: color-mix(in srgb, var(--claudian-brand) 82%, var(--text-normal));
+  border-color: color-mix(in srgb, var(--claudian-brand) 82%, var(--text-normal));
   color: var(--background-primary);
-  filter: brightness(1.08);
 }
 
 .claudian-input-send-button:disabled {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--claudian-brand) 35%, transparent);
-  color: color-mix(in srgb, var(--claudian-brand) 55%, var(--text-faint));
+  background: rgba(var(--claudian-brand-rgb), 0.48);
+  border-color: rgba(var(--claudian-brand-rgb), 0.48);
+  color: var(--background-primary);
   cursor: default;
-  opacity: 0.7;
+  opacity: 0.48;
 }
 
 .claudian-input-send-button.is-streaming {
@@ -173,8 +181,8 @@
   justify-content: flex-start;
   flex-wrap: wrap;
   flex-shrink: 0;
-  row-gap: 12px;
-  padding: 4px 6px 6px 6px;
+  row-gap: 8px;
+  padding: 4px 56px 8px 10px;
 }
 
 /* Hide secondary text when the full toolbar would wrap. */

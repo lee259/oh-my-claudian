@@ -27,7 +27,7 @@
 
 /* Current selection (visible when collapsed) */
 .claudian-thinking-current {
-  padding: 3px 8px;
+  padding: 4px 6px;
   font-size: 11px;
   color: var(--claudian-brand);
   font-weight: 500;

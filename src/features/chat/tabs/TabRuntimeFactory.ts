@@ -159,7 +159,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
       title: 'Send message (enter)',
     },
   });
-  setIcon(sendButtonEl, 'send');
+  setIcon(sendButtonEl, 'arrow-up');
 
   return {
     contentEl,

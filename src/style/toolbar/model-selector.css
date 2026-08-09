@@ -6,16 +6,21 @@
 .claudian-model-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 7px;
   cursor: pointer;
   color: var(--claudian-brand);
   font-size: 12px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.claudian-model-btn:hover {
+  background: var(--background-modifier-hover);
 }
 
 .claudian-model-label {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .claudian-model-chevron {
