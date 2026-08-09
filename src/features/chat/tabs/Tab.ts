@@ -49,12 +49,9 @@ import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
-import { BrowserSelectionController } from '../controllers/BrowserSelectionController';
-import { CanvasSelectionController } from '../controllers/CanvasSelectionController';
 import { ConversationController } from '../controllers/ConversationController';
 import { InputController } from '../controllers/InputController';
 import { NavigationController } from '../controllers/NavigationController';
-import { SelectionController } from '../controllers/SelectionController';
 import {
   providerOutputEventToStreamChunk,
   StreamController,
@@ -63,7 +60,6 @@ import {
   ChatExecutionCoordinator,
   type ChatExecutionEventContext,
 } from '../execution/ChatExecutionCoordinator';
-import { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { findRewindContext } from '../rewind';
 import { BangBashService } from '../services/BangBashService';
@@ -79,6 +75,7 @@ import { StatusPanel } from '../ui/StatusPanel';
 import { autoResizeTextarea } from '../ui/textareaResize';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
+import { initializeTabPresentationControllers } from './TabControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
@@ -111,11 +108,6 @@ const backgroundTurnBuffers = new WeakMap<
   TabData,
   Map<string, Map<string, ProviderBackgroundOutputEvent[]>>
 >();
-
-function getSharedSelectionFocusScopeEls(component: Component): HTMLElement[] {
-  const host = component as Partial<TabManagerViewHost>;
-  return host.getSharedSelectionFocusScopeEls?.() ?? [];
-}
 
 /**
  * Returns model options for a blank tab.
@@ -1768,48 +1760,21 @@ export function initializeTabControllers(
     }
   };
 
-  // Create renderer
-  tab.renderer = new MessageRenderer(
+  initializeTabPresentationControllers(tab, {
     plugin,
     component,
-    dom.messagesEl,
-    (id, mode) => tab.controllers.conversationController!.rewind(id, mode),
-    forkRequestCallback
+    getCapabilities: () => getTabCapabilities(tab, plugin),
+    onRewind: (id, mode) => tab.controllers.conversationController!.rewind(id, mode),
+    onForkRequest: forkRequestCallback
       ? (id) => handleForkRequest(tab, plugin, id, forkRequestCallback)
       : undefined,
-    () => getTabCapabilities(tab, plugin),
-  );
-
-  // Selection controller
-  tab.controllers.selectionController = new SelectionController(
-    plugin.app,
-    ui.contextTray!,
-    dom.inputEl,
-    undefined,
-    [dom.contentEl, dom.inputComposerEl, ...getSharedSelectionFocusScopeEls(component)],
-    () => commitProvisionalTab(tab),
-  );
-
-  tab.controllers.browserSelectionController = new BrowserSelectionController(
-    plugin.app,
-    ui.contextTray!,
-    dom.inputEl,
-    undefined,
-    () => commitProvisionalTab(tab),
-  );
-
-  tab.controllers.canvasSelectionController = new CanvasSelectionController(
-    plugin.app,
-    ui.contextTray!,
-    dom.inputEl,
-    undefined,
-    () => commitProvisionalTab(tab),
-  );
+    onCommitProvisional: () => commitProvisionalTab(tab),
+  });
 
   tab.controllers.streamController = new StreamController({
     plugin,
     state,
-    renderer: tab.renderer,
+    renderer: tab.renderer!,
     subagentManager: services.subagentManager,
     getMessagesEl: () => dom.messagesEl,
     getFileContextManager: () => ui.fileContextManager,
@@ -1879,7 +1844,7 @@ export function initializeTabControllers(
     {
       plugin,
       state,
-      renderer: tab.renderer,
+      renderer: tab.renderer!,
       subagentManager: services.subagentManager,
       getHistoryDropdown: () => null, // Tab doesn't have its own history dropdown
       getWelcomeEl: () => dom.welcomeEl,
@@ -1960,11 +1925,11 @@ export function initializeTabControllers(
   tab.controllers.inputController = new InputController({
     plugin,
     state,
-    renderer: tab.renderer,
+    renderer: tab.renderer!,
     streamController: tab.controllers.streamController,
-    selectionController: tab.controllers.selectionController,
-    browserSelectionController: tab.controllers.browserSelectionController,
-    canvasSelectionController: tab.controllers.canvasSelectionController,
+    selectionController: tab.controllers.selectionController!,
+    browserSelectionController: tab.controllers.browserSelectionController ?? undefined,
+    canvasSelectionController: tab.controllers.canvasSelectionController!,
     conversationController: tab.controllers.conversationController,
     getInputEl: () => dom.inputEl,
     getInputContainerEl: () => dom.inputContainerEl,

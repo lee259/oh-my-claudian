@@ -18,6 +18,7 @@
 | `TabManager` | Runtime-tab membership, active-tab selection, and create/switch/close operations |
 | `TabSession` | Authoritative per-tab identity, conversation binding, provider binding, lifecycle value, execution-coordinator attachment, active-turn reference, and background-work sequencing |
 | `TabRuntimeFactory` | Allocation of the provider-neutral runtime shell: per-tab DOM, `ChatState`, `TabSession`, placeholder controllers/services/UI slots, and initial draft/provider resolution |
+| `TabControllerFactory` | Installation of the renderer and selection controllers for a tab; execution controllers remain in the tab orchestration flow until their dependencies are separated |
 | `TabRuntimeCleanup` | Reverse-order, idempotent teardown of tab-owned resources; cleanup failures are collected so later resources still release |
 | `TabModelSelectionCoordinator` | Per-tab model-selection request ordering, blank-tab provider-transition serialization, and stable-draft rollback |
 | `ChatExecutionCoordinator` | One tab's provider-session binding, active execution, interaction fencing, cancellation, and disposal |
