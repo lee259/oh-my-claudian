@@ -3,8 +3,6 @@ import { StartupProfiler } from './core/performance/StartupProfiler';
 import { patchSetMaxListenersForElectron } from './utils/electronCompat';
 patchSetMaxListenersForElectron();
 
-import './providers';
-
 StartupProfiler.finishModuleEvaluation();
 
 import type { Editor, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -83,6 +81,20 @@ function isClaudianView(value: unknown): value is ClaudianView {
   return !!value
     && typeof value === 'object'
     && typeof (value as { getTabManager?: unknown }).getTabManager === 'function';
+}
+
+let providerModulesLoad: Promise<void> | null = null;
+
+function ensureProviderModulesLoaded(): Promise<void> {
+  if (!providerModulesLoad) {
+    providerModulesLoad = import('./providers')
+      .then(() => undefined)
+      .catch((error) => {
+        providerModulesLoad = null;
+        throw error;
+      });
+  }
+  return providerModulesLoad;
 }
 
 export default class ClaudianPlugin extends Plugin {
@@ -379,6 +391,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async loadSettings(options: { deferNonRestoredSessionMetadata?: boolean } = {}) {
+    await ensureProviderModulesLoaded();
     this.hasLoadedAllSessionMetadata = false;
     const sharedStorage = new SharedStorageService(this);
     this.storage = sharedStorage;
