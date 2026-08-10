@@ -240,14 +240,15 @@ export class ConversationRepository {
       }
     }
     const registeredProviderIds = new Set(ProviderRegistry.getRegisteredProviderIds());
-    for (const { conversation } of entries) {
-      if (
-        !this.getSync(conversation.id)
-        && registeredProviderIds.has(conversation.providerId)
-      ) {
-        await this.reconcileIncomingSelectedModel(conversation);
-      }
-    }
+    const incomingModelReconciliations = entries.filter(({ conversation }) => (
+      !this.getSync(conversation.id)
+      && registeredProviderIds.has(conversation.providerId)
+    ));
+    await mapWithConcurrency(
+      incomingModelReconciliations,
+      ({ conversation }) => this.reconcileIncomingSelectedModel(conversation),
+      MODEL_RECONCILIATION_CONCURRENCY,
+    );
     const added = this.mergeMetadataConversations(
       entries.map(({ conversation }) => conversation),
     );
@@ -255,9 +256,9 @@ export class ConversationRepository {
     const providerIds = new Set(entries
       .map(({ conversation }) => conversation.providerId)
       .filter(providerId => registeredProviderIds.has(providerId)));
-    for (const providerId of providerIds) {
-      await this.reconcileSelectedModels(providerId);
-    }
+    await Promise.all(
+      [...providerIds].map(providerId => this.reconcileSelectedModels(providerId)),
+    );
     const migrations = entries
       .filter(
         ({ conversation, needsMigration, source }) =>

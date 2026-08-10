@@ -10,7 +10,10 @@ import type {
   Conversation,
   SessionMetadata,
 } from '../../core/types';
+import { mapWithConcurrency } from '../../utils/concurrency';
 import type { ConversationRepository } from './ConversationRepository';
+
+const SESSION_METADATA_SOURCE_READ_CONCURRENCY = 8;
 
 export interface SessionMetadataCoordinatorOptions {
   sessions: SessionMetadataReader;
@@ -187,8 +190,10 @@ export class SessionMetadataCoordinator {
   private async resolveMetadataSources(
     metadata: SessionMetadata[],
   ): Promise<SessionMetadataReadResult[]> {
-    const records = await Promise.all(
-      metadata.map(({ id }) => this.sessions.load(id)),
+    const records = await mapWithConcurrency(
+      metadata,
+      ({ id }) => this.sessions.load(id),
+      SESSION_METADATA_SOURCE_READ_CONCURRENCY,
     );
     return records.filter(
       (record): record is SessionMetadataReadResult => record !== null,
