@@ -1,6 +1,7 @@
 import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
+import { mapWithConcurrency } from '../../../utils/concurrency';
 import {
   CODEX_SUBAGENT_KNOWN_KEYS,
   type CodexSubagentDefinition,
@@ -8,6 +9,7 @@ import {
 
 export const CODEX_AGENTS_PATH = '.codex/agents';
 const SUBAGENT_PERSISTENCE_PREFIX = 'codex-subagent';
+const CODEX_SUBAGENT_READ_CONCURRENCY = 8;
 
 export interface CodexSubagentLocation {
   fileName: string;
@@ -99,25 +101,29 @@ export class CodexSubagentStorage {
   private async scanAdapter(
     adapter: Pick<VaultFileAdapter, 'read' | 'listFiles'>,
   ): Promise<CodexSubagentDefinition[]> {
-    const results: CodexSubagentDefinition[] = [];
-
     try {
       const files = await adapter.listFiles(CODEX_AGENTS_PATH);
-      for (const filePath of files) {
-        if (!filePath.endsWith('.toml')) continue;
-        try {
-          const content = await adapter.read(filePath);
-          const agent = parseSubagentToml(content, filePath);
-          if (agent) results.push(agent);
-        } catch {
-          // Skip malformed files
-        }
-      }
+      const tomlFiles = files.filter(filePath => filePath.endsWith('.toml'));
+      const results = await mapWithConcurrency(
+        tomlFiles,
+        async (filePath) => {
+          try {
+            const content = await adapter.read(filePath);
+            return parseSubagentToml(content, filePath);
+          } catch {
+            // Skip malformed files
+            return null;
+          }
+        },
+        CODEX_SUBAGENT_READ_CONCURRENCY,
+      );
+      return results.filter(
+        (agent): agent is CodexSubagentDefinition => agent !== null,
+      );
     } catch {
       // Directory doesn't exist yet
+      return [];
     }
-
-    return results;
   }
 }
 

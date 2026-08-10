@@ -1,35 +1,38 @@
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
 import type { SlashCommand } from '../../../core/types';
+import { mapWithConcurrency } from '../../../utils/concurrency';
 import { parsedToSlashCommand, parseSlashCommandContent, serializeCommand } from '../../../utils/slashCommand';
 
 export const COMMANDS_PATH = '.claude/commands';
+const COMMAND_READ_CONCURRENCY = 8;
 
 export class SlashCommandStorage {
   constructor(private adapter: VaultFileAdapter) {}
 
   async loadAll(): Promise<SlashCommand[]> {
-    const commands: SlashCommand[] = [];
-
     try {
       const files = await this.adapter.listFilesRecursive(COMMANDS_PATH);
-
-      for (const filePath of files) {
-        if (!filePath.endsWith('.md')) continue;
-
-        try {
-          const command = await this.loadFromFile(filePath);
-          if (command) {
-            commands.push(command);
+      const markdownFiles = files.filter(filePath => filePath.endsWith('.md'));
+      const commands = await mapWithConcurrency(
+        markdownFiles,
+        async (filePath) => {
+          try {
+            return await this.loadFromFile(filePath);
+          } catch {
+            // Non-critical: skip malformed command files
+            return null;
           }
-        } catch {
-          // Non-critical: skip malformed command files
-        }
-      }
+        },
+        COMMAND_READ_CONCURRENCY,
+      );
+      return commands.filter(
+        (command): command is SlashCommand => command !== null,
+      );
     } catch {
       // Non-critical: directory may not exist yet
     }
 
-    return commands;
+    return [];
   }
 
   private async loadFromFile(filePath: string): Promise<SlashCommand | null> {

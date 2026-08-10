@@ -117,7 +117,9 @@ export class SessionStorage implements SessionMetadataReader {
   async scan(
     options: SessionMetadataReadOptions = {},
   ): Promise<SessionMetadataReadScanResult> {
-    const currentListing = await this.listFiles(SESSIONS_PATH);
+    const currentListingPromise = this.listFiles(SESSIONS_PATH);
+    const legacyListingPromise = this.listFiles(LEGACY_SESSIONS_PATH);
+    const currentListing = await currentListingPromise;
     if (!currentListing.complete) {
       return {
         records: [],
@@ -126,7 +128,7 @@ export class SessionStorage implements SessionMetadataReader {
       };
     }
 
-    const legacyListing = await this.listFiles(LEGACY_SESSIONS_PATH);
+    const legacyListing = await legacyListingPromise;
     const deletedIds = new Set(
       currentListing.files
         .map((path) => this.getIdFromPath(path, DELETION_MARKER_SUFFIX))
