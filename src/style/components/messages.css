@@ -11,10 +11,10 @@
 .claudian-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 0 0;
+  padding: 16px 12px 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 /* Focusable messages panel for vim-style navigation */
@@ -46,17 +46,19 @@
 .claudian-message {
   position: relative;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: 14px;
   max-width: 95%;
   word-wrap: break-word;
 }
 
 .claudian-message-user {
   position: relative;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(var(--claudian-brand-rgb), 0.16);
+  border: 1px solid rgba(var(--claudian-brand-rgb), 0.22);
   align-self: flex-end;
   margin-block-end: 16px;
-  border-end-end-radius: 4px;
+  max-width: min(80%, 48ch);
+  border-end-end-radius: 6px;
 }
 
 /* Text selection in user messages - visible highlight */
@@ -68,8 +70,9 @@
 .claudian-message-assistant {
   background: transparent;
   align-self: stretch;
-  width: 100%;
-  max-width: 100%;
+  width: min(100%, 72ch);
+  max-width: 72ch;
+  padding-inline: 0;
   border-end-start-radius: 4px;
   text-align: start;
 }
@@ -100,7 +103,7 @@
 .claudian-message-assistant .claudian-message-timestamp {
   position: static;
   display: block;
-  margin-top: 6px;
+  margin-top: 10px;
   text-align: start;
 }
 
