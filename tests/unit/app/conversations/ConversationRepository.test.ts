@@ -585,6 +585,36 @@ describe('ConversationRepository hydration', () => {
     }));
   });
 
+  it('adopts multiple deferred models without waiting on one persistence write', async () => {
+    const { repository, persistence } = createRepository(createConversation('existing'));
+    const first = createConversation('first-deferred-model');
+    first.selectedModel = 'claude-code/retired-model';
+    const second = createConversation('second-deferred-model');
+    second.selectedModel = 'claude-code/retired-model';
+
+    let releaseFirst!: () => void;
+    const firstSave = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let saveCount = 0;
+    persistence.saveMetadata.mockImplementation(() => {
+      saveCount += 1;
+      return saveCount === 1 ? firstSave : Promise.resolve();
+    });
+
+    const adoption = repository.adoptMetadataConversations([
+      { conversation: first, needsMigration: false, source: 'current' },
+      { conversation: second, needsMigration: false, source: 'current' },
+    ]);
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(saveCount).toBe(2);
+    releaseFirst();
+    await adoption;
+    expect(repository.getCachedConversation(first.id)).toBe(first);
+    expect(repository.getCachedConversation(second.id)).toBe(second);
+  });
+
   it('keeps failed deferred metadata unpublished so adoption can retry persistence', async () => {
     const { repository, persistence } = createRepository(createConversation('existing'));
     const deferred = createConversation('deferred-failed-fallback');
