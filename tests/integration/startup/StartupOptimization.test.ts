@@ -103,6 +103,35 @@ describe('Startup optimization', () => {
     expect(discoveryResolved).toBe(true);
   });
 
+  it('workspace registry initializes independent providers concurrently', async () => {
+    let releaseFirst!: () => void;
+    let secondStarted = false;
+    const firstReady = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    ProviderWorkspaceRegistry.register('claude', {
+      initialize: async () => {
+        await firstReady;
+        return {};
+      },
+    });
+    ProviderWorkspaceRegistry.register('codex', {
+      initialize: async () => {
+        secondStarted = true;
+        return {};
+      },
+    });
+
+    const host = createFakeHost();
+    const initPromise = ProviderWorkspaceRegistry.initializeAll(host);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    expect(secondStarted).toBe(true);
+    releaseFirst();
+    await initPromise;
+  });
+
   it('profiler captures provider initialization span', async () => {
     ProviderWorkspaceRegistry.register('codex', {
       initialize: async () => ({

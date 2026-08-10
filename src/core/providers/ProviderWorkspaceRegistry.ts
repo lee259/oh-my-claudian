@@ -38,13 +38,13 @@ export class ProviderWorkspaceRegistry {
   }
 
   static async initializeAll(plugin: ProviderHost): Promise<void> {
-    for (const providerId of this.boundary.getRegisteredProviderIds()) {
+    await Promise.all(this.boundary.getRegisteredProviderIds().map(async (providerId) => {
       try {
         await this.ensureInitialized(plugin, providerId, 'startup');
       } catch {
         // Compatibility path only: one provider must not block the remaining providers.
       }
-    }
+    }));
   }
 
   static async ensureInitialized(
