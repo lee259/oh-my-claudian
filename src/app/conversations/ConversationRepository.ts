@@ -98,6 +98,7 @@ type HistoricalModelRecovery = NonNullable<
 >;
 
 const HISTORICAL_MODEL_RECOVERY_CONCURRENCY = 2;
+const MODEL_RECONCILIATION_CONCURRENCY = 4;
 
 function getStoredModelSelection(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -1141,22 +1142,22 @@ export class ConversationRepository {
   }
 
   async reconcileSelectedModels(providerId: ProviderId): Promise<Conversation[]> {
-    const changed: Conversation[] = [];
-    for (const conversation of this.conversations) {
-      if (
-        conversation.providerId !== providerId
-        || !getStoredModelSelection(conversation.selectedModel)
-      ) {
-        continue;
-      }
-
-      const previousModel = conversation.selectedModel;
-      await this.ensureSelectedModel(conversation);
-      if (conversation.selectedModel !== previousModel) {
-        changed.push(conversation);
-      }
-    }
-    return changed;
+    const candidates = this.conversations.filter((conversation) => (
+      conversation.providerId === providerId
+      && getStoredModelSelection(conversation.selectedModel)
+    ));
+    const changed = await mapWithConcurrency(
+      candidates,
+      async (conversation): Promise<Conversation | null> => {
+        const previousModel = conversation.selectedModel;
+        await this.ensureSelectedModel(conversation);
+        return conversation.selectedModel !== previousModel ? conversation : null;
+      },
+      MODEL_RECONCILIATION_CONCURRENCY,
+    );
+    return changed.filter(
+      (conversation): conversation is Conversation => conversation !== null,
+    );
   }
 
   private applyNotePathRenames(conversation: Conversation): boolean {
