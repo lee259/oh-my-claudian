@@ -522,6 +522,32 @@ describe('ConversationRepository hydration', () => {
     expect(persistence.saveMetadata).toHaveBeenCalledTimes(1);
   });
 
+  it('reconciles multiple conversations without waiting on one persistence write', async () => {
+    const first = createConversation('first-reconciliation');
+    first.selectedModel = 'claude-code/retired-model';
+    const second = createConversation('second-reconciliation');
+    second.selectedModel = 'claude-code/retired-model';
+    const { repository, persistence } = createRepository(first);
+    repository.replaceAll([first, second]);
+
+    let releaseFirst!: () => void;
+    const firstSave = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let saveCount = 0;
+    persistence.saveMetadata.mockImplementation(() => {
+      saveCount += 1;
+      return saveCount === 1 ? firstSave : Promise.resolve();
+    });
+
+    const reconciliation = repository.reconcileSelectedModels('claude');
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(saveCount).toBe(2);
+    releaseFirst();
+    await expect(reconciliation).resolves.toEqual([first, second]);
+  });
+
   it('reports whether selected-model metadata is safe for incremental publication', () => {
     const conversation = createConversation('publication-safety');
     const { repository } = createRepository(conversation);
