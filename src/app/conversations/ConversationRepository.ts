@@ -256,9 +256,9 @@ export class ConversationRepository {
     const providerIds = new Set(entries
       .map(({ conversation }) => conversation.providerId)
       .filter(providerId => registeredProviderIds.has(providerId)));
-    for (const providerId of providerIds) {
-      await this.reconcileSelectedModels(providerId);
-    }
+    await Promise.all(
+      [...providerIds].map(providerId => this.reconcileSelectedModels(providerId)),
+    );
     const migrations = entries
       .filter(
         ({ conversation, needsMigration, source }) =>

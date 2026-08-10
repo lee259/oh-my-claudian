@@ -615,6 +615,35 @@ describe('ConversationRepository hydration', () => {
     expect(repository.getCachedConversation(second.id)).toBe(second);
   });
 
+  it('reconciles adopted providers without waiting on another provider', async () => {
+    const { repository } = createRepository(createConversation('existing'));
+    const claude = createConversation('claude-adoption');
+    const codex = createConversation('codex-adoption');
+    codex.providerId = 'codex';
+    let releaseFirst!: () => void;
+    const firstReconciliation = new Promise<Conversation[]>((resolve) => {
+      releaseFirst = () => resolve([]);
+    });
+    let secondStarted = false;
+    const reconcile = jest.spyOn(repository, 'reconcileSelectedModels')
+      .mockImplementationOnce(async () => firstReconciliation)
+      .mockImplementationOnce(async () => {
+        secondStarted = true;
+        return [];
+      });
+
+    const adoption = repository.adoptMetadataConversations([
+      { conversation: claude, needsMigration: false, source: 'current' },
+      { conversation: codex, needsMigration: false, source: 'current' },
+    ]);
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(secondStarted).toBe(true);
+    releaseFirst();
+    reconcile.mockRestore();
+    await expect(adoption).resolves.toBeUndefined();
+  });
+
   it('keeps failed deferred metadata unpublished so adoption can retry persistence', async () => {
     const { repository, persistence } = createRepository(createConversation('existing'));
     const deferred = createConversation('deferred-failed-fallback');
