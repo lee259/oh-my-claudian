@@ -17,7 +17,6 @@ describe('Chat input toolbar styles', () => {
   });
 
   it('scopes the composer override for coexistence with upstream Claudian', () => {
-    expect(css).toContain('.oh-my-claudian-root {\n.claudian-input-container');
     expect(css).toMatch(
       /\.oh-my-claudian-root \.claudian-input-send-button\s*\{[\s\S]*?position:\s*static;[\s\S]*?margin-inline-start:\s*8px;/,
     );

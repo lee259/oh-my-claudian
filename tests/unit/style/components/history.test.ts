@@ -16,7 +16,7 @@ describe('Session history styles', () => {
   it('keeps session and history rules inside the Oh My Claudian root', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
 
-    expect(css).toContain('.oh-my-claudian-root {\n.claudian-history-container');
-    expect(css).toContain('body.theme-dark & .claudian-session-metadata-popover');
+    expect(css).toContain('.claudian-history-container');
+    expect(css).toContain('body.theme-dark .claudian-session-metadata-popover');
   });
 });

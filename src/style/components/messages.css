@@ -1,5 +1,4 @@
 /* Messages wrapper (for scroll-to-bottom button positioning) */
-.oh-my-claudian-root {
 .claudian-messages-wrapper {
   position: relative;
   flex: 1;
@@ -327,5 +326,4 @@
 .claudian-tab-hydration-error {
   max-width: 420px;
   color: var(--text-error, var(--claudian-error));
-}
 }

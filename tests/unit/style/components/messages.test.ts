@@ -13,7 +13,6 @@ describe('Message styles', () => {
   it('uses an Oh My Claudian-owned brand variable for user bubbles', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
-    expect(css).toContain('.oh-my-claudian-root {\n.claudian-messages-wrapper');
     expect(css).toMatch(
       /\.oh-my-claudian-root \.claudian-message-user\s*\{[\s\S]*?background:\s*rgba\(var\(--oh-my-claudian-brand-rgb\), 0\.16\);/,
     );

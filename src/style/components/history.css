@@ -1,4 +1,3 @@
-.oh-my-claudian-root {
 .claudian-history-container {
   position: static;
 }
@@ -472,7 +471,7 @@
   box-shadow: var(--shadow-s);
 }
 
-body.theme-dark & .claudian-session-metadata-popover {
+body.theme-dark .claudian-session-metadata-popover {
   background-color: #1e1e1e;
 }
 
@@ -834,5 +833,4 @@ body.theme-dark & .claudian-session-metadata-popover {
 .claudian-history-load-more:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
-}
 }
