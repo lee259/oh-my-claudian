@@ -12,6 +12,7 @@ describe('Generated coexistence styles', () => {
     const css = readFileSync(path.resolve('styles.css'), 'utf8');
 
     expect(css).toContain('.oh-my-claudian-root .claudian-session-sidebar');
+    expect(css).toContain('.oh-my-claudian-root.claudian-wide-session-layout .claudian-session-sidebar');
     expect(css).toContain('.oh-my-claudian-root .claudian-input-container');
     expect(css).toContain('.oh-my-claudian-root .claudian-message-user');
     expect(css).not.toMatch(/(?:^|})\.claudian-session-sidebar\s*\{/);

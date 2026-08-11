@@ -14,6 +14,12 @@ const STYLE_DIR = join(ROOT, 'src', 'style');
 const OUTPUT = join(ROOT, 'styles.css');
 const INDEX_FILE = join(STYLE_DIR, 'index.css');
 const CSS_SCOPE = '.oh-my-claudian-root';
+const ROOT_STATE_CLASSES = new Set([
+  'claudian-container',
+  'claudian-wide-session-layout',
+  'claudian-session-sidebar-left',
+  'claudian-resizing-session-sidebar',
+]);
 const SCOPED_MODULE_PREFIXES = ['components/', 'toolbar/'];
 const SCOPED_FEATURE_MODULES = new Set([
   'features/ask-user-question.css',
@@ -105,6 +111,16 @@ function scopeSelector(selector) {
     const bodyEnd = trimmed.indexOf(' ');
     if (bodyEnd === -1) return `${trimmed} ${CSS_SCOPE}`;
     return `${trimmed.slice(0, bodyEnd)} ${CSS_SCOPE} ${trimmed.slice(bodyEnd + 1)}`;
+  }
+
+  const rootStateMatch = trimmed.match(/^((?:\.[A-Za-z0-9_-]+)+)(?:\s+)(.+)$/);
+  if (rootStateMatch) {
+    const stateClasses = rootStateMatch[1]
+      .split('.')
+      .filter(Boolean);
+    if (stateClasses.some(className => ROOT_STATE_CLASSES.has(className))) {
+      return `${CSS_SCOPE}${rootStateMatch[1]} ${rootStateMatch[2]}`;
+    }
   }
 
   return `${CSS_SCOPE} ${trimmed}`;
