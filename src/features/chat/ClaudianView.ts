@@ -10,7 +10,11 @@ import {
 import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettingsCoordinator';
 import { type AppTabManagerState, DEFAULT_CHAT_PROVIDER_ID, type ProviderId } from '../../core/providers/types';
-import { type ConversationMeta, VIEW_TYPE_CLAUDIAN } from '../../core/types';
+import {
+  type ConversationMeta,
+  OH_MY_CLAUDIAN_ROOT_CLASS,
+  VIEW_TYPE_CLAUDIAN,
+} from '../../core/types';
 import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
@@ -263,7 +267,7 @@ export class ClaudianView extends ItemView {
 
     this.viewContainerEl = container;
     this.viewContainerEl.empty();
-    this.viewContainerEl.addClass('claudian-container');
+    this.viewContainerEl.addClass('claudian-container', OH_MY_CLAUDIAN_ROOT_CLASS);
 
     this.navRowContent = this.buildNavRowContent();
     this.buildViewLayout();

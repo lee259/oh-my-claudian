@@ -9,7 +9,10 @@ export interface ForkSource {
 }
 
 /** View type identifier for Obsidian. */
-export const VIEW_TYPE_CLAUDIAN = 'claudian-view';
+export const VIEW_TYPE_CLAUDIAN = 'oh-my-claudian-view';
+
+/** Root class used to identify Oh My Claudian-owned view DOM. */
+export const OH_MY_CLAUDIAN_ROOT_CLASS = 'oh-my-claudian-root';
 
 /** Supported image media types for attachments. */
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
