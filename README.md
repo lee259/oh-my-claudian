@@ -8,6 +8,15 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
 
 > This repository is based on [YishenTu/claudian](https://github.com/YishenTu/claudian) and adds Oh My Pi (OMP) and Cursor support through ACP.
 
+## Why Oh My Claudian?
+
+Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent providers while keeping each provider's native strengths visible:
+
+- Switch between Claude, Codex, Cursor, Grok, OMP, OpenCode, and Pi without changing your vault workflow.
+- Use provider-aware model discovery, readiness checks, permissions, planning, MCP, image attachments, and session recovery where supported.
+- Start safely with approval-oriented defaults, then opt into more powerful modes when you need them.
+- Run Oh My Claudian alongside the original Claudian plugin without sharing its Obsidian view type or composer styling.
+
 ## Added in This Repository
 
 - **Oh My Pi (OMP)** — An ACP-backed OMP provider with model discovery and selection in the chat sidebar.
@@ -26,6 +35,7 @@ Oh My Claudian is an Obsidian plugin that embeds coding agents in your vault. Ag
 - Drag files and folders from Obsidian or your desktop into the composer to attach them as clickable context chips.
 - MCP support where available from the selected provider.
 - Internationalized interface with 10 locales, including Simplified and Traditional Chinese.
+
 **Plan Mode** — Toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
 
 **Instruction Mode (`#`)** — Refined custom instructions added from the chat input.
@@ -106,7 +116,7 @@ npm run test
 
 Releases are created automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) when a version tag is pushed.
 
-1. Update the version in `manifest.json` and commit the change.
+1. Update the version in `package.json`, `package-lock.json`, and `manifest.json`, keeping all three values identical.
 2. Run the local validation checks:
 
    ```bash
@@ -119,11 +129,11 @@ Releases are created automatically by [`.github/workflows/release.yml`](.github/
 3. Create a tag that exactly matches the `manifest.json` version, for example:
 
    ```bash
-   git tag 2.1.14
-   git push origin 2.1.14
+   git tag <version>
+   git push origin <version>
    ```
 
-   If your writable remote is named `fork`, use `git push fork 2.1.14` instead.
+   If your writable remote is named `fork`, use `git push fork <version>` instead.
 
 The workflow validates the version, builds the plugin, runs the performance check, generates release notes, and publishes `main.js`, `manifest.json`, and `styles.css` to the GitHub Release. These are the files used for the Obsidian Community Plugins release.
 
