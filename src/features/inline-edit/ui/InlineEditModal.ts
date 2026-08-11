@@ -980,8 +980,10 @@ export class InlineEditSession {
   }
 
   private focusEditor(): void {
-    const focus = (this.editorView as EditorView & { focus?: () => void }).focus;
-    focus?.call(this.editorView);
+    const editorView = this.editorView as EditorView & { focus?: () => void };
+    if (typeof editorView.focus === 'function') {
+      editorView.focus();
+    }
   }
 
   private handleKeydown(e: KeyboardEvent) {
