@@ -1,13 +1,8 @@
-import { spawn } from 'node:child_process';
-
 import type { ProviderInteractionPort, ProviderSessionConfig } from '../../../core/execution';
+import { ManagedCommandRunner, type ManagedCommandTermination } from '../../../core/process/ManagedCommandRunner';
 import { getRuntimeEnvironmentVariables } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { getVaultPath } from '../../../utils/path';
-import {
-  resolveWindowsCmdShimSpawnSpec,
-  terminateSpawnedProcess,
-} from '../../../utils/windowsCmdShim';
 import {
   DefaultOmpAcpSessionKernel,
   type OmpAcpSessionKernel,
@@ -36,7 +31,7 @@ export interface OmpCatalogCommandRequest {
 export interface OmpCatalogCommandResult {
   exitCode: number | null;
   stdout: string;
-  termination?: 'abort' | 'error' | 'output-limit' | 'timeout';
+  termination?: ManagedCommandTermination;
 }
 
 export interface OmpCatalogCommandRunner {
@@ -155,74 +150,9 @@ function normalizeOmpCliModels(value: unknown): OmpDiscoveredModel[] {
 
 export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
   run(request: OmpCatalogCommandRequest): Promise<OmpCatalogCommandResult> {
-    if (request.signal?.aborted) {
-      return Promise.resolve({ exitCode: null, stdout: '', termination: 'abort' });
-    }
-    return new Promise(resolve => {
-      const spawnSpec = resolveWindowsCmdShimSpawnSpec(request);
-      let child: ReturnType<typeof spawn> | null = null;
-      const chunks: Buffer[] = [];
-      let byteLength = 0;
-      let settled = false;
-      const finish = (result: OmpCatalogCommandResult): void => {
-        if (settled) return;
-        settled = true;
-        globalThis.clearTimeout(timeout);
-        request.signal?.removeEventListener('abort', onAbort);
-        resolve(result);
-      };
-      const terminate = (): void => {
-        if (child) terminateSpawnedProcess(child, 'SIGKILL', spawn, spawnSpec);
-      };
-      const onAbort = (): void => {
-        terminate();
-        finish({ exitCode: null, stdout: '', termination: 'abort' });
-      };
-      request.signal?.addEventListener('abort', onAbort, { once: true });
-      const timeout = globalThis.setTimeout(() => {
-        terminate();
-        finish({ exitCode: null, stdout: '', termination: 'timeout' });
-      }, request.timeoutMs);
-      if (request.signal?.aborted) {
-        finish({ exitCode: null, stdout: '', termination: 'abort' });
-        return;
-      }
-      try {
-        child = spawn(spawnSpec.command, spawnSpec.args, {
-          cwd: request.cwd,
-          env: request.env,
-          stdio: ['ignore', 'pipe', 'ignore'],
-          windowsHide: true,
-          ...(spawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-        });
-      } catch {
-        finish({ exitCode: null, stdout: '', termination: 'error' });
-        return;
-      }
-      if (request.signal?.aborted) {
-        onAbort();
-        return;
-      }
-      const spawnedChild = child;
-      if (!spawnedChild.stdout) {
-        finish({ exitCode: null, stdout: '', termination: 'error' });
-        return;
-      }
-      spawnedChild.stdout.on('data', (chunk: Buffer | string) => {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        byteLength += buffer.byteLength;
-        if (byteLength > MAX_STDOUT_BYTES) {
-          terminate();
-          finish({ exitCode: null, stdout: '', termination: 'output-limit' });
-          return;
-        }
-        chunks.push(buffer);
-      });
-      spawnedChild.once('error', () => finish({ exitCode: null, stdout: '', termination: 'error' }));
-      spawnedChild.once('close', exitCode => finish({
-        exitCode,
-        stdout: Buffer.concat(chunks).toString('utf8'),
-      }));
+    return new ManagedCommandRunner().run({
+      ...request,
+      stdoutLimitBytes: MAX_STDOUT_BYTES,
     });
   }
 }

@@ -1,14 +1,13 @@
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
+import {
+  ManagedCommandRunner,
+  type ManagedCommandTermination,
+} from '../../../core/process/ManagedCommandRunner';
 import { getRuntimeEnvironmentVariables } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { ProviderTransitionOwnerContext } from '../../../core/providers/types';
 import { getVaultPath } from '../../../utils/path';
-import {
-  resolveWindowsCmdShimSpawnSpec,
-  terminateSpawnedProcess,
-} from '../../../utils/windowsCmdShim';
 import {
   type GrokDiscoveredModel,
   normalizeGrokDiscoveredModels,
@@ -37,7 +36,7 @@ export interface GrokCatalogCommandRequest {
 export interface GrokCatalogCommandResult {
   exitCode: number | null;
   stdout: string;
-  termination?: 'abort' | 'error' | 'output-limit' | 'timeout';
+  termination?: ManagedCommandTermination;
 }
 
 export interface GrokCatalogCommandRunner {
@@ -262,61 +261,9 @@ export class GrokModelCatalogService implements GrokModelCatalogServiceLike {
 
 export class SpawnGrokCatalogCommandRunner implements GrokCatalogCommandRunner {
   run(request: GrokCatalogCommandRequest): Promise<GrokCatalogCommandResult> {
-    if (request.signal?.aborted) {
-      return Promise.resolve({ exitCode: null, stdout: '', termination: 'abort' });
-    }
-
-    return new Promise((resolve) => {
-      const spawnSpec = resolveWindowsCmdShimSpawnSpec(request);
-      const proc = spawn(spawnSpec.command, spawnSpec.args, {
-        cwd: request.cwd,
-        env: request.env,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        windowsHide: true,
-        ...(spawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-      });
-      const chunks: Buffer[] = [];
-      let byteLength = 0;
-      let settled = false;
-
-      const finish = (result: GrokCatalogCommandResult): void => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        window.clearTimeout(timeout);
-        request.signal?.removeEventListener('abort', onAbort);
-        resolve(result);
-      };
-      const terminate = (): void => {
-        terminateSpawnedProcess(proc, 'SIGKILL', spawn, spawnSpec);
-      };
-      const onAbort = (): void => {
-        terminate();
-        finish({ exitCode: null, stdout: '', termination: 'abort' });
-      };
-      const timeout = window.setTimeout(() => {
-        terminate();
-        finish({ exitCode: null, stdout: '', termination: 'timeout' });
-      }, request.timeoutMs);
-
-      request.signal?.addEventListener('abort', onAbort, { once: true });
-      proc.stdout.on('data', (chunk: Buffer | string) => {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        byteLength += buffer.byteLength;
-        if (byteLength > MAX_STDOUT_BYTES) {
-          terminate();
-          finish({ exitCode: null, stdout: '', termination: 'output-limit' });
-          return;
-        }
-        chunks.push(buffer);
-      });
-      proc.once('error', () => {
-        finish({ exitCode: null, stdout: '', termination: 'error' });
-      });
-      proc.once('close', (exitCode) => {
-        finish({ exitCode, stdout: Buffer.concat(chunks).toString('utf8') });
-      });
+    return new ManagedCommandRunner().run({
+      ...request,
+      stdoutLimitBytes: MAX_STDOUT_BYTES,
     });
   }
 }

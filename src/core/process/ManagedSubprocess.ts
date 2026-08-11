@@ -7,6 +7,7 @@ import {
 } from './ManagedStdioProcess';
 
 export type SubprocessCloseListener = (error?: Error) => void;
+export type SubprocessExitListener = (state: ManagedStdioProcessExitState) => void;
 
 export class ManagedSubprocess {
   private closeError: Error | null = null;
@@ -52,6 +53,10 @@ export class ManagedSubprocess {
     return () => {
       this.closeListeners.delete(listener);
     };
+  }
+
+  onExit(listener: SubprocessExitListener): () => void {
+    return this.process.onExit(listener);
   }
 
   shutdown(): Promise<void> {
