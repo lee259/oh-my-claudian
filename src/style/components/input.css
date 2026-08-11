@@ -183,6 +183,19 @@
   margin-inline-start: 8px;
   border-color: var(--oh-my-claudian-brand);
   background: var(--oh-my-claudian-brand);
+  color: var(--background-primary);
+}
+
+.oh-my-claudian-root .claudian-input-send-button.is-streaming {
+  border-color: var(--oh-my-claudian-brand);
+  background: rgba(var(--oh-my-claudian-brand-rgb), 0.14);
+  color: var(--oh-my-claudian-brand);
+}
+
+.oh-my-claudian-root .claudian-input-send-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .oh-my-claudian-root .claudian-input-toolbar {
