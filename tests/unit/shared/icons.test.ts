@@ -2,6 +2,8 @@
 
 import {
   createProviderIconSvg,
+  CURSOR_PROVIDER_ICON,
+  OMP_PROVIDER_ICON,
   OPENAI_PROVIDER_ICON,
   OPENCODE_PROVIDER_ICON,
   PI_PROVIDER_ICON,
@@ -52,5 +54,14 @@ describe('createProviderIconSvg', () => {
     expect(paths).toHaveLength(2);
     expect(paths[0].getAttribute('fill-rule')).toBe('evenodd');
     expect(paths.every(path => path.getAttribute('fill') === 'currentColor')).toBe(true);
+  });
+
+  it.each([
+    ['cursor', CURSOR_PROVIDER_ICON],
+    ['omp', OMP_PROVIDER_ICON],
+  ] as const)('renders the %s provider icon', (_provider, icon) => {
+    const svg = createProviderIconSvg(icon, { parent: document.body });
+    expect(svg.getAttribute('viewBox')).toBe(icon.viewBox);
+    expect(svg.querySelector('path')).not.toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import type {
   ProviderPermissionModeToggleConfig,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { CURSOR_PROVIDER_ICON } from '../../../shared/icons';
 import { buildInitialCursorUsageInfo } from '../execution/CursorExecutionSession';
 import {
   decodeCursorModelId,
@@ -11,6 +12,9 @@ import {
 import { getCursorProviderSettings } from '../settings';
 
 export const cursorChatUIConfig: ProviderChatUIConfig = {
+  getProviderIcon() {
+    return CURSOR_PROVIDER_ICON;
+  },
   getModelOptions(settings) {
     const provider = getCursorProviderSettings(settings);
     const discovered = new Map(provider.discoveredModels.map(model => [model.rawId, model]));
