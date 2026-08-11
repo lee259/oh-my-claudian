@@ -192,6 +192,12 @@
   color: var(--oh-my-claudian-brand);
 }
 
+.oh-my-claudian-root .claudian-input-send-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--oh-my-claudian-brand) 82%, var(--text-normal));
+  border-color: color-mix(in srgb, var(--oh-my-claudian-brand) 82%, var(--text-normal));
+  color: var(--background-primary);
+}
+
 .oh-my-claudian-root .claudian-input-send-button svg {
   display: block;
   width: 18px;
