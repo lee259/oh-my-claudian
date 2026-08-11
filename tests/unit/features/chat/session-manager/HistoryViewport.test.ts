@@ -42,7 +42,7 @@ describe('HistoryViewport', () => {
   it('reuses keyed history items while committing a staged render', () => {
     const viewport = new HistoryViewport();
     const previousItem = {
-      getAttribute: () => 'session-1',
+      getAttribute: (name: string) => name === 'data-history-render-key' ? 'session-1' : null,
     } as unknown as HTMLElement;
     const renderRoot = {
       children: [] as HTMLElement[],
@@ -50,7 +50,7 @@ describe('HistoryViewport', () => {
       remove: jest.fn(),
     } as unknown as HTMLElement & { children: HTMLElement[] };
     const nextItem = {
-      getAttribute: () => 'session-1',
+      getAttribute: (name: string) => name === 'data-history-render-key' ? 'session-1' : null,
       replaceWith: jest.fn((replacement: HTMLElement) => {
         renderRoot.children[0] = replacement;
       }),
@@ -67,5 +67,37 @@ describe('HistoryViewport', () => {
 
     expect(container.children[0]).toBe(previousItem);
     expect(nextItem.replaceWith).toHaveBeenCalledWith(previousItem);
+  });
+
+  it('rebuilds interactive history items so hover handlers reflect the current render', () => {
+    const viewport = new HistoryViewport();
+    const previousItem = {
+      getAttribute: (name: string) => name === 'data-history-render-key' ? 'session-1' : null,
+    } as unknown as HTMLElement;
+    const renderRoot = {
+      children: [] as HTMLElement[],
+      querySelectorAll: () => renderRoot.children,
+      remove: jest.fn(),
+    } as unknown as HTMLElement & { children: HTMLElement[] };
+    const nextItem = {
+      getAttribute: (name: string) => {
+        if (name === 'data-history-render-key') return 'session-1';
+        if (name === 'data-history-render-reuse') return 'false';
+        return null;
+      },
+      replaceWith: jest.fn(),
+    } as unknown as HTMLElement;
+    renderRoot.children.push(nextItem);
+    const container = {
+      children: [previousItem],
+      querySelectorAll: () => [previousItem],
+      empty: jest.fn(() => { container.children.length = 0; }),
+      appendChild: jest.fn((child: HTMLElement) => { container.children.push(child); }),
+    } as unknown as HTMLElement & { children: HTMLElement[] };
+
+    viewport.commit(container, renderRoot);
+
+    expect(container.children[0]).toBe(nextItem);
+    expect(nextItem.replaceWith).not.toHaveBeenCalled();
   });
 });

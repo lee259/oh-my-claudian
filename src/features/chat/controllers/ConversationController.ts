@@ -1161,6 +1161,9 @@ export class ConversationController {
       allowConversationSelection: options.allowConversationSelection !== false,
       hasOpenConversationInNewTab: typeof options.onOpenConversationInNewTab === 'function',
     }));
+    if (options.showMetadataPopover) {
+      item.setAttribute('data-history-render-reuse', 'false');
+    }
     item.setAttribute('data-running', isRunning ? 'true' : 'false');
     item.setAttribute('data-tab-location', conversationStatus.location ?? 'current-view');
     if (typeof conversationStatus.tabIndex === 'number') {

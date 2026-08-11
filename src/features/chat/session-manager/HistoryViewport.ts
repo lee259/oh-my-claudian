@@ -49,7 +49,11 @@ export class HistoryViewport {
     for (const item of Array.from(renderRoot.querySelectorAll<HTMLElement>('[data-history-render-key]'))) {
       const renderKey = item.getAttribute('data-history-render-key');
       const previousItem = renderKey ? previousItems.get(renderKey) : undefined;
-      if (!previousItem || typeof item.replaceWith !== 'function') continue;
+      if (
+        item.getAttribute('data-history-render-reuse') === 'false'
+        || !previousItem
+        || typeof item.replaceWith !== 'function'
+      ) continue;
       item.replaceWith(previousItem);
     }
 
