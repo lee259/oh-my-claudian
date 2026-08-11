@@ -79,4 +79,25 @@ describe('HistoryProjection', () => {
     expect(projection.visibleConversationTotal).toBe(2);
     expect(projection.visibleCount).toBe(1);
   });
+
+  it('keeps archived filtering and pagination state independent', () => {
+    const projection = projectHistory({
+      conversations: [
+        createConversation('archived', { isArchived: true, lastActivityAt: 30 }),
+        createConversation('active', { lastActivityAt: 20 }),
+      ],
+      organization: 'list',
+      sort: 'last-updated',
+      language: 'en',
+      sessionScope: 'archived',
+      previousVisibleCount: 50,
+      visibleCount: 75,
+      pageSize: 20,
+    });
+
+    expect(projection.sections[0]?.conversations.map(({ id }) => id)).toEqual(['archived']);
+    expect(projection.visibleCount).toBe(75);
+    expect(projection.pageSize).toBe(20);
+    expect(projection.showSessionSections).toBe(false);
+  });
 });

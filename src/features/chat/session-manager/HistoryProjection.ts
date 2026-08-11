@@ -29,8 +29,6 @@ export interface HistoryProjection {
   conversationsByLinkedNote: ReadonlyMap<string, ConversationMeta[]>;
   filteredConversations: ConversationMeta[];
   pinnedConversations: ConversationMeta[];
-  sessionConversations: ConversationMeta[];
-  visiblePinnedNotePaths: string[];
   visibleCount: number;
   pageSize: number;
   visibleConversationTotal: number;
@@ -140,8 +138,6 @@ export function projectHistory(options: HistoryProjectionOptions): HistoryProjec
     conversationsByLinkedNote,
     filteredConversations,
     pinnedConversations,
-    sessionConversations,
-    visiblePinnedNotePaths,
     visibleCount,
     pageSize,
     visibleConversationTotal,
