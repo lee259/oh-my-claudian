@@ -1,4 +1,5 @@
 /* Navigation Sidebar */
+.oh-my-claudian-root {
 .claudian-nav-sidebar {
     position: absolute;
     right: 2px;
@@ -67,7 +68,7 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-body.theme-dark .claudian-nav-toc-popover {
+body.theme-dark & .claudian-nav-toc-popover {
     background-color: #1e1e1e;
 }
 
@@ -121,4 +122,5 @@ body.theme-dark .claudian-nav-toc-popover {
 
 .claudian-nav-btn-bottom {
     margin-top: 4px;
+}
 }

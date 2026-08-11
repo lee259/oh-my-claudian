@@ -1,3 +1,4 @@
+.oh-my-claudian-root {
 .claudian-tab-bar-container {
   display: flex;
   align-items: center;
@@ -121,4 +122,5 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
 }
