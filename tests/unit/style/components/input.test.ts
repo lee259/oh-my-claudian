@@ -28,4 +28,19 @@ describe('Chat input toolbar styles', () => {
   it('uses Oh My Claudian-owned brand variables for the send button', () => {
     expect(css).toContain('background: var(--oh-my-claudian-brand);');
   });
+
+  it('keeps the streaming stop icon visible under upstream Claudian styles', () => {
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-send-button\.is-streaming\s*\{[\s\S]*?color:\s*var\(--oh-my-claudian-brand\);/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-send-button svg\s*\{[\s\S]*?display:\s*block;/,
+    );
+  });
+
+  it('keeps the send button hover state under upstream Claudian styles', () => {
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-send-button:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*color-mix\(in srgb, var\(--oh-my-claudian-brand\)/,
+    );
+  });
 });
