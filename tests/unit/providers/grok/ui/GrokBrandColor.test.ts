@@ -21,7 +21,7 @@ describe('Grok brand color', () => {
 
   it('routes active and streaming Grok surfaces through its brand token', () => {
     expect(variablesCss).toMatch(
-      /\.oh-my-claudian-root\.claudian-container\[data-provider="grok"\] \{[\s\S]*?--claudian-brand: var\(--claudian-brand-grok\);[\s\S]*?--claudian-brand-rgb: var\(--claudian-brand-grok-rgb\);[\s\S]*?\}/,
+      /\.oh-my-claudian-root\.claudian-container\[data-provider="grok"\] \{[\s\S]*?--claudian-brand: var\(--claudian-brand-grok\) !important;[\s\S]*?--claudian-brand-rgb: var\(--claudian-brand-grok-rgb\) !important;[\s\S]*?\}/,
     );
     expect(tabsCss).toMatch(
       /\.claudian-tab-badge-streaming\[data-provider="grok"\] \{[\s\S]*?border-color: var\(--claudian-brand-grok, #ffffff\);[\s\S]*?\}/,
