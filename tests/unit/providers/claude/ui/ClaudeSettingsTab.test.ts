@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-
 import {
   createDropdownComponent,
   createTextAreaComponent,
@@ -10,6 +8,8 @@ import {
   type MockTextComponent,
   type MockToggleComponent,
 } from '@test/helpers/MockSettingComponents';
+import * as fs from 'fs';
+
 import { DEFAULT_CLAUDE_PROVIDER_SETTINGS } from '@/providers/claude/settings';
 import { claudeSettingsTabRenderer } from '@/providers/claude/ui/ClaudeSettingsTab';
 

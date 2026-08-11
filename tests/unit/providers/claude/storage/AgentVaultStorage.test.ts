@@ -1,4 +1,5 @@
 import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import { AgentVaultStorage } from '@/providers/claude/storage/AgentVaultStorage';
 

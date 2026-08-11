@@ -1,11 +1,11 @@
-import * as fs from 'fs';
-
 import {
   createTextComponent,
   createToggleComponent,
   type MockTextComponent,
   type MockToggleComponent,
 } from '@test/helpers/MockSettingComponents';
+import * as fs from 'fs';
+
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
 import {
   getOpencodeProviderSettings,

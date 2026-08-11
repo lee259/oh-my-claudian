@@ -1,4 +1,5 @@
 import { createMockVaultFileAdapter as createMockAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import {
   createOpencodeAgentPersistenceKey,
   OPENCODE_AGENT_PATH,

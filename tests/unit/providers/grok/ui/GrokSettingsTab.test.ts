@@ -6,6 +6,7 @@ import {
   type MockTextComponent,
   type MockToggleComponent,
 } from '@test/helpers/MockSettingComponents';
+
 import { getGrokProviderSettings } from '@/providers/grok/settings';
 import { grokSettingsTabRenderer } from '@/providers/grok/ui/GrokSettingsTab';
 

@@ -5,6 +5,7 @@ jest.mock('node:child_process', () => ({
 import { spawn } from 'node:child_process';
 
 import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
+
 import { AcpSubprocess } from '@/providers/acp/AcpSubprocess';
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;

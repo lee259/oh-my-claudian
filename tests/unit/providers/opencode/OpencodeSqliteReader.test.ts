@@ -4,11 +4,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { createMockChildProcess } from '@test/helpers/MockChildProcess';
+
 import {
   loadOpencodeSessionRows,
   OPENCODE_MESSAGE_ROW_SQL,
 } from '../../../../src/providers/opencode/history/OpencodeSqliteReader';
-import { createMockChildProcess } from '@test/helpers/MockChildProcess';
 
 type Spawn = typeof nodeSpawn;
 

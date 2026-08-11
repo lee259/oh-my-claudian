@@ -961,9 +961,9 @@ export class InlineEditSession {
   }
 
   private getDocumentSlice(doc: Text, from: number, to: number): string {
-    const sliceString = (doc as Text & { sliceString?: (start: number, end: number) => string }).sliceString;
-    if (typeof sliceString === 'function') {
-      return sliceString.call(doc, from, to);
+    const documentWithSlice = doc as Text & { sliceString?: (start: number, end: number) => string };
+    if (typeof documentWithSlice.sliceString === 'function') {
+      return documentWithSlice.sliceString(from, to);
     }
     return from === this.selFrom && to === this.selTo ? this.selectedText : '';
   }

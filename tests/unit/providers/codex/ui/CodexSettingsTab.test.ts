@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-
 import {
   createDropdownComponent,
   createTextAreaComponent,
@@ -10,6 +8,8 @@ import {
   type MockTextComponent,
   type MockToggleComponent,
 } from '@test/helpers/MockSettingComponents';
+import * as fs from 'fs';
+
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
 import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCoordinator';
 import { DEFAULT_CODEX_PROVIDER_SETTINGS } from '@/providers/codex/settings';

@@ -1,7 +1,6 @@
 import '@/providers';
 
 import { installMockDocument } from '@test/helpers/MockDocument';
-import { createMockEl } from '@test/helpers/MockElement';
 import { MarkdownRenderer, Notice } from 'obsidian';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';

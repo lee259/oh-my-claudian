@@ -1,6 +1,7 @@
 import '@/providers';
 
 import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import { ConversationRepository } from '@/app/conversations/ConversationRepository';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { ProviderId } from '@/core/providers/types';

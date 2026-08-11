@@ -1,4 +1,4 @@
-import type { App, Plugin } from 'obsidian';
+import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
 
 import {
@@ -161,7 +161,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
    * Claudian still builds its settings imperatively in display(); this empty
    * array satisfies the contract so the tab is registered in search.
    */
-  getSettingDefinitions(): unknown[] {
+  getSettingDefinitions(): SettingDefinitionItem[] {
     return [];
   }
 

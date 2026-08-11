@@ -2,9 +2,9 @@ jest.mock('child_process', () => ({
   spawn: jest.fn(),
 }));
 
+import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 import { spawn } from 'child_process';
 
-import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 import { CodexAppServerProcess } from '@/providers/codex/runtime/CodexAppServerProcess';
 import type { CodexLaunchSpec } from '@/providers/codex/runtime/codexLaunchTypes';
 

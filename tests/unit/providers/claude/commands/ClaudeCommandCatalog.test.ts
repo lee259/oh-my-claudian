@@ -1,4 +1,5 @@
 import { createMockVaultFileAdapter as createMockAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import type { SlashCommand } from '@/core/types';
 import { ClaudeCommandCatalog } from '@/providers/claude/commands/ClaudeCommandCatalog';
 import { SkillStorage } from '@/providers/claude/storage/SkillStorage';
