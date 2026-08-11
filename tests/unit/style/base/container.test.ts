@@ -15,7 +15,7 @@ describe('Claudian view container styles', () => {
 
     expect(css).not.toContain(':has(');
     expect(css).toMatch(
-      /\.workspace-split\.mod-left-split \.view-content\.claudian-container\s*{[^}]*padding-bottom:\s*0;[^}]*overflow:\s*hidden;/,
+      /\.workspace-split\.mod-left-split \.view-content\.oh-my-claudian-root\.claudian-container\s*{[^}]*padding-bottom:\s*0;[^}]*overflow:\s*hidden;/,
     );
   });
 });

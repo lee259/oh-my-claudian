@@ -1,4 +1,5 @@
 /* Input area */
+.oh-my-claudian-root {
 .claudian-input-container {
   position: relative;
   padding: 12px 0 0;
@@ -305,4 +306,5 @@
 /* Monospace input while in bash mode */
 .claudian-input-wrapper.claudian-input-bang-bash-mode .claudian-input {
   font-family: var(--font-monospace);
+}
 }
