@@ -5,6 +5,9 @@ describe('Claudian view container styles', () => {
   it('preserves Obsidian host spacing outside the left sidebar', () => {
     const css = readFileSync(path.resolve('src/style/base/container.css'), 'utf8');
 
+    expect(css).toMatch(
+      /\.oh-my-claudian-root\.claudian-container\s*{[^}]*padding:\s*12px 12px 32px;/,
+    );
     expect(css).not.toMatch(
       /\.workspace-leaf-content \.view-content\.claudian-container\s*{[^}]*padding:/,
     );
@@ -15,7 +18,7 @@ describe('Claudian view container styles', () => {
 
     expect(css).not.toContain(':has(');
     expect(css).toMatch(
-      /\.workspace-split\.mod-left-split \.view-content\.claudian-container\s*{[^}]*padding-bottom:\s*0;[^}]*overflow:\s*hidden;/,
+      /\.workspace-split\.mod-left-split \.view-content\.oh-my-claudian-root\.claudian-container\s*{[^}]*padding-bottom:\s*0;[^}]*overflow:\s*hidden;/,
     );
   });
 });
