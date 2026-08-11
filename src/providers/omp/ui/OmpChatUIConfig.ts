@@ -3,6 +3,7 @@ import type {
   ProviderPermissionModeToggleConfig,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { OMP_PROVIDER_ICON } from '../../../shared/icons';
 import { buildInitialOmpUsageInfo } from '../execution/OmpExecutionSession';
 import {
   decodeOmpModelId,
@@ -11,6 +12,9 @@ import {
 import { getOmpProviderSettings } from '../settings';
 
 export const ompChatUIConfig: ProviderChatUIConfig = {
+  getProviderIcon() {
+    return OMP_PROVIDER_ICON;
+  },
   getModelOptions(settings) {
     const provider = getOmpProviderSettings(settings);
     const discovered = new Map(provider.discoveredModels.map(model => [model.rawId, model]));

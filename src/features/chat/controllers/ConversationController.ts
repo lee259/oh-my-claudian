@@ -1178,7 +1178,9 @@ export class ConversationController {
       cls: 'claudian-history-item-title',
       text: conversation.title,
     });
-    titleEl.setAttribute('title', conversation.title);
+    if (!options.showMetadataPopover) {
+      titleEl.setAttribute('title', conversation.title);
+    }
     if (options.showMetadataPopover) {
       const focusTarget = isSelectable ? content : item;
       focusTarget.setAttribute('tabindex', '0');

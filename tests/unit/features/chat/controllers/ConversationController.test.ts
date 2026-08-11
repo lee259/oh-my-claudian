@@ -1171,6 +1171,8 @@ describe('ConversationController', () => {
         expect(item.getAttribute('role')).toBeNull();
         expect(content.getAttribute('tabindex')).toBe('0');
         expect(content.getAttribute('role')).toBe('button');
+        expect(content.querySelector('.claudian-history-item-title')?.getAttribute('title'))
+          .toBeNull();
         expect(item.querySelector('.claudian-history-item-date')).toBeNull();
 
         item.dispatchEvent({ type: 'mouseenter' });
