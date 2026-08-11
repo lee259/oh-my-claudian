@@ -2,11 +2,18 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 
-export type MockChildProcess = ChildProcessWithoutNullStreams & {
+export type MockChildProcess = Omit<
+  ChildProcessWithoutNullStreams,
+  'exitCode' | 'killed' | 'kill' | 'pid' | 'signalCode'
+> & {
+  exitCode: number | null;
+  killed: boolean;
   kill: jest.Mock<boolean, [signal?: NodeJS.Signals | number]>;
+  pid: number;
   stderr: PassThrough;
   stdin: PassThrough;
   stdout: PassThrough;
+  signalCode: NodeJS.Signals | null;
 };
 
 export function createMockChildProcess(): MockChildProcess {

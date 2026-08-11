@@ -1,38 +1,25 @@
-import { EventEmitter } from 'node:events';
-import { Readable, Writable } from 'node:stream';
-
 jest.mock('node:child_process', () => ({
   spawn: jest.fn(),
 }));
 
 import { spawn } from 'node:child_process';
 
+import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 import { PiSubprocess } from '@/providers/pi/runtime/PiSubprocess';
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
-function createMockProcess(): any {
-  const proc = new EventEmitter() as any;
-  proc.stdin = new Writable({ write: (_chunk, _encoding, callback) => callback() });
-  proc.stdout = new Readable({ read() {} });
-  proc.stderr = new Readable({ read() {} });
-  proc.exitCode = null;
-  proc.killed = false;
-  proc.pid = 12345;
-  proc.kill = jest.fn((signal?: string) => {
-    proc.killed = signal === 'SIGKILL';
-    return true;
-  });
-  return proc;
-}
-
 describe('PiSubprocess', () => {
   const originalPlatform = process.platform;
-  let proc: any;
+  let proc: MockChildProcess;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    proc = createMockProcess();
+    proc = createMockChildProcess();
+    proc.kill.mockImplementation((signal) => {
+      proc.killed = signal === 'SIGKILL';
+      return true;
+    });
     mockSpawn.mockReturnValue(proc);
   });
 
