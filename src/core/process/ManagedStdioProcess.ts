@@ -1,4 +1,4 @@
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
 
 import {
@@ -19,7 +19,8 @@ export interface ManagedStdioProcessOptions {
   finalShutdownTimeoutMs?: number;
   sigkillTimeoutMs?: number;
   stderrBufferLimit?: number;
-  stdio?: 'pipe' | ['pipe', 'pipe', 'pipe'];
+  spawn?: typeof spawn;
+  stdio?: 'pipe' | ['ignore', 'pipe', 'ignore'] | ['pipe', 'pipe', 'pipe'];
 }
 
 export interface ManagedStdioProcessExitState {
@@ -38,7 +39,7 @@ export class ManagedStdioProcess {
   private readonly errorListeners = new Set<ErrorListener>();
   private exitState: ManagedStdioProcessExitState | null = null;
   private readonly exitListeners = new Set<LifecycleListener>();
-  private proc: ChildProcessWithoutNullStreams | null = null;
+  private proc: ChildProcess | null = null;
   private resolvedSpawnSpec: WindowsCmdShimSpawnSpec | null = null;
   private shutdownPromise: Promise<void> | null = null;
   private spawnConfirmed = false;
@@ -49,15 +50,21 @@ export class ManagedStdioProcess {
   constructor(private readonly options: ManagedStdioProcessOptions) {}
 
   get stdin(): Writable {
-    return this.requireProcess().stdin;
+    const stdin = this.requireProcess().stdin;
+    if (!stdin) throw new Error('Managed stdio process stdin is not available');
+    return stdin;
   }
 
   get stdout(): Readable {
-    return this.requireProcess().stdout;
+    const stdout = this.requireProcess().stdout;
+    if (!stdout) throw new Error('Managed stdio process stdout is not available');
+    return stdout;
   }
 
   get stderr(): Readable {
-    return this.requireProcess().stderr;
+    const stderr = this.requireProcess().stderr;
+    if (!stderr) throw new Error('Managed stdio process stderr is not available');
+    return stderr;
   }
 
   start(): void {
@@ -69,9 +76,9 @@ export class ManagedStdioProcess {
     const resolvedSpawnSpec = resolveWindowsCmdShimSpawnSpec(this.options);
     this.resolvedSpawnSpec = resolvedSpawnSpec;
 
-    let proc: ChildProcessWithoutNullStreams;
+    let proc: ChildProcess;
     try {
-      proc = spawn(resolvedSpawnSpec.command, resolvedSpawnSpec.args, {
+      proc = (this.options.spawn ?? spawn)(resolvedSpawnSpec.command, resolvedSpawnSpec.args, {
         cwd: this.options.cwd,
         env: this.options.env,
         stdio: this.options.stdio ?? 'pipe',
@@ -105,7 +112,7 @@ export class ManagedStdioProcess {
       const limit = this.options.stderrBufferLimit ?? DEFAULT_STDERR_BUFFER_LIMIT;
       this.stderrBuffer = `${this.stderrBuffer}${text}`.slice(-limit);
     };
-    proc.stderr.on('data', this.stderrDataListener);
+    proc.stderr?.on('data', this.stderrDataListener);
     proc.on('spawn', this.handleSpawn);
     proc.on('error', this.handleError);
     proc.on('exit', this.handleExit);
@@ -250,14 +257,14 @@ export class ManagedStdioProcess {
     this.clearLifecycleListeners();
   };
 
-  private requireProcess(): ChildProcessWithoutNullStreams {
+  private requireProcess(): ChildProcess {
     if (!this.proc) {
       throw new Error('Managed stdio process is not started');
     }
     return this.proc;
   }
 
-  private killProcess(proc: ChildProcessWithoutNullStreams, signal: NodeJS.Signals): boolean {
+  private killProcess(proc: ChildProcess, signal: NodeJS.Signals): boolean {
     try {
       return terminateSpawnedProcess(proc, signal, spawn, this.resolvedSpawnSpec);
     } catch {
@@ -271,14 +278,14 @@ export class ManagedStdioProcess {
     }
   }
 
-  private cleanupProcessListeners(proc: ChildProcessWithoutNullStreams | null): void {
+  private cleanupProcessListeners(proc: ChildProcess | null): void {
     if (!proc) return;
     proc.off('spawn', this.handleSpawn);
     proc.off('error', this.handleError);
     proc.off('exit', this.handleExit);
     proc.off('close', this.handleClose);
     if (this.stderrDataListener) {
-      proc.stderr.off('data', this.stderrDataListener);
+      proc.stderr?.off('data', this.stderrDataListener);
       this.stderrDataListener = null;
     }
   }
@@ -290,10 +297,10 @@ export class ManagedStdioProcess {
   }
 }
 
-function destroyStdio(proc: ChildProcessWithoutNullStreams): void {
+function destroyStdio(proc: ChildProcess): void {
   for (const stream of [proc.stdin, proc.stdout, proc.stderr]) {
     try {
-      stream.destroy();
+      stream?.destroy();
     } catch {
       // The final shutdown deadline remains bounded even if a stream misbehaves.
     }

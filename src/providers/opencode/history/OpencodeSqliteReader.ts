@@ -1,5 +1,6 @@
 import { spawn as defaultSpawn } from 'node:child_process';
 
+import { ManagedCommandRunner } from '../../../core/process/ManagedCommandRunner';
 import { findNodeExecutable } from '../../../utils/env';
 
 export type StoredRow = Record<string, unknown>;
@@ -197,47 +198,17 @@ function runBufferedChild(
   args: string[],
   spawn: typeof defaultSpawn,
 ): Promise<string | null> {
-  return new Promise((resolve) => {
-    let settled = false;
-    let size = 0;
-    let timer: number | null = null;
-    const chunks: Buffer[] = [];
-    let child: ReturnType<typeof defaultSpawn>;
-    try {
-      child = spawn(command, args, {
-        stdio: ['ignore', 'pipe', 'ignore'],
-        windowsHide: true,
-      });
-    } catch {
-      resolve(null);
-      return;
-    }
-    const finish = (value: string | null): void => {
-      if (settled) return;
-      settled = true;
-      if (timer !== null) window.clearTimeout(timer);
-      resolve(value);
-    };
-
-    child.stdout?.on('data', (chunk: Buffer | string) => {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      size += buffer.length;
-      if (size > OPENCODE_SQLITE_QUERY_MAX_BUFFER) {
-        child.kill('SIGKILL');
-        finish(null);
-        return;
-      }
-      chunks.push(buffer);
-    });
-    child.once('error', () => finish(null));
-    child.once('close', (code) => {
-      finish(code === 0 ? Buffer.concat(chunks).toString('utf8') : null);
-    });
-    timer = window.setTimeout(() => {
-      child.kill('SIGKILL');
-      finish(null);
-    }, 10_000);
-  });
+  return new ManagedCommandRunner().run({
+    args,
+    command,
+    cwd: process.cwd(),
+    env: process.env,
+    spawn,
+    stdoutLimitBytes: OPENCODE_SQLITE_QUERY_MAX_BUFFER,
+    timeoutMs: 10_000,
+  }).then(result => (
+    result.termination || result.exitCode !== 0 ? null : result.stdout
+  ));
 }
 
 function parseStoredSessionRows(value: string): StoredSessionRows | null {

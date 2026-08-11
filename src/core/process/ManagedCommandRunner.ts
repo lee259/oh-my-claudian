@@ -1,3 +1,4 @@
+import type { ManagedStdioProcessOptions } from './ManagedStdioProcess';
 import { ManagedSubprocess } from './ManagedSubprocess';
 
 export type ManagedCommandTermination = 'abort' | 'error' | 'output-limit' | 'timeout';
@@ -8,6 +9,7 @@ export interface ManagedCommandRequest {
   cwd: string;
   env: NodeJS.ProcessEnv;
   signal?: AbortSignal;
+  spawn?: ManagedStdioProcessOptions['spawn'];
   timeoutMs: number;
   stdoutLimitBytes: number;
 }
@@ -32,7 +34,8 @@ export class ManagedCommandRunner {
         env: request.env,
         finalShutdownTimeoutMs: 0,
         sigkillTimeoutMs: 0,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        spawn: request.spawn,
+        stdio: ['ignore', 'pipe', 'ignore'],
       });
       const chunks: Buffer[] = [];
       let byteLength = 0;
@@ -62,7 +65,7 @@ export class ManagedCommandRunner {
       process.onClose(error => {
         if (error) finish({ exitCode: null, stdout: '', termination: 'error' });
       });
-      process.onExit(({ code, error }) => {
+      process.onCloseState(({ code, error }) => {
         if (error) {
           finish({ exitCode: null, stdout: '', termination: 'error' });
           return;

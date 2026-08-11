@@ -25,15 +25,21 @@ export class ManagedSubprocess {
   }
 
   get stdin(): Writable {
-    return this.requireStarted().stdin;
+    const stdin = this.requireStarted().stdin;
+    if (!stdin) throw new Error('Subprocess stdin is not available');
+    return stdin;
   }
 
   get stdout(): Readable {
-    return this.requireStarted().stdout;
+    const stdout = this.requireStarted().stdout;
+    if (!stdout) throw new Error('Subprocess stdout is not available');
+    return stdout;
   }
 
   get stderr(): Readable {
-    return this.requireStarted().stderr;
+    const stderr = this.requireStarted().stderr;
+    if (!stderr) throw new Error('Subprocess stderr is not available');
+    return stderr;
   }
 
   start(): void {
@@ -57,6 +63,10 @@ export class ManagedSubprocess {
 
   onExit(listener: SubprocessExitListener): () => void {
     return this.process.onExit(listener);
+  }
+
+  onCloseState(listener: SubprocessExitListener): () => void {
+    return this.process.onClose(listener);
   }
 
   shutdown(): Promise<void> {
