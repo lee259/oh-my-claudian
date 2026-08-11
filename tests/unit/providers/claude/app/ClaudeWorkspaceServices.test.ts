@@ -1,27 +1,10 @@
+import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import type { SlashCommand } from '@/core/types';
 import {
   createClaudeWorkspaceServices,
 } from '@/providers/claude/app/ClaudeWorkspaceServices';
-
-function createAdapter(): VaultFileAdapter {
-  return {
-    append: jest.fn(),
-    delete: jest.fn(),
-    deleteFolder: jest.fn(),
-    ensureFolder: jest.fn(),
-    exists: jest.fn().mockResolvedValue(false),
-    listFiles: jest.fn().mockResolvedValue([]),
-    listFilesRecursive: jest.fn().mockResolvedValue([]),
-    listFolders: jest.fn().mockResolvedValue([]),
-    read: jest.fn(),
-    rename: jest.fn(),
-    stat: jest.fn(),
-    write: jest.fn(),
-  } as unknown as VaultFileAdapter;
-}
 
 function createPlugin(
   executionLifecycleRegistry: ProviderExecutionLifecycleRegistry,
@@ -59,7 +42,7 @@ describe('ClaudeWorkspaceServices', () => {
       ]);
     const services = await createClaudeWorkspaceServices(
       plugin,
-      createAdapter(),
+      createMockVaultFileAdapter(),
       { commandProbe },
     );
     const load = services.commandCatalog.listDropdownEntries({ includeBuiltIns: false });
@@ -119,7 +102,7 @@ describe('ClaudeWorkspaceServices', () => {
     });
     const services = await createClaudeWorkspaceServices(
       plugin,
-      createAdapter(),
+      createMockVaultFileAdapter(),
       { commandProbe },
     );
     const load = services.commandCatalog.listDropdownEntries({ includeBuiltIns: false });

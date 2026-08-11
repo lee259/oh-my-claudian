@@ -1,3 +1,4 @@
+import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
 import {
   computeConversationInputDigest,
   CONVERSATION_INPUT_LEDGER_SCHEMA_VERSION,
@@ -15,18 +16,9 @@ import {
   LEGACY_SESSIONS_PATH,
   SESSIONS_PATH,
 } from '@/core/bootstrap/storagePaths';
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import type { SessionMetadata } from '@/core/types';
 
-function createAdapter(): jest.Mocked<VaultFileAdapter> {
-  return {
-    delete: jest.fn().mockResolvedValue(undefined),
-    exists: jest.fn().mockResolvedValue(false),
-    listFiles: jest.fn().mockResolvedValue([]),
-    read: jest.fn(),
-    write: jest.fn().mockResolvedValue(undefined),
-  } as unknown as jest.Mocked<VaultFileAdapter>;
-}
+const createAdapter = createMockVaultFileAdapter;
 
 function createMetadata(id: string): SessionMetadata {
   return {

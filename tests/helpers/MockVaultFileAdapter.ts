@@ -1,6 +1,6 @@
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 
-export function createMockVaultFileAdapter(files: Record<string, string> = {}): VaultFileAdapter {
+export function createMockVaultFileAdapter(files: Record<string, string> = {}): jest.Mocked<VaultFileAdapter> {
   const filePaths = () => Object.keys(files);
   const withPrefix = (folder: string) => {
     const prefix = folder.endsWith('/') ? folder : `${folder}/`;
@@ -40,5 +40,5 @@ export function createMockVaultFileAdapter(files: Record<string, string> = {}): 
     append: jest.fn(),
     stat: jest.fn(),
     deleteFolder: jest.fn(),
-  } as unknown as VaultFileAdapter;
+  } as unknown as jest.Mocked<VaultFileAdapter>;
 }
