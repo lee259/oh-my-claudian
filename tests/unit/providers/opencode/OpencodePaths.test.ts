@@ -9,11 +9,41 @@ import {
 } from '../../../../src/providers/opencode/runtime/OpencodePaths';
 
 describe('OpencodePaths', () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform });
+  });
+
   it('prefers XDG data directories for OpenCode data', () => {
     expect(resolveOpencodeDataDir({
       HOME: '/home/tester',
       XDG_DATA_HOME: '/tmp/xdg-data',
     } as NodeJS.ProcessEnv)).toBe('/tmp/xdg-data/opencode');
+  });
+
+  it('uses the home data directory on Windows even when AppData paths are available', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const env = {
+      APPDATA: '/windows/app-data',
+      HOME: '/home/tester',
+      LOCALAPPDATA: '/windows/local-app-data',
+    } as NodeJS.ProcessEnv;
+
+    expect(resolveOpencodeDataDir(env)).toBe('/home/tester/.local/share/opencode');
+    expect(resolveOpencodeDatabasePath(env)).toBe('/home/tester/.local/share/opencode/opencode.db');
+  });
+
+  it('preserves explicit data and database overrides on Windows', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const env = {
+      HOME: '/home/tester',
+      OPENCODE_DB: '/custom/opencode.db',
+      XDG_DATA_HOME: '/xdg/data',
+    } as NodeJS.ProcessEnv;
+
+    expect(resolveOpencodeDataDir(env)).toBe('/xdg/data/opencode');
+    expect(resolveOpencodeDatabasePath(env)).toBe('/custom/opencode.db');
   });
 
   it('falls back to the existing resolved database when persisted metadata points at a missing path', () => {
