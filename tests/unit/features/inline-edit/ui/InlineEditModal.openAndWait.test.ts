@@ -1,5 +1,6 @@
 import '@/providers';
 
+import { installMockDocument } from '@test/helpers/MockDocument';
 import { createMockEl } from '@test/helpers/MockElement';
 import { MarkdownRenderer, Notice } from 'obsidian';
 
@@ -199,13 +200,7 @@ describe('InlineEditModal - openAndWait', () => {
   });
 
   it('wires mention getCachedVaultFolders through VaultFolderCache.getFolders', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -294,18 +289,12 @@ describe('InlineEditModal - openAndWait', () => {
       getEditorViewSpy.mockRestore();
       getFoldersSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('uses provider-scoped hidden commands for Codex inline edit dropdowns', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -412,18 +401,12 @@ describe('InlineEditModal - openAndWait', () => {
       widgetRef?.reject();
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('passes the active chat runtime model into inline edit services when available', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -532,18 +515,12 @@ describe('InlineEditModal - openAndWait', () => {
       getEditorViewSpy.mockRestore();
       providerSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('passes the bound conversation model into inline edit services before runtime initialization', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -651,18 +628,12 @@ describe('InlineEditModal - openAndWait', () => {
       getEditorViewSpy.mockRestore();
       providerSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('shows a single notice and degrades gracefully when getFiles throws', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -794,18 +765,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('parses @mentions into contextFiles at send time without dropdown attachment state', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -904,18 +869,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('resolves external context @mentions into contextFiles at send time', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1035,18 +994,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('parses vault @mentions with spaces into contextFiles at send time', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1144,18 +1097,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('resolves external @mentions when vault has no files', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1275,18 +1222,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('renders clarification replies as markdown with the active note path', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1377,18 +1318,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('does not let stale clarification markdown renders overwrite newer replies', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1498,18 +1433,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('renders accept and reject controls in the block preview', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1610,18 +1539,12 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 
   it('renders markdown diff documents with block context', async () => {
-    const originalDocument = (global as any).document;
-    (global as any).document = {
-      body: createMockEl('body'),
-      createElement: (tagName: string) => createMockEl(tagName),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
+    const restoreDocument = installMockDocument();
 
     try {
       const app = {
@@ -1756,7 +1679,7 @@ describe('InlineEditModal - openAndWait', () => {
       await expect(resultPromise).resolves.toEqual({ decision: 'reject' });
       getEditorViewSpy.mockRestore();
     } finally {
-      (global as any).document = originalDocument;
+      restoreDocument();
     }
   });
 });
