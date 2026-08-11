@@ -1,5 +1,11 @@
 import * as fs from 'fs';
 
+import {
+  createTextComponent,
+  createToggleComponent,
+  type MockTextComponent,
+  type MockToggleComponent,
+} from '@test/helpers/MockSettingComponents';
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
 import {
   getOpencodeProviderSettings,
@@ -122,28 +128,6 @@ jest.mock('@/utils/env', () => ({
   getHostnameKey: () => mockGetHostnameKey(),
 }));
 
-interface MockTextComponent {
-  value: string;
-  placeholder: string;
-  onChangeCallback: ((value: string) => Promise<void> | void) | null;
-  setPlaceholder: jest.MockedFunction<(value: string) => MockTextComponent>;
-  setValue: jest.MockedFunction<(value: string) => MockTextComponent>;
-  onChange: jest.MockedFunction<(callback: (value: string) => Promise<void> | void) => MockTextComponent>;
-  inputEl: {
-    value: string;
-    style: Record<string, string>;
-    addClass: jest.Mock;
-    toggleClass: jest.Mock;
-  };
-}
-
-interface MockToggleComponent {
-  value: boolean;
-  onChangeCallback: ((value: boolean) => Promise<void> | void) | null;
-  setValue: jest.MockedFunction<(value: boolean) => MockToggleComponent>;
-  onChange: jest.MockedFunction<(callback: (value: boolean) => Promise<void> | void) => MockToggleComponent>;
-}
-
 type MockSettingRecord = {
   name: string;
   desc: string;
@@ -161,48 +145,6 @@ type MockElementRecord = {
 const createdSettings: MockSettingRecord[] = [];
 const createdElements: MockElementRecord[] = [];
 const createdDomElements: any[] = [];
-
-function createTextComponent(): MockTextComponent {
-  const component = {} as MockTextComponent;
-  component.value = '';
-  component.placeholder = '';
-  component.onChangeCallback = null;
-  component.inputEl = {
-    value: '',
-    style: {},
-    addClass: jest.fn(),
-    toggleClass: jest.fn(),
-  };
-  component.setPlaceholder = jest.fn((value: string) => {
-    component.placeholder = value;
-    return component;
-  });
-  component.setValue = jest.fn((value: string) => {
-    component.value = value;
-    component.inputEl.value = value;
-    return component;
-  });
-  component.onChange = jest.fn((callback: (value: string) => Promise<void> | void) => {
-    component.onChangeCallback = callback;
-    return component;
-  });
-  return component;
-}
-
-function createToggleComponent(): MockToggleComponent {
-  const component = {} as MockToggleComponent;
-  component.value = false;
-  component.onChangeCallback = null;
-  component.setValue = jest.fn((value: boolean) => {
-    component.value = value;
-    return component;
-  });
-  component.onChange = jest.fn((callback: (value: boolean) => Promise<void> | void) => {
-    component.onChangeCallback = callback;
-    return component;
-  });
-  return component;
-}
 
 function createElement(): any {
   const classes = new Set<string>();
