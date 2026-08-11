@@ -2,6 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import { Menu, Notice, setIcon } from 'obsidian';
 
 import { ConversationController, type ConversationControllerDeps } from '@/features/chat/controllers/ConversationController';
+import { HistoryViewport } from '@/features/chat/session-manager/HistoryViewport';
 import { ChatState } from '@/features/chat/state/ChatState';
 import { OPENAI_PROVIDER_ICON } from '@/shared/icons';
 import { confirm } from '@/shared/modals/ConfirmModal';
@@ -1872,7 +1873,7 @@ describe('ConversationController', () => {
       it('installs surface controls before restoring preserved list position', () => {
         const container = createMockEl();
         const order: string[] = [];
-        const restoreSpy = jest.spyOn(controller as any, 'restoreHistoryListPosition')
+        const restoreSpy = jest.spyOn(HistoryViewport.prototype, 'restore')
           .mockImplementation(() => {
             order.push('restore');
           });

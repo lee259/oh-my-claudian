@@ -26,6 +26,7 @@ import { createWelcomeElement, renderWelcomeContent } from '../rendering/Welcome
 import { findRewindContext } from '../rewind';
 import type { SubagentManager } from '../services/SubagentManager';
 import { projectHistory } from '../session-manager/HistoryProjection';
+import { HistoryViewport } from '../session-manager/HistoryViewport';
 import {
   getLinkedNoteTitle,
   isProvisionalNotePath,
@@ -152,14 +153,10 @@ type HistorySurfaceRenderOptions = Omit<HistoryRenderOptions, 'onRerender'> & {
   onRerender?: () => void;
 };
 
-type HistoryScrollAnchor = {
-  conversationId: string;
-  viewportOffset: number;
-};
-
 export class ConversationController {
   private deps: ConversationControllerDeps;
   private callbacks: ConversationCallbacks;
+  private readonly historyViewport = new HistoryViewport();
   private metadataPopoverCleanup: (() => void) | null = null;
   private metadataPopoverCloseTimer: number | null = null;
   private metadataPopoverEl: HTMLElement | null = null;
@@ -751,28 +748,10 @@ export class ConversationController {
       this.closeSessionMetadataPopover();
     }
 
-    const previousList = options.preserveListState
-      ? container.querySelector<HTMLElement>('.claudian-history-list')
-      : null;
-    const previousSessionList = previousList?.querySelector<HTMLElement>(
-      '.claudian-session-list-items',
-    ) ?? previousList;
-    const previousPinnedSection = previousList?.querySelector<HTMLElement>(
-      '.claudian-history-section--pinned',
+    const viewportSnapshot = this.historyViewport.capture(
+      container,
+      options.preserveListState === true,
     );
-    const previousPinnedList = previousPinnedSection?.querySelector<HTMLElement>(
-      '.claudian-history-section-items',
-    );
-    const previousSessionScrollTop = previousSessionList?.scrollTop ?? 0;
-    const previousPinnedScrollTop = previousPinnedList?.scrollTop ?? 0;
-    const previousVisibleCountFromState = Number(previousList?.dataset.visibleCount);
-    const previousVisibleCount = Number.isFinite(previousVisibleCountFromState)
-      && previousVisibleCountFromState > 0
-      ? previousVisibleCountFromState
-      : previousList?.querySelectorAll('.claudian-history-item').length ?? 0;
-    const previousScrollAnchors = previousSessionList
-      ? this.captureHistoryScrollAnchors(previousSessionList)
-      : [];
     const organization = options.organization ?? 'list';
 
     container.empty();
@@ -789,7 +768,7 @@ export class ConversationController {
       showPinnedSection: options.showPinnedSection,
       showArchivedSection: options.showArchivedSection,
       collapsedGroupKeys: options.collapsedGroupKeys,
-      previousVisibleCount,
+      previousVisibleCount: viewportSnapshot.previousVisibleCount,
       visibleCount: options.visibleCount,
       pageSize: options.pageSize,
     });
@@ -807,57 +786,14 @@ export class ConversationController {
       searchTerms,
     } = projection;
 
-    let list: HTMLElement;
-    let sessionList: HTMLElement;
-    let pinnedList: HTMLElement | null = null;
-    if (showSessionSections) {
-      list = container.createDiv({ cls: 'claudian-history-list' });
-      if (pinnedConversations.length > 0 || pinnedNoteSections.length > 0) {
-        const pinnedSection = list.createDiv({
-          cls: 'claudian-history-section claudian-history-section--pinned',
-        });
-        const pinnedHeader = pinnedSection.createDiv({
-          cls: 'claudian-history-header claudian-session-section-header',
-        });
-        pinnedHeader.createSpan({
-          cls: 'claudian-history-section-label',
-          text: 'Pinned',
-        });
-        pinnedList = pinnedSection.createDiv({
-          cls: 'claudian-history-section-items',
-        });
-      }
+    const { list, sessionList, pinnedList } = this.historyViewport.createLayout(container, {
+      showSessionSections,
+      showArchivedSection: options.showArchivedSection === true,
+      hasPinnedSection: pinnedConversations.length > 0 || pinnedNoteSections.length > 0,
+      historyHeaderLabel: options.historyHeaderLabel,
+    });
 
-      const sessionsSection = list.createDiv({
-        cls: [
-          'claudian-history-section',
-          options.showArchivedSection
-            ? 'claudian-history-section--archived'
-            : 'claudian-history-section--sessions',
-        ].join(' '),
-      });
-      const sessionsHeader = sessionsSection.createDiv({
-        cls: [
-          'claudian-history-header',
-          'claudian-session-section-header',
-          'claudian-session-list-header',
-        ].join(' '),
-      });
-      sessionsHeader.createSpan({
-        cls: 'claudian-history-section-label',
-        text: options.showArchivedSection ? 'Archived' : 'Sessions',
-      });
-      sessionList = sessionsSection.createDiv({
-        cls: 'claudian-history-section-items claudian-session-list-items',
-      });
-    } else {
-      const dropdownHeader = container.createDiv({ cls: 'claudian-history-header' });
-      dropdownHeader.createSpan({ text: options.historyHeaderLabel ?? 'Sessions' });
-      list = container.createDiv({ cls: 'claudian-history-list' });
-      sessionList = list;
-    }
-
-    list.dataset.visibleCount = String(visibleCount);
+    this.historyViewport.setVisibleCount(list, visibleCount);
 
     if (filteredConversations.length === 0 && pinnedNoteSections.length === 0) {
       if (organization === 'linked-note') {
@@ -868,12 +804,7 @@ export class ConversationController {
         text: searchTerms.length > 0 ? 'No matching sessions' : 'No conversations',
       });
       options.onBeforeRestoreListState?.(container);
-      if (pinnedList) pinnedList.scrollTop = previousPinnedScrollTop;
-      this.restoreHistoryListPosition(
-        sessionList,
-        previousSessionScrollTop,
-        previousScrollAnchors,
-      );
+      this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
       return;
     }
 
@@ -952,7 +883,7 @@ export class ConversationController {
         if (options.signal?.aborted) return;
         const nextVisibleCount = visibleCount + pageSize;
         if (options.preserveListState) {
-          list.dataset.visibleCount = String(nextVisibleCount);
+          this.historyViewport.setVisibleCount(list, nextVisibleCount);
           options.onRerender();
           return;
         }
@@ -964,12 +895,7 @@ export class ConversationController {
     }
 
     options.onBeforeRestoreListState?.(container);
-    if (pinnedList) pinnedList.scrollTop = previousPinnedScrollTop;
-    this.restoreHistoryListPosition(
-      sessionList,
-      previousSessionScrollTop,
-      previousScrollAnchors,
-    );
+    this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
   }
 
   private renderLinkedNoteSection(
@@ -1170,53 +1096,6 @@ export class ConversationController {
 
     for (const conversation of visibleConversations) {
       this.renderHistoryConversationItem(groupBody, conversation, options);
-    }
-  }
-
-  private captureHistoryScrollAnchors(list: HTMLElement): HistoryScrollAnchor[] {
-    const listRect = list.getBoundingClientRect();
-    if (listRect.height <= 0) return [];
-
-    return Array.from(list.querySelectorAll<HTMLElement>('.claudian-history-item'))
-      .map((item): HistoryScrollAnchor | null => {
-        const conversationId = item.getAttribute('data-conversation-id');
-        const itemRect = item.getBoundingClientRect();
-        if (
-          !conversationId
-          || itemRect.height <= 0
-          || itemRect.bottom <= listRect.top
-          || itemRect.top >= listRect.bottom
-        ) return null;
-        return {
-          conversationId,
-          viewportOffset: itemRect.top - listRect.top,
-        };
-      })
-      .filter((anchor): anchor is HistoryScrollAnchor => anchor !== null);
-  }
-
-  private restoreHistoryListPosition(
-    list: HTMLElement,
-    previousScrollTop: number,
-    anchors: readonly HistoryScrollAnchor[],
-  ): void {
-    list.scrollTop = previousScrollTop;
-    if (anchors.length === 0) return;
-
-    const items = Array.from(
-      list.querySelectorAll<HTMLElement>('.claudian-history-item'),
-    );
-    const listTop = list.getBoundingClientRect().top;
-    for (const anchor of anchors) {
-      const item = items.find(candidate => (
-        candidate.getAttribute('data-conversation-id') === anchor.conversationId
-      ));
-      if (!item) continue;
-
-      const itemRect = item.getBoundingClientRect();
-      if (itemRect.height <= 0) continue;
-      list.scrollTop += itemRect.top - listTop - anchor.viewportOffset;
-      return;
     }
   }
 
