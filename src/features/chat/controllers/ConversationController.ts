@@ -25,10 +25,10 @@ import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { createWelcomeElement, renderWelcomeContent } from '../rendering/WelcomeRenderer';
 import { findRewindContext } from '../rewind';
 import type { SubagentManager } from '../services/SubagentManager';
+import { projectHistory } from '../session-manager/HistoryProjection';
 import {
   getLinkedNoteTitle,
   isProvisionalNotePath,
-  organizeSessionList,
   type SessionListSection,
 } from '../session-manager/SessionListOrganizer';
 import type { ChatState } from '../state/ChatState';
@@ -44,7 +44,6 @@ function runConversationAction(action: () => Promise<void>, failureMessage: stri
   });
 }
 
-const DEFAULT_HISTORY_PAGE_SIZE = 100;
 const MAX_REWIND_CONFLICT_PATHS = 5;
 
 function buildRewindConflictConfirmation(conflicts: readonly ChatRewindConflict[]): string {
@@ -778,70 +777,35 @@ export class ConversationController {
 
     container.empty();
 
-    const allConversations = plugin.getConversationList();
-    const scopedConversations = options.sessionScope === 'archived'
-      ? allConversations.filter(conversation => conversation.isArchived)
-      : options.sessionScope === 'active'
-        ? allConversations.filter(conversation => !conversation.isArchived)
-        : allConversations;
-    const searchTerms = (options.searchQuery ?? '')
-      .trim()
-      .toLocaleLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-    const filteredConversations = searchTerms.length === 0
-      ? scopedConversations
-      : scopedConversations.filter((conversation) => {
-          const searchableText = [conversation.title, conversation.currentNote ?? '']
-            .join('\n')
-            .toLocaleLowerCase();
-          return searchTerms.every(term => searchableText.includes(term));
-        });
-    const conversationsByLinkedNote = new Map<string, ConversationMeta[]>();
-    for (const conversation of scopedConversations) {
-      if (!conversation.currentNote) continue;
-      const noteConversations = conversationsByLinkedNote.get(conversation.currentNote) ?? [];
-      noteConversations.push(conversation);
-      conversationsByLinkedNote.set(conversation.currentNote, noteConversations);
-    }
-    const pinnedLinkedNotePaths = organization === 'linked-note'
-      && options.showPinnedSection
-      && options.sessionScope !== 'archived'
-      ? options.pinnedLinkedNotePaths ?? new Set<string>()
-      : new Set<string>();
-    const isInPinnedNoteGroup = (conversation: ConversationMeta): boolean => (
-      !!conversation.currentNote
-      && pinnedLinkedNotePaths.has(conversation.currentNote)
-    );
-    const pinnedNoteConversations = filteredConversations.filter(isInPinnedNoteGroup);
-    const pinnedConversations = options.showPinnedSection
-      ? filteredConversations.filter(conversation => (
-          conversation.isPinned && !isInPinnedNoteGroup(conversation)
-        ))
-      : [];
-    const sessionConversations = options.showPinnedSection
-      ? filteredConversations.filter(conversation => (
-          !conversation.isPinned && !isInPinnedNoteGroup(conversation)
-        ))
-      : filteredConversations;
-    const pinnedPathsWithMatchingSessions = new Set(
-      pinnedNoteConversations.flatMap(conversation => (
-        conversation.currentNote ? [conversation.currentNote] : []
-      )),
-    );
-    const visiblePinnedNotePaths = [...pinnedLinkedNotePaths].filter((notePath) => (
-      searchTerms.length === 0
-      || pinnedPathsWithMatchingSessions.has(notePath)
-      || searchTerms.every(term => notePath.toLocaleLowerCase().includes(term))
-    ));
-    const pinnedNoteSections = organizeSessionList(pinnedNoteConversations, {
-      organization: 'linked-note',
+    const projection = projectHistory({
+      conversations: plugin.getConversationList(),
+      organization,
       sort: options.sort ?? 'last-updated',
       language: options.language ?? 'en',
-      includeNotePaths: visiblePinnedNotePaths,
+      sessionScope: options.sessionScope,
+      searchQuery: options.searchQuery,
       noteExists: options.noteExists,
-    }).filter(section => section.notePath !== undefined);
-    const showSessionSections = options.showPinnedSection || options.showArchivedSection;
+      pinnedLinkedNotePaths: options.pinnedLinkedNotePaths,
+      showPinnedSection: options.showPinnedSection,
+      showArchivedSection: options.showArchivedSection,
+      collapsedGroupKeys: options.collapsedGroupKeys,
+      previousVisibleCount,
+      visibleCount: options.visibleCount,
+      pageSize: options.pageSize,
+    });
+    const {
+      conversationsByLinkedNote,
+      filteredConversations,
+      pinnedConversations,
+      pinnedNoteSections,
+      sortedPinnedConversations,
+      sections,
+      visibleConversationTotal,
+      visibleCount,
+      pageSize,
+      showSessionSections,
+      searchTerms,
+    } = projection;
 
     let list: HTMLElement;
     let sessionList: HTMLElement;
@@ -893,11 +857,6 @@ export class ConversationController {
       sessionList = list;
     }
 
-    const pageSize = Math.max(1, options.pageSize ?? DEFAULT_HISTORY_PAGE_SIZE);
-    const visibleCount = Math.max(
-      pageSize,
-      options.visibleCount ?? previousVisibleCount,
-    );
     list.dataset.visibleCount = String(visibleCount);
 
     if (filteredConversations.length === 0 && pinnedNoteSections.length === 0) {
@@ -918,38 +877,12 @@ export class ConversationController {
       return;
     }
 
-    const sortedPinnedConversations = organizeSessionList(pinnedConversations, {
-      organization: 'list',
-      sort: options.sort ?? 'last-updated',
-      language: options.language ?? 'en',
-    })[0]?.conversations ?? [];
-    const sections = organizeSessionList(sessionConversations, {
-      organization,
-      sort: options.sort ?? 'last-updated',
-      language: options.language ?? 'en',
-      noteExists: options.noteExists,
-    });
     if (organization === 'linked-note') {
       options.onGroupKeysChange?.([
         ...pinnedNoteSections.map(({ key }) => key),
         ...sections.map(({ key }) => key),
       ]);
     }
-    const visiblePinnedNoteConversationTotal = pinnedNoteSections.reduce((total, section) => (
-      options.collapsedGroupKeys?.has(section.key)
-        ? total
-        : total + section.conversations.length
-    ), 0);
-    const visibleSessionConversationTotal = organization === 'linked-note'
-      ? sections.reduce((total, section) => (
-          options.collapsedGroupKeys?.has(section.key)
-            ? total
-            : total + section.conversations.length
-        ), 0)
-      : sessionConversations.length;
-    const visibleConversationTotal = visiblePinnedNoteConversationTotal
-      + pinnedConversations.length
-      + visibleSessionConversationTotal;
     let renderedConversationCount = 0;
 
     if (pinnedList) {
