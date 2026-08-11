@@ -639,6 +639,10 @@ body.theme-dark .claudian-session-metadata-popover {
   overflow-anchor: none;
 }
 
+.claudian-history-render-staging {
+  display: none;
+}
+
 .claudian-history-empty {
   padding: 16px;
   text-align: center;

@@ -26,7 +26,10 @@ import { createWelcomeElement, renderWelcomeContent } from '../rendering/Welcome
 import { findRewindContext } from '../rewind';
 import type { SubagentManager } from '../services/SubagentManager';
 import { projectHistory } from '../session-manager/HistoryProjection';
-import { HistoryViewport } from '../session-manager/HistoryViewport';
+import {
+  buildHistoryRenderKey,
+  HistoryViewport,
+} from '../session-manager/HistoryViewport';
 import {
   getLinkedNoteTitle,
   isProvisionalNotePath,
@@ -752,9 +755,11 @@ export class ConversationController {
       container,
       options.preserveListState === true,
     );
+    const renderRoot = this.historyViewport.beginRender(
+      container,
+      options.preserveListState === true,
+    );
     const organization = options.organization ?? 'list';
-
-    container.empty();
 
     const projection = projectHistory({
       conversations: plugin.getConversationList(),
@@ -786,7 +791,7 @@ export class ConversationController {
       searchTerms,
     } = projection;
 
-    const { list, sessionList, pinnedList } = this.historyViewport.createLayout(container, {
+    const { list, sessionList, pinnedList } = this.historyViewport.createLayout(renderRoot, {
       showSessionSections,
       showArchivedSection: options.showArchivedSection === true,
       hasPinnedSection: pinnedConversations.length > 0 || pinnedNoteSections.length > 0,
@@ -803,6 +808,7 @@ export class ConversationController {
         cls: 'claudian-history-empty',
         text: searchTerms.length > 0 ? 'No matching sessions' : 'No conversations',
       });
+      this.historyViewport.commit(container, renderRoot);
       options.onBeforeRestoreListState?.(container);
       this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
       return;
@@ -894,6 +900,7 @@ export class ConversationController {
       });
     }
 
+    this.historyViewport.commit(container, renderRoot);
     options.onBeforeRestoreListState?.(container);
     this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
   }
@@ -1132,6 +1139,28 @@ export class ConversationController {
     });
     item.setAttribute('data-open-state', openState);
     item.setAttribute('data-conversation-id', conversation.id);
+    item.setAttribute('data-history-render-key', buildHistoryRenderKey({
+      id: conversation.id,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      lastActivityAt: conversation.lastActivityAt,
+      messageCount: conversation.messageCount,
+      currentNote: conversation.currentNote ?? null,
+      isArchived: conversation.isArchived === true,
+      isPinned: conversation.isPinned === true,
+      titleGenerationStatus: conversation.titleGenerationStatus ?? null,
+      openState,
+      isRunning,
+      attention: conversationStatus.attention ?? null,
+      location: conversationStatus.location ?? null,
+      tabIndex: conversationStatus.tabIndex ?? null,
+      showAttentionState,
+      sessionActionMode: options.sessionActionMode ?? null,
+      showMetadataPopover: options.showMetadataPopover === true,
+      showOpenStateLabels: options.showOpenStateLabels !== false,
+      allowConversationSelection: options.allowConversationSelection !== false,
+      hasOpenConversationInNewTab: typeof options.onOpenConversationInNewTab === 'function',
+    }));
     item.setAttribute('data-running', isRunning ? 'true' : 'false');
     item.setAttribute('data-tab-location', conversationStatus.location ?? 'current-view');
     if (typeof conversationStatus.tabIndex === 'number') {

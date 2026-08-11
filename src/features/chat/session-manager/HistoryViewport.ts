@@ -23,7 +23,44 @@ export interface HistoryViewportSnapshot {
   sessionScrollAnchors: HistoryScrollAnchor[];
 }
 
+export function buildHistoryRenderKey(value: Record<string, unknown>): string {
+  return JSON.stringify(value);
+}
+
 export class HistoryViewport {
+  beginRender(container: HTMLElement, preserveListState: boolean): HTMLElement {
+    if (!preserveListState) {
+      container.empty();
+      return container;
+    }
+
+    const staging = container.createDiv({ cls: 'claudian-history-render-staging' });
+    return staging;
+  }
+
+  commit(container: HTMLElement, renderRoot: HTMLElement): void {
+    if (renderRoot === container) return;
+
+    const previousItems = new Map(
+      Array.from(container.querySelectorAll<HTMLElement>('[data-history-render-key]'))
+        .map(item => [item.getAttribute('data-history-render-key'), item] as const)
+        .filter((entry): entry is readonly [string, HTMLElement] => entry[0] !== null),
+    );
+    for (const item of Array.from(renderRoot.querySelectorAll<HTMLElement>('[data-history-render-key]'))) {
+      const renderKey = item.getAttribute('data-history-render-key');
+      const previousItem = renderKey ? previousItems.get(renderKey) : undefined;
+      if (!previousItem || typeof item.replaceWith !== 'function') continue;
+      item.replaceWith(previousItem);
+    }
+
+    const stagedChildren = Array.from(renderRoot.children);
+    container.empty();
+    for (const child of stagedChildren) {
+      container.appendChild(child);
+    }
+    renderRoot.remove();
+  }
+
   capture(container: HTMLElement, preserveListState: boolean): HistoryViewportSnapshot {
     const previousList = preserveListState
       ? container.querySelector<HTMLElement>('.claudian-history-list')

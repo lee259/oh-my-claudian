@@ -38,4 +38,34 @@ describe('HistoryViewport', () => {
     expect(layout.list.querySelector('.claudian-history-section--archived')).not.toBeNull();
     expect(layout.sessionList.hasClass('claudian-session-list-items')).toBe(true);
   });
+
+  it('reuses keyed history items while committing a staged render', () => {
+    const viewport = new HistoryViewport();
+    const previousItem = {
+      getAttribute: () => 'session-1',
+    } as unknown as HTMLElement;
+    const renderRoot = {
+      children: [] as HTMLElement[],
+      querySelectorAll: () => renderRoot.children,
+      remove: jest.fn(),
+    } as unknown as HTMLElement & { children: HTMLElement[] };
+    const nextItem = {
+      getAttribute: () => 'session-1',
+      replaceWith: jest.fn((replacement: HTMLElement) => {
+        renderRoot.children[0] = replacement;
+      }),
+    } as unknown as HTMLElement;
+    renderRoot.children.push(nextItem);
+    const container = {
+      children: [previousItem],
+      querySelectorAll: () => [previousItem],
+      empty: jest.fn(() => { container.children.length = 0; }),
+      appendChild: jest.fn((child: HTMLElement) => { container.children.push(child); }),
+    } as unknown as HTMLElement & { children: HTMLElement[] };
+
+    viewport.commit(container, renderRoot);
+
+    expect(container.children[0]).toBe(previousItem);
+    expect(nextItem.replaceWith).toHaveBeenCalledWith(previousItem);
+  });
 });
