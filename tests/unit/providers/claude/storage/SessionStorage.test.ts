@@ -1,5 +1,6 @@
 import '@/providers';
 
+import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
 import { ConversationRepository } from '@/app/conversations/ConversationRepository';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { ProviderId } from '@/core/providers/types';
@@ -30,13 +31,7 @@ describe('SessionStorage', () => {
   }
 
   beforeEach(() => {
-    mockAdapter = {
-      exists: jest.fn(),
-      read: jest.fn(),
-      write: jest.fn(),
-      delete: jest.fn(),
-      listFiles: jest.fn(),
-    } as unknown as jest.Mocked<VaultFileAdapter>;
+    mockAdapter = createMockVaultFileAdapter();
 
     storage = new SessionStorage(mockAdapter);
   });

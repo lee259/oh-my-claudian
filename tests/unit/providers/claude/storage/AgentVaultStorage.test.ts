@@ -1,3 +1,4 @@
+import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import { AgentVaultStorage } from '@/providers/claude/storage/AgentVaultStorage';
 
@@ -20,19 +21,8 @@ tools: [Bash]
 Run the tests.`;
 
   beforeEach(() => {
-    mockAdapter = {
-      exists: jest.fn().mockResolvedValue(true),
-      read: jest.fn(),
-      write: jest.fn(),
-      delete: jest.fn(),
-      ensureFolder: jest.fn(),
-      rename: jest.fn(),
-      stat: jest.fn(),
-      append: jest.fn(),
-      listFiles: jest.fn(),
-      listFolders: jest.fn(),
-      listFilesRecursive: jest.fn(),
-    } as unknown as jest.Mocked<VaultFileAdapter>;
+    mockAdapter = createMockVaultFileAdapter();
+    mockAdapter.exists.mockResolvedValue(true);
 
     storage = new AgentVaultStorage(mockAdapter);
   });
