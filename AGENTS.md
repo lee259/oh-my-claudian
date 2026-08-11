@@ -33,20 +33,20 @@ Do not assume provider parity. Check each provider's `capabilities.ts`, `registr
 ## Commands
 
 ```bash
-npm run dev
-npm run build
-npm run typecheck
-npm run lint
-npm run lint:fix
-npm run test
-npm run test:watch
-npm run test:coverage
+pnpm run dev
+pnpm run build
+pnpm run typecheck
+pnpm run lint
+pnpm run lint:fix
+pnpm run test
+pnpm run test:watch
+pnpm run test:coverage
 ```
 
 The default full check is:
 
 ```bash
-npm run typecheck && npm run lint && npm run test && npm run build
+pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build
 ```
 
 Tests mirror `src/` under `tests/unit/` and `tests/integration/`.

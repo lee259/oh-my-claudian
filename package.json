@@ -1,6 +1,7 @@
 {
   "name": "claudian",
   "version": "2.1.20",
+  "packageManager": "pnpm@10.34.5",
   "description": "Oh My Claudian - provider-backed coding agents embedded in the Obsidian sidebar",
   "main": "main.js",
   "engines": {
@@ -9,19 +10,19 @@
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
     "build:css": "node scripts/build-css.mjs",
-    "dev": "npm run build:css && node esbuild.config.mjs",
+    "dev": "pnpm run build:css && node esbuild.config.mjs",
     "build": "node scripts/build.mjs production",
-    "check:lockfile": "npm ci --ignore-scripts",
+    "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "check:performance": "node scripts/check-startup-performance.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"{src,tests}/**/*.ts\"",
-    "lint:fix": "npm run lint -- --fix",
+    "lint:fix": "pnpm run lint -- --fix",
     "test": "node scripts/run-tests.js",
     "test:unit": "node scripts/run-jest.js",
     "test:architecture": "node --test scripts/check-architecture-boundaries.test.mjs",
     "test:watch": "node scripts/run-jest.js --watch",
     "test:coverage": "node scripts/run-jest.js --coverage",
-    "preversion": "npm ci --ignore-scripts",
+    "preversion": "pnpm install --frozen-lockfile",
     "version": "node scripts/sync-version.js && git add manifest.json"
   },
   "keywords": [
