@@ -1,8 +1,8 @@
-import { spawn as defaultSpawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
 import type { ProviderHistoryPathContext } from '@/core/providers/types';
 import type { ChatMessage, ContentBlock } from '@/core/types';
 
@@ -56,44 +56,16 @@ async function readCursorRowsWithSqliteCli(databasePath: string): Promise<Stored
 }
 
 function runSqliteQuery(databasePath: string, sql: string): Promise<string | null> {
-  return new Promise(resolve => {
-    let settled = false;
-    let size = 0;
-    let timer: number | null = null;
-    const chunks: Buffer[] = [];
-    let child: ReturnType<typeof defaultSpawn>;
-    try {
-      child = defaultSpawn('sqlite3', ['-json', databasePath, sql], {
-        stdio: ['ignore', 'pipe', 'ignore'],
-        windowsHide: true,
-      });
-    } catch {
-      resolve(null);
-      return;
-    }
-    const finish = (value: string | null): void => {
-      if (settled) return;
-      settled = true;
-      if (timer) window.clearTimeout(timer);
-      resolve(value);
-    };
-    child.stdout?.on('data', (chunk: Buffer | string) => {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      size += buffer.length;
-      if (size > MAX_SQLITE_OUTPUT_BYTES) {
-        child.kill('SIGKILL');
-        finish(null);
-        return;
-      }
-      chunks.push(buffer);
-    });
-    child.once('error', () => finish(null));
-    child.once('close', code => finish(code === 0 ? Buffer.concat(chunks).toString('utf8') : null));
-    timer = window.setTimeout(() => {
-      child.kill('SIGKILL');
-      finish(null);
-    }, 10_000);
-  });
+  return new ManagedCommandRunner().run({
+    args: ['-json', databasePath, sql],
+    command: 'sqlite3',
+    cwd: process.cwd(),
+    env: process.env,
+    stdoutLimitBytes: MAX_SQLITE_OUTPUT_BYTES,
+    timeoutMs: 10_000,
+  }).then(result => (
+    result.termination || result.exitCode !== 0 ? null : result.stdout
+  ));
 }
 
 export function resolveCursorSessionDatabase(
