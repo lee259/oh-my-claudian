@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline';
-import { PassThrough } from 'node:stream';
 
+import { createMockStdioStreams, type MockStdioStreams } from '@test/helpers/MockStdioStreams';
 import {
   JsonRpcErrorResponse,
   JsonRpcTransport,
@@ -10,9 +10,9 @@ import {
 interface TransportHarness {
   close: () => void;
   closeProcess: (error?: Error) => void;
-  input: PassThrough;
+  input: MockStdioStreams['input'];
   nextOutbound: () => Promise<Record<string, unknown>>;
-  output: PassThrough;
+  output: MockStdioStreams['output'];
   sendInbound: (message: unknown) => void;
   transport: JsonRpcTransport;
   unregisterClose: jest.Mock;
@@ -22,8 +22,7 @@ function createTransportHarness(
   defaultTimeoutMs = 30_000,
   streamCloseGraceMs = 0,
 ): TransportHarness {
-  const input = new PassThrough();
-  const output = new PassThrough();
+  const { input, output } = createMockStdioStreams();
   const reader = createInterface({ input: output });
   const queued: Record<string, unknown>[] = [];
   const waiters: Array<(message: Record<string, unknown>) => void> = [];
