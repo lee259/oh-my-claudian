@@ -8,13 +8,40 @@ import { OpencodeConversationHistoryService } from '../../../../src/providers/op
 
 describe('OpencodeConversationHistoryService', () => {
   let tmpRoot: string;
+  const originalPlatform = process.platform;
 
   beforeEach(() => {
     tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'claudian-opencode-conversation-history-'));
   });
 
   afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform });
     rmSync(tmpRoot, { force: true, recursive: true });
+  });
+
+  it('uses the current home database instead of a legacy Windows AppData database', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const sessionId = 'session-windows-migration';
+    const legacyDatabasePath = path.join(tmpRoot, 'AppData', 'Roaming', 'opencode', 'opencode.db');
+    const currentDatabasePath = path.join(tmpRoot, '.local', 'share', 'opencode', 'opencode.db');
+    seedDatabase(legacyDatabasePath, sessionId, 'Legacy prompt');
+    seedDatabase(currentDatabasePath, sessionId, 'Current prompt');
+    const conversation = createConversation(sessionId, legacyDatabasePath);
+
+    await new OpencodeConversationHistoryService().hydrateConversationHistory(
+      conversation,
+      null,
+      {
+        environment: {
+          APPDATA: path.join(tmpRoot, 'AppData', 'Roaming'),
+          HOME: tmpRoot,
+          LOCALAPPDATA: path.join(tmpRoot, 'AppData', 'Local'),
+        },
+      },
+    );
+
+    expect(conversation.messages.map(message => message.content)).toEqual(['Current prompt']);
+    expect(conversation.providerState).toEqual({ databasePath: currentDatabasePath });
   });
 
   it('retries after a session-level hydration diagnostic', async () => {

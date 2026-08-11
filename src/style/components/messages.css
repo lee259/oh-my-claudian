@@ -61,6 +61,10 @@
   border-end-end-radius: 6px;
 }
 
+.claudian-message-user ol > li::marker {
+  color: inherit;
+}
+
 /* Text selection in user messages - visible highlight */
 .claudian-message-user ::selection {
   background: rgba(255, 255, 255, 0.35);
