@@ -61,6 +61,11 @@
   border-end-end-radius: 6px;
 }
 
+.oh-my-claudian-root .claudian-message-user {
+  background: rgba(var(--oh-my-claudian-brand-rgb), 0.16);
+  border-color: rgba(var(--oh-my-claudian-brand-rgb), 0.22);
+}
+
 .claudian-message-user ol > li::marker {
   color: inherit;
 }

@@ -18,7 +18,7 @@ describe('OMP brand color', () => {
 
   it('routes active and streaming OMP surfaces through its brand token', () => {
     expect(variablesCss).toMatch(
-      /\.claudian-container\[data-provider="omp"\] \{[\s\S]*?--claudian-brand: var\(--claudian-brand-omp\);[\s\S]*?--claudian-brand-rgb: var\(--claudian-brand-omp-rgb\);[\s\S]*?\}/,
+      /\.oh-my-claudian-root\.claudian-container\[data-provider="omp"\] \{[\s\S]*?--claudian-brand: var\(--claudian-brand-omp\) !important;[\s\S]*?--claudian-brand-rgb: var\(--claudian-brand-omp-rgb\) !important;[\s\S]*?\}/,
     );
     expect(tabsCss).toMatch(
       /\.claudian-tab-badge-streaming\[data-provider="omp"\] \{[\s\S]*?border-color: var\(--claudian-brand-omp, #00B8D9\);[\s\S]*?\}/,

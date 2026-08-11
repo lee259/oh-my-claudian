@@ -125,16 +125,13 @@
 }
 
 .claudian-input-send-button {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
-  margin: 0;
+  margin-inline-start: 8px;
   padding: 0;
   border: 1px solid var(--claudian-brand);
   border-radius: 50%;
@@ -142,11 +139,6 @@
   color: var(--background-primary);
   cursor: pointer;
   transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
-}
-
-/* Keep the provider mode switch and the primary action together on the right. */
-.claudian-input-toolbar > .claudian-mode-selector {
-  margin-inline-start: auto;
 }
 
 .claudian-input-send-button:hover:not(:disabled) {
@@ -181,8 +173,25 @@
   justify-content: flex-start;
   flex-wrap: wrap;
   flex-shrink: 0;
-  row-gap: 8px;
-  padding: 4px 56px 8px 10px;
+  row-gap: 12px;
+  padding: 4px 6px 6px 6px;
+}
+
+/* Keep the composer layout isolated when upstream Claudian is installed too. */
+.oh-my-claudian-root .claudian-input-send-button {
+  position: static;
+  margin-inline-start: 8px;
+  border-color: var(--oh-my-claudian-brand);
+  background: var(--oh-my-claudian-brand);
+}
+
+.oh-my-claudian-root .claudian-input-toolbar {
+  row-gap: 12px;
+  padding: 4px 6px 6px 6px;
+}
+
+.oh-my-claudian-root .claudian-input-toolbar > .claudian-mode-selector {
+  margin-inline-start: auto;
 }
 
 /* Hide secondary text when the full toolbar would wrap. */

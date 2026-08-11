@@ -21,6 +21,7 @@ export {
   type ImageAttachment,
   type ImageMediaType,
   isCanonicalUserMessage,
+  OH_MY_CLAUDIAN_ROOT_CLASS,
   type SessionMetadata,
   type StreamChunk,
   type UsageInfo,
