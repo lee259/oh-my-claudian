@@ -62,9 +62,6 @@ export class ManagedCommandRunner {
         terminate({ exitCode: null, stdout: '', termination: 'timeout' });
       }, request.timeoutMs);
 
-      process.onClose(error => {
-        if (error) finish({ exitCode: null, stdout: '', termination: 'error' });
-      });
       process.onCloseState(({ code, error }) => {
         if (error) {
           finish({ exitCode: null, stdout: '', termination: 'error' });

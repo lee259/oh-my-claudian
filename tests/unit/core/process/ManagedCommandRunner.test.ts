@@ -63,6 +63,7 @@ describe('ManagedCommandRunner', () => {
 
   it('returns an error termination for non-zero exits', async () => {
     const pending = runCommand();
+    proc.emit('exit', 1, null);
     proc.emit('close', 1, null);
 
     await expect(pending).resolves.toEqual({
