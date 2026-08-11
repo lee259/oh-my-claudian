@@ -456,6 +456,27 @@ describe('SessionStorage', () => {
       expect(metas).toEqual([]);
     });
 
+    it('starts current and legacy directory scans concurrently', async () => {
+      let releaseCurrent!: () => void;
+      const currentListing = new Promise<string[]>((resolve) => {
+        releaseCurrent = () => resolve([]);
+      });
+      mockAdapter.listFiles.mockImplementation((path: string) => (
+        path === SESSIONS_PATH ? currentListing : Promise.resolve([])
+      ));
+
+      const scan = storage.scanMetadata();
+      expect(mockAdapter.listFiles).toHaveBeenCalledWith(SESSIONS_PATH);
+      expect(mockAdapter.listFiles).toHaveBeenCalledWith(LEGACY_SESSIONS_PATH);
+
+      releaseCurrent();
+      await expect(scan).resolves.toEqual({
+        metadata: [],
+        complete: true,
+        invalidMetadataCount: 0,
+      });
+    });
+
     it('handles listFiles error gracefully', async () => {
       mockAdapter.listFiles.mockRejectedValue(new Error('List error'));
 

@@ -1,39 +1,46 @@
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
 import type { AgentDefinition } from '../../../core/types';
 import { serializeAgent } from '../../../utils/agent';
+import { mapWithConcurrency } from '../../../utils/concurrency';
 import { buildAgentFromFrontmatter, parseAgentFile } from '../agents/AgentStorage';
 
 export const AGENTS_PATH = '.claude/agents';
+const AGENT_READ_CONCURRENCY = 8;
 
 export class AgentVaultStorage {
   constructor(private adapter: VaultFileAdapter) {}
 
   async loadAll(): Promise<AgentDefinition[]> {
-    const agents: AgentDefinition[] = [];
-
     try {
       const files = await this.adapter.listFiles(AGENTS_PATH);
+      const markdownFiles = files.filter(filePath => filePath.endsWith('.md'));
+      const agents = await mapWithConcurrency(
+        markdownFiles,
+        async (filePath) => {
+          try {
+            const content = await this.adapter.read(filePath);
+            const parsed = parseAgentFile(content);
+            if (!parsed) return null;
 
-      for (const filePath of files) {
-        if (!filePath.endsWith('.md')) continue;
+            const { frontmatter, body } = parsed;
 
-        try {
-          const content = await this.adapter.read(filePath);
-          const parsed = parseAgentFile(content);
-          if (!parsed) continue;
-
-          const { frontmatter, body } = parsed;
-
-          agents.push(buildAgentFromFrontmatter(frontmatter, body, {
-            id: frontmatter.name,
-            source: 'vault',
-            filePath,
-          }));
-        } catch { /* Non-critical: skip malformed agent files */ }
-      }
+            return buildAgentFromFrontmatter(frontmatter, body, {
+              id: frontmatter.name,
+              source: 'vault',
+              filePath,
+            });
+          } catch {
+            return null;
+          }
+        },
+        AGENT_READ_CONCURRENCY,
+      );
+      return agents.filter(
+        (agent): agent is AgentDefinition => agent !== null,
+      );
     } catch { /* Non-critical: directory may not exist yet */ }
 
-    return agents;
+    return [];
   }
 
   async load(agent: AgentDefinition): Promise<AgentDefinition | null> {

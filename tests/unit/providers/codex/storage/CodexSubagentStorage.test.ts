@@ -248,6 +248,30 @@ describe('CodexSubagentStorage', () => {
 
       expect(agents).toEqual([]);
     });
+
+    it('reads multiple subagent files concurrently', async () => {
+      const adapter = createMockAdapter({
+        '.codex/agents/reviewer.toml': BASIC_TOML,
+        '.codex/agents/explorer.toml': FULL_TOML,
+      });
+      let releaseFirst!: () => void;
+      const firstRead = new Promise<string>((resolve) => {
+        releaseFirst = () => resolve(BASIC_TOML);
+      });
+      let readCount = 0;
+      (adapter.read as jest.Mock).mockImplementation((path: string) => {
+        readCount += 1;
+        return readCount === 1 ? firstRead : Promise.resolve(FULL_TOML);
+      });
+
+      const storage = new CodexSubagentStorage(adapter);
+      const load = storage.loadAll();
+      await new Promise<void>(resolve => setImmediate(resolve));
+
+      expect(readCount).toBe(2);
+      releaseFirst();
+      await expect(load).resolves.toHaveLength(2);
+    });
   });
 
   describe('load', () => {
