@@ -177,6 +177,21 @@
   padding: 4px 6px 6px 6px;
 }
 
+/* Keep the composer layout isolated when upstream Claudian is installed too. */
+.oh-my-claudian-root .claudian-input-send-button {
+  position: static;
+  margin-inline-start: 8px;
+}
+
+.oh-my-claudian-root .claudian-input-toolbar {
+  row-gap: 12px;
+  padding: 4px 6px 6px 6px;
+}
+
+.oh-my-claudian-root .claudian-input-toolbar > .claudian-mode-selector {
+  margin-inline-start: auto;
+}
+
 /* Hide secondary text when the full toolbar would wrap. */
 .claudian-input-toolbar--compact .claudian-thinking-effort > .claudian-thinking-label-text,
 .claudian-input-toolbar--compact .claudian-context-meter-percent {

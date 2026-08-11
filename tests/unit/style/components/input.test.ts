@@ -15,4 +15,13 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-send-button\s*\{[\s\S]*?margin-inline-start:\s*8px;/,
     );
   });
+
+  it('scopes the composer override for coexistence with upstream Claudian', () => {
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-send-button\s*\{[\s\S]*?position:\s*static;[\s\S]*?margin-inline-start:\s*8px;/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-toolbar > \.claudian-mode-selector\s*\{[\s\S]*?margin-inline-start:\s*auto;/,
+    );
+  });
 });
