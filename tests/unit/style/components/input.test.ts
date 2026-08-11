@@ -24,4 +24,8 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-toolbar > \.claudian-mode-selector\s*\{[\s\S]*?margin-inline-start:\s*auto;/,
     );
   });
+
+  it('uses Oh My Claudian-owned brand variables for the send button', () => {
+    expect(css).toContain('background: var(--oh-my-claudian-brand);');
+  });
 });

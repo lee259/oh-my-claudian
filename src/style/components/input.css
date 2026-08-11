@@ -181,6 +181,8 @@
 .oh-my-claudian-root .claudian-input-send-button {
   position: static;
   margin-inline-start: 8px;
+  border-color: var(--oh-my-claudian-brand);
+  background: var(--oh-my-claudian-brand);
 }
 
 .oh-my-claudian-root .claudian-input-toolbar {
