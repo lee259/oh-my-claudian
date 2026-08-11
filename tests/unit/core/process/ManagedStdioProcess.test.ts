@@ -1,7 +1,3 @@
-import type { ChildProcessWithoutNullStreams } from 'node:child_process';
-import { EventEmitter } from 'node:events';
-import { Readable, Writable } from 'node:stream';
-
 jest.mock('node:child_process', () => ({
   spawn: jest.fn(),
 }));
@@ -9,23 +5,9 @@ jest.mock('node:child_process', () => ({
 import { spawn } from 'node:child_process';
 
 import { ManagedStdioProcess } from '@/core/process/ManagedStdioProcess';
+import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-
-function createMockProcess(): ChildProcessWithoutNullStreams {
-  const proc = new EventEmitter() as unknown as ChildProcessWithoutNullStreams;
-  Object.assign(proc, {
-    exitCode: null,
-    killed: false,
-    pid: 12345,
-    signalCode: null,
-    stderr: new Readable({ read() {} }),
-    stdin: new Writable({ write: (_chunk, _encoding, callback) => callback() }),
-    stdout: new Readable({ read() {} }),
-  });
-  proc.kill = jest.fn().mockReturnValue(true);
-  return proc;
-}
 
 function createManagedProcess(
   overrides: Partial<ConstructorParameters<typeof ManagedStdioProcess>[0]> = {},
@@ -41,11 +23,11 @@ function createManagedProcess(
 
 describe('ManagedStdioProcess', () => {
   const originalPlatform = process.platform;
-  let proc: ChildProcessWithoutNullStreams;
+  let proc: MockChildProcess;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    proc = createMockProcess();
+    proc = createMockChildProcess();
     mockSpawn.mockReturnValue(proc);
   });
 

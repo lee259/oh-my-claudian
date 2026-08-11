@@ -1,15 +1,14 @@
 import type { spawn as nodeSpawn } from 'node:child_process';
-import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { PassThrough } from 'node:stream';
 
 import {
   loadOpencodeSessionRows,
   OPENCODE_MESSAGE_ROW_SQL,
 } from '../../../../src/providers/opencode/history/OpencodeSqliteReader';
+import { createMockChildProcess } from '@test/helpers/MockChildProcess';
 
 type Spawn = typeof nodeSpawn;
 
@@ -142,8 +141,7 @@ function createSpawnMock(
 ): Spawn {
   const mock = jest.fn(() => {
     const output = outputs.shift() ?? { status: 1, stdout: '' };
-    const child = new EventEmitter() as any;
-    child.stdout = new PassThrough();
+    const child = createMockChildProcess();
     child.kill = jest.fn();
     setImmediate(() => {
       child.stdout.end(output.stdout);

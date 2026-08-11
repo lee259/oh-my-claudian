@@ -1,6 +1,3 @@
-import { EventEmitter } from 'node:events';
-import { Readable, Writable } from 'node:stream';
-
 jest.mock('node:child_process', () => ({
   spawn: jest.fn(),
 }));
@@ -8,21 +5,9 @@ jest.mock('node:child_process', () => ({
 import { spawn } from 'node:child_process';
 
 import { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
+import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-
-function createMockProcess(): any {
-  const proc = new EventEmitter() as any;
-  proc.exitCode = null;
-  proc.killed = false;
-  proc.pid = 12345;
-  proc.signalCode = null;
-  proc.stdin = new Writable({ write: (_chunk, _encoding, callback) => callback() });
-  proc.stdout = new Readable({ read() {} });
-  proc.stderr = new Readable({ read() {} });
-  proc.kill = jest.fn().mockReturnValue(true);
-  return proc;
-}
 
 function runCommand(overrides: Partial<Parameters<ManagedCommandRunner['run']>[0]> = {}) {
   return new ManagedCommandRunner().run({
@@ -37,11 +22,11 @@ function runCommand(overrides: Partial<Parameters<ManagedCommandRunner['run']>[0
 }
 
 describe('ManagedCommandRunner', () => {
-  let proc: any;
+  let proc: MockChildProcess;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    proc = createMockProcess();
+    proc = createMockChildProcess();
     mockSpawn.mockReturnValue(proc);
   });
 
