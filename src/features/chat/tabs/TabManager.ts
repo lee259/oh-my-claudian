@@ -19,7 +19,9 @@ import { scheduleAnimationFrame } from '../../../utils/animationFrame';
 import { revealWorkspaceLeaf } from '../../../utils/obsidianCompat';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
+import { ConversationNavigationQueue } from './ConversationNavigationQueue';
 import { getTabProviderId } from './providerResolution';
+import { ProvisionalTabCleanupCoordinator } from './ProvisionalTabCleanupCoordinator';
 import {
   activateTab,
   createTab,
@@ -33,6 +35,9 @@ import {
   refreshTabWorkspaceServices,
   wireTabInputEvents,
 } from './Tab';
+import { activateTabContent } from './TabActivationCoordinator';
+import { resolveTabCloseFollowUp } from './TabCloseCoordinator';
+import { TabSwitchCoordinator } from './TabSwitchCoordinator';
 import {
   type TabBarItem,
   type TabData,
@@ -119,14 +124,9 @@ export class TabManager implements TabManagerInterface {
   private tabCommandContextRevisions = new Map<TabId, number>();
   private tabActivationRevisions = new Map<TabId, number>();
 
-  /** Guard to prevent concurrent tab switches. */
-  private isSwitchingTab = false;
-  private pendingSwitchTabId: TabId | null = null;
-  private readonly tabSwitchIdleWaiters = new Set<() => void>();
-  private tabSwitchRequestRevision = 0;
-  private conversationNavigationRequestRevision = 0;
-  private conversationNavigationTail: Promise<void> = Promise.resolve();
-  private provisionalCleanupPromise: Promise<void> | null = null;
+  private readonly tabSwitchCoordinator: TabSwitchCoordinator;
+  private readonly conversationNavigationQueue = new ConversationNavigationQueue();
+  private readonly provisionalCleanupCoordinator = new ProvisionalTabCleanupCoordinator();
   private profiledFirstHydration = false;
   private destroyed = false;
 
@@ -151,6 +151,7 @@ export class TabManager implements TabManagerInterface {
     arg5: TabManagerCallbacks = {},
   ) {
     this.plugin = plugin;
+    this.tabSwitchCoordinator = new TabSwitchCoordinator(tabId => this.activeTabId === tabId);
 
     if (isTabManagerViewHost(arg3)) {
       this.containerEl = arg2 as HTMLElement;
@@ -279,20 +280,13 @@ export class TabManager implements TabManagerInterface {
     if (!tab) {
       return;
     }
-    this.tabSwitchRequestRevision += 1;
+    await this.tabSwitchCoordinator.request(tabId, async requestedTabId => {
+      const requestedTab = this.tabs.get(requestedTabId);
+      if (!requestedTab) return;
+      const previousTabId = this.activeTabId;
 
-    // Guard against concurrent tab switches
-    if (this.isSwitchingTab) {
-      this.pendingSwitchTabId = tabId;
-      return;
-    }
-
-    this.isSwitchingTab = true;
-    const previousTabId = this.activeTabId;
-
-    try {
       // Deactivate current tab
-      if (previousTabId && previousTabId !== tabId) {
+      if (previousTabId && previousTabId !== requestedTabId) {
         const currentTab = this.tabs.get(previousTabId);
         if (currentTab) {
           deactivateTab(currentTab);
@@ -300,89 +294,44 @@ export class TabManager implements TabManagerInterface {
       }
 
       // Activate new tab
-      this.activeTabId = tabId;
+      this.activeTabId = requestedTabId;
       this.tabActivationRevisions.set(
-        tabId,
-        (this.tabActivationRevisions.get(tabId) ?? 0) + 1,
+        requestedTabId,
+        (this.tabActivationRevisions.get(requestedTabId) ?? 0) + 1,
       );
-      activateTab(tab);
-      tab.state.acknowledgeReview();
-      this.callbacks.onActiveTabChanged?.(previousTabId, tabId);
+      activateTab(requestedTab);
+      requestedTab.state.acknowledgeReview();
+      this.callbacks.onActiveTabChanged?.(previousTabId, requestedTabId);
 
-      const providerId = tab.providerId;
-      const needsHydration = !!tab.conversationId && tab.hydrationState !== 'ready';
-      if (needsHydration) {
-        tab.hydrationState = 'loading';
-        this.renderTabHydrationState(tab);
-        await this.waitForTabPaint(tab);
-        if (!this.isTabAlive(tab)) return;
-      }
-
-      try {
-        if (!await this.ensureTabWorkspaceServices(tab, providerId, 'tab-activation')) {
-          return;
-        }
-
-        // Load conversation if not already loaded
-        if (needsHydration && tab.conversationId) {
-          const span = this.profiledFirstHydration ? null : StartupProfiler.start('active-hydration');
+      const activationResult = await activateTabContent({
+        tab: requestedTab,
+        ensureWorkspaceServices: () => this.ensureTabWorkspaceServices(
+          requestedTab,
+          requestedTab.providerId,
+          'tab-activation',
+        ),
+        isTabAlive: () => this.isTabAlive(requestedTab),
+        renderHydrationState: (error) => this.renderTabHydrationState(requestedTab, error),
+        waitForPaint: () => this.waitForTabPaint(requestedTab),
+        startHydrationProfile: () => {
+          const span = this.profiledFirstHydration
+            ? null
+            : StartupProfiler.start('active-hydration');
           this.profiledFirstHydration = true;
-          try {
-            await tab.controllers.conversationController?.switchTo(tab.conversationId);
-          } finally {
-            if (span) {
-              StartupProfiler.finish(span);
-            }
-          }
-          if (!this.isTabAlive(tab)) return;
-          tab.hydrationState = 'ready';
-        } else if (tab.conversationId && tab.state.messages.length > 0) {
-          tab.hydrationState = 'ready';
-        } else if (!tab.conversationId && tab.state.messages.length === 0) {
-          // New tab with no conversation - initialize welcome greeting
-          tab.controllers.conversationController?.initializeWelcome();
-          tab.hydrationState = 'ready';
-        }
-      } catch (error) {
-        if (!this.isTabAlive(tab)) return;
-        tab.hydrationState = 'failed';
-        this.renderTabHydrationState(tab, error);
-        return;
-      }
-
-      if (!this.isTabAlive(tab)) return;
-      this.callbacks.onTabSwitched?.(previousTabId, tabId);
-    } finally {
-      this.isSwitchingTab = false;
-      const pendingTabId = this.pendingSwitchTabId;
-      this.pendingSwitchTabId = null;
-      if (pendingTabId && pendingTabId !== this.activeTabId) {
-        await this.switchToTab(pendingTabId);
-      }
-      this.resolveTabSwitchIdleWaitersIfIdle();
-    }
+          return span ? { finish: () => StartupProfiler.finish(span) } : null;
+        },
+      });
+      if (activationResult.status !== 'activated') return;
+      this.callbacks.onTabSwitched?.(previousTabId, requestedTabId);
+    });
   }
 
   getTabSwitchRequestRevision(): number {
-    return this.tabSwitchRequestRevision;
+    return this.tabSwitchCoordinator.getRequestRevision();
   }
 
   async waitForTabSwitchIdle(): Promise<void> {
-    while (this.isSwitchingTab) {
-      await new Promise<void>((resolve) => {
-        this.tabSwitchIdleWaiters.add(resolve);
-      });
-    }
-  }
-
-  private resolveTabSwitchIdleWaitersIfIdle(): void {
-    if (this.isSwitchingTab || this.pendingSwitchTabId) return;
-
-    const waiters = [...this.tabSwitchIdleWaiters];
-    this.tabSwitchIdleWaiters.clear();
-    for (const resolve of waiters) {
-      resolve();
-    }
+    await this.tabSwitchCoordinator.waitForIdle();
   }
 
   /**
@@ -430,7 +379,6 @@ export class TabManager implements TabManagerInterface {
 
     // Capture tab order BEFORE deletion for fallback calculation
     const tabIdsBefore = Array.from(this.tabs.keys());
-    const closingIndex = tabIdsBefore.indexOf(tabId);
 
     // Destroy tab resources (async for proper cleanup)
     await destroyTab(tab);
@@ -445,21 +393,16 @@ export class TabManager implements TabManagerInterface {
     }
     this.callbacks.onTabClosed?.(tabId);
 
-    // If we closed the active tab, switch to another
-    if (wasActiveTab) {
-      if (this.tabs.size > 0) {
-        // Fallback strategy: prefer previous tab, except for first tab (go to next)
-        const fallbackTabId = closingIndex === 0
-          ? tabIdsBefore[1]  // First tab: go to next
-          : tabIdsBefore[closingIndex - 1];  // Others: go to previous
-
-        if (fallbackTabId && this.tabs.has(fallbackTabId)) {
-          await this.switchToTab(fallbackTabId);
-        }
-      } else {
-        // Create a replacement blank tab.
-        await this.createTab();
-      }
+    const closeFollowUp = resolveTabCloseFollowUp({
+      activeTabId: wasActiveTab ? tabId : this.activeTabId,
+      closedTabId: tabId,
+      tabIdsBeforeClose: tabIdsBefore,
+      remainingTabIds: new Set(this.tabs.keys()),
+    });
+    if (closeFollowUp.kind === 'switch') {
+      await this.switchToTab(closeFollowUp.tabId);
+    } else if (closeFollowUp.kind === 'create') {
+      await this.createTab();
     }
 
     if (didSaveFail) {
@@ -551,20 +494,9 @@ export class TabManager implements TabManagerInterface {
   /** Removes replaceable dual-mode previews while retaining cold and warm work. */
   async discardProvisionalTabs(): Promise<void> {
     if (this.destroyed) return;
-    if (this.provisionalCleanupPromise) {
-      await this.provisionalCleanupPromise;
-      return;
-    }
-
-    const cleanup = this.discardProvisionalTabsProtected();
-    this.provisionalCleanupPromise = cleanup;
-    try {
-      await cleanup;
-    } finally {
-      if (this.provisionalCleanupPromise === cleanup) {
-        this.provisionalCleanupPromise = null;
-      }
-    }
+    await this.provisionalCleanupCoordinator.run(
+      () => this.discardProvisionalTabsProtected(),
+    );
   }
 
   private async discardProvisionalTabsProtected(): Promise<void> {
@@ -649,32 +581,20 @@ export class TabManager implements TabManagerInterface {
     activate: boolean,
     provisional: boolean,
   ): Promise<void> {
-    if (this.destroyed || this.provisionalCleanupPromise) return;
-    const requestRevision = ++this.conversationNavigationRequestRevision;
-    const pending = this.conversationNavigationTail
-      .catch(() => undefined)
-      .then(async () => {
-        if (
-          this.destroyed
-          || requestRevision !== this.conversationNavigationRequestRevision
-        ) return;
-        await this.openConversationImmediately(
+    if (this.destroyed || this.provisionalCleanupCoordinator.isRunning()) return;
+    await this.conversationNavigationQueue.enqueue(async () => {
+      if (this.destroyed || this.provisionalCleanupCoordinator.isRunning()) return;
+      await this.openConversationImmediately(
           conversationId,
           preferNewTab,
           activate,
           provisional,
         );
-      });
-    this.conversationNavigationTail = pending.then(
-      () => undefined,
-      () => undefined,
-    );
-    await pending;
+    });
   }
 
   private async invalidateAndDrainConversationNavigation(): Promise<void> {
-    this.conversationNavigationRequestRevision += 1;
-    await this.conversationNavigationTail;
+    await this.conversationNavigationQueue.invalidateAndDrain();
   }
 
   private async openConversationImmediately(
@@ -1355,7 +1275,7 @@ export class TabManager implements TabManagerInterface {
     let provisionalCleanupError: unknown;
     let didProvisionalCleanupFail = false;
     try {
-      await this.provisionalCleanupPromise;
+      await this.provisionalCleanupCoordinator.waitForIdle();
     } catch (error) {
       didProvisionalCleanupFail = true;
       provisionalCleanupError = error;

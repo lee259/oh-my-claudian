@@ -221,15 +221,15 @@ describe('TabManager provider execution orchestration', () => {
     const { manager } = createManager();
     const initial = await manager.createTab();
     const managerInternals = manager as any;
-    managerInternals.isSwitchingTab = true;
+    const switching = deferred<void>();
+    void managerInternals.tabSwitchCoordinator.request('pending-tab', () => switching.promise);
 
-    const switchingIdle = managerInternals.waitForTabSwitchIdle();
+    const switchingIdle = manager.waitForTabSwitchIdle();
     await Promise.resolve();
 
     expect(manager.getActiveTabId()).toBe(initial!.id);
 
-    managerInternals.isSwitchingTab = false;
-    managerInternals.resolveTabSwitchIdleWaitersIfIdle();
+    switching.resolve();
 
     await expect(switchingIdle).resolves.toBeUndefined();
     expect(manager.getActiveTabId()).toBe(initial!.id);
