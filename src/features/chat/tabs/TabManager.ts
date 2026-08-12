@@ -1247,6 +1247,7 @@ export class TabManager implements TabManagerInterface {
       signal => this.getProviderCommandDiscovery(tabId, signal),
       {
         onBeforeRetry: () => this.advanceTabCommandContextRevision(tabId),
+        timeoutMs: 0,
       },
     );
     this.providerCommandDiscoveryStores.set(tabId, discovery);

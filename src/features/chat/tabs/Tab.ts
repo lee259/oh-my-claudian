@@ -311,6 +311,7 @@ function getRegistryProviderCatalogInfo(providerId: ProviderId): ProviderCatalog
       normalizeProviderCommandDiscoveryItems(
         await catalog.listDropdownEntries({ includeBuiltIns: false, signal }),
       ),
+      { timeoutMs: 0 },
     ),
   };
 }

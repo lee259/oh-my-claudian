@@ -54,6 +54,9 @@ export interface FeatureHost {
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void>;
+  toggleDualPaneMode(): Promise<void>;
+  isDualPaneModeEnabled(): boolean;
+  setDualPaneModeEnabled(enabled: boolean): void;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
   getAgentSkillResourceGeneration(): number;
   notifyAgentSkillsChanged(): Promise<void>;

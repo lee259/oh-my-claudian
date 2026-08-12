@@ -1443,6 +1443,15 @@ export class ConversationController {
       event.stopPropagation();
       this.closeSessionMetadataPopover();
     });
+
+    // A layout switch can replace the hovered item without dispatching a new
+    // mouseenter event. Synchronize once after insertion so the metadata card
+    // remains available when the pointer is already over the new item.
+    queueMicrotask(() => {
+      if (typeof item.matches === 'function' && item.matches(':hover')) {
+        this.showSessionMetadataPopover(item, focusTarget, conversation, options);
+      }
+    });
   }
 
   private showSessionMetadataPopover(

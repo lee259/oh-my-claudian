@@ -78,6 +78,7 @@ export class ClaudianView extends ItemView {
   // DOM Elements
   private viewContainerEl: HTMLElement | null = null;
   private newTabButtonEl: HTMLElement | null = null;
+  private dualPaneToggleButtonEl: HTMLElement | null = null;
   private sessionNewButtonEl: HTMLElement | null = null;
   private sessionSearchFieldEl: HTMLElement | null = null;
   private sessionSearchInputEl: HTMLInputElement | null = null;
@@ -90,6 +91,7 @@ export class ClaudianView extends ItemView {
   private historyRenderAbortController: AbortController | null = null;
   private sessionSidebarEl: HTMLElement | null = null;
   private sidebarSurfaceSwitcherEl: HTMLElement | null = null;
+  private sidebarDualPaneToggleButtonEl: HTMLButtonElement | null = null;
   private sessionsSurfaceButtonEl: HTMLButtonElement | null = null;
   private filesSurfaceButtonEl: HTMLButtonElement | null = null;
   private sessionSurfaceEl: HTMLElement | null = null;
@@ -434,6 +436,15 @@ export class ClaudianView extends ItemView {
     setIcon(this.filesSurfaceButtonEl, 'folder-tree');
     this.filesSurfaceButtonEl.createSpan({ text: 'Files' });
     this.filesSurfaceButtonEl.addEventListener('click', () => this.showVaultFiles());
+    this.sidebarDualPaneToggleButtonEl = this.sidebarSurfaceSwitcherEl.createEl('button', {
+      cls: 'claudian-sidebar-surface-button claudian-sidebar-dual-pane-toggle-btn',
+      attr: { type: 'button' },
+    });
+    setIcon(this.sidebarDualPaneToggleButtonEl, 'columns-2');
+    this.sidebarDualPaneToggleButtonEl.addEventListener('click', () => {
+      void this.toggleDualPaneMode();
+    });
+    this.updateDualPaneToggleButton();
     if (this.activeSidebarSurface !== 'files') {
       this.activeSidebarSurface = 'sessions';
     }
@@ -469,6 +480,19 @@ export class ClaudianView extends ItemView {
     setIcon(newBtn, 'square-pen');
     newBtn.setAttribute('aria-label', 'New conversation');
     newBtn.addEventListener('click', () => this.requestNewConversation());
+
+    this.dualPaneToggleButtonEl = navActionsEl.createEl('button', {
+      cls: 'claudian-input-nav-btn claudian-dual-pane-toggle-btn',
+      attr: { type: 'button' },
+    });
+    setIcon(this.dualPaneToggleButtonEl, 'columns-2');
+    const toggleDualPane = (): void => {
+      void this.plugin.toggleDualPaneMode().catch(() => {
+        new Notice('Failed to toggle dual-pane mode');
+      });
+    };
+    this.dualPaneToggleButtonEl.addEventListener('click', toggleDualPane);
+    this.updateDualPaneToggleButton();
 
     // History dropdown
     const historyContainer = navActionsEl.createDiv({ cls: 'claudian-history-container' });
@@ -545,8 +569,48 @@ export class ClaudianView extends ItemView {
 
   refreshDualPaneLayout(): void {
     if (!this.viewContainerEl) return;
+    this.updateDualPaneToggleButton();
     this.updateSidebarSurfaceVisibility();
     this.updateSessionSidebarLayout(this.viewContainerEl.getBoundingClientRect().width);
+  }
+
+  private updateDualPaneToggleButton(): void {
+    const enabled = this.plugin?.settings?.enableDualPane ?? true;
+    this.dualPaneToggleButtonEl?.toggleClass('is-active', enabled);
+    const configured = this.plugin?.settings?.enableDualPane ?? true;
+    this.dualPaneToggleButtonEl?.toggleClass('claudian-hidden', !configured);
+    this.dualPaneToggleButtonEl?.setAttribute('aria-pressed', String(enabled));
+    this.dualPaneToggleButtonEl?.setAttribute(
+      'aria-label',
+      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
+    );
+    this.dualPaneToggleButtonEl?.setAttribute(
+      'title',
+      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
+    );
+    this.dualPaneToggleButtonEl?.setAttribute(
+      'data-tooltip-position',
+      'bottom',
+    );
+    this.sidebarDualPaneToggleButtonEl?.toggleClass('is-active', enabled);
+    this.sidebarDualPaneToggleButtonEl?.toggleClass('claudian-hidden', !configured);
+    this.sidebarDualPaneToggleButtonEl?.setAttribute('aria-pressed', String(enabled));
+    this.sidebarDualPaneToggleButtonEl?.setAttribute(
+      'aria-label',
+      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
+    );
+    this.sidebarDualPaneToggleButtonEl?.setAttribute(
+      'title',
+      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
+    );
+    this.sidebarDualPaneToggleButtonEl?.setAttribute(
+      'data-tooltip-position',
+      'bottom',
+    );
+  }
+
+  private toggleDualPaneMode(): Promise<void> {
+    return this.plugin.toggleDualPaneMode();
   }
 
   private findMostRecentUnboundTab(): TabData | null {
@@ -765,6 +829,7 @@ export class ClaudianView extends ItemView {
       }
     }
   }
+
 
   private renderSessionSidebar(): void {
     const sessionSurfaceEl = this.sessionSurfaceEl ?? this.sessionSidebarEl;
@@ -1754,7 +1819,8 @@ export class ClaudianView extends ItemView {
     const isLeft = this.plugin?.settings?.dualPaneSide === 'left';
     this.viewContainerEl.toggleClass('claudian-session-sidebar-left', isLeft);
 
-    const isDualPaneEnabled = this.plugin?.settings?.enableDualPane ?? true;
+    const isDualPaneEnabled = (this.plugin?.settings?.enableDualPane ?? true)
+      && (this.plugin?.isDualPaneModeEnabled?.() ?? true);
     const shouldUseWideLayout = isDualPaneEnabled && width >= WIDE_SESSION_LAYOUT_MIN_WIDTH;
     if (!shouldUseWideLayout) {
       this.sidebarSurfaceWheelGesture?.reset();

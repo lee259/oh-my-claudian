@@ -368,6 +368,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             await this.plugin.mutateSettings((settings) => {
               settings.enableDualPane = value;
             });
+            this.plugin.setDualPaneModeEnabled?.(value);
             this.refreshDualPaneLayouts();
             this.display();
           })

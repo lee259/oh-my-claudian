@@ -1210,6 +1210,35 @@ describe('ConversationController', () => {
           .toHaveLength(2);
       });
 
+      it('shows metadata when a layout switch inserts an item under the pointer', async () => {
+        const container = createMockEl();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([{
+          id: 'session-1',
+          providerId: 'codex',
+          selectedModel: 'gpt-5.1-codex',
+          title: 'Review architecture',
+          createdAt: 1_000,
+          lastActivityAt: 2_000,
+        }]);
+        const body = createMockEl();
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          showMetadataPopover: true,
+          getModelLabel: () => 'GPT-5.1 Codex',
+        });
+        const item = container.querySelector('.claudian-history-item')!;
+        Object.defineProperty(item.ownerDocument, 'body', {
+          configurable: true,
+          value: body,
+        });
+        item.matches = jest.fn().mockReturnValue(true);
+        await Promise.resolve();
+
+        expect(body.querySelector('.claudian-session-metadata-popover'))
+          .not.toBeNull();
+      });
+
       it.each(['Enter', ' '])('opens a focusable dual-mode session with %s', async (key) => {
         const container = createMockEl();
         const onSelectConversation = jest.fn().mockResolvedValue(undefined);

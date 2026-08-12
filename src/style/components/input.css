@@ -83,6 +83,11 @@
   background: var(--background-modifier-hover);
 }
 
+.claudian-dual-pane-toggle-btn.is-active {
+  color: var(--text-faint);
+  background: transparent;
+}
+
 .claudian-input-nav-btn svg {
   width: 16px;
   height: 16px;
