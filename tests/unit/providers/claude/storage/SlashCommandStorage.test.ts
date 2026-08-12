@@ -1,3 +1,5 @@
+import { createMockVaultFileAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import type { SlashCommand } from '@/core/types';
 import { SlashCommandStorage } from '@/providers/claude/storage/SlashCommandStorage';
@@ -44,19 +46,8 @@ allowed-tools:
 Run tests for $ARGUMENTS.`;
 
   beforeEach(() => {
-    mockAdapter = {
-      exists: jest.fn().mockResolvedValue(true),
-      read: jest.fn(),
-      write: jest.fn(),
-      delete: jest.fn(),
-      ensureFolder: jest.fn(),
-      rename: jest.fn(),
-      stat: jest.fn(),
-      append: jest.fn(),
-      listFiles: jest.fn(),
-      listFolders: jest.fn(),
-      listFilesRecursive: jest.fn(),
-    } as unknown as jest.Mocked<VaultFileAdapter>;
+    mockAdapter = createMockVaultFileAdapter();
+    mockAdapter.exists.mockResolvedValue(true);
 
     storage = new SlashCommandStorage(mockAdapter);
   });

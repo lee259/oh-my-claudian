@@ -1,5 +1,7 @@
 import { createInterface } from 'node:readline';
-import { PassThrough, Writable } from 'node:stream';
+import { Writable } from 'node:stream';
+
+import { createMockStdioStreams } from '@test/helpers/MockStdioStreams';
 
 import {
   AcpJsonRpcTransport,
@@ -16,8 +18,7 @@ interface TransportHarness {
 }
 
 function createTransportHarness(): TransportHarness {
-  const input = new PassThrough();
-  const output = new PassThrough();
+  const { input, output } = createMockStdioStreams();
   const reader = createInterface({ input: output });
   const queued: Record<string, unknown>[] = [];
   const waiters: Array<(message: Record<string, unknown>) => void> = [];
@@ -177,7 +178,7 @@ describe('AcpJsonRpcTransport', () => {
   });
 
   it('flushes all preceding notification writes before resolving', async () => {
-    const input = new PassThrough();
+    const { input } = createMockStdioStreams();
     const pendingWrite: { release?: () => void } = {};
     const output = new Writable({
       write(chunk, _encoding, callback) {

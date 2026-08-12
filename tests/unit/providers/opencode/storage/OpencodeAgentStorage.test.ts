@@ -1,4 +1,5 @@
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import { createMockVaultFileAdapter as createMockAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import {
   createOpencodeAgentPersistenceKey,
   OPENCODE_AGENT_PATH,
@@ -9,33 +10,6 @@ import {
   serializeOpencodeAgentMarkdown,
 } from '@/providers/opencode/storage/OpencodeAgentStorage';
 import type { OpencodeAgentDefinition } from '@/providers/opencode/types/agent';
-
-function createMockAdapter(files: Record<string, string> = {}): VaultFileAdapter {
-  return {
-    exists: jest.fn(async (targetPath: string) =>
-      targetPath in files || Object.keys(files).some((key) => key.startsWith(`${targetPath}/`)),
-    ),
-    read: jest.fn(async (targetPath: string) => {
-      if (!(targetPath in files)) {
-        throw new Error(`File not found: ${targetPath}`);
-      }
-      return files[targetPath];
-    }),
-    write: jest.fn(),
-    delete: jest.fn(),
-    listFiles: jest.fn(),
-    listFolders: jest.fn(),
-    listFilesRecursive: jest.fn(async (folder: string) => {
-      const prefix = folder.endsWith('/') ? folder : `${folder}/`;
-      return Object.keys(files).filter((key) => key.startsWith(prefix));
-    }),
-    ensureFolder: jest.fn(),
-    rename: jest.fn(),
-    append: jest.fn(),
-    stat: jest.fn(),
-    deleteFolder: jest.fn(),
-  } as unknown as VaultFileAdapter;
-}
 
 const BASIC_MARKDOWN = `---
 description: "Reviews code for correctness."

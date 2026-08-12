@@ -961,9 +961,9 @@ export class InlineEditSession {
   }
 
   private getDocumentSlice(doc: Text, from: number, to: number): string {
-    const sliceString = (doc as Text & { sliceString?: (start: number, end: number) => string }).sliceString;
-    if (typeof sliceString === 'function') {
-      return sliceString.call(doc, from, to);
+    const documentWithSlice = doc as Text & { sliceString?: (start: number, end: number) => string };
+    if (typeof documentWithSlice.sliceString === 'function') {
+      return documentWithSlice.sliceString(from, to);
     }
     return from === this.selFrom && to === this.selTo ? this.selectedText : '';
   }
@@ -980,8 +980,10 @@ export class InlineEditSession {
   }
 
   private focusEditor(): void {
-    const focus = (this.editorView as EditorView & { focus?: () => void }).focus;
-    focus?.call(this.editorView);
+    const editorView = this.editorView as EditorView & { focus?: () => void };
+    if (typeof editorView.focus === 'function') {
+      editorView.focus();
+    }
   }
 
   private handleKeydown(e: KeyboardEvent) {

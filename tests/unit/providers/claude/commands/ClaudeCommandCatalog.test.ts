@@ -1,44 +1,9 @@
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import { createMockVaultFileAdapter as createMockAdapter } from '@test/helpers/MockVaultFileAdapter';
+
 import type { SlashCommand } from '@/core/types';
 import { ClaudeCommandCatalog } from '@/providers/claude/commands/ClaudeCommandCatalog';
 import { SkillStorage } from '@/providers/claude/storage/SkillStorage';
 import { SlashCommandStorage } from '@/providers/claude/storage/SlashCommandStorage';
-
-function createMockAdapter(files: Record<string, string> = {}): VaultFileAdapter {
-  return {
-    exists: jest.fn(async (path: string) => path in files || Object.keys(files).some(k => k.startsWith(path + '/'))),
-    read: jest.fn(async (path: string) => {
-      if (!(path in files)) throw new Error(`File not found: ${path}`);
-      return files[path];
-    }),
-    write: jest.fn(),
-    delete: jest.fn(),
-    listFolders: jest.fn(async (folder: string) => {
-      const prefix = folder.endsWith('/') ? folder : folder + '/';
-      const folders = new Set<string>();
-      for (const path of Object.keys(files)) {
-        if (path.startsWith(prefix)) {
-          const rest = path.slice(prefix.length);
-          const firstSlash = rest.indexOf('/');
-          if (firstSlash >= 0) {
-            folders.add(prefix + rest.slice(0, firstSlash));
-          }
-        }
-      }
-      return Array.from(folders);
-    }),
-    listFiles: jest.fn(),
-    listFilesRecursive: jest.fn(async (folder: string) => {
-      const prefix = folder.endsWith('/') ? folder : folder + '/';
-      return Object.keys(files).filter(k => k.startsWith(prefix));
-    }),
-    ensureFolder: jest.fn(),
-    rename: jest.fn(),
-    append: jest.fn(),
-    stat: jest.fn(),
-    deleteFolder: jest.fn(),
-  } as unknown as VaultFileAdapter;
-}
 
 describe('ClaudeCommandCatalog', () => {
   describe('listDropdownEntries', () => {

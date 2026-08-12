@@ -1,10 +1,10 @@
 import type { spawn as nodeSpawn } from 'node:child_process';
-import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { PassThrough } from 'node:stream';
+
+import { createMockChildProcess } from '@test/helpers/MockChildProcess';
 
 import {
   loadOpencodeSessionRows,
@@ -142,8 +142,7 @@ function createSpawnMock(
 ): Spawn {
   const mock = jest.fn(() => {
     const output = outputs.shift() ?? { status: 1, stdout: '' };
-    const child = new EventEmitter() as any;
-    child.stdout = new PassThrough();
+    const child = createMockChildProcess();
     child.kill = jest.fn();
     setImmediate(() => {
       child.stdout.end(output.stdout);

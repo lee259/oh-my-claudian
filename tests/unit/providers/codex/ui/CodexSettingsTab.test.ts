@@ -1,3 +1,13 @@
+import {
+  createDropdownComponent,
+  createTextAreaComponent,
+  createTextComponent,
+  createToggleComponent,
+  type MockDropdownComponent,
+  type MockTextAreaComponent,
+  type MockTextComponent,
+  type MockToggleComponent,
+} from '@test/helpers/MockSettingComponents';
 import * as fs from 'fs';
 
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
@@ -149,36 +159,6 @@ jest.mock('@/utils/env', () => ({
   getHostnameKey: () => mockGetHostnameKey(),
 }));
 
-interface MockTextComponent {
-  value: string;
-  placeholder: string;
-  onChangeCallback: ((value: string) => Promise<void> | void) | null;
-  setPlaceholder: jest.MockedFunction<(value: string) => MockTextComponent>;
-  setValue: jest.MockedFunction<(value: string) => MockTextComponent>;
-  onChange: jest.MockedFunction<(callback: (value: string) => Promise<void> | void) => MockTextComponent>;
-  inputEl: MockInputEl;
-}
-
-interface MockTextAreaComponent extends MockTextComponent {
-  trigger: (event: string) => Promise<void>;
-}
-
-interface MockDropdownComponent {
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChangeCallback: ((value: string) => Promise<void> | void) | null;
-  addOption: jest.MockedFunction<(value: string, label: string) => MockDropdownComponent>;
-  setValue: jest.MockedFunction<(value: string) => MockDropdownComponent>;
-  onChange: jest.MockedFunction<(callback: (value: string) => Promise<void> | void) => MockDropdownComponent>;
-}
-
-interface MockToggleComponent {
-  value: boolean;
-  onChangeCallback: ((value: boolean) => Promise<void> | void) | null;
-  setValue: jest.MockedFunction<(value: boolean) => MockToggleComponent>;
-  onChange: jest.MockedFunction<(callback: (value: boolean) => Promise<void> | void) => MockToggleComponent>;
-}
-
 const createdSettings: Array<{
   name: string;
   desc: string;
@@ -188,106 +168,6 @@ const createdSettings: Array<{
   dropdownComponents: MockDropdownComponent[];
   toggleComponents: MockToggleComponent[];
 }> = [];
-
-interface MockInputEl {
-  rows: number;
-  cols: number;
-  value: string;
-  style: Record<string, string>;
-  addClass: jest.Mock;
-  toggleClass: jest.Mock;
-  addEventListener: jest.Mock;
-}
-
-function createInputEl(): MockInputEl & { _listeners: Map<string, Array<() => void>> } {
-  const listeners = new Map<string, Array<() => void>>();
-  return {
-    rows: 0,
-    cols: 0,
-    value: '',
-    style: {},
-    addClass: jest.fn(),
-    toggleClass: jest.fn(),
-    addEventListener: jest.fn((event: string, handler: () => void) => {
-      const handlers = listeners.get(event) ?? [];
-      handlers.push(handler);
-      listeners.set(event, handlers);
-    }),
-    _listeners: listeners,
-  };
-}
-
-function createTextComponent(): MockTextComponent {
-  const component = {} as MockTextComponent;
-  component.value = '';
-  component.placeholder = '';
-  component.onChangeCallback = null;
-  component.inputEl = createInputEl();
-  component.setPlaceholder = jest.fn((value: string) => {
-    component.placeholder = value;
-    return component;
-  });
-  component.setValue = jest.fn((value: string) => {
-    component.value = value;
-    component.inputEl.value = value;
-    return component;
-  });
-  component.onChange = jest.fn((callback: (value: string) => Promise<void> | void) => {
-    component.onChangeCallback = callback;
-    return component;
-  });
-
-  return component;
-}
-
-function createTextAreaComponent(): MockTextAreaComponent {
-  const component = createTextComponent() as MockTextAreaComponent;
-  component.trigger = async (event: string) => {
-    const handlers = (component.inputEl as ReturnType<typeof createInputEl>)._listeners.get(event) ?? [];
-    for (const handler of handlers) {
-      handler();
-    }
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  };
-  return component;
-}
-
-function createDropdownComponent(): MockDropdownComponent {
-  const component = {} as MockDropdownComponent;
-  component.value = '';
-  component.options = [];
-  component.onChangeCallback = null;
-  component.addOption = jest.fn((value: string, label: string) => {
-    component.options.push({ value, label });
-    return component;
-  });
-  component.setValue = jest.fn((value: string) => {
-    component.value = value;
-    return component;
-  });
-  component.onChange = jest.fn((callback: (value: string) => Promise<void> | void) => {
-    component.onChangeCallback = callback;
-    return component;
-  });
-
-  return component;
-}
-
-function createToggleComponent(): MockToggleComponent {
-  const component = {} as MockToggleComponent;
-  component.value = false;
-  component.onChangeCallback = null;
-  component.setValue = jest.fn((value: boolean) => {
-    component.value = value;
-    return component;
-  });
-  component.onChange = jest.fn((callback: (value: boolean) => Promise<void> | void) => {
-    component.onChangeCallback = callback;
-    return component;
-  });
-
-  return component;
-}
 
 function createElement(): any {
   const classes = new Set<string>();

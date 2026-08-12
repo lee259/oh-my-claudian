@@ -1,4 +1,4 @@
-import { PassThrough } from 'node:stream';
+import { createMockStdioStreams } from '@test/helpers/MockStdioStreams';
 
 import {
   PiRpcResponseError,
@@ -7,8 +7,7 @@ import {
 } from '@/providers/pi/runtime/PiRpcTransport';
 
 function createTransport() {
-  const input = new PassThrough();
-  const output = new PassThrough();
+  const { input, output } = createMockStdioStreams();
   const writes: string[] = [];
   output.on('data', chunk => writes.push(chunk.toString('utf8')));
   const transport = new PiRpcTransport({ input, output }, 100);

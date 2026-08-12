@@ -72,8 +72,8 @@ You can also open the [Oh My Claudian community plugin page](https://community.o
 cd /path/to/vault/.obsidian/plugins
 git clone https://github.com/lee259/oh-my-claudian.git
 cd oh-my-claudian
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 Then enable the plugin in Obsidian under **Settings → Community plugins**.
@@ -103,27 +103,27 @@ Cursor itself has local conversation history and supports CLI resume commands su
 ## Development
 
 ```bash
-npm run dev
-npm run build
-npm run typecheck
-npm run lint
-npm run test
+pnpm run dev
+pnpm run build
+pnpm run typecheck
+pnpm run lint
+pnpm run test
 ```
 
-`npm run dev` watches TypeScript, styles, and `manifest.json`. When `OBSIDIAN_VAULT` is set in `.env.local`, rebuilt plugin resources are copied to that vault automatically, including CSS and manifest changes.
+`pnpm run dev` watches TypeScript, styles, and `manifest.json`. When `OBSIDIAN_VAULT` is set in `.env.local`, rebuilt plugin resources are copied to that vault automatically, including CSS and manifest changes.
 
 ## Release
 
 Releases are created automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) when a version tag is pushed.
 
-1. Update the version in `package.json`, `package-lock.json`, and `manifest.json`, keeping all three values identical.
+1. Update the version in `package.json`, `pnpm-lock.yaml`, and `manifest.json`, keeping all three values identical.
 2. Run the local validation checks:
 
    ```bash
-   npm run typecheck
-   npm run lint
-   npm run test
-   npm run build
+   pnpm run typecheck
+   pnpm run lint
+   pnpm run test
+   pnpm run build
    ```
 
 3. Create a tag that exactly matches the `manifest.json` version, for example:

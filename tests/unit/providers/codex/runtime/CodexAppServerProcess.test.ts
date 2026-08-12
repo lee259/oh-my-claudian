@@ -1,10 +1,8 @@
-import type { ChildProcess } from 'child_process';
-import { EventEmitter, Readable, Writable } from 'stream';
-
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
 }));
 
+import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 import { spawn } from 'child_process';
 
 import { CodexAppServerProcess } from '@/providers/codex/runtime/CodexAppServerProcess';
@@ -39,24 +37,13 @@ function createLaunchSpec(overrides: Partial<CodexLaunchSpec> = {}): CodexLaunch
   };
 }
 
-function createMockProcess(): ChildProcess {
-  const proc = new EventEmitter() as unknown as ChildProcess;
-  (proc as any).stdin = new Writable({ write: (_chunk, _enc, cb) => cb() });
-  (proc as any).stdout = new Readable({ read() {} });
-  (proc as any).stderr = new Readable({ read() {} });
-  (proc as any).pid = 12345;
-  (proc as any).killed = false;
-  (proc as any).kill = jest.fn().mockReturnValue(true);
-  return proc;
-}
-
 describe('CodexAppServerProcess', () => {
   const originalPlatform = process.platform;
-  let mockProc: ChildProcess;
+  let mockProc: MockChildProcess;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockProc = createMockProcess();
+    mockProc = createMockChildProcess();
     mockSpawn.mockReturnValue(mockProc);
   });
 

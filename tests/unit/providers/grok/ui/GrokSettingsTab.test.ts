@@ -1,5 +1,12 @@
 import * as fs from 'node:fs';
 
+import {
+  createTextComponent,
+  createToggleComponent,
+  type MockTextComponent,
+  type MockToggleComponent,
+} from '@test/helpers/MockSettingComponents';
+
 import { getGrokProviderSettings } from '@/providers/grok/settings';
 import { grokSettingsTabRenderer } from '@/providers/grok/ui/GrokSettingsTab';
 
@@ -92,27 +99,6 @@ jest.mock('@/utils/env', () => ({
   getHostnameKey: () => mockGetHostnameKey(),
 }));
 
-interface MockTextComponent {
-  inputEl: {
-    addClass: jest.Mock;
-    toggleClass: jest.Mock;
-    value: string;
-  };
-  onChangeCallback: ((value: string) => Promise<void> | void) | null;
-  placeholder: string;
-  value: string;
-  onChange(callback: (value: string) => Promise<void> | void): MockTextComponent;
-  setPlaceholder(value: string): MockTextComponent;
-  setValue(value: string): MockTextComponent;
-}
-
-interface MockToggleComponent {
-  onChangeCallback: ((value: boolean) => Promise<void> | void) | null;
-  value: boolean;
-  onChange(callback: (value: boolean) => Promise<void> | void): MockToggleComponent;
-  setValue(value: boolean): MockToggleComponent;
-}
-
 interface MockSetting {
   name: string;
   desc: string;
@@ -137,49 +123,6 @@ interface MockElement {
 const createdSettings: MockSetting[] = [];
 const createdElements: MockElement[] = [];
 const notices: string[] = [];
-
-function createTextComponent(): MockTextComponent {
-  const component: MockTextComponent = {
-    inputEl: {
-      addClass: jest.fn(),
-      toggleClass: jest.fn(),
-      value: '',
-    },
-    onChangeCallback: null,
-    placeholder: '',
-    value: '',
-    onChange(callback: (value: string) => Promise<void> | void) {
-      component.onChangeCallback = callback;
-      return component;
-    },
-    setPlaceholder(value: string) {
-      component.placeholder = value;
-      return component;
-    },
-    setValue(value: string) {
-      component.value = value;
-      component.inputEl.value = value;
-      return component;
-    },
-  };
-  return component;
-}
-
-function createToggleComponent(): MockToggleComponent {
-  const component: MockToggleComponent = {
-    onChangeCallback: null,
-    value: false,
-    onChange(callback: (value: boolean) => Promise<void> | void) {
-      component.onChangeCallback = callback;
-      return component;
-    },
-    setValue(value: boolean) {
-      component.value = value;
-      return component;
-    },
-  };
-  return component;
-}
 
 function createElement(
   tag?: string,

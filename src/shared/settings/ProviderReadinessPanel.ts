@@ -64,7 +64,7 @@ export function renderProviderReadinessPanel(
         await options.onRefresh?.();
         const remaining = MIN_REFRESH_FEEDBACK_MS - (Date.now() - startedAt);
         if (remaining > 0) {
-          await new Promise<void>(resolve => setTimeout(resolve, remaining));
+          await new Promise<void>(resolve => window.setTimeout(resolve, remaining));
         }
       }
       renderSnapshot(await options.getSnapshot());
@@ -127,9 +127,8 @@ function createReadinessSpan(
     return helpers.createSpan(options);
   }
 
-  const createElement = helpers['createEl'];
-  if (typeof createElement === 'function') {
-    return createElement.call(row, 'span', options);
+  if (typeof helpers.createEl === 'function') {
+    return helpers.createEl.call(row, 'span', options);
   }
 
   throw new Error('Obsidian element does not support span creation.');

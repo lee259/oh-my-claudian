@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline';
-import { PassThrough } from 'node:stream';
+
+import { createMockStdioStreams } from '@test/helpers/MockStdioStreams';
 
 import type {
   AcpSessionNotification,
@@ -22,8 +23,7 @@ interface ConnectionHarness {
 function createConnectionHarness(
   connectionFactory: (transport: AcpJsonRpcTransport) => AcpClientConnection,
 ): ConnectionHarness {
-  const input = new PassThrough();
-  const output = new PassThrough();
+  const { input, output } = createMockStdioStreams();
   const reader = createInterface({ input: output });
   const queued: Record<string, unknown>[] = [];
   const waiters: Array<(message: Record<string, unknown>) => void> = [];
