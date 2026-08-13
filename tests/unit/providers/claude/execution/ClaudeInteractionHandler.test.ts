@@ -24,6 +24,7 @@ function createPort(): jest.Mocked<ProviderInteractionPort> {
 function createHandler(
   port: jest.Mocked<ProviderInteractionPort>,
   onToolBlocked: jest.Mock = jest.fn(),
+  workspaceRoot?: string,
 ): CanUseTool {
   return createClaudeExecutionCanUseTool({
     interactionPort: port,
@@ -33,6 +34,7 @@ function createHandler(
     getPermissionMode: () => 'normal',
     resolveSdkPermissionMode: () => 'default',
     onToolBlocked,
+    workspaceRoot,
   });
 }
 
@@ -89,6 +91,26 @@ describe('createClaudeExecutionCanUseTool', () => {
       interrupt: false,
     });
     expect(onToolBlocked).toHaveBeenCalledWith('native-tool-1');
+  });
+
+  it('routes direct edits outside the vault through the approval flow', async () => {
+    const port = createPort();
+    const handler = createHandler(port, jest.fn(), '/vault');
+
+    const result = await handler(
+      'Edit',
+      { file_path: '/Users/lee/Downloads/report.md' },
+      nativeOptions,
+    );
+
+    expect(result?.behavior).toBe('allow');
+    expect(port.requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: 'Edit',
+        input: { file_path: '/Users/lee/Downloads/report.md' },
+      }),
+      nativeOptions.signal,
+    );
   });
 
   it('routes questions and injects Claude Code compatible custom-answer support', async () => {
