@@ -7,12 +7,12 @@ describe('Chat input toolbar styles', () => {
     'utf8',
   );
 
-  it('keeps the send button in toolbar flow so it cannot cover the mode selector', () => {
-    expect(css).not.toMatch(
+  it('anchors the send button inside the composer and leaves room for the toolbar', () => {
+    expect(css).toMatch(
       /\.claudian-input-send-button\s*\{[\s\S]*?position:\s*absolute;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-send-button\s*\{[\s\S]*?margin-inline-start:\s*8px;/,
+      /\.claudian-input-toolbar\s*\{[\s\S]*?padding:\s*4px 56px 8px 10px;/,
     );
   });
 
