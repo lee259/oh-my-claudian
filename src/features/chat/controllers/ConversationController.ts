@@ -150,6 +150,11 @@ type HistoryRenderOptions = {
   onSetConversationPinned?: (id: string, isPinned: boolean) => Promise<void>;
   onSetConversationArchived?: (id: string, isArchived: boolean) => Promise<void>;
   onBeforeRestoreListState?: (container: HTMLElement) => void;
+  onRequestInlineRename?: (request: {
+    beginRename: (item: HTMLElement) => void;
+    conversationId: string;
+  }) => void;
+  showInlinePinAction?: boolean;
 };
 
 type HistorySurfaceRenderOptions = Omit<HistoryRenderOptions, 'onRerender'> & {
@@ -157,6 +162,10 @@ type HistorySurfaceRenderOptions = Omit<HistoryRenderOptions, 'onRerender'> & {
 };
 
 export class ConversationController {
+  private activeInlineRename: {
+    cancel: () => void;
+    input: HTMLInputElement;
+  } | null = null;
   private deps: ConversationControllerDeps;
   private callbacks: ConversationCallbacks;
   private readonly historyViewport = new HistoryViewport();
@@ -727,6 +736,19 @@ export class ConversationController {
     }
   }
 
+  cancelInlineRename(): boolean {
+    const activeInlineRename = this.activeInlineRename;
+    if (!activeInlineRename) return false;
+    if (activeInlineRename.input.isConnected === false) {
+      this.activeInlineRename = null;
+      return false;
+    }
+
+    this.activeInlineRename = null;
+    activeInlineRename.cancel();
+    return true;
+  }
+
   updateHistoryDropdown(): void {
     const dropdown = this.deps.getHistoryDropdown();
     if (!dropdown) return;
@@ -749,6 +771,13 @@ export class ConversationController {
     if (options.signal?.aborted) return;
     if (options.showMetadataPopover) {
       this.closeSessionMetadataPopover();
+    }
+
+    if (
+      this.activeInlineRename
+      && container.contains(this.activeInlineRename.input)
+    ) {
+      this.activeInlineRename = null;
     }
 
     const viewportSnapshot = this.historyViewport.capture(
@@ -1324,21 +1353,23 @@ export class ConversationController {
     if (options.sessionActionMode === 'active') {
       if (!showAttentionState) {
         const isPinned = conversation.isPinned === true;
-        const pinBtn = actions.createEl('button', {
-          cls: 'claudian-action-btn claudian-pin-btn',
-        });
-        setIcon(pinBtn, isPinned ? 'pin-off' : 'pin');
-        pinBtn.setAttribute('aria-label', isPinned ? 'Unpin' : 'Pin');
-        pinBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          runConversationAction(
-            () => this.runHistoryAction(
-              () => options.onSetConversationPinned?.(conversation.id, !isPinned),
+        if (options.showInlinePinAction !== false) {
+          const pinBtn = actions.createEl('button', {
+            cls: 'claudian-action-btn claudian-pin-btn',
+          });
+          setIcon(pinBtn, isPinned ? 'pin-off' : 'pin');
+          pinBtn.setAttribute('aria-label', isPinned ? 'Unpin' : 'Pin');
+          pinBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            runConversationAction(
+              () => this.runHistoryAction(
+                () => options.onSetConversationPinned?.(conversation.id, !isPinned),
+                isPinned ? 'Failed to unpin session' : 'Failed to pin session',
+              ),
               isPinned ? 'Failed to unpin session' : 'Failed to pin session',
-            ),
-            isPinned ? 'Failed to unpin session' : 'Failed to pin session',
-          );
-        });
+            );
+          });
+        }
 
         const archiveBtn = actions.createEl('button', {
           cls: 'claudian-action-btn claudian-archive-btn',
@@ -1386,7 +1417,7 @@ export class ConversationController {
       renameBtn.setAttribute('aria-label', 'Rename');
       renameBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        this.showRenameInput(item, conversation.id, conversation.title, options);
+        this.showRenameEditor(item, conversation.id, conversation.title, options);
       });
       createDeleteButton();
     }
@@ -1835,6 +1866,11 @@ export class ConversationController {
     }
 
     if (options.sessionActionMode === 'active') {
+      menu.addItem((menuItem) => menuItem
+        .setTitle('Rename')
+        .onClick(() => {
+          this.showRenameEditor(item, conversationId, title, options);
+        }));
       menu.addItem((menuItem) => {
         menuItem
           .setTitle('Archive')
@@ -1848,11 +1884,6 @@ export class ConversationController {
           });
         }
       });
-      menu.addItem((menuItem) => menuItem
-        .setTitle('Rename')
-        .onClick(() => {
-          this.showRenameInput(item, conversationId, title, options);
-        }));
       menu.showAtMouseEvent(event);
       return;
     }
@@ -1860,7 +1891,7 @@ export class ConversationController {
     menu.addItem((menuItem) => menuItem
       .setTitle('Rename')
       .onClick(() => {
-        this.showRenameInput(item, conversationId, title, options);
+        this.showRenameEditor(item, conversationId, title, options);
       }));
     menu.addItem((menuItem) => menuItem
       .setTitle('Delete')
@@ -1889,6 +1920,26 @@ export class ConversationController {
     }
   }
 
+  private showRenameEditor(
+    item: HTMLElement,
+    convId: string,
+    currentTitle: string,
+    options: HistoryRenderOptions,
+  ): void {
+    const beginRename = (targetItem: HTMLElement) => {
+      this.showRenameInput(targetItem, convId, currentTitle, options);
+    };
+    if (options.onRequestInlineRename) {
+      options.onRequestInlineRename({
+        beginRename,
+        conversationId: convId,
+      });
+      return;
+    }
+
+    beginRename(item);
+  }
+
   /** Shows inline rename input for a conversation. */
   private showRenameInput(
     item: HTMLElement,
@@ -1908,17 +1959,36 @@ export class ConversationController {
     input.focus();
     input.select();
 
+    let isFinishing = false;
+    const cancelRename = () => {
+      input.value = currentTitle;
+      input.blur();
+    };
+    this.activeInlineRename = { cancel: cancelRename, input };
     const finishRename = async () => {
+      if (isFinishing) return;
+      isFinishing = true;
+      const newTitle = input.value.trim();
+      if (!newTitle || newTitle === currentTitle) {
+        isFinishing = false;
+        options.onRerender();
+        return;
+      }
+
       try {
-        const newTitle = input.value.trim() || currentTitle;
         await this.deps.plugin.renameConversation(convId, newTitle);
         options.onRerender();
       } catch {
         new Notice('Failed to rename conversation');
+      } finally {
+        isFinishing = false;
       }
     };
 
     input.addEventListener('blur', () => {
+      if (this.activeInlineRename?.input === input) {
+        this.activeInlineRename = null;
+      }
       runConversationAction(finishRename, 'Failed to rename conversation');
     });
     input.addEventListener('keydown', (e) => {
@@ -1926,8 +1996,9 @@ export class ConversationController {
       if (e.key === 'Enter' && !e.isComposing) {
         input.blur();
       } else if (e.key === 'Escape' && !e.isComposing) {
-        input.value = currentTitle;
-        input.blur();
+        e.preventDefault();
+        e.stopPropagation();
+        cancelRename();
       }
     });
   }
