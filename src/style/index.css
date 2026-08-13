@@ -5,6 +5,7 @@
 @import "./base/variables.css";
 @import "./base/container.css";
 @import "./base/animations.css";
+@import "./session-metadata-popover.css";
 
 /* Components */
 @import "./components/tabs.css";

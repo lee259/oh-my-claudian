@@ -1107,10 +1107,36 @@ describe('ClaudianView tab controls', () => {
     ))).toBe(true);
     expect(view.filesSurfaceButtonEl.getAttribute('aria-label')).toBe('Files');
     expect(view.filesSurfaceButtonEl.getAttribute('aria-pressed')).toBe('false');
+    expect(view.sidebarDualPaneToggleButtonEl.getAttribute('aria-label'))
+      .toBe('Disable dual-pane mode');
+    expect(view.sidebarDualPaneToggleButtonEl.getAttribute('aria-pressed')).toBe('true');
     expect(viewContainerEl.children[2].getAttribute('aria-label')).toBeNull();
     expect(viewContainerEl.children[1].getAttribute('role')).toBe('separator');
     expect(viewContainerEl.children[0].children).toContain(view.tabContentEl);
     expect(viewContainerEl.children[0].children).toContain(view.inputFooterEl);
+  });
+
+  it('adds an accessible dual-pane toggle to the chat navigation actions', () => {
+    const view = Object.create(ClaudianView.prototype) as any;
+    const viewContainerEl = createMockEl();
+    const toggleDualPaneMode = jest.fn().mockResolvedValue(undefined);
+    Object.assign(view, {
+      containerEl: createMockEl(),
+      plugin: {
+        settings: { enableDualPane: false },
+        toggleDualPaneMode,
+      },
+      viewContainerEl,
+    });
+
+    const nav = view.buildNavRowContent();
+    const button = nav.querySelector('.claudian-dual-pane-toggle-btn')!;
+
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button.getAttribute('aria-label')).toBe('Enable dual-pane mode');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.dispatchEvent({ type: 'click' });
+    expect(toggleDualPaneMode).toHaveBeenCalledTimes(1);
   });
 
   it('switches the persistent sidebar to Files without remounting the tree', () => {

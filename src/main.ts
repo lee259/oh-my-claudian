@@ -118,6 +118,7 @@ export default class ClaudianPlugin extends Plugin {
   private hasLoadedAllSessionMetadata = false;
   private sessionMetadataLoadTimer: number | null = null;
   private remainingSessionMetadataLoad: Promise<void> | null = null;
+  private dualPaneModeEnabled = true;
   private providerChatOptionsChangeTail: Promise<void> = Promise.resolve();
   private isUnloading = false;
 
@@ -280,6 +281,16 @@ export default class ClaudianPlugin extends Plugin {
               void tabManager.closeTab(activeTabId);
             }
           }
+          return true;
+        },
+      });
+
+      this.addCommand({
+        id: 'toggle-dual-pane',
+        name: 'Toggle dual-pane mode',
+        checkCallback: (checking: boolean) => {
+          if (!(this.settings.enableDualPane ?? true)) return false;
+          if (!checking) void this.toggleDualPaneMode();
           return true;
         },
       });
@@ -629,6 +640,35 @@ export default class ClaudianPlugin extends Plugin {
     onCommitted?: SettingsCommit<ClaudianSettings>,
   ): Promise<void> {
     await this.settingsCoordinator.mutate(mutation, onCommitted);
+  }
+
+  async toggleDualPaneMode(): Promise<void> {
+    if (!(this.settings.enableDualPane ?? true)) return;
+    const enabled = !this.dualPaneModeEnabled;
+    this.dualPaneModeEnabled = enabled;
+
+    const views = this.getAllViews();
+    for (const view of views) {
+      view.refreshDualPaneLayout();
+    }
+
+    if (!enabled) {
+      new Notice('Claudian: dual-pane mode off');
+      return;
+    }
+
+    const tooNarrow = enabled && views.length > 0 && !views.some(view => view.isDualPaneMode());
+    new Notice(tooNarrow
+      ? 'Claudian: dual-pane mode on (view is too narrow to show the second pane)'
+      : 'Claudian: dual-pane mode on');
+  }
+
+  isDualPaneModeEnabled(): boolean {
+    return this.dualPaneModeEnabled;
+  }
+
+  setDualPaneModeEnabled(enabled: boolean): void {
+    this.dualPaneModeEnabled = enabled;
   }
 
   getAgentSkillResourceGeneration(): number {

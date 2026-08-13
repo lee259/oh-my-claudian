@@ -20,6 +20,7 @@ export interface ProviderCommandDiscoveryController<T>
 export interface ProviderCommandDiscoveryStoreOptions {
   /** Evicts upstream discovery state before retry observers can start a new load. */
   onBeforeRetry?: () => void;
+  /** Set to 0 or a negative value when the upstream provider owns cancellation. */
   timeoutMs?: number;
 }
 
@@ -133,6 +134,10 @@ implements ProviderCommandDiscoveryController<T> {
   private async loadWithTimeout(
     abortController: AbortController,
   ): Promise<ProviderCommandDiscoveryResult<T>> {
+    if (this.timeoutMs <= 0) {
+      return await this.loader(abortController.signal);
+    }
+
     let timeoutId: number | null = null;
     const timeout = new Promise<ProviderCommandDiscoveryResult<T>>(resolve => {
       timeoutId = window.setTimeout(() => {

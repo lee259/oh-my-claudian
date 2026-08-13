@@ -13,10 +13,16 @@ describe('Session history styles', () => {
     );
   });
 
-  it('keeps session and history rules inside the Oh My Claudian root', () => {
+  it('keeps history rules scoped and session metadata overlay rules global', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+    const metadataCss = readFileSync(
+      path.resolve('src/style/session-metadata-popover.css'),
+      'utf8',
+    );
 
     expect(css).toContain('.claudian-history-container');
-    expect(css).toContain('body.theme-dark .claudian-session-metadata-popover');
+    expect(css).not.toContain('.claudian-session-metadata-popover');
+    expect(metadataCss).toContain('.claudian-session-metadata-popover');
+    expect(metadataCss).toContain('body.theme-dark .claudian-session-metadata-popover');
   });
 });

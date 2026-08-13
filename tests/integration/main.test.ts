@@ -1,5 +1,5 @@
 
-import { TFile, TFolder } from 'obsidian';
+import { Notice, TFile, TFolder } from 'obsidian';
 
 import { createConversationMetadataShell } from '@/app/conversations/SessionMetadataCoordinator';
 import { ConversationPersistenceStore } from '@/core/bootstrap/ConversationPersistenceStore';
@@ -2476,6 +2476,52 @@ describe('ClaudianPlugin', () => {
       expect(replaceCommand.name).toBe('Replace current conversation');
       expect(replaceCommand.checkCallback(true)).toBe(false);
       expect(closeCommand.checkCallback(true)).toBe(false);
+    });
+
+    it('toggles dual-pane mode and refreshes every open view', async () => {
+      await plugin.onload();
+
+      const firstView = {
+        isDualPaneMode: jest.fn().mockReturnValue(true),
+        refreshDualPaneLayout: jest.fn(),
+      };
+      const secondView = {
+        isDualPaneMode: jest.fn().mockReturnValue(true),
+        refreshDualPaneLayout: jest.fn(),
+      };
+      jest.spyOn(plugin, 'getAllViews').mockReturnValue([firstView, secondView] as any);
+
+      const command = getRegisteredCommand('toggle-dual-pane');
+
+      expect(command.name).toBe('Toggle dual-pane mode');
+      expect(command.checkCallback(true)).toBe(true);
+      command.checkCallback(false);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(plugin.settings.enableDualPane).toBe(true);
+      expect(plugin.isDualPaneModeEnabled()).toBe(false);
+      expect(firstView.refreshDualPaneLayout).toHaveBeenCalledTimes(1);
+      expect(secondView.refreshDualPaneLayout).toHaveBeenCalledTimes(1);
+    });
+
+    it('explains when dual-pane mode is enabled in a narrow view', async () => {
+      await plugin.onload();
+      plugin.setDualPaneModeEnabled(false);
+
+      const view = {
+        isDualPaneMode: jest.fn().mockReturnValue(false),
+        refreshDualPaneLayout: jest.fn(),
+      };
+      jest.spyOn(plugin, 'getAllViews').mockReturnValue([view] as any);
+      const command = getRegisteredCommand('toggle-dual-pane');
+      expect(command.checkCallback(true)).toBe(true);
+      command.checkCallback(false);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(plugin.settings.enableDualPane).toBe(true);
+      expect(Notice).toHaveBeenCalledWith(
+        'Claudian: dual-pane mode on (view is too narrow to show the second pane)',
+      );
     });
 
     it('opens the view without creating a duplicate tab when no tab layout is persisted', async () => {

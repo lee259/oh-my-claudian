@@ -151,4 +151,24 @@ describe('ProviderCommandDiscoveryStore', () => {
       jest.useRealTimers();
     }
   });
+
+  it('allows callers to wait for slow provider initialization without a timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      const response = deferred<ProviderCommandDiscoveryResult<string>>();
+      const store = new ProviderCommandDiscoveryStore(
+        () => response.promise,
+        { timeoutMs: 0 },
+      );
+
+      const load = store.load();
+      await jest.advanceTimersByTimeAsync(8_000);
+      expect(store.getSnapshot()).toEqual({ status: 'loading' });
+
+      response.resolve({ status: 'ready', items: ['review'] });
+      await expect(load).resolves.toEqual({ status: 'ready', items: ['review'] });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

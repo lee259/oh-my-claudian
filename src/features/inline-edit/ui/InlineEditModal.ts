@@ -556,14 +556,15 @@ export class InlineEditSession {
         hiddenCommands: getHiddenProviderCommandSet(this.plugin.settings, this.resolvedProviderId),
         ...(inlineCatalog ? {
           providerConfig: inlineCatalog.getDropdownConfig(),
-          providerDiscovery: new ProviderCommandDiscoveryStore(async signal =>
-            normalizeProviderCommandDiscoveryItems(
-              await inlineCatalog.listDropdownEntries({
-                includeBuiltIns: false,
-                signal,
-              }),
+            providerDiscovery: new ProviderCommandDiscoveryStore(async signal =>
+              normalizeProviderCommandDiscoveryItems(
+                await inlineCatalog.listDropdownEntries({
+                  includeBuiltIns: false,
+                  signal,
+                }),
+              ),
+              { timeoutMs: 0 },
             ),
-          ),
         } : {}),
       }
     );

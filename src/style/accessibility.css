@@ -6,6 +6,7 @@
 .claudian-citations-header:focus-visible,
 .claudian-subagent-header:focus-visible,
 .claudian-input-nav-btn:focus-visible,
+.claudian-dual-pane-toggle-btn:focus-visible,
 .claudian-model-btn:focus-visible,
 .claudian-thinking-current:focus-visible {
   outline: 2px solid var(--interactive-accent);
