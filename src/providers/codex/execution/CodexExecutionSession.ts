@@ -1748,11 +1748,9 @@ export class CodexExecutionSession
     policy: CodexPolicy,
   ): SandboxPolicy {
     if (policy.sandbox !== 'workspace-write') return policy.sandboxPolicy;
-    const externalPaths = [
-      ...(request.context?.externalContextPaths ?? []),
-      ...(request.configuration.externalWorkspaceRoots ?? []),
-    ];
-    return this.buildWorkspaceWriteSandboxPolicy(externalPaths);
+    // External context remains readable through the sandbox's read-only
+    // access. It must never be promoted to a writable root for a turn.
+    return this.buildWorkspaceWriteSandboxPolicy([]);
   }
 
   private buildWorkspaceWriteSandboxPolicy(

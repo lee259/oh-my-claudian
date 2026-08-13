@@ -8,8 +8,13 @@ import type {
   ProviderInteractionDismissReason,
   ProviderInteractionPort,
 } from '../../../core/execution';
-import { getActionDescription } from '../../../core/security/approvalRules';
 import {
+  getActionDescription,
+  getActionPattern,
+} from '../../../core/security/approvalRules';
+import { evaluatePathAccess } from '../../../core/storage/pathAccessPolicy';
+import {
+  isEditTool,
   TOOL_ASK_USER_QUESTION,
   TOOL_EXIT_PLAN_MODE,
 } from '../../../core/tools/toolNames';
@@ -26,6 +31,7 @@ export interface ClaudeExecutionInteractionDeps {
     mode: PermissionMode,
   ) => SDKPermissionMode;
   readonly onToolBlocked: (toolUseId: string) => void;
+  readonly workspaceRoot?: string;
 }
 
 export class ClaudeInteractionHandler {
@@ -43,6 +49,25 @@ export class ClaudeInteractionHandler {
         behavior: 'deny',
         message: `Tool "${toolName}" is not allowed by this execution policy.`,
       };
+    }
+
+    if (isEditTool(toolName) && this.deps.workspaceRoot) {
+      const requestedPath = getActionPattern(toolName, input);
+      if (requestedPath) {
+        const decision = evaluatePathAccess({
+          operation: 'write',
+          requestedPath,
+          workspaceRoot: this.deps.workspaceRoot,
+          externalPathMode: 'needsApproval',
+        });
+        if (decision.outcome === 'deny') {
+          return {
+            behavior: 'deny',
+            message: 'Direct edits outside the current vault are blocked.',
+            interrupt: false,
+          };
+        }
+      }
     }
 
     const turnId = this.deps.getTurnId();

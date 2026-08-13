@@ -14,6 +14,11 @@ import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { AppPluginManager } from '../../../core/providers/types';
 import {
+  getActionPattern,
+} from '../../../core/security/approvalRules';
+import { evaluatePathAccess } from '../../../core/storage/pathAccessPolicy';
+import {
+  isEditTool,
   isReadOnlyTool,
   READ_ONLY_TOOLS,
 } from '../../../core/tools/toolNames';
@@ -143,6 +148,10 @@ export class ClaudeExecutionRequestEncoder {
     ]);
     const mcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
     const policy = resolveToolPolicy(request);
+    const hooks: HookCallbackMatcher[] = [
+      createVaultBoundaryHook(sessionConfig.vaultWorkingDirectory),
+      ...(policy.hooks?.PreToolUse ?? []),
+    ];
     const systemPrompt = request.configuration.systemInstructions.kind === 'explicit'
       ? [
         request.configuration.systemInstructions.instructions.trim(),
@@ -190,7 +199,7 @@ export class ClaudeExecutionRequestEncoder {
         ? { additionalDirectories: externalPaths }
         : {}),
       ...(policy.tools !== undefined ? { tools: policy.tools } : {}),
-      ...(policy.hooks ? { hooks: policy.hooks } : {}),
+      hooks: { PreToolUse: hooks },
       ...(resume.sessionId ? { resume: resume.sessionId } : {}),
       ...(resume.resumeAt ? { resumeSessionAt: resume.resumeAt } : {}),
       ...(resume.fork ? { forkSession: true } : {}),
@@ -376,6 +385,92 @@ function createReadOnlyHook(): HookCallbackMatcher {
       };
     }],
   };
+}
+
+export function createVaultBoundaryHook(workspaceRoot: string): HookCallbackMatcher {
+  return {
+    hooks: [async (hookInput) => {
+      const record = hookInput as unknown as Record<string, unknown>;
+      const toolName = typeof record.tool_name === 'string' ? record.tool_name : '';
+      if (toolName === 'Bash') {
+        const command = typeof record.tool_input === 'object'
+          && record.tool_input !== null
+          && typeof (record.tool_input as Record<string, unknown>).command === 'string'
+          ? (record.tool_input as Record<string, string>).command
+          : '';
+        const externalPath = findExternalCommandPath(command, workspaceRoot);
+        if (!externalPath) return { continue: true };
+        return {
+          continue: false,
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse' as const,
+            permissionDecision: 'ask' as const,
+            permissionDecisionReason:
+              `This command references a path outside the current vault: ${externalPath}`,
+          },
+        };
+      }
+      if (!isEditTool(toolName)) return { continue: true };
+
+      const toolInput = isRecord(record.tool_input)
+        ? record.tool_input
+        : {};
+      const requestedPath = getActionPattern(toolName, toolInput);
+      if (!requestedPath) {
+        return {
+          continue: false,
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse' as const,
+            permissionDecision: 'deny' as const,
+            permissionDecisionReason: 'Edit tool did not provide a file path.',
+          },
+        };
+      }
+
+      const decision = evaluatePathAccess({
+        operation: 'write',
+        requestedPath,
+        workspaceRoot,
+        externalPathMode: 'needsApproval',
+      });
+      if (decision.outcome === 'allow') return { continue: true };
+      if (decision.outcome === 'needsApproval') {
+        return {
+          continue: false,
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse' as const,
+            permissionDecision: 'ask' as const,
+            permissionDecisionReason:
+              'This edit is outside the current vault and requires approval.',
+          },
+        };
+      }
+      return {
+        continue: false,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse' as const,
+          permissionDecision: 'deny' as const,
+          permissionDecisionReason:
+            'Direct edits outside the current vault are blocked.',
+        },
+      };
+    }],
+  };
+}
+
+function findExternalCommandPath(command: string, workspaceRoot: string): string | null {
+  const candidates = command.match(/(?:^|[\s"'=])((?:\/|\.\.\/|\.\/)[^\s"';&|`]*)/g) ?? [];
+  for (const candidate of candidates) {
+    const requestedPath = candidate.trim().replace(/^[\s"'=]+/u, '');
+    const decision = evaluatePathAccess({
+      operation: 'write',
+      requestedPath,
+      workspaceRoot,
+      externalPathMode: 'needsApproval',
+    });
+    if (decision.outcome !== 'allow') return requestedPath;
+  }
+  return null;
 }
 
 function isPermissionMode(value: unknown): value is PermissionMode {
