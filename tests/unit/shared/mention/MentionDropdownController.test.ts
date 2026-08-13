@@ -731,7 +731,33 @@ describe('MentionDropdownController', () => {
       localController.destroy();
     });
 
-    it('inserts folder mention as plain text and does not attach file context', () => {
+    it('turns a vault file mention into a removable context attachment', () => {
+      const onAttachFile = jest.fn();
+      const localCallbacks = createMockCallbacks({
+        onAttachFile,
+        getCachedVaultFiles: jest.fn().mockReturnValue([
+          { name: 'note.md', path: 'note.md', stat: { mtime: 1000 } } as any,
+        ]),
+      });
+      const localInput = createMockInput();
+      const localController = new MentionDropdownController(createMockEl(), localInput, localCallbacks);
+
+      localInput.value = '@note';
+      localInput.selectionStart = 5;
+      localInput.selectionEnd = 5;
+      localController.handleInputChange();
+      jest.advanceTimersByTime(200);
+
+      const enterEvent = { key: 'Enter', preventDefault: jest.fn(), isComposing: false } as any;
+      localController.handleKeydown(enterEvent);
+
+      expect(localInput.value).toBe('');
+      expect(onAttachFile).toHaveBeenCalledWith('note.md');
+
+      localController.destroy();
+    });
+
+    it('turns a folder mention into a removable context attachment', () => {
       const onAttachFile = jest.fn();
       const localCallbacks = createMockCallbacks({
         onAttachFile,
@@ -751,8 +777,8 @@ describe('MentionDropdownController', () => {
       const enterEvent = { key: 'Enter', preventDefault: jest.fn(), isComposing: false } as any;
       localController.handleKeydown(enterEvent);
 
-      expect(localInput.value).toBe('@src/ ');
-      expect(onAttachFile).not.toHaveBeenCalled();
+      expect(localInput.value).toBe('');
+      expect(onAttachFile).toHaveBeenCalledWith('src/');
 
       localController.destroy();
     });

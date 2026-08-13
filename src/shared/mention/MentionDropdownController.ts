@@ -6,7 +6,6 @@ import { type ExternalContextFile, externalContextScanner } from '../../utils/ex
 import { extractMcpMentions } from '../../utils/mcp';
 import { SelectableDropdown } from '../components/SelectableDropdown';
 import { appendMcpIcon } from '../icons';
-import { formatVaultFileMention } from './formatMention';
 import {
   type AgentMentionProvider,
   type FolderMentionItem,
@@ -686,19 +685,21 @@ export class MentionDropdownController {
         return;
       }
       case 'context-file': {
-        // Display friendly name in input; absolute path resolution happens at send time.
-        const displayName = selectedItem.folderName
-          ? `@${selectedItem.folderName}/${selectedItem.name}`
-          : `@${selectedItem.name}`;
+        // External file references become context chips; keep the prompt text clean.
         if (selectedItem.absolutePath) {
           this.callbacks.onAttachFile(selectedItem.absolutePath);
         }
-        this.insertReplacement(beforeAt, `${displayName} `, afterCursor);
+        this.insertReplacement(beforeAt, '', afterCursor);
         break;
       }
       case 'folder': {
         const normalizedPath = this.callbacks.normalizePathForVault(selectedItem.path);
-        this.insertReplacement(beforeAt, `@${normalizedPath ?? selectedItem.path}/ `, afterCursor);
+        if (normalizedPath) {
+          this.callbacks.onAttachFile(
+            normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`,
+          );
+        }
+        this.insertReplacement(beforeAt, '', afterCursor);
         break;
       }
       default: {
@@ -707,11 +708,7 @@ export class MentionDropdownController {
         if (normalizedPath) {
           this.callbacks.onAttachFile(normalizedPath);
         }
-        this.insertReplacement(
-          beforeAt,
-          formatVaultFileMention(normalizedPath ?? selectedItem.name),
-          afterCursor,
-        );
+        this.insertReplacement(beforeAt, '', afterCursor);
         break;
       }
     }

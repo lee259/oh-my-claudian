@@ -148,6 +148,8 @@ Oh My Claudian is designed to make powerful local agents safer to operate withou
 - New installations start in **Safe** mode. Provider-native permission controls decide when an operation requires approval; **YOLO** remains an explicit user choice.
 - The optional `!` bash mode is disabled by default. When enabled, it runs commands directly as the current OS user and should be treated like a local terminal.
 - External files and folders enter the conversation as explicit context attachments instead of being silently added by Oh My Claudian.
+- An external file attachment is context only; mentioning or attaching a file does not grant write access. Direct edits outside the vault are routed through the provider approval flow when supported, and direct file APIs reject paths outside the vault.
+- Rejecting an external write prevents that write operation; it does not create a persistent allow rule. Review each approval request and use provider-native permission settings for any broader trust decision.
 - Provider-owned settings, transcripts, and permission rules remain provider-owned. Oh My Claudian does not rewrite native history or send telemetry.
 
 The vault is the agent's working directory, not an operating-system security boundary. A local provider CLI, shell command, MCP server, plugin, or other child process may be able to access files, network services, and credentials available to your OS account. Safe/approval mode reduces accidental actions but cannot guarantee that every indirect access path is confined to the vault.

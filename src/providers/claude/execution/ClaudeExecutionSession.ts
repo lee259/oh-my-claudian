@@ -172,6 +172,7 @@ ClaudeExecutionStrategySink {
           this.activeRun ? 'requested' : 'background',
         );
       },
+      workspaceRoot: config.vaultWorkingDirectory,
     });
     this.strategy = config.lifecycle === 'persistent'
       ? new ClaudePersistentExecutionStrategy(this)

@@ -247,7 +247,7 @@ describe('FileContextManager', () => {
     manager.destroy();
   });
 
-  it('shows vault-relative path in @ dropdown and inserts full path on selection', () => {
+  it('shows vault-relative path in @ dropdown and turns selection into a context chip', () => {
     const app = createMockApp({
       files: ['clipping/file.md'],
     });
@@ -269,8 +269,8 @@ describe('FileContextManager', () => {
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
-    // Now inserts full vault-relative path (WYSIWYG)
-    expect(inputEl.value).toBe('@clipping/file.md ');
+    // File references are represented by a removable chip, not prompt text.
+    expect(inputEl.value).toBe('');
     const attached = manager.getAttachedFiles();
     expect(attached.has('clipping/file.md')).toBe(true);
 
@@ -335,8 +335,8 @@ describe('FileContextManager', () => {
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
-    // Display shows friendly name, but state stores mapping to absolute path
-    expect(inputEl.value).toBe('@external/src/app.md ');
+    // External file references are represented by a removable chip.
+    expect(inputEl.value).toBe('');
     const attached = manager.getAttachedFiles();
     expect(attached.has('/external/src/app.md')).toBe(true);
     // Check transformation works

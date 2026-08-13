@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import type { ProviderSessionConfig } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
+import { resolveAllowedFileOperationPath } from '@/core/storage/pathAccessPolicy';
 import { t } from '@/i18n/i18n';
 import {
   AcpClientConnection,
@@ -192,7 +193,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   }
 
   private async readTextFile(request: AcpReadTextFileRequest): Promise<{ content: string }> {
-    const filePath = resolveWorkspacePath(this.options.config.vaultWorkingDirectory, request.path);
+    const filePath = resolveWorkspacePath(this.options.config.vaultWorkingDirectory, request.path, 'read');
     const content = await fs.readFile(filePath, 'utf8');
     if (request.line === undefined && request.limit === undefined) return { content };
     const lines = content.split(/\r?\n/u);
@@ -202,7 +203,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   }
 
   private async writeTextFile(request: AcpWriteTextFileRequest): Promise<Record<string, never>> {
-    const filePath = resolveWorkspacePath(this.options.config.vaultWorkingDirectory, request.path);
+    const filePath = resolveWorkspacePath(this.options.config.vaultWorkingDirectory, request.path, 'write');
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, request.content, 'utf8');
     return {};
@@ -214,14 +215,20 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   }
 }
 
-export function resolveWorkspacePath(workspaceRoot: string, requestedPath: string): string {
-  const root = path.resolve(workspaceRoot);
-  const resolved = path.resolve(root, requestedPath);
-  const relative = path.relative(root, resolved);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+export function resolveWorkspacePath(
+  workspaceRoot: string,
+  requestedPath: string,
+  operation: 'read' | 'write' = 'read',
+): string {
+  try {
+    return resolveAllowedFileOperationPath({
+      operation,
+      requestedPath,
+      workspaceRoot,
+    });
+  } catch {
     throw new Error('Cursor file access is limited to the current workspace');
   }
-  return resolved;
 }
 
 function presentCursorPermission(
