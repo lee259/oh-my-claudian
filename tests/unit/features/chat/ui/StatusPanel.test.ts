@@ -1,3 +1,4 @@
+import type { ConversationReviewProjection } from '@/core/task/ConversationReviewProjection';
 import type { TodoItem } from '@/core/tools/todo';
 import { StatusPanel } from '@/features/chat/ui/StatusPanel';
 
@@ -347,6 +348,49 @@ describe('StatusPanel', () => {
 
       const panelEl = containerEl.querySelector('.claudian-status-panel');
       expect(panelEl?.hasClass('claudian-status-panel--visible')).toBe(false);
+    });
+
+    it('keeps orchestrator and worker controls out of the task panel', () => {
+      panel.mount(containerEl as unknown as HTMLElement);
+
+      const projection: ConversationReviewProjection = {
+        conversationId: 'conversation-1',
+        title: 'Task',
+        task: {
+          schemaVersion: 1,
+          status: 'execute',
+          createdAt: 1,
+          updatedAt: 1,
+          orchestratorPlan: {
+            schemaVersion: 1,
+            id: 'plan-1',
+            rootConversationId: 'conversation-1',
+            createdAt: 1,
+            updatedAt: 1,
+            goal: 'Split this work',
+            status: 'review',
+            approvalStatus: 'pending',
+            executionPolicy: { maxConcurrentWorkers: 1, stopOnFailure: true },
+            subtasks: [],
+          },
+        },
+        goal: 'Task',
+        latestAssistantResult: null,
+        hasCompletedAssistantTurn: false,
+        latestPlan: null,
+        changedFiles: [],
+        unresolvedInteractions: [],
+      };
+
+      panel.updateTask(projection, {
+        onTransition: jest.fn().mockResolvedValue(undefined),
+        onComplete: jest.fn().mockResolvedValue(undefined),
+      });
+
+      expect(containerEl.querySelector('.claudian-task-panel-orchestrator')).toBeNull();
+      expect(containerEl.querySelector('.claudian-orchestrator-overview')).toBeNull();
+      expect(containerEl.textContent).not.toContain('Worker');
+      expect(containerEl.textContent).not.toContain('Orchestrator');
     });
   });
 

@@ -16,6 +16,7 @@ export interface TabInputControllerOptions {
   toggleFastMode: () => Promise<boolean>;
   restorePrePlanPermissionModeIfNeeded: () => void | Promise<void>;
   onDiagnosticError: (error: unknown) => void;
+  onExecutionError?: (error: unknown) => void | Promise<void>;
 }
 
 /**
@@ -66,6 +67,7 @@ export function createTabInputController(
     restorePrePlanPermissionModeIfNeeded: options.restorePrePlanPermissionModeIfNeeded,
     captureReviewableSettlement: tab.captureReviewableSettlement ?? undefined,
     onDiagnosticError: options.onDiagnosticError,
+    onExecutionError: options.onExecutionError,
     preflightExecution: async () => {
       let diagnostics;
       try {

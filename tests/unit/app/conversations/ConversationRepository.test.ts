@@ -4,7 +4,11 @@ import { ConversationRepository } from '@/app/conversations/ConversationReposito
 import type { ConversationPersistence } from '@/core/bootstrap/ConversationPersistenceStore';
 import { resolveConversationModel } from '@/core/providers/conversationModel';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
-import type { Conversation } from '@/core/types';
+import { createOrchestratorPlan } from '@/core/task/OrchestratorPlan';
+import {
+  type Conversation,
+  CONVERSATION_TASK_SCHEMA_VERSION,
+} from '@/core/types';
 
 function createConversation(id = 'conversation-1'): Conversation {
   return {
@@ -1124,5 +1128,172 @@ describe('ConversationRepository hydration', () => {
       id: replacement.id,
       sessionId: 'replacement-provider-session',
     }));
+  });
+});
+
+describe('ConversationRepository task lifecycle', () => {
+  it('creates an execute task only when explicitly requested and persists it', async () => {
+    const conversation = createConversation('task-create');
+    const { repository, persistence } = createRepository(conversation);
+
+    await expect(repository.ensureTask(conversation.id, 100)).resolves.toEqual({
+      schemaVersion: CONVERSATION_TASK_SCHEMA_VERSION,
+      status: 'execute',
+      createdAt: 100,
+      updatedAt: 100,
+    });
+
+    expect(conversation.task).toEqual({
+      schemaVersion: CONVERSATION_TASK_SCHEMA_VERSION,
+      status: 'execute',
+      createdAt: 100,
+      updatedAt: 100,
+    });
+    expect(persistence.saveMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      id: conversation.id,
+      task: conversation.task,
+    }));
+  });
+
+  it('allows execute to review and review back to execute', async () => {
+    const conversation = createConversation('task-review');
+    const { repository } = createRepository(conversation);
+    await repository.ensureTask(conversation.id, 100);
+
+    await expect(repository.transitionTaskStatus(conversation.id, 'review', 200))
+      .resolves.toMatchObject({ status: 'review', createdAt: 100, updatedAt: 200 });
+    await expect(repository.transitionTaskStatus(conversation.id, 'execute', 300))
+      .resolves.toMatchObject({ status: 'execute', createdAt: 100, updatedAt: 300 });
+    expect(conversation.task?.completedAt).toBeUndefined();
+  });
+
+  it('marks a reviewed task done with a completion timestamp', async () => {
+    const conversation = createConversation('task-done');
+    const { repository } = createRepository(conversation);
+    await repository.ensureTask(conversation.id, 100);
+    await repository.transitionTaskStatus(conversation.id, 'review', 200);
+
+    await expect(repository.transitionTaskStatus(conversation.id, 'done', 300))
+      .resolves.toMatchObject({
+        status: 'done',
+        createdAt: 100,
+        updatedAt: 300,
+        completedAt: 300,
+      });
+  });
+
+  it('persists the summary path only when completing from review', async () => {
+    const conversation = createConversation('task-summary');
+    const { repository } = createRepository(conversation);
+    await repository.ensureTask(conversation.id, 100);
+    await repository.transitionTaskStatus(conversation.id, 'review', 200);
+
+    await expect(repository.completeTask(conversation.id, 'Claudian Tasks/result.md', 300))
+      .resolves.toMatchObject({
+        status: 'done',
+        summaryNotePath: 'Claudian Tasks/result.md',
+        completedAt: 300,
+      });
+  });
+
+  it.each([
+    ['execute', 'done'],
+    ['done', 'execute'],
+    ['done', 'review'],
+  ] as const)('rejects invalid task transition %s -> %s without persisting', async (from, to) => {
+    const conversation = createConversation(`invalid-${from}-${to}`);
+    const { repository, persistence } = createRepository(conversation);
+    await repository.ensureTask(conversation.id, 100);
+    if (from === 'done') {
+      await repository.transitionTaskStatus(conversation.id, 'review', 150);
+      await repository.transitionTaskStatus(conversation.id, 'done', 200);
+    }
+    const saveCount = persistence.saveMetadata.mock.calls.length;
+
+    await expect(repository.transitionTaskStatus(conversation.id, to, 300))
+      .rejects.toThrow(`Invalid task transition: ${from} -> ${to}`);
+
+    expect(persistence.saveMetadata).toHaveBeenCalledTimes(saveCount);
+    expect(conversation.task?.status).toBe(from);
+  });
+
+  it('does not create a task for an invalid initial target', async () => {
+    const conversation = createConversation('task-invalid-initial');
+    const { repository, persistence } = createRepository(conversation);
+
+    await expect(repository.transitionTaskStatus(conversation.id, 'review', 100))
+      .rejects.toThrow('Invalid task transition: none -> review');
+
+    expect(conversation.task).toBeUndefined();
+    expect(persistence.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it('persists an orchestrator plan and subtask transitions through the repository', async () => {
+    const conversation = createConversation('orchestrator-persist');
+    const { repository, persistence } = createRepository(conversation);
+    const plan = createOrchestratorPlan({
+      id: 'plan-1',
+      rootConversationId: conversation.id,
+      goal: 'Ship',
+      subtasks: [{ id: 'research', title: 'Research', description: 'Research' }],
+      now: 100,
+    });
+
+    await expect(repository.attachOrchestratorPlan(conversation.id, plan)).resolves.toEqual(plan);
+    await expect(repository.approveOrchestratorPlan(conversation.id, 150)).resolves.toMatchObject({
+      approvalStatus: 'approved',
+    });
+    await expect(repository.transitionOrchestratorSubtask(conversation.id, 'research', 'running', 200))
+      .resolves.toMatchObject({ id: 'research', status: 'running', updatedAt: 200 });
+    expect(conversation.task?.orchestratorPlan?.status).toBe('running');
+    expect(persistence.saveMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      task: expect.objectContaining({ orchestratorPlan: expect.objectContaining({ status: 'running' }) }),
+    }));
+  });
+
+  it('creates a worker conversation for an approved queued subtask', async () => {
+    const parent = createConversation('orchestrator-parent');
+    const { repository } = createRepository(parent);
+    const plan = createOrchestratorPlan({
+      id: 'plan-worker',
+      rootConversationId: parent.id,
+      goal: 'Ship',
+      subtasks: [{ id: 'research', title: 'Research sources', description: 'Research sources' }],
+      now: 100,
+    });
+    await repository.attachOrchestratorPlan(parent.id, plan);
+    await repository.approveOrchestratorPlan(parent.id, 150);
+
+    const worker = await repository.createNextOrchestratorWorker(parent.id, 'research', 200);
+
+    expect(worker).not.toBeNull();
+    expect(worker).toMatchObject({
+      providerId: parent.providerId,
+      title: 'Research sources',
+      currentNote: parent.currentNote,
+      task: {
+        status: 'execute',
+        parentConversationId: parent.id,
+        orchestratorSubtaskId: 'research',
+      },
+    });
+    expect(parent.task?.orchestratorPlan?.subtasks[0]).toMatchObject({
+      status: 'running',
+      conversationId: worker!.id,
+      updatedAt: 200,
+    });
+
+    worker!.messages.push({
+      id: 'worker-result',
+      role: 'assistant',
+      content: 'Research completed.',
+      timestamp: 300,
+    });
+    await repository.transitionTaskStatus(worker!.id, 'review', 300);
+    expect(parent.task?.orchestratorPlan?.subtasks[0]).toMatchObject({
+      status: 'review',
+      result: 'Research completed.',
+      updatedAt: 300,
+    });
   });
 });

@@ -4,6 +4,11 @@ import type { SharedAppStorage } from '../core/bootstrap/storage';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { ProviderId } from '../core/providers/types';
 import type {
+  OrchestratorPlan,
+  OrchestratorSubtask,
+  OrchestratorSubtaskStatus,
+} from '../core/task/OrchestratorPlan';
+import type {
   ClaudianSettings,
   Conversation,
   ConversationMeta,
@@ -17,6 +22,10 @@ export interface FeatureTabManagerHost {
   getAllTabs(): TabData[];
   getTab(tabId: TabId): TabData | null;
   switchToTab(tabId: TabId): Promise<void>;
+  openConversation(
+    conversationId: string,
+    options?: boolean | { preferNewTab?: boolean; activate?: boolean; provisional?: boolean },
+  ): Promise<void>;
   closeTab(tabId: TabId, force?: boolean): Promise<boolean>;
   primeProviderExecution(providerIds?: ProviderId | ProviderId[]): void;
   invalidateProviderResources(providerIds: ProviderId | ProviderId[], generation: number): void;
@@ -78,6 +87,39 @@ export interface FeatureHost {
   setConversationPinned(id: string, isPinned: boolean): Promise<void>;
   setLinkedNotePinned(notePath: string, isPinned: boolean): Promise<void>;
   setConversationArchived(id: string, isArchived: boolean): Promise<void>;
+  ensureConversationTask(id: string, now?: number): Promise<Conversation['task'] | null>;
+  transitionConversationTask(
+    id: string,
+    status: NonNullable<Conversation['task']>['status'],
+    now?: number,
+  ): Promise<Conversation['task'] | null>;
+  completeConversationTask(
+    id: string,
+    summaryNotePath: string,
+    summaryContent: string,
+    now?: number,
+  ): Promise<Conversation['task'] | null>;
+  attachOrchestratorPlan(id: string, plan: OrchestratorPlan): Promise<OrchestratorPlan | null>;
+  transitionOrchestratorSubtask(
+    id: string,
+    subtaskId: string,
+    status: OrchestratorSubtaskStatus,
+    now?: number,
+  ): Promise<OrchestratorSubtask | null>;
+  failOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    error: string,
+    now?: number,
+  ): Promise<OrchestratorSubtask | null>;
+  cancelOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null>;
+  approveOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null>;
+  rejectOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null>;
+  createNextOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    now?: number,
+  ): Promise<Conversation | null>;
   updateConversation(id: string, updates: Partial<Conversation>): Promise<void>;
   getConversationById(id: string): Promise<Conversation | null>;
   getCachedConversation(id: string): Conversation | null;

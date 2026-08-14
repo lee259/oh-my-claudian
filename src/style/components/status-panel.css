@@ -13,6 +13,237 @@
   padding-top: 12px;
 }
 
+.claudian-task-panel {
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 8px 0;
+}
+
+.claudian-task-panel-header,
+.claudian-task-panel-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.claudian-task-panel-title {
+  color: var(--text-normal);
+  flex: 1;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.claudian-task-panel-details {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: 5px;
+}
+
+.claudian-task-panel-orchestrator {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  font-size: var(--font-ui-smaller);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.claudian-task-panel-orchestrator > span:first-child {
+  flex: 1;
+}
+
+.claudian-orchestrator-overview {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.claudian-orchestrator-overview-header {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-bottom: 6px;
+}
+
+.claudian-orchestrator-overview-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 7px;
+  padding: 4px 0;
+}
+
+.claudian-orchestrator-overview-status {
+  color: var(--text-muted);
+  flex: 0 0 62px;
+  font-size: var(--font-ui-smaller);
+  text-transform: capitalize;
+}
+
+.claudian-orchestrator-overview-status.status-completed {
+  color: var(--text-success);
+}
+
+.claudian-orchestrator-overview-status.status-failed {
+  color: var(--text-error);
+}
+
+.claudian-orchestrator-overview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.claudian-orchestrator-overview-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-orchestrator-overview-result,
+.claudian-orchestrator-overview-error {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-orchestrator-overview-error {
+  color: var(--text-error);
+}
+
+.claudian-task-panel-actions {
+  margin-top: 8px;
+}
+
+.claudian-task-panel-button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 2px 0;
+}
+
+.claudian-task-panel-button:hover,
+.claudian-task-panel-button:focus-visible {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.claudian-task-panel-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-task-panel-button-icon {
+  display: inline-flex;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.claudian-task-panel-button-icon svg {
+  height: 13px;
+  width: 13px;
+}
+
+.claudian-task-panel-complete {
+  color: var(--text-success);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-task-summary-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: min(680px, 80vw);
+}
+
+.claudian-task-summary-modal-description {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+.claudian-task-summary-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.claudian-task-summary-label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.claudian-task-summary-path,
+.claudian-task-summary-content {
+  box-sizing: border-box;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+}
+
+.claudian-orchestrator-plan-modal {
+  min-width: min(560px, 78vw);
+}
+
+.claudian-orchestrator-plan-goal {
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+  margin-bottom: 12px;
+}
+
+.claudian-orchestrator-plan-list {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.claudian-orchestrator-plan-list li {
+  margin-bottom: 10px;
+}
+
+.claudian-orchestrator-plan-description,
+.claudian-orchestrator-plan-dependencies {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: 3px;
+}
+
+.claudian-task-summary-path {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.claudian-task-summary-content {
+  min-height: 280px;
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.claudian-task-summary-modal .modal-button-container {
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+@media (max-width: 560px) {
+  .claudian-task-summary-modal {
+    min-width: 0;
+  }
+
+  .claudian-task-summary-content {
+    min-height: 220px;
+  }
+}
+
 /* Todo Section */
 
 .claudian-status-panel-todos {

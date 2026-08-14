@@ -27,10 +27,23 @@ import {
   type ProviderId,
 } from '../../core/providers/types';
 import {
+  approveOrchestratorPlan,
+  cancelOrchestratorSubtask,
+  failOrchestratorSubtask,
+  type OrchestratorPlan,
+  type OrchestratorSubtask,
+  type OrchestratorSubtaskStatus,
+  rejectOrchestratorPlan,
+  transitionOrchestratorSubtask,
+} from '../../core/task/OrchestratorPlan';
+import {
   type ChatMessage,
   type Conversation,
+  CONVERSATION_TASK_SCHEMA_VERSION,
   type ConversationMeta,
   type ConversationModelRecoverySource,
+  type ConversationTask,
+  type ConversationTaskStatus,
   isCanonicalUserMessage,
   type SessionMetadata,
 } from '../../core/types';
@@ -170,6 +183,19 @@ export class ConversationInputStageRejectedError extends Error {
   constructor(readonly conversationId: string) {
     super(`Conversation input was not durably staged: ${conversationId}`);
     this.name = 'ConversationInputStageRejectedError';
+  }
+}
+
+export class ConversationTaskTransitionError extends Error {
+  constructor(
+    readonly conversationId: string,
+    readonly currentStatus: ConversationTaskStatus | null,
+    readonly nextStatus: ConversationTaskStatus,
+  ) {
+    super(
+      `Invalid task transition: ${currentStatus ?? 'none'} -> ${nextStatus}`,
+    );
+    this.name = 'ConversationTaskTransitionError';
   }
 }
 
@@ -511,6 +537,234 @@ export class ConversationRepository {
 
     conversation.title = title.trim() || this.generateDefaultTitle();
     await this.save(conversation);
+  }
+
+  async ensureTask(
+    id: string,
+    now = Date.now(),
+  ): Promise<ConversationTask | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+    if (conversation.task) return conversation.task;
+
+    conversation.task = {
+      schemaVersion: CONVERSATION_TASK_SCHEMA_VERSION,
+      status: 'execute',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.save(conversation);
+    return conversation.task;
+  }
+
+  async attachOrchestratorPlan(id: string, plan: OrchestratorPlan): Promise<OrchestratorPlan | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+    if (!conversation.task) await this.ensureTask(id);
+    const current = this.getSync(id);
+    if (!current?.task) return null;
+    current.task = { ...current.task, orchestratorPlan: cloneOrchestratorPlan(plan), updatedAt: Date.now() };
+    await this.save(current);
+    return current.task.orchestratorPlan ?? null;
+  }
+
+  async createNextOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    now = Date.now(),
+  ): Promise<Conversation | null> {
+    const parent = this.getSync(parentConversationId);
+    const parentTask = parent?.task;
+    if (!parent || !parentTask?.orchestratorPlan) return null;
+
+    const plan = cloneOrchestratorPlan(parentTask.orchestratorPlan);
+    const subtask = transitionOrchestratorSubtask(plan, subtaskId, 'running', now);
+    const worker = await this.create({
+      providerId: parent.providerId,
+      selectedModel: parent.selectedModel,
+      currentNote: parent.currentNote,
+    });
+    worker.title = subtask.title;
+    worker.task = {
+      schemaVersion: CONVERSATION_TASK_SCHEMA_VERSION,
+      status: 'execute',
+      createdAt: now,
+      updatedAt: now,
+      parentConversationId,
+      orchestratorSubtaskId: subtaskId,
+    };
+    await this.save(worker);
+
+    subtask.conversationId = worker.id;
+    parent.task = { ...parentTask, orchestratorPlan: plan, updatedAt: now };
+    await this.save(parent);
+    return worker;
+  }
+
+  async transitionOrchestratorSubtask(
+    id: string,
+    subtaskId: string,
+    nextStatus: OrchestratorSubtaskStatus,
+    now = Date.now(),
+  ): Promise<OrchestratorSubtask | null> {
+    const conversation = this.getSync(id);
+    if (!conversation?.task?.orchestratorPlan) return null;
+    const task = conversation.task;
+    const existingPlan = task.orchestratorPlan;
+    if (!existingPlan) return null;
+    const plan = cloneOrchestratorPlan(existingPlan);
+    const subtask = transitionOrchestratorSubtask(plan, subtaskId, nextStatus, now);
+    conversation.task = { ...task, orchestratorPlan: plan, updatedAt: now };
+    await this.save(conversation);
+    return subtask;
+  }
+
+  async failOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    error: string,
+    now = Date.now(),
+  ): Promise<OrchestratorSubtask | null> {
+    const parent = this.getSync(parentConversationId);
+    const parentTask = parent?.task;
+    if (!parent || !parentTask?.orchestratorPlan) return null;
+    const plan = cloneOrchestratorPlan(parentTask.orchestratorPlan);
+    const subtask = failOrchestratorSubtask(plan, subtaskId, error, now);
+    parent.task = { ...parentTask, orchestratorPlan: plan, updatedAt: now };
+    await this.save(parent);
+    return subtask;
+  }
+
+  async cancelOrchestratorPlan(id: string, now = Date.now()): Promise<OrchestratorPlan | null> {
+    const conversation = this.getSync(id);
+    const task = conversation?.task;
+    if (!conversation || !task?.orchestratorPlan) return null;
+    const plan = cloneOrchestratorPlan(task.orchestratorPlan);
+    for (const subtask of plan.subtasks) {
+      if (subtask.status === 'queued' || subtask.status === 'running' || subtask.status === 'review') {
+        cancelOrchestratorSubtask(plan, subtask.id, now);
+      }
+    }
+    conversation.task = { ...task, orchestratorPlan: plan, updatedAt: now };
+    await this.save(conversation);
+    return plan;
+  }
+
+  async approveOrchestratorPlan(id: string, now = Date.now()): Promise<OrchestratorPlan | null> {
+    return this.updateOrchestratorPlanApproval(id, 'approve', now);
+  }
+
+  async rejectOrchestratorPlan(id: string, now = Date.now()): Promise<OrchestratorPlan | null> {
+    return this.updateOrchestratorPlanApproval(id, 'reject', now);
+  }
+
+  private async updateOrchestratorPlanApproval(
+    id: string,
+    action: 'approve' | 'reject',
+    now: number,
+  ): Promise<OrchestratorPlan | null> {
+    const conversation = this.getSync(id);
+    if (!conversation?.task?.orchestratorPlan) return null;
+    const plan = cloneOrchestratorPlan(conversation.task.orchestratorPlan);
+    if (action === 'approve') approveOrchestratorPlan(plan, now);
+    else rejectOrchestratorPlan(plan, now);
+    conversation.task = { ...conversation.task, orchestratorPlan: plan, updatedAt: now };
+    await this.save(conversation);
+    return plan;
+  }
+
+  async transitionTaskStatus(
+    id: string,
+    nextStatus: ConversationTaskStatus,
+    now = Date.now(),
+  ): Promise<ConversationTask | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+
+    const currentTask = conversation.task;
+    if (!currentTask) {
+      if (nextStatus !== 'execute') {
+        throw new ConversationTaskTransitionError(id, null, nextStatus);
+      }
+      return this.ensureTask(id, now);
+    }
+    if (currentTask.status === nextStatus) return currentTask;
+    if (!isValidConversationTaskTransition(currentTask.status, nextStatus)) {
+      throw new ConversationTaskTransitionError(id, currentTask.status, nextStatus);
+    }
+
+    conversation.task = {
+      ...currentTask,
+      status: nextStatus,
+      updatedAt: now,
+      ...(nextStatus === 'done' ? { completedAt: now } : {}),
+    };
+    await this.save(conversation);
+    await this.syncWorkerStatusToParent(conversation, nextStatus, now);
+    return conversation.task;
+  }
+
+  private async syncWorkerStatusToParent(
+    worker: Conversation,
+    workerStatus: ConversationTaskStatus,
+    now: number,
+  ): Promise<void> {
+    const workerTask = worker.task;
+    if (!workerTask?.parentConversationId || !workerTask.orchestratorSubtaskId) return;
+    const parent = this.getSync(workerTask.parentConversationId);
+    const parentTask = parent?.task;
+    if (!parent || !parentTask?.orchestratorPlan) return;
+
+    const plan = cloneOrchestratorPlan(parentTask.orchestratorPlan);
+    const subtask = plan.subtasks.find(item => item.id === workerTask.orchestratorSubtaskId);
+    if (!subtask) return;
+
+    const nextStatus = workerStatus === 'execute'
+      ? 'running'
+      : workerStatus === 'done'
+        ? 'completed'
+        : workerStatus === 'review'
+          ? 'review'
+          : null;
+    if (!nextStatus || subtask.status === nextStatus) return;
+
+    if (nextStatus === 'completed' && subtask.status === 'running') {
+      transitionOrchestratorSubtask(plan, subtask.id, 'review', now);
+    }
+    transitionOrchestratorSubtask(plan, subtask.id, nextStatus, now);
+    if (workerStatus === 'review' || workerStatus === 'done') {
+      const result = [...worker.messages]
+        .reverse()
+        .find(message => message.role === 'assistant' && !message.isInterrupt && !message.isRebuiltContext)
+        ?.content.trim();
+      if (result) subtask.result = result.slice(0, 4000);
+    }
+    parent.task = { ...parentTask, orchestratorPlan: plan, updatedAt: now };
+    await this.save(parent);
+  }
+
+  async completeTask(
+    id: string,
+    summaryNotePath: string,
+    now = Date.now(),
+  ): Promise<ConversationTask | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+    const currentTask = conversation.task;
+    if (!currentTask || currentTask.status !== 'review') {
+      throw new ConversationTaskTransitionError(id, currentTask?.status ?? null, 'done');
+    }
+
+    conversation.task = {
+      ...currentTask,
+      status: 'done',
+      updatedAt: now,
+      completedAt: now,
+      summaryNotePath,
+    };
+    await this.save(conversation);
+    await this.syncWorkerStatusToParent(conversation, 'done', now);
+    return conversation.task;
   }
 
   async update(id: string, updates: Partial<Conversation>): Promise<void> {
@@ -1877,6 +2131,26 @@ function findAssistantForCanonicalUserTurn(
     if (message.role === 'assistant') return message;
   }
   return undefined;
+}
+
+function isValidConversationTaskTransition(
+  currentStatus: ConversationTaskStatus,
+  nextStatus: ConversationTaskStatus,
+): boolean {
+  return (
+    (currentStatus === 'execute' && nextStatus === 'review')
+    || (currentStatus === 'review' && (nextStatus === 'execute' || nextStatus === 'done'))
+  );
+}
+
+function cloneOrchestratorPlan(plan: OrchestratorPlan): OrchestratorPlan {
+  return {
+    ...plan,
+    subtasks: plan.subtasks.map(subtask => ({
+      ...subtask,
+      dependsOn: [...subtask.dependsOn],
+    })),
+  };
 }
 
 function cloneJson<T>(value: T): T {

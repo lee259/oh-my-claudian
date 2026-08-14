@@ -148,6 +148,8 @@ export interface InputControllerDeps {
   captureReviewableSettlement?: () => () => void;
   /** Opens provider diagnostics for failures before execution handoff. */
   onDiagnosticError?: (error: unknown) => void;
+  /** Reports a terminal execution failure to an owning workflow, when present. */
+  onExecutionError?: (error: unknown) => void | Promise<void>;
   /** Performs a lightweight provider check before starting a new turn. */
   preflightExecution?: () => Promise<Error | null>;
   turnOwner?: ActiveTurnOwner;
@@ -574,6 +576,7 @@ export class InputController {
         wasInvalidated = true;
       } else if (result.status === 'error' && result.error) {
         await streamController.appendText(`\n\n**Error:** ${result.error.message}`);
+        await this.deps.onExecutionError?.(result.error);
       }
     } catch (error) {
       if (error instanceof ChatExecutionPreHandoffError) {
@@ -590,6 +593,7 @@ export class InputController {
         shouldReportReviewableSettlement = true;
         const errorMsg = stringifyDiagnosticError(error);
         await streamController.appendText(`\n\n**Error:** ${errorMsg}`);
+        await this.deps.onExecutionError?.(error);
         currentReviewableSettlementReporter =
           this.deps.captureReviewableSettlement?.() ?? null;
       }

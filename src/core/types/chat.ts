@@ -1,3 +1,4 @@
+import type { OrchestratorPlan } from '../task/OrchestratorPlan';
 import type { SDKToolUseResult } from './diff';
 import type { ProviderId } from './provider';
 import type { SubagentMode, ToolCallInfo, ToolProviderPayload } from './tools';
@@ -90,6 +91,9 @@ export interface ConversationTask {
   updatedAt: number;
   completedAt?: number;
   summaryNotePath?: string;
+  orchestratorPlan?: OrchestratorPlan;
+  parentConversationId?: string;
+  orchestratorSubtaskId?: string;
 }
 
 export interface CitationEntry {

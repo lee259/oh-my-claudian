@@ -53,6 +53,16 @@ import type {
   ProviderId,
 } from './core/providers/types';
 import type {
+  OrchestratorPlan,
+  OrchestratorSubtask,
+  OrchestratorSubtaskStatus,
+} from './core/task/OrchestratorPlan';
+import {
+  ensureTaskSummaryParentFolder,
+  isSafeTaskSummaryPath,
+  normalizeTaskSummaryPath,
+} from './core/task/TaskSummary';
+import type {
   ClaudianSettings,
   Conversation,
   ConversationMeta,
@@ -970,6 +980,121 @@ export default class ClaudianPlugin extends Plugin {
   async setConversationArchived(id: string, isArchived: boolean): Promise<void> {
     await this.conversationRepository.setArchived(id, isArchived);
     this.notifyConversationViewsChanged();
+  }
+
+  async ensureConversationTask(id: string, now?: number): Promise<Conversation['task'] | null> {
+    const task = await this.conversationRepository.ensureTask(id, now);
+    this.notifyConversationViewsChanged();
+    return task;
+  }
+
+  async transitionConversationTask(
+    id: string,
+    status: NonNullable<Conversation['task']>['status'],
+    now?: number,
+  ): Promise<Conversation['task'] | null> {
+    const task = await this.conversationRepository.transitionTaskStatus(id, status, now);
+    this.notifyConversationViewsChanged();
+    return task;
+  }
+
+  async completeConversationTask(
+    id: string,
+    summaryNotePath: string,
+    summaryContent: string,
+    now?: number,
+  ): Promise<Conversation['task'] | null> {
+    const normalizedPath = normalizeTaskSummaryPath(summaryNotePath);
+    if (!isSafeTaskSummaryPath(normalizedPath)) {
+      throw new Error('Choose a vault-relative Markdown path without parent traversal.');
+    }
+    if (this.app.vault.getAbstractFileByPath(normalizedPath)) {
+      throw new Error(`A note already exists at ${normalizedPath}. Choose another path.`);
+    }
+
+    await ensureTaskSummaryParentFolder(
+      this.app.vault,
+      normalizedPath,
+      file => file instanceof TFolder,
+    );
+    await this.app.vault.create(normalizedPath, summaryContent);
+    try {
+      const task = await this.conversationRepository.completeTask(id, normalizedPath, now);
+      this.notifyConversationViewsChanged();
+      return task;
+    } catch (error) {
+      const created = this.app.vault.getAbstractFileByPath(normalizedPath);
+      if (created) await this.app.fileManager.trashFile(created);
+      throw error;
+    }
+  }
+
+  async attachOrchestratorPlan(id: string, plan: OrchestratorPlan): Promise<OrchestratorPlan | null> {
+    const result = await this.conversationRepository.attachOrchestratorPlan(id, plan);
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async transitionOrchestratorSubtask(
+    id: string,
+    subtaskId: string,
+    status: OrchestratorSubtaskStatus,
+    now?: number,
+  ): Promise<OrchestratorSubtask | null> {
+    const result = await this.conversationRepository.transitionOrchestratorSubtask(id, subtaskId, status, now);
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async failOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    error: string,
+    now?: number,
+  ): Promise<OrchestratorSubtask | null> {
+    const result = await this.conversationRepository.failOrchestratorWorker(
+      parentConversationId,
+      subtaskId,
+      error,
+      now,
+    );
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async cancelOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null> {
+    const result = await this.conversationRepository.cancelOrchestratorPlan(id, now);
+    if (result) {
+      for (const subtask of result.subtasks) {
+        if (!subtask.conversationId) continue;
+        const location = this.findConversationAcrossViews(subtask.conversationId);
+        location?.view.getTabManager()?.getTab(location.tabId)?.controllers.inputController?.cancelStreaming();
+      }
+    }
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async approveOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null> {
+    const result = await this.conversationRepository.approveOrchestratorPlan(id, now);
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async rejectOrchestratorPlan(id: string, now?: number): Promise<OrchestratorPlan | null> {
+    const result = await this.conversationRepository.rejectOrchestratorPlan(id, now);
+    this.notifyConversationViewsChanged();
+    return result;
+  }
+
+  async createNextOrchestratorWorker(
+    parentConversationId: string,
+    subtaskId: string,
+    now?: number,
+  ): Promise<Conversation | null> {
+    const result = await this.conversationRepository.createNextOrchestratorWorker(parentConversationId, subtaskId, now);
+    this.notifyConversationViewsChanged();
+    return result;
   }
 
   private async handleLinkedNoteRename(

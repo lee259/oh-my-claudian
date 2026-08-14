@@ -35,6 +35,11 @@ import type {
 import {
   DEFAULT_CHAT_PROVIDER_ID,
 } from '../../../core/providers/types';
+import { buildConversationReviewProjection } from '../../../core/task/ConversationReviewProjection';
+import {
+  buildTaskSummaryDraft,
+  defaultTaskSummaryPath,
+} from '../../../core/task/TaskSummary';
 import { TOOL_AGENT_OUTPUT } from '../../../core/tools/toolNames';
 import {
   type ChatMessage,
@@ -68,6 +73,7 @@ import { InstructionModeManager as InstructionModeManagerClass } from '../ui/Ins
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
 import { StatusPanel } from '../ui/StatusPanel';
+import { TaskSummaryModal } from '../ui/TaskSummaryModal';
 import { autoResizeTextarea } from '../ui/textareaResize';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
@@ -813,6 +819,22 @@ function showPreHandoffDiagnostic(plugin: FeatureHost, tab: TabData, error: unkn
   });
 }
 
+async function recordWorkerExecutionFailure(
+  tab: TabData,
+  plugin: FeatureHost,
+  error: unknown,
+): Promise<void> {
+  const conversation = tab.conversationId ? plugin.getConversationSync(tab.conversationId) : null;
+  const task = conversation?.task;
+  if (!task?.parentConversationId || !task.orchestratorSubtaskId) return;
+
+  await plugin.failOrchestratorWorker(
+    task.parentConversationId,
+    task.orchestratorSubtaskId,
+    stringifyDiagnosticError(error),
+  );
+}
+
 async function restorePrePlanMode(tab: TabData, plugin: FeatureHost): Promise<void> {
   if (getTabPermissionMode(tab, plugin) !== 'plan') return;
   const restoreMode = tab.state.prePlanPermissionMode ?? 'normal';
@@ -1013,8 +1035,10 @@ export async function initializeTabExecution(
     : (argOrOverride === null ? null : maybeOverride);
 
   const conversation = conversationOverride ?? (
-    tab.conversationId
-      ? await plugin.getConversationById(tab.conversationId)
+    (tab.conversationId ?? tab.state.currentConversationId)
+      ? await plugin.getConversationById(
+        tab.conversationId ?? tab.state.currentConversationId!,
+      )
       : null
   );
   if (isClosingLifecycleState(tab.lifecycleState)) {
@@ -1175,6 +1199,47 @@ function initializeInstructionAndTodo(tab: TabData, plugin: FeatureHost): void {
 
   tab.ui.statusPanel = new StatusPanel();
   tab.ui.statusPanel.mount(dom.statusPanelContainerEl);
+  refreshTaskPanel(tab, plugin);
+}
+
+function refreshTaskPanel(tab: TabData, plugin: FeatureHost): void {
+  const conversation = tab.conversationId ? plugin.getConversationSync(tab.conversationId) : null;
+  if (!conversation) {
+    tab.ui.statusPanel?.updateTask(null);
+    return;
+  }
+
+  const projection = buildConversationReviewProjection({
+    ...conversation,
+    messages: tab.state.messages.length > 0 ? tab.state.messages : conversation.messages,
+  });
+  tab.ui.statusPanel?.updateTask(projection, {
+    onTransition: async (status) => {
+      if (status === 'execute' && !projection.task) {
+        await plugin.ensureConversationTask(conversation.id);
+      } else {
+        await plugin.transitionConversationTask(conversation.id, status);
+      }
+      refreshTaskPanel(tab, plugin);
+    },
+    onComplete: async () => {
+      const currentConversation = plugin.getConversationSync(conversation.id);
+      if (!currentConversation) throw new Error('Conversation is no longer available.');
+      const currentProjection = buildConversationReviewProjection({
+        ...currentConversation,
+        messages: tab.state.messages.length > 0 ? tab.state.messages : currentConversation.messages,
+      });
+      const draft = buildTaskSummaryDraft(
+        currentConversation,
+        currentProjection,
+        currentConversation.task?.summaryNotePath ?? defaultTaskSummaryPath(currentConversation),
+      );
+      new TaskSummaryModal(plugin.app, draft, async (savedDraft) => {
+        await plugin.completeConversationTask(currentConversation.id, savedDraft.path, savedDraft.content);
+        refreshTaskPanel(tab, plugin);
+      }).open();
+    },
+  });
 }
 
 function isBangBashEnabled(settings: Record<string, unknown>): boolean {
@@ -1487,6 +1552,8 @@ export function initializeTabUI(
 
   state.callbacks = {
     ...state.callbacks,
+    onMessagesChanged: () => refreshTaskPanel(tab, plugin),
+    onConversationChanged: () => refreshTaskPanel(tab, plugin),
     onUsageChanged: (usage) => {
       tab.ui.contextUsageMeter?.update(usage);
     },
@@ -1845,6 +1912,7 @@ export function initializeTabRuntimeControllers(
     },
     onConversationActivated: () => {
       invalidateTabProviderCommands(tab, getProviderCatalogConfig);
+      refreshTaskPanel(tab, plugin);
       tab.controllers.inputController?.onConversationActivated();
     },
   });
@@ -1877,6 +1945,7 @@ export function initializeTabRuntimeControllers(
       }
     },
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
+    onExecutionError: error => recordWorkerExecutionFailure(tab, plugin, error),
   });
 
   initializeTabNavigationController(tab, plugin);

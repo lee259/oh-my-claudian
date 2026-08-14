@@ -1,10 +1,17 @@
 import { Notice, setIcon } from 'obsidian';
 
+import type { ConversationReviewProjection } from '../../../core/task/ConversationReviewProjection';
 import type { TodoItem } from '../../../core/tools/todo';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_TODO_WRITE } from '../../../core/tools/toolNames';
+import type { ConversationTaskStatus } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { renderTodoItems } from '../rendering/todoUtils';
+
+export interface TaskPanelCallbacks {
+  onTransition: (status: ConversationTaskStatus) => Promise<void>;
+  onComplete: () => Promise<void>;
+}
 
 export interface PanelBashOutput {
   id: string;
@@ -37,6 +44,11 @@ export class StatusPanel {
   private todoContentEl: HTMLElement | null = null;
   private isTodoExpanded = false;
   private currentTodos: TodoItem[] | null = null;
+
+  // Durable task review section
+  private taskContainerEl: HTMLElement | null = null;
+  private currentTaskProjection: ConversationReviewProjection | null = null;
+  private taskCallbacks: TaskPanelCallbacks | null = null;
 
   // Event handler references for cleanup
   private todoClickHandler: (() => void) | null = null;
@@ -105,6 +117,8 @@ export class StatusPanel {
     if (this.currentTodos && this.currentTodos.length > 0) {
       this.updateTodos(this.currentTodos);
     }
+    this.renderTask();
+    this.syncPanelVisibility();
   }
 
   /**
@@ -162,6 +176,8 @@ export class StatusPanel {
     this.todoContentEl = this.todoContainerEl.createDiv({
       cls: 'claudian-status-panel-content claudian-todo-list-container claudian-hidden',
     });
+
+    this.taskContainerEl = this.panelEl.createDiv({ cls: 'claudian-task-panel claudian-hidden' });
   }
 
   private syncPanelVisibility(): void {
@@ -169,7 +185,105 @@ export class StatusPanel {
 
     const hasTodos = (this.currentTodos?.length ?? 0) > 0;
     const hasBashOutputs = this.currentBashOutputs.size > 0;
-    this.panelEl.toggleClass('claudian-status-panel--visible', hasTodos || hasBashOutputs);
+    const hasTask = this.currentTaskProjection !== null;
+    this.panelEl.toggleClass('claudian-status-panel--visible', hasTodos || hasBashOutputs || hasTask);
+  }
+
+  /** Update the compact durable task control shown below chat output. */
+  updateTask(
+    projection: ConversationReviewProjection | null,
+    callbacks: TaskPanelCallbacks | null = this.taskCallbacks,
+  ): void {
+    this.currentTaskProjection = projection;
+    this.taskCallbacks = callbacks;
+    this.renderTask();
+    this.syncPanelVisibility();
+  }
+
+  private renderTask(): void {
+    if (!this.taskContainerEl) return;
+    this.taskContainerEl.empty();
+
+    const projection = this.currentTaskProjection;
+    const task = projection?.task;
+    if (!projection) {
+      this.taskContainerEl.addClass('claudian-hidden');
+      return;
+    }
+
+    this.taskContainerEl.removeClass('claudian-hidden');
+    if (!task) {
+      const header = this.taskContainerEl.createDiv({ cls: 'claudian-task-panel-header' });
+      header.createSpan({ cls: 'claudian-task-panel-title', text: 'Task · Not started' });
+      this.appendTaskButton(header, 'Start task', 'play', () => {
+        void this.runTaskTransition('execute');
+      });
+      return;
+    }
+
+    const header = this.taskContainerEl.createDiv({ cls: 'claudian-task-panel-header' });
+    header.createSpan({ cls: 'claudian-task-panel-title', text: `Task · ${capitalize(task.status)}` });
+
+    if (task.status === 'execute' && projection.hasCompletedAssistantTurn) {
+      this.appendTaskButton(header, 'Review result', 'eye', () => {
+        void this.runTaskTransition('review');
+      });
+    }
+
+    if (task.status === 'review') {
+      const details = this.taskContainerEl.createDiv({ cls: 'claudian-task-panel-details' });
+      const files = projection.changedFiles.length;
+      const interactions = projection.unresolvedInteractions.length;
+      details.setText(`${files} changed file${files === 1 ? '' : 's'} · ${interactions} unresolved interaction${interactions === 1 ? '' : 's'}`);
+
+      const actions = this.taskContainerEl.createDiv({ cls: 'claudian-task-panel-actions' });
+      this.appendTaskButton(actions, 'Continue editing', 'edit', () => {
+        void this.runTaskTransition('execute');
+      });
+      this.appendTaskButton(actions, 'Complete task', 'check', () => {
+        void this.runTaskCompletion();
+      });
+    }
+
+    if (task.status === 'done') {
+      header.createSpan({ cls: 'claudian-task-panel-complete', text: 'Completed' });
+    }
+  }
+
+  private appendTaskButton(
+    parent: HTMLElement,
+    label: string,
+    icon: string,
+    action: () => void,
+    disabled = false,
+    title?: string,
+  ): void {
+    const button = parent.createEl('button', {
+      cls: 'claudian-task-panel-button',
+      attr: { type: 'button', ...(title ? { title } : {}) },
+      text: label,
+    });
+    setIcon(button.createSpan({ cls: 'claudian-task-panel-button-icon' }), icon);
+    button.disabled = disabled;
+    if (!disabled) button.addEventListener('click', action);
+  }
+
+  private async runTaskTransition(status: ConversationTaskStatus): Promise<void> {
+    if (!this.taskCallbacks) return;
+    try {
+      await this.taskCallbacks.onTransition(status);
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : 'Failed to update task status');
+    }
+  }
+
+  private async runTaskCompletion(): Promise<void> {
+    if (!this.taskCallbacks) return;
+    try {
+      await this.taskCallbacks.onComplete();
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : 'Failed to open task summary');
+    }
   }
 
   /**
@@ -558,7 +672,14 @@ export class StatusPanel {
     this.todoContainerEl = null;
     this.todoHeaderEl = null;
     this.todoContentEl = null;
+    this.taskContainerEl = null;
     this.containerEl = null;
     this.currentTodos = null;
+    this.currentTaskProjection = null;
+    this.taskCallbacks = null;
   }
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

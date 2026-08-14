@@ -5,6 +5,7 @@ import {
   type SessionMetadataScanResult,
 } from '../providers/types';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
+import { parseOrchestratorPlan } from '../task/OrchestratorPlan';
 import type {
   ConversationMeta,
   ConversationModelRecoverySource,
@@ -349,6 +350,9 @@ export class SessionStorage implements SessionMetadataReader {
       || !this.isValidTaskTimestamp(task.updatedAt)
       || (task.completedAt !== undefined && !this.isValidTaskTimestamp(task.completedAt))
       || (task.summaryNotePath !== undefined && typeof task.summaryNotePath !== 'string')
+      || (task.orchestratorPlan !== undefined && !parseOrchestratorPlan(task.orchestratorPlan))
+      || (task.parentConversationId !== undefined && typeof task.parentConversationId !== 'string')
+      || (task.orchestratorSubtaskId !== undefined && typeof task.orchestratorSubtaskId !== 'string')
     ) {
       return undefined;
     }
@@ -359,6 +363,9 @@ export class SessionStorage implements SessionMetadataReader {
       updatedAt: task.updatedAt,
       ...(typeof task.completedAt === 'number' ? { completedAt: task.completedAt } : {}),
       ...(typeof task.summaryNotePath === 'string' ? { summaryNotePath: task.summaryNotePath } : {}),
+      ...(task.orchestratorPlan ? { orchestratorPlan: parseOrchestratorPlan(task.orchestratorPlan) } : {}),
+      ...(typeof task.parentConversationId === 'string' ? { parentConversationId: task.parentConversationId } : {}),
+      ...(typeof task.orchestratorSubtaskId === 'string' ? { orchestratorSubtaskId: task.orchestratorSubtaskId } : {}),
     };
   }
 

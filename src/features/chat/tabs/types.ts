@@ -68,6 +68,12 @@ export interface TabManagerInterface {
   /** Switches to a specific tab. */
   switchToTab(tabId: TabId): Promise<void>;
 
+  /** Opens a conversation in the current view, optionally creating a new tab. */
+  openConversation(
+    conversationId: string,
+    options?: boolean | { preferNewTab?: boolean; activate?: boolean; provisional?: boolean },
+  ): Promise<void>;
+
   /** Gets all tabs. */
   getAllTabs(): TabData[];
 }

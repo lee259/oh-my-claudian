@@ -491,6 +491,32 @@ describe('Tab provider execution ownership', () => {
     expect(coordinator.prepare).not.toHaveBeenCalled();
   });
 
+  it('binds a conversation created during the first send before execution starts', async () => {
+    const conversation = createConversation();
+    const plugin = createPlugin({
+      getConversationById: jest.fn().mockResolvedValue(conversation),
+    });
+    const tab = createTab({
+      plugin,
+      containerEl: createMockEl() as any,
+    });
+    const coordinator = coordinatorInstances[0];
+
+    tab.state.currentConversationId = conversation.id;
+    await initializeTabExecution(tab, plugin);
+
+    expect(coordinator.bindConversation).toHaveBeenCalledWith({
+      conversationId: conversation.id,
+      providerId: conversation.providerId,
+      resumeSeed: {
+        providerSessionId: conversation.sessionId,
+        providerState: conversation.providerState,
+        resumeCheckpoint: conversation.resumeAtMessageId,
+      },
+    });
+    expect(coordinator.prepare).toHaveBeenCalledTimes(1);
+  });
+
   it('routes /clear through the view layout before resetting the current tab', async () => {
     const conversation = createConversation();
     const plugin = createPlugin();
