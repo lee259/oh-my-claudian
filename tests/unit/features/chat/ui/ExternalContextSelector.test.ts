@@ -75,6 +75,14 @@ describe('ExternalContextSelector', () => {
   });
 
   describe('Persistent Paths Management', () => {
+    it('exposes the folder picker as a keyboard-accessible control', () => {
+      const picker = parentEl.querySelector('.claudian-external-context-icon-wrapper');
+
+      expect(picker?.getAttribute('role')).toBe('button');
+      expect(picker?.getAttribute('tabindex')).toBe('0');
+      expect(picker?.getAttribute('aria-label')).toBe('Add external context folder');
+    });
+
     it('should initialize with empty persistent paths', () => {
       expect(selector.getPersistentPaths()).toEqual([]);
     });

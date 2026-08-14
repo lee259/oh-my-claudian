@@ -42,6 +42,7 @@ export function createTabConversationController(
       getImageContextManager: () => ui.imageContextManager,
       getMcpServerSelector: () => ui.mcpServerSelector,
       getExternalContextSelector: () => ui.externalContextSelector,
+      getScopePreview: () => ui.scopePreview,
       clearQueuedMessage: () => tab.controllers.inputController?.clearQueuedMessage(),
       getTitleGenerationService: () => services.titleGenerationService,
       getStatusPanel: () => ui.statusPanel,
