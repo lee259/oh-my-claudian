@@ -745,6 +745,9 @@ export class ExternalContextSelector {
     this.container.empty();
 
     const iconWrapper = this.container.createDiv({ cls: 'claudian-external-context-icon-wrapper' });
+    iconWrapper.setAttribute('role', 'button');
+    iconWrapper.setAttribute('tabindex', '0');
+    iconWrapper.setAttribute('aria-label', 'Add external context folder');
 
     this.iconEl = iconWrapper.createDiv({ cls: 'claudian-external-context-icon' });
     setIcon(this.iconEl, 'folder');
@@ -756,6 +759,11 @@ export class ExternalContextSelector {
     // Click to open native folder picker
     iconWrapper.addEventListener('click', (e) => {
       e.stopPropagation();
+      void this.openFolderPicker();
+    });
+    iconWrapper.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
       void this.openFolderPicker();
     });
 
@@ -892,6 +900,10 @@ export class ExternalContextSelector {
     if (count > 0) {
       this.iconEl.addClass('active');
       this.iconEl.setAttribute('title', `${count} external context${count > 1 ? 's' : ''} (click to add more)`);
+      this.iconEl.parentElement?.setAttribute(
+        'aria-label',
+        `${count} external context folder${count > 1 ? 's' : ''}. Click to add more.`,
+      );
 
       // Show badge only when more than 1 path
       if (count > 1) {
@@ -903,6 +915,7 @@ export class ExternalContextSelector {
     } else {
       this.iconEl.removeClass('active');
       this.iconEl.setAttribute('title', 'Add external contexts (click)');
+      this.iconEl.parentElement?.setAttribute('aria-label', 'Add external context folder');
       this.badgeEl.removeClass('visible');
     }
   }
