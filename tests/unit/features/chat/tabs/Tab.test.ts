@@ -445,6 +445,32 @@ describe('Tab provider execution ownership', () => {
     globalThis.ResizeObserver = originalResizeObserver;
   });
 
+  it('persists external context changes for a bound conversation', async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({
+      disconnect: jest.fn(),
+      observe: jest.fn(),
+    })) as unknown as typeof ResizeObserver;
+    const conversation = createConversation();
+    const updateConversation = jest.fn().mockResolvedValue(undefined);
+    const plugin = createPlugin({ updateConversation });
+    const tab = createTab({
+      plugin,
+      containerEl: createMockEl() as any,
+      conversation,
+    });
+    initializeTabUI(tab, plugin);
+
+    const result = tab.ui.externalContextSelector?.addExternalContext('/tmp');
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(result?.success).toBe(true);
+    expect(updateConversation).toHaveBeenCalledWith(conversation.id, {
+      externalContextPaths: ['/tmp'],
+    });
+    globalThis.ResizeObserver = originalResizeObserver;
+  });
+
   it('binds persisted native state and prepares only for a bound conversation', async () => {
     const conversation = createConversation();
     const plugin = createPlugin({
