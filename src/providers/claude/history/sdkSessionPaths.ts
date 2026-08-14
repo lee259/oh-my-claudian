@@ -68,6 +68,22 @@ export function sdkSessionExists(
   }
 }
 
+/** Returns a cheap change signature for a transcript, or null when unreadable. */
+export async function getSDKSessionSignature(
+  vaultPath: string,
+  sessionId: string,
+  sessionPathOverride?: string,
+  context?: ClaudeConfigDirContext,
+): Promise<string | null> {
+  try {
+    const sessionPath = sessionPathOverride ?? getSDKSessionPath(vaultPath, sessionId, context);
+    const stats = await fs.stat(sessionPath);
+    return `${stats.size}:${stats.mtimeMs}`;
+  } catch {
+    return null;
+  }
+}
+
 function hasFileSystemErrorCode(error: unknown, code: string): boolean {
   return !!error
     && typeof error === 'object'

@@ -23,6 +23,7 @@ import {
 import {
   encodeVaultPathForSDK,
   getSDKProjectsPath,
+  getSDKSessionSignature,
   loadSDKSessionMessages,
   loadSDKSessionModel,
   loadSubagentToolCalls,
@@ -405,6 +406,7 @@ function sanitizeProviderState(
 
 export class ClaudeConversationHistoryService implements ProviderConversationHistoryService {
   private hydratedConversationIds = new Set<string>();
+  private hydratedTranscriptSignatures = new Map<string, string>();
   private historyCacheKeysByConversation = new Map<string, string>();
   private pendingSessionLocationsByConversation = new Map<
     string,
@@ -432,6 +434,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     const previousKey = this.historyCacheKeysByConversation.get(conversation.id);
     if (previousKey !== undefined && previousKey !== cacheKey) {
       this.hydratedConversationIds.delete(conversation.id);
+      this.hydratedTranscriptSignatures.delete(conversation.id);
       this.pendingSessionLocationsByConversation.delete(conversation.id);
       this.relocatedSessionPathsByConversation.delete(conversation.id);
     }
@@ -543,6 +546,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
       this.pendingSessionLocationsByConversation.delete(conversation.id);
       this.relocatedSessionPathsByConversation.delete(conversation.id);
       this.hydratedConversationIds.delete(conversation.id);
+      this.hydratedTranscriptSignatures.delete(conversation.id);
       return 'delete';
     }
 
@@ -558,6 +562,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     conversation.providerState = sanitizeProviderState(state);
     this.pendingSessionLocationsByConversation.delete(conversation.id);
     this.hydratedConversationIds.delete(conversation.id);
+    this.hydratedTranscriptSignatures.delete(conversation.id);
     return 'reset';
   }
 
@@ -653,7 +658,17 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     const allSessionIds = this.getConversationSessionIds(conversation);
 
     this.synchronizeHistoryCache(conversation, vaultPath, pathContext);
-    if (this.hydratedConversationIds.has(conversation.id)) return;
+    const liveTranscriptSignature = await this.getLiveTranscriptSignature(
+      conversation,
+      vaultPath,
+      pathContext,
+    );
+    if (this.hydratedConversationIds.has(conversation.id)) {
+      const knownSignature = this.hydratedTranscriptSignatures.get(conversation.id);
+      if (liveTranscriptSignature === null || liveTranscriptSignature === knownSignature) {
+        return;
+      }
+    }
 
     const state = getClaudeState(conversation.providerState);
     const isPendingFork = this.isPendingForkConversation(conversation);
@@ -762,7 +777,34 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     conversation.messages = merged;
     if (errorCount === 0 && unknownSessionCount === 0) {
       this.hydratedConversationIds.add(conversation.id);
+      if (liveTranscriptSignature === null) {
+        this.hydratedTranscriptSignatures.delete(conversation.id);
+      } else {
+        this.hydratedTranscriptSignatures.set(conversation.id, liveTranscriptSignature);
+      }
     }
+  }
+
+  private async getLiveTranscriptSignature(
+    conversation: Conversation,
+    vaultPath: string,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<string | null> {
+    if (this.isPendingForkConversation(conversation)) return null;
+
+    const state = getClaudeState(conversation.providerState);
+    const sessionId = state.providerSessionId ?? conversation.sessionId;
+    if (!sessionId) return null;
+
+    const relocatedSessionPath = this.relocatedSessionPathsByConversation
+      .get(conversation.id)
+      ?.get(sessionId);
+    return getSDKSessionSignature(
+      vaultPath,
+      sessionId,
+      relocatedSessionPath,
+      pathContext,
+    );
   }
 
   hasConversationModelRecoverySource(conversation: Conversation): boolean {

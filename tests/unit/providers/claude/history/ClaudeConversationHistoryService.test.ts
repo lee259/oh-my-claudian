@@ -394,13 +394,13 @@ describe('ClaudeConversationHistoryService', () => {
           },
         ],
       });
-      jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+      const locationsSpy = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
         ['session-1', {
           availability: 'available',
           sessionPath: '/vault/session-1.jsonl',
         }],
       ]));
-      jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
         messages: [
           {
             id: 'native-user-local',
@@ -424,6 +424,82 @@ describe('ClaudeConversationHistoryService', () => {
 
       expect(conversation.messages).toHaveLength(2);
       expect(conversation.messages.map(message => message.content)).toEqual(['PING', 'PONG']);
+      locationsSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('re-hydrates when the live transcript changes on disk', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation();
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature')
+        .mockResolvedValueOnce('100:1')
+        .mockResolvedValueOnce('220:2');
+      const locationsSpy = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+        ['session-1', { availability: 'available', sessionPath: '/vault/session-1.jsonl' }],
+      ]));
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages')
+        .mockResolvedValueOnce({
+          messages: [{ id: 'message-1', role: 'user', content: 'First', timestamp: 1 }],
+          skippedLines: 0,
+        })
+        .mockResolvedValueOnce({
+          messages: [
+            { id: 'message-1', role: 'user', content: 'First', timestamp: 1 },
+            { id: 'message-2', role: 'assistant', content: 'Appended externally', timestamp: 2 },
+          ],
+          skippedLines: 0,
+        });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(loadSpy).toHaveBeenCalledTimes(2);
+      expect(conversation.messages.map(message => message.id)).toEqual(['message-1', 'message-2']);
+      signatureSpy.mockRestore();
+      locationsSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('does not reload history when the live transcript is unchanged', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation();
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature').mockResolvedValue('100:1');
+      const locationsSpy = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+        ['session-1', { availability: 'available', sessionPath: '/vault/session-1.jsonl' }],
+      ]));
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
+        messages: [{ id: 'message-1', role: 'user', content: 'First', timestamp: 1 }],
+        skippedLines: 0,
+      });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(loadSpy).toHaveBeenCalledTimes(1);
+      signatureSpy.mockRestore();
+      locationsSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('does not reload history when the transcript signature is unavailable', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation();
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature').mockResolvedValue(null);
+      const locationsSpy = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+        ['session-1', { availability: 'available', sessionPath: '/vault/session-1.jsonl' }],
+      ]));
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
+        messages: [{ id: 'message-1', role: 'user', content: 'First', timestamp: 1 }],
+        skippedLines: 0,
+      });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(loadSpy).toHaveBeenCalledTimes(1);
+      signatureSpy.mockRestore();
+      locationsSpy.mockRestore();
+      loadSpy.mockRestore();
     });
 
     it('recovers an unlinked native transcript from the conversation timestamps', async () => {
