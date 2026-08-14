@@ -122,6 +122,11 @@ export const OMP_PROVIDER_ICON: ProviderIconSvg = {
   path: 'M3 4h18v2H3V4Zm3 4h2v6.5c0 1.38 1.12 2.5 2.5 2.5h5c1.38 0 2.5-1.12 2.5-2.5V8h2v6.5a4.5 4.5 0 0 1-4.5 4.5h-5A4.5 4.5 0 0 1 6 14.5V8Zm-3 12h18v2H3v-2Z',
 };
 
+export const DSH_PROVIDER_ICON: ProviderIconSvg = {
+  viewBox: '0 0 24 24',
+  path: 'M3 4h18v3H3V4Zm0 6h12v3H3v-3Zm0 6h18v3H3v-3Zm15-6h3v3h-3v-3Z',
+};
+
 export const GROK_PROVIDER_ICON: ProviderIconSvg = {
   viewBox: '0 0 24 24',
   path: 'M3.25 3h4.18l4.8 6.64L17.88 3h3.17l-7.36 8.65L20.44 21h-4.18l-5.16-7.14L5.02 21H1.85l7.79-9.16L3.25 3Zm3.03 1.7 10.85 14.6h1.28L7.56 4.7H6.28Z',
