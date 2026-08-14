@@ -40,6 +40,7 @@ import type { TabAttention } from '../state/types';
 import type { FileContextManager } from '../ui/FileContext';
 import type { ImageContextManager } from '../ui/ImageContext';
 import type { ExternalContextSelector, McpServerSelector } from '../ui/InputToolbar';
+import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
 
 function runConversationAction(action: () => Promise<void>, failureMessage: string): void {
@@ -83,6 +84,7 @@ export interface ConversationControllerDeps {
   getImageContextManager: () => ImageContextManager | null;
   getMcpServerSelector: () => McpServerSelector | null;
   getExternalContextSelector: () => ExternalContextSelector | null;
+  getScopePreview?: () => ScopePreview | null;
   clearQueuedMessage: () => void;
   getTitleGenerationService: () => TitleGenerationService | null;
   getStatusPanel: () => StatusPanel | null;
@@ -273,6 +275,7 @@ export class ConversationController {
       this.deps.getExternalContextSelector()?.clearExternalContexts(
         plugin.settings.persistentExternalContextPaths || []
       );
+      this.syncScopePreview();
       this.deps.clearQueuedMessage();
 
       this.callbacks.onNewConversation?.();
@@ -315,6 +318,7 @@ export class ConversationController {
       this.deps.getExternalContextSelector()?.clearExternalContexts(
         plugin.settings.persistentExternalContextPaths || []
       );
+      this.syncScopePreview();
 
       this.deps.getMcpServerSelector()?.clearEnabled();
 
@@ -717,6 +721,14 @@ export class ConversationController {
       // Session with messages: restore exactly what was saved
       externalContextSelector.setExternalContexts(savedPaths || []);
     }
+    this.syncScopePreview();
+  }
+
+  private syncScopePreview(): void {
+    const preview = this.deps.getScopePreview?.();
+    if (!preview) return;
+    preview.setCurrentNote(this.deps.getFileContextManager()?.getCurrentNotePath() ?? null);
+    preview.setExternalContextPaths(this.deps.getExternalContextSelector()?.getExternalContexts() ?? []);
   }
 
   // ============================================

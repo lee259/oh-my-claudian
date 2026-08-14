@@ -35,6 +35,7 @@ import type {
 } from '../ui/InputToolbar';
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
 import type { NavigationSidebar } from '../ui/NavigationSidebar';
+import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
 import type { TabSession } from './TabSession';
 
@@ -132,6 +133,7 @@ export interface TabServices {
  */
 export interface TabUIComponents {
   contextTray: ComposerContextTray | null;
+  scopePreview: ScopePreview | null;
   fileContextManager: FileContextManager | null;
   imageContextManager: ImageContextManager | null;
   modelSelector: ModelSelector | null;
@@ -173,6 +175,8 @@ export interface TabDOMElements {
 
   /** Composer-owned context tray container inside the input wrapper. */
   contextRowEl: HTMLElement;
+  /** Read-only context scope summary shown above the composer input. */
+  scopePreviewEl: HTMLElement;
 
   /** Cleanup functions for event listeners (prevents memory leaks). */
   eventCleanups: Array<() => void>;
