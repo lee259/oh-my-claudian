@@ -1413,6 +1413,11 @@ function initializeInputToolbar(
   // Wire external context changes
   tab.ui.externalContextSelector.setOnChange((paths) => {
     tab.ui.scopePreview?.setExternalContextPaths(paths);
+    if (tab.conversationId) {
+      void plugin.updateConversation(tab.conversationId, {
+        externalContextPaths: paths.length > 0 ? [...paths] : undefined,
+      });
+    }
     tab.ui.fileContextManager?.preScanExternalContexts();
     onCommandContextChanged?.();
     onUserModified?.();
