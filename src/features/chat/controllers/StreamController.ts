@@ -48,7 +48,6 @@ import { hasStreamingMathDelimiters } from '../../../utils/markdownMath';
 import { openVaultFile } from '../../../utils/obsidianCompat';
 import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
-import { FLAVOR_TEXTS } from '../constants';
 import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
 import { resolveSubagentAdapter } from '../rendering/subagentAdapterResolution';
 import {
@@ -1727,6 +1726,18 @@ export class StreamController {
 
   /** Debounce delay before showing thinking indicator (ms). */
   private static readonly THINKING_INDICATOR_DELAY = 400;
+  private static readonly FIRST_RESPONSE_WAIT_THRESHOLD = 5_000;
+  private static readonly SLOW_RESPONSE_THRESHOLD = 15_000;
+
+  private getThinkingStatus(elapsedMs: number): string {
+    if (elapsedMs >= StreamController.SLOW_RESPONSE_THRESHOLD) {
+      return 'The provider is taking longer than usual. You can stop and retry.';
+    }
+    if (elapsedMs >= StreamController.FIRST_RESPONSE_WAIT_THRESHOLD) {
+      return 'Waiting for the first response...';
+    }
+    return 'Starting agent...';
+  }
 
   /**
    * Schedules showing the thinking indicator after a delay.
@@ -1769,13 +1780,14 @@ export class StreamController {
         ? `claudian-thinking ${overrideCls}`
         : 'claudian-thinking';
       state.thinkingEl = state.currentContentEl.createDiv({ cls });
-      const text = overrideText || FLAVOR_TEXTS[Math.floor(Math.random() * FLAVOR_TEXTS.length)];
-      state.thinkingEl.createSpan({ text });
+      const statusSpan = state.thinkingEl.createSpan({
+        text: overrideText ?? this.getThinkingStatus(0),
+      });
 
       // Create timer span with initial value
       const timerSpan = state.thinkingEl.createSpan({ cls: 'claudian-thinking-hint' });
       const updateTimer = () => {
-        if (!state.responseStartTime) return;
+        if (state.responseStartTime === null) return;
         // Check if element is still connected to DOM (prevents orphaned interval updates)
         if (!timerSpan.isConnected) {
           if (state.flavorTimerInterval) {
@@ -1783,7 +1795,11 @@ export class StreamController {
           }
           return;
         }
-        const elapsedSeconds = Math.floor((performance.now() - state.responseStartTime) / 1000);
+        const elapsedMs = performance.now() - state.responseStartTime;
+        if (!overrideText) {
+          statusSpan.setText(this.getThinkingStatus(elapsedMs));
+        }
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
         timerSpan.setText(` (esc to interrupt · ${formatDurationMmSs(elapsedSeconds)})`);
       };
       updateTimer(); // Initial update

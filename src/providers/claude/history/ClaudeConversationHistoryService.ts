@@ -217,13 +217,22 @@ function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
   const result: ChatMessage[] = [];
 
   for (const message of messages) {
-    const existing = byId.get(message.id);
+    const keys = [
+      message.id,
+      message.userMessageId ? `user:${message.userMessageId}` : null,
+      message.assistantMessageId ? `assistant:${message.assistantMessageId}` : null,
+    ].filter((key): key is string => key !== null);
+    const existing = keys
+      .map(key => byId.get(key))
+      .find((candidate): candidate is ChatMessage => candidate !== undefined);
     if (existing) {
       mergeDuplicateMessage(existing, message);
       continue;
     }
 
-    byId.set(message.id, message);
+    for (const key of keys) {
+      byId.set(key, message);
+    }
     result.push(message);
   }
 
