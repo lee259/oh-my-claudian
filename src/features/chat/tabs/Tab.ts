@@ -67,6 +67,7 @@ import { createInputToolbar } from '../ui/InputToolbar';
 import { InstructionModeManager as InstructionModeManagerClass } from '../ui/InstructionModeManager';
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
+import { ScopePreview } from '../ui/ScopePreview';
 import { StatusPanel } from '../ui/StatusPanel';
 import { autoResizeTextarea } from '../ui/textareaResize';
 import { recalculateUsageForModel } from '../utils/usageInfo';
@@ -1088,6 +1089,7 @@ function initializeContextManagers(
           currentNote: notePath ?? undefined,
         });
       },
+      onScopeChanged: (notePath) => tab.ui.scopePreview?.setCurrentNote(notePath),
     },
     dom.inputContainerEl,
     contextTray,
@@ -1409,7 +1411,13 @@ function initializeInputToolbar(
   });
 
   // Wire external context changes
-  tab.ui.externalContextSelector.setOnChange(() => {
+  tab.ui.externalContextSelector.setOnChange((paths) => {
+    tab.ui.scopePreview?.setExternalContextPaths(paths);
+    if (tab.conversationId) {
+      void plugin.updateConversation(tab.conversationId, {
+        externalContextPaths: paths.length > 0 ? [...paths] : undefined,
+      });
+    }
     tab.ui.fileContextManager?.preScanExternalContexts();
     onCommandContextChanged?.();
     onUserModified?.();
@@ -1458,6 +1466,7 @@ export function initializeTabUI(
       tab.renderer?.scrollToBottomIfNeeded();
     },
   });
+  tab.ui.scopePreview = new ScopePreview(dom.scopePreviewEl);
   initializeContextManagers(tab, plugin, onUserModified);
 
   const catalogInfo = options.getProviderCatalogConfig?.() ?? null;
@@ -2127,6 +2136,10 @@ export async function destroyTab(tab: TabData): Promise<void> {
   cleanup.register('tab composer context tray', () => {
     tab.ui.contextTray?.destroy();
     tab.ui.contextTray = null;
+  });
+  cleanup.register('tab scope preview', () => {
+    tab.ui.scopePreview?.destroy();
+    tab.ui.scopePreview = null;
   });
   cleanup.register('tab image context manager', () => tab.ui.imageContextManager?.destroy());
   cleanup.register('tab file context manager', () => tab.ui.fileContextManager?.destroy());

@@ -26,6 +26,7 @@ export interface FileContextCallbacks {
   onChipsChanged?: () => void;
   onUserChipsChanged?: () => void;
   onCurrentNoteChanged?: (notePath: string | null) => void;
+  onScopeChanged?: (notePath: string | null) => void;
   getExternalContexts?: () => string[];
   /** Called when an agent is selected from the @ mention dropdown. */
   onAgentMentionSelect?: (agentId: string) => void;
@@ -170,6 +171,7 @@ export class FileContextManager {
     this.currentNotePath = null;
     this.state.resetForNewConversation();
     this.refreshCurrentNoteChip();
+    this.callbacks.onScopeChanged?.(null);
   }
 
   /** Resets state for loading an existing conversation. */
@@ -177,6 +179,7 @@ export class FileContextManager {
     this.currentNotePath = null;
     this.state.resetForLoadedConversation(hasMessages);
     this.refreshCurrentNoteChip();
+    this.callbacks.onScopeChanged?.(null);
   }
 
   /** Sets current note (for restoring persisted state). */
@@ -186,6 +189,7 @@ export class FileContextManager {
       this.state.attachFile(notePath);
     }
     this.refreshCurrentNoteChip();
+    this.callbacks.onScopeChanged?.(notePath);
   }
 
   /** Auto-attaches the currently focused file (for new sessions). */
@@ -197,6 +201,7 @@ export class FileContextManager {
         this.currentNotePath = normalizedPath;
         this.state.attachFile(normalizedPath);
         this.refreshCurrentNoteChip();
+        this.callbacks.onScopeChanged?.(normalizedPath);
       }
     }
   }

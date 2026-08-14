@@ -102,6 +102,7 @@ export function createTabRuntime(
     },
     ui: {
       contextTray: null,
+      scopePreview: null,
       fileContextManager: null,
       imageContextManager: null,
       modelSelector: null,
@@ -143,6 +144,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
   const navRowEl = inputContainerEl.createDiv({ cls: 'claudian-input-nav-row' });
   const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-input-wrapper' });
   const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-context-row' });
+  const scopePreviewEl = inputWrapper.createDiv({ cls: 'claudian-scope-preview' });
   const inputEl = inputWrapper.createEl('textarea', {
     cls: 'claudian-input',
     attr: {
@@ -174,6 +176,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     sendButtonEl,
     navRowEl,
     contextRowEl,
+    scopePreviewEl,
     eventCleanups: [],
   };
 }
