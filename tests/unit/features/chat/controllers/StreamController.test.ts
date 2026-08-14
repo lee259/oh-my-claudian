@@ -1302,6 +1302,27 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.flavorTimerInterval).not.toBeNull();
     });
 
+    it('should explain long initial waits instead of showing random flavor text', () => {
+      deps.state.responseStartTime = performance.now();
+
+      controller.showThinkingIndicator();
+      jest.advanceTimersByTime(500); // Past the debounce delay
+
+      const thinkingEl = deps.state.thinkingEl;
+      expect(thinkingEl?.children[0].textContent).toBe('Starting agent...');
+      (thinkingEl!.children[1] as any).isConnected = true;
+
+      deps.state.responseStartTime = performance.now() - 5_000;
+      jest.advanceTimersByTime(1_000);
+      expect(thinkingEl?.children[0].textContent).toBe('Waiting for the first response...');
+
+      deps.state.responseStartTime = performance.now() - 15_000;
+      jest.advanceTimersByTime(1_000);
+      expect(thinkingEl?.children[0].textContent).toBe(
+        'The provider is taking longer than usual. You can stop and retry.',
+      );
+    });
+
     it('should clear timer interval when hiding thinking indicator', () => {
       deps.state.responseStartTime = performance.now();
 

@@ -374,6 +374,58 @@ describe('ClaudeConversationHistoryService', () => {
   });
 
   describe('hydrateConversationHistory', () => {
+    it('does not duplicate live messages when native history uses different local ids', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation({
+        messages: [
+          {
+            id: 'live-user',
+            role: 'user',
+            content: 'PING',
+            timestamp: 1,
+            userMessageId: 'native-user',
+          },
+          {
+            id: 'live-assistant',
+            role: 'assistant',
+            content: 'PONG',
+            timestamp: 2,
+            assistantMessageId: 'native-assistant',
+          },
+        ],
+      });
+      jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+        ['session-1', {
+          availability: 'available',
+          sessionPath: '/vault/session-1.jsonl',
+        }],
+      ]));
+      jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
+        messages: [
+          {
+            id: 'native-user-local',
+            role: 'user',
+            content: 'PING',
+            timestamp: 1,
+            userMessageId: 'native-user',
+          },
+          {
+            id: 'native-assistant-local',
+            role: 'assistant',
+            content: 'PONG',
+            timestamp: 2,
+            assistantMessageId: 'native-assistant',
+          },
+        ],
+        skippedLines: 0,
+      });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(conversation.messages).toHaveLength(2);
+      expect(conversation.messages.map(message => message.content)).toEqual(['PING', 'PONG']);
+    });
+
     it('recovers an unlinked native transcript from the conversation timestamps', async () => {
       const service = new ClaudeConversationHistoryService();
       const conversation = createConversation({
