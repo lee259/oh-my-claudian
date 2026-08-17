@@ -44,6 +44,7 @@ import {
 import { getCodexModelOptions } from '../modelOptions';
 import {
   findCodexModel,
+  resolveCodexModelServiceTier,
   resolveCodexReasoningEffort,
 } from '../models';
 import { toCodexRuntimeModelId } from '../modelSelection';
@@ -103,6 +104,8 @@ const LEGACY_WORKSPACE_DEPENDENCY_INSTRUCTIONS =
   'This thread predates Oh My Claudian client-hosted workspace dependency tools. Do not emulate load_workspace_dependencies or install replacement dependencies.';
 const CODEX_SUPPORTS_EXACT_BUILT_IN_TOOL_ALLOW_LIST = false;
 const MISSED_TURN_COMPLETION_GRACE_MS = 1_000;
+const MISSED_TURN_COMPLETION_MAX_ATTEMPTS = 3;
+const MISSED_TURN_COMPLETION_RETRY_BASE_MS = 500;
 const THREAD_READ_RECOVERY_TIMEOUT_MS = 5_000;
 const CODEX_CONSUMED_FORK_STATE_KEYS = [
   'forkSource',
@@ -285,6 +288,10 @@ export class CodexExecutionSession
   private forkSetupPromise: Promise<CodexEnsuredThread> | null = null;
   private disposePromise: Promise<void> | null = null;
   private completionRecoveryTimer: number | null = null;
+  private completionRecoveryRetryTimer: number | null = null;
+  private completionRecoveryRun: CodexExecutionRun | null = null;
+  private completionRecoveryAttempts = 0;
+  private completionRecoveryInFlight = false;
   private disposed = false;
   private lifecycleGeneration = 0;
 
@@ -798,10 +805,16 @@ export class CodexExecutionSession
   private scheduleMissedTurnCompletionRecovery(run: CodexExecutionRun): void {
     if (
       this.completionRecoveryTimer
+      || this.completionRecoveryRetryTimer
       || !run.nativeThreadId
       || !run.nativeTurnId
+      || this.completionRecoveryInFlight
     ) {
       return;
+    }
+    if (this.completionRecoveryRun !== run) {
+      this.completionRecoveryRun = run;
+      this.completionRecoveryAttempts = 0;
     }
     const generation = this.lifecycleGeneration;
     this.completionRecoveryTimer = window.setTimeout(() => {
@@ -811,9 +824,17 @@ export class CodexExecutionSession
   }
 
   private cancelMissedTurnCompletionRecovery(): void {
-    if (this.completionRecoveryTimer === null) return;
-    window.clearTimeout(this.completionRecoveryTimer);
+    if (this.completionRecoveryTimer !== null) {
+      window.clearTimeout(this.completionRecoveryTimer);
+    }
+    if (this.completionRecoveryRetryTimer !== null) {
+      window.clearTimeout(this.completionRecoveryRetryTimer);
+    }
     this.completionRecoveryTimer = null;
+    this.completionRecoveryRetryTimer = null;
+    this.completionRecoveryRun = null;
+    this.completionRecoveryAttempts = 0;
+    this.completionRecoveryInFlight = false;
   }
 
   private async recoverMissedTurnCompletion(
@@ -835,6 +856,9 @@ export class CodexExecutionSession
       return;
     }
 
+    this.completionRecoveryInFlight = true;
+    this.completionRecoveryAttempts += 1;
+
     let result: ThreadReadResult;
     try {
       result = await transport.request<ThreadReadResult>(
@@ -843,8 +867,32 @@ export class CodexExecutionSession
         THREAD_READ_RECOVERY_TIMEOUT_MS,
       );
     } catch {
+      this.completionRecoveryInFlight = false;
+      this.retryMissedTurnCompletion(run, generation);
       return;
     }
+    this.completionRecoveryInFlight = false;
+    if (
+      this.activeRun !== run
+      || run.isTerminal
+      || run.isCancellationRequested
+      || generation !== this.lifecycleGeneration
+    ) {
+      this.retryMissedTurnCompletion(run, generation);
+      return;
+    }
+    const turn = result.thread.turns.find(candidate => candidate.id === turnId);
+    if (!turn || turn.status === 'inProgress') {
+      this.retryMissedTurnCompletion(run, generation);
+      return;
+    }
+    this.handleNotification('turn/completed', { threadId, turn });
+  }
+
+  private retryMissedTurnCompletion(
+    run: CodexExecutionRun,
+    generation: number,
+  ): void {
     if (
       this.activeRun !== run
       || run.isTerminal
@@ -853,9 +901,22 @@ export class CodexExecutionSession
     ) {
       return;
     }
-    const turn = result.thread.turns.find(candidate => candidate.id === turnId);
-    if (!turn || turn.status === 'inProgress') return;
-    this.handleNotification('turn/completed', { threadId, turn });
+    if (this.completionRecoveryAttempts < MISSED_TURN_COMPLETION_MAX_ATTEMPTS) {
+      const delay = MISSED_TURN_COMPLETION_RETRY_BASE_MS
+        * (2 ** (this.completionRecoveryAttempts - 1));
+      this.completionRecoveryRetryTimer = window.setTimeout(() => {
+        this.completionRecoveryRetryTimer = null;
+        this.scheduleMissedTurnCompletionRecovery(run);
+      }, delay);
+      return;
+    }
+    this.cancelMissedTurnCompletionRecovery();
+    this.finishError(
+      run,
+      'provider',
+      'Codex became idle, but its completed turn could not be recovered.',
+      true,
+    );
   }
 
   private observeNativeTurn(threadId: string, nativeTurnId: string): boolean {
@@ -2026,18 +2087,7 @@ function resolveCodexServiceTier(
     getCodexProviderSettings(settings).discoveredModels,
     modelId,
   );
-  if (!model) return null;
-  if (typeof serviceTier === 'string') {
-    if (model.serviceTiers.some(tier => tier.id === serviceTier)) {
-      return serviceTier;
-    }
-    if (serviceTier === 'fast') {
-      return model.serviceTiers.find(
-        tier => tier.name.toLowerCase() === 'fast',
-      )?.id ?? null;
-    }
-  }
-  return model.defaultServiceTier;
+  return resolveCodexModelServiceTier(model, serviceTier);
 }
 
 function shouldExposeDynamicTools(policy: ProviderToolPolicy): boolean {

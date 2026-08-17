@@ -261,6 +261,7 @@ export interface ProviderServiceTierToggleConfig {
   inactiveLabel: string;
   activeValue: string;
   activeLabel: string;
+  isActive?: boolean;
   description?: string;
 }
 

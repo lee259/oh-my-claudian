@@ -191,7 +191,13 @@ export class ClaudeInteractionHandler {
           interrupt: true,
         };
       }
-      if (decision === 'allow' || decision === 'allow-always') {
+      if (decision === 'allow') {
+        return {
+          behavior: 'allow',
+          updatedInput: input,
+        };
+      }
+      if (decision === 'allow-always') {
         return {
           behavior: 'allow',
           updatedInput: input,

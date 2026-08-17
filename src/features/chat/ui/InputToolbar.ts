@@ -539,14 +539,17 @@ export class ServiceTierToggle {
 
     this.container.removeClass('claudian-hidden');
     const current = this.callbacks.getSettings().serviceTier;
-    const isActive = current === toggleConfig.activeValue;
+    const isActive = toggleConfig.isActive ?? current === toggleConfig.activeValue;
     if (isActive) {
       this.buttonEl.addClass('active');
     } else {
       this.buttonEl.removeClass('active');
     }
 
-    this.container.setAttribute('title', 'Toggle on/off fast mode');
+    const currentLabel = isActive
+      ? toggleConfig.activeLabel
+      : toggleConfig.inactiveLabel;
+    this.container.setAttribute('title', `Fast mode: ${currentLabel}`);
   }
 
   async toggle(): Promise<boolean> {

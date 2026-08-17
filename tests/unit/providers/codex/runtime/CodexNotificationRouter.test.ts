@@ -42,6 +42,28 @@ describe('CodexNotificationRouter', () => {
       ]);
     });
 
+    it('reconciles the completed agent message when the final delta is missing', () => {
+      router.handleNotification('item/started', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: { type: 'agentMessage', id: 'msg1', text: '', phase: 'streaming', memoryCitation: null },
+      });
+      router.handleNotification('item/agentMessage/delta', {
+        threadId: 't1', turnId: 'turn1', itemId: 'msg1', delta: 'Hello',
+      });
+      router.handleNotification('item/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: { type: 'agentMessage', id: 'msg1', text: 'Hello world', phase: 'final', memoryCitation: null },
+      });
+
+      expect(chunks).toEqual([
+        { type: 'assistant_message_start', itemId: 'msg1' },
+        { type: 'text', content: 'Hello' },
+        { type: 'text', content: ' world' },
+      ]);
+    });
+
     it('emits only missing assistant text from raw completed messages', () => {
       router.handleNotification('item/agentMessage/delta', {
         threadId: 't1',
