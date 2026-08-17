@@ -805,7 +805,7 @@ describe('ServiceTierToggle', () => {
     const container = parentEl.querySelector('.claudian-service-tier-toggle');
     expect(button?.hasClass('active')).toBe(false);
     expect(icon).not.toBeNull();
-    expect(container?.getAttribute('title')).toBe('Toggle on/off fast mode');
+    expect(container?.getAttribute('title')).toBe('Fast mode: Standard');
   });
 
   it('renders the icon button in the active state when fast mode is on', () => {
@@ -822,7 +822,7 @@ describe('ServiceTierToggle', () => {
     const button = parentEl2.querySelector('.claudian-service-tier-button');
     const container = parentEl2.querySelector('.claudian-service-tier-toggle');
     expect(button?.hasClass('active')).toBe(true);
-    expect(container?.getAttribute('title')).toBe('Toggle on/off fast mode');
+    expect(container?.getAttribute('title')).toBe('Fast mode: Fast');
   });
 
   it('toggles from Standard to Fast on click', async () => {

@@ -93,6 +93,21 @@ describe('createClaudeExecutionCanUseTool', () => {
     expect(onToolBlocked).toHaveBeenCalledWith('native-tool-1');
   });
 
+  it('keeps allow-once approvals scoped to the current invocation', async () => {
+    const port = createPort();
+    port.requestApproval.mockResolvedValue({
+      interactionId: 'claude:session-local:native-tool-1',
+      decision: 'allow',
+    });
+    const handler = createHandler(port);
+
+    await expect(handler('Bash', { command: 'git status' }, nativeOptions))
+      .resolves.toEqual({
+        behavior: 'allow',
+        updatedInput: { command: 'git status' },
+      });
+  });
+
   it('routes direct edits outside the vault through the approval flow', async () => {
     const port = createPort();
     const handler = createHandler(port, jest.fn(), '/vault');
