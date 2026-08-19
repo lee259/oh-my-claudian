@@ -139,6 +139,19 @@ function isResultError(message: { type: 'result'; subtype: string }): message is
   return !!message.subtype && message.subtype !== 'success';
 }
 
+function getAssistantText(message: Extract<SDKMessage, { type: 'assistant' }>): string | undefined {
+  if (!message.message?.content || !Array.isArray(message.message.content)) {
+    return undefined;
+  }
+
+  const text = message.message.content
+    .flatMap(block => block.type === 'text' && 'text' in block && typeof block.text === 'string' ? [block.text.trim()] : [])
+    .filter(Boolean)
+    .join('\n');
+
+  return text || undefined;
+}
+
 function normalizeClaudeModelId(model: string): string {
   const normalized = model.trim().toLowerCase();
   const claudeIndex = normalized.indexOf('claude-');
@@ -446,10 +459,16 @@ export function* transformSDKMessage(
 
     case 'assistant': {
       const parentToolUseId = message.parent_tool_use_id ?? null;
+      const assistantText = getAssistantText(message);
 
       // Errors on assistant messages (e.g. rate_limit, billing_error)
       if (message.error) {
-        yield { type: 'error', content: message.error };
+        yield {
+          type: 'error',
+          content: 'isApiErrorMessage' in message && message.isApiErrorMessage && assistantText
+            ? assistantText
+            : message.error,
+        };
       }
 
       if (message.message?.content && Array.isArray(message.message.content)) {
