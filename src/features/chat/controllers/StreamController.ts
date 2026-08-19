@@ -49,6 +49,7 @@ import { openVaultFile } from '../../../utils/obsidianCompat';
 import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { FLAVOR_TEXTS } from '../constants';
+import { hasDiagramFence } from '../rendering/DisplayOnlyCodeFences';
 import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
 import { resolveSubagentAdapter } from '../rendering/subagentAdapterResolution';
 import {
@@ -529,10 +530,20 @@ export class StreamController {
     return this.deps.plugin.settings.expandFileEditsByDefault === true;
   }
 
+  private shouldDeferDiagramRendering(content: string): boolean {
+    return this.deps.plugin.settings.renderDiagramsInChat === true
+      && hasDiagramFence(content);
+  }
+
   private getStreamingRenderOptions(content: string): RenderContentOptions | undefined {
-    return this.shouldDeferMathRendering() && hasStreamingMathDelimiters(content)
-      ? { deferMath: true }
-      : undefined;
+    const options: RenderContentOptions = {};
+    if (this.shouldDeferMathRendering() && hasStreamingMathDelimiters(content)) {
+      options.deferMath = true;
+    }
+    if (this.shouldDeferDiagramRendering(content)) {
+      options.deferDiagrams = true;
+    }
+    return options.deferMath || options.deferDiagrams ? options : undefined;
   }
 
   private capturePlanFilePath(input: Record<string, unknown>): void {
@@ -1088,11 +1099,7 @@ export class StreamController {
     const textEl = state.currentTextEl;
     const content = state.currentTextContent;
 
-    if (
-      textEl
-      && this.shouldDeferMathRendering()
-      && hasStreamingMathDelimiters(content)
-    ) {
+    if (textEl && this.getStreamingRenderOptions(content)) {
       this.textRenderCoordinator.request({ el: textEl, content });
     }
     await this.textRenderCoordinator.flush();
