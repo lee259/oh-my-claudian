@@ -20,6 +20,20 @@ body.theme-light .claudian-message-content pre {
   background: rgba(0, 0, 0, 0.08);
 }
 
+/* Rendered mermaid diagrams are graphics, not code surfaces */
+.claudian-message-content .block-language-mermaid,
+.claudian-code-wrapper pre.mermaid,
+.claudian-message-content pre.mermaid {
+  background: transparent;
+  padding: 0;
+  text-align: center;
+}
+
+.claudian-message-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Code blocks without language - wrap content */
 .claudian-code-wrapper:not(.has-language) pre {
   white-space: pre-wrap;

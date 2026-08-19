@@ -38,6 +38,7 @@ import { findRewindContext } from '../rewind';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
 import {
+  DIAGRAM_FENCE_LANGUAGES,
   prepareDisplayOnlyCodeFences,
   restoreDisplayOnlyCodeFences,
 } from './DisplayOnlyCodeFences';
@@ -53,6 +54,8 @@ import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
   deferMath?: boolean;
+  /** Keeps diagram fences inert while content is still streaming in. */
+  deferDiagrams?: boolean;
 }
 
 export type RenderContentFn = (
@@ -773,6 +776,13 @@ export class MessageRenderer {
   // Content Rendering
   // ============================================
 
+  private resolveRenderedFenceLanguages(options?: RenderContentOptions): readonly string[] {
+    if (options?.deferDiagrams) return [];
+    return this.plugin.settings.renderDiagramsInChat === true
+      ? DIAGRAM_FENCE_LANGUAGES
+      : [];
+  }
+
   /**
    * Renders markdown content with code block enhancements.
    */
@@ -792,7 +802,9 @@ export class MessageRenderer {
       // as plain text. Trusted plugin markup (image embeds) is injected only
       // after this step, otherwise it would be escaped too.
       const safeMarkdown = escapeRawHtmlTags(renderMarkdown);
-      const displayOnlyCodeFences = prepareDisplayOnlyCodeFences(safeMarkdown);
+      const displayOnlyCodeFences = prepareDisplayOnlyCodeFences(safeMarkdown, {
+        renderedLanguages: this.resolveRenderedFenceLanguages(options),
+      });
       const processedMarkdown = replaceImageEmbedsWithHtml(
         displayOnlyCodeFences.markdown,
         this.app,
