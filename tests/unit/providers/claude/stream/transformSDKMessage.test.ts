@@ -1811,6 +1811,27 @@ describe('transformSDKMessage', () => {
   });
 
   describe('error messages', () => {
+    it('uses descriptive assistant text for API errors when available', () => {
+      const message = msg({
+        type: 'assistant',
+        error: 'rate_limit',
+        isApiErrorMessage: true,
+        apiErrorStatus: 429,
+        message: {
+          content: [
+            { type: 'text', text: "You've hit your session limit · resets 4:10pm (Europe/Berlin)" },
+          ],
+        },
+      });
+
+      const results = [...transformSDKMessage(message)];
+
+      expect(results[0]).toEqual({
+        type: 'error',
+        content: "You've hit your session limit · resets 4:10pm (Europe/Berlin)",
+      });
+    });
+
     it('yields error event from assistant message with error field', () => {
       const message = msg({
         type: 'assistant',
