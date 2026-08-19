@@ -176,6 +176,7 @@ export interface ClaudianSettings {
   maxWarmAgentProcesses: number;
   enableAutoScroll: boolean;
   deferMathRenderingDuringStreaming: boolean;
+  renderDiagramsInChat: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
   enableDualPane: boolean;
