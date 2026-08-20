@@ -3,9 +3,13 @@ import type {
   Query,
   SDKMessage,
   SDKUserMessage,
+  WarmQuery,
 } from '@anthropic-ai/claude-agent-sdk';
 
-import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
+import {
+  loadClaudeAgentQuery,
+  loadClaudeAgentStartup,
+} from '../loadClaudeAgentSdk';
 import { runColdStartQuery } from '../runtime/claudeColdStartQuery';
 import { MessageChannel } from '../runtime/ClaudeMessageChannel';
 import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
@@ -71,6 +75,7 @@ implements ClaudeExecutionStrategy {
   private consumerPromise: Promise<void> | null = null;
   private currentConfig: ClaudeEncodedExecutionRequest | null = null;
   private activeNativeTurn: PersistentNativeTurn | null = null;
+  private warmQuery: WarmQuery | null = null;
   private authoritativeContextWindow: {
     readonly query: Query;
     readonly model: string;
@@ -135,10 +140,10 @@ implements ClaudeExecutionStrategy {
 
   async warmup(
     request: ClaudeEncodedExecutionRequest,
-    queryToken: number,
   ): Promise<void> {
-    if (this.disposed || this.query) return;
-    const preparation = this.queryPreparation ?? this.ensureQuery(request, queryToken);
+    if (this.disposed || this.query || this.warmQuery) return;
+    const preparation = this.queryPreparation
+      ?? this.prepareWarmQuery(request);
     this.queryPreparation = preparation;
     try {
       await preparation;
@@ -196,6 +201,8 @@ implements ClaudeExecutionStrategy {
     if (this.disposed) return;
     this.disposed = true;
     const query = this.query;
+    const warmQuery = this.warmQuery;
+    this.warmQuery = null;
     this.messageChannel?.close();
     this.abortController?.abort();
     this.query = null;
@@ -211,6 +218,7 @@ implements ClaudeExecutionStrategy {
       });
       await query.interrupt().catch(() => undefined);
     }
+    warmQuery?.close();
     await this.consumerPromise?.catch(() => undefined);
     this.consumerPromise = null;
     this.currentConfig = null;
@@ -241,6 +249,11 @@ implements ClaudeExecutionStrategy {
       return;
     }
 
+    if (this.warmQuery) {
+      this.activateWarmQuery(request, queryToken);
+      return;
+    }
+
     const agentQuery = await loadClaudeAgentQuery();
     requestSignal?.throwIfAborted();
     if (this.disposed) {
@@ -267,6 +280,43 @@ implements ClaudeExecutionStrategy {
     this.contextWindowDiscovery = null;
     this.sink.handleNativeQueryOpened(query);
     this.consumerPromise = this.consume(query, queryToken);
+  }
+
+  private activateWarmQuery(
+    request: ClaudeEncodedExecutionRequest,
+    queryToken: number,
+  ): void {
+    const warmQuery = this.warmQuery;
+    if (!warmQuery) return;
+    this.warmQuery = null;
+    const messageChannel = new MessageChannel();
+    const query = warmQuery.query(messageChannel);
+    this.messageChannel = messageChannel;
+    this.query = query;
+    this.currentConfig = request;
+    this.authoritativeContextWindow = null;
+    this.contextWindowDiscovery = null;
+    this.sink.handleNativeQueryOpened(query);
+    this.consumerPromise = this.consume(query, queryToken);
+  }
+
+  private async prepareWarmQuery(
+    request: ClaudeEncodedExecutionRequest,
+  ): Promise<void> {
+    const startup = await loadClaudeAgentStartup();
+    const abortController = new AbortController();
+    const options: Options = {
+      ...request.options,
+      abortController,
+    };
+    const warmQuery = await startup({ options });
+    if (this.disposed) {
+      warmQuery.close();
+      return;
+    }
+    this.abortController = abortController;
+    this.warmQuery = warmQuery;
+    this.currentConfig = request;
   }
 
   private async applyDynamicUpdates(
@@ -400,6 +450,8 @@ implements ClaudeExecutionStrategy {
 
   private async closeCurrentQuery(): Promise<void> {
     const query = this.query;
+    const warmQuery = this.warmQuery;
+    this.warmQuery = null;
     if (query) {
       this.detachCurrentQuery(query);
       this.finishNativeTurn(query, {
@@ -409,6 +461,12 @@ implements ClaudeExecutionStrategy {
     }
     if (query) {
       await query.interrupt().catch(() => undefined);
+    }
+    warmQuery?.close();
+    if (!query) {
+      this.abortController?.abort();
+      this.abortController = null;
+      this.currentConfig = null;
     }
   }
 

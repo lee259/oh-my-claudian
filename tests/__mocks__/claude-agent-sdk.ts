@@ -204,6 +204,7 @@ export function getQueryCallCount(): number {
   return queryCallCount;
 }
 
+
 export function getLastOptions(): Options | undefined {
   return lastOptions;
 }

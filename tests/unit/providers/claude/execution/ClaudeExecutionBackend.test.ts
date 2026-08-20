@@ -261,6 +261,32 @@ describe('ClaudeExecutionBackend', () => {
     ]);
   });
 
+  it('uses the SDK startup handle when a persistent session is warmed up', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'warmed-session' },
+      { type: 'result', subtype: 'success' },
+    ]);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+    const startup = jest.spyOn(
+      await import('@/providers/claude/loadClaudeAgentSdk'),
+      'loadClaudeAgentStartup',
+    ).mockResolvedValue((async (params: { options?: sdkModule.Options } = {}) => ({
+      query: (prompt: string | AsyncIterable<sdkModule.SDKUserMessage>) => (
+        sdkModule.query({ prompt, options: params.options }) as never
+      ),
+      close: jest.fn(),
+      [Symbol.asyncDispose]: async () => undefined,
+    })) as never);
+
+    await session.warmup?.(createRequest());
+    await collectEvents(session.execute(createRequest()).events);
+
+    expect(startup).toHaveBeenCalledTimes(1);
+    expect(sdkMock.getQueryCallCount()).toBe(1);
+  });
+
   it('resumes and materializes a pending fork without losing opaque provider state', async () => {
     sdkMock.setMockMessages([
       { type: 'system', subtype: 'init', session_id: 'forked-session' },

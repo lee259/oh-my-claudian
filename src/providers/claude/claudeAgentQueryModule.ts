@@ -1,1 +1,1 @@
-export { query } from '@anthropic-ai/claude-agent-sdk';
+export { query, startup } from '@anthropic-ai/claude-agent-sdk';
