@@ -161,8 +161,8 @@ implements ClaudeExecutionStrategy {
     this.queryPreparation = preparation;
     try {
       await preparation;
-      trace.mark('query-ready');
-      trace.measure('startup', 'start', 'query-ready');
+      trace.mark('query-created');
+      trace.measure('query-created', 'start', 'query-created');
     } finally {
       if (this.queryPreparation === preparation) {
         this.queryPreparation = null;
@@ -384,6 +384,19 @@ implements ClaudeExecutionStrategy {
           this.sink.publishCommands(query, queryToken);
         }
         const nativeTurn = this.getNativeTurn(query);
+        if (message.type === 'system' && message.subtype === 'init') {
+          const trace = nativeTurn
+            ? this.nativeTurnTraces.get(nativeTurn.queryToken)
+            : undefined;
+          if (trace) {
+            trace.mark('session-init');
+            trace.measure(
+              'enqueue-to-session-init',
+              'enqueued',
+              'session-init',
+            );
+          }
+        }
         await this.sink.handleNativeMessage(
           message,
           nativeTurn?.queryToken ?? queryToken,
