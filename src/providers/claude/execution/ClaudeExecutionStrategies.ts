@@ -97,7 +97,7 @@ implements ClaudeExecutionStrategy {
     queryToken: number,
   ): Promise<void> {
     const requestSignal = request.options.abortController?.signal;
-    const trace = createClaudePerformanceTrace('native-turn');
+    const trace = createClaudePerformanceTrace(`native-turn-${queryToken}`);
     this.nativeTurnTraces.set(queryToken, trace);
     const priorTurn = this.activeNativeTurn;
     if (priorTurn) {
@@ -152,7 +152,7 @@ implements ClaudeExecutionStrategy {
     queryToken: number,
   ): Promise<void> {
     if (this.disposed || this.query) return;
-    const trace = createClaudePerformanceTrace('warmup');
+    const trace = createClaudePerformanceTrace(`warmup-${queryToken}`);
     const preparation = this.queryPreparation ?? this.ensureQuery(request, queryToken);
     this.queryPreparation = preparation;
     try {
