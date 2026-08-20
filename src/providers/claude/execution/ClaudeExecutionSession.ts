@@ -200,7 +200,9 @@ ClaudeExecutionStrategySink {
     const turnId = randomUUID();
     const abortController = new AbortController();
     const queryToken = ++this.queryToken;
-    const performanceTrace = createClaudePerformanceTrace(`turn-${queryToken}`);
+    const performanceTrace = createClaudePerformanceTrace(
+      `turn-${this.sessionInstanceId}-${queryToken}`,
+    );
     const onRequestAbort = (): void => this.cancel();
     const events = new AsyncEventStream<ProviderExecutionEvent>(() => {
       this.cancel();
