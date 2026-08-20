@@ -8,6 +8,7 @@ import type {
 import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
 import { runColdStartQuery } from '../runtime/claudeColdStartQuery';
 import { MessageChannel } from '../runtime/ClaudeMessageChannel';
+import { createClaudePerformanceTrace } from '../runtime/ClaudePerformance';
 import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
 import type { ClaudeEncodedExecutionRequest } from './ClaudeExecutionRequestEncoder';
 
@@ -138,10 +139,13 @@ implements ClaudeExecutionStrategy {
     queryToken: number,
   ): Promise<void> {
     if (this.disposed || this.query) return;
+    const trace = createClaudePerformanceTrace('warmup');
     const preparation = this.queryPreparation ?? this.ensureQuery(request, queryToken);
     this.queryPreparation = preparation;
     try {
       await preparation;
+      trace.mark('query-ready');
+      trace.measure('startup', 'start', 'query-ready');
     } finally {
       if (this.queryPreparation === preparation) {
         this.queryPreparation = null;

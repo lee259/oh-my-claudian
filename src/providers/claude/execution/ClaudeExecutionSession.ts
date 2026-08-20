@@ -30,9 +30,16 @@ import {
   isSessionMissingError,
 } from '../../../utils/session';
 import type { ClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
+import {
+  type ClaudePerformanceTrace,
+  createClaudePerformanceTrace,
+} from '../runtime/ClaudePerformance';
 import { executeClaudeRewind } from '../runtime/ClaudeRewindService';
 import { getClaudeState } from '../types/providerState';
-import { ClaudeExecutionEventNormalizer } from './ClaudeExecutionEventNormalizer';
+import {
+  ClaudeExecutionEventNormalizer,
+  type ClaudeNormalizedOutputEvent,
+} from './ClaudeExecutionEventNormalizer';
 import {
   type ClaudeEncodedExecutionRequest,
   ClaudeExecutionRequestEncoder,
@@ -54,6 +61,7 @@ interface ActiveRequestedRun {
   readonly requestSignal: AbortSignal;
   readonly onRequestAbort: () => void;
   readonly queryToken: number;
+  readonly performanceTrace: ClaudePerformanceTrace;
   sequence: number;
   accepted: boolean;
   nativeFork: boolean;
@@ -62,6 +70,7 @@ interface ActiveRequestedRun {
   nativeUserMessageId?: string;
   nativeAssistantId?: string;
   planCompleted: boolean;
+  firstOutputRecorded: boolean;
   terminal: boolean;
 }
 
@@ -190,6 +199,7 @@ ClaudeExecutionStrategySink {
     const executionId = randomUUID();
     const turnId = randomUUID();
     const abortController = new AbortController();
+    const performanceTrace = createClaudePerformanceTrace('turn');
     const queryToken = ++this.queryToken;
     const onRequestAbort = (): void => this.cancel();
     const events = new AsyncEventStream<ProviderExecutionEvent>(() => {
@@ -203,12 +213,14 @@ ClaudeExecutionStrategySink {
       requestSignal: request.signal,
       onRequestAbort,
       queryToken,
+      performanceTrace,
       sequence: 0,
       accepted: false,
       nativeFork: false,
       nativeHandedOff: false,
       historyReplayGeneration: null,
       planCompleted: false,
+      firstOutputRecorded: false,
       terminal: false,
     };
     this.activeRun = active;
@@ -501,6 +513,14 @@ ClaudeExecutionStrategySink {
     }
     for (const normalized of normalizedEvents) {
       if (normalized.type === 'session_init') {
+        if (active) {
+          active.performanceTrace.mark('session-init');
+          active.performanceTrace.measure(
+            'to-session-init',
+            'start',
+            'session-init',
+          );
+        }
         const event = normalized.event;
         this.captureProviderSession(event.sessionId);
         if (event.agents) {
@@ -534,6 +554,19 @@ ClaudeExecutionStrategySink {
         continue;
       }
       if (normalized.type === 'output') {
+        if (
+          active
+          && !active.firstOutputRecorded
+          && isFirstOutputEvent(normalized.event)
+        ) {
+          active.firstOutputRecorded = true;
+          active.performanceTrace.mark('first-output');
+          active.performanceTrace.measure(
+            'to-first-output',
+            'start',
+            'first-output',
+          );
+        }
         const target = this.getOutputTarget();
         if (target) {
           this.emitTurnOutput(target, normalized.event);
@@ -1220,6 +1253,12 @@ function isRequestedTurnEvidence(message: SDKMessage): boolean {
     || message.type === 'assistant'
     || message.type === 'stream_event'
     || message.type === 'result';
+}
+
+function isFirstOutputEvent(event: ClaudeNormalizedOutputEvent): boolean {
+  return event.type === 'text_delta'
+    || event.type === 'thinking_delta'
+    || event.type === 'tool_started';
 }
 
 class AsyncEventStream<T> implements AsyncIterable<T> {
