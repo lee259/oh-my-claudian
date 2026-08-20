@@ -68,12 +68,29 @@ describe('transformSDKMessage', () => {
       const message = msg({
         type: 'system',
         subtype: 'compact_boundary',
+        compact_metadata: {
+          trigger: 'auto',
+          pre_tokens: 190000,
+          post_tokens: 30000,
+        },
       });
 
       const results = [...transformSDKMessage(message)];
 
       expect(results).toEqual([
         { type: 'context_compacted' },
+        {
+          type: 'usage',
+          usage: {
+            model: 'sonnet',
+            inputTokens: 30000,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            contextWindow: 1000000,
+            contextTokens: 30000,
+            percentage: 3,
+          },
+        },
       ]);
     });
 
@@ -1020,6 +1037,54 @@ describe('transformSDKMessage', () => {
             percentage: 0,
           },
         },
+      ]);
+    });
+
+    it('does not duplicate assistant usage at result or use cumulative model usage tokens', () => {
+      const usageState = createTransformUsageState();
+      const assistantMessage = msg({
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: {
+          content: [{ type: 'text', text: 'Done' }],
+          usage: {
+            input_tokens: 120,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 30,
+          },
+        },
+      });
+      const resultMessage = msg({
+        type: 'result',
+        subtype: 'success',
+        modelUsage: {
+          sonnet: {
+            inputTokens: 900,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 500,
+            contextWindow: 200000,
+          },
+        },
+      });
+
+      const assistantResults = [...transformSDKMessage(assistantMessage, {
+        intendedModel: 'sonnet',
+        usageState,
+      })];
+      const resultResults = [...transformSDKMessage(resultMessage, {
+        intendedModel: 'sonnet',
+        usageState,
+      })];
+
+      expect(assistantResults).toContainEqual({
+        type: 'usage',
+        usage: expect.objectContaining({
+          contextTokens: 150,
+          percentage: 0,
+        }),
+      });
+      expect(resultResults).toEqual([
+        { type: 'context_window', contextWindow: 200000 },
       ]);
     });
 
