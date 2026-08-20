@@ -101,6 +101,7 @@ ClaudeExecutionStrategySink {
   private revision = 0;
   private snapshotInvalidation: ProviderSessionInvalidation | null = null;
   private activeRun: ActiveRequestedRun | null = null;
+  private warmupPromise: Promise<void> | null = null;
   private backgroundTurn: BackgroundTurn | null = null;
   private backgroundCounter = 0;
   private sessionSequence = 0;
@@ -233,8 +234,15 @@ ClaudeExecutionStrategySink {
     };
   }
 
-  async warmup(request: ProviderExecutionRequest): Promise<void> {
+  async warmup(request?: ProviderExecutionRequest): Promise<void> {
     if (this.config.lifecycle !== 'persistent' || this.disposed || this.activeRun) return;
+    const warmupRequest = request ?? createRewindPreparationRequest();
+    const warmupPromise = this.runWarmup(warmupRequest);
+    this.warmupPromise = warmupPromise;
+    await warmupPromise;
+  }
+
+  private async runWarmup(request: ProviderExecutionRequest): Promise<void> {
     const abortController = new AbortController();
     try {
       const encoded = await this.encoder.encode(
@@ -248,6 +256,10 @@ ClaudeExecutionStrategySink {
       await this.strategy.warmup(encoded, this.queryToken);
     } catch {
       // Warmup is best effort; execute() retains the cold-start fallback.
+    } finally {
+      if (this.warmupPromise) {
+        this.warmupPromise = null;
+      }
     }
   }
 
@@ -786,6 +798,7 @@ ClaudeExecutionStrategySink {
       if (this.activeRun !== active || active.terminal) return;
       this.lastEncodedRequest = encoded;
       this.lastAllowedTools = encoded.allowedTools;
+      await this.warmupPromise?.catch(() => undefined);
       await this.strategy.startTurn(encoded, active.queryToken);
     } catch (error) {
       if (this.activeRun === active && !active.terminal) {

@@ -36,7 +36,7 @@ export interface ProviderExecutionSession {
   readonly providerId: ProviderId;
   readonly sessionInstanceId: string;
   /** Best-effort provider-native warmup; execute() must remain the fallback. */
-  warmup?(request: ProviderExecutionRequest): Promise<void>;
+  warmup?(request?: ProviderExecutionRequest): Promise<void>;
   execute(request: ProviderExecutionRequest): ProviderExecutionRun;
   cancel(): void;
   getSnapshot(): ProviderSessionSnapshot;

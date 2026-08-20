@@ -318,8 +318,11 @@ export class ChatExecutionCoordinator {
       return;
     }
     if (this.sessionBinding && this.isBindingCurrent(this.sessionBinding)) {
-      if (request && this.sessionBinding.session.warmup) {
-        this.trackBindingWork(this.sessionBinding, this.sessionBinding.session.warmup(request));
+      if (this.sessionBinding.session.warmup) {
+        this.trackBindingWork(
+          this.sessionBinding,
+          this.sessionBinding.session.warmup(request),
+        );
       }
       return;
     }
@@ -369,7 +372,7 @@ export class ChatExecutionCoordinator {
         ) {
           this.deps.warmExecution?.onWarmStateChanged?.(true);
         }
-        if (request && binding.session.warmup) {
+        if (binding.session.warmup) {
           this.trackBindingWork(binding, binding.session.warmup(request));
         }
       } catch (error) {
