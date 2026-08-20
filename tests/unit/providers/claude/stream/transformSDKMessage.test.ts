@@ -1040,6 +1040,54 @@ describe('transformSDKMessage', () => {
       ]);
     });
 
+    it('does not duplicate assistant usage at result or use cumulative model usage tokens', () => {
+      const usageState = createTransformUsageState();
+      const assistantMessage = msg({
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: {
+          content: [{ type: 'text', text: 'Done' }],
+          usage: {
+            input_tokens: 120,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 30,
+          },
+        },
+      });
+      const resultMessage = msg({
+        type: 'result',
+        subtype: 'success',
+        modelUsage: {
+          sonnet: {
+            inputTokens: 900,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 500,
+            contextWindow: 200000,
+          },
+        },
+      });
+
+      const assistantResults = [...transformSDKMessage(assistantMessage, {
+        intendedModel: 'sonnet',
+        usageState,
+      })];
+      const resultResults = [...transformSDKMessage(resultMessage, {
+        intendedModel: 'sonnet',
+        usageState,
+      })];
+
+      expect(assistantResults).toContainEqual({
+        type: 'usage',
+        usage: expect.objectContaining({
+          contextTokens: 150,
+          percentage: 0,
+        }),
+      });
+      expect(resultResults).toEqual([
+        { type: 'context_window', contextWindow: 200000 },
+      ]);
+    });
+
     it('uses an authoritative context window supplied by the SDK runtime', () => {
       const usageState = createTransformUsageState();
       const assistantMessage = msg({
