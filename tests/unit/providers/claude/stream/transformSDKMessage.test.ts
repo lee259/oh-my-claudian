@@ -68,12 +68,29 @@ describe('transformSDKMessage', () => {
       const message = msg({
         type: 'system',
         subtype: 'compact_boundary',
+        compact_metadata: {
+          trigger: 'auto',
+          pre_tokens: 190000,
+          post_tokens: 30000,
+        },
       });
 
       const results = [...transformSDKMessage(message)];
 
       expect(results).toEqual([
         { type: 'context_compacted' },
+        {
+          type: 'usage',
+          usage: {
+            model: 'sonnet',
+            inputTokens: 30000,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            contextWindow: 1000000,
+            contextTokens: 30000,
+            percentage: 3,
+          },
+        },
       ]);
     });
 
