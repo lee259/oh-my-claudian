@@ -8,10 +8,6 @@ import type {
 import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
 import { runColdStartQuery } from '../runtime/claudeColdStartQuery';
 import { MessageChannel } from '../runtime/ClaudeMessageChannel';
-import {
-  type ClaudePerformanceTrace,
-  createClaudePerformanceTrace,
-} from '../runtime/ClaudePerformance';
 import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
 import type { ClaudeEncodedExecutionRequest } from './ClaudeExecutionRequestEncoder';
 
@@ -75,7 +71,6 @@ implements ClaudeExecutionStrategy {
   private consumerPromise: Promise<void> | null = null;
   private currentConfig: ClaudeEncodedExecutionRequest | null = null;
   private activeNativeTurn: PersistentNativeTurn | null = null;
-  private readonly nativeTurnTraces = new Map<number, ClaudePerformanceTrace>();
   private authoritativeContextWindow: {
     readonly query: Query;
     readonly model: string;
@@ -97,15 +92,9 @@ implements ClaudeExecutionStrategy {
     queryToken: number,
   ): Promise<void> {
     const requestSignal = request.options.abortController?.signal;
-    const trace = createClaudePerformanceTrace(
-      `native-turn-${this.sink.sessionInstanceId}-${queryToken}`,
-    );
-    this.nativeTurnTraces.set(queryToken, trace);
     const priorTurn = this.activeNativeTurn;
     if (priorTurn) {
       const outcome = await priorTurn.completion;
-      trace.mark('prior-complete');
-      trace.measure('prior-turn-wait', 'start', 'prior-complete');
       requestSignal?.throwIfAborted();
       if (outcome.type === 'failed') {
         throw outcome.error;
@@ -116,9 +105,6 @@ implements ClaudeExecutionStrategy {
     this.preparingTurnToken = queryToken;
     try {
       await this.ensureQuery(request, queryToken);
-      trace.mark('query-ready');
-      trace.measure('query-ensure', 'start', 'query-ready');
-      trace.measure('query-after-prior', 'prior-complete', 'query-ready');
       requestSignal?.throwIfAborted();
       if (!this.query || !this.messageChannel) {
         throw new Error('Claude persistent query is unavailable');
@@ -138,8 +124,6 @@ implements ClaudeExecutionStrategy {
       requestSignal?.throwIfAborted();
       const query = this.query;
       this.messageChannel.enqueue(message);
-      trace.mark('enqueued');
-      trace.measure('query-to-enqueue', 'query-ready', 'enqueued');
       this.activeNativeTurn = createPersistentNativeTurn(query, queryToken);
       this.sink.markNativeTurnHandedOff(queryToken);
     } finally {
@@ -154,15 +138,10 @@ implements ClaudeExecutionStrategy {
     queryToken: number,
   ): Promise<void> {
     if (this.disposed || this.query) return;
-    const trace = createClaudePerformanceTrace(
-      `warmup-${this.sink.sessionInstanceId}-${queryToken}`,
-    );
     const preparation = this.queryPreparation ?? this.ensureQuery(request, queryToken);
     this.queryPreparation = preparation;
     try {
       await preparation;
-      trace.mark('query-created');
-      trace.measure('query-created', 'start', 'query-created');
     } finally {
       if (this.queryPreparation === preparation) {
         this.queryPreparation = null;
@@ -384,19 +363,6 @@ implements ClaudeExecutionStrategy {
           this.sink.publishCommands(query, queryToken);
         }
         const nativeTurn = this.getNativeTurn(query);
-        if (message.type === 'system' && message.subtype === 'init') {
-          const trace = nativeTurn
-            ? this.nativeTurnTraces.get(nativeTurn.queryToken)
-            : undefined;
-          if (trace) {
-            trace.mark('session-init');
-            trace.measure(
-              'enqueue-to-session-init',
-              'enqueued',
-              'session-init',
-            );
-          }
-        }
         await this.sink.handleNativeMessage(
           message,
           nativeTurn?.queryToken ?? queryToken,
@@ -409,15 +375,6 @@ implements ClaudeExecutionStrategy {
           this.messageChannel?.setSessionId(message.session_id);
         }
         if (message.type === 'result') {
-          const nativeTurn = this.getNativeTurn(query);
-          const trace = nativeTurn
-            ? this.nativeTurnTraces.get(nativeTurn.queryToken)
-            : undefined;
-          if (trace) {
-            trace.mark('result');
-            trace.measure('enqueue-to-result', 'enqueued', 'result');
-            this.nativeTurnTraces.delete(nativeTurn!.queryToken);
-          }
           this.messageChannel?.onTurnComplete();
           this.finishNativeTurn(query, { type: 'completed' });
         }
