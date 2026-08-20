@@ -130,8 +130,8 @@ class FakeSession implements ProviderExecutionSession,
     return run;
   }
 
-  async warmup(request: ProviderExecutionRequest): Promise<void> {
-    this.warmupRequests.push(request);
+  async warmup(request?: ProviderExecutionRequest): Promise<void> {
+    if (request) this.warmupRequests.push(request);
   }
 
   async steer(request: ProviderExecutionRequest): Promise<boolean> {
@@ -411,6 +411,32 @@ describe('ChatExecutionCoordinator', () => {
     expect(session.warmupRequests[0]).toEqual(session.requests[0]);
     run.events.end();
     await resultPromise;
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
+  });
+
+  it('prewarms an unbound provider session for a blank tab', async () => {
+    const harness = createHarness();
+
+    await harness.coordinator.prewarm('claude');
+
+    const backend = harness.backends.get('claude')!;
+    expect(backend.sessions).toHaveLength(1);
+    expect(backend.sessions[0].warmupRequests).toHaveLength(0);
+    expect(harness.repository.registerExecutionBinding).not.toHaveBeenCalled();
+
+    await harness.coordinator.bindConversation({
+      conversationId: 'conversation-1',
+      providerId: 'claude',
+    });
+    await harness.coordinator.prepare();
+
+    expect(backend.sessions).toHaveLength(1);
+    expect(harness.repository.registerExecutionBinding).toHaveBeenCalledWith(
+      'conversation-1',
+      'local-1',
+      0,
+    );
     await harness.coordinator.dispose();
     await harness.registry.dispose();
   });

@@ -241,6 +241,7 @@ export class ChatExecutionCoordinator {
   private protectedOperationCount = 0;
   private conversationBindingGeneration = 0;
   private preparationTail: Promise<void> = Promise.resolve();
+  private prewarmedProviderId: ProviderId | null = null;
 
   constructor(private readonly deps: ChatExecutionCoordinatorDeps) {
     this.supervisor = new ExecutionSessionSupervisor(deps.lifecycleRegistry);
@@ -290,11 +291,23 @@ export class ChatExecutionCoordinator {
     this.pendingSteerAttempts.clear();
     this.conversation = conversation;
     this.stale = false;
-    await this.releaseSessionBinding();
+    const canAdoptPrewarm = Boolean(
+      conversation
+      && !this.sessionBinding
+      && this.supervisor.current
+      && this.prewarmedProviderId === conversation.providerId,
+    );
+    if (!canAdoptPrewarm) {
+      await this.releaseSessionBinding();
+    }
   }
 
   async prepare(request?: ProviderExecutionRequest): Promise<void> {
     await this.runProtectedOperation(() => this.enqueuePreparation(request));
+  }
+
+  async prewarm(providerId: ProviderId): Promise<void> {
+    await this.runProtectedOperation(() => this.enqueuePrewarm(providerId));
   }
 
   private enqueuePreparation(request?: ProviderExecutionRequest): Promise<void> {
@@ -306,6 +319,53 @@ export class ChatExecutionCoordinator {
       () => undefined,
     );
     return pending;
+  }
+
+  private enqueuePrewarm(providerId: ProviderId): Promise<void> {
+    const pending = this.preparationTail
+      .catch(() => undefined)
+      .then(() => this.prewarmSession(providerId));
+    this.preparationTail = pending.then(
+      () => undefined,
+      () => undefined,
+    );
+    return pending;
+  }
+
+  private async prewarmSession(providerId: ProviderId): Promise<void> {
+    this.assertAvailable();
+    if (this.conversation || this.sessionBinding || this.supervisor.current) return;
+
+    await this.acquireWarmSlot();
+    try {
+      const backend = this.deps.resolveBackend(providerId);
+      if (backend.providerId !== providerId) {
+        throw new Error(
+          `Execution backend provider mismatch: expected ${providerId}, got ${backend.providerId}`,
+        );
+      }
+      const supervised = this.supervisor.acquire(
+        backend,
+        {
+          lifecycle: 'persistent',
+          nativePersistence: 'enabled',
+          vaultWorkingDirectory: this.deps.vaultWorkingDirectory,
+          interactionPort: this.fencedInteractionPort,
+        },
+        (reason) => this.handleLeaseInvalidation(reason),
+      );
+      if (!supervised.session.warmup) {
+        await this.supervisor.release();
+        this.releaseWarmSlot();
+        return;
+      }
+      this.prewarmedProviderId = providerId;
+      await supervised.session.warmup();
+    } catch (error) {
+      await this.supervisor.release();
+      this.releaseWarmSlot();
+      throw error;
+    }
   }
 
   private async prepareSession(request?: ProviderExecutionRequest): Promise<void> {
@@ -689,14 +749,15 @@ export class ChatExecutionCoordinator {
   canCool(): boolean {
     const binding = this.sessionBinding;
     return Boolean(
-      binding
-      && !this.disposed
+      !this.disposed
       && this.protectedOperationCount === 0
       && this.activeExecution === null
       && this.pendingInteractions.size === 0
       && this.pendingSteerAttempts.size === 0
-      && binding.backgroundSequences.size === 0
-      && binding.pendingWorkCount === 0
+      && (!binding || (
+        binding.backgroundSequences.size === 0
+        && binding.pendingWorkCount === 0
+      ))
       && (this.deps.warmExecution?.canCool() ?? true),
     );
   }
@@ -712,6 +773,7 @@ export class ChatExecutionCoordinator {
   async cool(): Promise<void> {
     this.assertAvailable();
     if (!this.sessionBinding) {
+      await this.supervisor.release();
       this.releaseWarmSlot();
       return;
     }
@@ -1040,7 +1102,11 @@ export class ChatExecutionCoordinator {
     _reason: ProviderExecutionInvalidationReason,
   ): void {
     const binding = this.sessionBinding;
-    if (!binding) return;
+    if (!binding) {
+      this.prewarmedProviderId = null;
+      this.releaseWarmSlot();
+      return;
+    }
     this.sessionBinding = null;
     this.stale = true;
     this.pendingSteerAttempts.clear();
@@ -1055,6 +1121,7 @@ export class ChatExecutionCoordinator {
   private async releaseSessionBinding(): Promise<void> {
     const binding = this.sessionBinding;
     this.sessionBinding = null;
+    this.prewarmedProviderId = null;
     if (binding) {
       this.deps.persistence.releaseExecutionBinding(
         binding.conversation.conversationId,

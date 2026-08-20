@@ -1889,6 +1889,24 @@ export function initializeTabRuntimeControllers(
   });
 
   initializeTabNavigationController(tab, plugin);
+
+  if (tab.conversationId === null) {
+    const providerId = getTabProviderId(tab, plugin);
+    void ProviderWorkspaceRegistry.ensureInitialized(
+      plugin.providerHost,
+      providerId,
+      'tab-execution',
+    ).then(() => {
+      if (
+        tab.conversationId !== null
+        || isClosingLifecycleState(tab.lifecycleState)
+        || tab.providerId !== providerId
+      ) {
+        return;
+      }
+      return tab.executionCoordinator?.prewarm(providerId);
+    }).catch(() => undefined);
+  }
 }
 
 /** @deprecated Use initializeTabRuntimeControllers. */
