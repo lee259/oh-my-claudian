@@ -34,6 +34,10 @@ export interface ClaudeExecutionStrategySink {
 }
 
 export interface ClaudeExecutionStrategy {
+  warmup(
+    request: ClaudeEncodedExecutionRequest,
+    queryToken: number,
+  ): Promise<void>;
   startTurn(
     request: ClaudeEncodedExecutionRequest,
     queryToken: number,
@@ -77,6 +81,7 @@ implements ClaudeExecutionStrategy {
     readonly model: string;
     readonly promise: Promise<void>;
   } | null = null;
+  private queryPreparation: Promise<void> | null = null;
   private preparingTurnToken: number | null = null;
   private disposed = false;
 
@@ -124,6 +129,22 @@ implements ClaudeExecutionStrategy {
     } finally {
       if (this.preparingTurnToken === queryToken) {
         this.preparingTurnToken = null;
+      }
+    }
+  }
+
+  async warmup(
+    request: ClaudeEncodedExecutionRequest,
+    queryToken: number,
+  ): Promise<void> {
+    if (this.disposed || this.query) return;
+    const preparation = this.queryPreparation ?? this.ensureQuery(request, queryToken);
+    this.queryPreparation = preparation;
+    try {
+      await preparation;
+    } finally {
+      if (this.queryPreparation === preparation) {
+        this.queryPreparation = null;
       }
     }
   }
@@ -203,6 +224,10 @@ implements ClaudeExecutionStrategy {
     requestSignal?.throwIfAborted();
     if (this.disposed) {
       throw new Error('Claude persistent strategy is disposed');
+    }
+    if (this.queryPreparation) {
+      await this.queryPreparation;
+      if (this.query) return;
     }
     if (
       this.query
@@ -425,6 +450,10 @@ implements ClaudeExecutionStrategy {
   private disposed = false;
 
   constructor(private readonly sink: ClaudeExecutionStrategySink) {}
+
+  warmup(): Promise<void> {
+    return Promise.resolve();
+  }
 
   async startTurn(
     request: ClaudeEncodedExecutionRequest,

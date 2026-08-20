@@ -293,14 +293,14 @@ export class ChatExecutionCoordinator {
     await this.releaseSessionBinding();
   }
 
-  async prepare(): Promise<void> {
-    await this.runProtectedOperation(() => this.enqueuePreparation());
+  async prepare(request?: ProviderExecutionRequest): Promise<void> {
+    await this.runProtectedOperation(() => this.enqueuePreparation(request));
   }
 
-  private enqueuePreparation(): Promise<void> {
+  private enqueuePreparation(request?: ProviderExecutionRequest): Promise<void> {
     const pending = this.preparationTail
       .catch(() => undefined)
-      .then(() => this.prepareSession());
+      .then(() => this.prepareSession(request));
     this.preparationTail = pending.then(
       () => undefined,
       () => undefined,
@@ -308,7 +308,7 @@ export class ChatExecutionCoordinator {
     return pending;
   }
 
-  private async prepareSession(): Promise<void> {
+  private async prepareSession(request?: ProviderExecutionRequest): Promise<void> {
     this.assertAvailable();
     const conversation = this.requireConversation();
     const bindingGeneration = this.conversationBindingGeneration;
@@ -317,7 +317,12 @@ export class ChatExecutionCoordinator {
       this.releaseWarmSlot();
       return;
     }
-    if (this.sessionBinding && this.isBindingCurrent(this.sessionBinding)) return;
+    if (this.sessionBinding && this.isBindingCurrent(this.sessionBinding)) {
+      if (request && this.sessionBinding.session.warmup) {
+        this.trackBindingWork(this.sessionBinding, this.sessionBinding.session.warmup(request));
+      }
+      return;
+    }
     try {
       const backend = this.deps.resolveBackend(conversation.providerId);
       if (backend.providerId !== conversation.providerId) {
@@ -364,6 +369,9 @@ export class ChatExecutionCoordinator {
         ) {
           this.deps.warmExecution?.onWarmStateChanged?.(true);
         }
+        if (request && binding.session.warmup) {
+          this.trackBindingWork(binding, binding.session.warmup(request));
+        }
       } catch (error) {
         await this.releaseSessionBinding();
         throw error;
@@ -399,20 +407,19 @@ export class ChatExecutionCoordinator {
     }
 
     const requestController = new AbortController();
+    const executionRequest = createExecutionRequest(submission, requestController.signal);
     let binding: SessionBinding;
     let run: ProviderExecutionRun;
     try {
       if (!sameConversationBinding(conversation, this.conversation)) {
         throw new Error('Chat execution binding changed before provider handoff');
       }
-      await this.prepare();
+      await this.prepare(executionRequest);
       if (!sameConversationBinding(conversation, this.conversation)) {
         throw new Error('Chat execution binding changed before provider handoff');
       }
       binding = this.requireCurrentSessionBinding();
-      run = binding.session.execute(
-        createExecutionRequest(submission, requestController.signal),
-      );
+      run = binding.session.execute(executionRequest);
     } catch (error) {
       try {
         await this.discardPreSendRecord(conversation.conversationId, record.id);

@@ -94,6 +94,7 @@ class FakeSession implements ProviderExecutionSession,
   ModeConfigurableExecutionSession,
   RewindableExecutionSession {
   readonly requests: ProviderExecutionRequest[] = [];
+  readonly warmupRequests: ProviderExecutionRequest[] = [];
   readonly runs: FakeRun[] = [];
   readonly steerRequests: ProviderExecutionRequest[] = [];
   readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
@@ -127,6 +128,10 @@ class FakeSession implements ProviderExecutionSession,
     );
     this.runs.push(run);
     return run;
+  }
+
+  async warmup(request: ProviderExecutionRequest): Promise<void> {
+    this.warmupRequests.push(request);
   }
 
   async steer(request: ProviderExecutionRequest): Promise<boolean> {
@@ -396,6 +401,18 @@ describe('ChatExecutionCoordinator', () => {
       'local-1',
       0,
     );
+  });
+
+  it('starts provider warmup in the background before the first execution', async () => {
+    const harness = createHarness();
+    const { session, run, resultPromise } = await beginExecution(harness);
+
+    expect(session.warmupRequests).toHaveLength(1);
+    expect(session.warmupRequests[0]).toEqual(session.requests[0]);
+    run.events.end();
+    await resultPromise;
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
   });
 
   it('does not install a provider session after the conversation changes during warm acquisition', async () => {

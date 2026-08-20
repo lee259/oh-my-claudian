@@ -233,6 +233,24 @@ ClaudeExecutionStrategySink {
     };
   }
 
+  async warmup(request: ProviderExecutionRequest): Promise<void> {
+    if (this.config.lifecycle !== 'persistent' || this.disposed || this.activeRun) return;
+    const abortController = new AbortController();
+    try {
+      const encoded = await this.encoder.encode(
+        request,
+        this.config,
+        abortController,
+        this.interactionHandler.canUseTool,
+        this.getNativeResume(),
+        this.shouldReplayConversationHistory(request),
+      );
+      await this.strategy.warmup(encoded, this.queryToken);
+    } catch {
+      // Warmup is best effort; execute() retains the cold-start fallback.
+    }
+  }
+
   cancel(): void {
     const active = this.activeRun;
     if (!active || active.terminal) return;
