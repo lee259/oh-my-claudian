@@ -851,7 +851,9 @@ async function handleTabSessionEvent(
       ...(event.result !== undefined ? { result: event.result } : {}),
     });
     if (applied && isCurrent()) {
-      const reportReviewableSettlement = tab.captureReviewableSettlement?.();
+      const reportReviewableSettlement = tab.captureReviewableSettlement?.(
+        event.status === 'error' ? 'error' : 'completed',
+      );
       try {
         await tab.controllers.conversationController?.save(true);
       } finally {
@@ -1480,7 +1482,12 @@ export function initializeTabUI(
   if (dom.messagesEl.parentElement) {
     tab.ui.navigationSidebar = new NavigationSidebar(
       dom.messagesEl.parentElement,
-      dom.messagesEl
+      dom.messagesEl,
+      (intent) => {
+        state.navigationScrollIntent = intent;
+        state.autoScrollEnabled = intent === 'bottom'
+          && (plugin.settings.enableAutoScroll ?? true);
+      },
     );
   }
 
@@ -2021,8 +2028,11 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
         reEnableTimeout = null;
       }
       state.autoScrollEnabled = false;
+      state.navigationScrollIntent = null;
       return;
     }
+
+    if (state.navigationScrollIntent !== null) return;
 
     const { scrollTop, scrollHeight, clientHeight } = dom.messagesEl;
     const isAtBottom = scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD;
@@ -2048,9 +2058,18 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       }
     }
   };
+  const userScrollIntentHandler = (): void => {
+    if (state.navigationScrollIntent === null) return;
+    state.navigationScrollIntent = null;
+    state.autoScrollEnabled = false;
+  };
   dom.messagesEl.addEventListener('scroll', scrollHandler, { passive: true });
+  dom.messagesEl.addEventListener('wheel', userScrollIntentHandler, { passive: true });
+  dom.messagesEl.addEventListener('pointerdown', userScrollIntentHandler, { passive: true });
   dom.eventCleanups.push(() => {
     dom.messagesEl.removeEventListener('scroll', scrollHandler);
+    dom.messagesEl.removeEventListener('wheel', userScrollIntentHandler);
+    dom.messagesEl.removeEventListener('pointerdown', userScrollIntentHandler);
     if (reEnableTimeout) window.clearTimeout(reEnableTimeout);
   });
 }
