@@ -26,7 +26,11 @@ export async function renderMermaidDiagram(
 
   const result = await runtime.render(`claudian-mermaid-${nextDiagramId++}`, source);
   host.replaceChildren();
-  host.insertAdjacentHTML('afterbegin', result.svg);
+  const parsed = new DOMParser().parseFromString(result.svg, 'image/svg+xml');
+  const svg = parsed.documentElement;
+  if (svg.nodeName.toLowerCase() !== 'svg') {
+    throw new Error('Mermaid returned invalid SVG markup');
+  }
+  host.appendChild(host.ownerDocument.importNode(svg, true));
   result.bindFunctions?.(host);
 }
-
