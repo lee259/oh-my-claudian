@@ -26,9 +26,9 @@ Our priorities are:
 - **Provider-neutral orchestration with provider-native behavior** — shared conversation, tab, recovery, and readiness flows live behind core contracts; permissions, history, models, planning, MCP, and runtime protocols remain provider-specific where they need to be.
 - **Obsidian-native knowledge work** — dual-pane navigation, vault file context, attachments, inline editing, Mermaid rendering, and conversation history should work together as one workspace.
 - **Safe and recoverable local execution** — external file boundaries, approval-aware tool outcomes, provider readiness diagnostics, session recovery, and explicit trust controls are first-class features.
-- **A focused single-user workflow** — the default experience stays local, predictable, and useful without requiring a collaboration service, account system, or LAN project authority layer.
+- **An Obsidian-aligned workflow** — keep agent-assisted development close to the vault, predictable, user-controlled, and composable with the rest of Obsidian.
 
-We prioritize focused improvements that strengthen this workflow. Large infrastructure features such as multiplayer collaboration, hosted project authority, or provider-default changes are considered separately and only when they provide clear value to Oh My Claudian users.
+We prioritize improvements that deepen the relationship between agents and the vault. Before adopting a new capability—local, collaborative, or hosted—we evaluate whether it fits Obsidian's design principles: local ownership, user control, composability, transparent data boundaries, and graceful operation without a mandatory service.
 
 ## Added in This Repository
 
