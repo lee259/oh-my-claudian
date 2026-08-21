@@ -543,6 +543,24 @@ describe('StreamController - Text Content', () => {
 
       expect(msg.contentBlocks).toContainEqual({ type: 'context_compacted' });
     });
+
+    it('does not let a later Claude sub-request lower usage in the same stream', () => {
+      controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));
+      controller.updateUsage(createMockUsage({ contextTokens: 60, percentage: 60 }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 100, percentage: 100 }));
+    });
+
+    it('allows usage to drop after an explicit compaction boundary', async () => {
+      const msg = createTestMessage();
+      controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));
+
+      await controller.handleStreamChunk({ type: 'context_compacted' }, msg);
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 100, percentage: 100 }));
+      controller.updateUsage(createMockUsage({ contextTokens: 30, percentage: 30 }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 30, percentage: 30 }));
+    });
   });
 
   describe('citation handling', () => {

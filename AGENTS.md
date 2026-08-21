@@ -112,6 +112,13 @@ Provider-specific session fields belong behind typed helpers in the owning provi
 - Use the format `<type>/<short-kebab-description>`, for example `feat/tool-file-links`, `fix/omp-model-discovery`, `chore/update-dependencies`, `docs/provider-guide`, or `refactor/session-storage`.
 - Choose a type that describes the primary intent: `feat/` for user-visible behavior, `fix/` for a bug correction, `refactor/` for behavior-preserving structure changes, `test/` for test-only work, `docs/` for documentation, `chore/` for maintenance/tooling, and `perf/` for performance work.
 - Keep names lowercase, concise, specific, and stable; use hyphens, avoid ticket-only names, personal names, provider names without a change, vague words such as `work` or `tmp`, and branch names that encode an agent or tool identity. Never use `codex/` as a branch prefix.
+
+### Upstream Divergence Policy
+
+- Treat upstream Claudian as a source of fixes and ideas, not as an implementation baseline. Before syncing a change, record the user problem it solves, the affected provider capabilities, and the impact on Oh My Claudian's local-first product direction.
+- Prefer a focused adaptation at an existing ownership boundary over merging a large upstream feature branch. Preserve provider-neutral contracts, provider-owned state, external file safety, and recoverable runtime lifecycles.
+- Do not import upstream defaults or infrastructure solely for parity. In particular, collaboration services, LAN project authority, hosted state, and provider-default changes require an explicit product decision and separate design review.
+- Keep useful upstream engineering improvements—security fixes, portability fixes, regression tests, build checks, and release verification—separate from product-direction changes so they can be evaluated and merged independently.
 - Branch from the intended integration base, keep one coherent change per branch, and do not reuse a branch after its pull request has been closed or merged.
 
 ## TDD Workflow
@@ -140,3 +147,10 @@ Provider-specific session fields belong behind typed helpers in the owning provi
 ## Review Checks
 
 Reviews must enforce the dependency, ownership, provider-boundary, and state-lifetime constraints above.
+
+Reviews of upstream-derived changes must also answer:
+
+- What user-visible problem does this solve for Oh My Claudian?
+- Does it preserve our provider capability matrix and local-first trust model?
+- Can it be implemented inside an existing boundary without importing unrelated upstream infrastructure?
+- What is our deliberate improvement over the upstream behavior?

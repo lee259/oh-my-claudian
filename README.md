@@ -17,6 +17,19 @@ Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent prov
 - Start safely with approval-oriented defaults, then opt into more powerful modes when you need them.
 - Run Oh My Claudian alongside the original Claudian plugin without sharing its Obsidian view type or composer styling.
 
+## Product Direction
+
+Oh My Claudian is a local-first, multi-provider Obsidian workspace. It combines a shared chat experience with provider-native capabilities, so you can choose the right agent without giving up the safety and context of your vault.
+
+Our priorities are:
+
+- **Provider-neutral orchestration with provider-native behavior** — shared conversation, tab, recovery, and readiness flows live behind core contracts; permissions, history, models, planning, MCP, and runtime protocols remain provider-specific where they need to be.
+- **Obsidian-native knowledge work** — dual-pane navigation, vault file context, attachments, inline editing, Mermaid rendering, and conversation history should work together as one workspace.
+- **Safe and recoverable local execution** — external file boundaries, approval-aware tool outcomes, provider readiness diagnostics, session recovery, and explicit trust controls are first-class features.
+- **An Obsidian-aligned workflow** — keep agent-assisted development close to the vault, predictable, user-controlled, and composable with the rest of Obsidian.
+
+We prioritize improvements that deepen the relationship between agents and the vault. Before adopting a new capability—local, collaborative, or hosted—we evaluate whether it fits Obsidian's design principles: local ownership, user control, composability, transparent data boundaries, and graceful operation without a mandatory service.
+
 ## Added in This Repository
 
 - **Oh My Pi (OMP)** — An ACP-backed OMP provider with model discovery and selection in the chat sidebar.
@@ -25,7 +38,9 @@ Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent prov
 ## Features
 
 - Sidebar chat, multiple tabs, conversation history, fork, resume, and compact.
+- Single-panel and dual-pane layouts with a native vault file tree and session manager.
 - Inline edits with word-level diff preview.
+- Mermaid diagrams rendered directly in chat messages.
 - Slash commands, skills, `@` mentions, and instruction mode.
 - Provider-specific planning, permissions, reasoning controls, and model selection.
 - Provider readiness diagnostics in each provider settings tab, covering enablement, CLI availability, model discovery, and model selection.
@@ -33,10 +48,13 @@ Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent prov
 - Model catalog state in provider settings, including freshness, cached/failed refresh state, default model, and all-versus-explicit selection.
 - Provider-neutral execution outcomes for completion, cancellation, invalidation, and recoverable errors, with recovery actions fenced while a turn is active.
 - Drag files and folders from Obsidian or your desktop into the composer to attach them as clickable context chips.
+- Explicit external-file access boundaries and approval-aware write handling.
 - MCP support where available from the selected provider.
 - Internationalized interface with 10 locales, including Simplified and Traditional Chinese.
 
-**Plan Mode** — Toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
+Provider capabilities are intentionally not identical. Oh My Claudian exposes controls only when the selected provider supports them and keeps provider-native history, permissions, models, and runtime behavior behind provider-specific adapters.
+
+**Plan Mode** — For providers that support it, toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
 
 **Instruction Mode (`#`)** — Refined custom instructions added from the chat input.
 

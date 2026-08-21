@@ -335,6 +335,10 @@
       "name": "Rolagem automática durante streaming",
       "desc": "Rolar automaticamente para baixo enquanto o Claude transmite respostas. Desativar para ficar no topo e ler desde o início."
     },
+    "showTabTitlesByDefault": {
+      "name": "Mostrar títulos das abas por padrão",
+      "desc": "Exibir títulos das conversas na barra de abas em vez dos números. Clique duas vezes em uma aba para alterná-la individualmente."
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "Adiar renderização matemática durante streaming",
       "desc": "Mostrar LaTeX bruto enquanto a resposta é transmitida e renderizar a matemática uma vez quando cada bloco de texto terminar."

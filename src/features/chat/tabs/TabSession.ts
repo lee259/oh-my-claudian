@@ -13,10 +13,14 @@ export interface TabSessionState {
 export class TabSession {
   private activeTurnValue: Promise<void> | null = null;
   private backgroundWork: Promise<void> = Promise.resolve();
+  private backgroundWorkCount = 0;
   private backgroundWorkPauseDepth = 0;
   private coordinator: ChatExecutionCoordinator | null = null;
 
-  constructor(private readonly state: TabSessionState) {}
+  constructor(
+    private readonly state: TabSessionState,
+    private readonly onWorkChanged?: () => void,
+  ) {}
 
   get id(): string { return this.state.id; }
   get lifecycleState(): TabLifecycleState { return this.state.lifecycleState; }
@@ -29,8 +33,11 @@ export class TabSession {
   set draftModel(value: string | null) { this.state.draftModel = value; }
   get executionCoordinator(): ChatExecutionCoordinator | null { return this.coordinator; }
   get activeTurn(): Promise<void> | null { return this.activeTurnValue; }
+  get hasBackgroundWork(): boolean { return this.backgroundWorkCount > 0; }
   set activeTurn(value: Promise<void> | null) {
+    const wasWorking = this.activeTurnValue !== null;
     this.activeTurnValue = value;
+    if (wasWorking !== (value !== null)) this.onWorkChanged?.();
     if (value === null) this.coordinator?.notifyMayCool();
   }
 
@@ -47,10 +54,22 @@ export class TabSession {
   enqueueBackgroundWork(work: () => Promise<void>): Promise<void> | null {
     if (this.backgroundWorkPauseDepth > 0) return null;
 
+    this.backgroundWorkCount++;
     const pending = this.backgroundWork
       .catch(() => undefined)
       .then(work);
     this.backgroundWork = pending;
+    this.onWorkChanged?.();
+    void pending.then(
+      () => {
+        this.backgroundWorkCount = Math.max(0, this.backgroundWorkCount - 1);
+        this.onWorkChanged?.();
+      },
+      () => {
+        this.backgroundWorkCount = Math.max(0, this.backgroundWorkCount - 1);
+        this.onWorkChanged?.();
+      },
+    );
     return pending;
   }
 

@@ -335,6 +335,10 @@
       "name": "Automatisches Scrollen während Streaming",
       "desc": "Automatisch nach unten scrollen, während Claude Antworten streamt. Deaktivieren, um oben zu bleiben und von Anfang an zu lesen."
     },
+    "showTabTitlesByDefault": {
+      "name": "Tab-Titel standardmäßig anzeigen",
+      "desc": "Konversationstitel in der Tab-Leiste statt Tab-Nummern anzeigen. Doppelklicken Sie auf einen Tab, um ihn einzeln umzuschalten."
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "Mathe-Rendering während Streaming aufschieben",
       "desc": "LaTeX während des Streamings roh anzeigen und Mathematik einmal rendern, wenn der Textblock abgeschlossen ist."
