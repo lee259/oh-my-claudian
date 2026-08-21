@@ -7,6 +7,8 @@ import {
 } from '../../../utils/animationFrame';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 
+export type NavigationScrollIntent = 'away' | 'bottom';
+
 /**
  * Floating sidebar for navigating chat history.
  * Provides quick access to top/bottom and previous/next user messages.
@@ -27,7 +29,8 @@ export class NavigationSidebar {
 
   constructor(
     private parentEl: HTMLElement,
-    private messagesEl: HTMLElement
+    private messagesEl: HTMLElement,
+    private onScrollIntent?: (intent: NavigationScrollIntent) => void,
   ) {
     this.container = this.parentEl.createDiv({ cls: 'claudian-nav-sidebar' });
 
@@ -56,15 +59,23 @@ export class NavigationSidebar {
 
     // Button clicks
     this.topBtn.addEventListener('click', () => {
+      this.onScrollIntent?.('away');
       this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     this.bottomBtn.addEventListener('click', () => {
+      this.onScrollIntent?.('bottom');
       this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
     });
 
-    this.prevBtn.addEventListener('click', () => this.scrollToMessage('prev'));
-    this.nextBtn.addEventListener('click', () => this.scrollToMessage('next'));
+    this.prevBtn.addEventListener('click', () => {
+      const intent = this.scrollToMessage('prev');
+      this.onScrollIntent?.(intent);
+    });
+    this.nextBtn.addEventListener('click', () => {
+      const intent = this.scrollToMessage('next');
+      this.onScrollIntent?.(intent);
+    });
     this.tocBtn.addEventListener('click', (event) => {
       event.stopPropagation();
       this.toggleDirectory();
@@ -235,10 +246,10 @@ export class NavigationSidebar {
   /**
    * Scrolls to previous or next user message, skipping assistant messages.
    */
-  private scrollToMessage(direction: 'prev' | 'next'): void {
+  private scrollToMessage(direction: 'prev' | 'next'): NavigationScrollIntent {
     const messages = Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message-user'));
 
-    if (messages.length === 0) return;
+    if (messages.length === 0) return 'away';
 
     const scrollTop = this.messagesEl.scrollTop;
     const threshold = 30;
@@ -248,21 +259,23 @@ export class NavigationSidebar {
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].offsetTop < scrollTop - threshold) {
           this.scrollToElement(messages[i]);
-          return;
+          return 'away';
         }
       }
       // Already at or above the first message — scroll to top
       this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
+      return 'away';
     } else {
       // Find the first message strictly below the current scroll position
       for (let i = 0; i < messages.length; i++) {
         if (messages[i].offsetTop > scrollTop + threshold) {
           this.scrollToElement(messages[i]);
-          return;
+          return 'away';
         }
       }
       // Already at or past the last message — scroll to bottom
       this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
+      return 'bottom';
     }
   }
 
