@@ -17,6 +17,19 @@ Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent prov
 - Start safely with approval-oriented defaults, then opt into more powerful modes when you need them.
 - Run Oh My Claudian alongside the original Claudian plugin without sharing its Obsidian view type or composer styling.
 
+## Product Direction
+
+Oh My Claudian is intentionally not a mirror of upstream Claudian. We selectively adopt upstream fixes and ideas, then adapt them to our own architecture and the needs of a local, multi-provider Obsidian workspace.
+
+Our priorities are:
+
+- **Provider-neutral orchestration with provider-native behavior** — shared conversation, tab, recovery, and readiness flows live behind core contracts; permissions, history, models, planning, MCP, and runtime protocols remain provider-specific where they need to be.
+- **Obsidian-native knowledge work** — dual-pane navigation, vault file context, attachments, inline editing, Mermaid rendering, and conversation history should work together as one workspace.
+- **Safe and recoverable local execution** — external file boundaries, approval-aware tool outcomes, provider readiness diagnostics, session recovery, and explicit trust controls are first-class features.
+- **A focused single-user workflow** — the default experience stays local, predictable, and useful without requiring a collaboration service, account system, or LAN project authority layer.
+
+This means we do not automatically import large upstream product directions such as multiplayer collaboration, hosted project authority, or provider-default changes. A proposed sync must solve a problem for Oh My Claudian users, fit our ownership boundaries, and preserve provider capability differences. Collaboration or orchestration features may still be designed independently when they strengthen the local workflow rather than simply reproducing upstream architecture.
+
 ## Added in This Repository
 
 - **Oh My Pi (OMP)** — An ACP-backed OMP provider with model discovery and selection in the chat sidebar.
