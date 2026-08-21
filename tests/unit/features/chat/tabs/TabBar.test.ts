@@ -80,6 +80,33 @@ describe('TabBar', () => {
   });
 
   describe('badge rendering', () => {
+    it('shows tab titles by default when configured', () => {
+      const containerEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      const tabBar = new TabBar(containerEl, callbacks, { showTitlesByDefault: true });
+
+      tabBar.update([createTabBarItem({ title: 'My Conversation' })]);
+
+      expect(containerEl._children[0].textContent).toBe('My Conversation');
+      expect(containerEl._children[0].getAttribute('data-title-expanded')).toBe('true');
+    });
+
+    it('keeps a default-expanded tab collapsed after it is toggled', () => {
+      const containerEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      const tabBar = new TabBar(containerEl, callbacks, { showTitlesByDefault: true });
+
+      tabBar.update([createTabBarItem({ title: 'My Conversation' })]);
+      containerEl._children[0].dispatchEvent('dblclick', {
+        preventDefault: jest.fn(),
+        stopPropagation: jest.fn(),
+      });
+      tabBar.update([createTabBarItem({ title: 'Renamed Conversation' })]);
+
+      expect(containerEl._children[0].textContent).toBe('1');
+      expect(containerEl._children[0].getAttribute('data-title-expanded')).toBe('false');
+    });
+
     it('should display index number as text', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();

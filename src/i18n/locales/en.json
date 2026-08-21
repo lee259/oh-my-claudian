@@ -359,6 +359,10 @@
       "name": "Auto-scroll during streaming",
       "desc": "Automatically scroll to the bottom as Claude streams responses. Disable to stay at the top and read from the beginning."
     },
+    "showTabTitlesByDefault": {
+      "name": "Show tab titles by default",
+      "desc": "Display conversation titles in the tab bar instead of tab numbers. Double-click a tab to toggle it individually."
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "Defer math rendering during streaming",
       "desc": "Show raw LaTeX while responses stream, then render math once when each text block completes."
