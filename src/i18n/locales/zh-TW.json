@@ -356,6 +356,10 @@
       "name": "串流傳輸時自動捲動",
       "desc": "在 Claude 串流傳輸回應時自動捲動到底部。停用後將停留在頂部，從頭開始閱讀。"
     },
+    "showTabTitlesByDefault": {
+      "name": "預設顯示分頁標題",
+      "desc": "在分頁列中顯示對話標題，而不是分頁編號。雙擊分頁即可單獨切換。"
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "串流傳輸時延遲渲染數學公式",
       "desc": "回應串流傳輸時顯示原始 LaTeX，並在每個文字區塊完成後只渲染一次數學公式。"
