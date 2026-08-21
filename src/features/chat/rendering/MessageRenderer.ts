@@ -39,9 +39,11 @@ import { formatConversationDirectoryTitle } from '../utils/conversationDirectory
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
 import {
   DIAGRAM_FENCE_LANGUAGES,
+  DIAGRAM_SOURCE_CLASS,
   prepareDisplayOnlyCodeFences,
   restoreDisplayOnlyCodeFences,
 } from './DisplayOnlyCodeFences';
+import { renderMermaidDiagram } from './MermaidRenderer';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
 import {
   renderStoredAsyncSubagent,
@@ -776,11 +778,8 @@ export class MessageRenderer {
   // Content Rendering
   // ============================================
 
-  private resolveRenderedFenceLanguages(options?: RenderContentOptions): readonly string[] {
-    if (options?.deferDiagrams) return [];
-    return this.plugin.settings.renderDiagramsInChat === true
-      ? DIAGRAM_FENCE_LANGUAGES
-      : [];
+  private resolveDiagramFenceLanguages(options?: RenderContentOptions): readonly string[] {
+    return options?.deferDiagrams ? [] : DIAGRAM_FENCE_LANGUAGES;
   }
 
   /**
@@ -803,7 +802,7 @@ export class MessageRenderer {
       // after this step, otherwise it would be escaped too.
       const safeMarkdown = escapeRawHtmlTags(renderMarkdown);
       const displayOnlyCodeFences = prepareDisplayOnlyCodeFences(safeMarkdown, {
-        renderedLanguages: this.resolveRenderedFenceLanguages(options),
+        diagramLanguages: this.resolveDiagramFenceLanguages(options),
       });
       const processedMarkdown = replaceImageEmbedsWithHtml(
         displayOnlyCodeFences.markdown,
@@ -819,6 +818,7 @@ export class MessageRenderer {
       );
       await restoreDisplayOnlyCodeFences(el, displayOnlyCodeFences.fences);
 
+      const diagramBlocks: Array<{ code: HTMLElement; host: HTMLElement }> = [];
       // Wrap pre elements and move buttons outside scroll area
       el.querySelectorAll('pre').forEach((pre) => {
         // Skip if already wrapped
@@ -830,7 +830,9 @@ export class MessageRenderer {
         wrapper.appendChild(pre);
 
         // Check for language class and add label
-        const code = pre.querySelector('code[class*="language-"]');
+        const code = Array.from(pre.querySelectorAll('code')).find((candidate) =>
+          Array.from(candidate.classList).some((className) => className.startsWith('language-'))
+        );
         if (code) {
           const match = code.className.match(/language-(\w+)/);
           if (match) {
@@ -857,12 +859,29 @@ export class MessageRenderer {
           }
         }
 
+        const diagramCode = Array.from(pre.querySelectorAll<HTMLElement>('code'))
+          .find((candidate) => candidate.classList.contains(DIAGRAM_SOURCE_CLASS));
+        if (diagramCode && pre.parentElement) {
+          const host = pre.parentElement.createDiv({ cls: 'claudian-diagram-block' });
+          diagramBlocks.push({ code: diagramCode, host });
+        }
+
         // Move Obsidian's copy button outside pre into wrapper
         const copyBtn = pre.querySelector('.copy-code-button');
         if (copyBtn) {
           wrapper.appendChild(copyBtn);
         }
       });
+
+      for (const block of diagramBlocks) {
+        try {
+          await renderMermaidDiagram(block.code.textContent ?? '', block.host);
+          block.code.closest('pre')?.classList.add('claudian-diagram-source-hidden');
+          block.host.parentElement?.classList.add('claudian-diagram-wrapper');
+        } catch {
+          block.host.remove();
+        }
+      }
 
       // Process wikilinks only when the source can contain them; the DOM pass is expensive.
       if (processedMarkdown.includes('[[')) {

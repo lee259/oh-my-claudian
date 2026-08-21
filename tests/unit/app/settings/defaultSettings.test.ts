@@ -1,7 +1,7 @@
 import { DEFAULT_CLAUDIAN_SETTINGS } from '@/app/settings/defaultSettings';
 
 describe('DEFAULT_CLAUDIAN_SETTINGS', () => {
-  it('keeps Mermaid rendering opt-in because it uses Obsidian processors on model output', () => {
-    expect(DEFAULT_CLAUDIAN_SETTINGS.renderDiagramsInChat).toBe(false);
+  it('does not expose Mermaid rendering as a user preference', () => {
+    expect('renderDiagramsInChat' in DEFAULT_CLAUDIAN_SETTINGS).toBe(false);
   });
 });

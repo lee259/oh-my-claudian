@@ -35,6 +35,9 @@ jest.mock('@/features/chat/rendering/ToolCallRenderer', () => ({
 jest.mock('@/features/chat/rendering/WriteEditRenderer', () => ({
   renderStoredWriteEdit: jest.fn(),
 }));
+jest.mock('@/features/chat/rendering/MermaidRenderer', () => ({
+  renderMermaidDiagram: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('@/utils/imageEmbed', () => ({
   replaceImageEmbedsWithHtml: jest.fn().mockImplementation((md: string) => md),
 }));
@@ -2327,30 +2330,37 @@ describe('MessageRenderer', () => {
       expect(highlightElement).toHaveBeenCalledWith(code);
     });
 
-    it('lets mermaid fences reach Obsidian when diagram rendering is enabled', async () => {
+    it('renders mermaid through the controlled adapter after Markdown rendering', async () => {
       const { MarkdownRenderer } = await import('obsidian');
-      const { renderer } = createRenderer(undefined, 'claude', { renderDiagramsInChat: true });
+      const { renderer } = createRenderer();
       const el = createMockEl();
+      (MarkdownRenderer.renderMarkdown as jest.Mock).mockImplementationOnce(
+        async (renderedMarkdown: string, container: any) => {
+          const pre = container.createEl('pre');
+          const language = renderedMarkdown.match(/^```([^\n]+)/)?.[1];
+          pre.createEl('code', {
+            cls: `language-${language}`,
+            text: 'flowchart TB',
+          });
+        },
+      );
 
       await renderer.renderContent(el, '```mermaid\nflowchart TB\n```');
 
       const renderedMarkdown = (MarkdownRenderer.renderMarkdown as jest.Mock).mock.calls[0][0];
-      expect(renderedMarkdown).toContain('```mermaid');
-      expect(renderedMarkdown).not.toContain('claudian-display-only-fence');
+      expect(renderedMarkdown).toContain('```claudian-display-only-fence-0');
+      expect(renderedMarkdown).not.toContain('```mermaid');
     });
 
-    it('keeps mermaid fences inert while streaming and when the setting is off', async () => {
+    it('keeps mermaid fences inert while streaming', async () => {
       const { MarkdownRenderer } = await import('obsidian');
-      const { renderer } = createRenderer(undefined, 'claude', { renderDiagramsInChat: true });
+      const { renderMermaidDiagram } = await import('@/features/chat/rendering/MermaidRenderer');
+      const { renderer } = createRenderer();
 
       await renderer.renderContent(createMockEl(), '```mermaid\nflowchart TB\n```', { deferDiagrams: true });
-
-      const { renderer: disabledRenderer } = createRenderer(undefined, 'claude', { renderDiagramsInChat: false });
-      await disabledRenderer.renderContent(createMockEl(), '```mermaid\nflowchart TB\n```');
-
-      const calls = (MarkdownRenderer.renderMarkdown as jest.Mock).mock.calls;
-      expect(calls[0][0]).toContain('```claudian-display-only-fence-0');
-      expect(calls[1][0]).toContain('```claudian-display-only-fence-0');
+      expect(renderMermaidDiagram).not.toHaveBeenCalled();
+      expect((MarkdownRenderer.renderMarkdown as jest.Mock).mock.calls[0][0])
+        .toContain('```claudian-display-only-fence-0');
     });
 
     it('should add language label when code block has language class', async () => {

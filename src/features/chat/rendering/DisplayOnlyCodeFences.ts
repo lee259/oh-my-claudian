@@ -4,8 +4,9 @@ import { transformMarkdownSegments } from '../../../utils/markdownSegments';
 
 const PLACEHOLDER_LANGUAGE_PREFIX = 'claudian-display-only-fence-';
 
-/** Fence languages Claudian renders instead of neutralizing, when the user opts in. */
+/** Fence languages Claudian renders through a controlled adapter. */
 export const DIAGRAM_FENCE_LANGUAGES: readonly string[] = ['mermaid'];
+export const DIAGRAM_SOURCE_CLASS = 'claudian-diagram-source';
 
 const FENCE_INFO_PATTERN = /^([\t ]*)(\S+)(.*)$/;
 
@@ -45,6 +46,7 @@ function isPrismHighlighter(value: unknown): value is PrismHighlighter {
 export interface DisplayOnlyCodeFence {
   placeholderLanguage: string;
   originalLanguage: string;
+  diagram?: boolean;
 }
 
 export interface PreparedDisplayOnlyCodeFences {
@@ -53,8 +55,8 @@ export interface PreparedDisplayOnlyCodeFences {
 }
 
 export interface PrepareDisplayOnlyCodeFencesOptions {
-  /** Languages whose code-block processor is allowed to run on chat content. */
-  renderedLanguages?: readonly string[];
+  /** Languages Claudian renders through a controlled adapter after Markdown rendering. */
+  diagramLanguages?: readonly string[];
 }
 
 /** Replaces fence languages so Obsidian cannot dispatch registered code-block processors. */
@@ -62,8 +64,8 @@ export function prepareDisplayOnlyCodeFences(
   markdown: string,
   options?: PrepareDisplayOnlyCodeFencesOptions,
 ): PreparedDisplayOnlyCodeFences {
-  const renderedLanguages = new Set(
-    (options?.renderedLanguages ?? []).map((language) => language.toLowerCase()),
+  const diagramLanguages = new Set(
+    (options?.diagramLanguages ?? []).map((language) => language.toLowerCase()),
   );
   const fences: DisplayOnlyCodeFence[] = [];
   const preparedMarkdown = transformMarkdownSegments(markdown, {
@@ -74,12 +76,12 @@ export function prepareDisplayOnlyCodeFences(
       }
 
       const originalLanguage = languageMatch[2];
-      if (renderedLanguages.has(originalLanguage.toLowerCase())) {
-        return opener;
-      }
-
       const placeholderLanguage = `${PLACEHOLDER_LANGUAGE_PREFIX}${fences.length}`;
-      fences.push({ placeholderLanguage, originalLanguage });
+      fences.push({
+        placeholderLanguage,
+        originalLanguage,
+        diagram: diagramLanguages.has(originalLanguage.toLowerCase()),
+      });
 
       const transformedInfo = `${languageMatch[1]}${placeholderLanguage}${languageMatch[3]}`;
       return opener.slice(0, fence.infoStart)
@@ -107,6 +109,10 @@ export async function restoreDisplayOnlyCodeFences(
 
     code.classList.remove(placeholderClass);
     code.classList.add(`language-${fence.originalLanguage}`);
+    if (fence.diagram) {
+      code.classList.add(DIAGRAM_SOURCE_CLASS);
+      continue;
+    }
     codeBlocks.push(code);
   }
 
