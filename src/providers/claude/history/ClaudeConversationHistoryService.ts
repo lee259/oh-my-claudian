@@ -23,6 +23,8 @@ import {
 import {
   encodeVaultPathForSDK,
   getSDKProjectsPath,
+  getSDKSessionPath,
+  getSDKSessionSignature,
   loadSDKSessionMessages,
   loadSDKSessionModel,
   loadSubagentToolCalls,
@@ -213,21 +215,37 @@ function mergeDuplicateMessage(target: ChatMessage, incoming: ChatMessage): void
 }
 
 function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
-  const byId = new Map<string, ChatMessage>();
+  const byIdentity = new Map<string, ChatMessage>();
   const result: ChatMessage[] = [];
 
   for (const message of messages) {
-    const existing = byId.get(message.id);
+    const identities = getMessageIdentities(message);
+    const existing = identities
+      .map(identity => byIdentity.get(identity))
+      .find((candidate): candidate is ChatMessage => candidate !== undefined);
     if (existing) {
       mergeDuplicateMessage(existing, message);
+      for (const identity of identities) {
+        byIdentity.set(identity, existing);
+      }
       continue;
     }
 
-    byId.set(message.id, message);
+    for (const identity of identities) {
+      byIdentity.set(identity, message);
+    }
     result.push(message);
   }
 
   return result;
+}
+
+function getMessageIdentities(message: ChatMessage): string[] {
+  return [
+    `id:${message.id}`,
+    ...(message.userMessageId ? [`user:${message.userMessageId}`] : []),
+    ...(message.assistantMessageId ? [`assistant:${message.assistantMessageId}`] : []),
+  ];
 }
 
 async function enrichAsyncSubagentToolCalls(
@@ -396,6 +414,7 @@ function sanitizeProviderState(
 
 export class ClaudeConversationHistoryService implements ProviderConversationHistoryService {
   private hydratedConversationIds = new Set<string>();
+  private liveSessionSignaturesByConversation = new Map<string, string>();
   private historyCacheKeysByConversation = new Map<string, string>();
   private pendingSessionLocationsByConversation = new Map<
     string,
@@ -423,6 +442,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     const previousKey = this.historyCacheKeysByConversation.get(conversation.id);
     if (previousKey !== undefined && previousKey !== cacheKey) {
       this.hydratedConversationIds.delete(conversation.id);
+      this.liveSessionSignaturesByConversation.delete(conversation.id);
       this.pendingSessionLocationsByConversation.delete(conversation.id);
       this.relocatedSessionPathsByConversation.delete(conversation.id);
     }
@@ -534,6 +554,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
       this.pendingSessionLocationsByConversation.delete(conversation.id);
       this.relocatedSessionPathsByConversation.delete(conversation.id);
       this.hydratedConversationIds.delete(conversation.id);
+      this.liveSessionSignaturesByConversation.delete(conversation.id);
       return 'delete';
     }
 
@@ -549,6 +570,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     conversation.providerState = sanitizeProviderState(state);
     this.pendingSessionLocationsByConversation.delete(conversation.id);
     this.hydratedConversationIds.delete(conversation.id);
+    this.liveSessionSignaturesByConversation.delete(conversation.id);
     return 'reset';
   }
 
@@ -644,13 +666,29 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     const allSessionIds = this.getConversationSessionIds(conversation);
 
     this.synchronizeHistoryCache(conversation, vaultPath, pathContext);
-    if (this.hydratedConversationIds.has(conversation.id)) return;
-
     const state = getClaudeState(conversation.providerState);
     const isPendingFork = this.isPendingForkConversation(conversation);
 
     if (allSessionIds.length === 0) {
       return;
+    }
+
+    let liveSessionSignature = await this.getLiveSessionSignature(
+      conversation,
+      vaultPath,
+      isPendingFork,
+      pathContext,
+    );
+    if (this.hydratedConversationIds.has(conversation.id)) {
+      const previousSignature = this.liveSessionSignaturesByConversation.get(conversation.id);
+      if (
+        liveSessionSignature === null
+        || previousSignature === undefined
+        || liveSessionSignature === previousSignature
+      ) {
+        return;
+      }
+      this.hydratedConversationIds.delete(conversation.id);
     }
 
     const allSdkMessages: ChatMessage[] = [];
@@ -679,6 +717,14 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     }
     if (relocatedSessionPaths.size > 0) {
       this.relocatedSessionPathsByConversation.set(conversation.id, relocatedSessionPaths);
+    }
+    if (liveSessionSignature === null) {
+      liveSessionSignature = await this.getLiveSessionSignature(
+        conversation,
+        vaultPath,
+        isPendingFork,
+        pathContext,
+      );
     }
 
     const resumableSessionId = isPendingFork
@@ -753,7 +799,35 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     conversation.messages = merged;
     if (errorCount === 0 && unknownSessionCount === 0) {
       this.hydratedConversationIds.add(conversation.id);
+      if (liveSessionSignature !== null) {
+        this.liveSessionSignaturesByConversation.set(conversation.id, liveSessionSignature);
+      }
     }
+  }
+
+  private async getLiveSessionSignature(
+    conversation: Conversation,
+    vaultPath: string,
+    isPendingFork: boolean,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<string | null> {
+    const state = getClaudeState(conversation.providerState);
+    const sessionId = isPendingFork
+      ? state.forkSource?.sessionId
+      : (state.providerSessionId ?? conversation.sessionId);
+    if (!sessionId) return null;
+
+    const sessionPath = this.relocatedSessionPathsByConversation
+      .get(conversation.id)
+      ?.get(sessionId)
+      ?? (() => {
+        try {
+          return getSDKSessionPath(vaultPath, sessionId, pathContext);
+        } catch {
+          return null;
+        }
+      })();
+    return sessionPath ? getSDKSessionSignature(sessionPath) : null;
   }
 
   hasConversationModelRecoverySource(conversation: Conversation): boolean {
