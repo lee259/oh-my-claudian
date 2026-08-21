@@ -353,6 +353,18 @@ describe('ChatState', () => {
       expect(onAttentionChanged).toHaveBeenLastCalledWith(null);
     });
 
+    it('preserves whether a background result completed or failed', () => {
+      const chatState = new ChatState();
+
+      chatState.markReviewRequired('error');
+
+      expect(chatState.attention).toEqual({
+        kind: 'review',
+        outcome: 'error',
+        since: expect.any(Number),
+      });
+    });
+
     it('tracks multiple action-required interactions until the last one ends', () => {
       jest.spyOn(Date, 'now')
         .mockReturnValueOnce(100)

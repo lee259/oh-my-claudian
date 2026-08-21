@@ -1480,6 +1480,8 @@ describe('InputController coordinator execution', () => {
   it('reports a terminal accepted error as reviewable', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
+    const captureReviewableSettlement = jest.fn(() => onReviewableSettlement);
+    fixture.deps.captureReviewableSettlement = captureReviewableSettlement as any;
     fixture.coordinator.execute.mockResolvedValueOnce({
       accepted: true,
       error: new Error('provider failed'),
@@ -1490,6 +1492,7 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.sendMessage({ content: 'finish this' });
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+    expect(captureReviewableSettlement).toHaveBeenCalledWith('error');
   });
 
   it.each(['cancelled', 'invalidated', 'missing-session'] as const)(

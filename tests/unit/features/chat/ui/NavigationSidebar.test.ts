@@ -397,6 +397,20 @@ describe('NavigationSidebar', () => {
   });
 
   describe('scroll to top button', () => {
+    it('reports navigation intent before scrolling away from the bottom', () => {
+      const onScrollIntent = jest.fn();
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement,
+        onScrollIntent,
+      );
+
+      const container = parentEl.querySelector('.claudian-nav-sidebar');
+      container!.children[0].click();
+
+      expect(onScrollIntent).toHaveBeenCalledWith('away');
+    });
+
     it('should scroll to top when clicked', () => {
       messagesEl.scrollHeight = 1000;
       messagesEl.clientHeight = 500;
@@ -418,6 +432,20 @@ describe('NavigationSidebar', () => {
   });
 
   describe('scroll to bottom button', () => {
+    it('reports bottom intent before smooth scrolling', () => {
+      const onScrollIntent = jest.fn();
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement,
+        onScrollIntent,
+      );
+
+      const container = parentEl.querySelector('.claudian-nav-sidebar');
+      container!.children[4].click();
+
+      expect(onScrollIntent).toHaveBeenCalledWith('bottom');
+    });
+
     it('should scroll to bottom when clicked', () => {
       messagesEl.scrollHeight = 1000;
       messagesEl.clientHeight = 500;
@@ -557,10 +585,12 @@ describe('NavigationSidebar', () => {
       messagesEl.clientHeight = 500;
       addConversation(messagesEl, [0, 400, 800], [100, 500]);
       messagesEl.scrollTop = 790;
+      const onScrollIntent = jest.fn();
 
       sidebar = new NavigationSidebar(
         parentEl as unknown as HTMLElement,
-        messagesEl as unknown as HTMLElement
+        messagesEl as unknown as HTMLElement,
+        onScrollIntent,
       );
 
       const { next } = getButtons(parentEl);
@@ -568,6 +598,7 @@ describe('NavigationSidebar', () => {
 
       const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
       expect(lastCall.top).toBe(2000);
+      expect(onScrollIntent).toHaveBeenCalledWith('bottom');
     });
 
     it('should scroll to top when at the first user message and prev is clicked', () => {

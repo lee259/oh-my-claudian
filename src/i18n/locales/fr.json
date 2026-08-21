@@ -335,6 +335,10 @@
       "name": "Défilement automatique pendant le streaming",
       "desc": "Défiler automatiquement vers le bas pendant que Claude diffuse les réponses. Désactiver pour rester en haut et lire depuis le début."
     },
+    "showTabTitlesByDefault": {
+      "name": "Afficher les titres des onglets par défaut",
+      "desc": "Afficher les titres des conversations dans la barre d’onglets plutôt que les numéros. Double-cliquez sur un onglet pour le basculer individuellement."
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "Différer le rendu mathématique pendant le streaming",
       "desc": "Afficher le LaTeX brut pendant la diffusion, puis rendre les formules une fois chaque bloc de texte terminé."
