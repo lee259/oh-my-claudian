@@ -140,6 +140,10 @@ const OBSIDIAN_PLUGIN_PATH = OBSIDIAN_VAULT && existsSync(OBSIDIAN_VAULT)
   : null;
 const DEVELOPMENT_WATCH_FILES = prod ? [] : getDevelopmentWatchFiles(process.cwd());
 
+if (prod) {
+  mkdirSync(path.join(process.cwd(), '.context'), { recursive: true });
+}
+
 const watchDevelopmentResources = {
   name: 'watch-development-resources',
   setup(build) {
@@ -151,6 +155,20 @@ const watchDevelopmentResources = {
       resolveDir: path.dirname(args.path),
       watchFiles: DEVELOPMENT_WATCH_FILES,
     }));
+  },
+};
+
+const writeBundleMetafile = {
+  name: 'write-bundle-metafile',
+  setup(build) {
+    build.onEnd(async (result) => {
+      if (!prod || result.errors.length > 0 || !result.metafile) return;
+      await fsPromises.writeFile(
+        path.join(process.cwd(), '.context', 'esbuild-meta.json'),
+        JSON.stringify(result.metafile),
+        'utf8',
+      );
+    });
   },
 };
 
@@ -212,6 +230,7 @@ const mainContext = await esbuild.context({
   plugins: [
     patchSdkImportMeta,
     watchDevelopmentResources,
+    writeBundleMetafile,
     createPatchRendererUnsafeUnref(['main.js']),
     copyToObsidian,
   ],
@@ -222,6 +241,7 @@ const mainContext = await esbuild.context({
   minify: prod,
   sourcemap: prod ? false : 'inline',
   treeShaking: true,
+  metafile: prod,
   outfile: 'main.js',
 });
 
