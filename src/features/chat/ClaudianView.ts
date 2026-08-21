@@ -310,6 +310,10 @@ export class ClaudianView extends ItemView {
           this.updateTabBar();
           this.notifyConversationNavigationChanged();
         },
+        onTabWorkChanged: () => {
+          this.updateTabBar();
+          this.notifyConversationNavigationChanged();
+        },
         onTabRewindingChanged: () => this.updateTabBar(),
         onTabTitleChanged: () => this.updateTabBar(),
         onTabAttentionChanged: () => {

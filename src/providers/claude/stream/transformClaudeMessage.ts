@@ -442,6 +442,18 @@ export function* transformSDKMessage(
         };
       } else if (message.subtype === 'compact_boundary') {
         yield { type: 'context_compacted' };
+        const postTokens = message.compact_metadata?.post_tokens;
+        if (typeof postTokens === 'number' && Number.isFinite(postTokens) && postTokens >= 0) {
+          yield {
+            type: 'usage',
+            usage: buildUsageInfo({
+              inputTokens: postTokens,
+              cacheCreationInputTokens: 0,
+              cacheReadInputTokens: 0,
+              contextTokens: postTokens,
+            }, options),
+          };
+        }
       } else if (message.subtype === 'task_notification') {
         const notification = transformTaskNotification(message);
         if (notification) {

@@ -20,7 +20,7 @@ function createTabBarItem(overrides: Partial<TabBarItem> = {}): TabBarItem {
     title: 'Test Tab',
     providerId: 'claude',
     isActive: false,
-    isStreaming: false,
+    isWorking: false,
     needsAttention: false,
     canClose: true,
     ...overrides,
@@ -301,6 +301,16 @@ describe('TabBar', () => {
       expect(containerEl._children[0]._classList.has('claudian-tab-badge-streaming')).toBe(true);
     });
 
+    it('should apply streaming class for a tab with background work', () => {
+      const containerEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      const tabBar = new TabBar(containerEl, callbacks);
+
+      tabBar.update([createTabBarItem({ isWorking: true })]);
+
+      expect(containerEl._children[0]._classList.has('claudian-tab-badge-streaming')).toBe(true);
+    });
+
     it('should apply attention class for tab needing attention', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
@@ -309,6 +319,20 @@ describe('TabBar', () => {
       tabBar.update([createTabBarItem({ needsAttention: true })]);
 
       expect(containerEl._children[0]._classList.has('claudian-tab-badge-attention')).toBe(true);
+    });
+
+    it('should apply an error review class when work stopped with an error', () => {
+      const containerEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      const tabBar = new TabBar(containerEl, callbacks);
+
+      tabBar.update([createTabBarItem({
+        needsAttention: true,
+        attention: { kind: 'review', outcome: 'error', since: 1 },
+      })]);
+
+      expect(containerEl._children[0]._classList.has('claudian-tab-badge-review-error')).toBe(true);
+      expect(containerEl._children[0]._classList.has('claudian-tab-badge-attention')).toBe(false);
     });
 
     it('should prioritize active over attention', () => {
