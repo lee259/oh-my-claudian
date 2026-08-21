@@ -19,21 +19,32 @@ export interface TabBarCallbacks {
   onTitleExpansionChanged?: (expandedTitleTabIds: TabId[]) => void;
 }
 
+export interface TabBarOptions {
+  showTitlesByDefault?: boolean;
+}
+
 /**
  * TabBar renders minimal numbered badge navigation.
  */
 export class TabBar {
   private containerEl: HTMLElement;
   private callbacks: TabBarCallbacks;
+  private readonly showTitlesByDefault: boolean;
   private expandedTitleTabIds = new Set<TabId>();
+  private collapsedDefaultTitleTabIds = new Set<TabId>();
   private lastKnownScrollLeft = 0;
   private readonly handleScroll = (): void => {
     this.captureScrollPosition();
   };
 
-  constructor(containerEl: HTMLElement, callbacks: TabBarCallbacks) {
+  constructor(
+    containerEl: HTMLElement,
+    callbacks: TabBarCallbacks,
+    options: TabBarOptions = {},
+  ) {
     this.containerEl = containerEl;
     this.callbacks = callbacks;
+    this.showTitlesByDefault = options.showTitlesByDefault === true;
     this.build();
   }
 
@@ -84,7 +95,7 @@ export class TabBar {
       stateClass = 'claudian-tab-badge-streaming';
     }
 
-    const isTitleExpanded = this.expandedTitleTabIds.has(item.id);
+    const isTitleExpanded = this.isTitleExpanded(item.id);
     const badgeEl = this.containerEl.createDiv({
       cls: [
         'claudian-tab-badge',
@@ -126,6 +137,7 @@ export class TabBar {
     this.containerEl.removeClass('claudian-tab-badges');
     this.containerEl.removeEventListener('scroll', this.handleScroll);
     this.expandedTitleTabIds.clear();
+    this.collapsedDefaultTitleTabIds.clear();
     this.lastKnownScrollLeft = 0;
   }
 
@@ -158,16 +170,29 @@ export class TabBar {
         this.expandedTitleTabIds.delete(tabId);
       }
     }
+    for (const tabId of this.collapsedDefaultTitleTabIds) {
+      if (!visibleTabIds.has(tabId)) {
+        this.collapsedDefaultTitleTabIds.delete(tabId);
+      }
+    }
   }
 
   private toggleBadgeTitle(item: TabBarItem, badgeEl: HTMLElement): void {
-    if (this.expandedTitleTabIds.has(item.id)) {
-      this.expandedTitleTabIds.delete(item.id);
+    if (this.isTitleExpanded(item.id)) {
+      if (this.showTitlesByDefault) {
+        this.collapsedDefaultTitleTabIds.add(item.id);
+      } else {
+        this.expandedTitleTabIds.delete(item.id);
+      }
     } else {
-      this.expandedTitleTabIds.add(item.id);
+      if (this.showTitlesByDefault) {
+        this.collapsedDefaultTitleTabIds.delete(item.id);
+      } else {
+        this.expandedTitleTabIds.add(item.id);
+      }
     }
 
-    const isTitleExpanded = this.expandedTitleTabIds.has(item.id);
+    const isTitleExpanded = this.isTitleExpanded(item.id);
     badgeEl.textContent = this.getBadgeLabel(item);
     badgeEl.toggleClass('claudian-tab-badge-expanded', isTitleExpanded);
     badgeEl.setAttribute('data-title-expanded', isTitleExpanded ? 'true' : 'false');
@@ -175,7 +200,7 @@ export class TabBar {
   }
 
   private getBadgeLabel(item: TabBarItem): string {
-    if (!this.expandedTitleTabIds.has(item.id)) {
+    if (!this.isTitleExpanded(item.id)) {
       return String(item.index);
     }
 
@@ -189,5 +214,12 @@ export class TabBar {
     }
 
     return `${chars.slice(0, EXPANDED_TITLE_MAX_LENGTH - TRUNCATED_TITLE_SUFFIX.length).join('')}${TRUNCATED_TITLE_SUFFIX}`;
+  }
+
+  private isTitleExpanded(tabId: TabId): boolean {
+    if (this.showTitlesByDefault) {
+      return !this.collapsedDefaultTitleTabIds.has(tabId);
+    }
+    return this.expandedTitleTabIds.has(tabId);
   }
 }

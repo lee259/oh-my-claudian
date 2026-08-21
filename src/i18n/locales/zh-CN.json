@@ -359,6 +359,10 @@
       "name": "流式传输时自动滚动",
       "desc": "在 Claude 流式传输响应时自动滚动到底部。禁用后将停留在顶部，从头开始阅读。"
     },
+    "showTabTitlesByDefault": {
+      "name": "默认显示标签页标题",
+      "desc": "在标签栏中显示对话标题，而不是标签页编号。双击标签页可单独切换。"
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "流式传输时延迟渲染数学公式",
       "desc": "响应流式传输时显示原始 LaTeX，并在每个文本块完成后只渲染一次数学公式。"

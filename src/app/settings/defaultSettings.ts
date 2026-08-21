@@ -50,6 +50,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
 
   maxWarmAgentProcesses: 5,
   enableAutoScroll: true,
+  showTabTitlesByDefault: false,
   deferMathRenderingDuringStreaming: true,
   renderDiagramsInChat: true,
   expandFileEditsByDefault: false,

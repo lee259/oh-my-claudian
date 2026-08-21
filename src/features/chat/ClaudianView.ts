@@ -469,6 +469,8 @@ export class ClaudianView extends ItemView {
         void this.handleTabClose(tabId);
       },
       onNewTab: () => this.requestNewTab(),
+    }, {
+      showTitlesByDefault: this.plugin.settings.showTabTitlesByDefault,
     });
 
     const navActionsEl = wrapper.createDiv({ cls: 'claudian-input-nav-actions' });
@@ -687,6 +689,7 @@ export class ClaudianView extends ItemView {
 
   /** Refreshes tab controls after settings that affect tab availability change. */
   refreshTabControls(): void {
+    this.updateTabBar();
     this.updateTabBarVisibility();
   }
 

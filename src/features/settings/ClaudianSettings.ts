@@ -420,6 +420,22 @@ export class ClaudianSettingTab extends PluginSettingTab {
       );
 
     new Setting(container)
+      .setName(t('settings.showTabTitlesByDefault.name'))
+      .setDesc(t('settings.showTabTitlesByDefault.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showTabTitlesByDefault ?? false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.showTabTitlesByDefault = value;
+            });
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshTabControls();
+            }
+          })
+      );
+
+    new Setting(container)
       .setName(t('settings.deferMathRenderingDuringStreaming.name'))
       .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
       .addToggle((toggle) =>
