@@ -2,6 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import { loadPrism } from 'obsidian';
 
 import {
+  hasDiagramFence,
   prepareDisplayOnlyCodeFences,
   restoreDisplayOnlyCodeFences,
 } from '@/features/chat/rendering/DisplayOnlyCodeFences';
@@ -9,6 +10,16 @@ import {
 describe('DisplayOnlyCodeFences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('detects nested and attributed Mermaid fences for streaming deferral', () => {
+    expect(hasDiagramFence('> ```mermaid\nflowchart TB')).toBe(true);
+    expect(hasDiagramFence('- ```mermaid title="sample"\nflowchart TB')).toBe(true);
+    expect(hasDiagramFence('```mermaid\nflowchart TB')).toBe(true);
+  });
+
+  it('does not detect Mermaid-like text inside an outer fence', () => {
+    expect(hasDiagramFence('````markdown\n```mermaid\nflowchart TB\n```\n````')).toBe(false);
   });
 
   it('replaces every fenced language while preserving fence structure and metadata', () => {

@@ -7,14 +7,27 @@ const PLACEHOLDER_LANGUAGE_PREFIX = 'claudian-display-only-fence-';
 /** Fence languages Claudian renders instead of neutralizing, when the user opts in. */
 export const DIAGRAM_FENCE_LANGUAGES: readonly string[] = ['mermaid'];
 
-const DIAGRAM_FENCE_OPENER = new RegExp(
-  String.raw`^[\t ]*(?:\x60{3,}|~{3,})[\t ]*(?:${DIAGRAM_FENCE_LANGUAGES.join('|')})[\t ]*$`,
-  'im',
-);
+const FENCE_INFO_PATTERN = /^([\t ]*)(\S+)(.*)$/;
 
 /** Reports whether streaming content already contains a diagram fence opener. */
-export function hasDiagramFence(content: string): boolean {
-  return DIAGRAM_FENCE_OPENER.test(content);
+export function hasDiagramFence(
+  content: string,
+  languages: readonly string[] = DIAGRAM_FENCE_LANGUAGES,
+): boolean {
+  const diagramLanguages = new Set(languages.map((language) => language.toLowerCase()));
+  let found = false;
+
+  transformMarkdownSegments(content, {
+    fence: (_opener, fence) => {
+      const languageMatch = fence.info.match(FENCE_INFO_PATTERN);
+      if (languageMatch && diagramLanguages.has(languageMatch[2].toLowerCase())) {
+        found = true;
+      }
+      return _opener;
+    },
+  });
+
+  return found;
 }
 
 interface PrismHighlighter {
@@ -55,7 +68,7 @@ export function prepareDisplayOnlyCodeFences(
   const fences: DisplayOnlyCodeFence[] = [];
   const preparedMarkdown = transformMarkdownSegments(markdown, {
     fence: (opener, fence) => {
-      const languageMatch = fence.info.match(/^([\t ]*)(\S+)(.*)$/);
+      const languageMatch = fence.info.match(FENCE_INFO_PATTERN);
       if (!languageMatch) {
         return opener;
       }
