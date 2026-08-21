@@ -12,6 +12,16 @@ export interface SDKSessionLocation {
   sessionPath?: string;
 }
 
+/** Returns a cheap change signature for an SDK transcript, or null when it cannot be read. */
+export async function getSDKSessionSignature(sessionPath: string): Promise<string | null> {
+  try {
+    const stats = await fs.stat(sessionPath);
+    return `${stats.size}:${stats.mtimeMs}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Encodes a vault path for the SDK project directory name.
  * The SDK replaces ALL non-alphanumeric characters with `-`.
