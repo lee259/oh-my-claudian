@@ -19,7 +19,7 @@ Oh My Claudian gives you one Obsidian chat workspace for seven coding-agent prov
 
 ## Product Direction
 
-Oh My Claudian is intentionally not a mirror of upstream Claudian. We selectively adopt upstream fixes and ideas, then adapt them to our own architecture and the needs of a local, multi-provider Obsidian workspace.
+Oh My Claudian is a local-first, multi-provider Obsidian workspace. It combines a shared chat experience with provider-native capabilities, so you can choose the right agent without giving up the safety and context of your vault.
 
 Our priorities are:
 
@@ -28,7 +28,7 @@ Our priorities are:
 - **Safe and recoverable local execution** — external file boundaries, approval-aware tool outcomes, provider readiness diagnostics, session recovery, and explicit trust controls are first-class features.
 - **A focused single-user workflow** — the default experience stays local, predictable, and useful without requiring a collaboration service, account system, or LAN project authority layer.
 
-This means we do not automatically import large upstream product directions such as multiplayer collaboration, hosted project authority, or provider-default changes. A proposed sync must solve a problem for Oh My Claudian users, fit our ownership boundaries, and preserve provider capability differences. Collaboration or orchestration features may still be designed independently when they strengthen the local workflow rather than simply reproducing upstream architecture.
+We prioritize focused improvements that strengthen this workflow. Large infrastructure features such as multiplayer collaboration, hosted project authority, or provider-default changes are considered separately and only when they provide clear value to Oh My Claudian users.
 
 ## Added in This Repository
 
@@ -38,7 +38,9 @@ This means we do not automatically import large upstream product directions such
 ## Features
 
 - Sidebar chat, multiple tabs, conversation history, fork, resume, and compact.
+- Single-panel and dual-pane layouts with a native vault file tree and session manager.
 - Inline edits with word-level diff preview.
+- Mermaid diagrams rendered directly in chat messages.
 - Slash commands, skills, `@` mentions, and instruction mode.
 - Provider-specific planning, permissions, reasoning controls, and model selection.
 - Provider readiness diagnostics in each provider settings tab, covering enablement, CLI availability, model discovery, and model selection.
@@ -46,10 +48,13 @@ This means we do not automatically import large upstream product directions such
 - Model catalog state in provider settings, including freshness, cached/failed refresh state, default model, and all-versus-explicit selection.
 - Provider-neutral execution outcomes for completion, cancellation, invalidation, and recoverable errors, with recovery actions fenced while a turn is active.
 - Drag files and folders from Obsidian or your desktop into the composer to attach them as clickable context chips.
+- Explicit external-file access boundaries and approval-aware write handling.
 - MCP support where available from the selected provider.
 - Internationalized interface with 10 locales, including Simplified and Traditional Chinese.
 
-**Plan Mode** — Toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
+Provider capabilities are intentionally not identical. Oh My Claudian exposes controls only when the selected provider supports them and keeps provider-native history, permissions, models, and runtime behavior behind provider-specific adapters.
+
+**Plan Mode** — For providers that support it, toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
 
 **Instruction Mode (`#`)** — Refined custom instructions added from the chat input.
 
