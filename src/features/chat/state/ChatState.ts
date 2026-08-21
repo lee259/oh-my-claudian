@@ -1,11 +1,13 @@
 import type { UsageInfo } from '../../../core/types';
 import type {
+  AutoScrollNavigationIntent,
   ChatMessage,
   ChatStateCallbacks,
   ChatStateData,
   PendingToolCall,
   QueuedMessage,
   TabAttention,
+  TabReviewOutcome,
   ThinkingBlockState,
   TodoItem,
   WriteEditState,
@@ -38,6 +40,7 @@ function createInitialState(): ChatStateData {
     currentTodos: null,
     attention: null,
     autoScrollEnabled: true, // Default; controllers will override based on settings
+    navigationScrollIntent: null,
     responseStartTime: null,
     flavorTimerInterval: null,
     pendingNewSessionPlan: null,
@@ -50,7 +53,7 @@ export class ChatState {
   private state: ChatStateData;
   private _callbacks: ChatStateCallbacks;
   private readonly pendingActionIds = new Set<string>();
-  private pendingReviewSince: number | null = null;
+  private pendingReview: { outcome?: TabReviewOutcome; since: number } | null = null;
   private thinkingIndicatorTimeoutWindow: Window | null = null;
   private flavorTimerIntervalWindow: Window | null = null;
 
@@ -320,8 +323,11 @@ export class ChatState {
     if (this.pendingActionIds.has(interactionId)) return;
 
     this.pendingActionIds.add(interactionId);
-    if (this.state.attention?.kind === 'review' && this.pendingReviewSince === null) {
-      this.pendingReviewSince = this.state.attention.since;
+    if (this.state.attention?.kind === 'review' && this.pendingReview === null) {
+      this.pendingReview = {
+        ...(this.state.attention.outcome ? { outcome: this.state.attention.outcome } : {}),
+        since: this.state.attention.since,
+      };
     }
     if (!this.requiresAction) {
       this.setAttention({ kind: 'action-required', since: Date.now() });
@@ -331,25 +337,33 @@ export class ChatState {
   endActionRequired(interactionId: string): void {
     if (!this.pendingActionIds.delete(interactionId)) return;
     if (this.pendingActionIds.size === 0 && this.requiresAction) {
-      const reviewSince = this.pendingReviewSince;
-      this.pendingReviewSince = null;
-      this.setAttention(reviewSince === null
+      const review = this.pendingReview;
+      this.pendingReview = null;
+      this.setAttention(review === null
         ? null
-        : { kind: 'review', since: reviewSince });
+        : { kind: 'review', ...review });
     }
   }
 
-  markReviewRequired(): void {
-    if (this.state.attention?.kind === 'review') return;
-    if (this.requiresAction) {
-      this.pendingReviewSince ??= Date.now();
+  markReviewRequired(outcome?: TabReviewOutcome): void {
+    if (this.state.attention?.kind === 'review') {
+      if (outcome !== 'error' || this.state.attention.outcome === 'error') return;
+      this.setAttention({ kind: 'review', since: this.state.attention.since, outcome });
       return;
     }
-    this.setAttention({ kind: 'review', since: Date.now() });
+    if (this.requiresAction) {
+      if (this.pendingReview === null) {
+        this.pendingReview = { ...(outcome ? { outcome } : {}), since: Date.now() };
+      } else if (outcome === 'error') {
+        this.pendingReview.outcome = outcome;
+      }
+      return;
+    }
+    this.setAttention({ kind: 'review', since: Date.now(), ...(outcome ? { outcome } : {}) });
   }
 
   acknowledgeReview(): void {
-    this.pendingReviewSince = null;
+    this.pendingReview = null;
     if (this.state.attention?.kind === 'review') {
       this.setAttention(null);
     }
@@ -357,7 +371,7 @@ export class ChatState {
 
   clearAttention(): void {
     this.pendingActionIds.clear();
-    this.pendingReviewSince = null;
+    this.pendingReview = null;
     this.setAttention(null);
   }
 
@@ -367,6 +381,14 @@ export class ChatState {
 
   get autoScrollEnabled(): boolean {
     return this.state.autoScrollEnabled;
+  }
+
+  get navigationScrollIntent(): AutoScrollNavigationIntent | null {
+    return this.state.navigationScrollIntent;
+  }
+
+  set navigationScrollIntent(value: AutoScrollNavigationIntent | null) {
+    this.state.navigationScrollIntent = value;
   }
 
   set autoScrollEnabled(value: boolean) {

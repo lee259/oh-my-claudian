@@ -72,13 +72,15 @@ export class TabBar {
 
   /** Renders a single tab badge. */
   private renderBadge(item: TabBarItem): void {
-    // Determine state class (priority: active > attention > streaming > idle)
+    // Determine state class (priority: active > attention > working > idle)
     let stateClass = 'claudian-tab-badge-idle';
     if (item.isActive) {
       stateClass = 'claudian-tab-badge-active';
     } else if (item.needsAttention) {
-      stateClass = 'claudian-tab-badge-attention';
-    } else if (item.isStreaming) {
+      stateClass = item.attention?.outcome === 'error'
+        ? 'claudian-tab-badge-review-error'
+        : 'claudian-tab-badge-attention';
+    } else if (item.isWorking || item.isStreaming) {
       stateClass = 'claudian-tab-badge-streaming';
     }
 

@@ -102,6 +102,11 @@
   border-color: var(--text-error);
 }
 
+.claudian-tab-badge-review-error {
+  border-color: var(--text-error);
+  color: var(--text-error);
+}
+
 .claudian-tab-badge-idle {
   border-color: var(--background-modifier-border);
 }
