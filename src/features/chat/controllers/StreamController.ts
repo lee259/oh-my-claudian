@@ -549,8 +549,7 @@ export class StreamController {
   }
 
   private shouldDeferDiagramRendering(content: string): boolean {
-    return this.deps.plugin.settings.renderDiagramsInChat === true
-      && hasDiagramFence(content);
+    return hasDiagramFence(content);
   }
 
   private getStreamingRenderOptions(content: string): RenderContentOptions | undefined {

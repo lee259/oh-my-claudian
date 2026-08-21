@@ -177,7 +177,6 @@ export interface ClaudianSettings {
   enableAutoScroll: boolean;
   showTabTitlesByDefault: boolean;
   deferMathRenderingDuringStreaming: boolean;
-  renderDiagramsInChat: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
   enableDualPane: boolean;
