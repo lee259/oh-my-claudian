@@ -1,6 +1,6 @@
 {
   "name": "claudian",
-  "version": "2.4.4",
+  "version": "2.4.5",
   "packageManager": "pnpm@10.34.5",
   "description": "Oh My Claudian - provider-backed coding agents embedded in the Obsidian sidebar",
   "main": "main.js",
