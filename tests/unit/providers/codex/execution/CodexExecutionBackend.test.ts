@@ -1,4 +1,5 @@
 import { TEST_CODEX_MODEL } from '@test/helpers/codexModels';
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 
 import type {
   ProviderExecutionEvent,
@@ -2805,5 +2806,62 @@ describe('CodexExecutionBackend', () => {
     );
 
     await session.dispose();
+  });
+});
+
+describe('Codex provider execution contract', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    captureHandlers();
+    mockProcessIsAlive.mockReturnValue(true);
+    mockResolveLaunchSpec.mockResolvedValue({
+      target: {
+        method: 'host-native',
+        platformFamily: 'unix',
+        platformOs: 'macos',
+      },
+      command: '/usr/local/bin/codex',
+      args: ['app-server', '--listen', 'stdio://'],
+      spawnCwd: '/vault',
+      targetCwd: '/vault',
+      env: { HOME: '/tmp' },
+      pathMapper: {
+        target: {
+          method: 'host-native',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        },
+        toTargetPath: (value: string) => value,
+        toHostPath: (value: string) => value,
+        mapTargetPathList: (values: string[]) => values,
+        canRepresentHostPath: () => true,
+      },
+    });
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') return createThreadResult('contract-thread');
+      if (method === 'turn/start') {
+        queueMicrotask(() => completeTurn('contract-thread', 'contract-turn'));
+        return createTurnResult('contract-turn');
+      }
+      if (method === 'turn/interrupt') return {};
+      throw new Error(`Unexpected method: ${method}`);
+    });
+  });
+
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => signal ? createRequest(signal) : createRequest(),
+    createSession: () => new CodexExecutionBackend(createPlugin())
+      .createSession(createSessionConfig()),
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

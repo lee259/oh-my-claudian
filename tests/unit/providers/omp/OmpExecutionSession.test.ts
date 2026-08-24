@@ -1,3 +1,5 @@
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
+
 import { OmpExecutionSession } from '@/providers/omp/execution/OmpExecutionSession';
 
 function deferred<T>() {
@@ -93,5 +95,52 @@ describe('OmpExecutionSession', () => {
       type: 'usage_updated',
       usage: expect.objectContaining({ contextTokens: 42_000, percentage: 21 }),
     }));
+  });
+});
+
+describe('OMP provider execution contract', () => {
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => ({
+      configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ text: 'Hello', type: 'text' }],
+      signal: signal ?? new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' },
+    }),
+    createSession: () => {
+      let kernelOptions: any;
+      const kernel = {
+        cancel: jest.fn(),
+        connect: jest.fn().mockResolvedValue(undefined),
+        dispose: jest.fn().mockResolvedValue(undefined),
+        openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'contract-session' }),
+        prompt: jest.fn().mockImplementation(async () => {
+          await flush();
+          await kernelOptions.onNotification({
+            sessionId: 'contract-session',
+            update: {
+              content: { text: 'contract response', type: 'text' },
+              sessionUpdate: 'agent_message_chunk',
+            },
+          });
+          return { userMessageId: 'contract-user' };
+        }),
+        setConfigOption: jest.fn().mockResolvedValue(undefined),
+        setModel: jest.fn().mockResolvedValue(undefined),
+      };
+      return new OmpExecutionSession({ settings: {} } as never, {
+        interactionPort: {} as never,
+        lifecycle: 'persistent',
+        nativePersistence: 'provider-default',
+        vaultWorkingDirectory: '/vault',
+      }, {
+        createKernel: options => {
+          kernelOptions = options;
+          return kernel;
+        },
+      });
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

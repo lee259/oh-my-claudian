@@ -194,6 +194,10 @@ src/
 └── style/        # Modular CSS
 ```
 
+Provider execution follows a small, provider-neutral contract rather than a universal harness implementation. Each provider owns its native process, protocol, session state, history, and recovery policy behind `ProviderExecutionBackend` and `ProviderExecutionSession`; ACP providers share transport primitives only, while provider-specific behavior remains in the owning adapter. Shared contract tests cover lifecycle, streaming, cancellation, and terminal-state behavior, and provider-specific tests cover native differences.
+
+When extending a provider, preserve the shared execution contract without flattening provider capabilities into a lowest-common-denominator abstraction. Add or update the provider's contract harness and keep native state and protocol decisions behind its provider directory.
+
 ## Contributing
 
 Issues and focused pull requests are welcome. Before opening one, please search existing issues and pull requests to avoid duplicates. For substantial changes, open an issue first so the problem and scope can be discussed.

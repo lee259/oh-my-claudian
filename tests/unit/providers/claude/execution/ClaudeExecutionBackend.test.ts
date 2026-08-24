@@ -1,6 +1,7 @@
 import '@/providers';
 
 import * as sdkModule from '@anthropic-ai/claude-agent-sdk';
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 import { createProviderRecoveryTestHarness } from '@test/unit/features/chat/execution/ProviderRecoveryTestHarness';
 
 import type {
@@ -2181,6 +2182,43 @@ describe('ClaudeExecutionBackend', () => {
     }));
     expect(session.getSnapshot().status).toBe('invalidated');
     await session.dispose();
+  });
+});
+
+describe('Claude provider execution contract', () => {
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => signal ? createRequest({ signal }) : createRequest(),
+    createSession: () => {
+      sdkMock.setMockMessages([
+        {
+          type: 'system',
+          subtype: 'init',
+          session_id: 'contract-session',
+        },
+        {
+          type: 'stream_event',
+          parent_tool_use_id: null,
+          event: {
+            type: 'content_block_delta',
+            delta: { type: 'text_delta', text: 'contract response' },
+          },
+        },
+        {
+          type: 'assistant',
+          uuid: 'contract-assistant',
+          message: {
+            content: [{ type: 'text', text: 'contract response' }],
+          },
+        },
+        { type: 'result', subtype: 'success' },
+      ], { appendResult: false });
+      const { services } = createServices();
+      return new ClaudeExecutionBackend(createHost(), services)
+        .createSession(createConfig());
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });
 
