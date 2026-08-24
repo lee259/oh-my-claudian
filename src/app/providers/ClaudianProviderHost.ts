@@ -1,12 +1,61 @@
-import type { ProviderExecutionTransitionScope } from '../../core/execution';
+import type { App } from 'obsidian';
+
+import type { SharedAppStorage } from '../../core/bootstrap/storage';
+import type {
+  ProviderExecutionLifecycleRegistry,
+  ProviderExecutionTransitionScope,
+} from '../../core/execution';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
-import type { ProviderCliResolutionContext, ProviderId } from '../../core/providers/types';
+import type {
+  ProviderCliResolutionContext,
+  ProviderId,
+} from '../../core/providers/types';
+import type { ClaudianSettings } from '../../core/types';
 import type { EnvironmentScope } from '../../core/types/settings';
-import type ClaudianPlugin from '../../main';
+
+interface ClaudianProviderHostDependencies {
+  readonly app: App;
+  readonly executionLifecycleRegistry: ProviderExecutionLifecycleRegistry;
+  readonly settings: ClaudianSettings;
+  readonly storage: SharedAppStorage;
+  readonly manifest?: { version?: string };
+
+  saveSettings(): Promise<void>;
+  mutateSettings(
+    mutation: (settings: ClaudianSettings) => void | Promise<void>,
+  ): Promise<void>;
+  mutateSettingsConditionally(
+    mutation: (settings: ClaudianSettings) => boolean | Promise<boolean>,
+  ): Promise<void>;
+  loadData(): Promise<unknown>;
+  saveData(data: unknown): Promise<void>;
+  normalizeModelVariantSettings(): boolean;
+  getActiveEnvironmentVariables(providerId: ProviderId): string;
+  getEnvironmentVariablesForScope(scope: EnvironmentScope): string;
+  applyEnvironmentVariables(scope: EnvironmentScope, envText: string): Promise<void>;
+  applyEnvironmentVariablesBatch(
+    updates: Array<{ scope: EnvironmentScope; envText: string }>,
+  ): Promise<void>;
+  applyProviderRuntimeSettings(
+    providerIds: ProviderId[],
+    mutation: (settings: ClaudianSettings) => void | Promise<void>,
+    onApplied?: () => void | Promise<void>,
+  ): Promise<void>;
+  getResolvedProviderCliPath(
+    providerId: ProviderId,
+    context?: ProviderCliResolutionContext,
+  ): Promise<string | null>;
+  runProviderExecutionTransition<T>(
+    providerIds: ProviderId[],
+    mutation: (scope: ProviderExecutionTransitionScope) => Promise<T>,
+    parentScope?: ProviderExecutionTransitionScope,
+  ): Promise<T>;
+  notifyProviderChatOptionsChanged(providerId: ProviderId): void;
+}
 
 /** Delegates provider-facing capabilities to the application composition root. */
 export class ClaudianProviderHost implements ProviderHost {
-  constructor(private readonly plugin: ClaudianPlugin) {}
+  constructor(private readonly plugin: ClaudianProviderHostDependencies) {}
 
   get app() {
     return this.plugin.app;
@@ -33,13 +82,13 @@ export class ClaudianProviderHost implements ProviderHost {
   }
 
   mutateSettings(
-    mutation: (settings: typeof this.plugin.settings) => void | Promise<void>,
+    mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void> {
     return this.plugin.mutateSettings(mutation);
   }
 
   mutateSettingsConditionally(
-    mutation: (settings: typeof this.plugin.settings) => boolean | Promise<boolean>,
+    mutation: (settings: ClaudianSettings) => boolean | Promise<boolean>,
   ): Promise<void> {
     return this.plugin.mutateSettingsConditionally(mutation);
   }
@@ -76,7 +125,7 @@ export class ClaudianProviderHost implements ProviderHost {
 
   applyProviderRuntimeSettings(
     providerIds: ProviderId[],
-    mutation: (settings: typeof this.plugin.settings) => void | Promise<void>,
+    mutation: (settings: ClaudianSettings) => void | Promise<void>,
     onApplied?: () => void | Promise<void>,
   ): Promise<void> {
     return this.plugin.applyProviderRuntimeSettings(providerIds, mutation, onApplied);
