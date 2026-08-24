@@ -1077,6 +1077,9 @@ export class InputController {
     const mode = permissionMode === 'plan' && this.getActiveCapabilities().supportsPlanMode
       ? permissionMode
       : undefined;
+    const customSystemPrompt = typeof this.deps.plugin.settings.systemPrompt === 'string'
+      ? this.deps.plugin.settings.systemPrompt.trim()
+      : '';
     const images = [...(request.images ?? [])];
     const existingUserTurns = this.deps.state.messages.filter(isCanonicalUserMessage).length;
 
@@ -1096,7 +1099,9 @@ export class InputController {
         ...(mode ? { mode } : {}),
         ...(reasoning ? { reasoning } : {}),
         ...(serviceTier ? { serviceTier } : {}),
-        systemInstructions: { kind: 'provider-default' },
+        systemInstructions: customSystemPrompt
+          ? { kind: 'explicit', instructions: customSystemPrompt }
+          : { kind: 'none' },
       },
       context: {
         ...(request.browserSelection

@@ -493,6 +493,47 @@ describe('CodexExecutionBackend', () => {
     await session.dispose();
   });
 
+  it('does not add Claudian base instructions when system instructions are disabled', async () => {
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') return createThreadResult('thread-none');
+      if (method === 'turn/start') return createTurnResult('turn-none');
+      throw new Error(`Unexpected method: ${method}`);
+    });
+
+    const session = new CodexExecutionBackend(createPlugin())
+      .createSession(createSessionConfig());
+    const run = session.execute(createRequest(undefined, {
+      configuration: {
+        systemInstructions: { kind: 'none' },
+        model: TEST_CODEX_MODEL,
+        reasoning: 'high',
+        serviceTier: 'priority',
+        permissionMode: 'normal',
+      },
+    }));
+    await waitForCondition(() => mockTransportRequest.mock.calls.some(
+      ([method]) => method === 'thread/start',
+    ));
+
+    const threadStart = mockTransportRequest.mock.calls.find(
+      ([method]) => method === 'thread/start',
+    );
+    expect(threadStart?.[1]).toEqual(expect.objectContaining({
+      baseInstructions: '',
+    }));
+    run.cancel();
+    await collectEvents(run.events);
+    await session.dispose();
+  });
+
   it('recovers a completed turn when the terminal notification is missed', async () => {
     jest.useFakeTimers();
     const threadId = 'thread-missed-completion';

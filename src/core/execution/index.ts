@@ -66,6 +66,7 @@ export {
   type ProviderExecutionRequest,
   type ProviderSystemInstructions,
   type ProviderToolPolicy,
+  resolveProviderSystemInstructions,
 } from './ProviderExecutionRequest';
 export {
   type ProviderExecutionRun,

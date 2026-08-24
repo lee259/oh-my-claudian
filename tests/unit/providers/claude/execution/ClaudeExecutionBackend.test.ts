@@ -310,6 +310,29 @@ describe('ClaudeExecutionBackend', () => {
     }));
   });
 
+  it('omits the Claudian system prompt when system instructions are disabled', async () => {
+    sdkMock.setMockMessages([
+      {
+        type: 'system',
+        subtype: 'init',
+        session_id: 'native-session',
+      },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    await collectEvents(session.execute(createRequest({
+      configuration: {
+        systemInstructions: { kind: 'none' },
+        model: 'claude-sonnet-4-5',
+      },
+    })).events);
+
+    expect(sdkMock.getLastOptions()?.systemPrompt).toBeUndefined();
+  });
+
   it('uses resumable ephemeral turns and honors passive non-persistent policy', async () => {
     const { services } = createServices();
     const backend = new ClaudeExecutionBackend(createHost(), services);

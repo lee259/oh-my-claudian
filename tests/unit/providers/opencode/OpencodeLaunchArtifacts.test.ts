@@ -77,6 +77,32 @@ describe('buildOpencodeManagedConfig', () => {
     });
   });
 
+  it('leaves managed agents without a Claudian prompt when system instructions are disabled', () => {
+    expect(buildOpencodeManagedConfig({}, undefined)).toEqual({
+      $schema: 'https://opencode.ai/config.json',
+      agent: {
+        build: {},
+        [OPENCODE_YOLO_MODE_ID]: {
+          mode: 'primary',
+          permission: {
+            plan_enter: 'allow',
+            question: 'allow',
+          },
+        },
+        [OPENCODE_SAFE_MODE_ID]: {
+          mode: 'primary',
+          permission: {
+            bash: 'ask',
+            edit: 'ask',
+            plan_enter: 'allow',
+            question: 'allow',
+          },
+        },
+        plan: {},
+      },
+    });
+  });
+
   it('merges the user config instead of replacing it', () => {
     expect(buildOpencodeManagedConfig({
       agent: {
@@ -162,12 +188,16 @@ describe('prepareOpencodeLaunchArtifacts', () => {
         HOME: tmpRoot,
         OPENCODE_CONFIG: baseConfigPath,
       } as NodeJS.ProcessEnv,
-      settings: {
-        customPrompt: '',
-        mediaFolder: '',
-        userName: 'Yishen',
-        vaultPath: tmpRoot,
+      systemPrompt: {
+        kind: 'default',
+        settings: {
+          customPrompt: '',
+          mediaFolder: '',
+          userName: 'Yishen',
+          vaultPath: tmpRoot,
+        },
       },
+      userName: 'Yishen',
       workspaceRoot: tmpRoot,
     });
 
@@ -216,11 +246,14 @@ describe('prepareOpencodeLaunchArtifacts', () => {
   it('keeps the launch key stable when the resolved default database is later passed as OPENCODE_DB', async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
     const baseParams = {
-      settings: {
-        customPrompt: '',
-        mediaFolder: '',
-        userName: '',
-        vaultPath: tmpRoot,
+      systemPrompt: {
+        kind: 'default' as const,
+        settings: {
+          customPrompt: '',
+          mediaFolder: '',
+          userName: '',
+          vaultPath: tmpRoot,
+        },
       },
       workspaceRoot: tmpRoot,
     };
@@ -253,11 +286,14 @@ describe('prepareOpencodeLaunchArtifacts', () => {
         HOME: path.join(tmpRoot, 'home'),
         XDG_DATA_HOME: xdgDataHome,
       } as NodeJS.ProcessEnv,
-      settings: {
-        customPrompt: '',
-        mediaFolder: '',
-        userName: '',
-        vaultPath: tmpRoot,
+      systemPrompt: {
+        kind: 'default',
+        settings: {
+          customPrompt: '',
+          mediaFolder: '',
+          userName: '',
+          vaultPath: tmpRoot,
+        },
       },
       workspaceRoot: tmpRoot,
     });

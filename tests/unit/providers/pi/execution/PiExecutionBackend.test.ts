@@ -1188,6 +1188,24 @@ describe('PiExecutionBackend', () => {
     expect(harness.kernels[0].launchSpec.args).toContain(expected);
   });
 
+  it('does not pass a system prompt to Pi when system instructions are disabled', async () => {
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      configuration: {
+        model: 'pi:anthropic/claude-sonnet-4',
+        reasoning: 'high',
+        systemInstructions: { kind: 'none' },
+      },
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_end' });
+    await eventsPromise;
+
+    expect(harness.kernels[0].launchSpec.args).not.toContain('--system-prompt');
+  });
+
   it('maps an explicit allow-list exactly and falls back to provider model settings', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest({
