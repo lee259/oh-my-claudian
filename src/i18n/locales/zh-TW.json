@@ -356,13 +356,13 @@
       "name": "串流傳輸時自動捲動",
       "desc": "在 Claude 串流傳輸回應時自動捲動到底部。停用後將停留在頂部，從頭開始閱讀。"
     },
+    "showTabTitlesByDefault": {
+      "name": "預設顯示分頁標題",
+      "desc": "在分頁列中顯示對話標題，而不是分頁編號。雙擊分頁即可單獨切換。"
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "串流傳輸時延遲渲染數學公式",
       "desc": "回應串流傳輸時顯示原始 LaTeX，並在每個文字區塊完成後只渲染一次數學公式。"
-    },
-    "renderDiagramsInChat": {
-      "name": "在對話中算繪 Mermaid 圖表",
-      "desc": "把回覆中的 mermaid 程式碼區塊算繪成圖表。每個區塊串流結束後才算繪。關閉後所有程式碼區塊只顯示原始碼。"
     },
     "expandFileEditsByDefault": {
       "name": "預設展開檔案編輯",

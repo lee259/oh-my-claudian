@@ -424,6 +424,22 @@ export class ClaudianSettingTab extends PluginSettingTab {
       );
 
     new Setting(container)
+      .setName(t('settings.showTabTitlesByDefault.name'))
+      .setDesc(t('settings.showTabTitlesByDefault.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showTabTitlesByDefault ?? false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.showTabTitlesByDefault = value;
+            });
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshTabControls();
+            }
+          })
+      );
+
+    new Setting(container)
       .setName(t('settings.deferMathRenderingDuringStreaming.name'))
       .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
       .addToggle((toggle) =>
@@ -432,19 +448,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             await this.plugin.mutateSettings((settings) => {
               settings.deferMathRenderingDuringStreaming = value;
-            });
-          })
-      );
-
-    new Setting(container)
-      .setName(t('settings.renderDiagramsInChat.name'))
-      .setDesc(t('settings.renderDiagramsInChat.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.renderDiagramsInChat === true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.renderDiagramsInChat = value;
             });
           })
       );
@@ -706,7 +709,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
         slider
           .setLimits(MIN_WARM_AGENT_PROCESSES, MAX_WARM_AGENT_PROCESSES, 1)
           .setValue(this.plugin.settings.maxWarmAgentProcesses ?? 5)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             await this.plugin.mutateSettings((settings) => {
               settings.maxWarmAgentProcesses = value;

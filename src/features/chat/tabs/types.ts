@@ -18,7 +18,7 @@ import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordin
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
-import type { TabAttention } from '../state/types';
+import type { TabAttention, TabReviewOutcome } from '../state/types';
 import type { BangBashModeManager } from '../ui/BangBashModeManager';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
 import type { FileContextManager } from '../ui/FileContext';
@@ -93,10 +93,11 @@ export interface TabCreateOptions {
   draftModel?: string | null;
   lifecycleState?: Extract<TabData['lifecycleState'], 'provisional' | 'cold'>;
   onStreamingChanged?: (isStreaming: boolean) => void;
+  onWorkChanged?: () => void;
   onRewindingChanged?: (isRewinding: boolean) => void;
   onTitleChanged?: (title: string) => void;
   onAttentionChanged?: (attention: TabAttention) => void;
-  captureReviewableSettlement?: () => () => void;
+  captureReviewableSettlement?: (outcome?: TabReviewOutcome) => () => void;
   onConversationIdChanged?: (conversationId: string | null) => void;
 }
 
@@ -229,7 +230,7 @@ export interface TabData {
   providerCatalogResolver: ProviderCatalogResolver | null;
 
   /** Captures whether completed runtime work will need review after finalization. */
-  captureReviewableSettlement: (() => () => void) | null;
+  captureReviewableSettlement: ((outcome?: TabReviewOutcome) => () => void) | null;
 
   /** Per-tab chat state. */
   state: ChatState;
@@ -277,6 +278,9 @@ export interface TabManagerCallbacks {
   /** Called when tab streaming state changes. */
   onTabStreamingChanged?: (tabId: TabId, isStreaming: boolean) => void;
 
+  /** Called when user-visible work starts or finishes in a tab. */
+  onTabWorkChanged?: (tabId: TabId) => void;
+
   /** Called when tab rewind transaction state changes. */
   onTabRewindingChanged?: (tabId: TabId, isRewinding: boolean) => void;
 
@@ -303,7 +307,10 @@ export interface TabBarItem {
   title: string;
   providerId: ProviderId;
   isActive: boolean;
-  isStreaming: boolean;
+  isWorking: boolean;
+  /** @deprecated Use isWorking. Kept for integrations that construct tab items. */
+  isStreaming?: boolean;
   needsAttention: boolean;
+  attention?: TabAttention;
   canClose: boolean;
 }

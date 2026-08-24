@@ -16,6 +16,7 @@ import {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
   type ProviderToolPolicy,
+  resolveProviderSystemInstructions,
   type SteerableExecutionSession,
 } from '../../../core/execution';
 import {
@@ -1737,12 +1738,14 @@ export class CodexExecutionSession
   }
 
   private resolveBaseInstructions(request: ProviderExecutionRequest): string {
-    const base = request.configuration.systemInstructions.kind === 'explicit'
-      ? request.configuration.systemInstructions.instructions
-      : buildSystemPrompt(this.getSystemPromptSettings());
-    return request.toolPolicy.kind === 'passive'
-      ? `${base}\n\n${PASSIVE_INSTRUCTIONS}`
-      : base;
+    const base = resolveProviderSystemInstructions(
+      request.configuration.systemInstructions,
+      () => buildSystemPrompt(this.getSystemPromptSettings()),
+    ) ?? '';
+    return [
+      base,
+      ...(request.toolPolicy.kind === 'passive' ? [PASSIVE_INSTRUCTIONS] : []),
+    ].filter(Boolean).join('\n\n');
   }
 
   private getSystemPromptSettings(): SystemPromptSettings {

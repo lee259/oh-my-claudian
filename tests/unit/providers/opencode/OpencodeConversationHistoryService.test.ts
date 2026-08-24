@@ -27,6 +27,7 @@ describe('OpencodeConversationHistoryService', () => {
     seedDatabase(legacyDatabasePath, sessionId, 'Legacy prompt');
     seedDatabase(currentDatabasePath, sessionId, 'Current prompt');
     const conversation = createConversation(sessionId, legacyDatabasePath);
+    conversation.providerState!.futureResumeCursor = { token: 'cursor-1' };
 
     await new OpencodeConversationHistoryService().hydrateConversationHistory(
       conversation,
@@ -41,7 +42,10 @@ describe('OpencodeConversationHistoryService', () => {
     );
 
     expect(conversation.messages.map(message => message.content)).toEqual(['Current prompt']);
-    expect(conversation.providerState).toEqual({ databasePath: currentDatabasePath });
+    expect(conversation.providerState).toEqual({
+      databasePath: currentDatabasePath,
+      futureResumeCursor: { token: 'cursor-1' },
+    });
   });
 
   it('retries after a session-level hydration diagnostic', async () => {

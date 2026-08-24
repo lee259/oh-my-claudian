@@ -2,6 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import { loadPrism } from 'obsidian';
 
 import {
+  hasDiagramFence,
   prepareDisplayOnlyCodeFences,
   restoreDisplayOnlyCodeFences,
 } from '@/features/chat/rendering/DisplayOnlyCodeFences';
@@ -9,6 +10,16 @@ import {
 describe('DisplayOnlyCodeFences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('detects nested and attributed Mermaid fences for streaming deferral', () => {
+    expect(hasDiagramFence('> ```mermaid\nflowchart TB')).toBe(true);
+    expect(hasDiagramFence('- ```mermaid title="sample"\nflowchart TB')).toBe(true);
+    expect(hasDiagramFence('```mermaid\nflowchart TB')).toBe(true);
+  });
+
+  it('does not detect Mermaid-like text inside an outer fence', () => {
+    expect(hasDiagramFence('````markdown\n```mermaid\nflowchart TB\n```\n````')).toBe(false);
   });
 
   it('replaces every fenced language while preserving fence structure and metadata', () => {
@@ -35,15 +46,17 @@ describe('DisplayOnlyCodeFences', () => {
       {
         placeholderLanguage: 'claudian-display-only-fence-0',
         originalLanguage: 'dataview',
+        diagram: false,
       },
       {
         placeholderLanguage: 'claudian-display-only-fence-1',
         originalLanguage: 'typescript',
+        diagram: false,
       },
     ]);
   });
 
-  it('leaves allowlisted languages untouched while still neutralizing the rest', () => {
+  it('neutralizes diagram fences and marks them for controlled rendering', () => {
     const markdown = [
       '```dataview',
       'TABLE file.name',
@@ -56,20 +69,21 @@ describe('DisplayOnlyCodeFences', () => {
       '```',
     ].join('\n');
 
-    const prepared = prepareDisplayOnlyCodeFences(markdown, { renderedLanguages: ['mermaid'] });
+    const prepared = prepareDisplayOnlyCodeFences(markdown, { diagramLanguages: ['mermaid'] });
 
     expect(prepared.markdown).toBe([
       '```claudian-display-only-fence-0',
       'TABLE file.name',
       '```',
-      '```Mermaid',
+      '```claudian-display-only-fence-1',
       'flowchart TB',
       '```',
-      '```claudian-display-only-fence-1',
+      '```claudian-display-only-fence-2',
       'dv.list([])',
       '```',
     ].join('\n'));
-    expect(prepared.fences.map((fence) => fence.originalLanguage)).toEqual(['dataview', 'dataviewjs']);
+    expect(prepared.fences.map((fence) => fence.originalLanguage)).toEqual(['dataview', 'Mermaid', 'dataviewjs']);
+    expect(prepared.fences.map((fence) => fence.diagram)).toEqual([false, true, false]);
   });
 
   it('does not treat fence-like content inside an outer fence as a new block', () => {

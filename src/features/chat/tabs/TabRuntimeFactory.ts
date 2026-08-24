@@ -30,6 +30,7 @@ export function createTabRuntime(
     conversation,
     tabId,
     onStreamingChanged,
+    onWorkChanged,
     onRewindingChanged,
     onAttentionChanged,
     onConversationIdChanged,
@@ -68,7 +69,7 @@ export function createTabRuntime(
     draftModel,
     providerId: initialProviderId,
     conversationId: conversation?.id ?? null,
-  });
+  }, onWorkChanged);
   const tab: TabData = {
     session,
     get id() { return session.id; },

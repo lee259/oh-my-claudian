@@ -29,12 +29,29 @@ export interface ProviderExecutionContext {
 
 export type ProviderSystemInstructions =
   | {
+      readonly kind: 'none';
+    }
+  | {
       readonly kind: 'provider-default';
     }
   | {
       readonly kind: 'explicit';
       readonly instructions: string;
     };
+
+export function resolveProviderSystemInstructions(
+  instructions: ProviderSystemInstructions,
+  buildDefault: () => string,
+): string | undefined {
+  switch (instructions.kind) {
+    case 'none':
+      return undefined;
+    case 'explicit':
+      return instructions.instructions;
+    case 'provider-default':
+      return buildDefault();
+  }
+}
 
 export interface ProviderExecutionConfiguration {
   readonly systemInstructions: ProviderSystemInstructions;

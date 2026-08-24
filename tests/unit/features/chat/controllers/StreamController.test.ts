@@ -390,7 +390,6 @@ describe('StreamController - Text Content', () => {
     });
 
     it('should defer diagram rendering during streaming and render it once text finalizes', async () => {
-      (deps.plugin.settings as any).renderDiagramsInChat = true;
       const msg = createTestMessage();
       const textEl = createMockEl();
       deps.state.currentTextEl = textEl;
@@ -412,21 +411,6 @@ describe('StreamController - Text Content', () => {
       expect(deps.renderer.renderContent).toHaveBeenLastCalledWith(
         textEl,
         '```mermaid\nflowchart TB\n```',
-      );
-    });
-
-    it('should not defer diagram rendering when the setting is disabled', async () => {
-      (deps.plugin.settings as any).renderDiagramsInChat = false;
-      deps.state.currentTextEl = createMockEl();
-
-      await controller.appendText('```mermaid\nflowchart TB\n');
-
-      jest.advanceTimersByTime(16);
-      await Promise.resolve();
-
-      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
-        deps.state.currentTextEl,
-        '```mermaid\nflowchart TB\n',
       );
     });
 
@@ -558,6 +542,24 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'context_compacted' }, msg);
 
       expect(msg.contentBlocks).toContainEqual({ type: 'context_compacted' });
+    });
+
+    it('does not let a later Claude sub-request lower usage in the same stream', () => {
+      controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));
+      controller.updateUsage(createMockUsage({ contextTokens: 60, percentage: 60 }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 100, percentage: 100 }));
+    });
+
+    it('allows usage to drop after an explicit compaction boundary', async () => {
+      const msg = createTestMessage();
+      controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));
+
+      await controller.handleStreamChunk({ type: 'context_compacted' }, msg);
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 100, percentage: 100 }));
+      controller.updateUsage(createMockUsage({ contextTokens: 30, percentage: 30 }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 30, percentage: 30 }));
     });
   });
 

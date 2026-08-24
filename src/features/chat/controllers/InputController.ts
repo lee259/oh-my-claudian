@@ -145,7 +145,7 @@ export interface InputControllerDeps {
   toggleFastMode?: () => Promise<boolean>;
   restorePrePlanPermissionModeIfNeeded?: () => void | Promise<void>;
   /** Captures a review reporter when a terminal provider turn becomes visible. */
-  captureReviewableSettlement?: () => () => void;
+  captureReviewableSettlement?: (outcome?: 'completed' | 'error') => () => void;
   /** Opens provider diagnostics for failures before execution handoff. */
   onDiagnosticError?: (error: unknown) => void;
   /** Performs a lightweight provider check before starting a new turn. */
@@ -534,7 +534,9 @@ export class InputController {
         || (result.status === 'error' && result.accepted);
       if (shouldReportReviewableSettlement) {
         currentReviewableSettlementReporter =
-          this.deps.captureReviewableSettlement?.() ?? null;
+          this.deps.captureReviewableSettlement?.(
+            result.status === 'error' ? 'error' : 'completed',
+          ) ?? null;
       }
       if (result.status === 'cancelled') {
         wasInterrupted = true;
@@ -591,7 +593,7 @@ export class InputController {
         const errorMsg = stringifyDiagnosticError(error);
         await streamController.appendText(`\n\n**Error:** ${errorMsg}`);
         currentReviewableSettlementReporter =
-          this.deps.captureReviewableSettlement?.() ?? null;
+          this.deps.captureReviewableSettlement?.('error') ?? null;
       }
     } finally {
       const finalAssistantMsg = this.activeStreamingAssistantMessage ?? assistantMsg;
@@ -1075,6 +1077,9 @@ export class InputController {
     const mode = permissionMode === 'plan' && this.getActiveCapabilities().supportsPlanMode
       ? permissionMode
       : undefined;
+    const customSystemPrompt = typeof this.deps.plugin.settings.systemPrompt === 'string'
+      ? this.deps.plugin.settings.systemPrompt.trim()
+      : '';
     const images = [...(request.images ?? [])];
     const existingUserTurns = this.deps.state.messages.filter(isCanonicalUserMessage).length;
 
@@ -1094,7 +1099,9 @@ export class InputController {
         ...(mode ? { mode } : {}),
         ...(reasoning ? { reasoning } : {}),
         ...(serviceTier ? { serviceTier } : {}),
-        systemInstructions: { kind: 'provider-default' },
+        systemInstructions: customSystemPrompt
+          ? { kind: 'explicit', instructions: customSystemPrompt }
+          : { kind: 'none' },
       },
       context: {
         ...(request.browserSelection

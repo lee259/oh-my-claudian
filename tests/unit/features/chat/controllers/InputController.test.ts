@@ -121,6 +121,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
     settings: {
       enableAutoTitleGeneration: false,
       permissionMode: 'normal',
+      systemPrompt: '',
     },
     updateConversation: jest.fn().mockResolvedValue(undefined),
   };
@@ -271,6 +272,30 @@ describe('InputController coordinator execution', () => {
     expect(second.userTurnOrdinal).toBe(2);
     expect(second.conversationHistory).toHaveLength(2);
     expect(fixture.deps.conversationController.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not add the Claudian default system instructions when no custom prompt is configured', async () => {
+    const fixture = createFixture();
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
+    expect(submission.configuration.systemInstructions).toEqual({ kind: 'none' });
+  });
+
+  it('passes a configured custom prompt as explicit system instructions', async () => {
+    const fixture = createFixture();
+    fixture.plugin.settings.systemPrompt = 'Use concise answers.';
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
+    expect(submission.configuration.systemInstructions).toEqual({
+      instructions: 'Use concise answers.',
+      kind: 'explicit',
+    });
   });
 
   it('blocks the first turn when provider preflight reports a blocking error', async () => {
@@ -1527,6 +1552,8 @@ describe('InputController coordinator execution', () => {
   it('reports a terminal accepted error as reviewable', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
+    const captureReviewableSettlement = jest.fn(() => onReviewableSettlement);
+    fixture.deps.captureReviewableSettlement = captureReviewableSettlement as any;
     fixture.coordinator.execute.mockResolvedValueOnce({
       accepted: true,
       error: new Error('provider failed'),
@@ -1537,6 +1564,7 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.sendMessage({ content: 'finish this' });
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+    expect(captureReviewableSettlement).toHaveBeenCalledWith('error');
   });
 
   it.each(['cancelled', 'invalidated', 'missing-session'] as const)(

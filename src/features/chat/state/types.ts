@@ -44,10 +44,13 @@ export interface PendingToolCall {
 }
 
 export type TabAttentionKind = 'review' | 'action-required';
+export type TabReviewOutcome = 'completed' | 'error';
+export type AutoScrollNavigationIntent = 'away' | 'bottom';
 
 export type TabAttention = {
   kind: TabAttentionKind;
   since: number;
+  outcome?: TabReviewOutcome;
 } | null;
 
 /** Stored selection state from editor polling. */
@@ -115,6 +118,7 @@ export interface ChatStateData {
 
   // Auto-scroll control during streaming
   autoScrollEnabled: boolean;
+  navigationScrollIntent: AutoScrollNavigationIntent | null;
 
   // Response timer state
   responseStartTime: number | null;

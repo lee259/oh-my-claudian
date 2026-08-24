@@ -21,6 +21,25 @@ body.theme-light .claudian-message-content pre {
 }
 
 /* Rendered mermaid diagrams are graphics, not code surfaces */
+.claudian-diagram-wrapper {
+  margin: 8px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.claudian-diagram-block {
+  min-height: 1px;
+}
+
+.claudian-diagram-source-hidden {
+  display: none;
+}
+
+.claudian-diagram-wrapper svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .claudian-message-content .block-language-mermaid,
 .claudian-code-wrapper pre.mermaid,
 .claudian-message-content pre.mermaid {

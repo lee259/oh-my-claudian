@@ -1,6 +1,6 @@
 {
   "name": "claudian",
-  "version": "2.4.1",
+  "version": "2.4.4",
   "packageManager": "pnpm@10.34.5",
   "description": "Oh My Claudian - provider-backed coding agents embedded in the Obsidian sidebar",
   "main": "main.js",
@@ -12,6 +12,7 @@
     "build:css": "node scripts/build-css.mjs",
     "dev": "pnpm run build:css && node esbuild.config.mjs",
     "build": "node scripts/build.mjs production",
+    "analyze:bundle": "node scripts/analyze-bundle.mjs",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "check:performance": "node scripts/check-startup-performance.mjs",
     "typecheck": "tsc --noEmit",

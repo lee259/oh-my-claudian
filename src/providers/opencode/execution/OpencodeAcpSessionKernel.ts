@@ -35,6 +35,7 @@ import { getEnhancedPath } from '@/utils/env';
 
 import {
   type OpencodeManagedAgentConfig,
+  type OpencodeSystemPrompt,
   prepareOpencodeLaunchArtifacts,
 } from '../runtime/OpencodeLaunchArtifacts';
 import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
@@ -192,17 +193,11 @@ export class DefaultOpencodeAcpSessionKernel
             managedAgents: [buildAgentConfig(options.profile)],
           }),
         runtimeEnv,
-        ...(options.systemInstructions.kind === 'explicit'
-          ? {
-            systemPromptKey: options.systemInstructions.instructions,
-            systemPromptText: options.systemInstructions.instructions,
-          }
-          : {
-            settings: getSystemPromptSettings(
-              this.options.plugin,
-              this.options.config.vaultWorkingDirectory,
-            ),
-          }),
+        systemPrompt: toOpencodeSystemPrompt(
+          options.systemInstructions,
+          this.options.plugin,
+          this.options.config.vaultWorkingDirectory,
+        ),
         workspaceRoot: this.options.config.vaultWorkingDirectory,
       });
       this.assertNotDisposed();
@@ -446,6 +441,28 @@ export class DefaultOpencodeAcpSessionKernel
   private requireConnection(): AcpClientConnection {
     if (!this.connection) throw new Error('OpenCode ACP kernel is not connected');
     return this.connection;
+  }
+}
+
+function toOpencodeSystemPrompt(
+  instructions: ProviderSystemInstructions,
+  plugin: ProviderHost,
+  vaultWorkingDirectory: string,
+): OpencodeSystemPrompt {
+  switch (instructions.kind) {
+    case 'none':
+      return { kind: 'none' };
+    case 'explicit':
+      return {
+        key: instructions.instructions,
+        kind: 'explicit',
+        text: instructions.instructions,
+      };
+    case 'provider-default':
+      return {
+        kind: 'default',
+        settings: getSystemPromptSettings(plugin, vaultWorkingDirectory),
+      };
   }
 }
 

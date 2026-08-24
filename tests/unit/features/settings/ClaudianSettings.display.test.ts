@@ -73,7 +73,6 @@ jest.mock('obsidian', () => {
       'onChange',
       'setPlaceholder',
       'setLimits',
-      'setDynamicTooltip',
       'setButtonText',
       'setCta',
       'onClick',
