@@ -16,6 +16,7 @@ import {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
   type ProviderToolPolicy,
+  resolveProviderSystemInstructions,
   type SteerableExecutionSession,
 } from '../../../core/execution';
 import {
@@ -1471,18 +1472,18 @@ function resolveSystemPrompt(
   request: ProviderExecutionRequest,
   settings: Record<string, unknown>,
   vaultPath: string,
-): string {
-  if (request.configuration.systemInstructions.kind === 'explicit') {
-    return request.configuration.systemInstructions.instructions;
-  }
-  return buildSystemPrompt({
-    customPrompt: getString(settings.systemPrompt) ?? undefined,
-    mediaFolder: getString(settings.mediaFolder) ?? undefined,
-    userName: getString(settings.userName) ?? undefined,
-    vaultPath,
-  } satisfies SystemPromptSettings, {
-    toolGuidanceProfile: 'provider-native',
-  });
+): string | undefined {
+  return resolveProviderSystemInstructions(
+    request.configuration.systemInstructions,
+    () => buildSystemPrompt({
+      customPrompt: getString(settings.systemPrompt) ?? undefined,
+      mediaFolder: getString(settings.mediaFolder) ?? undefined,
+      userName: getString(settings.userName) ?? undefined,
+      vaultPath,
+    } satisfies SystemPromptSettings, {
+      toolGuidanceProfile: 'provider-native',
+    }),
+  );
 }
 
 function encodePrompt(

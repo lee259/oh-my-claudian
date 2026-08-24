@@ -280,7 +280,7 @@ class DefaultOpencodeMetadataProbe implements OpencodeMetadataProbe {
     this.kernel = kernel;
     await kernel.connect({
       profile: 'passive',
-      systemInstructions: { kind: 'provider-default' },
+      systemInstructions: { kind: 'none' },
     });
     signal?.throwIfAborted();
     this.native = await kernel.openSession();

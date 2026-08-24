@@ -29,6 +29,20 @@ export interface OpencodeManagedAgentConfig {
   id: string;
 }
 
+export type OpencodeSystemPrompt =
+  | {
+      readonly kind: 'none';
+    }
+  | {
+      readonly kind: 'default';
+      readonly settings: SystemPromptSettings;
+    }
+  | {
+      readonly kind: 'explicit';
+      readonly key: string;
+      readonly text: string;
+    };
+
 const DEFAULT_OPENCODE_MANAGED_AGENT_CONFIGS: readonly OpencodeManagedAgentConfig[] = [
   { id: OPENCODE_BUILD_MODE_ID },
   {
@@ -61,9 +75,7 @@ export interface PrepareOpencodeLaunchArtifactsParams {
   defaultAgentId?: string;
   managedAgents?: readonly OpencodeManagedAgentConfig[];
   runtimeEnv: NodeJS.ProcessEnv;
-  settings?: SystemPromptSettings;
-  systemPromptKey?: string;
-  systemPromptText?: string;
+  systemPrompt: OpencodeSystemPrompt;
   userName?: string;
   workspaceRoot: string;
 }
@@ -78,13 +90,9 @@ export async function prepareOpencodeLaunchArtifacts(
   );
   const systemPromptPath = path.join(artifactsDir, 'system.md');
   const configPath = path.join(artifactsDir, 'config.json');
-  const systemPrompt = normalizeSystemPrompt(
-    params.systemPromptText ?? buildSystemPrompt(requireSettings(params)),
-  );
-  const promptKey = params.systemPromptKey
-    ?? (params.systemPromptText !== undefined
-      ? params.systemPromptText
-      : computeSystemPromptKey(requireSettings(params)));
+  const systemPrompt = resolveSystemPrompt(params.systemPrompt);
+  const systemPromptPathForConfig = systemPrompt ? systemPromptPath : undefined;
+  const promptKey = resolveSystemPromptKey(params.systemPrompt);
   const baseConfig = await loadOpencodeBaseConfig(
     params.runtimeEnv.OPENCODE_CONFIG,
     params.workspaceRoot,
@@ -92,8 +100,11 @@ export async function prepareOpencodeLaunchArtifacts(
   const configContent = `${JSON.stringify(
     buildOpencodeManagedConfig(
       baseConfig,
-      systemPromptPath,
-      params.userName ?? params.settings?.userName,
+      systemPromptPathForConfig,
+      params.userName
+        ?? (params.systemPrompt.kind === 'default'
+          ? params.systemPrompt.settings.userName
+          : undefined),
       params.managedAgents,
       params.defaultAgentId,
     ),
@@ -104,7 +115,9 @@ export async function prepareOpencodeLaunchArtifacts(
 
   await fs.mkdir(artifactsDir, { recursive: true });
   await ensureOpencodeDatabaseDirectory(databasePath);
-  await writeIfChanged(systemPromptPath, systemPrompt);
+  if (systemPrompt) {
+    await writeIfChanged(systemPromptPath, systemPrompt);
+  }
   await writeIfChanged(configPath, configContent);
 
   return {
@@ -121,6 +134,28 @@ export async function prepareOpencodeLaunchArtifacts(
   };
 }
 
+function resolveSystemPrompt(systemPrompt: OpencodeSystemPrompt): string {
+  switch (systemPrompt.kind) {
+    case 'none':
+      return '';
+    case 'explicit':
+      return normalizeSystemPrompt(systemPrompt.text);
+    case 'default':
+      return normalizeSystemPrompt(buildSystemPrompt(systemPrompt.settings));
+  }
+}
+
+function resolveSystemPromptKey(systemPrompt: OpencodeSystemPrompt): string {
+  switch (systemPrompt.kind) {
+    case 'none':
+      return 'none';
+    case 'explicit':
+      return systemPrompt.key;
+    case 'default':
+      return computeSystemPromptKey(systemPrompt.settings);
+  }
+}
+
 async function ensureOpencodeDatabaseDirectory(databasePath: string | null): Promise<void> {
   if (!databasePath || databasePath === ':memory:') {
     return;
@@ -131,7 +166,7 @@ async function ensureOpencodeDatabaseDirectory(databasePath: string | null): Pro
 
 export function buildOpencodeManagedConfig(
   baseConfig: Record<string, unknown>,
-  systemPromptPath: string,
+  systemPromptPath?: string,
   userName?: string,
   managedAgents: readonly OpencodeManagedAgentConfig[] = DEFAULT_OPENCODE_MANAGED_AGENT_CONFIGS,
   defaultAgentId?: string,
@@ -158,7 +193,7 @@ export function buildOpencodeManagedConfig(
     nextAgents[agentConfig.id] = {
       ...existingAgent,
       ...(isPlainObject(agentConfig.definition) ? agentConfig.definition : {}),
-      prompt: `{file:${systemPromptPath}}`,
+      ...(systemPromptPath ? { prompt: `{file:${systemPromptPath}}` } : {}),
     };
   }
 
@@ -218,14 +253,4 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function normalizeSystemPrompt(systemPrompt: string): string {
   return systemPrompt.endsWith('\n') ? systemPrompt : `${systemPrompt}\n`;
-}
-
-function requireSettings(
-  params: PrepareOpencodeLaunchArtifactsParams,
-): SystemPromptSettings {
-  if (params.settings) {
-    return params.settings;
-  }
-
-  throw new Error('prepareOpencodeLaunchArtifacts requires settings when no systemPromptText is provided');
 }
