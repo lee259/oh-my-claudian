@@ -557,6 +557,33 @@ describe('PiExecutionBackend', () => {
     expect(new Set(events.map(event => event.scope.sequence)).size).toBe(events.length);
   });
 
+  it('keeps a turn active until Pi settles after an automatic retry', async () => {
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      input: [{ text: 'Retry this turn', type: 'text' }],
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_end', willRetry: true });
+    await flush();
+
+    let settled = false;
+    void eventsPromise.then(() => {
+      settled = true;
+    });
+    await flush();
+    expect(settled).toBe(false);
+
+    harness.kernels[0].emit({ type: 'auto_retry_start' });
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_settled' });
+
+    const events = await eventsPromise;
+    expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
+  });
+
   it('launches resumed persistent sessions with their native session file', async () => {
     const sessionDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-resume-session-'));
     const sessionFile = path.join(sessionDir, 'pi-session-1.jsonl');
