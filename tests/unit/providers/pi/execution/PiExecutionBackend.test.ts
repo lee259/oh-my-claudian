@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 import { createProviderRecoveryTestHarness } from '@test/unit/features/chat/execution/ProviderRecoveryTestHarness';
 
 import type {
@@ -2035,5 +2036,26 @@ describe('PiExecutionBackend', () => {
       'Pi execution session is disposed',
     );
     expect(harness.kernels).toHaveLength(0);
+  });
+});
+
+describe('Pi provider execution contract', () => {
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => signal ? createRequest({ signal }) : createRequest(),
+    createSession: () => {
+      const harness = createHarness(
+        undefined,
+        kernel => {
+          queueMicrotask(() => {
+            kernel.emit({ type: 'agent_start' });
+            kernel.emit({ type: 'agent_end' });
+          });
+        },
+      );
+      return harness.session;
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

@@ -1,3 +1,5 @@
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
+
 import type {
   ProviderExecutionEvent,
   ProviderExecutionRequest,
@@ -287,7 +289,10 @@ async function waitForCondition(condition: () => boolean): Promise<void> {
   expect(condition()).toBe(true);
 }
 
-function createHarness(config = createConfig()) {
+function createHarness(
+  config = createConfig(),
+  onKernelCreated?: (kernel: FakeKernel) => void,
+) {
   const kernels: FakeKernel[] = [];
   const commandCatalog = {
     setCommandSnapshot: jest.fn(),
@@ -297,6 +302,7 @@ function createHarness(config = createConfig()) {
     createKernel: (options) => {
       const kernel = new FakeKernel(options);
       kernels.push(kernel);
+      onKernelCreated?.(kernel);
       return kernel;
     },
   });
@@ -1209,5 +1215,48 @@ describe('OpencodeExecutionBackend', () => {
         type: 'session_error',
       }),
     ]);
+  });
+});
+
+describe('OpenCode provider execution contract', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProcessShutdown.mockResolvedValue(undefined);
+    mockConnectionInitialize.mockResolvedValue({});
+    mockPrepareLaunchArtifacts.mockResolvedValue({
+      configContent: '{}',
+      configPath: '/vault/.claudian/opencode/config.json',
+      databasePath: '/native/opencode.db',
+      launchKey: 'launch-key',
+      systemPromptPath: '/vault/.claudian/opencode/system.md',
+    });
+  });
+
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => signal ? createRequest({ signal }) : createRequest(),
+    createSession: () => {
+      const harness = createHarness(
+        createConfig(),
+        (kernel) => {
+          const complete = (): void => {
+            if (kernel.cancelCalls > 0 || kernel.disposeCalls > 0) return;
+            if (kernel.prompts.length === 0) {
+              setImmediate(complete);
+              return;
+            }
+            kernel.notify({
+              content: { type: 'text', text: 'contract response' },
+              sessionUpdate: 'agent_message_chunk',
+            });
+            kernel.completePrompt();
+          };
+          setImmediate(complete);
+        },
+      );
+      return harness.session;
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });
