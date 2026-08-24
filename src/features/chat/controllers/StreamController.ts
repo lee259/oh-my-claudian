@@ -131,6 +131,11 @@ export class StreamController {
   private viewportVisible = true;
   private pendingToolOutputFrames = new Map<string, ScheduledAnimationFrame>();
   private pendingScrollFrame: ScheduledAnimationFrame | null = null;
+  private highestContextUsage: {
+    model?: string;
+    contextWindow: number;
+    contextTokens: number;
+  } | null = null;
 
   // Provider lifecycle agent tracking (spawn → wait/close lifecycle)
   private lifecycleSubagentStates = new Map<string, SubagentState | AsyncSubagentState>(); // spawn callId → rendered state
@@ -289,6 +294,7 @@ export class StreamController {
         break;
 
       case 'context_compacted': {
+        this.highestContextUsage = null;
         this.flushPendingTools();
         if (state.currentThinkingState) {
           await this.finalizeCurrentThinkingBlock(msg);
@@ -326,9 +332,21 @@ export class StreamController {
     if (state.ignoreUsageUpdates) return;
 
     const activeModel = this.getActiveProviderModel();
-    state.usage = activeModel && !usage.model
+    const nextUsage = activeModel && !usage.model
       ? { ...usage, model: activeModel }
       : usage;
+    const previousHighest = this.highestContextUsage;
+    const isSameContext = previousHighest
+      && previousHighest.model === nextUsage.model
+      && previousHighest.contextWindow === nextUsage.contextWindow;
+    if (isSameContext && nextUsage.contextTokens < previousHighest.contextTokens) return;
+
+    this.highestContextUsage = {
+      model: nextUsage.model,
+      contextWindow: nextUsage.contextWindow,
+      contextTokens: nextUsage.contextTokens,
+    };
+    state.usage = nextUsage;
   }
 
   // ============================================
@@ -531,8 +549,7 @@ export class StreamController {
   }
 
   private shouldDeferDiagramRendering(content: string): boolean {
-    return this.deps.plugin.settings.renderDiagramsInChat === true
-      && hasDiagramFence(content);
+    return hasDiagramFence(content);
   }
 
   private getStreamingRenderOptions(content: string): RenderContentOptions | undefined {
@@ -1977,6 +1994,7 @@ export class StreamController {
     state.currentTextContent = '';
     state.currentThinkingState = null;
     this.deps.subagentManager.resetStreamingState();
+    this.highestContextUsage = null;
     this.lifecycleSubagentStates.clear();
     this.lifecycleAgentIdToSpawnId.clear();
     state.pendingTools.clear();

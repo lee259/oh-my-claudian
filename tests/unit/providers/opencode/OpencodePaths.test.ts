@@ -44,6 +44,10 @@ describe('OpencodePaths', () => {
 
     expect(resolveOpencodeDataDir(env)).toBe('/xdg/data/opencode');
     expect(resolveOpencodeDatabasePath(env)).toBe('/custom/opencode.db');
+    expect(resolveOpencodeDatabasePath({
+      ...env,
+      OPENCODE_DB: 'opencode-work.db',
+    })).toBe('/xdg/data/opencode/opencode-work.db');
   });
 
   it('falls back to the existing resolved database when persisted metadata points at a missing path', () => {

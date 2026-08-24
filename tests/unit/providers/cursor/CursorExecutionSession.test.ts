@@ -1,3 +1,5 @@
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
+
 import { CursorExecutionSession } from '@/providers/cursor/execution/CursorExecutionSession';
 
 function deferred<T>() {
@@ -101,5 +103,59 @@ describe('CursorExecutionSession', () => {
       providerSessionId: 'cursor-session',
       status: 'idle',
     });
+  });
+});
+
+describe('Cursor provider execution contract', () => {
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => ({
+      configuration: {
+        model: 'cursor:claude-4-sonnet',
+        systemInstructions: { kind: 'provider-default' },
+      },
+      input: [{ text: 'Hello', type: 'text' }],
+      signal: signal ?? new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' },
+    }),
+    createSession: () => {
+      let kernelOptions: any;
+      const kernel = {
+        cancel: jest.fn(),
+        connect: jest.fn().mockResolvedValue(undefined),
+        dispose: jest.fn().mockResolvedValue(undefined),
+        openSession: jest.fn().mockResolvedValue({ sessionId: 'contract-session' }),
+        prompt: jest.fn().mockImplementation(async () => {
+          await flush();
+          await kernelOptions.onNotification({
+            sessionId: 'contract-session',
+            update: {
+              content: { text: 'contract response', type: 'text' },
+              sessionUpdate: 'agent_message_chunk',
+            },
+          });
+          return {
+            usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+            userMessageId: 'contract-user',
+          };
+        }),
+        setConfigOption: jest.fn().mockResolvedValue(undefined),
+        setMode: jest.fn().mockResolvedValue(undefined),
+        setModel: jest.fn().mockResolvedValue(undefined),
+      };
+      return new CursorExecutionSession({ settings: {} } as never, {
+        interactionPort: {} as never,
+        lifecycle: 'persistent',
+        nativePersistence: 'provider-default',
+        vaultWorkingDirectory: '/vault',
+      }, {
+        createKernel: options => {
+          kernelOptions = options;
+          return kernel;
+        },
+      });
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

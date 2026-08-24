@@ -64,48 +64,48 @@ body.theme-light .oh-my-claudian-root.claudian-container {
 .oh-my-claudian-root.claudian-container[data-provider="claude"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-claude);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-claude-rgb);
-  --claudian-brand: var(--claudian-brand-claude) !important;
-  --claudian-brand-rgb: var(--claudian-brand-claude-rgb) !important;
+  --claudian-brand: var(--claudian-brand-claude);
+  --claudian-brand-rgb: var(--claudian-brand-claude-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="codex"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-codex);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-codex-rgb);
-  --claudian-brand: var(--claudian-brand-codex) !important;
-  --claudian-brand-rgb: var(--claudian-brand-codex-rgb) !important;
+  --claudian-brand: var(--claudian-brand-codex);
+  --claudian-brand-rgb: var(--claudian-brand-codex-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="opencode"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-opencode);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-opencode-rgb);
-  --claudian-brand: var(--claudian-brand-opencode) !important;
-  --claudian-brand-rgb: var(--claudian-brand-opencode-rgb) !important;
+  --claudian-brand: var(--claudian-brand-opencode);
+  --claudian-brand-rgb: var(--claudian-brand-opencode-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="omp"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-omp);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-omp-rgb);
-  --claudian-brand: var(--claudian-brand-omp) !important;
-  --claudian-brand-rgb: var(--claudian-brand-omp-rgb) !important;
+  --claudian-brand: var(--claudian-brand-omp);
+  --claudian-brand-rgb: var(--claudian-brand-omp-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="pi"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-pi);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-pi-rgb);
-  --claudian-brand: var(--claudian-brand-pi) !important;
-  --claudian-brand-rgb: var(--claudian-brand-pi-rgb) !important;
+  --claudian-brand: var(--claudian-brand-pi);
+  --claudian-brand-rgb: var(--claudian-brand-pi-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="grok"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-grok);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-grok-rgb);
-  --claudian-brand: var(--claudian-brand-grok) !important;
-  --claudian-brand-rgb: var(--claudian-brand-grok-rgb) !important;
+  --claudian-brand: var(--claudian-brand-grok);
+  --claudian-brand-rgb: var(--claudian-brand-grok-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="cursor"] {
   --oh-my-claudian-brand: var(--oh-my-claudian-brand-cursor);
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-cursor-rgb);
-  --claudian-brand: var(--claudian-brand-cursor) !important;
-  --claudian-brand-rgb: var(--claudian-brand-cursor-rgb) !important;
+  --claudian-brand: var(--claudian-brand-cursor);
+  --claudian-brand-rgb: var(--claudian-brand-cursor-rgb);
 }

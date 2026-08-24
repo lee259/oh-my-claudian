@@ -12,6 +12,8 @@ jest.mock('@/providers/grok/history/GrokHistoryPathResolver', () => ({
   resolveGrokSessionDirectory: (...args: unknown[]) => mockResolveGrokSessionDirectory(...args),
 }));
 
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
+
 import type {
   ProviderExecutionEvent,
   ProviderExecutionRequest,
@@ -2099,5 +2101,41 @@ describe('GrokExecutionBackend', () => {
       missingProviderSessionId: 'session-existing',
       type: 'execution_error',
     });
+  });
+});
+
+describe('Grok provider execution contract', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLoadGrokPromptIndexAfterAssistant.mockResolvedValue(3);
+    mockResolveGrokSessionDirectory.mockImplementation(
+      (_hint: unknown, sessionId: string | undefined) => (
+        sessionId ? `/trusted/grok/sessions/${sessionId}` : null
+      ),
+    );
+  });
+
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => ({
+      ...executionRequest(),
+      ...(signal ? { signal } : {}),
+    }),
+    createSession: () => {
+      const native = new FakeNativeConnection();
+      native.promptImplementation = async () => {
+        native.emit({
+          content: { text: 'contract response', type: 'text' },
+          sessionUpdate: 'agent_message_chunk',
+        });
+        return { stopReason: 'end_turn' };
+      };
+      return new GrokExecutionBackend(
+        { settings: {} } as ProviderHost,
+        { nativeFactory: { create: () => native } },
+      ).createSession(sessionConfig);
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

@@ -198,6 +198,9 @@ export class TabManager implements TabManagerInterface {
         this.callbacks.onTabStreamingChanged?.(tab.id, isStreaming);
         if (!isStreaming) tab.executionCoordinator?.notifyMayCool();
       },
+      onWorkChanged: () => {
+        this.callbacks.onTabWorkChanged?.(tab.id);
+      },
       onRewindingChanged: (isRewinding) => {
         this.callbacks.onTabRewindingChanged?.(tab.id, isRewinding);
         if (!isRewinding) tab.executionCoordinator?.notifyMayCool();
@@ -211,7 +214,7 @@ export class TabManager implements TabManagerInterface {
           tab.executionCoordinator?.notifyMayCool();
         }
       },
-      captureReviewableSettlement: () => {
+      captureReviewableSettlement: (outcome) => {
         const shouldReport = this.isTabAlive(tab) && this.activeTabId !== tab.id;
         const activationRevision = this.tabActivationRevisions.get(tab.id) ?? 0;
         return () => {
@@ -220,7 +223,7 @@ export class TabManager implements TabManagerInterface {
             && this.isTabAlive(tab)
             && (this.tabActivationRevisions.get(tab.id) ?? 0) === activationRevision
           ) {
-            tab.state.markReviewRequired();
+            tab.state.markReviewRequired(outcome);
           }
         };
       },
@@ -535,13 +538,23 @@ export class TabManager implements TabManagerInterface {
         title: getTabTitle(tab, this.plugin),
         providerId: getTabProviderId(tab, this.plugin),
         isActive: tab.id === this.activeTabId,
-        isStreaming: tab.state.isStreaming,
+        isWorking: this.isTabWorking(tab.id),
         needsAttention: tab.state.needsAttention,
-        canClose: !tab.state.isRewinding && (this.tabs.size > 1 || !tab.state.isStreaming),
+        attention: tab.state.attention,
+        canClose: !tab.state.isRewinding && (this.tabs.size > 1 || !this.isTabWorking(tab.id)),
       });
     }
 
     return items;
+  }
+
+  /** True while a tab has foreground or queued background work in progress. */
+  private isTabWorking(tabId: TabId): boolean {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return false;
+    return tab.state.isStreaming
+      || tab.session.activeTurn !== null
+      || tab.session.hasBackgroundWork;
   }
 
   // ============================================

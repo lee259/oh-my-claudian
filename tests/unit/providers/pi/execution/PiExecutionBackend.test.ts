@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 import { createProviderRecoveryTestHarness } from '@test/unit/features/chat/execution/ProviderRecoveryTestHarness';
 
 import type {
@@ -555,6 +556,33 @@ describe('PiExecutionBackend', () => {
       expect.objectContaining({ id: 'pi:runtime:compact', name: 'compact' }),
     ]);
     expect(new Set(events.map(event => event.scope.sequence)).size).toBe(events.length);
+  });
+
+  it('keeps a turn active until Pi settles after an automatic retry', async () => {
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      input: [{ text: 'Retry this turn', type: 'text' }],
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_end', willRetry: true });
+    await flush();
+
+    let settled = false;
+    void eventsPromise.then(() => {
+      settled = true;
+    });
+    await flush();
+    expect(settled).toBe(false);
+
+    harness.kernels[0].emit({ type: 'auto_retry_start' });
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_settled' });
+
+    const events = await eventsPromise;
+    expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
   });
 
   it('launches resumed persistent sessions with their native session file', async () => {
@@ -1159,6 +1187,24 @@ describe('PiExecutionBackend', () => {
     await eventsPromise;
 
     expect(harness.kernels[0].launchSpec.args).toContain(expected);
+  });
+
+  it('does not pass a system prompt to Pi when system instructions are disabled', async () => {
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      configuration: {
+        model: 'pi:anthropic/claude-sonnet-4',
+        reasoning: 'high',
+        systemInstructions: { kind: 'none' },
+      },
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+    harness.kernels[0].emit({ type: 'agent_start' });
+    harness.kernels[0].emit({ type: 'agent_end' });
+    await eventsPromise;
+
+    expect(harness.kernels[0].launchSpec.args).not.toContain('--system-prompt');
   });
 
   it('maps an explicit allow-list exactly and falls back to provider model settings', async () => {
@@ -1990,5 +2036,26 @@ describe('PiExecutionBackend', () => {
       'Pi execution session is disposed',
     );
     expect(harness.kernels).toHaveLength(0);
+  });
+});
+
+describe('Pi provider execution contract', () => {
+  it.each(createProviderExecutionContractCases({
+    createRequest: signal => signal ? createRequest({ signal }) : createRequest(),
+    createSession: () => {
+      const harness = createHarness(
+        undefined,
+        kernel => {
+          queueMicrotask(() => {
+            kernel.emit({ type: 'agent_start' });
+            kernel.emit({ type: 'agent_end' });
+          });
+        },
+      );
+      return harness.session;
+    },
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 });

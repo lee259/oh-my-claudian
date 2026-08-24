@@ -335,13 +335,13 @@
       "name": "Desplazamiento automático durante streaming",
       "desc": "Desplazarse automáticamente hacia abajo mientras Claude transmite respuestas. Desactivar para quedarse arriba y leer desde el principio."
     },
+    "showTabTitlesByDefault": {
+      "name": "Mostrar títulos de pestañas de forma predeterminada",
+      "desc": "Mostrar títulos de conversación en la barra de pestañas en lugar de números. Haz doble clic en una pestaña para alternarla individualmente."
+    },
     "deferMathRenderingDuringStreaming": {
       "name": "Diferir renderizado matemático durante streaming",
       "desc": "Mostrar LaTeX sin procesar mientras se transmite la respuesta y renderizar las fórmulas una vez al completar cada bloque de texto."
-    },
-    "renderDiagramsInChat": {
-      "name": "Renderizar diagramas Mermaid en el chat",
-      "desc": "Renderiza los bloques de código mermaid de las respuestas como diagramas. El renderizado ocurre cuando cada bloque termina de transmitirse. Desactívalo para mantener todos los bloques como código fuente."
     },
     "expandFileEditsByDefault": {
       "name": "Expandir ediciones de archivo por defecto",

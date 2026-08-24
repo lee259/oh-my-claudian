@@ -1,3 +1,5 @@
+import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
+
 import {
   isModeConfigurableExecutionSession,
   isRewindableExecutionSession,
@@ -263,67 +265,12 @@ async function collect(
 }
 
 describe('provider execution contracts', () => {
-  it('represents streaming and one-shot output with one correlated event stream', async () => {
-    const session = new ContractSession();
-    const run = session.execute(createRequest());
-
-    const events = await collect(run.events);
-
-    expect(events.map((event) => event.type)).toEqual([
-      'turn_started',
-      'text_delta',
-      'session_state_changed',
-      'turn_completed',
-    ]);
-    expect(events.map((event) => event.scope.sequence)).toEqual([0, 1, 2, 3]);
-    expect(
-      events.filter((event) =>
-        ['turn_completed', 'cancelled', 'execution_error'].includes(event.type),
-      ),
-    ).toHaveLength(1);
-    expect(
-      events.every(
-        (event) =>
-          event.scope.kind === 'requested' &&
-          event.scope.sessionInstanceId === session.sessionInstanceId &&
-          event.scope.executionId === run.executionId &&
-          event.scope.turnId === run.turnId,
-      ),
-    ).toBe(true);
-    expect(session.getStatus()).toBe('idle');
-  });
-
-  it('fails immediately when a second requested execution is active', async () => {
-    const session = new ContractSession();
-    const first = session.execute(createRequest());
-
-    expect(() => session.execute(createRequest())).toThrow(
-      'A requested execution is already active',
-    );
-
-    await collect(first.events);
-    expect(() => session.execute(createRequest())).not.toThrow();
-  });
-
-  it('terminates cancellation through the event stream for run, request, and session cancellation', async () => {
-    const runSession = new ContractSession();
-    const run = runSession.execute(createRequest());
-    run.cancel();
-    await expect(collect(run.events)).resolves.toEqual([
-      expect.objectContaining({ type: 'turn_started' }),
-      expect.objectContaining({ type: 'cancelled' }),
-    ]);
-
-    const requestSession = new ContractSession();
-    const requestAbort = new AbortController();
-    const requestRun = requestSession.execute(createRequest(requestAbort.signal));
-    requestAbort.abort();
-    expect((await collect(requestRun.events)).at(-1)?.type).toBe('cancelled');
-
-    const session = new ContractSession();
-    const sessionRun = session.execute(createRequest());
-    session.cancel();
-    expect((await collect(sessionRun.events)).at(-1)?.type).toBe('cancelled');
+  it.each(createProviderExecutionContractCases({
+    createRequest,
+    createSession: () => new ContractSession(),
+  }))('%s', async (_name, test) => {
+    expect(typeof test).toBe('function');
+    await test();
   });
 
   it('cancels when iteration ends early and disposes idempotently', async () => {

@@ -374,6 +374,156 @@ describe('ClaudeConversationHistoryService', () => {
   });
 
   describe('hydrateConversationHistory', () => {
+    it('reloads the live transcript when an external process appends a turn', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation();
+      const locationSpy = jest.spyOn(historyStore, 'locateSDKSessions')
+        .mockResolvedValue(new Map([['session-1', {
+          availability: 'available',
+          sessionPath: '/vault/session-1.jsonl',
+        }]]));
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature')
+        .mockResolvedValueOnce('size:100:mtime:1')
+        .mockResolvedValueOnce('size:200:mtime:2');
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages')
+        .mockResolvedValueOnce({
+          messages: [{
+            id: 'message-1',
+            role: 'user',
+            content: 'First turn',
+            timestamp: 1,
+          }],
+          skippedLines: 0,
+        })
+        .mockResolvedValueOnce({
+          messages: [
+            {
+              id: 'message-1',
+              role: 'user',
+              content: 'First turn',
+              timestamp: 1,
+            },
+            {
+              id: 'message-2',
+              role: 'assistant',
+              content: 'External turn',
+              timestamp: 2,
+            },
+          ],
+          skippedLines: 0,
+        });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(conversation.messages.map(message => message.content)).toEqual([
+        'First turn',
+        'External turn',
+      ]);
+      expect(signatureSpy).toHaveBeenCalledTimes(2);
+      expect(loadSpy).toHaveBeenCalledTimes(2);
+
+      locationSpy.mockRestore();
+      signatureSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('does not reload an unchanged live transcript', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation();
+      const locationSpy = jest.spyOn(historyStore, 'locateSDKSessions')
+        .mockResolvedValue(new Map([['session-1', {
+          availability: 'available',
+          sessionPath: '/vault/session-1.jsonl',
+        }]]));
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature')
+        .mockResolvedValue('size:100:mtime:1');
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages')
+        .mockResolvedValue({
+          messages: [{
+            id: 'message-1',
+            role: 'assistant',
+            content: 'Stable history',
+            timestamp: 1,
+          }],
+          skippedLines: 0,
+        });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(conversation.messages.map(message => message.content)).toEqual(['Stable history']);
+      expect(signatureSpy).toHaveBeenCalledTimes(2);
+      expect(loadSpy).toHaveBeenCalledTimes(1);
+
+      locationSpy.mockRestore();
+      signatureSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('deduplicates local messages against transcript messages by provider ids', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation({
+        messages: [{
+          id: 'local-user-message',
+          role: 'user',
+          content: 'Prompt',
+          timestamp: 1,
+          userMessageId: 'native-user-message',
+        }],
+      });
+      const locationSpy = jest.spyOn(historyStore, 'locateSDKSessions')
+        .mockResolvedValue(new Map([['session-1', {
+          availability: 'available',
+          sessionPath: '/vault/session-1.jsonl',
+        }]]));
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature')
+        .mockResolvedValueOnce('size:100:mtime:1')
+        .mockResolvedValueOnce('size:200:mtime:2');
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages')
+        .mockResolvedValueOnce({
+          messages: [{
+            id: 'native-user-message',
+            role: 'user',
+            content: 'Prompt',
+            timestamp: 1,
+            userMessageId: 'native-user-message',
+          }],
+          skippedLines: 0,
+        })
+        .mockResolvedValueOnce({
+          messages: [
+            {
+              id: 'native-user-message',
+              role: 'user',
+              content: 'Prompt',
+              timestamp: 1,
+              userMessageId: 'native-user-message',
+            },
+            {
+              id: 'native-assistant-message',
+              role: 'assistant',
+              content: 'Answer from another process',
+              timestamp: 2,
+              assistantMessageId: 'native-assistant-message',
+            },
+          ],
+          skippedLines: 0,
+        });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(conversation.messages.map(message => message.id)).toEqual([
+        'local-user-message',
+        'native-assistant-message',
+      ]);
+
+      locationSpy.mockRestore();
+      signatureSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
     it('recovers an unlinked native transcript from the conversation timestamps', async () => {
       const service = new ClaudeConversationHistoryService();
       const conversation = createConversation({

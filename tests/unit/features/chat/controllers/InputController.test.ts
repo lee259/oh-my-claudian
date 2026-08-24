@@ -121,6 +121,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
     settings: {
       enableAutoTitleGeneration: false,
       permissionMode: 'normal',
+      systemPrompt: '',
     },
     updateConversation: jest.fn().mockResolvedValue(undefined),
   };
@@ -271,6 +272,30 @@ describe('InputController coordinator execution', () => {
     expect(second.userTurnOrdinal).toBe(2);
     expect(second.conversationHistory).toHaveLength(2);
     expect(fixture.deps.conversationController.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not add the Claudian default system instructions when no custom prompt is configured', async () => {
+    const fixture = createFixture();
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
+    expect(submission.configuration.systemInstructions).toEqual({ kind: 'none' });
+  });
+
+  it('passes a configured custom prompt as explicit system instructions', async () => {
+    const fixture = createFixture();
+    fixture.plugin.settings.systemPrompt = 'Use concise answers.';
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
+    expect(submission.configuration.systemInstructions).toEqual({
+      instructions: 'Use concise answers.',
+      kind: 'explicit',
+    });
   });
 
   it('blocks the first turn when provider preflight reports a blocking error', async () => {
@@ -582,6 +607,53 @@ describe('InputController coordinator execution', () => {
 
     expect(fixture.coordinator.cancel).toHaveBeenCalledTimes(1);
     expect(fixture.state.cancelRequested).toBe(true);
+  });
+
+  it('settles a cancelled turn before rendering the next turn', async () => {
+    const fixture = createFixture();
+    const cancelledResult = deferred<{
+      accepted: boolean;
+      planCompleted: boolean;
+      status: 'cancelled';
+    }>();
+    fixture.coordinator.execute.mockReturnValueOnce(cancelledResult.promise);
+
+    const firstTurn = fixture.controller.sendMessage({ content: 'cancel me' });
+    await waitForCall(fixture.coordinator.execute);
+    fixture.controller.cancelStreaming();
+    cancelledResult.resolve({ accepted: true, planCompleted: false, status: 'cancelled' });
+    await firstTurn;
+
+    expect(fixture.state.isStreaming).toBe(false);
+    expect(fixture.state.cancelRequested).toBe(false);
+
+    const secondResult = deferred<{
+      accepted: boolean;
+      planCompleted: boolean;
+      status: 'completed';
+    }>();
+    fixture.coordinator.execute.mockReturnValueOnce(secondResult.promise);
+    const secondTurn = fixture.controller.sendMessage({ content: 'render next turn' });
+    await waitForCall(fixture.coordinator.execute);
+    await fixture.controller.handleExecutionEvent({
+      text: 'next response',
+      scope: {
+        executionId: 'execution-2',
+        kind: 'requested',
+        sequence: 1,
+        sessionInstanceId: 'session-2',
+        turnId: 'turn-2',
+      },
+      type: 'text_delta',
+    });
+    secondResult.resolve({ accepted: true, planCompleted: false, status: 'completed' });
+    await secondTurn;
+
+    expect(fixture.deps.streamController.handleStreamChunk).toHaveBeenCalledWith(
+      { content: 'next response', type: 'text' },
+      expect.objectContaining({ role: 'assistant' }),
+    );
+    expect(fixture.state.isStreaming).toBe(false);
   });
 
   it('queues while streaming and steers through the coordinator', async () => {
@@ -1480,6 +1552,8 @@ describe('InputController coordinator execution', () => {
   it('reports a terminal accepted error as reviewable', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
+    const captureReviewableSettlement = jest.fn(() => onReviewableSettlement);
+    fixture.deps.captureReviewableSettlement = captureReviewableSettlement as any;
     fixture.coordinator.execute.mockResolvedValueOnce({
       accepted: true,
       error: new Error('provider failed'),
@@ -1490,6 +1564,7 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.sendMessage({ content: 'finish this' });
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+    expect(captureReviewableSettlement).toHaveBeenCalledWith('error');
   });
 
   it.each(['cancelled', 'invalidated', 'missing-session'] as const)(

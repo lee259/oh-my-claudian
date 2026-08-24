@@ -8,6 +8,7 @@ import type {
   ProviderExecutionRequest,
   ProviderSessionConfig,
 } from '../../../core/execution';
+import { resolveProviderSystemInstructions } from '../../../core/execution';
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import { buildSystemPrompt } from '../../../core/prompt/mainAgent';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
@@ -152,24 +153,30 @@ export class ClaudeExecutionRequestEncoder {
       createVaultBoundaryHook(sessionConfig.vaultWorkingDirectory),
       ...(policy.hooks?.PreToolUse ?? []),
     ];
-    const systemPrompt = request.configuration.systemInstructions.kind === 'explicit'
-      ? [
-        request.configuration.systemInstructions.instructions.trim(),
-        EXPLICIT_PROTOCOL_INSTRUCTIONS,
-      ].filter(Boolean).join('\n\n')
-      : buildSystemPrompt({
+    const resolvedSystemPrompt = resolveProviderSystemInstructions(
+      request.configuration.systemInstructions,
+      () => buildSystemPrompt({
         mediaFolder: settings.mediaFolder,
         customPrompt: settings.systemPrompt,
         vaultPath: sessionConfig.vaultWorkingDirectory,
         userName: settings.userName,
-      });
+      }),
+    );
+    const systemPrompt = resolvedSystemPrompt === undefined
+      ? undefined
+      : request.configuration.systemInstructions.kind === 'explicit'
+        ? [
+          resolvedSystemPrompt.trim(),
+          EXPLICIT_PROTOCOL_INSTRUCTIONS,
+        ].filter(Boolean).join('\n\n')
+        : resolvedSystemPrompt;
     const externalPaths = uniqueStrings([
       ...(request.context?.externalContextPaths ?? []),
       ...(request.configuration.externalWorkspaceRoots ?? []),
     ]);
     const options: Options = {
       cwd: sessionConfig.vaultWorkingDirectory,
-      systemPrompt,
+      ...(systemPrompt ? { systemPrompt } : {}),
       model,
       effort,
       thinking: { type: 'adaptive' },
