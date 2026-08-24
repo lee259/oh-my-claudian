@@ -87,6 +87,48 @@ describe('CodexNotificationRouter', () => {
       ]);
     });
 
+    it('does not emit a Responses final answer twice when the item ID arrives late', () => {
+      router.handleNotification('event_msg', {
+        type: 'agent_message',
+        message: 'Answer',
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Answer' }],
+        },
+      });
+      router.handleNotification('item/started', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'agentMessage',
+          id: 'msg1',
+          text: '',
+          phase: 'streaming',
+          memoryCitation: null,
+        },
+      });
+      router.handleNotification('item/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'agentMessage',
+          id: 'msg1',
+          text: 'Answer',
+          phase: 'final',
+          memoryCitation: null,
+        },
+      });
+
+      expect(chunks.filter(chunk => chunk.type === 'text')).toEqual([
+        { type: 'text', content: 'Answer' },
+      ]);
+    });
+
     it('does not append raw memory citation markup after streamed text', () => {
       router.handleNotification('item/agentMessage/delta', {
         threadId: 't1',

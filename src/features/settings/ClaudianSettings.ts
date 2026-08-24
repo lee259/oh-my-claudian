@@ -338,9 +338,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     this.renderProviderCapabilityMatrix(container);
 
-    // --- Display ---
+    // --- Workspace and layout ---
 
-    new Setting(container).setName(t('settings.display')).setHeading();
+    new Setting(container).setName(t('settings.setup')).setHeading();
 
     new Setting(container)
       .setName(t('settings.chatViewPlacement.name'))
@@ -403,8 +403,12 @@ export class ClaudianSettingTab extends PluginSettingTab {
               });
               this.refreshDualPaneLayouts();
             })
-        );
+      );
     }
+
+    // --- Chat display ---
+
+    new Setting(container).setName(t('settings.display')).setHeading();
 
     new Setting(container)
       .setName(t('settings.enableAutoScroll.name'))

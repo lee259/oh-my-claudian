@@ -609,6 +609,53 @@ describe('InputController coordinator execution', () => {
     expect(fixture.state.cancelRequested).toBe(true);
   });
 
+  it('settles a cancelled turn before rendering the next turn', async () => {
+    const fixture = createFixture();
+    const cancelledResult = deferred<{
+      accepted: boolean;
+      planCompleted: boolean;
+      status: 'cancelled';
+    }>();
+    fixture.coordinator.execute.mockReturnValueOnce(cancelledResult.promise);
+
+    const firstTurn = fixture.controller.sendMessage({ content: 'cancel me' });
+    await waitForCall(fixture.coordinator.execute);
+    fixture.controller.cancelStreaming();
+    cancelledResult.resolve({ accepted: true, planCompleted: false, status: 'cancelled' });
+    await firstTurn;
+
+    expect(fixture.state.isStreaming).toBe(false);
+    expect(fixture.state.cancelRequested).toBe(false);
+
+    const secondResult = deferred<{
+      accepted: boolean;
+      planCompleted: boolean;
+      status: 'completed';
+    }>();
+    fixture.coordinator.execute.mockReturnValueOnce(secondResult.promise);
+    const secondTurn = fixture.controller.sendMessage({ content: 'render next turn' });
+    await waitForCall(fixture.coordinator.execute);
+    await fixture.controller.handleExecutionEvent({
+      text: 'next response',
+      scope: {
+        executionId: 'execution-2',
+        kind: 'requested',
+        sequence: 1,
+        sessionInstanceId: 'session-2',
+        turnId: 'turn-2',
+      },
+      type: 'text_delta',
+    });
+    secondResult.resolve({ accepted: true, planCompleted: false, status: 'completed' });
+    await secondTurn;
+
+    expect(fixture.deps.streamController.handleStreamChunk).toHaveBeenCalledWith(
+      { content: 'next response', type: 'text' },
+      expect.objectContaining({ role: 'assistant' }),
+    );
+    expect(fixture.state.isStreaming).toBe(false);
+  });
+
   it('queues while streaming and steers through the coordinator', async () => {
     const fixture = createFixture();
     fixture.state.isStreaming = true;

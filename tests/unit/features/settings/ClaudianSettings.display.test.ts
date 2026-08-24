@@ -162,6 +162,10 @@ describe('ClaudianSettingTab display settings', () => {
     const enabled = createTab(true);
     (enabled.tab as any).renderGeneralTab(createContainer());
 
+    expect(mockRenderedSettingNames.indexOf(t('settings.setup')))
+      .toBeLessThan(mockRenderedSettingNames.indexOf(t('settings.chatViewPlacement.name')));
+    expect(mockRenderedSettingNames.indexOf(t('settings.display')))
+      .toBeGreaterThan(mockRenderedSettingNames.indexOf(t('settings.enableFilePane.name')));
     expect(mockRenderedSettingNames).toContain(t('settings.dualPaneSide.name'));
     expect(mockRenderedSettingNames).toContain(t('settings.enableFilePane.name'));
     expect(mockRenderedSettingNames.indexOf(t('settings.dualPaneSide.name')))

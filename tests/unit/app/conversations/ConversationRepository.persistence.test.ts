@@ -579,6 +579,51 @@ describe('ConversationRepository input ledger', () => {
     expect(ledger?.records.map(({ id }) => id)).toEqual([record.id]);
   });
 
+  it('removes an accepted image input that has no assistant checkpoint', async () => {
+    const conversation = createConversation();
+    const incompleteImage = createInputRecord({
+      state: 'accepted',
+      providerUserMessageId: 'native-user-image',
+      images: [{
+        id: 'image-1',
+        name: 'image.png',
+        mediaType: 'image/png',
+        data: 'aW1hZ2U=',
+        size: 5,
+        source: 'paste',
+      }],
+    });
+    const completeText = createInputRecord({
+      id: 'input-2',
+      userTurnOrdinal: 2,
+      state: 'accepted',
+      providerUserMessageId: 'native-user-text',
+      providerAssistantMessageId: 'native-assistant-text',
+    });
+    const persistence = createPersistence({
+      status: 'loaded',
+      ledger: createLedger(conversation.id, [incompleteImage, completeText]),
+    });
+    const { repository } = createRepository(conversation, persistence);
+
+    await repository.discardIncompleteConversationInput(
+      conversation.id,
+      incompleteImage.id,
+    );
+
+    expect(await repository.getConversationInputLedger(conversation.id)).toEqual(
+      expect.objectContaining({
+        records: [expect.objectContaining({ id: completeText.id })],
+      }),
+    );
+    expect(persistence.saveInputLedger).toHaveBeenLastCalledWith(
+      conversation.id,
+      expect.objectContaining({
+        records: [expect.objectContaining({ id: completeText.id })],
+      }),
+    );
+  });
+
   it('rolls back only a newly inserted record when its initial stage write fails', async () => {
     const conversation = createConversation();
     const existing = createInputRecord({
