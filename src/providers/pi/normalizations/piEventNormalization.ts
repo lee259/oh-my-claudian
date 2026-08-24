@@ -41,7 +41,7 @@ export function normalizePiRpcEvent(
     case 'compaction_end':
       return [{ type: 'context_compacted' }];
     case 'auto_retry_start':
-      return [{ type: 'notice', content: 'Pi is retrying the turn.', level: 'warning' }];
+      return [{ type: 'notice', content: 'Pi is retrying the turn.', level: 'info' }];
     case 'auto_retry_end':
       return [{ type: 'notice', content: 'Pi retry finished.', level: 'info' }];
     case 'extension_error':

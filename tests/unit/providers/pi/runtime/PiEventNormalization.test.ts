@@ -155,6 +155,16 @@ describe('Pi event normalization', () => {
     }]);
   });
 
+  it('reports automatic retries as in-progress notices rather than blocked warnings', () => {
+    const state = createPiEventNormalizationState();
+
+    expect(normalizePiRpcEvent({ type: 'auto_retry_start' }, state)).toEqual([{
+      content: 'Pi is retrying the turn.',
+      level: 'info',
+      type: 'notice',
+    }]);
+  });
+
   it('surfaces terminal Pi stop-reason errors', () => {
     const state = createPiEventNormalizationState();
 

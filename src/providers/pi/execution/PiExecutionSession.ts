@@ -695,6 +695,14 @@ implements ProviderExecutionSession, SteerableExecutionSession {
     }
     if (event.type === 'agent_end') {
       this.ensureAccepted(active);
+      if (event.willRetry === true) {
+        return;
+      }
+      active.terminalSignal.resolve();
+      return;
+    }
+    if (event.type === 'agent_settled') {
+      this.ensureAccepted(active);
       active.terminalSignal.resolve();
       return;
     }

@@ -12,6 +12,7 @@
     "build:css": "node scripts/build-css.mjs",
     "dev": "pnpm run build:css && node esbuild.config.mjs",
     "build": "node scripts/build.mjs production",
+    "analyze:bundle": "node scripts/analyze-bundle.mjs",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "check:performance": "node scripts/check-startup-performance.mjs",
     "typecheck": "tsc --noEmit",
