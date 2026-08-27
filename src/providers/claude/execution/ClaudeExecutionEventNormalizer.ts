@@ -218,6 +218,13 @@ export class ClaudeExecutionEventNormalizer {
     return correctedUsage;
   }
 
+  replaceUsage(
+    channel: ClaudeExecutionEventChannel,
+    usage: UsageInfo,
+  ): void {
+    this.states[channel].lastUsage = usage;
+  }
+
   markToolBlocked(
     toolUseId: string,
     channel: ClaudeExecutionEventChannel,

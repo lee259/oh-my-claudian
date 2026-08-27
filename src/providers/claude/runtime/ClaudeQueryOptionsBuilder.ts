@@ -285,6 +285,9 @@ export class QueryOptionsBuilder {
         PATH: ctx.enhancedPath,
       },
       includePartialMessages: true,
+      settings: {
+        autoCompactEnabled: true,
+      },
     };
 
     QueryOptionsBuilder.applyExtraArgs(options, claudeSettings);

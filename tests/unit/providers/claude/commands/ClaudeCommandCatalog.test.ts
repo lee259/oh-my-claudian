@@ -45,7 +45,7 @@ describe('ClaudeCommandCatalog', () => {
       expect(entries).toHaveLength(0);
     });
 
-    it('filters out built-in hidden SDK commands', async () => {
+    it('keeps the SDK context command available while filtering unsupported commands', async () => {
       const adapter = createMockAdapter({});
       const commands = new SlashCommandStorage(adapter);
       const skills = new SkillStorage(adapter);
@@ -56,13 +56,15 @@ describe('ClaudeCommandCatalog', () => {
         { id: 'sdk:init', name: 'init', description: 'Init', content: '', source: 'sdk' },
         { id: 'sdk:debug', name: 'debug', description: 'Debug', content: '', source: 'sdk' },
         { id: 'sdk:cost', name: 'cost', description: 'Cost', content: '', source: 'sdk' },
+        { id: 'sdk:context', name: 'context', description: 'Show context usage', content: '', source: 'sdk' },
         { id: 'sdk:review', name: 'review', description: 'Review', content: '', source: 'sdk' },
       ]);
 
       const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
 
       const names = entries.map(e => e.name);
-      expect(names).toEqual(['commit', 'review']);
+      expect(names).toEqual(['commit', 'context', 'review']);
+      expect(names).toContain('context');
       expect(names).not.toContain('init');
       expect(names).not.toContain('debug');
       expect(names).not.toContain('cost');

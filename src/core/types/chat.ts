@@ -314,6 +314,8 @@ export interface UsageInfo {
   contextWindow: number;
   /** True when `contextWindow` came from provider runtime data instead of a local heuristic. */
   contextWindowIsAuthoritative?: boolean;
+  /** True when this is an on-demand provider context-usage snapshot, not a streamed estimate. */
+  contextUsageSnapshot?: boolean;
   contextTokens: number;
   percentage: number;
 }
