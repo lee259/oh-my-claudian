@@ -26,7 +26,7 @@ export async function openVaultFile(app: App, value: string | FileReference): Pr
       return false;
     }
 
-    const file = app.vault.getAbstractFileByPath(relativePath);
+    const file = resolveVaultFile(app, relativePath, reference.path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found in vault: ${relativePath}`);
       return false;
@@ -54,6 +54,33 @@ export async function openVaultFile(app: App, value: string | FileReference): Pr
     new Notice(`Could not open vault file: ${reference.path}`);
     return false;
   }
+}
+
+/**
+ * Resolves both vault-relative paths and paths relative to a provider's working directory.
+ * Provider tools are allowed to return either form, while Obsidian only indexes vault-relative
+ * paths. A suffix match is used only when it is unique, so similarly named files are never
+ * opened by guesswork.
+ */
+function resolveVaultFile(app: App, normalizedPath: string, rawPath: string): TFile | null {
+  const exact = app.vault.getAbstractFileByPath(normalizedPath);
+  if (exact instanceof TFile) {
+    return exact;
+  }
+
+  if (isAbsolutePath(rawPath)) {
+    return null;
+  }
+
+  const suffix = `/${normalizedPath}`;
+  const matches = app.vault.getFiles().filter((file) => (
+    file.path === normalizedPath || file.path.endsWith(suffix)
+  ));
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function isAbsolutePath(value: string): boolean {
+  return value.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith('\\\\');
 }
 
 function isVaultFile(value: unknown): value is TFile {
