@@ -137,6 +137,7 @@ describe('ClaudianPlugin', () => {
       },
       workspace: {
         on: jest.fn().mockReturnValue({ id: 'workspace-event' }),
+        offref: jest.fn(),
         onLayoutReady: jest.fn(),
         getLeavesOfType: jest.fn().mockReturnValue([]),
         getRightLeaf: jest.fn().mockReturnValue({
@@ -1137,6 +1138,42 @@ describe('ClaudianPlugin', () => {
       await plugin.activateView();
 
       expect(mockApp.workspace.revealLeaf).toHaveBeenCalledWith(mockLeaf);
+    });
+
+    it('focuses the active chat input after revealing an existing chat view', async () => {
+      const focusActiveInput = jest.fn();
+      const mockLeaf = {
+        id: 'existing-leaf',
+        view: { focusActiveInput, getTabManager: jest.fn() },
+      };
+      mockApp.workspace.getLeavesOfType.mockReturnValue([mockLeaf]);
+
+      await plugin.onload();
+      await plugin.activateView();
+
+      expect(mockApp.workspace.revealLeaf).toHaveBeenCalledWith(mockLeaf);
+      expect(focusActiveInput).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not steal focus if another leaf becomes active while opening the chat', async () => {
+      const focusActiveInput = jest.fn();
+      const mockLeaf = {
+        id: 'existing-leaf',
+        view: { focusActiveInput, getTabManager: jest.fn() },
+      };
+      mockApp.workspace.getLeavesOfType.mockReturnValue([mockLeaf]);
+
+      await plugin.onload();
+      mockApp.workspace.on.mockImplementation((event: string, listener: (leaf: unknown) => void) => {
+        if (event === 'active-leaf-change') {
+          listener({ id: 'other-leaf' });
+        }
+        return { id: 'workspace-event' };
+      });
+
+      await plugin.activateView();
+
+      expect(focusActiveInput).not.toHaveBeenCalled();
     });
 
     it('should create new leaf in right sidebar by default if view does not exist', async () => {

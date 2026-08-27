@@ -49,6 +49,7 @@ export function initializeTabPresentationControllers(
     undefined,
     [dom.contentEl, dom.inputComposerEl, ...focusScopeEls],
     options.onCommitProvisional,
+    viewHost.leaf,
   );
 
   tab.controllers.browserSelectionController = new BrowserSelectionController(
