@@ -68,6 +68,7 @@ import {
 } from '../normalizations/piEventNormalization';
 import { buildPiUsageInfo } from '../runtime/buildPiUsageInfo';
 import type { PiExtensionUiRenderer } from '../runtime/PiExtensionUiBridge';
+import { PiExtensionUiInteractionAdapter } from '../runtime/PiExtensionUiInteractionAdapter';
 import {
   buildPiLaunchSpec,
   type PiLaunchSpec,
@@ -617,7 +618,7 @@ implements ProviderExecutionSession, SteerableExecutionSession {
         },
       },
       this.config.lifecycle === 'persistent'
-        ? this.options.extensionUiRenderer
+        ? this.createExtensionUiRenderer()
         : null,
     );
     if (!this.isActive(active) || active.abortController.signal.aborted) {
@@ -650,6 +651,18 @@ implements ProviderExecutionSession, SteerableExecutionSession {
       return;
     }
     void this.publishCommands(kernel, generation);
+  }
+
+  private createExtensionUiRenderer(): PiExtensionUiRenderer | null {
+    if (!this.options.extensionUiRenderer) {
+      return null;
+    }
+
+    return new PiExtensionUiInteractionAdapter(this.options.extensionUiRenderer, {
+      getTurnId: () => this.activeRun?.turnId ?? null,
+      interactionPort: this.config.interactionPort,
+      sessionInstanceId: this.sessionInstanceId,
+    });
   }
 
   private async applyModelConfiguration(
