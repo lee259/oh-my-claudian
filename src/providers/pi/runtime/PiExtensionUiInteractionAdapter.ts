@@ -26,6 +26,8 @@ interface PiExtensionUiInteractionAdapterOptions {
  * through the provider-neutral chat interaction presentation.
  */
 export class PiExtensionUiInteractionAdapter implements PiExtensionUiRenderer {
+  private pendingCustomInputValue: string | null = null;
+
   constructor(
     private readonly fallback: PiExtensionUiRenderer,
     private readonly options: PiExtensionUiInteractionAdapterOptions,
@@ -35,27 +37,38 @@ export class PiExtensionUiInteractionAdapter implements PiExtensionUiRenderer {
     request: PiExtensionUiSelectRequest,
     signal: AbortSignal,
   ): Promise<{ cancelled?: boolean; value?: string }> {
+    this.pendingCustomInputValue = null;
     const turnId = this.options.getTurnId();
     if (!turnId) {
       return { cancelled: true };
     }
 
-    const question = createQuestion(request);
-    if (!question) {
+    const presentation = createQuestionPresentation(request);
+    if (!presentation) {
       return this.fallback.select(request, signal);
     }
 
     const response = await this.options.interactionPort.askUserQuestion({
       kind: 'question',
       interactionId: createInteractionId(this.options.sessionInstanceId, request.id),
-      input: { questions: [question] },
+      input: { questions: [presentation.question] },
       nativeContext: { extensionRequestId: request.id },
       sessionInstanceId: this.options.sessionInstanceId,
       turnId,
     }, signal);
-    const answer = response.answers?.[question.id];
+    const answer = response.answers?.[presentation.question.id];
     const value = typeof answer === 'string' ? answer : null;
-    return value === null ? { cancelled: true } : { value };
+    if (value === null) {
+      return { cancelled: true };
+    }
+    if (
+      presentation.customInputOptionValue
+      && !presentation.optionValues.has(value)
+    ) {
+      this.pendingCustomInputValue = value;
+      return { value: presentation.customInputOptionValue };
+    }
+    return { value };
   }
 
   confirm(
@@ -76,6 +89,13 @@ export class PiExtensionUiInteractionAdapter implements PiExtensionUiRenderer {
     request: PiExtensionUiInputRequest,
     signal: AbortSignal,
   ): Promise<{ cancelled?: boolean; value?: string }> {
+    const pendingCustomInputValue = this.pendingCustomInputValue;
+    this.pendingCustomInputValue = null;
+    if (pendingCustomInputValue !== null) {
+      return Promise.resolve(signal.aborted
+        ? { cancelled: true }
+        : { value: pendingCustomInputValue });
+    }
     return this.fallback.input(request, signal);
   }
 
@@ -104,28 +124,48 @@ function createInteractionId(sessionInstanceId: string, requestId: string): stri
   return `pi-extension:${sessionInstanceId}:${requestId}`;
 }
 
-function createQuestion(request: PiExtensionUiSelectRequest): {
+interface PiSelectQuestionPresentation {
+  readonly customInputOptionValue: string | null;
+  readonly optionValues: ReadonlySet<string>;
+  readonly question: {
   header: string;
   id: string;
-  isOther: false;
+  isOther: boolean;
   multiSelect: false;
   options: AskUserQuestionOption[];
   question: string;
-} | null {
+  };
+}
+
+function createQuestionPresentation(
+  request: PiExtensionUiSelectRequest,
+): PiSelectQuestionPresentation | null {
   const options = getOptions(request);
-  if (options.length === 0) {
+  const customInputOption = options.find(isCustomInputOption) ?? null;
+  const visibleOptions = customInputOption
+    ? options.filter(option => option !== customInputOption)
+    : options;
+  if (visibleOptions.length === 0 && !customInputOption) {
     return null;
   }
 
   const title = getString(request.title) ?? 'Pi extension';
   return {
-    header: title,
-    id: `pi-extension-ui-${request.id}`,
-    isOther: false,
-    multiSelect: false,
-    options,
-    question: getString(request.message) ?? title,
+    customInputOptionValue: customInputOption?.value ?? null,
+    optionValues: new Set(visibleOptions.map(option => option.value ?? option.label)),
+    question: {
+      header: title,
+      id: `pi-extension-ui-${request.id}`,
+      isOther: customInputOption !== null,
+      multiSelect: false,
+      options: visibleOptions,
+      question: getString(request.message) ?? title,
+    },
   };
+}
+
+function isCustomInputOption(option: AskUserQuestionOption): boolean {
+  return option.label.trim().toLowerCase() === 'type something.';
 }
 
 function getOptions(request: Record<string, unknown>): AskUserQuestionOption[] {

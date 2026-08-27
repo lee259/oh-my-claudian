@@ -92,6 +92,44 @@ describe('PiExtensionUiInteractionAdapter', () => {
     }, new AbortController().signal)).resolves.toEqual({ cancelled: true });
   });
 
+  it('keeps a custom answer in the shared question until Pi requests its input', async () => {
+    const interactionPort = createInteractionPort();
+    interactionPort.askUserQuestion.mockResolvedValue({
+      answers: { 'pi-extension-ui-42': 'Write release notes' },
+      interactionId: 'pi-extension:session-1:42',
+    });
+    const fallback = createFallback();
+    const adapter = new PiExtensionUiInteractionAdapter(fallback, {
+      interactionPort,
+      sessionInstanceId: 'session-1',
+      getTurnId: () => 'turn-1',
+    });
+
+    await expect(adapter.select({
+      id: '42',
+      options: [
+        { label: 'Modify files', value: 'modify' },
+        { label: 'Type something.', value: 'Type something.' },
+      ],
+      type: 'extension_ui_request',
+    }, new AbortController().signal)).resolves.toEqual({ value: 'Type something.' });
+
+    expect(interactionPort.askUserQuestion).toHaveBeenCalledWith(expect.objectContaining({
+      input: {
+        questions: [expect.objectContaining({
+          isOther: true,
+          options: [{ description: '', label: 'Modify files', value: 'modify' }],
+        })],
+      },
+    }), expect.any(AbortSignal));
+
+    await expect(adapter.input({
+      id: '43',
+      type: 'extension_ui_request',
+    }, new AbortController().signal)).resolves.toEqual({ value: 'Write release notes' });
+    expect(fallback.input).not.toHaveBeenCalled();
+  });
+
   it('keeps unsupported and out-of-turn requests on the native renderer', async () => {
     const interactionPort = createInteractionPort();
     const fallback = createFallback();
