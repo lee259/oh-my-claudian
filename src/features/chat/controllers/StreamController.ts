@@ -339,7 +339,11 @@ export class StreamController {
     const isSameContext = previousHighest
       && previousHighest.model === nextUsage.model
       && previousHighest.contextWindow === nextUsage.contextWindow;
-    if (isSameContext && nextUsage.contextTokens < previousHighest.contextTokens) return;
+    if (
+      !nextUsage.contextUsageSnapshot
+      && isSameContext
+      && nextUsage.contextTokens < previousHighest.contextTokens
+    ) return;
 
     this.highestContextUsage = {
       model: nextUsage.model,

@@ -436,7 +436,9 @@ function applyProviderUIGating(tab: TabData, plugin: FeatureHost): void {
   );
 
   tab.ui.imageContextManager?.setEnabled(capabilities.supportsImageAttachments);
-  tab.ui.contextUsageMeter?.update(tab.state.usage);
+  tab.ui.contextUsageMeter?.update(
+    capabilities.providerId === 'claude' ? null : tab.state.usage,
+  );
 }
 
 export function refreshTabWorkspaceServices(tab: TabData, plugin: FeatureHost): void {
@@ -1504,12 +1506,16 @@ export function initializeTabUI(
   state.callbacks = {
     ...state.callbacks,
     onUsageChanged: (usage) => {
-      tab.ui.contextUsageMeter?.update(usage);
+      tab.ui.contextUsageMeter?.update(
+        getTabProviderId(tab, plugin) === 'claude' ? null : usage,
+      );
     },
     onTodosChanged: (todos) => tab.ui.statusPanel?.updateTodos(todos),
     onAutoScrollChanged: () => tab.ui.navigationSidebar?.updateVisibility(),
   };
-  tab.ui.contextUsageMeter?.update(state.usage);
+  tab.ui.contextUsageMeter?.update(
+    getTabProviderId(tab, plugin) === 'claude' ? null : state.usage,
+  );
 
   // ResizeObserver to detect overflow changes (e.g., content growth)
   const resizeObserver = new ResizeObserver(() => {

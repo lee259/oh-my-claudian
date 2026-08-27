@@ -191,6 +191,31 @@ describe('SelectionController', () => {
     expect(contextTray.clearItems).not.toHaveBeenCalledWith('editor-selection');
   });
 
+  it('preserves selection while its detached chat leaf is most recent', () => {
+    const owningLeaf = {};
+    app.workspace.getMostRecentLeaf = jest.fn().mockReturnValue(owningLeaf);
+    controller = new SelectionController(
+      app,
+      contextTray as any,
+      inputEl,
+      undefined,
+      focusScopeEl,
+      undefined,
+      owningLeaf as any,
+    );
+
+    controller.start();
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(true);
+
+    app.workspace.getActiveViewOfType.mockReturnValue(null);
+    (global as any).document.activeElement = null;
+    jest.advanceTimersByTime(250);
+
+    expect(controller.hasSelection()).toBe(true);
+    expect(contextTray.clearItems).not.toHaveBeenCalledWith('editor-selection');
+  });
+
   it('preserves selection when a relocated composer outside tab content has focus', () => {
     const contentScopeEl = createMockEventTarget();
     const composerScopeEl = createMockEventTarget();
