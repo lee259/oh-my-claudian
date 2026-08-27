@@ -626,6 +626,52 @@ describe('PiExecutionBackend', () => {
     await fs.rm(sessionDir, { force: true, recursive: true });
   });
 
+  it('preserves the resumed session pointer when Pi reports a different session file', async () => {
+    const sessionDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-session-pointer-'));
+    const originalSessionFile = path.join(sessionDir, 'original.jsonl');
+    const replacementSessionFile = path.join(sessionDir, 'replacement.jsonl');
+    await fs.writeFile(originalSessionFile, '{"type":"session","id":"original"}\n');
+    await fs.writeFile(replacementSessionFile, '{"type":"session","id":"replacement"}\n');
+    const harness = createHarness(createConfig({
+      resumeSeed: {
+        providerSessionId: 'original',
+        providerState: {
+          sessionFile: originalSessionFile,
+          sessionId: 'original',
+        },
+      },
+      vaultWorkingDirectory: sessionDir,
+    }));
+    harness.host.settings.providerConfigs.pi.environmentVariables =
+      `PI_CODING_AGENT_SESSION_DIR=${sessionDir}`;
+    harness.responses.set('get_state', {
+      sessionFile: replacementSessionFile,
+      sessionId: 'replacement',
+    });
+
+    const run = harness.session.execute(createRequest());
+    const eventsPromise = collect(run.events);
+    await flush();
+    completeTurn(harness.kernels[0]);
+    const events = await eventsPromise;
+
+    expect(harness.kernels[0].launchSpec.args).toContain(originalSessionFile);
+    expect(events.at(-1)).toMatchObject({
+      category: 'provider',
+      recoverable: true,
+      type: 'execution_error',
+    });
+    expect(harness.session.getSnapshot()).toMatchObject({
+      providerSessionId: 'original',
+      providerState: {
+        sessionFile: originalSessionFile,
+        sessionId: 'original',
+      },
+      status: 'invalidated',
+    });
+    await fs.rm(sessionDir, { force: true, recursive: true });
+  });
+
   it('retains a missing persisted session path until recovery resolves it', async () => {
     const sessionDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-missing-path-'));
     const missingSessionFile = path.join(sessionDir, 'missing.jsonl');
