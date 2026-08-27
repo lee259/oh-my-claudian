@@ -551,6 +551,48 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 100, percentage: 100 }));
     });
 
+    it('accepts a lower authoritative context snapshot from /context', () => {
+      controller.updateUsage(createMockUsage({
+        model: 'claude-sonnet-4-6',
+        contextTokens: 92000,
+        contextWindow: 200000,
+        percentage: 46,
+      }));
+      controller.updateUsage(createMockUsage({
+        model: 'claude-sonnet-4-6',
+        contextTokens: 49700,
+        contextWindow: 200000,
+        percentage: 25,
+        contextUsageSnapshot: true,
+      }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({
+        model: 'claude-sonnet-4-6',
+        contextTokens: 49700,
+        contextWindow: 200000,
+        percentage: 25,
+        contextUsageSnapshot: true,
+      }));
+    });
+
+    it('accepts a lower usage value when the SDK reports a different model', () => {
+      controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100, model: 'sonnet' }));
+      controller.updateUsage(createMockUsage({ contextTokens: 60, percentage: 60, model: 'claude-sonnet' }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({ contextTokens: 60, percentage: 60, model: 'claude-sonnet' }));
+    });
+
+    it('accepts a lower usage value when the SDK corrects the context window', () => {
+      controller.updateUsage(createMockUsage({ contextTokens: 100, contextWindow: 200000, percentage: 0.1 }));
+      controller.updateUsage(createMockUsage({ contextTokens: 60, contextWindow: 1000000, percentage: 0.006 }));
+
+      expect(deps.state.usage).toEqual(createMockUsage({
+        contextTokens: 60,
+        contextWindow: 1000000,
+        percentage: 0.006,
+      }));
+    });
+
     it('allows usage to drop after an explicit compaction boundary', async () => {
       const msg = createTestMessage();
       controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));

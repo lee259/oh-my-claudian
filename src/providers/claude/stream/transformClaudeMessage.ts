@@ -1,4 +1,8 @@
-import type { SDKMessage, SDKResultError } from '@anthropic-ai/claude-agent-sdk';
+import type {
+  SDKContextUsage,
+  SDKMessage,
+  SDKResultError,
+} from '@anthropic-ai/claude-agent-sdk';
 
 import type { SDKToolUseResult, StreamChunk, UsageInfo } from '../../../core/types';
 import {
@@ -351,6 +355,26 @@ function buildUsageInfo(promptUsage: PromptUsageSnapshot, options?: TransformOpt
   }, options?.customContextLimits, options?.authoritativeContextWindow);
 }
 
+function buildStructuredContextUsageInfo(
+  contextUsage: SDKContextUsage,
+  messageUsage?: MessageUsage,
+): UsageInfo {
+  const promptUsage = messageUsage
+    ? toPromptUsageSnapshot(messageUsage)
+    : EMPTY_PROMPT_USAGE;
+  return {
+    model: contextUsage.model,
+    inputTokens: promptUsage.inputTokens,
+    cacheCreationInputTokens: promptUsage.cacheCreationInputTokens,
+    cacheReadInputTokens: promptUsage.cacheReadInputTokens,
+    contextWindow: contextUsage.raw_max_tokens,
+    contextWindowIsAuthoritative: true,
+    contextUsageSnapshot: true,
+    contextTokens: contextUsage.total_tokens,
+    percentage: Math.min(100, Math.max(0, contextUsage.percentage)),
+  };
+}
+
 export function recalculateClaudeUsageContextWindow(
   usage: UsageInfo,
   customContextLimits?: Record<string, number>,
@@ -440,6 +464,8 @@ export function* transformSDKMessage(
           agents: message.agents,
           permissionMode: message.permissionMode,
         };
+      } else if (message.subtype === 'local_command_output') {
+        yield { type: 'text', content: message.content };
       } else if (message.subtype === 'compact_boundary') {
         yield { type: 'context_compacted' };
         const postTokens = message.compact_metadata?.post_tokens;
@@ -518,6 +544,12 @@ export function* transformSDKMessage(
         } else {
           yield { type: 'usage', usage: buildUsageInfo(toPromptUsageSnapshot(usage), options) };
         }
+      }
+      if (parentToolUseId === null && message.context_usage) {
+        yield {
+          type: 'usage',
+          usage: buildStructuredContextUsageInfo(message.context_usage, usage),
+        };
       }
       break;
     }
