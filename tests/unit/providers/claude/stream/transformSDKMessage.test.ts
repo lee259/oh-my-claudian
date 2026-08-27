@@ -44,7 +44,7 @@ describe('transformSDKMessage', () => {
     it('renders local command output as assistant text', () => {
       const message = msg({
         type: 'system',
-        subtype: 'local_command_output',
+        subtype: 'local_command',
         content: 'Context: 105k / 200k',
         session_id: 'test-session',
       } as any);

@@ -464,8 +464,11 @@ export function* transformSDKMessage(
           agents: message.agents,
           permissionMode: message.permissionMode,
         };
-      } else if (message.subtype === 'local_command_output') {
-        yield { type: 'text', content: message.content };
+      } else if (
+        (message.subtype as string) === 'local_command'
+        || message.subtype === 'local_command_output'
+      ) {
+        yield { type: 'text', content: (message as { content?: string }).content ?? '' };
       } else if (message.subtype === 'compact_boundary') {
         yield { type: 'context_compacted' };
         const postTokens = message.compact_metadata?.post_tokens;
