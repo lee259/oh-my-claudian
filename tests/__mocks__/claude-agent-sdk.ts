@@ -124,8 +124,20 @@ let mockSupportedCommandsImplementation: (() => Promise<Array<{
   description: string;
   argumentHint?: string;
 }>>) | null = null;
-let mockContextUsage: { rawMaxTokens: number } | null = null;
-let mockContextUsageImplementation: (() => Promise<{ rawMaxTokens: number }>) | null = null;
+export interface MockContextUsage {
+  rawMaxTokens: number;
+  totalTokens?: number;
+  percentage?: number;
+  model?: string;
+  apiUsage?: {
+    input_tokens: number;
+    cache_creation_input_tokens: number;
+    cache_read_input_tokens: number;
+  } | null;
+}
+
+let mockContextUsage: MockContextUsage | null = null;
+let mockContextUsageImplementation: (() => Promise<MockContextUsage>) | null = null;
 let lastResponse: (AsyncGenerator<any> & {
   interrupt: jest.Mock;
   setModel: jest.Mock;
@@ -178,12 +190,12 @@ export function setMockSupportedCommandsImplementation(
   mockSupportedCommandsImplementation = implementation;
 }
 
-export function setMockContextUsage(contextUsage: { rawMaxTokens: number } | null) {
+export function setMockContextUsage(contextUsage: MockContextUsage | null) {
   mockContextUsage = contextUsage;
 }
 
 export function setMockContextUsageImplementation(
-  implementation: (() => Promise<{ rawMaxTokens: number }>) | null,
+  implementation: (() => Promise<MockContextUsage>) | null,
 ) {
   mockContextUsageImplementation = implementation;
 }

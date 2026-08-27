@@ -67,16 +67,6 @@ implements ClaudeExecutionStrategy {
   private consumerPromise: Promise<void> | null = null;
   private currentConfig: ClaudeEncodedExecutionRequest | null = null;
   private activeNativeTurn: PersistentNativeTurn | null = null;
-  private authoritativeContextWindow: {
-    readonly query: Query;
-    readonly model: string;
-    readonly contextWindow: number;
-  } | null = null;
-  private contextWindowDiscovery: {
-    readonly query: Query;
-    readonly model: string;
-    readonly promise: Promise<void>;
-  } | null = null;
   private preparingTurnToken: number | null = null;
   private disposed = false;
 
@@ -107,7 +97,6 @@ implements ClaudeExecutionStrategy {
 
       await this.applyDynamicUpdates(request);
       requestSignal?.throwIfAborted();
-      void this.refreshAuthoritativeContextWindow(request.model);
       const message = buildClaudeSDKUserMessage(
         request.prompt,
         this.sink.getProviderSessionId() ?? '',
@@ -180,8 +169,6 @@ implements ClaudeExecutionStrategy {
     this.query = null;
     this.messageChannel = null;
     this.abortController = null;
-    this.authoritativeContextWindow = null;
-    this.contextWindowDiscovery = null;
     if (query) {
       this.sink.handleNativeQueryClosed(query);
       this.finishNativeTurn(query, {
@@ -238,8 +225,6 @@ implements ClaudeExecutionStrategy {
     this.messageChannel = messageChannel;
     this.query = query;
     this.currentConfig = request;
-    this.authoritativeContextWindow = null;
-    this.contextWindowDiscovery = null;
     this.sink.handleNativeQueryOpened(query);
     this.consumerPromise = this.consume(query, queryToken);
   }
@@ -270,62 +255,6 @@ implements ClaudeExecutionStrategy {
       if (this.query !== query || this.disposed) return;
     }
     this.currentConfig = request;
-  }
-
-  private refreshAuthoritativeContextWindow(model: string): Promise<void> {
-    const query = this.query;
-    if (!query || typeof query.getContextUsage !== 'function') {
-      return Promise.resolve();
-    }
-    if (
-      this.authoritativeContextWindow?.query === query
-      && this.authoritativeContextWindow.model === model
-    ) {
-      return Promise.resolve();
-    }
-    if (
-      this.contextWindowDiscovery?.query === query
-      && this.contextWindowDiscovery.model === model
-    ) {
-      return this.contextWindowDiscovery.promise;
-    }
-
-    let request: ReturnType<Query['getContextUsage']>;
-    try {
-      request = query.getContextUsage();
-    } catch {
-      return Promise.resolve();
-    }
-    const promise = request
-      .then((contextUsage) => {
-        if (
-          this.query !== query
-          || this.currentConfig?.model !== model
-          || this.disposed
-        ) {
-          return;
-        }
-        const contextWindow = contextUsage.rawMaxTokens;
-        if (!isFinitePositiveNumber(contextWindow)) {
-          return;
-        }
-        this.authoritativeContextWindow = { query, model, contextWindow };
-        this.sink.handleAuthoritativeContextWindow(
-          query,
-          model,
-          contextWindow,
-        );
-      })
-      .catch(() => {
-        // Result model metadata remains the fallback when control discovery fails.
-      })
-      .finally(() => {
-        if (this.contextWindowDiscovery?.promise === promise) {
-          this.contextWindowDiscovery = null;
-        }
-      });
-    this.contextWindowDiscovery = { query, model, promise };
-    return promise;
   }
 
   private async consume(query: Query, queryToken: number): Promise<void> {
@@ -411,8 +340,6 @@ implements ClaudeExecutionStrategy {
     this.messageChannel = null;
     this.abortController = null;
     this.currentConfig = null;
-    this.authoritativeContextWindow = null;
-    this.contextWindowDiscovery = null;
     this.sink.handleNativeQueryClosed(query);
   }
 }
@@ -541,10 +468,6 @@ implements ClaudeExecutionStrategy {
     }
     await this.turnBarrier.catch(() => undefined);
   }
-}
-
-function isFinitePositiveNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
 async function* toSingleMessagePrompt(

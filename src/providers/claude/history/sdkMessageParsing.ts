@@ -164,6 +164,18 @@ export function parseSDKMessageToChat(
   }
 
   if (sdkMsg.type === 'system') {
+    if (
+      sdkMsg.subtype === 'local_command'
+      || sdkMsg.subtype === 'local_command_output'
+    ) {
+      const timestamp = sdkMsg.timestamp ? new Date(sdkMsg.timestamp).getTime() : Date.now();
+      return {
+        id: sdkMsg.uuid || `local-command-${timestamp}-${Math.random().toString(36).slice(2)}`,
+        role: 'assistant',
+        content: sdkMsg.content ?? '',
+        timestamp,
+      };
+    }
     if (sdkMsg.subtype === 'compact_boundary') {
       const timestamp = sdkMsg.timestamp ? new Date(sdkMsg.timestamp).getTime() : Date.now();
       return {

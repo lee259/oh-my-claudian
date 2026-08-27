@@ -41,6 +41,58 @@ describe('transformSDKMessage', () => {
       expect(results).toEqual([]);
     });
 
+    it('renders local command output as assistant text', () => {
+      const message = msg({
+        type: 'system',
+        subtype: 'local_command',
+        content: 'Context: 105k / 200k',
+        session_id: 'test-session',
+      } as any);
+
+      const results = [...transformSDKMessage(message)];
+
+      expect(results).toEqual([{ type: 'text', content: 'Context: 105k / 200k' }]);
+    });
+
+    it('uses structured context usage attached to a /context assistant message', () => {
+      const message = msg({
+        type: 'assistant',
+        message: {
+          content: [{ type: 'text', text: '## Context usage' }],
+        },
+        context_usage: {
+          model: 'claude-sonnet-4-5',
+          total_tokens: 95000,
+          raw_max_tokens: 200000,
+          percentage: 48,
+          categories: [],
+          mcp_tools: [],
+          memory_files: [],
+          agents: [],
+        },
+      } as any);
+
+      const results = [...transformSDKMessage(message)];
+
+      expect(results).toEqual([
+        { type: 'text', content: '## Context usage' },
+        {
+          type: 'usage',
+          usage: {
+            model: 'claude-sonnet-4-5',
+            inputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            contextWindow: 200000,
+            contextWindowIsAuthoritative: true,
+            contextUsageSnapshot: true,
+            contextTokens: 95000,
+            percentage: 48,
+          },
+        },
+      ]);
+    });
+
     it('emits an authoritative blocked tool result for permission denials', () => {
       const message = {
         type: 'system',

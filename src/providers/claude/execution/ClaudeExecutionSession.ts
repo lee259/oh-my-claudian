@@ -516,9 +516,16 @@ ClaudeExecutionStrategySink {
         continue;
       }
       if (normalized.type === 'output') {
+        if (
+          normalized.event.type === 'usage_updated'
+          && !normalized.event.usage.contextUsageSnapshot
+        ) {
+          continue;
+        }
+        const output = normalized.event;
         const target = this.getOutputTarget();
         if (target) {
-          this.emitTurnOutput(target, normalized.event);
+          this.emitTurnOutput(target, output);
         }
         continue;
       }
