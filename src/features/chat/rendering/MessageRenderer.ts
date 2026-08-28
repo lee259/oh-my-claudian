@@ -35,6 +35,7 @@ import {
 import { openVaultFile } from '../../../utils/obsidianCompat';
 import type { FeatureHost } from '../../FeatureHost';
 import { findRewindContext } from '../rewind';
+import { ImagePreviewModal } from '../ui/ImagePreviewModal';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
 import {
@@ -81,6 +82,8 @@ export class MessageRenderer {
   private getCapabilities: () => ProviderCapabilities;
   private forkCallback?: (messageId: string) => Promise<void>;
   private liveMessageEls = new Map<string, HTMLElement>();
+  private readonly imagePreviewModal = new ImagePreviewModal();
+  private isDisposed = false;
 
   constructor(
     plugin: FeatureHost,
@@ -117,6 +120,14 @@ export class MessageRenderer {
   /** Sets the messages container element. */
   setMessagesEl(el: HTMLElement): void {
     this.messagesEl = el;
+  }
+
+  /** Releases renderer-owned resources (call on tab teardown). */
+  dispose(): void {
+    if (this.isDisposed) return;
+    this.isDisposed = true;
+    this.imagePreviewModal.close();
+    this.liveMessageEls.clear();
   }
 
   private getSubagentAdapter(toolName?: string) {
@@ -712,7 +723,13 @@ export class MessageRenderer {
     const imagesEl = containerEl.createDiv({ cls: 'claudian-message-images' });
 
     for (const image of images) {
-      const imageWrapper = imagesEl.createDiv({ cls: 'claudian-message-image' });
+      const imageWrapper = imagesEl.createEl('button', {
+        cls: 'claudian-message-image',
+        attr: {
+          'aria-label': `Preview ${image.name}`,
+          type: 'button',
+        },
+      });
       const imgEl = imageWrapper.createEl('img', {
         attr: {
           alt: image.name,
@@ -721,8 +738,7 @@ export class MessageRenderer {
 
       void this.setImageSrc(imgEl, image);
 
-      // Click to view full size
-      imgEl.addEventListener('click', () => {
+      imageWrapper.addEventListener('click', () => {
         void this.showFullImage(image);
       });
     }
@@ -732,38 +748,9 @@ export class MessageRenderer {
    * Shows full-size image in modal overlay.
    */
   showFullImage(image: ImageAttachment): void {
-    const dataUri = `data:${image.mediaType};base64,${image.data}`;
-
+    if (this.isDisposed) return;
     const ownerDocument = this.messagesEl.ownerDocument ?? window.document;
-    const overlay = ownerDocument.body.createDiv({ cls: 'claudian-image-modal-overlay' });
-    const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
-
-    modal.createEl('img', {
-      attr: {
-        src: dataUri,
-        alt: image.name,
-      },
-    });
-
-    const closeBtn = modal.createDiv({ cls: 'claudian-image-modal-close' });
-    closeBtn.setText('\u00D7');
-
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        close();
-      }
-    };
-
-    const close = () => {
-      ownerDocument.removeEventListener('keydown', handleEsc);
-      overlay.remove();
-    };
-
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
-    });
-    ownerDocument.addEventListener('keydown', handleEsc);
+    this.imagePreviewModal.open(ownerDocument, image);
   }
 
   /**

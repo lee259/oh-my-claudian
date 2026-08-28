@@ -686,62 +686,35 @@ describe('ImageContextManager - Private Helpers', () => {
       expect(mgr.getAttachedImages()[0].id).toBe('img-2');
       expect(cb.onImagesChanged).toHaveBeenCalled();
     });
-  });
 
-  describe('showFullImage', () => {
-    let origDocument: typeof globalThis.document;
-    let overlayEl: any;
-    let mockBody: any;
-    let addEventSpy: jest.Mock;
-    let removeEventSpy: jest.Mock;
-
-    beforeEach(() => {
-      overlayEl = createMockEl();
-      addEventSpy = jest.fn();
-      removeEventSpy = jest.fn();
-      mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
-      origDocument = globalThis.document;
+    it('opens an image preview from the rendered attachment control and closes it on destroy', () => {
+      const overlayEl = createMockEl();
+      const removeOverlay = jest.spyOn(overlayEl, 'remove');
+      const mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
+      const originalDocument = globalThis.document;
       (globalThis as any).document = {
+        activeElement: null,
         body: mockBody,
-        addEventListener: addEventSpy,
-        removeEventListener: removeEventSpy,
-        createElementNS: jest.fn(() => mockSvgElement()),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
       };
-    });
 
-    afterEach(() => {
-      (globalThis as any).document = origDocument;
-    });
+      try {
+        manager.setImages([createImageAttachment({ name: 'photo.png' })]);
+        const previewButton = manager['contextTray']['containerEl']
+          .querySelector('.claudian-context-chip-main');
 
-    it('should create modal overlay with image', () => {
-      const image = createImageAttachment({ name: 'test.png', mediaType: 'image/png', data: 'abc123' });
-      manager['showFullImage'](image);
+        expect(previewButton.tagName).toBe('BUTTON');
+        previewButton.click();
+        expect(mockBody.createDiv).toHaveBeenCalledWith({
+          cls: 'claudian-image-modal-overlay',
+        });
 
-      expect(mockBody.createDiv).toHaveBeenCalledWith({ cls: 'claudian-image-modal-overlay' });
-    });
-
-    it('should register Escape key handler and close button', () => {
-      const image = createImageAttachment();
-      manager['showFullImage'](image);
-
-      expect(addEventSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
-
-      const escHandler = addEventSpy.mock.calls[0][1];
-      escHandler({ key: 'Escape' });
-
-      expect(removeEventSpy).toHaveBeenCalledWith('keydown', escHandler);
-    });
-
-    it('should close modal when clicking on overlay background', () => {
-      const image = createImageAttachment();
-      manager['showFullImage'](image);
-
-      const clickHandler = overlayEl._eventListeners.get('click')?.[0];
-      expect(clickHandler).toBeDefined();
-
-      clickHandler({ target: overlayEl });
-
-      expect(removeEventSpy).toHaveBeenCalled();
+        manager.destroy();
+        expect(removeOverlay).toHaveBeenCalledTimes(1);
+      } finally {
+        (globalThis as any).document = originalDocument;
+      }
     });
   });
 

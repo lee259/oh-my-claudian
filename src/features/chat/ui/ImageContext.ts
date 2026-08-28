@@ -3,6 +3,7 @@ import * as path from 'path';
 
 import type { ImageAttachment, ImageMediaType } from '../../../core/types';
 import { ComposerContextTray } from './ComposerContextTray';
+import { ImagePreviewModal } from './ImagePreviewModal';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
@@ -27,6 +28,8 @@ export class ImageContextManager {
   private inputEl: HTMLTextAreaElement;
   private dropOverlay: HTMLElement | null = null;
   private attachedImages: Map<string, ImageAttachment> = new Map();
+  private readonly imagePreviewModal = new ImagePreviewModal();
+  private destroyed = false;
   private enabled = true;
 
   constructor(
@@ -83,6 +86,8 @@ export class ImageContextManager {
   }
 
   destroy(): void {
+    this.destroyed = true;
+    this.imagePreviewModal.close();
     this.contextTray.clearItems('images');
     this.ownedContextTray?.destroy();
     this.ownedContextTray = null;
@@ -277,36 +282,9 @@ export class ImageContextManager {
   }
 
   private showFullImage(image: ImageAttachment) {
+    if (this.destroyed) return;
     const ownerDocument = this.containerEl.ownerDocument ?? window.document;
-    const overlay = ownerDocument.body.createDiv({ cls: 'claudian-image-modal-overlay' });
-    const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
-
-    modal.createEl('img', {
-      attr: {
-        src: `data:${image.mediaType};base64,${image.data}`,
-        alt: image.name,
-      },
-    });
-
-    const closeBtn = modal.createDiv({ cls: 'claudian-image-modal-close' });
-    closeBtn.setText('\u00D7');
-
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        close();
-      }
-    };
-
-    const close = () => {
-      ownerDocument.removeEventListener('keydown', handleEsc);
-      overlay.remove();
-    };
-
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
-    });
-    ownerDocument.addEventListener('keydown', handleEsc);
+    this.imagePreviewModal.open(ownerDocument, image);
   }
 
   private generateId(): string {
