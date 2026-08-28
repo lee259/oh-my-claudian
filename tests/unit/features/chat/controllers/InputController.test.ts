@@ -274,6 +274,18 @@ describe('InputController coordinator execution', () => {
     expect(fixture.deps.conversationController.save).toHaveBeenCalledTimes(2);
   });
 
+  it('notifies composer observers after clearing a sent message', async () => {
+    const fixture = createFixture();
+    fixture.input.value = '@notes/plan.md review this';
+
+    await fixture.controller.sendMessage();
+
+    expect(fixture.input.value).toBe('');
+    expect(fixture.input.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'input' }),
+    );
+  });
+
   it('does not add the Claudian default system instructions when no custom prompt is configured', async () => {
     const fixture = createFixture();
     fixture.input.value = 'first';

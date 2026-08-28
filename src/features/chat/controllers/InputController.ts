@@ -50,6 +50,7 @@ import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { QueuedMessage } from '../state/types';
 import type { ChatTurnRequest } from '../state/types';
+import { dispatchComposerInputEvent } from '../ui/ComposerInputEvents';
 import type { FileContextManager } from '../ui/FileContext';
 import type { ImageContextManager } from '../ui/ImageContext';
 import type { AddExternalContextResult, McpServerSelector } from '../ui/InputToolbar';
@@ -338,6 +339,7 @@ export class InputController {
       }
       if (shouldUseInput) {
         inputEl.value = '';
+        dispatchComposerInputEvent(inputEl);
         this.deps.resetInputHeight();
       }
       await this.executeBuiltInCommand(builtInCmd.command, builtInCmd.args);
@@ -375,6 +377,7 @@ export class InputController {
 
       if (shouldUseInput) {
         inputEl.value = '';
+        dispatchComposerInputEvent(inputEl);
         this.deps.resetInputHeight();
       }
       if (shouldUseInput) {
@@ -391,6 +394,7 @@ export class InputController {
 
     if (shouldUseInput) {
       inputEl.value = '';
+      dispatchComposerInputEvent(inputEl);
       this.deps.resetInputHeight();
     }
     state.isStreaming = true;
@@ -872,8 +876,7 @@ export class InputController {
       images: message.images,
     });
     const inputEl = this.deps.getInputEl();
-    const EventConstructor = inputEl.ownerDocument?.defaultView?.Event ?? Event;
-    inputEl.dispatchEvent(new EventConstructor('input', { bubbles: true }));
+    dispatchComposerInputEvent(inputEl);
   }
 
   private restoreMessageToInput(
