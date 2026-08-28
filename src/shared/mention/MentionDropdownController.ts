@@ -710,6 +710,7 @@ export class MentionDropdownController {
     }
 
     this.hide();
+    this.inputEl.dispatchEvent(new Event('claudian:mention-inserted'));
     this.inputEl.focus();
   }
 }

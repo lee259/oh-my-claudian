@@ -126,6 +126,7 @@ describe('FileContextManager', () => {
       selectionStart: 0,
       selectionEnd: 0,
       focus: jest.fn(),
+      dispatchEvent: jest.fn(),
     } as unknown as HTMLTextAreaElement;
   });
 
