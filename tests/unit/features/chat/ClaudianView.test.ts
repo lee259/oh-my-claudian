@@ -2579,6 +2579,13 @@ describe('ClaudianView Escape handling', () => {
             return ref;
           }),
         },
+        metadataCache: {
+          on: jest.fn((_event: string, handler: unknown) => {
+            const ref = { handler };
+            eventRefs.push(ref);
+            return ref;
+          }),
+        },
       },
     };
     view.tabManager = {
@@ -2594,6 +2601,7 @@ describe('ClaudianView Escape handling', () => {
             markFolderCacheDirty: jest.fn(),
             handleFileOpen: jest.fn(),
             handleClickOutside: jest.fn(),
+            handleActiveFileMetadataChanged: jest.fn(),
           },
         },
       }),
@@ -2641,6 +2649,13 @@ describe('ClaudianView Escape handling', () => {
             return ref;
           }),
         },
+        metadataCache: {
+          on: jest.fn((_event: string, handler: unknown) => {
+            const ref = { handler };
+            eventRefs.push(ref);
+            return ref;
+          }),
+        },
       },
     };
     view.tabManager = {
@@ -2656,6 +2671,7 @@ describe('ClaudianView Escape handling', () => {
             markFolderCacheDirty: jest.fn(),
             handleFileOpen: jest.fn(),
             handleClickOutside: jest.fn(),
+            handleActiveFileMetadataChanged: jest.fn(),
           },
         },
       }),
@@ -2663,6 +2679,32 @@ describe('ClaudianView Escape handling', () => {
 
     return { inputEl, sendMessage, view };
   }
+
+  it('routes metadata cache refreshes to the active tab file context', () => {
+    const { view } = createEscapeHarness({ isStreaming: false });
+    view.wireEventHandlers();
+
+    const cacheOn = view.plugin.app.metadataCache.on as jest.Mock;
+    const changedHandler = cacheOn.mock.calls
+      .find(([event]: unknown[]) => event === 'changed')?.[1] as (file: unknown) => void;
+    const resolveHandler = cacheOn.mock.calls
+      .find(([event]: unknown[]) => event === 'resolve')?.[1] as (file: unknown) => void;
+    const resolvedHandler = cacheOn.mock.calls
+      .find(([event]: unknown[]) => event === 'resolved')?.[1] as () => void;
+    expect(changedHandler).toBeDefined();
+    expect(resolveHandler).toBeDefined();
+    expect(resolvedHandler).toBeDefined();
+
+    const file = { path: 'Notes/Current.md' };
+    changedHandler(file);
+    resolveHandler(file);
+    resolvedHandler();
+
+    const { handleActiveFileMetadataChanged } = view.tabManager.getActiveTab().ui.fileContextManager;
+    expect(handleActiveFileMetadataChanged).toHaveBeenNthCalledWith(1, file);
+    expect(handleActiveFileMetadataChanged).toHaveBeenNthCalledWith(2, file);
+    expect(handleActiveFileMetadataChanged).toHaveBeenNthCalledWith(3, null);
+  });
 
   it('registers Escape on the Obsidian view scope instead of document keydown capture', () => {
     const { view } = createEscapeHarness({ isStreaming: true });
