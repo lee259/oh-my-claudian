@@ -68,6 +68,7 @@ import {
 } from '../normalizations/piEventNormalization';
 import { buildPiUsageInfo } from '../runtime/buildPiUsageInfo';
 import type { PiExtensionUiRenderer } from '../runtime/PiExtensionUiBridge';
+import { PiExtensionUiInteractionAdapter } from '../runtime/PiExtensionUiInteractionAdapter';
 import {
   buildPiLaunchSpec,
   type PiLaunchSpec,
@@ -156,6 +157,7 @@ implements ProviderExecutionSession, SteerableExecutionSession {
   private kernel: PiExecutionKernel | null = null;
   private kernelGeneration = 0;
   private processKey: string | null = null;
+  private readonly protectedResumeSessionTarget: string | null;
   private readonly kernelSessionTargets = new Set<string>();
   private lifecycleError: Error | null = null;
   private normalizationState: PiEventNormalizationState =
@@ -201,6 +203,9 @@ implements ProviderExecutionSession, SteerableExecutionSession {
         ? { sessionId: providerSessionId }
         : {}),
     };
+    this.protectedResumeSessionTarget = !nativePersistenceDisabled && !state.forkSource
+      ? state.sessionFile ?? providerSessionId
+      : null;
     this.resumeSeedNeedsValidation = !nativePersistenceDisabled
       && !state.forkSource
       && Boolean(state.sessionFile || providerSessionId);
@@ -617,7 +622,7 @@ implements ProviderExecutionSession, SteerableExecutionSession {
         },
       },
       this.config.lifecycle === 'persistent'
-        ? this.options.extensionUiRenderer
+        ? this.createExtensionUiRenderer()
         : null,
     );
     if (!this.isActive(active) || active.abortController.signal.aborted) {
@@ -650,6 +655,18 @@ implements ProviderExecutionSession, SteerableExecutionSession {
       return;
     }
     void this.publishCommands(kernel, generation);
+  }
+
+  private createExtensionUiRenderer(): PiExtensionUiRenderer | null {
+    if (!this.options.extensionUiRenderer) {
+      return null;
+    }
+
+    return new PiExtensionUiInteractionAdapter(this.options.extensionUiRenderer, {
+      getTurnId: () => this.activeRun?.turnId ?? null,
+      interactionPort: this.config.interactionPort,
+      sessionInstanceId: this.sessionInstanceId,
+    });
   }
 
   private async applyModelConfiguration(
@@ -896,7 +913,9 @@ implements ProviderExecutionSession, SteerableExecutionSession {
     });
   }
 
-  private async refreshState(signal: AbortSignal): Promise<void> {
+  private async refreshState(
+    signal: AbortSignal,
+  ): Promise<void> {
     if (!this.kernel) throw new Error('Pi execution kernel is unavailable.');
     const response = await this.kernel.request<unknown>(
       'get_state',
@@ -912,15 +931,22 @@ implements ProviderExecutionSession, SteerableExecutionSession {
       return;
     }
     const state = extractStateRecord(response);
-    const sessionId = getString(state.sessionId)
+    const reportedSessionId = getString(state.sessionId)
       ?? getString(state.session_id)
-      ?? getString(getRecord(state.session).id)
-      ?? getPiState(this.providerState).sessionId;
-    const sessionFile = getString(state.sessionFile)
+      ?? getString(getRecord(state.session).id);
+    const reportedSessionFile = getString(state.sessionFile)
       ?? getString(state.session_file)
       ?? getString(state.sessionPath)
       ?? getString(state.session_path)
-      ?? getString(state.path)
+      ?? getString(state.path);
+    assertPiSessionTargetIntegrity(
+      this.protectedResumeSessionTarget,
+      reportedSessionId,
+      reportedSessionFile,
+    );
+    const sessionId = reportedSessionId
+      ?? getPiState(this.providerState).sessionId;
+    const sessionFile = reportedSessionFile
       ?? getPiState(this.providerState).sessionFile;
     const leafEntryId = getString(state.leafEntryId)
       ?? getString(state.leaf_entry_id)
@@ -1376,6 +1402,15 @@ class PiProviderSessionMissingError extends Error {
   }
 }
 
+class PiSessionTargetMismatchError extends Error {
+  constructor(expectedSessionTarget: string, reportedSessionTarget: string) {
+    super(
+      `Pi resumed a different native session. Expected '${expectedSessionTarget}', received '${reportedSessionTarget}'. The original conversation pointer was preserved.`,
+    );
+    this.name = 'PiSessionTargetMismatchError';
+  }
+}
+
 class PiForkRollbackError extends Error {
   constructor(readonly cleanupError: Error) {
     super(cleanupError.message);
@@ -1572,6 +1607,32 @@ function getFirstRejectedError(
 
 function isSamePath(left: string, right: string): boolean {
   return path.resolve(left) === path.resolve(right);
+}
+
+function assertPiSessionTargetIntegrity(
+  expectedSessionTarget: string | null,
+  reportedSessionId: string | null,
+  reportedSessionFile: string | null,
+): void {
+  if (!expectedSessionTarget) return;
+  if (isPiSessionPathReference(expectedSessionTarget)) {
+    if (
+      reportedSessionFile
+      && !isSamePath(expectedSessionTarget, reportedSessionFile)
+    ) {
+      throw new PiSessionTargetMismatchError(
+        expectedSessionTarget,
+        reportedSessionFile,
+      );
+    }
+    return;
+  }
+  if (reportedSessionId && reportedSessionId !== expectedSessionTarget) {
+    throw new PiSessionTargetMismatchError(
+      expectedSessionTarget,
+      reportedSessionId,
+    );
+  }
 }
 
 function toError(error: unknown): Error {
