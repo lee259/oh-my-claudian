@@ -43,6 +43,7 @@ import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { QueuedMessage } from '../state/types';
 import type { ChatTurnRequest } from '../state/types';
+import { dispatchComposerInputEvent } from '../ui/ComposerInputEvents';
 import type { FileContextManager } from '../ui/FileContext';
 import type { ImageContextManager } from '../ui/ImageContext';
 import type { AddExternalContextResult, McpServerSelector } from '../ui/InputToolbar';
@@ -263,9 +264,15 @@ export class InputController {
           userMessageIndex >= 0 ? userMessageIndex : undefined,
         );
       },
-      setComposerText: (text) => { deps.getInputEl().value = text; },
+      setComposerText: (text) => {
+        const inputEl = deps.getInputEl();
+        inputEl.value = text;
+        dispatchComposerInputEvent(inputEl);
+      },
       scheduleCurrentControllerContinuation: (content, reporter) => {
-        deps.getInputEl().value = content;
+        const inputEl = deps.getInputEl();
+        inputEl.value = content;
+        dispatchComposerInputEvent(inputEl);
         this.deferReviewableSettlement(reporter);
         this.sendMessage().catch(() => this.reportDeferredReviewableSettlement());
       },
@@ -387,6 +394,7 @@ export class InputController {
       }
       if (shouldUseInput) {
         inputEl.value = '';
+        dispatchComposerInputEvent(inputEl);
         this.deps.resetInputHeight();
       }
       await this.builtInCommandController.execute(builtInCmd.command, builtInCmd.args);
@@ -691,7 +699,9 @@ export class InputController {
     const turnConversationId = state.currentConversationId;
     this.pendingSteersByConversation.delegateToHistory(turnConversationId);
     if (shouldUseInput) {
-      this.deps.getInputEl().value = '';
+      const inputEl = this.deps.getInputEl();
+      inputEl.value = '';
+      dispatchComposerInputEvent(inputEl);
       this.deps.resetInputHeight();
     }
     state.isStreaming = true;
@@ -778,7 +788,9 @@ export class InputController {
       createQueuedMessage(displayContent, turnRequest),
     );
     if (shouldUseInput) {
-      this.deps.getInputEl().value = '';
+      const inputEl = this.deps.getInputEl();
+      inputEl.value = '';
+      dispatchComposerInputEvent(inputEl);
       this.deps.resetInputHeight();
       imageContextManager?.clearImages();
     }
@@ -885,8 +897,7 @@ export class InputController {
       images: message.images,
     });
     const inputEl = this.deps.getInputEl();
-    const EventConstructor = inputEl.ownerDocument?.defaultView?.Event ?? Event;
-    inputEl.dispatchEvent(new EventConstructor('input', { bubbles: true }));
+    dispatchComposerInputEvent(inputEl);
   }
 
   private restoreMessageToInput(
@@ -901,6 +912,7 @@ export class InputController {
     inputEl.value = currentContent
       ? appendMarkdownSnippet(content, currentContent)
       : content;
+    dispatchComposerInputEvent(inputEl);
 
     const imageContextManager = this.deps.getImageContextManager();
     const currentImages = options.mergeWithComposer
