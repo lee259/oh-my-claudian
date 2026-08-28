@@ -672,6 +672,65 @@ describe('CodexSettingsTab', () => {
     );
   });
 
+  it('accepts a CLI path pasted with surrounding quotes', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    mockedExistsSync.mockImplementation((filePath: fs.PathLike) => String(filePath) === '/my tools/codex');
+    const plugin = createPlugin();
+    plugin.runProviderExecutionTransition.mockImplementation(async (
+      _providerIds: string[],
+      mutation: () => Promise<unknown>,
+    ) => mutation());
+    plugin.mutateSettings.mockImplementation(async (
+      mutation: (settings: any) => void | Promise<void>,
+    ) => {
+      await mutation(plugin.settings);
+      await plugin.saveSettings();
+    });
+
+    codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
+    await findSetting('Codex CLI path').textComponents[0].onChangeCallback?.('"/my tools/codex"');
+
+    expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBe('"/my tools/codex"');
+  });
+
+  it('accepts a quoted Linux-side CLI path when installation method is WSL', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const plugin = createPlugin();
+
+    codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
+
+    const installationMethodSetting = findSetting('Installation method');
+    await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
+    mockSaveSettings.mockClear();
+
+    const cliPathSetting = findSetting('Codex CLI path');
+    await cliPathSetting.textComponents[0].onChangeCallback?.('"/home/user/my tools/codex"');
+
+    expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBe(
+      '"/home/user/my tools/codex"',
+    );
+    expect(mockSaveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a quoted Windows-native CLI path when installation method is WSL', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const plugin = createPlugin();
+
+    codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
+
+    const installationMethodSetting = findSetting('Installation method');
+    await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
+    mockSaveSettings.mockClear();
+
+    const cliPathSetting = findSetting('Codex CLI path');
+    await cliPathSetting.textComponents[0].onChangeCallback?.(
+      '"C:\\Users\\me\\AppData\\Roaming\\npm\\codex.exe"',
+    );
+
+    expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBeUndefined();
+    expect(mockSaveSettings).not.toHaveBeenCalled();
+  });
+
   it('does not render the legacy custom models textarea', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
     const plugin = createPlugin();
