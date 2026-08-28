@@ -102,7 +102,7 @@
   position: relative;
   display: flex;
   flex: 1 1 0;
-  min-height: 0;
+  min-height: var(--claudian-textarea-min-height, 64px);
 }
 
 .claudian-input-wrapper textarea.claudian-input {

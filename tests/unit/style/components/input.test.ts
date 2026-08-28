@@ -55,4 +55,10 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
   });
+
+  it('reserves the textarea minimum height when composer space is constrained', () => {
+    expect(css).toMatch(
+      /\.claudian-input-editor\s*\{[^}]*min-height:\s*var\(--claudian-textarea-min-height, 64px\);/,
+    );
+  });
 });
