@@ -55,6 +55,13 @@ import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
+import {
+  cloneQueuedMessage,
+  createQueuedMessage,
+  getQueuedMessageDisplay,
+  mergeQueuedMessages,
+  toQueuedChatTurn,
+} from './QueuedTurn';
 import type { SelectionController } from './SelectionController';
 import {
   providerOutputEventToStreamChunk,
@@ -381,9 +388,9 @@ export class InputController {
         browserContextOverride: browserContext,
         canvasContextOverride: canvasContext,
       });
-      state.queuedMessage = this.mergeQueuedMessages(
+      state.queuedMessage = mergeQueuedMessages(
         state.queuedMessage,
-        this.createQueuedMessage(displayContent, turnRequest),
+        createQueuedMessage(displayContent, turnRequest),
       );
 
       if (shouldUseInput) {
@@ -465,7 +472,7 @@ export class InputController {
     try {
       await this.triggerTitleGeneration();
     } catch (error) {
-      this.restoreMessageToInput(this.createQueuedMessage(displayContent, turnRequest));
+      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       throw error;
     }
@@ -512,7 +519,7 @@ export class InputController {
       const ready = await this.deps.ensureExecutionInitialized();
       if (!ready) {
         new Notice('Failed to initialize agent execution. Please try again.');
-        this.restoreMessageToInput(this.createQueuedMessage(displayContent, turnRequest));
+        this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         this.activeStreamingAssistantMessage = null;
         this.resetProviderMessageBoundaryState();
@@ -524,7 +531,7 @@ export class InputController {
     const coordinator = this.getExecutionCoordinator();
     if (!coordinator) {
       new Notice('Agent execution is not available. Please reload the plugin.');
-      this.restoreMessageToInput(this.createQueuedMessage(displayContent, turnRequest));
+      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       this.activeStreamingAssistantMessage = null;
       this.resetProviderMessageBoundaryState();
@@ -558,12 +565,12 @@ export class InputController {
       } else if (result.status === 'missing-session') {
         const retryMessage = result.accepted
           ? null
-          : this.createQueuedMessage(displayContent, {
+          : createQueuedMessage(displayContent, {
             ...turnRequest,
             images: imagesForMessage ?? turnRequest.images,
           });
         const pendingMessagesToRestore = state.queuedMessage
-          ? this.cloneQueuedMessage(state.queuedMessage)
+          ? cloneQueuedMessage(state.queuedMessage)
           : null;
         const composerDraftToRestore = this.captureComposerDraft();
         const resolution = result.missingSessionResolution ?? 'not_found';
@@ -593,7 +600,7 @@ export class InputController {
     } catch (error) {
       if (error instanceof ChatExecutionPreHandoffError) {
         this.restoreMessageToInput(
-          this.createQueuedMessage(displayContent, turnRequest),
+          createQueuedMessage(displayContent, turnRequest),
           { mergeWithComposer: true },
         );
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
@@ -805,7 +812,7 @@ export class InputController {
       const isPendingSteerOnly = !state.queuedMessage && !!visiblePendingSteer;
       indicatorEl.createSpan({
         cls: 'claudian-queue-indicator-text',
-        text: `${isPendingSteerOnly ? '⌙ Steering: ' : '⌙ Queued: '}${this.getQueuedMessageDisplay(visibleQueuedMessage)}`,
+        text: `${isPendingSteerOnly ? '⌙ Steering: ' : '⌙ Queued: '}${getQueuedMessageDisplay(visibleQueuedMessage)}`,
       });
 
       if (state.queuedMessage) {
@@ -869,7 +876,7 @@ export class InputController {
     const { state } = this.deps;
     if (!state.queuedMessage) return;
 
-    const queuedMessage = this.cloneQueuedMessage(state.queuedMessage);
+    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
     state.queuedMessage = null;
     this.restoreMessageToInput(queuedMessage, { mergeWithComposer: true });
     this.updateQueueIndicator();
@@ -922,7 +929,7 @@ export class InputController {
       return null;
     }
 
-    return this.createQueuedMessage(content, {
+    return createQueuedMessage(content, {
       text: content,
       images,
     });
@@ -931,7 +938,7 @@ export class InputController {
   private restoreQueuedMessageToInput(): void {
     const { state } = this.deps;
     const queuedMessage = state.queuedMessage
-      ? this.cloneQueuedMessage(state.queuedMessage)
+      ? cloneQueuedMessage(state.queuedMessage)
       : null;
     this.restoreMessageToInput(queuedMessage, { mergeWithComposer: true });
     state.queuedMessage = null;
@@ -942,7 +949,7 @@ export class InputController {
     const { state } = this.deps;
     if (!state.queuedMessage) return false;
 
-    const queuedMessage = this.cloneQueuedMessage(state.queuedMessage);
+    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
     state.queuedMessage = null;
     this.updateQueueIndicator();
 
@@ -951,7 +958,7 @@ export class InputController {
         void this.sendMessage({
           content: queuedMessage.content,
           images: queuedMessage.images,
-          turnRequestOverride: this.toQueuedChatTurn(queuedMessage).request,
+          turnRequestOverride: toQueuedChatTurn(queuedMessage).request,
         }).catch(() => this.reportDeferredReviewableSettlement());
       },
       0
@@ -1004,24 +1011,6 @@ export class InputController {
     this.deferredReviewableSettlement = null;
   }
 
-  private getQueuedMessageDisplay(message: QueuedMessage | null): string {
-    if (!message) {
-      return '';
-    }
-
-    const rawContent = message.content.trim();
-    const preview = rawContent.length > 40
-      ? rawContent.slice(0, 40) + '...'
-      : rawContent;
-    const hasImages = (message.images?.length ?? 0) > 0;
-
-    if (hasImages) {
-      return preview ? `${preview} [images]` : '[images]';
-    }
-
-    return preview;
-  }
-
   private createQueueIconButton(
     parentEl: HTMLElement,
     icon: string,
@@ -1044,51 +1033,6 @@ export class InputController {
       && this.getCurrentPendingSteer() === null
       && this.getActiveCapabilities().supportsTurnSteer === true
       && this.getExecutionCoordinator() !== null;
-  }
-
-  private cloneQueuedMessage(message: QueuedMessage): QueuedMessage {
-    return {
-      ...message,
-      images: message.images ? [...message.images] : undefined,
-      turnRequest: message.turnRequest
-        ? cloneChatTurnRequest(message.turnRequest)
-        : undefined,
-    };
-  }
-
-  private createQueuedMessage(displayContent: string, turnRequest: ChatTurnRequest): QueuedMessage {
-    const request = cloneChatTurnRequest(turnRequest);
-    return {
-      content: displayContent,
-      images: request.images,
-      editorContext: request.editorSelection ?? null,
-      browserContext: request.browserSelection ?? null,
-      canvasContext: request.canvasSelection ?? null,
-      turnRequest: request,
-    };
-  }
-
-  private toQueuedChatTurn(message: QueuedMessage): {
-    displayContent: string;
-    request: ChatTurnRequest;
-  } {
-    if (message.turnRequest) {
-      return {
-        displayContent: message.content,
-        request: cloneChatTurnRequest(message.turnRequest),
-      };
-    }
-
-    return {
-      displayContent: message.content,
-      request: {
-        text: message.content,
-        images: message.images ? [...message.images] : undefined,
-        editorSelection: message.editorContext,
-        browserSelection: message.browserContext ?? null,
-        canvasSelection: message.canvasContext,
-      },
-    };
   }
 
   private getCurrentPendingSteer(): PendingSteerState | null {
@@ -1175,8 +1119,8 @@ export class InputController {
     const { state } = this.deps;
     if (state.isStreaming && !state.cancelRequested) {
       state.queuedMessage = state.queuedMessage
-        ? this.mergeQueuedMessages(pending.message, state.queuedMessage)
-        : this.cloneQueuedMessage(pending.message);
+        ? mergeQueuedMessages(pending.message, state.queuedMessage)
+        : cloneQueuedMessage(pending.message);
     } else {
       this.restoreMessageToInput(pending.message, { mergeWithComposer: true });
     }
@@ -1202,21 +1146,6 @@ export class InputController {
     this.updateQueueIndicator();
   }
 
-  private mergeQueuedMessages(
-    existing: QueuedMessage | null,
-    incoming: QueuedMessage,
-  ): QueuedMessage {
-    if (!existing) {
-      return this.cloneQueuedMessage(incoming);
-    }
-
-    const mergedTurn = mergeQueuedChatTurns(
-      this.toQueuedChatTurn(existing),
-      this.toQueuedChatTurn(incoming),
-    );
-    return this.createQueuedMessage(mergedTurn.displayContent, mergedTurn.request);
-  }
-
   private async steerQueuedMessage(): Promise<void> {
     const { state } = this.deps;
     const coordinator = this.getExecutionCoordinator();
@@ -1226,9 +1155,9 @@ export class InputController {
     }
     if (!conversationId) return;
 
-    const queuedMessage = this.cloneQueuedMessage(state.queuedMessage);
+    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
     state.queuedMessage = null;
-    const { displayContent, request } = this.toQueuedChatTurn(queuedMessage);
+    const { displayContent, request } = toQueuedChatTurn(queuedMessage);
     const submission = this.turnSubmissionBuilder.buildExecutionSubmission(displayContent, request);
     const pending: PendingSteerState = {
       conversationId,
@@ -2172,45 +2101,5 @@ function cloneChatTurnRequest(request: ChatTurnRequest): ChatTurnRequest {
       : undefined,
     contextFiles: request.contextFiles ? [...request.contextFiles] : undefined,
     images: request.images ? [...request.images] : undefined,
-  };
-}
-
-function mergeQueuedChatTurns(
-  existing: { displayContent: string; request: ChatTurnRequest },
-  incoming: { displayContent: string; request: ChatTurnRequest },
-): { displayContent: string; request: ChatTurnRequest } {
-  const mergeText = (first: string, second: string) => (
-    [first, second].map(value => value.trim()).filter(Boolean).join('\n\n')
-  );
-  const externalContextPaths = Array.from(new Set([
-    ...(existing.request.externalContextPaths ?? []),
-    ...(incoming.request.externalContextPaths ?? []),
-  ]));
-  const contextFiles = Array.from(new Set([
-    ...(existing.request.contextFiles ?? []),
-    ...(incoming.request.contextFiles ?? []),
-  ]));
-  const enabledMcpServers = new Set([
-    ...(existing.request.enabledMcpServers ?? []),
-    ...(incoming.request.enabledMcpServers ?? []),
-  ]);
-  const images = [
-    ...(existing.request.images ?? []),
-    ...(incoming.request.images ?? []),
-  ];
-  return {
-    displayContent: mergeText(existing.displayContent, incoming.displayContent),
-    request: {
-      ...cloneChatTurnRequest(incoming.request),
-      currentNotePath:
-        incoming.request.currentNotePath ?? existing.request.currentNotePath,
-      enabledMcpServers:
-        enabledMcpServers.size > 0 ? enabledMcpServers : undefined,
-      externalContextPaths:
-        externalContextPaths.length > 0 ? externalContextPaths : undefined,
-      contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
-      images: images.length > 0 ? images : undefined,
-      text: mergeText(existing.request.text, incoming.request.text),
-    },
   };
 }
