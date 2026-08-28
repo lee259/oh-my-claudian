@@ -146,7 +146,12 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
   const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-input-wrapper' });
   const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-context-row' });
   const scopePreviewEl = inputWrapper.createDiv({ cls: 'claudian-scope-preview' });
-  const inputEl = inputWrapper.createEl('textarea', {
+  const inputEditorEl = inputWrapper.createDiv({ cls: 'claudian-input-editor' });
+  const inputMentionHighlightsEl = inputEditorEl.createDiv({
+    cls: 'claudian-input-mention-highlights claudian-input-mention-highlights--empty',
+    attr: { 'aria-hidden': 'true' },
+  });
+  const inputEl = inputEditorEl.createEl('textarea', {
     cls: 'claudian-input',
     attr: {
       placeholder: 'Ask to make changes, @mention files, run /commands',
@@ -173,6 +178,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     inputContainerEl,
     queueIndicatorEl,
     inputWrapper,
+    inputMentionHighlightsEl,
     inputEl,
     sendButtonEl,
     navRowEl,

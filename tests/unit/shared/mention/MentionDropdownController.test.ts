@@ -41,6 +41,7 @@ function createMockInput() {
     focus: jest.fn(),
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
   } as any;
 }
 

@@ -98,7 +98,16 @@
   height: 16.8px;
 }
 
+.claudian-input-editor {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .claudian-input-wrapper textarea.claudian-input {
+  position: relative;
+  z-index: 1;
   width: 100%;
   flex: 1 1 0;
   min-height: var(--claudian-textarea-min-height, 64px);
@@ -108,7 +117,8 @@
   border: none;
   border-radius: 15px;
   background: transparent;
-  color: var(--text-normal);
+  color: transparent;
+  caret-color: var(--text-normal);
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
@@ -127,6 +137,37 @@
 
 .claudian-input-wrapper textarea.claudian-input::placeholder {
   color: var(--text-muted);
+}
+
+.claudian-input-mention-highlights {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--text-normal);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.claudian-input-mention-highlights--empty {
+  display: none;
+}
+
+.claudian-input-mention-highlights-content {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 13px 15px 48px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  will-change: transform;
+}
+
+.claudian-input-mention-highlight {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  color: var(--interactive-accent);
 }
 
 .claudian-input-send-button {
