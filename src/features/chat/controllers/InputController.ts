@@ -8,7 +8,6 @@ import {
 import type { ProviderExecutionEvent } from '../../../core/execution';
 import { stringifyDiagnosticError } from '../../../core/providers/ProviderDiagnostics';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
-import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
   type InstructionRefineService,
@@ -22,7 +21,6 @@ import {
   type ChatMessage,
   type ExitPlanModeDecision,
   type ExitPlanModePresentationOptions,
-  isCanonicalUserMessage,
   type StreamChunk,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
@@ -39,7 +37,6 @@ import { COMPLETION_FLAVOR_WORDS } from '../constants';
 import {
   type ChatExecutionCoordinator,
   ChatExecutionPreHandoffError,
-  type ChatTurnSubmission,
 } from '../execution/ChatExecutionCoordinator';
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../rendering/InlineAskUserQuestion';
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
@@ -69,6 +66,7 @@ import {
 } from './suspiciousCommandText';
 import type { ActiveTurnOwner } from './TurnCoordinator';
 import { TurnCoordinator } from './TurnCoordinator';
+import { TurnSubmissionBuilder } from './TurnSubmissionBuilder';
 
 const APPROVAL_OPTION_MAP: Record<string, ApprovalDecision> = {
   'Deny': 'deny',
@@ -206,6 +204,7 @@ export class InputController {
     report: () => void;
   } | null = null;
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
+  private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
 
   constructor(deps: InputControllerDeps) {
     this.deps = deps;
@@ -213,6 +212,20 @@ export class InputController {
       (options) => this.executeSendMessage(options),
       deps.turnOwner,
     );
+    this.turnSubmissionBuilder = new TurnSubmissionBuilder({
+      plugin: deps.plugin,
+      state: deps.state,
+      selectionController: deps.selectionController,
+      browserSelectionController: deps.browserSelectionController,
+      canvasSelectionController: deps.canvasSelectionController,
+      getFileContextManager: deps.getFileContextManager,
+      getMcpServerSelector: deps.getMcpServerSelector,
+      getExternalContextSelector: deps.getExternalContextSelector,
+      getProviderId: () => this.getActiveProviderId(),
+      getProviderCapabilities: () => this.getActiveCapabilities(),
+      getAuxiliaryModel: () => this.getAuxiliaryModel(),
+      generateId: deps.generateId,
+    });
   }
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
@@ -361,7 +374,7 @@ export class InputController {
       const editorContext = selectionController.getContext();
       const browserContext = browserSelectionController?.getContext() ?? null;
       const canvasContext = canvasSelectionController.getContext();
-      const { displayContent, turnRequest } = this.buildTurnSubmission({
+    const { displayContent, turnRequest } = this.turnSubmissionBuilder.buildRequest({
         content,
         images,
         editorContextOverride: editorContext,
@@ -424,7 +437,7 @@ export class InputController {
         displayContent: content,
         turnRequest: cloneChatTurnRequest(options.turnRequestOverride),
       }
-      : this.buildTurnSubmission({
+      : this.turnSubmissionBuilder.buildRequest({
         content,
         images: imagesForMessage,
         editorContextOverride: options?.editorContextOverride,
@@ -522,7 +535,7 @@ export class InputController {
     try {
       userMsg.content = turnRequest.text;
       userMsg.currentNote = isCompact ? undefined : turnRequest.currentNotePath;
-      const result = await coordinator.execute(this.createExecutionSubmission(
+      const result = await coordinator.execute(this.turnSubmissionBuilder.buildExecutionSubmission(
         displayContent,
         turnRequest,
         userMsg,
@@ -991,150 +1004,6 @@ export class InputController {
     this.deferredReviewableSettlement = null;
   }
 
-  private buildTurnSubmission(options: {
-    content: string;
-    images?: ChatMessage['images'];
-    editorContextOverride?: EditorSelectionContext | null;
-    browserContextOverride?: BrowserSelectionContext | null;
-    canvasContextOverride?: CanvasSelectionContext | null;
-  }): {
-    displayContent: string;
-    turnRequest: ChatTurnRequest;
-  } {
-    const {
-      selectionController,
-      browserSelectionController,
-      canvasSelectionController,
-    } = this.deps;
-
-    const fileContextManager = this.deps.getFileContextManager();
-    const mcpServerSelector = this.deps.getMcpServerSelector();
-    const externalContextSelector = this.deps.getExternalContextSelector();
-
-    const currentNotePath = fileContextManager?.getCurrentNotePath() || null;
-    const shouldSendCurrentNote = fileContextManager?.shouldSendCurrentNote(currentNotePath) ?? false;
-
-    const editorContext = options.editorContextOverride !== undefined
-      ? options.editorContextOverride
-      : selectionController.getContext();
-    const browserContext = options.browserContextOverride !== undefined
-      ? options.browserContextOverride
-      : (browserSelectionController?.getContext() ?? null);
-    const canvasContext = options.canvasContextOverride !== undefined
-      ? options.canvasContextOverride
-      : canvasSelectionController.getContext();
-
-    const externalContextPaths = externalContextSelector?.getExternalContexts();
-    const isCompact = /^\/compact(\s|$)/i.test(options.content);
-    const transformedText = !isCompact && fileContextManager
-      ? fileContextManager.transformContextMentions(options.content)
-      : options.content;
-    const enabledMcpServers = mcpServerSelector?.getEnabledServers();
-    const contextFiles = fileContextManager?.getAttachedFiles?.();
-
-    return {
-      displayContent: options.content,
-      turnRequest: {
-        text: transformedText,
-        images: options.images,
-        currentNotePath: shouldSendCurrentNote && currentNotePath ? currentNotePath : undefined,
-        editorSelection: editorContext,
-        browserSelection: browserContext,
-        canvasSelection: canvasContext,
-        externalContextPaths: externalContextPaths && externalContextPaths.length > 0
-          ? externalContextPaths
-          : undefined,
-        contextFiles: contextFiles && contextFiles.size > 0 ? [...contextFiles] : undefined,
-        enabledMcpServers: enabledMcpServers && enabledMcpServers.size > 0
-          ? enabledMcpServers
-          : undefined,
-      },
-    };
-  }
-
-  private createExecutionSubmission(
-    displayContent: string,
-    request: ChatTurnRequest,
-    user?: ChatMessage,
-    assistant?: ChatMessage,
-  ): ChatTurnSubmission {
-    const providerId = this.getActiveProviderId();
-    const settings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-      this.deps.plugin.settings,
-      providerId,
-    );
-    const reasoning = typeof settings.effortLevel === 'string'
-      ? settings.effortLevel
-      : typeof settings.thinkingBudget === 'string'
-        ? settings.thinkingBudget
-        : undefined;
-    const permissionMode = typeof settings.permissionMode === 'string'
-      ? settings.permissionMode
-      : undefined;
-    const serviceTier = typeof settings.serviceTier === 'string'
-      ? settings.serviceTier
-      : undefined;
-    const mode = permissionMode === 'plan' && this.getActiveCapabilities().supportsPlanMode
-      ? permissionMode
-      : undefined;
-    const customSystemPrompt = typeof this.deps.plugin.settings.systemPrompt === 'string'
-      ? this.deps.plugin.settings.systemPrompt.trim()
-      : '';
-    const images = [...(request.images ?? [])];
-    const existingUserTurns = this.deps.state.messages.filter(isCanonicalUserMessage).length;
-
-    return {
-      canonicalText: request.text,
-      configuration: {
-        ...(request.enabledMcpServers
-          ? { enabledMcpServers: [...request.enabledMcpServers] }
-          : {}),
-        ...(request.externalContextPaths
-          ? { externalWorkspaceRoots: [...request.externalContextPaths] }
-          : {}),
-        ...(this.getAuxiliaryModel()
-          ? { model: this.getAuxiliaryModel() ?? undefined }
-          : {}),
-        ...(permissionMode ? { permissionMode } : {}),
-        ...(mode ? { mode } : {}),
-        ...(reasoning ? { reasoning } : {}),
-        ...(serviceTier ? { serviceTier } : {}),
-        systemInstructions: customSystemPrompt
-          ? { kind: 'explicit', instructions: customSystemPrompt }
-          : { kind: 'none' },
-      },
-      context: {
-        ...(request.browserSelection
-          ? { browserSelection: request.browserSelection }
-          : {}),
-        ...(request.canvasSelection
-          ? { canvasSelection: request.canvasSelection }
-          : {}),
-        ...(request.currentNotePath
-          ? { currentNote: { path: request.currentNotePath } }
-          : {}),
-        ...(request.editorSelection
-          ? { editorSelection: request.editorSelection }
-          : {}),
-        ...(request.externalContextPaths
-          ? { externalContextPaths: [...request.externalContextPaths] }
-          : {}),
-        ...(request.contextFiles ? { contextFiles: [...request.contextFiles] } : {}),
-      },
-      conversationHistory: user && assistant
-        ? this.deps.state.messages.slice(0, -2)
-        : [...this.deps.state.messages],
-      images,
-      inputRecordId: this.deps.generateId(),
-      ...(user ? { localMessageId: user.id } : {}),
-      ...(user && assistant ? { messages: { assistant, user } } : {}),
-      rawDisplayText: displayContent,
-      timestamp: user?.timestamp ?? Date.now(),
-      toolPolicy: { kind: 'provider-default' },
-      userTurnOrdinal: user ? existingUserTurns : existingUserTurns + 1,
-    };
-  }
-
   private getQueuedMessageDisplay(message: QueuedMessage | null): string {
     if (!message) {
       return '';
@@ -1360,7 +1229,7 @@ export class InputController {
     const queuedMessage = this.cloneQueuedMessage(state.queuedMessage);
     state.queuedMessage = null;
     const { displayContent, request } = this.toQueuedChatTurn(queuedMessage);
-    const submission = this.createExecutionSubmission(displayContent, request);
+    const submission = this.turnSubmissionBuilder.buildExecutionSubmission(displayContent, request);
     const pending: PendingSteerState = {
       conversationId,
       coordinator,
