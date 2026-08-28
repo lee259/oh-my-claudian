@@ -43,4 +43,16 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-send-button:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*color-mix\(in srgb, var\(--oh-my-claudian-brand\)/,
     );
   });
+
+  it('does not let inline mention highlighting change textarea text metrics', () => {
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlight\s*\{[^}]*padding:\s*0;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?line-height:\s*1\.4;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
+    );
+  });
 });
