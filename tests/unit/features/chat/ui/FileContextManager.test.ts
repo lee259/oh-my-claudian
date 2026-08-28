@@ -223,6 +223,7 @@ describe('FileContextManager', () => {
   it('auto-attaches active file unless excluded by tag', () => {
     const fileCacheByPath = new Map<string, any>([
       ['notes/private.md', { frontmatter: { tags: ['private'] } }],
+      ['notes/public.md', { tags: [] }],
     ]);
     const app = createMockApp({
       files: ['notes/private.md', 'notes/public.md'],
@@ -751,6 +752,147 @@ describe('FileContextManager', () => {
 
       manager.autoAttachActiveFile();
       expect(manager.getCurrentNotePath()).toBeNull();
+      manager.destroy();
+    });
+  });
+
+  describe('metadata-driven current note refresh', () => {
+    it('delays auto-attach until the active note metadata resolves', () => {
+      const fileCacheByPath = new Map<string, any>();
+      const app = createMockApp({
+        files: ['notes/startup.md'],
+        activeFilePath: 'notes/startup.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['private'] })
+      );
+
+      manager.autoAttachActiveFile();
+      expect(manager.getCurrentNotePath()).toBeNull();
+
+      fileCacheByPath.set('notes/startup.md', { tags: [] });
+      manager.handleActiveFileMetadataChanged(createMockTFile('notes/startup.md'));
+      expect(manager.getCurrentNotePath()).toBe('notes/startup.md');
+
+      manager.destroy();
+    });
+
+    it('does not link the active note on open while its metadata is unresolved', () => {
+      const fileCacheByPath = new Map<string, any>();
+      const app = createMockApp({
+        files: ['notes/startup.md'],
+        activeFilePath: 'notes/startup.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['private'] })
+      );
+
+      manager.handleFileOpen(createMockTFile('notes/startup.md'));
+      expect(manager.getCurrentNotePath()).toBeNull();
+
+      fileCacheByPath.set('notes/startup.md', { tags: [] });
+      manager.handleActiveFileMetadataChanged(createMockTFile('notes/startup.md'));
+      expect(manager.getCurrentNotePath()).toBe('notes/startup.md');
+
+      manager.destroy();
+    });
+
+    it('unloads the auto-linked current note when its metadata gains an excluded tag', () => {
+      const fileCacheByPath = new Map<string, any>([
+        ['notes/public.md', { tags: [] }],
+      ]);
+      const app = createMockApp({
+        files: ['notes/public.md'],
+        activeFilePath: 'notes/public.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['private'] })
+      );
+
+      manager.autoAttachActiveFile();
+      expect(manager.getCurrentNotePath()).toBe('notes/public.md');
+
+      fileCacheByPath.set('notes/public.md', { tags: [{ tag: '#private' }] });
+      manager.handleActiveFileMetadataChanged(createMockTFile('notes/public.md'));
+      expect(manager.getCurrentNotePath()).toBeNull();
+
+      manager.destroy();
+    });
+
+    it('unloads the linked current note mid-session when its metadata gains an excluded tag', () => {
+      const fileCacheByPath = new Map<string, any>([
+        ['notes/public.md', { tags: [] }],
+      ]);
+      const app = createMockApp({
+        files: ['notes/public.md'],
+        activeFilePath: 'notes/public.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['private'] })
+      );
+
+      manager.autoAttachActiveFile();
+      manager.startSession();
+      manager.markCurrentNoteSent();
+      expect(manager.getAttachedFiles().has('notes/public.md')).toBe(true);
+
+      fileCacheByPath.set('notes/public.md', { tags: [{ tag: '#private' }] });
+      manager.handleActiveFileMetadataChanged(createMockTFile('notes/public.md'));
+      expect(manager.getCurrentNotePath()).toBeNull();
+      expect(manager.getAttachedFiles().has('notes/public.md')).toBe(false);
+
+      manager.destroy();
+    });
+
+    it('ignores metadata changes for files that are not the active note', () => {
+      const fileCacheByPath = new Map<string, any>([
+        ['notes/public.md', { tags: [] }],
+        ['notes/other.md', { tags: [{ tag: '#private' }] }],
+      ]);
+      const app = createMockApp({
+        files: ['notes/public.md', 'notes/other.md'],
+        activeFilePath: 'notes/public.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['private'] })
+      );
+
+      manager.autoAttachActiveFile();
+      expect(manager.getCurrentNotePath()).toBe('notes/public.md');
+
+      manager.handleActiveFileMetadataChanged(createMockTFile('notes/other.md'));
+      expect(manager.getCurrentNotePath()).toBe('notes/public.md');
+
+      manager.destroy();
+    });
+
+    it('matches excluded tag settings values with a # prefix', () => {
+      const fileCacheByPath = new Map<string, any>([
+        ['notes/tagged.md', { frontmatter: { tags: ['private'] } }],
+      ]);
+      const app = createMockApp({
+        files: ['notes/tagged.md'],
+        activeFilePath: 'notes/tagged.md',
+        fileCacheByPath,
+      });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl,
+        createMockCallbacks({ excludedTags: ['#private'] })
+      );
+
+      manager.autoAttachActiveFile();
+      expect(manager.getCurrentNotePath()).toBeNull();
+
       manager.destroy();
     });
   });
