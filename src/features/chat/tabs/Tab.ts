@@ -2129,6 +2129,7 @@ export async function destroyTab(tab: TabData): Promise<void> {
     tab.dom.eventCleanups.length = 0;
   });
   cleanup.register('tab stream controller', () => tab.controllers.streamController?.dispose());
+  cleanup.register('tab message renderer', () => tab.renderer?.dispose());
   cleanup.register('tab navigation sidebar', () => {
     tab.ui.navigationSidebar?.destroy();
     tab.ui.navigationSidebar = null;

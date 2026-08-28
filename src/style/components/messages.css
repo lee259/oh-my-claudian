@@ -77,6 +77,9 @@
 }
 
 .claudian-message-assistant {
+  flex-shrink: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 23.5rem;
   background: transparent;
   align-self: stretch;
   width: min(100%, 72ch);

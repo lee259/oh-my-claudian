@@ -1372,7 +1372,7 @@ describe('MessageRenderer', () => {
     expect(imgEl.getAttribute('src')).toBe('data:image/png;base64,abc123');
   });
 
-  it('showFullImage creates overlay with image', () => {
+  it('showFullImage opens a preview that disposal closes without allowing another', () => {
     const { renderer } = createRenderer();
     const image: ImageAttachment = {
       id: 'img-1',
@@ -1383,8 +1383,8 @@ describe('MessageRenderer', () => {
       source: 'file',
     };
 
-    // Mock document.body.createDiv (document may not exist in node env)
     const overlayEl = createMockEl();
+    const removeOverlay = jest.spyOn(overlayEl, 'remove');
     const mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
     const origDocument = globalThis.document;
     (globalThis as any).document = { body: mockBody, addEventListener: jest.fn(), removeEventListener: jest.fn() };
@@ -1392,6 +1392,12 @@ describe('MessageRenderer', () => {
     try {
       renderer.showFullImage(image);
       expect(mockBody.createDiv).toHaveBeenCalledWith({ cls: 'claudian-image-modal-overlay' });
+
+      renderer.dispose();
+      renderer.showFullImage(image);
+
+      expect(removeOverlay).toHaveBeenCalledTimes(1);
+      expect(mockBody.createDiv).toHaveBeenCalledTimes(1);
     } finally {
       (globalThis as any).document = origDocument;
     }
@@ -1988,110 +1994,6 @@ describe('MessageRenderer', () => {
   });
 
   // ============================================
-  // showFullImage - close behaviors
-  // ============================================
-
-  describe('showFullImage - close behaviors', () => {
-    const image: ImageAttachment = {
-      id: 'img-1',
-      name: 'test.png',
-      mediaType: 'image/png',
-      data: 'abc123',
-      size: 100,
-      source: 'file',
-    };
-
-    function setupDocumentMock() {
-      const overlayEl = createMockEl();
-      const mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
-      const docListeners = new Map<string, ((...args: any[]) => void)[]>();
-      const origDocument = globalThis.document;
-
-      (globalThis as any).document = {
-        body: mockBody,
-        addEventListener: jest.fn((event: string, handler: (...args: any[]) => void) => {
-          if (!docListeners.has(event)) docListeners.set(event, []);
-          docListeners.get(event)!.push(handler);
-        }),
-        removeEventListener: jest.fn((event: string, handler: (...args: any[]) => void) => {
-          const handlers = docListeners.get(event);
-          if (handlers) {
-            const idx = handlers.indexOf(handler);
-            if (idx !== -1) handlers.splice(idx, 1);
-          }
-        }),
-      };
-
-      return { overlayEl, docListeners, origDocument };
-    }
-
-    it('closeBtn click removes overlay', () => {
-      const { renderer } = createRenderer();
-      const { overlayEl, origDocument } = setupDocumentMock();
-
-      try {
-        renderer.showFullImage(image);
-
-        // The overlay has a modal child, which has a close button child
-        const modalEl = overlayEl.children[0]; // claudian-image-modal
-        // Children: img (index 0), closeBtn (index 1)
-        const closeBtn = modalEl.children[1];
-        expect(closeBtn.hasClass('claudian-image-modal-close')).toBe(true);
-
-        const removeSpy = jest.spyOn(overlayEl, 'remove');
-        closeBtn.click();
-
-        expect(removeSpy).toHaveBeenCalled();
-      } finally {
-        (globalThis as any).document = origDocument;
-      }
-    });
-
-    it('clicking overlay background removes overlay', () => {
-      const { renderer } = createRenderer();
-      const { overlayEl, origDocument } = setupDocumentMock();
-
-      try {
-        renderer.showFullImage(image);
-
-        const removeSpy = jest.spyOn(overlayEl, 'remove');
-
-        // Simulate click on the overlay itself (e.target === overlay)
-        const clickHandlers = overlayEl._eventListeners.get('click');
-        expect(clickHandlers).toBeDefined();
-        clickHandlers![0]({ target: overlayEl });
-
-        expect(removeSpy).toHaveBeenCalled();
-      } finally {
-        (globalThis as any).document = origDocument;
-      }
-    });
-
-    it('ESC key removes overlay', () => {
-      const { renderer } = createRenderer();
-      const { overlayEl, docListeners, origDocument } = setupDocumentMock();
-
-      try {
-        renderer.showFullImage(image);
-
-        const removeSpy = jest.spyOn(overlayEl, 'remove');
-
-        // Simulate ESC key press via the document keydown listener
-        const keydownHandlers = docListeners.get('keydown');
-        expect(keydownHandlers).toBeDefined();
-        expect(keydownHandlers!.length).toBeGreaterThan(0);
-        keydownHandlers![0]({ key: 'Escape' });
-
-        expect(removeSpy).toHaveBeenCalled();
-        // After close, the keydown handler should be removed
-        expect(document.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
-      } finally {
-        (globalThis as any).document = origDocument;
-      }
-    });
-  });
-
-  // ============================================
   // renderContent - code block wrapping (error path)
   // ============================================
 
@@ -2264,11 +2166,11 @@ describe('MessageRenderer', () => {
   });
 
   // ============================================
-  // renderMessageImages - click handler
+  // renderMessageImages - preview control
   // ============================================
 
-  describe('renderMessageImages - click handler', () => {
-    it('should add click handler on image elements', () => {
+  describe('renderMessageImages - preview control', () => {
+    it('opens the preview from a native named button', () => {
       const containerEl = createMockEl();
       const { renderer } = createRenderer();
       const showFullImageSpy = jest.spyOn(renderer, 'showFullImage').mockImplementation(() => {});
@@ -2280,17 +2182,20 @@ describe('MessageRenderer', () => {
 
       renderer.renderMessageImages(containerEl, images);
 
-      // Find the img element and check for click handler
       const imagesContainer = containerEl.children[0];
-      const wrapper = imagesContainer.children[0];
-      const imgEl = wrapper.children[0]; // The img element
+      const previewButton = imagesContainer.children[0];
+      const imgEl = previewButton.children[0];
 
-      // Check click handler is registered
-      const clickHandlers = imgEl._eventListeners?.get('click');
+      expect(previewButton.tagName).toBe('BUTTON');
+      expect(previewButton.getAttribute('type')).toBe('button');
+      expect(previewButton.getAttribute('aria-label')).toBe('Preview photo.png');
+      expect(imgEl.tagName).toBe('IMG');
+      expect(imgEl.getAttribute('alt')).toBe('photo.png');
+
+      const clickHandlers = previewButton._eventListeners?.get('click');
       expect(clickHandlers).toBeDefined();
       expect(clickHandlers!.length).toBe(1);
 
-      // Trigger click and verify showFullImage is called
       clickHandlers![0]();
       expect(showFullImageSpy).toHaveBeenCalledWith(images[0]);
     });

@@ -432,6 +432,33 @@ describe('ClaudeSettingsTab', () => {
     expect(mockCliResolverReset).toHaveBeenCalledTimes(1);
   });
 
+  it('persists a CLI path pasted with surrounding quotes', async () => {
+    mockedExistsSync.mockImplementation((filePath: fs.PathLike) => (
+      String(filePath) === '/custom dir/claude'
+    ));
+    const plugin = createPlugin();
+    plugin.mutateSettings.mockImplementation(async (
+      mutation: (settings: any) => void | Promise<void>,
+    ) => {
+      await mutation(plugin.settings);
+      await plugin.saveSettings();
+    });
+    plugin.runProviderExecutionTransition.mockImplementation(async (
+      _providerIds: string[],
+      mutation: () => Promise<unknown>,
+    ) => mutation());
+    mockCliResolverReset.mockImplementation(() => undefined);
+
+    claudeSettingsTabRenderer.render(createContainer(), createContext(plugin));
+    await findSetting('settings.cliPath.name')
+      .textComponents[0]
+      .onChangeCallback?.('"/custom dir/claude"');
+
+    expect(plugin.settings.providerConfigs.claude.cliPathsByHost).toEqual({
+      'host-a': '"/custom dir/claude"',
+    });
+  });
+
   it('reloads Claude MCP state inside the execution transition', async () => {
     let transitionActive = false;
     const plugin = createPlugin();

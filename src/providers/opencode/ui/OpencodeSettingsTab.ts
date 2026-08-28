@@ -23,7 +23,7 @@ import {
 } from '../../../shared/settings/ProviderModelPicker';
 import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
 import { getHostnameKey } from '../../../utils/env';
-import { expandHomePath } from '../../../utils/path';
+import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetOpencodeWorkspaceServices } from '../app/OpencodeWorkspaceServices';
 import { clearOpencodeDiscoveryState } from '../discoveryState';
 import { sameStringList } from '../internal/compareCollections';
@@ -298,7 +298,7 @@ function validateCliPath(value: string): string | null {
     return null;
   }
 
-  const expandedPath = expandHomePath(trimmed);
+  const expandedPath = normalizeConfiguredCliPath(trimmed);
   if (!fs.existsSync(expandedPath)) {
     return 'Path does not exist';
   }

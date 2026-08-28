@@ -17,7 +17,7 @@ import {
 } from '../../../shared/settings/ProviderModelPicker';
 import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
 import { getHostnameKey } from '../../../utils/env';
-import { expandHomePath } from '../../../utils/path';
+import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetCursorWorkspaceServices } from '../app/CursorWorkspaceServices';
 import { normalizeCursorVisibleModels } from '../models';
 import {
@@ -151,7 +151,7 @@ function renderCursorModelPicker(
 function validateCliPath(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const expandedPath = expandHomePath(trimmed);
+  const expandedPath = normalizeConfiguredCliPath(trimmed);
   if (!fs.existsSync(expandedPath)) return 'Path does not exist';
   return fs.statSync(expandedPath).isFile() ? null : 'Path must point to a file';
 }
