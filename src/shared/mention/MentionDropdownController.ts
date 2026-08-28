@@ -6,6 +6,7 @@ import { type ExternalContextFile, externalContextScanner } from '../../utils/ex
 import { extractMcpMentions } from '../../utils/mcp';
 import { SelectableDropdown } from '../components/SelectableDropdown';
 import { appendMcpIcon } from '../icons';
+import { formatVaultFileMention } from './formatMention';
 import {
   type AgentMentionProvider,
   type FolderMentionItem,
@@ -19,7 +20,6 @@ export interface MentionDropdownOptions {
 }
 
 export interface MentionDropdownCallbacks {
-  onAttachFile: (path: string) => void;
   onMcpMentionChange?: (servers: Set<string>) => void;
   onAgentMentionSelect?: (agentId: string) => void;
   getMentionedMcpServers: () => Set<string>;
@@ -685,30 +685,26 @@ export class MentionDropdownController {
         return;
       }
       case 'context-file': {
-        // External file references become context chips; keep the prompt text clean.
-        if (selectedItem.absolutePath) {
-          this.callbacks.onAttachFile(selectedItem.absolutePath);
-        }
-        this.insertReplacement(beforeAt, '', afterCursor);
+        // Keep the resolvable mention in the input; send-time resolution maps it to the absolute path.
+        const mentionPath = selectedItem.folderName
+          ? `${selectedItem.folderName}/${selectedItem.name}`
+          : selectedItem.name;
+        this.insertReplacement(beforeAt, `@${mentionPath} `, afterCursor);
         break;
       }
       case 'folder': {
         const normalizedPath = this.callbacks.normalizePathForVault(selectedItem.path);
-        if (normalizedPath) {
-          this.callbacks.onAttachFile(
-            normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`,
-          );
-        }
-        this.insertReplacement(beforeAt, '', afterCursor);
+        this.insertReplacement(beforeAt, `@${normalizedPath ?? selectedItem.path}/ `, afterCursor);
         break;
       }
       default: {
         const rawPath = selectedItem.file?.path ?? selectedItem.path;
         const normalizedPath = this.callbacks.normalizePathForVault(rawPath);
-        if (normalizedPath) {
-          this.callbacks.onAttachFile(normalizedPath);
-        }
-        this.insertReplacement(beforeAt, '', afterCursor);
+        this.insertReplacement(
+          beforeAt,
+          formatVaultFileMention(normalizedPath ?? selectedItem.name),
+          afterCursor,
+        );
         break;
       }
     }

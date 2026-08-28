@@ -574,7 +574,6 @@ export class InlineEditSession {
       inputEl,
       {
         // Inline-edit resolves @mentions at send time from input text.
-        onAttachFile: () => {},
         onMcpMentionChange: () => {},
         getMentionedMcpServers: () => new Set(),
         setMentionedMcpServers: () => false,
