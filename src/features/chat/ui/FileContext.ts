@@ -21,6 +21,12 @@ import { ComposerContextTray } from './ComposerContextTray';
 import { FileContextState } from './file-context/state/FileContextState';
 import { FileChipsView } from './file-context/view/FileChipsView';
 
+/**
+ * Metadata-driven exclusion verdict for a note. `unknown` means the cache has
+ * not resolved yet, so exclusion cannot be ruled out (fail closed).
+ */
+type ExcludedTagState = 'excluded' | 'not-excluded' | 'unknown';
+
 export interface FileContextCallbacks {
   getExcludedTags: () => string[];
   onChipsChanged?: () => void;
@@ -195,7 +201,7 @@ export class FileContextManager {
   /** Auto-attaches the currently focused file (for new sessions). */
   autoAttachActiveFile() {
     const activeFile = this.app.workspace.getActiveFile();
-    if (activeFile && !this.hasExcludedTag(activeFile)) {
+    if (activeFile && this.getExcludedTagState(activeFile) === 'not-excluded') {
       const normalizedPath = this.normalizePathForVault(activeFile.path);
       if (normalizedPath) {
         this.currentNotePath = normalizedPath;
@@ -208,43 +214,17 @@ export class FileContextManager {
 
   /** Handles file open event. */
   handleFileOpen(file: TFile) {
-    const normalizedPath = this.normalizePathForVault(file.path);
-    if (!normalizedPath) return;
+    this.reconcileCurrentNote(file, true);
+  }
 
-    if (!this.state.isSessionStarted()) {
-      this.state.clearAttachments();
-      if (!this.hasExcludedTag(file)) {
-        this.currentNotePath = normalizedPath;
-        this.state.attachFile(normalizedPath);
-      } else {
-        this.currentNotePath = null;
-      }
-      this.callbacks.onCurrentNoteChanged?.(this.currentNotePath);
-      this.refreshCurrentNoteChip();
-      return;
-    }
-
-    if (this.hasExcludedTag(file)) {
-      if (this.currentNotePath) {
-        this.state.detachFile(this.currentNotePath);
-      }
-      this.currentNotePath = null;
-      this.state.markCurrentNoteChanged();
-      this.callbacks.onCurrentNoteChanged?.(null);
-      this.refreshCurrentNoteChip();
-      return;
-    }
-
-    if (this.currentNotePath !== normalizedPath) {
-      if (this.currentNotePath) {
-        this.state.detachFile(this.currentNotePath);
-      }
-      this.currentNotePath = normalizedPath;
-      this.state.attachFile(normalizedPath);
-      this.state.markCurrentNoteChanged();
-      this.callbacks.onCurrentNoteChanged?.(normalizedPath);
-      this.refreshCurrentNoteChip();
-    }
+  /**
+   * Re-evaluates the auto-linked current note after a metadata cache change.
+   * Pass `null` when the changed file is unknown (cache-wide resolution).
+   */
+  handleActiveFileMetadataChanged(file: TFile | null) {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (file !== null && activeFile?.path !== file.path) return;
+    this.reconcileCurrentNote(activeFile, false);
   }
 
   markFileCacheDirty() {
@@ -516,12 +496,56 @@ export class FileContextManager {
     this.mentionDropdown.updateMcpMentionsFromText(text);
   }
 
-  private hasExcludedTag(file: TFile): boolean {
+  private reconcileCurrentNote(file: TFile | null, isFileOpen: boolean): void {
+    const normalizedPath = file ? this.normalizePathForVault(file.path) : null;
+    if (isFileOpen && !normalizedPath) return;
+
+    const linkablePath = file && normalizedPath && this.getExcludedTagState(file) === 'not-excluded'
+      ? normalizedPath
+      : null;
+
+    if (!this.state.isSessionStarted()) {
+      if (isFileOpen) this.state.clearAttachments();
+      if (!isFileOpen && linkablePath === this.currentNotePath) return;
+      this.currentNotePath = linkablePath;
+      if (linkablePath) {
+        this.state.attachFile(linkablePath);
+      }
+      this.callbacks.onCurrentNoteChanged?.(this.currentNotePath);
+      this.refreshCurrentNoteChip();
+      return;
+    }
+
+    if (!linkablePath) {
+      if (!isFileOpen && !this.currentNotePath) return;
+      if (this.currentNotePath) {
+        this.state.detachFile(this.currentNotePath);
+      }
+      this.currentNotePath = null;
+      this.state.markCurrentNoteChanged();
+      this.callbacks.onCurrentNoteChanged?.(null);
+      this.refreshCurrentNoteChip();
+      return;
+    }
+
+    if (this.currentNotePath !== linkablePath) {
+      if (this.currentNotePath) {
+        this.state.detachFile(this.currentNotePath);
+      }
+      this.currentNotePath = linkablePath;
+      this.state.attachFile(linkablePath);
+      this.state.markCurrentNoteChanged();
+      this.callbacks.onCurrentNoteChanged?.(linkablePath);
+      this.refreshCurrentNoteChip();
+    }
+  }
+
+  private getExcludedTagState(file: TFile): ExcludedTagState {
     const excludedTags = this.callbacks.getExcludedTags();
-    if (excludedTags.length === 0) return false;
+    if (excludedTags.length === 0) return 'not-excluded';
 
     const cache = this.app.metadataCache.getFileCache(file);
-    if (!cache) return false;
+    if (!cache) return 'unknown';
 
     const fileTags: string[] = [];
 
@@ -538,6 +562,7 @@ export class FileContextManager {
       fileTags.push(...cache.tags.map(t => t.tag.replace(/^#/, '')));
     }
 
-    return fileTags.some(tag => excludedTags.includes(tag));
+    const normalizedExcluded = new Set(excludedTags.map(tag => tag.replace(/^#/, '')));
+    return fileTags.some(tag => normalizedExcluded.has(tag)) ? 'excluded' : 'not-excluded';
   }
 }
