@@ -116,10 +116,6 @@ export class FileContextManager {
       this.dropdownContainerEl,
       this.inputEl,
       {
-        onAttachFile: (filePath) => {
-          this.state.attachFile(filePath);
-          this.renderAttachedFiles();
-        },
         onMcpMentionChange: (servers) => this.onMcpMentionChange?.(servers),
         onAgentMentionSelect: (agentId) => this.callbacks.onAgentMentionSelect?.(agentId),
         getMentionedMcpServers: () => this.state.getMentionedMcpServers(),

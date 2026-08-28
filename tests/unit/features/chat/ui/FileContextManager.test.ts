@@ -248,7 +248,7 @@ describe('FileContextManager', () => {
     manager.destroy();
   });
 
-  it('shows vault-relative path in @ dropdown and turns selection into a context chip', () => {
+  it('shows vault-relative path in @ dropdown and inserts full path on selection', () => {
     const app = createMockApp({
       files: ['clipping/file.md'],
     });
@@ -270,10 +270,8 @@ describe('FileContextManager', () => {
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
-    // File references are represented by a removable chip, not prompt text.
-    expect(inputEl.value).toBe('');
-    const attached = manager.getAttachedFiles();
-    expect(attached.has('clipping/file.md')).toBe(true);
+    expect(inputEl.value).toBe('@clipping/file.md ');
+    expect(manager.getAttachedFiles()).toEqual(new Set());
 
     manager.destroy();
   });
@@ -305,7 +303,7 @@ describe('FileContextManager', () => {
     getFoldersSpy.mockRestore();
   });
 
-  it('filters context files and attaches absolute path', () => {
+  it('filters external context files and resolves their mention on send', () => {
     const app = createMockApp();
     const manager = new FileContextManager(
       app,
@@ -336,10 +334,8 @@ describe('FileContextManager', () => {
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
-    // External file references are represented by a removable chip.
-    expect(inputEl.value).toBe('');
-    const attached = manager.getAttachedFiles();
-    expect(attached.has('/external/src/app.md')).toBe(true);
+    expect(inputEl.value).toBe('@external/src/app.md ');
+    expect(manager.getAttachedFiles()).toEqual(new Set());
     // Check transformation works
     const transformed = manager.transformContextMentions('@external/src/app.md');
     expect(transformed).toBe('/external/src/app.md');

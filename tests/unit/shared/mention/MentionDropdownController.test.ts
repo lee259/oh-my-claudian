@@ -47,7 +47,6 @@ function createMockInput() {
 function createMockCallbacks(overrides: Partial<MentionDropdownCallbacks> = {}): MentionDropdownCallbacks {
   const mentionedServers = new Set<string>();
   return {
-    onAttachFile: jest.fn(),
     onMcpMentionChange: jest.fn(),
     onAgentMentionSelect: jest.fn(),
     getMentionedMcpServers: jest.fn().mockReturnValue(mentionedServers),
@@ -731,10 +730,8 @@ describe('MentionDropdownController', () => {
       localController.destroy();
     });
 
-    it('turns a vault file mention into a removable context attachment', () => {
-      const onAttachFile = jest.fn();
+    it('inserts the vault file mention text', () => {
       const localCallbacks = createMockCallbacks({
-        onAttachFile,
         getCachedVaultFiles: jest.fn().mockReturnValue([
           { name: 'note.md', path: 'note.md', stat: { mtime: 1000 } } as any,
         ]),
@@ -751,16 +748,13 @@ describe('MentionDropdownController', () => {
       const enterEvent = { key: 'Enter', preventDefault: jest.fn(), isComposing: false } as any;
       localController.handleKeydown(enterEvent);
 
-      expect(localInput.value).toBe('');
-      expect(onAttachFile).toHaveBeenCalledWith('note.md');
+      expect(localInput.value).toBe('@note.md ');
 
       localController.destroy();
     });
 
-    it('turns a folder mention into a removable context attachment', () => {
-      const onAttachFile = jest.fn();
+    it('inserts folder mention as plain text', () => {
       const localCallbacks = createMockCallbacks({
-        onAttachFile,
         getCachedVaultFolders: jest.fn().mockReturnValue([
           { name: 'src', path: 'src' },
         ]),
@@ -777,8 +771,7 @@ describe('MentionDropdownController', () => {
       const enterEvent = { key: 'Enter', preventDefault: jest.fn(), isComposing: false } as any;
       localController.handleKeydown(enterEvent);
 
-      expect(localInput.value).toBe('');
-      expect(onAttachFile).toHaveBeenCalledWith('src/');
+      expect(localInput.value).toBe('@src/ ');
 
       localController.destroy();
     });
