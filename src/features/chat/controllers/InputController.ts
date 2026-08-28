@@ -56,6 +56,11 @@ import type { BrowserSelectionController } from './BrowserSelectionController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
 import {
+  type PendingProviderUserMessage,
+  PendingSteerRegistry,
+  type PendingSteerState,
+} from './PendingSteerRegistry';
+import {
   cloneQueuedMessage,
   createQueuedMessage,
   getQueuedMessageDisplay,
@@ -167,31 +172,6 @@ export interface SendMessageOptions {
   turnRequestOverride?: ChatTurnRequest;
 }
 
-interface PendingProviderUserMessage {
-  displayContent: string;
-  persistedContent?: string;
-  currentNote?: string;
-  images?: ChatMessage['images'];
-}
-
-type PendingSteerProviderDisposition =
-  | 'awaiting-result'
-  | 'definitely-unsent'
-  | 'accepted-awaiting-correlation'
-  | 'ambiguous-awaiting-reconciliation';
-
-interface PendingSteerState {
-  readonly conversationId: string;
-  readonly coordinator: ChatExecutionCoordinator;
-  readonly inputRecordId: string;
-  readonly message: QueuedMessage;
-  readonly expectedProviderMessage: PendingProviderUserMessage;
-  providerDisposition: PendingSteerProviderDisposition;
-  uiState: 'visible' | 'cleared';
-  correlationState: 'pending' | 'settled' | 'delegated-to-history';
-  retryState: 'blocked' | 'parked' | 'restored';
-}
-
 export class InputController {
   private deps: InputControllerDeps;
   private pendingApprovalInline: InlineAskUserQuestion | null = null;
@@ -201,7 +181,7 @@ export class InputController {
   private pendingPlanApprovalInvalidated = false;
   private activeResumeDropdown: ResumeSessionDropdown | null = null;
   private inputContainerHideDepth = 0;
-  private readonly pendingSteersByConversation = new Map<string, PendingSteerState>();
+  private readonly pendingSteersByConversation: PendingSteerRegistry;
   private activeStreamingAssistantMessage: ChatMessage | null = null;
   private pendingProviderUserMessages: PendingProviderUserMessage[] = [];
   private sawInitialProviderUserMessage = false;
@@ -219,6 +199,11 @@ export class InputController {
       (options) => this.executeSendMessage(options),
       deps.turnOwner,
     );
+    this.pendingSteersByConversation = new PendingSteerRegistry((conversationId) => {
+      if (conversationId === this.deps.state.currentConversationId) {
+        this.updateQueueIndicator();
+      }
+    });
     this.turnSubmissionBuilder = new TurnSubmissionBuilder({
       plugin: deps.plugin,
       state: deps.state,
@@ -407,7 +392,7 @@ export class InputController {
     state.acknowledgeReview();
 
     let turnConversationId = state.currentConversationId;
-    this.delegatePendingSteerCorrelationToHistory(turnConversationId);
+      this.pendingSteersByConversation.delegateToHistory(turnConversationId);
 
     if (shouldUseInput) {
       inputEl.value = '';
@@ -761,7 +746,7 @@ export class InputController {
         }
 
         if (wasInvalidated) {
-          this.clearCurrentPendingSteerUi();
+          this.pendingSteersByConversation.clearCurrentUi(state.currentConversationId);
           this.updateQueueIndicator();
         }
       } finally {
@@ -785,7 +770,7 @@ export class InputController {
           this.reportDeferredReviewableSettlement();
         }
 
-        this.delegatePendingSteerCorrelationToHistory(turnConversationId);
+        this.pendingSteersByConversation.delegateToHistory(turnConversationId);
         this.activeStreamingAssistantMessage = null;
         this.resetProviderMessageBoundaryState();
       }
@@ -803,7 +788,7 @@ export class InputController {
 
     indicatorEl.empty();
 
-    const pendingSteer = this.getCurrentPendingSteer();
+    const pendingSteer = this.pendingSteersByConversation.get(state.currentConversationId);
     const visiblePendingSteer = pendingSteer?.uiState === 'visible'
       ? pendingSteer.message
       : null;
@@ -1030,59 +1015,9 @@ export class InputController {
 
   private canSteerQueuedMessage(): boolean {
     return this.deps.state.isStreaming
-      && this.getCurrentPendingSteer() === null
+      && this.pendingSteersByConversation.get(this.deps.state.currentConversationId) === null
       && this.getActiveCapabilities().supportsTurnSteer === true
       && this.getExecutionCoordinator() !== null;
-  }
-
-  private getCurrentPendingSteer(): PendingSteerState | null {
-    const conversationId = this.deps.state.currentConversationId;
-    if (!conversationId) return null;
-    return this.pendingSteersByConversation.get(conversationId) ?? null;
-  }
-
-  private isPendingSteerRegistered(pending: PendingSteerState): boolean {
-    return this.pendingSteersByConversation.get(pending.conversationId) === pending;
-  }
-
-  private clearCurrentPendingSteerUi(): void {
-    const pending = this.getCurrentPendingSteer();
-    if (!pending) return;
-    pending.uiState = 'cleared';
-    this.updateQueueIndicator();
-  }
-
-  private clearPendingSteerUi(pending: PendingSteerState): void {
-    pending.uiState = 'cleared';
-    if (pending.conversationId === this.deps.state.currentConversationId) {
-      this.updateQueueIndicator();
-    }
-  }
-
-  private releasePendingSteer(pending: PendingSteerState): void {
-    if (this.isPendingSteerRegistered(pending)) {
-      this.pendingSteersByConversation.delete(pending.conversationId);
-      pending.coordinator.releaseSteerCorrelation(pending.inputRecordId);
-    }
-  }
-
-  private delegatePendingSteerCorrelationToHistory(
-    conversationId: string | null,
-  ): void {
-    if (!conversationId) return;
-    const pending = this.pendingSteersByConversation.get(conversationId);
-    if (!pending) return;
-
-    if (pending.correlationState === 'pending') {
-      pending.correlationState = 'delegated-to-history';
-    }
-    this.clearPendingSteerUi(pending);
-    if (
-      pending.providerDisposition !== 'awaiting-result'
-      || pending.correlationState === 'settled'
-    ) {
-      this.releasePendingSteer(pending);
-    }
   }
 
   private restoreDefinitelyUnsentSteer(pending: PendingSteerState): void {
@@ -1095,7 +1030,7 @@ export class InputController {
 
     pending.providerDisposition = 'definitely-unsent';
     pending.correlationState = 'settled';
-    this.clearPendingSteerUi(pending);
+    this.pendingSteersByConversation.clearUi(pending);
     if (
       pending.conversationId !== this.deps.state.currentConversationId
       || this.deps.state.isSwitchingConversation
@@ -1114,7 +1049,7 @@ export class InputController {
     if (pending.retryState === 'restored') return;
 
     pending.retryState = 'restored';
-    this.releasePendingSteer(pending);
+    this.pendingSteersByConversation.release(pending);
 
     const { state } = this.deps;
     if (state.isStreaming && !state.cancelRequested) {
@@ -1135,7 +1070,7 @@ export class InputController {
     ) {
       return;
     }
-    const pending = this.getCurrentPendingSteer();
+    const pending = this.pendingSteersByConversation.get(this.deps.state.currentConversationId);
     if (
       pending?.providerDisposition === 'definitely-unsent'
       && pending.retryState === 'parked'
@@ -1177,7 +1112,7 @@ export class InputController {
       retryState: 'blocked',
       uiState: 'visible',
     };
-    this.pendingSteersByConversation.set(conversationId, pending);
+    this.pendingSteersByConversation.register(pending);
     this.updateQueueIndicator();
 
     try {
@@ -1189,9 +1124,9 @@ export class InputController {
       }
 
       pending.providerDisposition = 'accepted-awaiting-correlation';
-      this.clearPendingSteerUi(pending);
+      this.pendingSteersByConversation.clearUi(pending);
       if (pending.correlationState !== 'pending') {
-        this.releasePendingSteer(pending);
+        this.pendingSteersByConversation.release(pending);
       }
       if (pending.conversationId === state.currentConversationId) {
         this.deps.getFileContextManager()?.markCurrentNoteSent();
@@ -1205,9 +1140,9 @@ export class InputController {
       }
 
       pending.providerDisposition = 'ambiguous-awaiting-reconciliation';
-      this.clearPendingSteerUi(pending);
+      this.pendingSteersByConversation.clearUi(pending);
       if (pending.correlationState !== 'pending') {
-        this.releasePendingSteer(pending);
+        this.pendingSteersByConversation.release(pending);
       }
       new Notice(
         'Steer delivery could not be confirmed. The message was not requeued to avoid sending it twice.',
@@ -1262,7 +1197,7 @@ export class InputController {
       return;
     }
 
-    const pendingSteer = this.getCurrentPendingSteer();
+    const pendingSteer = this.pendingSteersByConversation.get(this.deps.state.currentConversationId);
     const expected = pendingSteer?.correlationState === 'pending'
       ? pendingSteer.expectedProviderMessage
       : this.pendingProviderUserMessages.shift();
@@ -1270,7 +1205,7 @@ export class InputController {
     if (pendingSteer?.correlationState === 'pending') {
       pendingSteer.providerDisposition = 'accepted-awaiting-correlation';
       pendingSteer.correlationState = 'settled';
-      this.clearPendingSteerUi(pendingSteer);
+      this.pendingSteersByConversation.clearUi(pendingSteer);
       try {
         await pendingSteer.coordinator.acceptSteerFromProviderEvent(
           pendingSteer.inputRecordId,
@@ -1311,7 +1246,7 @@ export class InputController {
       this.deps.renderer.addMessage(userMessage);
     }
     if (pendingSteer?.correlationState === 'settled') {
-      this.releasePendingSteer(pendingSteer);
+      this.pendingSteersByConversation.release(pendingSteer);
     }
 
     const assistantMessage: ChatMessage = {
@@ -1511,7 +1446,7 @@ export class InputController {
     if (!state.isStreaming) return;
     state.cancelRequested = true;
     this.restoreQueuedMessageToInput();
-    this.clearCurrentPendingSteerUi();
+    this.pendingSteersByConversation.clearCurrentUi(this.deps.state.currentConversationId);
     this.getExecutionCoordinator()?.cancel();
     streamController.hideThinkingIndicator();
   }
