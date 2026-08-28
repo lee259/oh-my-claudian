@@ -559,6 +559,20 @@ describe('PiSettingsTab', () => {
     );
   });
 
+  it('accepts a CLI path pasted with surrounding quotes', async () => {
+    const settings: Record<string, unknown> = { providerConfigs: { pi: {} } };
+    render(settings);
+    const cliInput = findSetting('CLI path').textComponents[0];
+
+    mockedExists.mockImplementation((filePath: unknown) => String(filePath) === '/my tools/pi');
+    mockedStat.mockReturnValue({ isFile: () => true });
+    await cliInput.onChangeCallback?.('"/my tools/pi"');
+
+    expect(getPiProviderSettings(settings).cliPathsByHost).toEqual({
+      'current-host': '"/my tools/pi"',
+    });
+  });
+
   it('resynchronizes the Pi CLI input when transition setup fails before mutation', async () => {
     const settings: Record<string, unknown> = {
       providerConfigs: {

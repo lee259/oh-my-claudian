@@ -1298,6 +1298,12 @@ export class ClaudianView extends ItemView {
     this.tabManager?.getActiveTab()?.ui.fileContextManager?.handleFileOpen(file);
   }
 
+  private handleLinkedNoteMetadataChanged(file: TFile | null): void {
+    if (this.linkedNoteNavigationDepth > 0) return;
+    this.tabManager?.getActiveTab()?.ui.fileContextManager
+      ?.handleActiveFileMetadataChanged(file);
+  }
+
   private activateSessionSearch(): void {
     if (this.isSessionSearchActive) {
       this.focusSessionSearchInput();
@@ -2153,6 +2159,23 @@ export class ClaudianView extends ItemView {
         if (file) {
           this.handleWorkspaceFileOpen(file);
         }
+      })
+    );
+
+    // Metadata changes re-evaluate the auto-linked current note (excluded tags)
+    this.registerEvent(
+      this.plugin.app.metadataCache.on('changed', (file) => {
+        this.handleLinkedNoteMetadataChanged(file);
+      })
+    );
+    this.registerEvent(
+      this.plugin.app.metadataCache.on('resolve', (file) => {
+        this.handleLinkedNoteMetadataChanged(file);
+      })
+    );
+    this.registerEvent(
+      this.plugin.app.metadataCache.on('resolved', () => {
+        this.handleLinkedNoteMetadataChanged(null);
       })
     );
 
