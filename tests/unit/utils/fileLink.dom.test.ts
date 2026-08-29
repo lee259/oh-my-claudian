@@ -37,6 +37,16 @@ describe('processFileLinks', () => {
     expect(link?.getAttribute('data-href')).toBe('notes/plan.md');
   });
 
+  it('converts existing @ folder mentions into Obsidian internal links', () => {
+    const app = createMockApp(['notes']);
+    const container = document.createElement('div');
+    container.textContent = 'Review @notes/ before merging.';
+
+    processFileLinks(app, container);
+
+    expect(container.querySelector('a.claudian-file-link')?.getAttribute('data-href')).toBe('notes');
+  });
+
   describe('null/empty inputs', () => {
     it('handles null app gracefully', () => {
       const container = document.createElement('div');

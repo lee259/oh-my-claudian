@@ -50,7 +50,9 @@ export class MentionTextHighlighter {
 
   private appendMention(mention: string): void {
     const linkPath = mention.slice(1);
-    const file = this.app?.metadataCache.getFirstLinkpathDest(linkPath, '');
+    const normalizedPath = linkPath.replace(/\/$/, '');
+    const file = this.app?.metadataCache.getFirstLinkpathDest(linkPath, '')
+      ?? this.app?.vault.getAbstractFileByPath(normalizedPath);
     const mentionEl = this.contentEl.createSpan({
       cls: file ? 'claudian-input-mention-highlight internal-link' : 'claudian-input-mention-highlight',
       text: mention,
@@ -59,12 +61,12 @@ export class MentionTextHighlighter {
 
     mentionEl.style.pointerEvents = 'auto';
     mentionEl.style.cursor = 'pointer';
-    mentionEl.setAttribute('data-href', linkPath);
-    mentionEl.setAttribute('href', linkPath);
+    mentionEl.setAttribute('data-href', normalizedPath);
+    mentionEl.setAttribute('href', normalizedPath);
     mentionEl.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void this.app?.workspace.openLinkText(linkPath, '', 'tab');
+      void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
     });
   }
 }

@@ -22,7 +22,7 @@ export { stripFileLineRange } from './FileReference';
  * Does NOT match image embeds ![[image.png]] (those are handled separately).
  */
 const WIKILINK_PATTERN_SOURCE = '(?<!!)\\[\\[([^\\]|#^]+)(?:#[^\\]|]+)?(?:\\^[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]';
-const AT_MENTION_PATTERN_SOURCE = '@([^\\s@]+\\.[^\\s@]+)';
+const AT_MENTION_PATTERN_SOURCE = '@([^\\s@]+(?:\\.[^\\s@]+|/))';
 
 /** Creates a fresh regex instance to avoid global state issues */
 function createWikilinkPattern(): RegExp {
@@ -91,7 +91,7 @@ function fileExistsInVault(app: App, linkPath: string): boolean {
     return true;
   }
 
-  const directFile = getVaultFileByPath(app, linkPath);
+  const directFile = app.vault.getAbstractFileByPath(linkPath.replace(/\/$/, ''));
   if (directFile) {
     return true;
   }
@@ -214,7 +214,7 @@ function processTextNode(app: App, node: Text): boolean {
       index: atMention.index,
       fullMatch: atMention[0],
       linkPath,
-      linkTarget: linkPath,
+      linkTarget: linkPath.replace(/\/$/, ''),
       displayText: atMention[0],
     });
   }
