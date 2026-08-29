@@ -58,4 +58,10 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
   });
+
+  it('keeps the editor tall enough for text when context rows consume composer space', () => {
+    expect(css).toMatch(
+      /\.claudian-input-editor\s*\{[^}]*flex:\s*1 1 auto;/,
+    );
+  });
 });
