@@ -315,7 +315,6 @@ export class InputController {
 
   private async executeSendMessage(options?: SendMessageOptions): Promise<void> {
     const {
-      plugin,
       state,
       renderer,
       streamController,
@@ -382,29 +381,10 @@ export class InputController {
       return;
     }
 
-    state.acknowledgeReview();
-
-    let turnConversationId = state.currentConversationId;
-      this.pendingSteersByConversation.delegateToHistory(turnConversationId);
-
-    if (shouldUseInput) {
-      inputEl.value = '';
-      this.deps.resetInputHeight();
-    }
-    state.isStreaming = true;
-    state.cancelRequested = false;
-    state.ignoreUsageUpdates = false; // Allow usage updates for new query
-    this.deps.getSubagentManager().resetSpawnedCount();
-    state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true; // Reset auto-scroll based on setting
-    const streamGeneration = state.bumpStreamGeneration();
-
-    // Hide welcome message when sending first message
-    const welcomeEl = this.deps.getWelcomeEl();
-    if (welcomeEl) {
-      welcomeEl.addClass('claudian-hidden');
-    }
-
-    fileContextManager?.startSession();
+    const streamGeneration = this.beginTurn(
+      shouldUseInput,
+      fileContextManager,
+    );
 
     // Slash commands are passed directly to SDK for handling
     // SDK handles expansion, $ARGUMENTS, @file references, and frontmatter options
@@ -454,7 +434,7 @@ export class InputController {
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       throw error;
     }
-    turnConversationId = state.currentConversationId;
+    const turnConversationId = state.currentConversationId;
 
     const assistantMsg: ChatMessage = {
       id: this.deps.generateId(),
@@ -768,6 +748,29 @@ export class InputController {
         this.resetProviderMessageBoundaryState();
       }
     }
+  }
+
+  private beginTurn(
+    shouldUseInput: boolean,
+    fileContextManager: FileContextManager | null,
+  ): number {
+    const { plugin, state } = this.deps;
+    state.acknowledgeReview();
+    const turnConversationId = state.currentConversationId;
+    this.pendingSteersByConversation.delegateToHistory(turnConversationId);
+    if (shouldUseInput) {
+      this.deps.getInputEl().value = '';
+      this.deps.resetInputHeight();
+    }
+    state.isStreaming = true;
+    state.cancelRequested = false;
+    state.ignoreUsageUpdates = false;
+    this.deps.getSubagentManager().resetSpawnedCount();
+    state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
+    const streamGeneration = state.bumpStreamGeneration();
+    this.deps.getWelcomeEl()?.addClass('claudian-hidden');
+    fileContextManager?.startSession();
+    return streamGeneration;
   }
 
   private queueStreamingMessage(
