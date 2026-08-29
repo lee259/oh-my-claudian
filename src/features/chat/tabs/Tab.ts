@@ -65,6 +65,7 @@ import { FileContextManager } from '../ui/FileContext';
 import { ImageContextManager } from '../ui/ImageContext';
 import { createInputToolbar } from '../ui/InputToolbar';
 import { InstructionModeManager as InstructionModeManagerClass } from '../ui/InstructionModeManager';
+import { MentionTextHighlighter } from '../ui/MentionTextHighlighter';
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
 import { ScopePreview } from '../ui/ScopePreview';
@@ -1470,6 +1471,11 @@ export function initializeTabUI(
       tab.renderer?.scrollToBottomIfNeeded();
     },
   });
+  const mentionTextHighlighter = new MentionTextHighlighter(
+    dom.inputEl,
+    dom.inputMentionHighlightsEl,
+  );
+  dom.eventCleanups.push(() => mentionTextHighlighter.destroy());
   tab.ui.scopePreview = new ScopePreview(dom.scopePreviewEl);
   initializeContextManagers(tab, plugin, onUserModified);
 

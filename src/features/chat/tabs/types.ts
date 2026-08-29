@@ -168,6 +168,8 @@ export interface TabDOMElements {
   inputContainerEl: HTMLElement;
   queueIndicatorEl: HTMLElement;
   inputWrapper: HTMLElement;
+  /** Read-only mirror beneath the textarea that highlights file @mentions. */
+  inputMentionHighlightsEl: HTMLElement;
   inputEl: HTMLTextAreaElement;
   sendButtonEl: HTMLButtonElement;
 
