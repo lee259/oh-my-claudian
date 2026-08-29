@@ -51,6 +51,7 @@ import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
+import { captureComposerDraft } from './ComposerDraft';
 import type { ConversationController } from './ConversationController';
 import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
 import { InputContainerVisibility } from './InputContainerVisibility';
@@ -929,14 +930,7 @@ export class InputController {
     const content = this.deps.getInputEl().value;
     const attachedImages = this.deps.getImageContextManager()?.getAttachedImages() ?? [];
     const images = attachedImages.length > 0 ? [...attachedImages] : undefined;
-    if (!content.trim() && !images) {
-      return null;
-    }
-
-    return createQueuedMessage(content, {
-      text: content,
-      images,
-    });
+    return captureComposerDraft(content, images);
   }
 
   private restoreQueuedMessageToInput(): void {
