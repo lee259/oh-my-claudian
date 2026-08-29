@@ -52,6 +52,7 @@ import type { BrowserSelectionController } from './BrowserSelectionController';
 import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
+import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
 import { InputContainerVisibility } from './InputContainerVisibility';
 import { InstructionSubmissionController } from './InstructionSubmissionController';
 import {
@@ -186,10 +187,7 @@ export class InputController {
   private pendingProviderUserMessages: PendingProviderUserMessage[] = [];
   private sawInitialProviderUserMessage = false;
   private awaitingProviderAssistantStart = false;
-  private deferredReviewableSettlement: {
-    conversationId: string | null;
-    report: () => void;
-  } | null = null;
+  private readonly deferredReviewableSettlement = new DeferredReviewableSettlement();
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
   private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
   private readonly instructionSubmissionController: InstructionSubmissionController;
@@ -972,48 +970,36 @@ export class InputController {
   }
 
   private deferReviewableSettlement(report: (() => void) | null): void {
-    if (!report) return;
-    this.deferredReviewableSettlement = {
-      conversationId: this.deps.state.currentConversationId,
-      report,
-    };
+    this.deferredReviewableSettlement.defer(this.deps.state.currentConversationId, report);
   }
 
   private hasDeferredReviewableSettlement(): boolean {
     this.discardDeferredReviewForDifferentConversation();
-    return this.deferredReviewableSettlement !== null;
+    return this.deferredReviewableSettlement.hasFor(this.deps.state.currentConversationId);
   }
 
   private reportDeferredReviewableSettlement(): void {
     if (!this.hasDeferredReviewableSettlement()) return;
-    const deferred = this.deferredReviewableSettlement;
-    this.clearDeferredReviewableSettlement();
-    deferred?.report();
+    this.deferredReviewableSettlement.takeFor(this.deps.state.currentConversationId)?.();
   }
 
   private reportCurrentOrDeferredReviewableSettlement(
     currentReporter: (() => void) | null,
   ): void {
     const reporter = currentReporter
-      ?? (this.hasDeferredReviewableSettlement()
-        ? this.deferredReviewableSettlement?.report ?? null
-        : null);
+      ?? this.deferredReviewableSettlement.takeFor(this.deps.state.currentConversationId);
     this.clearDeferredReviewableSettlement();
     reporter?.();
   }
 
   private discardDeferredReviewForDifferentConversation(): void {
-    if (
-      this.deferredReviewableSettlement !== null
-      && this.deferredReviewableSettlement.conversationId
-        !== this.deps.state.currentConversationId
-    ) {
-      this.clearDeferredReviewableSettlement();
-    }
+    this.deferredReviewableSettlement.discardForDifferentConversation(
+      this.deps.state.currentConversationId,
+    );
   }
 
   private clearDeferredReviewableSettlement(): void {
-    this.deferredReviewableSettlement = null;
+    this.deferredReviewableSettlement.clear();
   }
 
   private createQueueIconButton(
