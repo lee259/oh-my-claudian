@@ -118,7 +118,8 @@ function extractLinkPathFromTarget(linkTarget: string): string {
 function createWikilink(
   parent: HTMLElement,
   linkTarget: string,
-  displayText: string
+  displayText: string,
+  isFolder = false,
 ): HTMLElement {
   return parent.createEl('a', {
     cls: 'claudian-file-link internal-link',
@@ -126,8 +127,18 @@ function createWikilink(
     attr: {
       'data-href': linkTarget,
       href: linkTarget,
+      ...(isFolder ? { 'data-claudian-folder-link': 'true' } : {}),
     },
   });
+}
+
+function revealFolder(app: App, folderPath: string): void {
+  const folder = app.vault.getAbstractFileByPath(folderPath);
+  if (!folder) return;
+  for (const leaf of app.workspace.getLeavesOfType('file-explorer')) {
+    const view = leaf.view as unknown as { revealInFolder?: (target: unknown) => void };
+    view.revealInFolder?.(folder);
+  }
 }
 
 function repairEmptyInternalLink(app: App, link: HTMLAnchorElement): void {
@@ -165,7 +176,8 @@ export function registerFileLinkHandler(
       event.preventDefault();
       const linkTarget = link.dataset.href || link.getAttribute('href');
       if (linkTarget) {
-        void app.workspace.openLinkText(linkTarget, '', 'tab');
+        if (link.dataset.claudianFolderLink === 'true') revealFolder(app, linkTarget);
+        else void app.workspace.openLinkText(linkTarget, '', 'tab');
       }
     }
   });
@@ -186,7 +198,10 @@ function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: Wiki
       );
     }
 
-    fragment.insertBefore(createWikilink(parent, linkTarget, displayText), fragment.firstChild);
+    fragment.insertBefore(
+      createWikilink(parent, linkTarget, displayText, fullMatch.startsWith('@') && fullMatch.endsWith('/')),
+      fragment.firstChild,
+    );
     currentIndex = index;
   }
 

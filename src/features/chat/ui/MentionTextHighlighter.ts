@@ -61,12 +61,21 @@ export class MentionTextHighlighter {
 
     mentionEl.style.pointerEvents = 'auto';
     mentionEl.style.cursor = 'pointer';
+    const isFolder = mention.endsWith('/');
     mentionEl.setAttribute('data-href', normalizedPath);
     mentionEl.setAttribute('href', normalizedPath);
+    if (isFolder) mentionEl.setAttribute('data-claudian-folder-link', 'true');
     mentionEl.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
+      if (isFolder) {
+        const folder = this.app?.vault.getAbstractFileByPath(normalizedPath);
+        for (const leaf of this.app?.workspace.getLeavesOfType('file-explorer') ?? []) {
+          (leaf.view as unknown as { revealInFolder?: (target: unknown) => void }).revealInFolder?.(folder);
+        }
+      } else {
+        void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
+      }
     });
   }
 }
