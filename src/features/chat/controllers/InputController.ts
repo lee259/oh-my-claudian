@@ -593,9 +593,7 @@ export class InputController {
               renderer.appendInterruptIndicator(state.currentContentEl);
             }
           }
-          streamController.hideThinkingIndicator();
-          state.isStreaming = false;
-          state.cancelRequested = false;
+          this.finishStreamingState(streamController);
 
           // Capture response duration before resetting state (skip for interrupted responses and compaction)
           const hasCompactBoundary = finalAssistantMsg.contentBlocks?.some(b => b.type === 'context_compacted');
@@ -771,6 +769,12 @@ export class InputController {
     this.deps.getWelcomeEl()?.addClass('claudian-hidden');
     fileContextManager?.startSession();
     return streamGeneration;
+  }
+
+  private finishStreamingState(streamController: StreamController): void {
+    streamController.hideThinkingIndicator();
+    this.deps.state.isStreaming = false;
+    this.deps.state.cancelRequested = false;
   }
 
   private queueStreamingMessage(
