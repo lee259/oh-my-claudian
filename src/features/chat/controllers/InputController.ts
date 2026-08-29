@@ -24,7 +24,6 @@ import {
   type StreamChunk,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
-import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -68,6 +67,7 @@ import {
   mergeQueuedMessages,
   toQueuedChatTurn,
 } from './QueuedTurn';
+import { ResumeDropdownController } from './ResumeDropdownController';
 import type { SelectionController } from './SelectionController';
 import {
   providerOutputEventToStreamChunk,
@@ -180,7 +180,7 @@ export class InputController {
   private pendingExitPlanModeInline: InlineExitPlanMode | null = null;
   private pendingPlanApproval: InlinePlanApproval | null = null;
   private pendingPlanApprovalInvalidated = false;
-  private activeResumeDropdown: ResumeSessionDropdown | null = null;
+  private readonly resumeDropdownController: ResumeDropdownController;
   private readonly inputContainerVisibility = new InputContainerVisibility();
   private readonly pendingSteersByConversation: PendingSteerRegistry;
   private activeStreamingAssistantMessage: ChatMessage | null = null;
@@ -226,6 +226,14 @@ export class InputController {
       getInstructionModeManager: deps.getInstructionModeManager,
       getModelOverride: () => this.getAuxiliaryModel(),
       ensureExecutionInitialized: deps.ensureExecutionInitialized,
+    });
+    this.resumeDropdownController = new ResumeDropdownController({
+      plugin: deps.plugin,
+      conversationController: deps.conversationController,
+      getInputContainerEl: deps.getInputContainerEl,
+      getInputEl: deps.getInputEl,
+      getCurrentConversationId: () => deps.state.currentConversationId,
+      openConversation: deps.openConversation,
     });
   }
 
@@ -1812,7 +1820,7 @@ export class InputController {
         break;
       }
       case 'resume':
-        this.showResumeDropdown();
+        this.resumeDropdownController.show();
         break;
       case 'fork': {
         if (!this.getActiveCapabilities().supportsFork) {
@@ -1853,54 +1861,15 @@ export class InputController {
   // ============================================
 
   handleResumeKeydown(e: KeyboardEvent): boolean {
-    if (!this.activeResumeDropdown?.isVisible()) return false;
-    return this.activeResumeDropdown.handleKeydown(e);
+    return this.resumeDropdownController.handleKeydown(e);
   }
 
   isResumeDropdownVisible(): boolean {
-    return this.activeResumeDropdown?.isVisible() ?? false;
+    return this.resumeDropdownController.isVisible();
   }
 
   destroyResumeDropdown(): void {
-    if (this.activeResumeDropdown) {
-      this.activeResumeDropdown.destroy();
-      this.activeResumeDropdown = null;
-    }
-  }
-
-  private showResumeDropdown(): void {
-    const { plugin, state, conversationController } = this.deps;
-
-    // Clean up any existing dropdown
-    this.destroyResumeDropdown();
-
-    const conversations = plugin.getConversationList();
-    if (conversations.length === 0) {
-      new Notice('No conversations to resume');
-      return;
-    }
-
-    const openConversation = this.deps.openConversation
-      ?? ((id: string) => conversationController.switchTo(id));
-
-    this.activeResumeDropdown = new ResumeSessionDropdown(
-      this.deps.getInputContainerEl(),
-      this.deps.getInputEl(),
-      conversations,
-      state.currentConversationId,
-      {
-        onSelect: (id) => {
-          this.destroyResumeDropdown();
-          openConversation(id).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            new Notice(`Failed to open conversation: ${msg}`);
-          });
-        },
-        onDismiss: () => {
-          this.destroyResumeDropdown();
-        },
-      }
-    );
+    this.resumeDropdownController.destroy();
   }
 }
 
