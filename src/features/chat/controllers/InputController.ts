@@ -594,7 +594,6 @@ export class InputController {
             }
           }
           this.finishStreamingState(streamController);
-
           // Capture response duration before resetting state (skip for interrupted responses and compaction)
           const hasCompactBoundary = finalAssistantMsg.contentBlocks?.some(b => b.type === 'context_compacted');
           if (!didCancelThisTurn && !hasCompactBoundary) {
@@ -617,20 +616,7 @@ export class InputController {
             }
           }
 
-          const finalMessageEl = state.currentContentEl?.closest<HTMLElement>('.claudian-message') ?? null;
-          state.currentContentEl = null;
-
-          await streamController.finalizeCurrentThinkingBlock(finalAssistantMsg);
-          await streamController.finalizeCurrentTextBlock(finalAssistantMsg);
-          renderer.renderFinalMessageTimestamp?.(finalMessageEl, finalAssistantMsg);
-          this.deps.getSubagentManager().resetStreamingState();
-
-          // Auto-hide completed todo panel on response end
-          // Panel reappears only when new TodoWrite tool is called
-          if (state.currentTodos && state.currentTodos.every(t => t.status === 'completed')) {
-            state.currentTodos = null;
-          }
-          this.syncScrollToBottomAfterRenderUpdates();
+          await this.finalizeRenderedTurn(finalAssistantMsg);
 
           // approve-new-session: the tool_result chunk is dropped because cancelRequested
           // was set before the stream loop could process it — manually set the result so
@@ -775,6 +761,18 @@ export class InputController {
     streamController.hideThinkingIndicator();
     this.deps.state.isStreaming = false;
     this.deps.state.cancelRequested = false;
+  }
+
+  private async finalizeRenderedTurn(message: ChatMessage): Promise<void> {
+    const { renderer, state, streamController } = this.deps;
+    const messageEl = state.currentContentEl?.closest<HTMLElement>('.claudian-message') ?? null;
+    state.currentContentEl = null;
+    await streamController.finalizeCurrentThinkingBlock(message);
+    await streamController.finalizeCurrentTextBlock(message);
+    renderer.renderFinalMessageTimestamp?.(messageEl, message);
+    this.deps.getSubagentManager().resetStreamingState();
+    if (state.currentTodos?.every(todo => todo.status === 'completed')) state.currentTodos = null;
+    this.syncScrollToBottomAfterRenderUpdates();
   }
 
   private queueStreamingMessage(
