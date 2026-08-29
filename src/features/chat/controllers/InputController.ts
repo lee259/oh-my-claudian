@@ -54,6 +54,7 @@ import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
+import { InputContainerVisibility } from './InputContainerVisibility';
 import { InstructionSubmissionController } from './InstructionSubmissionController';
 import {
   type PendingProviderUserMessage,
@@ -180,7 +181,7 @@ export class InputController {
   private pendingPlanApproval: InlinePlanApproval | null = null;
   private pendingPlanApprovalInvalidated = false;
   private activeResumeDropdown: ResumeSessionDropdown | null = null;
-  private inputContainerHideDepth = 0;
+  private readonly inputContainerVisibility = new InputContainerVisibility();
   private readonly pendingSteersByConversation: PendingSteerRegistry;
   private activeStreamingAssistantMessage: ChatMessage | null = null;
   private pendingProviderUserMessages: PendingProviderUserMessage[] = [];
@@ -1619,7 +1620,7 @@ export class InputController {
     config?: InlineAskQuestionConfig,
   ): Promise<Record<string, string | string[]> | null> {
     this.deps.streamController.hideThinkingIndicator();
-    this.hideInputContainer(inputContainerEl);
+    this.inputContainerVisibility.hide(inputContainerEl);
 
     return new Promise<Record<string, string | string[]> | null>((resolve, reject) => {
       const inline = new InlineAskUserQuestion(
@@ -1627,7 +1628,7 @@ export class InputController {
         input,
         (result: Record<string, string | string[]> | null) => {
           setPending(null);
-          this.restoreInputContainer(inputContainerEl);
+          this.inputContainerVisibility.restore(inputContainerEl);
           resolve(result);
         },
         signal,
@@ -1638,7 +1639,7 @@ export class InputController {
         inline.render();
       } catch (err) {
         setPending(null);
-        this.restoreInputContainer(inputContainerEl);
+        this.inputContainerVisibility.restore(inputContainerEl);
         reject(toError(err));
       }
     });
@@ -1657,7 +1658,7 @@ export class InputController {
     }
 
     streamController.hideThinkingIndicator();
-    this.hideInputContainer(inputContainerEl);
+    this.inputContainerVisibility.hide(inputContainerEl);
 
     const enrichedInput = state.planFilePath
       ? { ...input, planFilePath: state.planFilePath }
@@ -1674,7 +1675,7 @@ export class InputController {
         enrichedInput,
         (decision: ExitPlanModeDecision | null) => {
           this.pendingExitPlanModeInline = null;
-          this.restoreInputContainer(inputContainerEl);
+          this.inputContainerVisibility.restore(inputContainerEl);
           resolve(decision);
         },
         signal,
@@ -1687,7 +1688,7 @@ export class InputController {
         inline.render();
       } catch (err) {
         this.pendingExitPlanModeInline = null;
-        this.restoreInputContainer(inputContainerEl);
+        this.inputContainerVisibility.restore(inputContainerEl);
         reject(toError(err));
       }
     });
@@ -1727,7 +1728,7 @@ export class InputController {
       this.pendingExitPlanModeInline = null;
     }
     this.dismissPendingPlanApproval(true);
-    this.resetInputContainerVisibility();
+    this.inputContainerVisibility.reset(this.deps.getInputContainerEl());
   }
 
   private showPlanApproval(): Promise<{ decision: PlanApprovalDecision | null; invalidated: boolean }> {
@@ -1737,7 +1738,7 @@ export class InputController {
       return Promise.resolve({ decision: null, invalidated: false });
     }
 
-    this.hideInputContainer(inputContainerEl);
+    this.inputContainerVisibility.hide(inputContainerEl);
     this.pendingPlanApprovalInvalidated = false;
 
     return new Promise<{ decision: PlanApprovalDecision | null; invalidated: boolean }>((resolve, reject) => {
@@ -1747,7 +1748,7 @@ export class InputController {
           const invalidated = this.pendingPlanApprovalInvalidated;
           this.pendingPlanApprovalInvalidated = false;
           this.pendingPlanApproval = null;
-          this.restoreInputContainer(inputContainerEl);
+          this.inputContainerVisibility.restore(inputContainerEl);
           resolve({ decision, invalidated });
         },
       );
@@ -1757,7 +1758,7 @@ export class InputController {
       } catch (err) {
         this.pendingPlanApproval = null;
         this.pendingPlanApprovalInvalidated = false;
-        this.restoreInputContainer(inputContainerEl);
+        this.inputContainerVisibility.restore(inputContainerEl);
         reject(toError(err));
       }
     });
@@ -1773,26 +1774,6 @@ export class InputController {
     }
     this.pendingPlanApproval.destroy();
     this.pendingPlanApproval = null;
-  }
-
-  private hideInputContainer(inputContainerEl: HTMLElement): void {
-    this.inputContainerHideDepth++;
-    inputContainerEl.addClass('claudian-hidden');
-  }
-
-  private restoreInputContainer(inputContainerEl: HTMLElement): void {
-    if (this.inputContainerHideDepth <= 0) return;
-    this.inputContainerHideDepth--;
-    if (this.inputContainerHideDepth === 0) {
-      inputContainerEl.removeClass('claudian-hidden');
-    }
-  }
-
-  private resetInputContainerVisibility(): void {
-    if (this.inputContainerHideDepth > 0) {
-      this.inputContainerHideDepth = 0;
-      this.deps.getInputContainerEl().removeClass('claudian-hidden');
-    }
   }
 
   // ============================================
