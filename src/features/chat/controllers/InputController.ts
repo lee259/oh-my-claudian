@@ -61,6 +61,7 @@ import {
   type PendingSteerState,
 } from './PendingSteerRegistry';
 import {
+  cloneChatTurnRequest,
   cloneQueuedMessage,
   createQueuedMessage,
   getQueuedMessageDisplay,
@@ -1794,18 +1795,4 @@ export class InputController {
   destroyResumeDropdown(): void {
     this.resumeDropdownController.destroy();
   }
-}
-
-function cloneChatTurnRequest(request: ChatTurnRequest): ChatTurnRequest {
-  return {
-    ...request,
-    enabledMcpServers: request.enabledMcpServers
-      ? new Set(request.enabledMcpServers)
-      : undefined,
-    externalContextPaths: request.externalContextPaths
-      ? [...request.externalContextPaths]
-      : undefined,
-    contextFiles: request.contextFiles ? [...request.contextFiles] : undefined,
-    images: request.images ? [...request.images] : undefined,
-  };
 }

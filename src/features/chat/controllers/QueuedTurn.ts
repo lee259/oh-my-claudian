@@ -82,7 +82,7 @@ export function mergeQueuedMessages(
   return createQueuedMessage(mergedTurn.displayContent, mergedTurn.request);
 }
 
-function cloneChatTurnRequest(request: ChatTurnRequest): ChatTurnRequest {
+export function cloneChatTurnRequest(request: ChatTurnRequest): ChatTurnRequest {
   return {
     ...request,
     contextFiles: request.contextFiles ? [...request.contextFiles] : undefined,
