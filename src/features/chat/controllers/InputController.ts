@@ -25,7 +25,6 @@ import {
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
-import { InstructionModal } from '../../../shared/modals/InstructionConfirmModal';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -55,6 +54,7 @@ import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
+import { InstructionSubmissionController } from './InstructionSubmissionController';
 import {
   type PendingProviderUserMessage,
   PendingSteerRegistry,
@@ -192,6 +192,7 @@ export class InputController {
   } | null = null;
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
   private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
+  private readonly instructionSubmissionController: InstructionSubmissionController;
 
   constructor(deps: InputControllerDeps) {
     this.deps = deps;
@@ -218,6 +219,13 @@ export class InputController {
       getAuxiliaryModel: () => this.getAuxiliaryModel(),
       generateId: deps.generateId,
     });
+    this.instructionSubmissionController = new InstructionSubmissionController({
+      plugin: deps.plugin,
+      getInstructionRefineService: deps.getInstructionRefineService,
+      getInstructionModeManager: deps.getInstructionModeManager,
+      getModelOverride: () => this.getAuxiliaryModel(),
+      ensureExecutionInitialized: deps.ensureExecutionInitialized,
+    });
   }
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
@@ -226,12 +234,6 @@ export class InputController {
 
   private getAuxiliaryModel(): string | null {
     return this.deps.getAuxiliaryModel?.() ?? null;
-  }
-
-  private syncInstructionRefineModelOverride(
-    instructionRefineService: InstructionRefineService,
-  ): void {
-    instructionRefineService.setModelOverride?.(this.getAuxiliaryModel() ?? undefined);
   }
 
   private getActiveProviderId(): ProviderId {
@@ -1477,111 +1479,7 @@ export class InputController {
   // ============================================
 
   async handleInstructionSubmit(rawInstruction: string): Promise<void> {
-    const { plugin } = this.deps;
-
-    if (this.deps.ensureExecutionInitialized) {
-      const ready = await this.deps.ensureExecutionInitialized();
-      if (!ready) {
-        new Notice('Failed to initialize instruction refinement. Please try again.');
-        return;
-      }
-    }
-    const instructionRefineService = this.deps.getInstructionRefineService();
-    const instructionModeManager = this.deps.getInstructionModeManager();
-
-    if (!instructionRefineService) return;
-
-    const existingPrompt = plugin.settings.systemPrompt;
-    let modal: InstructionModal | null = null;
-    let wasCancelled = false;
-
-    try {
-      modal = new InstructionModal(
-        plugin.app,
-        rawInstruction,
-        {
-          onAccept: (finalInstruction) => {
-            void (async (): Promise<void> => {
-              await plugin.mutateSettings((settings) => {
-                settings.systemPrompt = appendMarkdownSnippet(
-                  settings.systemPrompt,
-                  finalInstruction,
-                );
-              });
-
-              new Notice('Instruction added to custom system prompt');
-              instructionModeManager?.clear();
-            })();
-          },
-          onReject: () => {
-            wasCancelled = true;
-            instructionRefineService.cancel();
-            instructionModeManager?.clear();
-          },
-          onClarificationSubmit: async (response) => {
-            this.syncInstructionRefineModelOverride(instructionRefineService);
-            const result = await instructionRefineService.continueConversation(response);
-
-            if (wasCancelled) {
-              return;
-            }
-
-            if (!result.success) {
-              if (result.error === 'Cancelled') {
-                return;
-              }
-              new Notice(result.error || 'Failed to process response');
-              modal?.showError(result.error || 'Failed to process response');
-              return;
-            }
-
-            if (result.clarification) {
-              modal?.showClarification(result.clarification);
-            } else if (result.refinedInstruction) {
-              modal?.showConfirmation(result.refinedInstruction);
-            }
-          }
-        }
-      );
-      modal.open();
-
-      this.syncInstructionRefineModelOverride(instructionRefineService);
-      instructionRefineService.resetConversation();
-      const result = await instructionRefineService.refineInstruction(
-        rawInstruction,
-        existingPrompt
-      );
-
-      if (wasCancelled) {
-        return;
-      }
-
-      if (!result.success) {
-        if (result.error === 'Cancelled') {
-          instructionModeManager?.clear();
-          return;
-        }
-        new Notice(result.error || 'Failed to refine instruction');
-        modal.showError(result.error || 'Failed to refine instruction');
-        instructionModeManager?.clear();
-        return;
-      }
-
-      if (result.clarification) {
-        modal.showClarification(result.clarification);
-      } else if (result.refinedInstruction) {
-        modal.showConfirmation(result.refinedInstruction);
-      } else {
-        new Notice('No instruction received');
-        modal.showError('No instruction received');
-        instructionModeManager?.clear();
-      }
-    } catch (error) {
-      const errorMsg = stringifyDiagnosticError(error);
-      new Notice(`Error: ${errorMsg}`);
-      modal?.showError(errorMsg);
-      instructionModeManager?.clear();
-    }
+    await this.instructionSubmissionController.submit(rawInstruction);
   }
 
   // ============================================
