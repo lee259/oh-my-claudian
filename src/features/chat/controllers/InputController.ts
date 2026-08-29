@@ -51,6 +51,7 @@ import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
+import { syncComposerAutoScroll } from './ComposerAutoScroll';
 import { captureComposerDraft } from './ComposerDraft';
 import type { ConversationController } from './ConversationController';
 import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
@@ -1460,17 +1461,11 @@ export class InputController {
   }
 
   private syncScrollToBottomAfterRenderUpdates(): void {
-    const { plugin, state } = this.deps;
-    if (!(plugin.settings.enableAutoScroll ?? true)) return;
-    if (!state.autoScrollEnabled) return;
-
-    window.requestAnimationFrame(() => {
-      if (!(this.deps.plugin.settings.enableAutoScroll ?? true)) return;
-      if (!this.deps.state.autoScrollEnabled) return;
-
-      const messagesEl = this.deps.getMessagesEl();
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    });
+    syncComposerAutoScroll(
+      () => this.deps.plugin.settings.enableAutoScroll ?? true,
+      () => this.deps.state.autoScrollEnabled,
+      this.deps.getMessagesEl,
+    );
   }
 
   // ============================================
