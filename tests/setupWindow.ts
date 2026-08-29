@@ -126,6 +126,25 @@ if (globalThis.HTMLElement && !Reflect.has(globalThis.HTMLElement.prototype, 'cr
   };
 }
 
+if (globalThis.HTMLElement && !Reflect.has(globalThis.HTMLElement.prototype, 'addClass')) {
+  globalThis.HTMLElement.prototype.addClass = function (this: HTMLElement, cls: string): HTMLElement {
+    this.classList.add(...String(cls).split(/\s+/).filter(Boolean));
+    return this;
+  };
+  globalThis.HTMLElement.prototype.removeClass = function (this: HTMLElement, cls: string): HTMLElement {
+    this.classList.remove(...String(cls).split(/\s+/).filter(Boolean));
+    return this;
+  };
+  globalThis.HTMLElement.prototype.toggleClass = function (this: HTMLElement, cls: string, on?: boolean): void {
+    for (const single of String(cls).split(/\s+/).filter(Boolean)) {
+      this.classList.toggle(single, on);
+    }
+  };
+  globalThis.HTMLElement.prototype.hasClass = function (this: HTMLElement, cls: string): boolean {
+    return this.classList.contains(cls);
+  };
+}
+
 if (globalThis.SVGElement && !Reflect.has(globalThis.SVGElement.prototype, 'createSvg')) {
   globalThis.SVGElement.prototype.createSvg = function (this: SVGElement, tag, info?, callback?) {
     const el = createSvg(tag, info, callback);

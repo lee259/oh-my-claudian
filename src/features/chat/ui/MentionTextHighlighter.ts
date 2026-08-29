@@ -13,7 +13,7 @@ export class MentionTextHighlighter {
     private readonly highlightEl: HTMLElement,
     private readonly app?: App,
   ) {
-    this.highlightEl.style.zIndex = '2';
+    this.highlightEl.addClass('claudian-input-mention-highlights');
     this.contentEl = this.highlightEl.createDiv({ cls: 'claudian-input-mention-highlights-content' });
     this.inputEl.addEventListener('input', this.syncHandler);
     this.inputEl.addEventListener('scroll', this.scrollHandler);
@@ -59,8 +59,7 @@ export class MentionTextHighlighter {
     });
     if (!file || !this.app) return;
 
-    mentionEl.style.pointerEvents = 'auto';
-    mentionEl.style.cursor = 'pointer';
+    mentionEl.addClass('claudian-input-mention-highlight--clickable');
     const isFolder = mention.endsWith('/');
     mentionEl.setAttribute('data-href', normalizedPath);
     mentionEl.setAttribute('href', normalizedPath);
