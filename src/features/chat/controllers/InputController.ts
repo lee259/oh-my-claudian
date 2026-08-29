@@ -521,36 +521,15 @@ export class InputController {
       } else if (result.status === 'invalidated') {
         wasInvalidated = true;
       } else if (result.status === 'missing-session') {
-        const retryMessage = result.accepted
-          ? null
-          : createQueuedMessage(displayContent, {
-            ...turnRequest,
-            images: imagesForMessage ?? turnRequest.images,
-          });
-        const pendingMessagesToRestore = state.queuedMessage
-          ? cloneQueuedMessage(state.queuedMessage)
-          : null;
-        const composerDraftToRestore = this.captureComposerDraft();
-        const resolution = result.missingSessionResolution ?? 'not_found';
-        if (resolution === 'deleted') {
-          this.restoreMessageToInput(composerDraftToRestore, { mergeWithComposer: true });
-          this.restoreMessageToInput(pendingMessagesToRestore, { mergeWithComposer: true });
-          this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
-        } else if (retryMessage) {
-          this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
-          this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
-        }
-        if (result.accepted) {
-          this.finishAcceptedMissingSession(streamGeneration);
-        }
-        const notice = resolution === 'deleted'
-            ? 'The provider session no longer exists. Its Oh My Claudian record was removed; send again to start a new session.'
-            : resolution === 'reset'
-              ? 'The provider session no longer exists. Oh My Claudian preserved the recoverable history; send again to rebuild the session.'
-              : resolution === 'preserved'
-                ? 'The provider session no longer exists. Oh My Claudian preserved its record because the remaining history could not be verified.'
-                : 'The provider session no longer exists. Send again to start a new session.';
-        new Notice(notice);
+        this.handleMissingSessionResult(
+          result,
+          displayContent,
+          turnRequest,
+          imagesForMessage,
+          messagesBeforeTurn,
+          hadPendingConversationSave,
+          streamGeneration,
+        );
         wasInvalidated = true;
       } else if (result.status === 'error' && result.error) {
         await streamController.appendText(`\n\n**Error:** ${result.error.message}`);
@@ -755,6 +734,38 @@ export class InputController {
     this.deps.getWelcomeEl()?.addClass('claudian-hidden');
     fileContextManager?.startSession();
     return streamGeneration;
+  }
+
+  private handleMissingSessionResult(
+    result: Awaited<ReturnType<ChatExecutionCoordinator['execute']>>,
+    displayContent: string,
+    turnRequest: ChatTurnRequest,
+    images: ChatMessage['images'] | undefined,
+    messagesBeforeTurn: ChatMessage[],
+    hadPendingConversationSave: boolean,
+    streamGeneration: number,
+  ): void {
+    const retryMessage = result.accepted
+      ? null
+      : createQueuedMessage(displayContent, { ...turnRequest, images: images ?? turnRequest.images });
+    const pending = this.deps.state.queuedMessage ? cloneQueuedMessage(this.deps.state.queuedMessage) : null;
+    const draft = this.captureComposerDraft();
+    const resolution = result.missingSessionResolution ?? 'not_found';
+    if (resolution === 'deleted') {
+      this.restoreMessageToInput(draft, { mergeWithComposer: true });
+      this.restoreMessageToInput(pending, { mergeWithComposer: true });
+      this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
+    } else if (retryMessage) {
+      this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
+      this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
+    }
+    if (result.accepted) this.finishAcceptedMissingSession(streamGeneration);
+    const notices: Record<string, string> = {
+      deleted: 'The provider session no longer exists. Its Oh My Claudian record was removed; send again to start a new session.',
+      preserved: 'The provider session no longer exists. Oh My Claudian preserved its record because the remaining history could not be verified.',
+      reset: 'The provider session no longer exists. Oh My Claudian preserved the recoverable history; send again to rebuild the session.',
+    };
+    new Notice(notices[resolution] ?? 'The provider session no longer exists. Send again to start a new session.');
   }
 
   private finishStreamingState(streamController: StreamController): void {
