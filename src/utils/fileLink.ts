@@ -22,10 +22,15 @@ export { stripFileLineRange } from './FileReference';
  * Does NOT match image embeds ![[image.png]] (those are handled separately).
  */
 const WIKILINK_PATTERN_SOURCE = '(?<!!)\\[\\[([^\\]|#^]+)(?:#[^\\]|]+)?(?:\\^[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]';
+const AT_MENTION_PATTERN_SOURCE = '@([^\\s@]+\\.[^\\s@]+)';
 
 /** Creates a fresh regex instance to avoid global state issues */
 function createWikilinkPattern(): RegExp {
   return new RegExp(WIKILINK_PATTERN_SOURCE, 'g');
+}
+
+function createAtMentionPattern(): RegExp {
+  return new RegExp(AT_MENTION_PATTERN_SOURCE, 'g');
 }
 
 interface WikilinkMatch {
@@ -197,15 +202,31 @@ function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: Wiki
 
 function processTextNode(app: App, node: Text): boolean {
   const text = node.textContent;
-  if (!text || !text.includes('[[')) return false;
+  if (!text || (!text.includes('[[') && !text.includes('@'))) return false;
 
   const matches = findWikilinks(app, text);
+  const atMentionPattern = createAtMentionPattern();
+  let atMention: RegExpExecArray | null;
+  while ((atMention = atMentionPattern.exec(text)) !== null) {
+    const linkPath = atMention[1];
+    if (!fileExistsInVault(app, linkPath)) continue;
+    matches.push({
+      index: atMention.index,
+      fullMatch: atMention[0],
+      linkPath,
+      linkTarget: linkPath,
+      displayText: atMention[0],
+    });
+  }
   if (matches.length === 0) return false;
 
   const parent = node.parentElement;
   if (!parent) return false;
 
-  node.parentNode?.replaceChild(buildFragmentWithLinks(parent, text, matches), node);
+  node.parentNode?.replaceChild(
+    buildFragmentWithLinks(parent, text, matches.sort((a, b) => b.index - a.index)),
+    node,
+  );
   return true;
 }
 
