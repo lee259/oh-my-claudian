@@ -49,6 +49,7 @@ describe('MentionTextHighlighter', () => {
     const highlighter = new MentionTextHighlighter(input, highlights, app);
 
     const mention = highlights.querySelector('.claudian-input-mention-highlight') as HTMLElement;
+    expect(highlights.style.zIndex).toBe('2');
     expect(mention.classList.contains('internal-link')).toBe(true);
     mention.click();
     expect(app.workspace.openLinkText).toHaveBeenCalledWith('notes/plan.md', '', 'tab');

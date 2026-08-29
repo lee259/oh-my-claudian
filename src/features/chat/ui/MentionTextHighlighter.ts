@@ -13,6 +13,7 @@ export class MentionTextHighlighter {
     private readonly highlightEl: HTMLElement,
     private readonly app?: App,
   ) {
+    this.highlightEl.style.zIndex = '2';
     this.contentEl = this.highlightEl.createDiv({ cls: 'claudian-input-mention-highlights-content' });
     this.inputEl.addEventListener('input', this.syncHandler);
     this.inputEl.addEventListener('scroll', this.scrollHandler);
