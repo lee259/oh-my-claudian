@@ -319,9 +319,6 @@ export class InputController {
       state,
       renderer,
       streamController,
-      selectionController,
-      browserSelectionController,
-      canvasSelectionController,
       conversationController
     } = this.deps;
     this.discardDeferredReviewForDifferentConversation();
@@ -381,32 +378,7 @@ export class InputController {
 
     // If agent is working, queue the message instead of dropping it
     if (state.isStreaming) {
-      const images = hasImages
-        ? [...(imageOverride ?? imageContextManager?.getAttachedImages() ?? [])]
-        : undefined;
-      const editorContext = selectionController.getContext();
-      const browserContext = browserSelectionController?.getContext() ?? null;
-      const canvasContext = canvasSelectionController.getContext();
-    const { displayContent, turnRequest } = this.turnSubmissionBuilder.buildRequest({
-        content,
-        images,
-        editorContextOverride: editorContext,
-        browserContextOverride: browserContext,
-        canvasContextOverride: canvasContext,
-      });
-      state.queuedMessage = mergeQueuedMessages(
-        state.queuedMessage,
-        createQueuedMessage(displayContent, turnRequest),
-      );
-
-      if (shouldUseInput) {
-        inputEl.value = '';
-        this.deps.resetInputHeight();
-      }
-      if (shouldUseInput) {
-        imageContextManager?.clearImages();
-      }
-      this.updateQueueIndicator();
+      this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput);
       return;
     }
 
@@ -796,6 +768,36 @@ export class InputController {
         this.resetProviderMessageBoundaryState();
       }
     }
+  }
+
+  private queueStreamingMessage(
+    content: string,
+    imageOverride: ChatMessage['images'] | undefined,
+    hasImages: boolean,
+    shouldUseInput: boolean,
+  ): void {
+    const imageContextManager = this.deps.getImageContextManager();
+    const images = hasImages
+      ? [...(imageOverride ?? imageContextManager?.getAttachedImages() ?? [])]
+      : undefined;
+    const { displayContent, turnRequest } = this.turnSubmissionBuilder.buildRequest({
+      content,
+      images,
+      editorContextOverride: this.deps.selectionController.getContext(),
+      browserContextOverride: this.deps.browserSelectionController?.getContext() ?? null,
+      canvasContextOverride: this.deps.canvasSelectionController.getContext(),
+    });
+    const { state } = this.deps;
+    state.queuedMessage = mergeQueuedMessages(
+      state.queuedMessage,
+      createQueuedMessage(displayContent, turnRequest),
+    );
+    if (shouldUseInput) {
+      this.deps.getInputEl().value = '';
+      this.deps.resetInputHeight();
+      imageContextManager?.clearImages();
+    }
+    this.updateQueueIndicator();
   }
 
   // ============================================
