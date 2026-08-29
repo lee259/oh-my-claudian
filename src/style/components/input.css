@@ -101,13 +101,14 @@
 .claudian-input-editor {
   position: relative;
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
 .claudian-input-wrapper textarea.claudian-input {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
   width: 100%;
   flex: 1 1 0;
   min-height: var(--claudian-textarea-min-height, 64px);

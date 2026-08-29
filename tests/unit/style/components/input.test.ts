@@ -46,6 +46,9 @@ describe('Chat input toolbar styles', () => {
 
   it('does not let inline mention highlighting change textarea text metrics', () => {
     expect(css).toMatch(
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[^}]*box-sizing:\s*border-box;/,
+    );
+    expect(css).toMatch(
       /\.claudian-input-mention-highlight\s*\{[^}]*padding:\s*0;/,
     );
     expect(css).toMatch(
@@ -53,6 +56,12 @@ describe('Chat input toolbar styles', () => {
     );
     expect(css).toMatch(
       /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
+    );
+  });
+
+  it('keeps the editor tall enough for text when context rows consume composer space', () => {
+    expect(css).toMatch(
+      /\.claudian-input-editor\s*\{[^}]*flex:\s*1 1 auto;/,
     );
   });
 });
