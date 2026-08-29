@@ -870,8 +870,8 @@ export class MessageRenderer {
         }
       }
 
-      // Process wikilinks only when the source can contain them; the DOM pass is expensive.
-      if (processedMarkdown.includes('[[')) {
+      // Process vault links only when the source can contain wikilinks or @mentions.
+      if (processedMarkdown.includes('[[') || processedMarkdown.includes('@')) {
         processFileLinks(this.app, el);
       }
     } catch {

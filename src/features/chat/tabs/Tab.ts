@@ -1474,6 +1474,7 @@ export function initializeTabUI(
   const mentionTextHighlighter = new MentionTextHighlighter(
     dom.inputEl,
     dom.inputMentionHighlightsEl,
+    plugin.app,
   );
   dom.eventCleanups.push(() => mentionTextHighlighter.destroy());
   tab.ui.scopePreview = new ScopePreview(dom.scopePreviewEl);

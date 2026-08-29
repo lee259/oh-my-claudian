@@ -22,10 +22,15 @@ export { stripFileLineRange } from './FileReference';
  * Does NOT match image embeds ![[image.png]] (those are handled separately).
  */
 const WIKILINK_PATTERN_SOURCE = '(?<!!)\\[\\[([^\\]|#^]+)(?:#[^\\]|]+)?(?:\\^[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]';
+const AT_MENTION_PATTERN_SOURCE = '@([^\\s@]+(?:\\.[^\\s@]+|/))';
 
 /** Creates a fresh regex instance to avoid global state issues */
 function createWikilinkPattern(): RegExp {
   return new RegExp(WIKILINK_PATTERN_SOURCE, 'g');
+}
+
+function createAtMentionPattern(): RegExp {
+  return new RegExp(AT_MENTION_PATTERN_SOURCE, 'g');
 }
 
 interface WikilinkMatch {
@@ -86,7 +91,7 @@ function fileExistsInVault(app: App, linkPath: string): boolean {
     return true;
   }
 
-  const directFile = getVaultFileByPath(app, linkPath);
+  const directFile = app.vault.getAbstractFileByPath(linkPath.replace(/\/$/, ''));
   if (directFile) {
     return true;
   }
@@ -113,7 +118,8 @@ function extractLinkPathFromTarget(linkTarget: string): string {
 function createWikilink(
   parent: HTMLElement,
   linkTarget: string,
-  displayText: string
+  displayText: string,
+  isFolder = false,
 ): HTMLElement {
   return parent.createEl('a', {
     cls: 'claudian-file-link internal-link',
@@ -121,8 +127,18 @@ function createWikilink(
     attr: {
       'data-href': linkTarget,
       href: linkTarget,
+      ...(isFolder ? { 'data-claudian-folder-link': 'true' } : {}),
     },
   });
+}
+
+function revealFolder(app: App, folderPath: string): void {
+  const folder = app.vault.getAbstractFileByPath(folderPath);
+  if (!folder) return;
+  for (const leaf of app.workspace.getLeavesOfType('file-explorer')) {
+    const view = leaf.view as unknown as { revealInFolder?: (target: unknown) => void };
+    view.revealInFolder?.(folder);
+  }
 }
 
 function repairEmptyInternalLink(app: App, link: HTMLAnchorElement): void {
@@ -160,7 +176,8 @@ export function registerFileLinkHandler(
       event.preventDefault();
       const linkTarget = link.dataset.href || link.getAttribute('href');
       if (linkTarget) {
-        void app.workspace.openLinkText(linkTarget, '', 'tab');
+        if (link.dataset.claudianFolderLink === 'true') revealFolder(app, linkTarget);
+        else void app.workspace.openLinkText(linkTarget, '', 'tab');
       }
     }
   });
@@ -181,7 +198,10 @@ function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: Wiki
       );
     }
 
-    fragment.insertBefore(createWikilink(parent, linkTarget, displayText), fragment.firstChild);
+    fragment.insertBefore(
+      createWikilink(parent, linkTarget, displayText, fullMatch.startsWith('@') && fullMatch.endsWith('/')),
+      fragment.firstChild,
+    );
     currentIndex = index;
   }
 
@@ -197,15 +217,31 @@ function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: Wiki
 
 function processTextNode(app: App, node: Text): boolean {
   const text = node.textContent;
-  if (!text || !text.includes('[[')) return false;
+  if (!text || (!text.includes('[[') && !text.includes('@'))) return false;
 
   const matches = findWikilinks(app, text);
+  const atMentionPattern = createAtMentionPattern();
+  let atMention: RegExpExecArray | null;
+  while ((atMention = atMentionPattern.exec(text)) !== null) {
+    const linkPath = atMention[1];
+    if (!fileExistsInVault(app, linkPath)) continue;
+    matches.push({
+      index: atMention.index,
+      fullMatch: atMention[0],
+      linkPath,
+      linkTarget: linkPath.replace(/\/$/, ''),
+      displayText: atMention[0],
+    });
+  }
   if (matches.length === 0) return false;
 
   const parent = node.parentElement;
   if (!parent) return false;
 
-  node.parentNode?.replaceChild(buildFragmentWithLinks(parent, text, matches), node);
+  node.parentNode?.replaceChild(
+    buildFragmentWithLinks(parent, text, matches.sort((a, b) => b.index - a.index)),
+    node,
+  );
   return true;
 }
 

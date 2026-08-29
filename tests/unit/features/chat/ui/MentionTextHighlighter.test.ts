@@ -39,6 +39,25 @@ describe('MentionTextHighlighter', () => {
     wrapper.remove();
   });
 
+  it('makes existing file mentions interactive', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const app = {
+      metadataCache: { getFirstLinkpathDest: jest.fn().mockReturnValue({ path: 'notes/plan.md' }) },
+      workspace: { openLinkText: jest.fn() },
+    } as any;
+    input.value = '@notes/plan.md';
+    const highlighter = new MentionTextHighlighter(input, highlights, app);
+
+    const mention = highlights.querySelector('.claudian-input-mention-highlight') as HTMLElement;
+    expect(highlights.style.zIndex).toBe('2');
+    expect(mention.classList.contains('internal-link')).toBe(true);
+    mention.click();
+    expect(app.workspace.openLinkText).toHaveBeenCalledWith('notes/plan.md', '', 'tab');
+
+    highlighter.destroy();
+    wrapper.remove();
+  });
+
   it('keeps its mirrored text aligned with textarea scrolling', () => {
     const { highlights, input, wrapper } = createFixture();
     const highlighter = new MentionTextHighlighter(input, highlights);

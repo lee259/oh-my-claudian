@@ -25,6 +25,28 @@ function createMockApp(existingFiles: string[]) {
 }
 
 describe('processFileLinks', () => {
+  it('converts existing @ file mentions into Obsidian internal links', () => {
+    const app = createMockApp(['notes/plan.md']);
+    const container = document.createElement('div');
+    container.textContent = 'Review @notes/plan.md before merging.';
+
+    processFileLinks(app, container);
+
+    const link = container.querySelector('a.claudian-file-link');
+    expect(link?.textContent).toBe('@notes/plan.md');
+    expect(link?.getAttribute('data-href')).toBe('notes/plan.md');
+  });
+
+  it('converts existing @ folder mentions into Obsidian internal links', () => {
+    const app = createMockApp(['notes']);
+    const container = document.createElement('div');
+    container.textContent = 'Review @notes/ before merging.';
+
+    processFileLinks(app, container);
+
+    expect(container.querySelector('a.claudian-file-link')?.getAttribute('data-href')).toBe('notes');
+  });
+
   describe('null/empty inputs', () => {
     it('handles null app gracefully', () => {
       const container = document.createElement('div');
