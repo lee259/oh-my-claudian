@@ -1,9 +1,7 @@
 import { Notice, setIcon } from 'obsidian';
 
 import {
-  type BuiltInCommand,
   detectBuiltInCommand,
-  isBuiltInCommandSupported,
 } from '../../../core/commands/builtInCommands';
 import type { ProviderExecutionEvent } from '../../../core/execution';
 import { stringifyDiagnosticError } from '../../../core/providers/ProviderDiagnostics';
@@ -51,6 +49,7 @@ import type { AddExternalContextResult, McpServerSelector } from '../ui/InputToo
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
 import type { StatusPanel } from '../ui/StatusPanel';
 import type { BrowserSelectionController } from './BrowserSelectionController';
+import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import type { ConversationController } from './ConversationController';
 import { InputContainerVisibility } from './InputContainerVisibility';
@@ -194,6 +193,7 @@ export class InputController {
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
   private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
   private readonly instructionSubmissionController: InstructionSubmissionController;
+  private readonly builtInCommandController: BuiltInCommandController;
 
   constructor(deps: InputControllerDeps) {
     this.deps = deps;
@@ -234,6 +234,15 @@ export class InputController {
       getInputEl: deps.getInputEl,
       getCurrentConversationId: () => deps.state.currentConversationId,
       openConversation: deps.openConversation,
+    });
+    this.builtInCommandController = new BuiltInCommandController({
+      getCapabilities: () => this.getActiveCapabilities(),
+      createNewConversation: () => deps.conversationController.createNew(),
+      handleNewConversationCommand: deps.handleNewConversationCommand,
+      getExternalContextSelector: deps.getExternalContextSelector,
+      showResumeDropdown: () => this.resumeDropdownController.show(),
+      onForkAll: deps.onForkAll,
+      toggleFastMode: deps.toggleFastMode,
     });
   }
 
@@ -356,7 +365,7 @@ export class InputController {
         inputEl.value = '';
         this.deps.resetInputHeight();
       }
-      await this.executeBuiltInCommand(builtInCmd.command, builtInCmd.args);
+      await this.builtInCommandController.execute(builtInCmd.command, builtInCmd.args);
       return;
     }
 
@@ -1782,78 +1791,6 @@ export class InputController {
     }
     this.pendingPlanApproval.destroy();
     this.pendingPlanApproval = null;
-  }
-
-  // ============================================
-  // Built-in Commands
-  // ============================================
-
-  private async executeBuiltInCommand(command: BuiltInCommand, args: string): Promise<void> {
-    const { conversationController } = this.deps;
-    const capabilities = this.getActiveCapabilities();
-
-    if (!isBuiltInCommandSupported(command, capabilities)) {
-      new Notice(`/${command.name} is not supported by this provider.`);
-      return;
-    }
-
-    switch (command.action) {
-      case 'clear': {
-        const handledByLayout = await this.deps.handleNewConversationCommand?.() ?? false;
-        if (!handledByLayout) {
-          await conversationController.createNew();
-        }
-        break;
-      }
-      case 'add-dir': {
-        const externalContextSelector = this.deps.getExternalContextSelector();
-        if (!externalContextSelector) {
-          new Notice('External context selector not available.');
-          return;
-        }
-        const result = externalContextSelector.addExternalContext(args);
-        if (result.success) {
-          new Notice(`Added external context: ${result.normalizedPath}`);
-        } else {
-          new Notice(result.error);
-        }
-        break;
-      }
-      case 'resume':
-        this.resumeDropdownController.show();
-        break;
-      case 'fork': {
-        if (!this.getActiveCapabilities().supportsFork) {
-          new Notice('Fork is not supported by this provider.');
-          return;
-        }
-        if (!this.deps.onForkAll) {
-          new Notice('Fork not available.');
-          return;
-        }
-        await this.deps.onForkAll();
-        break;
-      }
-      case 'fast': {
-        try {
-          const toggled = await this.deps.toggleFastMode?.() ?? false;
-          if (!toggled) {
-            new Notice('Fast mode is not available for this model.');
-          }
-        } catch {
-          new Notice('Failed to toggle fast mode.');
-        }
-        break;
-      }
-      default: {
-        // Unknown command - notify user
-        const unknownAction = typeof (command as { action?: unknown }).action === 'string'
-          ? (command as { action: string }).action
-          : 'unknown';
-        new Notice(`Unknown command: ${unknownAction}`);
-        break;
-      }
-    }
   }
 
   // ============================================
