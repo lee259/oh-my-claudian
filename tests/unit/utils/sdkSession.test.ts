@@ -1125,6 +1125,23 @@ describe('sdkSession', () => {
       expect(result.messages[2].content).toBe('Thanks');
     });
 
+    it('restores response duration from Claude turn metadata', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockFsPromises.readFile.mockResolvedValue([
+        '{"type":"user","uuid":"u1","timestamp":"2024-01-15T10:00:00Z","message":{"content":"Inspect the project"}}',
+        '{"type":"assistant","uuid":"a1","timestamp":"2024-01-15T10:00:09Z","message":{"content":[{"type":"text","text":"Inspection complete."}]}}',
+        '{"type":"system","subtype":"turn_duration","uuid":"duration-1","parentUuid":"a1","timestamp":"2024-01-15T10:00:09.100Z","durationMs":4500}',
+      ].join('\n'));
+
+      const result = await loadSDKSessionMessages('/Users/test/vault', 'session-native-duration');
+
+      expect(result.messages[1]).toMatchObject({
+        role: 'assistant',
+        content: 'Inspection complete.',
+        durationSeconds: 4,
+      });
+    });
+
     it('sorts messages by timestamp ascending', async () => {
       mockExistsSync.mockReturnValue(true);
       mockFsPromises.readFile.mockResolvedValue([
