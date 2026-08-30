@@ -26,6 +26,9 @@ importers:
       '@pierre/trees':
         specifier: 1.0.0-beta.6
         version: 1.0.0-beta.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      cross-spawn:
+        specifier: 7.0.6
+        version: 7.0.6
       smol-toml:
         specifier: ^1.6.1
         version: 1.7.1
@@ -36,6 +39,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.8.1)
+      '@types/cross-spawn':
+        specifier: 6.0.6
+        version: 6.0.6
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
@@ -831,6 +837,9 @@ packages:
 
   '@types/codemirror@5.60.8':
     resolution: {integrity: sha512-VjFgDF/eB+Aklcy15TtOTLQeMjTo07k7KAjql8OK5Dirr7a6sJY4T1uVBDuTVG9VEmn1uUsohOpYnVfgC6/jyw==}
+
+  '@types/cross-spawn@6.0.6':
+    resolution: {integrity: sha512-fXRhhUkG4H3TQk5dBhQ7m/JDdSNHKwR2BBia62lhwEIq9xGiQKLxd6LymNhn47SjXhsUEPmxi+PKw2OkW4LLjA==}
 
   '@types/eslint@9.6.1':
     resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
@@ -4014,6 +4023,10 @@ snapshots:
   '@types/codemirror@5.60.8':
     dependencies:
       '@types/tern': 0.23.9
+
+  '@types/cross-spawn@6.0.6':
+    dependencies:
+      '@types/node': 25.9.5
 
   '@types/eslint@9.6.1':
     dependencies:

@@ -1,5 +1,7 @@
-import { type ChildProcess, spawn } from 'node:child_process';
+import type { ChildProcess, spawn as nodeSpawn } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
+
+import crossSpawn from 'cross-spawn';
 
 import {
   resolveWindowsCmdShimSpawnSpec,
@@ -10,6 +12,7 @@ import {
 const DEFAULT_SIGKILL_TIMEOUT_MS = 3_000;
 const DEFAULT_FINAL_SHUTDOWN_TIMEOUT_MS = 3_000;
 const DEFAULT_STDERR_BUFFER_LIMIT = 8_000;
+const spawn = crossSpawn as typeof nodeSpawn;
 
 export interface ManagedStdioProcessOptions {
   args: string[];
@@ -83,9 +86,6 @@ export class ManagedStdioProcess {
         env: this.options.env,
         stdio: this.options.stdio ?? 'pipe',
         windowsHide: true,
-        ...(resolvedSpawnSpec.windowsVerbatimArguments
-          ? { windowsVerbatimArguments: true }
-          : {}),
       });
     } catch (error) {
       const spawnError = toError(error);
