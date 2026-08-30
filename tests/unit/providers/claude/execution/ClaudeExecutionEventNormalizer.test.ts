@@ -137,3 +137,42 @@ describe('ClaudeExecutionEventNormalizer task tools', () => {
     }));
   });
 });
+
+describe('ClaudeExecutionEventNormalizer API errors', () => {
+  const resetText = "You've hit your session limit · resets 4:10pm (Europe/Berlin)";
+
+  const apiErrorMessage = () => msg({
+    type: 'assistant',
+    error: 'rate_limit',
+    isApiErrorMessage: true,
+    apiErrorStatus: 429,
+    message: {
+      model: '<synthetic>',
+      content: [{ type: 'text', text: resetText }],
+    },
+  });
+
+  it('uses synthetic API error text for the native error', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize(
+      apiErrorMessage(),
+      'requested',
+    );
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'native_error',
+      message: resetText,
+    }));
+  });
+
+  it('does not render synthetic API error text twice', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize(
+      apiErrorMessage(),
+      'requested',
+    );
+
+    expect(events).not.toContainEqual(expect.objectContaining({
+      type: 'output',
+      event: expect.objectContaining({ type: 'text_delta', text: resetText }),
+    }));
+  });
+});
