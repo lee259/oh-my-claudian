@@ -262,6 +262,8 @@ export class ClaudeExecutionEventNormalizer {
       return;
     }
 
+    if (chunk.type === 'text' && isSyntheticApiErrorMessage(message)) return;
+
     if (
       (chunk.type === 'text' || chunk.type === 'thinking')
       && message.type === 'stream_event'
@@ -507,6 +509,20 @@ function normalizeToolCompleted(
     isBlocked: state.blockedToolIds.has(chunk.id),
     toolUseResult: chunk.toolUseResult,
   };
+}
+
+function isSyntheticApiErrorMessage(message: SDKMessage): boolean {
+  if (message.type !== 'assistant') return false;
+  if (typeof message.error !== 'string' || message.error.trim() === '') return false;
+  const wireOnly = message as unknown as {
+    isApiErrorMessage?: unknown;
+    apiErrorStatus?: unknown;
+  };
+  return (
+    wireOnly.isApiErrorMessage === true
+    || typeof wireOnly.apiErrorStatus === 'number'
+    || (message.message as { model?: unknown } | undefined)?.model === '<synthetic>'
+  );
 }
 
 function isAssistantOutputChunk(chunk: StreamChunk): boolean {
