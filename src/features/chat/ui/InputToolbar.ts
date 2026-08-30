@@ -303,8 +303,22 @@ export class ThinkingBudgetSelector {
     const options = uiConfig.getReasoningOptions(model, settings);
     const currentInfo = options.find(e => e.value === currentEffort);
 
-    const currentEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-current' });
+    const currentEl = this.effortGearsEl.createEl('button', {
+      cls: 'claudian-thinking-current',
+      type: 'button',
+    });
     currentEl.setText(currentInfo?.label || options[0]?.label || 'High');
+    currentEl.setAttribute('aria-expanded', 'false');
+    currentEl.setAttribute('aria-haspopup', 'listbox');
+    currentEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const isOpen = !this.effortGearsEl?.hasClass('is-open');
+      this.effortGearsEl?.toggleClass('is-open', isOpen);
+      currentEl.setAttribute(
+        'aria-expanded',
+        isOpen ? 'true' : 'false',
+      );
+    });
 
     const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-options' });
 
