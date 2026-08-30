@@ -669,11 +669,10 @@ describe('cliPathRequiresNode', () => {
     const scriptPath = isWindows ? 'C:\\temp\\claude' : '/tmp/claude';
     const shebang = '#!/usr/bin/env node\nconsole.log("hi");\n';
 
-    jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === scriptPath);
-    jest.spyOn(fs, 'statSync').mockImplementation(
-      p => ({ isFile: () => String(p) === scriptPath }) as fsType.Stats
-    );
     jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
+    jest.spyOn(fs, 'fstatSync').mockImplementation(
+      () => ({ isFile: () => true }) as fsType.Stats
+    );
     jest.spyOn(fs, 'readSync').mockImplementation((_, buffer: ArrayBufferView) => {
       Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).write(shebang);
       return shebang.length;
@@ -685,10 +684,11 @@ describe('cliPathRequiresNode', () => {
 
   it('returns false when path exists but is a directory', () => {
     const dirPath = isWindows ? 'C:\\temp\\claude' : '/tmp/claude';
-    jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === dirPath);
-    jest.spyOn(fs, 'statSync').mockImplementation(
+    jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
+    jest.spyOn(fs, 'fstatSync').mockImplementation(
       () => ({ isFile: () => false }) as fsType.Stats
     );
+    jest.spyOn(fs, 'closeSync').mockImplementation(() => {});
 
     expect(cliPathRequiresNode(dirPath)).toBe(false);
   });
@@ -697,11 +697,10 @@ describe('cliPathRequiresNode', () => {
     const scriptPath = isWindows ? 'C:\\temp\\script' : '/tmp/script';
     const shebang = '#!/usr/bin/env python\nprint("hi")\n';
 
-    jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === scriptPath);
-    jest.spyOn(fs, 'statSync').mockImplementation(
-      p => ({ isFile: () => String(p) === scriptPath }) as fsType.Stats
-    );
     jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
+    jest.spyOn(fs, 'fstatSync').mockImplementation(
+      () => ({ isFile: () => true }) as fsType.Stats
+    );
     jest.spyOn(fs, 'readSync').mockImplementation((_, buffer: ArrayBufferView) => {
       Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).write(shebang);
       return shebang.length;
@@ -721,11 +720,10 @@ describe('cliPathRequiresNode', () => {
       '',
     ].join('\n');
 
-    jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === scriptPath);
-    jest.spyOn(fs, 'statSync').mockImplementation(
-      p => ({ isFile: () => String(p) === scriptPath }) as fsType.Stats
-    );
     jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
+    jest.spyOn(fs, 'fstatSync').mockImplementation(
+      () => ({ isFile: () => true }) as fsType.Stats
+    );
     jest.spyOn(fs, 'readSync').mockImplementation((_, buffer: ArrayBufferView) => {
       Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).write(script);
       return script.length;

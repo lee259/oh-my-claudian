@@ -1,10 +1,7 @@
-jest.mock('node:child_process', () => ({
-  spawn: jest.fn(),
-}));
-
-import { spawn } from 'node:child_process';
+jest.mock('cross-spawn', () => jest.fn());
 
 import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
+import spawn from 'cross-spawn';
 
 import { PiSubprocess } from '@/providers/pi/runtime/PiSubprocess';
 
@@ -49,7 +46,7 @@ describe('PiSubprocess', () => {
     }));
   });
 
-  it('wraps Windows .cmd shims through cmd.exe', () => {
+  it('passes Windows .cmd shims to cross-spawn', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const subprocess = new PiSubprocess({
       args: ['--mode', 'rpc', '--system-prompt', 'Use R&D policy'],
@@ -61,12 +58,11 @@ describe('PiSubprocess', () => {
     subprocess.start();
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      process.env.ComSpec || process.env.comspec || 'cmd.exe',
-      ['/d', '/s', '/c', '""C:\\Users\\R&D\\AppData\\Roaming\\npm\\pi.cmd" --mode rpc --system-prompt "Use R&D policy""'],
+      'C:\\Users\\R&D\\AppData\\Roaming\\npm\\pi.cmd',
+      ['--mode', 'rpc', '--system-prompt', 'Use R&D policy'],
       expect.objectContaining({
         cwd: 'C:\\Vault',
         windowsHide: true,
-        windowsVerbatimArguments: true,
       }),
     );
   });
@@ -84,16 +80,10 @@ describe('PiSubprocess', () => {
     subprocess.start();
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      process.env.ComSpec || process.env.comspec || 'cmd.exe',
-      [
-        '/d',
-        '/s',
-        '/c',
-        '"C:\\Users\\dev\\AppData\\Roaming\\npm\\pi.cmd --mode rpc --session "D:\\文档\\Documents\\Atlas\\Pi Sessions\\session.jsonl""',
-      ],
+      'C:\\Users\\dev\\AppData\\Roaming\\npm\\pi.cmd',
+      ['--mode', 'rpc', '--session', sessionFile],
       expect.objectContaining({
         cwd: 'D:\\文档\\Documents\\Atlas',
-        windowsVerbatimArguments: true,
       }),
     );
   });
