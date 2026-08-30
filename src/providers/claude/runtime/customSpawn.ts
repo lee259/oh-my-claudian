@@ -1,5 +1,6 @@
 import type { SpawnedProcess, SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
-import { type ChildProcess, spawn } from 'child_process';
+import type { ChildProcess } from 'child_process';
+import spawn from 'cross-spawn';
 
 import { cliPathRequiresNode, findNodeExecutable } from '../../../utils/env';
 import {
@@ -41,7 +42,6 @@ export function createCustomSpawnFunction(
       env: env,
       stdio: ['pipe', 'pipe', shouldPipeStderr ? 'pipe' : 'ignore'],
       windowsHide: true,
-      ...(resolvedSpawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
     });
     installTreeAwareKill(child, resolvedSpawnSpec);
 

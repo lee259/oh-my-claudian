@@ -1,10 +1,7 @@
-jest.mock('node:child_process', () => ({
-  spawn: jest.fn(),
-}));
-
-import { spawn } from 'node:child_process';
+jest.mock('cross-spawn', () => jest.fn());
 
 import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
+import spawn from 'cross-spawn';
 
 import { ManagedStdioProcess } from '@/core/process/ManagedStdioProcess';
 
@@ -177,9 +174,9 @@ describe('ManagedStdioProcess', () => {
 
     expect(mockSpawn).toHaveBeenNthCalledWith(
       1,
-      process.env.ComSpec || process.env.comspec || 'cmd.exe',
-      ['/d', '/s', '/c', '""C:\\Users\\R&D\\provider.cmd" serve "R&D""'],
-      expect.objectContaining({ windowsVerbatimArguments: true }),
+      'C:\\Users\\R&D\\provider.cmd',
+      ['serve', 'R&D'],
+      expect.not.objectContaining({ shell: true }),
     );
     expect(mockSpawn).toHaveBeenNthCalledWith(
       2,
