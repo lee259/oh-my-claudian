@@ -92,6 +92,36 @@ jobs:
       - name: Test
         run: pnpm run test
 
+  windows-provider-runtime:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test provider runtime
+        run: >-
+          pnpm run test:unit -- --runInBand
+          tests/unit/core/process/ManagedStdioProcess.test.ts
+          tests/unit/providers/acp/AcpSubprocess.test.ts
+          tests/unit/providers/codex/runtime/CodexAppServerProcess.test.ts
+          tests/unit/providers/pi/runtime/PiSubprocess.test.ts
+
+      - name: Build
+        run: pnpm run build
+
   build:
     needs: [lint, typecheck, test]
     runs-on: ubuntu-latest
