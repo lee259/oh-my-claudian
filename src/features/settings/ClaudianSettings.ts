@@ -11,11 +11,18 @@ import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspac
 import type { ProviderCapabilities, ProviderId } from '../../core/providers/types';
 import { AgentSkillRepository } from '../../core/skills/AgentSkillRepository';
 import type { ChatViewPlacement, DualPaneSide } from '../../core/types/settings';
-import { getAvailableLocales, getLocaleDisplayName, setLocale, t } from '../../i18n/i18n';
+import {
+  getAvailableLocales,
+  getLocaleDisplayName,
+  resolveLocale,
+  setLocale,
+  t,
+} from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
+import { getObsidianLanguage } from '../../utils/obsidianCompat';
 import {
   MAX_WARM_AGENT_PROCESSES,
   MIN_WARM_AGENT_PROCESSES,
@@ -173,7 +180,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     containerEl.addClass('claudian-settings');
     this.refreshTitleModelOptions = null;
 
-    setLocale(this.plugin.settings.locale as Locale);
+    setLocale(resolveLocale(this.plugin.settings.locale, getObsidianLanguage()));
 
     const providerTabs = ProviderRegistry.getRegisteredProviderIds();
     const tabIds: SettingsTabId[] = ['general', ...providerTabs];
@@ -291,6 +298,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       .setDesc(t('settings.language.desc'))
       .addDropdown((dropdown) => {
         const locales = getAvailableLocales();
+        dropdown.addOption('', t('settings.language.followObsidian'));
         for (const locale of locales) {
           dropdown.addOption(locale, getLocaleDisplayName(locale));
         }
@@ -298,10 +306,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.locale)
           .onChange(async (value) => {
             const locale = value as Locale;
-            if (!setLocale(locale)) {
-              dropdown.setValue(this.plugin.settings.locale);
-              return;
-            }
+            setLocale(resolveLocale(locale, getObsidianLanguage()));
             await this.plugin.mutateSettings((settings) => {
               settings.locale = locale;
             });

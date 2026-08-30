@@ -71,10 +71,9 @@ import {
 import { registerFileMenu } from './features/chat/fileMenu';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
-import { setLocale } from './i18n/i18n';
-import type { Locale } from './i18n/types';
+import { resolveLocale, setLocale } from './i18n/i18n';
 import { buildCursorContext } from './utils/editor';
-import { revealWorkspaceLeaf } from './utils/obsidianCompat';
+import { getObsidianLanguage, revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
 
 function isClaudianView(value: unknown): value is ClaudianView {
@@ -533,7 +532,7 @@ export default class ClaudianPlugin extends Plugin {
         recoveredModels.length,
       );
     }
-    setLocale(this.settings.locale as Locale);
+    setLocale(resolveLocale(this.settings.locale, getObsidianLanguage()));
 
     const reconciliation = this.reconcileModelWithEnvironment();
     const initialInvalidationGenerations = this.sessionInvalidationCoordinator.stage(

@@ -366,7 +366,8 @@
     },
     "language": {
       "name": "Langue",
-      "desc": "Changer la langue d'affichage de l'interface du plugin"
+      "desc": "Changer la langue d'affichage de l'interface du plugin",
+      "followObsidian": "Suivre Obsidian"
     },
     "providerEnablement": {
       "name": "Activer {provider}",
