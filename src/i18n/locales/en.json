@@ -390,7 +390,8 @@
     },
     "language": {
       "name": "Language",
-      "desc": "Change the display language of the plugin interface"
+      "desc": "Change the display language of the plugin interface",
+      "followObsidian": "Follow Obsidian"
     },
     "providerEnablement": {
       "name": "Enable {provider}",

@@ -1,4 +1,4 @@
-import * as Obsidian from 'obsidian';
+export { getObsidianLanguage } from '../../../utils/obsidianCompat';
 
 const UNTITLED_NOTE_NAMES: Readonly<Record<string, string>> = {
   af: 'Untitled',
@@ -89,13 +89,6 @@ function getUntitledNoteName(language: string): string {
   return UNTITLED_NOTE_NAMES_BY_LOWERCASE_LOCALE.get(normalizedLanguage)
     ?? UNTITLED_NOTE_NAMES_BY_LOWERCASE_LOCALE.get(normalizedLanguage.split('-')[0])
     ?? UNTITLED_NOTE_NAMES.en;
-}
-
-export function getObsidianLanguage(fallbackLanguage = 'en'): string {
-  const getLanguage = (Obsidian as unknown as Record<string, unknown>)['getLanguage'];
-  return typeof getLanguage === 'function'
-    ? (getLanguage as () => string)()
-    : fallbackLanguage;
 }
 
 export function isProvisionalNotePath(notePath: string, language: string): boolean {

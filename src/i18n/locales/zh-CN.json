@@ -390,7 +390,8 @@
     },
     "language": {
       "name": "语言",
-      "desc": "更改插件界面的显示语言"
+      "desc": "更改插件界面的显示语言",
+      "followObsidian": "跟随 Obsidian"
     },
     "providerEnablement": {
       "name": "启用 {provider}",

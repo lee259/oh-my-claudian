@@ -1,8 +1,17 @@
 import type { App, Workspace, WorkspaceLeaf } from 'obsidian';
 import { Notice, TFile } from 'obsidian';
+import * as Obsidian from 'obsidian';
 
 import { type FileReference,parseFileReference } from './FileReference';
 import { getVaultPath, normalizePathForVault } from './path';
+
+/** Reads Obsidian's language when supported, with a safe fallback for older hosts. */
+export function getObsidianLanguage(fallbackLanguage = 'en'): string {
+  const getLanguage = (Obsidian as unknown as Record<string, unknown>)['getLanguage'];
+  return typeof getLanguage === 'function'
+    ? (getLanguage as () => string)()
+    : fallbackLanguage;
+}
 
 export function getVaultFileByPath(app: App, filePath: string): TFile | null {
   const file = app.vault.getAbstractFileByPath(filePath);

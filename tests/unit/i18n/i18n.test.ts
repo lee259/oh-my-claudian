@@ -2,6 +2,7 @@ import {
   getAvailableLocales,
   getLocale,
   getLocaleDisplayName,
+  resolveLocale,
   setLocale,
   t,
 } from '@/i18n/i18n';
@@ -108,6 +109,24 @@ describe('i18n', () => {
 
       expect(result).toBe(false);
       expect(getLocale()).toBe('de'); // Should remain unchanged
+    });
+  });
+
+  describe('resolveLocale', () => {
+    it('follows Obsidian when no plugin override is stored', () => {
+      expect(resolveLocale('', 'zh-CN')).toBe('zh-CN');
+    });
+
+    it('normalizes a supported Obsidian language variant', () => {
+      expect(resolveLocale('', 'pt-BR')).toBe('pt');
+    });
+
+    it('falls back to English for an unsupported Obsidian language', () => {
+      expect(resolveLocale('', 'it')).toBe('en');
+    });
+
+    it('uses the plugin language override instead of Obsidian', () => {
+      expect(resolveLocale('ja', 'zh-CN')).toBe('ja');
     });
   });
 

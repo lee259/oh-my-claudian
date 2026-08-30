@@ -387,7 +387,8 @@
     },
     "language": {
       "name": "語言",
-      "desc": "更改插件介面的顯示語言"
+      "desc": "更改插件介面的顯示語言",
+      "followObsidian": "跟隨 Obsidian"
     },
     "providerEnablement": {
       "name": "啟用 {provider}",

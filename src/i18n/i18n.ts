@@ -64,6 +64,43 @@ function loadTranslation(locale: Locale): TranslationDictionary | undefined {
 const DEFAULT_LOCALE: Locale = 'en';
 let currentLocale: Locale = DEFAULT_LOCALE;
 
+const OBSIDIAN_LOCALE_ALIASES: Readonly<Record<string, Locale>> = {
+  zh: 'zh-CN',
+  'zh-hans': 'zh-CN',
+  'zh-hant': 'zh-TW',
+};
+
+function normalizeLocale(locale: string): Locale | undefined {
+  const normalized = locale.trim().replace(/_/g, '-').toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const exactMatch = AVAILABLE_LOCALES.find((availableLocale) => (
+    availableLocale.toLowerCase() === normalized
+  ));
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const alias = OBSIDIAN_LOCALE_ALIASES[normalized];
+  if (alias) {
+    return alias;
+  }
+
+  const baseLanguage = normalized.split('-')[0];
+  return AVAILABLE_LOCALES.find((availableLocale) => availableLocale === baseLanguage);
+}
+
+/**
+ * Resolves the display language from an optional plugin override and Obsidian's language.
+ */
+export function resolveLocale(pluginLocale: string, obsidianLocale: string): Locale {
+  return normalizeLocale(pluginLocale)
+    ?? normalizeLocale(obsidianLocale)
+    ?? DEFAULT_LOCALE;
+}
+
 /**
  * Get a translation by key with optional parameters
  */

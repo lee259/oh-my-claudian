@@ -366,7 +366,8 @@
     },
     "language": {
       "name": "Язык",
-      "desc": "Изменить язык интерфейса плагина"
+      "desc": "Изменить язык интерфейса плагина",
+      "followObsidian": "Как в Obsidian"
     },
     "providerEnablement": {
       "name": "Включить {provider}",

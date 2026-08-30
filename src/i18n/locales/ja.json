@@ -366,7 +366,8 @@
     },
     "language": {
       "name": "言語",
-      "desc": "プラグインインターフェースの表示言語を変更"
+      "desc": "プラグインインターフェースの表示言語を変更",
+      "followObsidian": "Obsidian に合わせる"
     },
     "providerEnablement": {
       "name": "{provider} を有効化",
