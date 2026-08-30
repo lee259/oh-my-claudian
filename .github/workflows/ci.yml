@@ -118,6 +118,7 @@ jobs:
           tests/unit/providers/acp/AcpSubprocess.test.ts
           tests/unit/providers/codex/runtime/CodexAppServerProcess.test.ts
           tests/unit/providers/pi/runtime/PiSubprocess.test.ts
+          tests/integration/providers/pi/PiSubprocess.windows.test.ts
 
       - name: Build
         run: pnpm run build

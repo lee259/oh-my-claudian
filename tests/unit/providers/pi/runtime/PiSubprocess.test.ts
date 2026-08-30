@@ -46,73 +46,14 @@ describe('PiSubprocess', () => {
     }));
   });
 
-  it('passes Windows .cmd shims to cross-spawn', () => {
+  it('fails closed for an unverified Windows command shim', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
-    const subprocess = new PiSubprocess({
-      args: ['--mode', 'rpc', '--system-prompt', 'Use R&D policy'],
-      command: 'C:\\Users\\R&D\\AppData\\Roaming\\npm\\pi.cmd',
-      cwd: 'C:\\Vault',
-      env: { PATH: 'C:\\Windows\\System32' },
-    });
-
-    subprocess.start();
-
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'C:\\Users\\R&D\\AppData\\Roaming\\npm\\pi.cmd',
-      ['--mode', 'rpc', '--system-prompt', 'Use R&D policy'],
-      expect.objectContaining({
-        cwd: 'C:\\Vault',
-        windowsHide: true,
-      }),
-    );
-  });
-
-  it('preserves Unicode Windows session paths when resuming through a .cmd shim', () => {
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    const sessionFile = 'D:\\文档\\Documents\\Atlas\\Pi Sessions\\session.jsonl';
-    const subprocess = new PiSubprocess({
-      args: ['--mode', 'rpc', '--session', sessionFile],
-      command: 'C:\\Users\\dev\\AppData\\Roaming\\npm\\pi.cmd',
-      cwd: 'D:\\文档\\Documents\\Atlas',
-      env: { PATH: 'C:\\Windows\\System32' },
-    });
-
-    subprocess.start();
-
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'C:\\Users\\dev\\AppData\\Roaming\\npm\\pi.cmd',
-      ['--mode', 'rpc', '--session', sessionFile],
-      expect.objectContaining({
-        cwd: 'D:\\文档\\Documents\\Atlas',
-      }),
-    );
-  });
-
-  it('kills the process tree when shutting down Windows .cmd shims', async () => {
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    const subprocess = new PiSubprocess({
+    expect(() => new PiSubprocess({
       args: ['--mode', 'rpc'],
-      command: 'C:\\Users\\R&D\\AppData\\Roaming\\npm\\pi.cmd',
+      command: '/missing/pi.cmd',
       cwd: 'C:\\Vault',
       env: { PATH: 'C:\\Windows\\System32' },
-    });
-    subprocess.start();
-
-    const shutdown = subprocess.shutdown();
-
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'taskkill.exe',
-      ['/pid', '12345', '/t', '/f'],
-      expect.objectContaining({
-        stdio: 'ignore',
-        windowsHide: true,
-      }),
-    );
-    expect(proc.kill).not.toHaveBeenCalled();
-
-    proc.exitCode = 0;
-    proc.emit('exit', 0, null);
-    await shutdown;
+    })).toThrow('could not be resolved to its Node.js entry point');
   });
 
   it('keeps a bounded stderr snapshot for runtime errors', () => {
