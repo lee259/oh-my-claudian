@@ -21,6 +21,7 @@ import {
 } from '@/utils/path';
 
 const isWindows = process.platform === 'win32';
+const describeOnUnix = isWindows ? describe.skip : describe;
 
 describe('getVaultPath', () => {
   it('returns basePath when adapter exposes the property directly', () => {
@@ -152,10 +153,10 @@ describe('parsePathEntries', () => {
 
   it('splits on platform separator', () => {
     const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`/a${sep}/b${sep}/c`);
-    expect(result).toContain('/a');
-    expect(result).toContain('/b');
-    expect(result).toContain('/c');
+    const result = parsePathEntries(`/alpha${sep}/beta${sep}/gamma`);
+    expect(result).toContain('/alpha');
+    expect(result).toContain('/beta');
+    expect(result).toContain('/gamma');
   });
 
   it('filters out empty segments', () => {
@@ -238,22 +239,22 @@ describe('normalizePathForFilesystem', () => {
 
   it('normalizes a regular path', () => {
     const result = normalizePathForFilesystem('/usr/local/bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(path.normalize('/usr/local/bin'));
   });
 
   it('normalizes path with redundant separators', () => {
     const result = normalizePathForFilesystem('/usr//local///bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(path.normalize('/usr//local///bin'));
   });
 
   it('normalizes path with . segments', () => {
     const result = normalizePathForFilesystem('/usr/./local/./bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(path.normalize('/usr/./local/./bin'));
   });
 
   it('normalizes path with .. segments', () => {
     const result = normalizePathForFilesystem('/usr/local/../bin');
-    expect(result).toBe('/usr/bin');
+    expect(result).toBe(path.normalize('/usr/local/../bin'));
   });
 
   it('expands ~ in path', () => {
@@ -437,6 +438,7 @@ describe('findClaudeCLIPath', () => {
     expect(result === null || typeof result === 'string').toBe(true);
   });
 
+  describeOnUnix('Unix CLI fallbacks', () => {
   it('finds claude from common paths when no custom path provided', () => {
     const commonPath = path.join(os.homedir(), '.claude', 'local', 'claude');
 
@@ -513,6 +515,7 @@ describe('findClaudeCLIPath', () => {
 
     const result = findClaudeCLIPath(customDir);
     expect(result).toBeNull();
+  });
   });
 
   it('handles inaccessible filesystem paths gracefully', () => {

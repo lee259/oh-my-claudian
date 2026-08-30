@@ -19,7 +19,7 @@ describe('OpencodePaths', () => {
     expect(resolveOpencodeDataDir({
       HOME: '/home/tester',
       XDG_DATA_HOME: '/tmp/xdg-data',
-    } as NodeJS.ProcessEnv)).toBe('/tmp/xdg-data/opencode');
+    } as NodeJS.ProcessEnv)).toBe(path.join('/tmp/xdg-data', 'opencode'));
   });
 
   it('uses the home data directory on Windows even when AppData paths are available', () => {
@@ -30,8 +30,10 @@ describe('OpencodePaths', () => {
       LOCALAPPDATA: '/windows/local-app-data',
     } as NodeJS.ProcessEnv;
 
-    expect(resolveOpencodeDataDir(env)).toBe('/home/tester/.local/share/opencode');
-    expect(resolveOpencodeDatabasePath(env)).toBe('/home/tester/.local/share/opencode/opencode.db');
+    expect(resolveOpencodeDataDir(env)).toBe(path.join('/home/tester', '.local', 'share', 'opencode'));
+    expect(resolveOpencodeDatabasePath(env)).toBe(
+      path.join('/home/tester', '.local', 'share', 'opencode', 'opencode.db'),
+    );
   });
 
   it('preserves explicit data and database overrides on Windows', () => {
@@ -42,12 +44,12 @@ describe('OpencodePaths', () => {
       XDG_DATA_HOME: '/xdg/data',
     } as NodeJS.ProcessEnv;
 
-    expect(resolveOpencodeDataDir(env)).toBe('/xdg/data/opencode');
+    expect(resolveOpencodeDataDir(env)).toBe(path.join('/xdg/data', 'opencode'));
     expect(resolveOpencodeDatabasePath(env)).toBe('/custom/opencode.db');
     expect(resolveOpencodeDatabasePath({
       ...env,
       OPENCODE_DB: 'opencode-work.db',
-    })).toBe('/xdg/data/opencode/opencode-work.db');
+    })).toBe(path.join('/xdg/data', 'opencode', 'opencode-work.db'));
   });
 
   it('falls back to the existing resolved database when persisted metadata points at a missing path', () => {
