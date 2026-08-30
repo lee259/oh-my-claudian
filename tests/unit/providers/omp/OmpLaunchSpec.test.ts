@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import { buildOmpEnvironment, buildOmpLaunchSpec } from '@/providers/omp/runtime/OmpLaunchSpec';
 import { DEFAULT_OMP_PROVIDER_SETTINGS } from '@/providers/omp/settings';
 
@@ -33,13 +35,14 @@ describe('buildOmpLaunchSpec', () => {
   });
 
   it('makes Bun available for an absolute OMP executable path', () => {
+    const runtimePath = ['/usr/bin', '/bin'].join(path.delimiter);
     const spec = buildOmpLaunchSpec({
       command: '/Users/lee/.bun/bin/omp',
       cwd: '/vault/project',
-      env: { PATH: '/usr/bin:/bin' },
+      env: { PATH: runtimePath },
       settings: DEFAULT_OMP_PROVIDER_SETTINGS,
     });
 
-    expect(spec.env.PATH).toBe('/Users/lee/.bun/bin:/usr/bin:/bin');
+    expect(spec.env.PATH).toBe(['/Users/lee/.bun/bin', runtimePath].join(path.delimiter));
   });
 });

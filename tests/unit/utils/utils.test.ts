@@ -5,6 +5,7 @@ import type * as pathType from 'path';
 const fs = jest.requireActual<typeof fsType>('fs');
 const os = jest.requireActual<typeof osType>('os');
 const path = jest.requireActual<typeof pathType>('path');
+const describeOnUnix = process.platform === 'win32' ? describe.skip : describe;
 
 import { findClaudeCLIPath } from '@/providers/claude/cli/findClaudeCLIPath';
 import { getCurrentModelFromEnvironment, getModelsFromEnvironment } from '@/providers/claude/env/claudeModelEnv';
@@ -206,7 +207,9 @@ describe('utils.ts', () => {
       process.env[envKey] = '/tmp/claudian-test';
 
       try {
-        expect(normalizePathForFilesystem(`$${envKey}/notes/file.md`)).toBe('/tmp/claudian-test/notes/file.md');
+        expect(normalizePathForFilesystem(`$${envKey}/notes/file.md`)).toBe(
+          path.normalize('/tmp/claudian-test/notes/file.md'),
+        );
       } finally {
         if (originalValue === undefined) {
           delete process.env[envKey];
@@ -233,8 +236,12 @@ describe('utils.ts', () => {
 
     it('handles non-existent environment variables', () => {
       // Non-existent env vars should be left as-is
-      expect(normalizePathForFilesystem('$NONEXISTENT/path')).toBe('$NONEXISTENT/path');
-      expect(normalizePathForFilesystem('%NONEXISTENT%/path')).toBe('%NONEXISTENT%/path');
+      expect(normalizePathForFilesystem('$NONEXISTENT/path')).toBe(
+        path.normalize('$NONEXISTENT/path'),
+      );
+      expect(normalizePathForFilesystem('%NONEXISTENT%/path')).toBe(
+        path.normalize('%NONEXISTENT%/path'),
+      );
     });
 
     it('handles mixed path separators', () => {
@@ -472,7 +479,7 @@ describe('utils.ts', () => {
       process.env = originalEnv;
     });
 
-    describe('on Unix/macOS', () => {
+    describeOnUnix('on Unix/macOS', () => {
       beforeEach(() => {
         Object.defineProperty(process, 'platform', { value: 'darwin' });
       });
