@@ -39,8 +39,9 @@ function permissionRequest(
 
 describe('OpencodeAcpSessionKernel read policy', () => {
   it('bounds read-only callbacks to the active workspace', () => {
+    const workspaceRoot = path.resolve('/vault');
     expect(resolveOpencodeReadPath('/vault', 'notes/file.md')).toBe(
-      '/vault/notes/file.md',
+      path.join(workspaceRoot, 'notes', 'file.md'),
     );
     expect(() => resolveOpencodeReadPath('/vault', '../secret')).toThrow(
       'OpenCode read access is limited to the current workspace',
