@@ -70,7 +70,7 @@ import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
 import { ScopePreview } from '../ui/ScopePreview';
 import { StatusPanel } from '../ui/StatusPanel';
-import { autoResizeTextarea } from '../ui/textareaResize';
+import { installTextareaSizing } from '../ui/textareaSizing';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { initializeTabPresentationControllers } from './TabControllerFactory';
@@ -1467,10 +1467,13 @@ export function initializeTabUI(
 
   tab.ui.contextTray = new ComposerContextTray(dom.contextRowEl, {
     onDidChange: () => {
-      autoResizeTextarea(dom.inputEl);
       tab.renderer?.scrollToBottomIfNeeded();
     },
   });
+  // Passive textarea sizing: field-sizing grows the input with content and a
+  // ResizeObserver keeps only the max-height cap current (no per-keystroke
+  // reflow). Mirrors upstream #1215.
+  dom.eventCleanups.push(installTextareaSizing(dom.inputEl));
   const mentionTextHighlighter = new MentionTextHighlighter(
     dom.inputEl,
     dom.inputMentionHighlightsEl,
@@ -2002,7 +2005,6 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     ui.instructionModeManager?.handleInputChange();
     ui.bangBashModeManager?.handleInputChange();
     syncBangBashSuppression();
-    autoResizeTextarea(dom.inputEl);
     updateSendButton(tab);
   };
   dom.inputEl.addEventListener('input', inputHandler);

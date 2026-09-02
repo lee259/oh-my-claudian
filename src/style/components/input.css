@@ -64,6 +64,7 @@
 }
 
 .claudian-input-nav-btn {
+  appearance: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,14 +74,22 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
+  box-shadow: none;
+  font: inherit;
   cursor: pointer;
   color: var(--text-faint);
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.claudian-input-nav-btn:hover {
+.claudian-input-nav-btn:hover,
+.claudian-input-nav-btn:focus-visible {
   color: var(--text-normal);
   background: var(--background-modifier-hover);
+}
+
+.claudian-input-nav-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 
 .claudian-dual-pane-toggle-btn.is-active {
@@ -110,8 +119,9 @@
   z-index: 1;
   box-sizing: border-box;
   width: 100%;
-  flex: 1 1 0;
-  min-height: var(--claudian-textarea-min-height, 64px);
+  flex: 1 1 auto;
+  field-sizing: content;
+  min-height: 64px;
   max-height: var(--claudian-textarea-max-height, none);
   resize: none;
   padding: 13px 15px;

@@ -14,12 +14,16 @@ function listTypeScriptFiles(root) {
   return files;
 }
 
+function normalizeRepositoryPath(filePath) {
+  return filePath.replaceAll('\\', '/');
+}
+
 function findMatches(roots, pattern) {
   const matches = [];
   for (const root of roots) {
     for (const file of listTypeScriptFiles(root)) {
       if (pattern.test(fs.readFileSync(file, 'utf8'))) {
-        matches.push(path.relative(process.cwd(), file));
+        matches.push(normalizeRepositoryPath(path.relative(process.cwd(), file)));
       }
     }
   }
@@ -104,8 +108,8 @@ function findResolvedImportViolations(roots, isForbidden, allowedImports = new S
           continue;
         }
         violations.push(
-          `${path.relative(process.cwd(), file)}:${sourceImport.line}`
-          + ` imports ${sourceImport.specifier} -> ${path.relative(process.cwd(), target)}`,
+          `${normalizeRepositoryPath(path.relative(process.cwd(), file))}:${sourceImport.line}`
+          + ` imports ${sourceImport.specifier} -> ${normalizeRepositoryPath(path.relative(process.cwd(), target))}`,
         );
       }
     }

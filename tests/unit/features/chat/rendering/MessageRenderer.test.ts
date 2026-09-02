@@ -573,8 +573,14 @@ describe('MessageRenderer', () => {
     const btn = messagesEl.querySelector('.claudian-message-rewind-btn');
     expect(btn).not.toBeNull();
 
-    btn!.click();
+    const pointerEvent = {
+      detail: 1,
+      stopPropagation: jest.fn(),
+      type: 'click',
+    };
+    btn!.dispatchEvent(pointerEvent);
     const menu = (Menu as typeof Menu & { instances: any[] }).instances[0];
+    expect(menu.showAtMouseEvent).toHaveBeenCalledWith(pointerEvent);
     expect(menu.items.map((item: any) => item.title)).toEqual([
       'Rewind conversation only',
       'Rewind code + conversation',
@@ -584,6 +590,20 @@ describe('MessageRenderer', () => {
     await Promise.resolve();
 
     expect(rewindCallback).toHaveBeenCalledWith('u1', 'conversation');
+
+    btn!.getBoundingClientRect = jest.fn().mockReturnValue({ bottom: 48, left: 24 });
+    btn!.dispatchEvent({
+      detail: 0,
+      stopPropagation: jest.fn(),
+      type: 'click',
+    });
+
+    const keyboardMenu = (Menu as typeof Menu & { instances: any[] }).instances[1];
+    expect(keyboardMenu.showAtPosition).toHaveBeenCalledWith(
+      { x: 24, y: 48 },
+      btn!.ownerDocument,
+    );
+    expect(keyboardMenu.showAtMouseEvent).not.toHaveBeenCalled();
   });
 
   it('refreshes rewind but not fork for a streamed first user message', () => {
@@ -1416,6 +1436,9 @@ describe('MessageRenderer', () => {
     expect(textEl.children.length).toBe(1);
     const copyBtn = textEl.children[0];
     expect(copyBtn.hasClass('claudian-text-copy-btn')).toBe(true);
+    expect(copyBtn.tagName).toBe('BUTTON');
+    expect(copyBtn.getAttribute('type')).toBe('button');
+    expect(copyBtn.getAttribute('aria-label')).toBe('Copy message');
   });
 
   // ============================================

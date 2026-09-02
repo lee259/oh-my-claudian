@@ -44,7 +44,7 @@ jest.mock('obsidian', () => {
   };
 });
 
-function getOptionItems(): Array<{ text: string; click: () => void }> {
+function getOptionItems(): Array<{ text: string; click: () => void; isButton: boolean }> {
   const listEl = lastModalInstance.contentEl.children?.find(
     (c: any) => c.hasClass?.('claudian-fork-target-list'),
   );
@@ -57,6 +57,7 @@ function getOptionItems(): Array<{ text: string; click: () => void }> {
         const handler = c._eventListeners?.get('click')?.[0];
         handler?.();
       },
+      isButton: c.tagName === 'BUTTON',
     }));
 }
 
@@ -96,6 +97,7 @@ describe('ForkTargetModal', () => {
       expect(items).toHaveLength(2);
       expect(items[0].text).toBe('Current tab');
       expect(items[1].text).toBe('New tab');
+      expect(items.every(item => item.isButton)).toBe(true);
     });
   });
 });
