@@ -143,7 +143,6 @@ export interface InputControllerDeps {
   getStatusPanel: () => StatusPanel | null;
   getInputContainerEl: () => HTMLElement;
   generateId: () => string;
-  resetInputHeight: () => void;
   getAuxiliaryModel?: () => string | null;
   getExecutionCoordinator: () => ChatExecutionCoordinator | null;
   getSubagentManager: () => SubagentManager;
@@ -395,7 +394,6 @@ export class InputController {
       if (shouldUseInput) {
         inputEl.value = '';
         dispatchComposerInputEvent(inputEl);
-        this.deps.resetInputHeight();
       }
       await this.builtInCommandController.execute(builtInCmd.command, builtInCmd.args);
       return;
@@ -702,7 +700,6 @@ export class InputController {
       const inputEl = this.deps.getInputEl();
       inputEl.value = '';
       dispatchComposerInputEvent(inputEl);
-      this.deps.resetInputHeight();
     }
     state.isStreaming = true;
     state.cancelRequested = false;
@@ -791,7 +788,6 @@ export class InputController {
       const inputEl = this.deps.getInputEl();
       inputEl.value = '';
       dispatchComposerInputEvent(inputEl);
-      this.deps.resetInputHeight();
       imageContextManager?.clearImages();
     }
     this.updateQueueIndicator();
@@ -922,7 +918,6 @@ export class InputController {
     if (imageContextManager && (!options.mergeWithComposer || restoredImages.length > 0)) {
       imageContextManager.setImages(restoredImages);
     }
-    this.deps.resetInputHeight();
     inputEl.focus();
   }
 

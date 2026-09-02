@@ -198,14 +198,12 @@ describe('InstructionModeManager', () => {
     expect(manager.getRawInstruction()).toBe('my instruction');
   });
 
-  it('should clear input, exit mode and reset input height on clear()', () => {
+  it('should clear input and exit mode on clear()', () => {
     const wrapper = createWrapper();
     const inputEl = { value: '', placeholder: 'Ask...' } as any;
-    const resetInputHeight = jest.fn();
     const callbacks = {
       onSubmit: jest.fn().mockResolvedValue(undefined),
       getInputWrapper: () => wrapper,
-      resetInputHeight,
     };
 
     const manager = new InstructionModeManager(inputEl, callbacks);
@@ -219,7 +217,6 @@ describe('InstructionModeManager', () => {
 
     expect(inputEl.value).toBe('');
     expect(manager.isActive()).toBe(false);
-    expect(resetInputHeight).toHaveBeenCalled();
   });
 
   it('should remove instruction mode class and restore placeholder on destroy()', () => {

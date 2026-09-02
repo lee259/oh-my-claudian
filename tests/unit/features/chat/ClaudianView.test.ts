@@ -1169,6 +1169,48 @@ describe('ClaudianView tab controls', () => {
     expect(toggleDualPaneMode).toHaveBeenCalledTimes(1);
   });
 
+  it('builds chat navigation actions as native buttons without changing their handlers', () => {
+    const requestNewTab = jest.fn();
+    const requestNewConversation = jest.fn();
+    const toggleHistoryDropdown = jest.fn();
+    const view = Object.create(ClaudianView.prototype) as any;
+
+    Object.assign(view, {
+      containerEl: createMockEl(),
+      handleTabClick: jest.fn(),
+      handleTabClose: jest.fn(),
+      persistTabWorkspaceState: jest.fn(),
+      plugin: { settings: { showTabTitlesByDefault: true } },
+      requestNewConversation,
+      requestNewTab,
+      toggleHistoryDropdown,
+    });
+
+    const navContent = view.buildNavRowContent();
+    const newTabButton = navContent.querySelector('.claudian-new-tab-btn')!;
+    const newConversationButton = navContent.querySelector('.claudian-new-conversation-btn')!;
+    const historyButton = navContent.querySelector('.claudian-history-container')!.children[0];
+    const buttons = [newTabButton, newConversationButton, historyButton];
+
+    expect(buttons.map(button => button.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+    expect(buttons.map(button => button.getAttribute('type'))).toEqual([
+      'button',
+      'button',
+      'button',
+    ]);
+    expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual([
+      'New tab',
+      'New conversation',
+      'Chat history',
+    ]);
+
+    buttons.forEach(button => button.click());
+
+    expect(requestNewTab).toHaveBeenCalledTimes(1);
+    expect(requestNewConversation).toHaveBeenCalledTimes(1);
+    expect(toggleHistoryDropdown).toHaveBeenCalledTimes(1);
+  });
+
   it('switches the persistent sidebar to Files without remounting the tree', () => {
     const viewContainerEl = createMockEl();
     const mount = jest.fn().mockResolvedValue(undefined);

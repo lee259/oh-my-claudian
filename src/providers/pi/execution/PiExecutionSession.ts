@@ -876,12 +876,17 @@ implements ProviderExecutionSession, SteerableExecutionSession {
     }
     const active = this.activeRun;
     if (active && !active.terminal) {
-      active.terminalSignal.reject(
-        error ?? new Error('Pi subprocess exited.'),
-      );
+      // Prefer the pending native Pi error (e.g. an exhausted retry message
+      // stashed on message_end) over the generic subprocess-exit error so the
+      // user sees the real failure reason. Mirrors upstream #1196.
+      const runError = active.pendingTerminalError
+        ?? error
+        ?? new Error('Pi subprocess exited.');
+      active.pendingTerminalError = null;
+      active.terminalSignal.reject(runError);
       this.finishError(
         active,
-        error ?? new Error('Pi subprocess exited.'),
+        runError,
         missingProviderSessionId
           ? 'provider-session-missing'
           : 'process-exited',
@@ -1624,7 +1629,13 @@ function getFirstRejectedError(
 }
 
 function isSamePath(left: string, right: string): boolean {
-  return path.resolve(left) === path.resolve(right);
+  const resolvedLeft = path.resolve(left);
+  const resolvedRight = path.resolve(right);
+  // Windows paths are case-insensitive; case-only differences must not
+  // spuriously fail session-target integrity checks. Mirrors upstream #1197.
+  return process.platform === 'win32'
+    ? resolvedLeft.toLowerCase() === resolvedRight.toLowerCase()
+    : resolvedLeft === resolvedRight;
 }
 
 function assertPiSessionTargetIntegrity(

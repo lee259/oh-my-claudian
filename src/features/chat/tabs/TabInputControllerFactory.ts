@@ -1,7 +1,6 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { FeatureHost } from '../../FeatureHost';
 import { InputController } from '../controllers/InputController';
-import { autoResizeTextarea } from '../ui/textareaResize';
 import { getTabProviderId } from './providerResolution';
 import type { TabData } from './types';
 
@@ -51,7 +50,6 @@ export function createTabInputController(
     getTitleGenerationService: () => services.titleGenerationService,
     getStatusPanel: () => ui.statusPanel,
     generateId: options.generateId,
-    resetInputHeight: () => autoResizeTextarea(dom.inputEl),
     getAuxiliaryModel: options.getAuxiliaryModel,
     getExecutionCoordinator: () => tab.executionCoordinator,
     getSubagentManager: () => services.subagentManager,
