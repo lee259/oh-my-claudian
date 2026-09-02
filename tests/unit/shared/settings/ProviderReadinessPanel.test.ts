@@ -46,12 +46,12 @@ describe('renderProviderReadinessPanel', () => {
     ]);
   });
 
-  it('shows checking feedback while a refresh is in flight', async () => {
+  it('shows checking feedback in the summary while a refresh is in flight', async () => {
     const container = document.createElement('div');
     let finishRefresh!: () => void;
     const onRefresh = jest.fn(() => new Promise<void>(resolve => { finishRefresh = resolve; }));
 
-    renderProviderReadinessPanel({
+    const controller = renderProviderReadinessPanel({
       container,
       providerName: 'Test',
       getSnapshot: async () => ({ status: 'ready', checks: [] }),
@@ -59,20 +59,18 @@ describe('renderProviderReadinessPanel', () => {
     });
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
-    const button = container.querySelector<HTMLButtonElement>('.claudian-provider-readiness-refresh');
-    expect(button).not.toBeNull();
-    button?.click();
+    const summary = container.querySelector<HTMLElement>('.claudian-provider-readiness-summary');
+    expect(summary?.textContent).toBe('Ready');
+
+    void controller.refresh(true);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
-    expect(button?.disabled).toBe(true);
-    expect(button?.textContent).toBe('Checking provider readiness…');
-    expect(button?.getAttribute('aria-busy')).toBe('true');
+    expect(summary?.textContent).toBe('Checking provider readiness…');
 
     finishRefresh();
     await new Promise<void>(resolve => setTimeout(resolve, 140));
 
-    expect(button?.disabled).toBe(false);
-    expect(button?.textContent).toBe('Check again');
-    expect(button?.getAttribute('aria-busy')).toBeNull();
+    expect(summary?.textContent).toBe('Ready');
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
