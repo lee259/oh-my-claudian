@@ -1,0 +1,14 @@
+.claudian-cli-lifecycle { display: grid; gap: 4px; }
+.claudian-cli-lifecycle-label { color: var(--text-normal); font-size: var(--font-ui-small); font-weight: var(--font-medium); }
+.claudian-cli-lifecycle-status { display: grid; gap: 4px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.claudian-cli-lifecycle-version-item { display: flex; align-items: center; gap: 6px; }
+.claudian-cli-lifecycle-version-value { color: var(--text-normal); font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.claudian-cli-lifecycle-version-broken { color: var(--text-warning); font-weight: var(--font-medium); }
+.claudian-cli-lifecycle-version-not-installed { color: var(--text-muted); font-style: italic; }
+.claudian-cli-lifecycle-update-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; padding: 1px 8px; border-radius: 10px; background: var(--background-modifier-success); color: var(--text-success); font-size: var(--font-ui-smaller); font-weight: var(--font-medium); width: fit-content; }
+.claudian-cli-lifecycle-error { color: var(--text-error); font-size: var(--font-ui-smaller); white-space: pre-wrap; }
+.claudian-cli-lifecycle-actions { margin-top: 6px; }
+.claudian-cli-lifecycle-hint { color: var(--text-warning); font-size: var(--font-ui-smaller); margin-bottom: 6px; }
+.claudian-cli-lifecycle-ready { color: var(--text-muted); font-size: var(--font-ui-small); }
+.claudian-cli-lifecycle-action-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.claudian-cli-lifecycle-check { font-size: var(--font-ui-small); }

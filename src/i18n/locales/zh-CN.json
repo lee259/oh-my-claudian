@@ -106,35 +106,154 @@
       "codex": "Codex"
     },
     "omp": {
-      "setup": "配置", "enable": "启用 OMP", "enableDesc": "启用 Oh My Pi ACP 提供商。",
-      "cliPath": "CLI 路径", "cliPathDesc": "此电脑上的 OMP 绝对路径。可粘贴 \"which omp\" 的输出（Windows 使用 \"where omp\"）。留空使用自动检测。",
-      "models": "模型", "noModels": "尚未发现 OMP 模型。请检查 OMP 登录状态，然后点击“发现”。",
-      "catalogFailed": "无法加载 OMP 模型目录。请检查 CLI 路径和登录状态。", "loadingModels": "正在加载 OMP 模型……",
-      "discoveryFailed": "OMP 模型发现失败：{error}", "workspaceNotInitialized": "OMP 工作区尚未初始化",
-      "safe": "安全", "yolo": "YOLO", "permissionRequest": "OMP 请求使用{tool}的权限。", "tool": "工具"
+      "setup": "配置",
+      "enable": "启用 OMP",
+      "enableDesc": "启用 Oh My Pi ACP 提供商。",
+      "cliPath": "CLI 路径",
+      "cliPathDesc": "此电脑上的 OMP 绝对路径。可粘贴 \"which omp\" 的输出（Windows 使用 \"where omp\"）。留空使用自动检测。",
+      "models": "模型",
+      "noModels": "尚未发现 OMP 模型。请检查 OMP 登录状态，然后点击“发现”。",
+      "catalogFailed": "无法加载 OMP 模型目录。请检查 CLI 路径和登录状态。",
+      "loadingModels": "正在加载 OMP 模型……",
+      "discoveryFailed": "OMP 模型发现失败：{error}",
+      "workspaceNotInitialized": "OMP 工作区尚未初始化",
+      "safe": "安全",
+      "yolo": "YOLO",
+      "permissionRequest": "OMP 请求使用{tool}的权限。",
+      "tool": "工具"
     },
-    "cursor": {"setup":"设置","enable":"启用 Cursor","enableDesc":"通过 ACP CLI 启用 Cursor Agent。","cliPath":"CLI 路径","cliPathDesc":"Cursor Agent CLI 的绝对路径。可粘贴 \"which agent\" 的输出（Windows 使用 \"where agent\"）。留空使用自动检测。","models":"模型","noModels":"尚未发现 Cursor 模型。请先运行 agent login，再点击发现。","catalogFailed":"无法加载 Cursor 模型目录，请检查 CLI 路径和登录状态。","loadingModels":"正在加载 Cursor 模型…","discoveryFailed":"Cursor 模型发现失败：{error}","workspaceNotInitialized":"Cursor 工作区尚未初始化","agent":"Agent","plan":"计划","ask":"询问","permissionRequest":"Cursor 请求使用 {tool}。","tool":"工具"},
-    "grok": {"cliPathDesc":"可选的 Grok CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。"},
-    "opencode": {"cliPathDesc":"可选的 OpenCode CLI 绝对路径。留空会查找 PATH。可粘贴 \"which opencode\" 的输出（Windows 使用 \"where opencode\"）。"},
-    "pi": {"cliPathDesc":"可选的 Pi CLI 绝对路径。留空会查找 PATH。可粘贴 \"which pi\" 的输出（Windows 使用 \"where pi\"）。"},
+    "cursor": {
+      "setup": "设置",
+      "enable": "启用 Cursor",
+      "enableDesc": "通过 ACP CLI 启用 Cursor Agent。",
+      "cliPath": "CLI 路径",
+      "cliPathDesc": "Cursor Agent CLI 的绝对路径。可粘贴 \"which agent\" 的输出（Windows 使用 \"where agent\"）。留空使用自动检测。",
+      "models": "模型",
+      "noModels": "尚未发现 Cursor 模型。请先运行 agent login，再点击发现。",
+      "catalogFailed": "无法加载 Cursor 模型目录，请检查 CLI 路径和登录状态。",
+      "loadingModels": "正在加载 Cursor 模型…",
+      "discoveryFailed": "Cursor 模型发现失败：{error}",
+      "workspaceNotInitialized": "Cursor 工作区尚未初始化",
+      "agent": "Agent",
+      "plan": "计划",
+      "ask": "询问",
+      "permissionRequest": "Cursor 请求使用 {tool}。",
+      "tool": "工具"
+    },
+    "grok": {
+      "cliPathDesc": "可选的 Grok CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。"
+    },
+    "opencode": {
+      "cliPathDesc": "可选的 OpenCode CLI 绝对路径。留空会查找 PATH。可粘贴 \"which opencode\" 的输出（Windows 使用 \"where opencode\"）。"
+    },
+    "pi": {
+      "cliPathDesc": "可选的 Pi CLI 绝对路径。留空会查找 PATH。可粘贴 \"which pi\" 的输出（Windows 使用 \"where pi\"）。"
+    },
     "providerReadiness": {
       "title": "就绪状态",
       "desc": "检查 {provider} 是否可以开始聊天。",
       "checking": "正在检查提供商状态……",
       "refresh": "重新检查",
-      "status": { "disabled": "未启用", "blocked": "需要处理", "attention": "需要关注", "ready": "已就绪" },
-      "check": { "enabled": "提供商已启用", "cli": "CLI 可用", "models": "模型目录可用", "selection": "已选择聊天模型" },
-      "hint": { "enableProvider": "启用此提供商后才能在聊天中使用。", "configureCli": "设置有效的 CLI 路径，或让 Obsidian 可以从 PATH 找到它。", "refreshModels": "检查提供商的登录或会话状态，然后重新检查以加载模型。", "selectModel": "在下方至少选择一个聊天模型。" }
+      "status": {
+        "disabled": "未启用",
+        "blocked": "需要处理",
+        "attention": "需要关注",
+        "ready": "已就绪"
+      },
+      "check": {
+        "enabled": "提供商已启用",
+        "cli": "CLI 可用",
+        "models": "模型目录可用",
+        "selection": "已选择聊天模型"
+      },
+      "hint": {
+        "enableProvider": "启用此提供商后才能在聊天中使用。",
+        "configureCli": "设置有效的 CLI 路径，或让 Obsidian 可以从 PATH 找到它。",
+        "refreshModels": "检查提供商的登录或会话状态，然后重新检查以加载模型。",
+        "selectModel": "在下方至少选择一个聊天模型。"
+      }
+    },
+    "cliLifecycle": {
+      "label": "{cli} CLI",
+      "checking": "正在检查 CLI…",
+      "currentVersion": "当前版本",
+      "latestVersion": "最新版本",
+      "notInstalled": "未安装",
+      "installedButBroken": "已安装但无法运行",
+      "updateAvailable": "有可用更新",
+      "install": "安装",
+      "installConfirm": "安装 {cli}？\n\n命令：{command}",
+      "installDone": "{cli} 安装成功。",
+      "installFailed": "{cli} 安装失败。",
+      "update": "更新",
+      "updateConfirm": "更新 {cli}？\n\n命令：{command}",
+      "updateDone": "{cli} 更新成功。",
+      "updateFailed": "{cli} 更新失败。",
+      "ready": "已是最新",
+      "checkEnv": "CLI 已安装但无法运行。请检查运行时环境（Node 版本、PATH 等）。",
+      "probe": {
+        "timedOut": "版本探测超时。",
+        "failedToStart": "无法启动 CLI 进程。",
+        "outputTooLarge": "版本探测输出过大。",
+        "notFound": "未找到 CLI 或不在 PATH 中。"
+      },
+      "versionUnchanged": "{cli} 更新后仍为 {version}，命令可能未实际生效。"
     },
     "providerDiagnostics": {
-      "kicker": "故障排查", "title": "Provider 诊断", "whatHappened": "发生了什么", "readiness": "就绪检查",
-      "provider": "Provider", "category": "错误类型", "status": "运行状态", "platform": "平台", "time": "时间",
-      "retry": "重试消息", "rebuild": "重建会话", "details": "查看详情", "copy": "复制报告", "close": "关闭", "copied": "Provider 诊断报告已复制。", "copyFailed": "无法复制 Provider 诊断报告。",
-      "statusValue": { "idle": "空闲", "starting": "启动中", "running": "运行中", "failed": "失败" },
-      "check": { "enabled": "Provider 已启用", "cli": "CLI 可用", "models": "模型目录可用", "selection": "已选择聊天模型" },
-      "checkStatus": { "disabled": "未启用", "blocked": "阻塞", "attention": "需要关注", "ready": "已就绪" },
-      "remediation": { "enableProvider": "启用 Provider", "configureCli": "配置 CLI", "refreshModels": "刷新模型", "selectModel": "选择模型" },
-      "categoryValue": { "unknown": "未知错误", "cli-not-found": "找不到 CLI", "cli-start-failed": "CLI 启动失败", "session-resume-failed": "会话恢复失败", "model-unavailable": "模型不可用", "permission-denied": "权限不足", "timeout": "请求超时", "rate-limited": "请求受限", "protocol-error": "协议错误", "authentication": "认证失败", "not-configured": "未配置", "provider": "Provider 错误" }
+      "kicker": "故障排查",
+      "title": "Provider 诊断",
+      "whatHappened": "发生了什么",
+      "readiness": "就绪检查",
+      "provider": "Provider",
+      "category": "错误类型",
+      "status": "运行状态",
+      "platform": "平台",
+      "time": "时间",
+      "retry": "重试消息",
+      "rebuild": "重建会话",
+      "details": "查看详情",
+      "copy": "复制报告",
+      "close": "关闭",
+      "copied": "Provider 诊断报告已复制。",
+      "copyFailed": "无法复制 Provider 诊断报告。",
+      "statusValue": {
+        "idle": "空闲",
+        "starting": "启动中",
+        "running": "运行中",
+        "failed": "失败"
+      },
+      "check": {
+        "enabled": "Provider 已启用",
+        "cli": "CLI 可用",
+        "models": "模型目录可用",
+        "selection": "已选择聊天模型"
+      },
+      "checkStatus": {
+        "disabled": "未启用",
+        "blocked": "阻塞",
+        "attention": "需要关注",
+        "ready": "已就绪"
+      },
+      "remediation": {
+        "enableProvider": "启用 Provider",
+        "configureCli": "配置 CLI",
+        "refreshModels": "刷新模型",
+        "selectModel": "选择模型"
+      },
+      "categoryValue": {
+        "unknown": "未知错误",
+        "cli-not-found": "找不到 CLI",
+        "cli-start-failed": "CLI 启动失败",
+        "session-resume-failed": "会话恢复失败",
+        "model-unavailable": "模型不可用",
+        "permission-denied": "权限不足",
+        "timeout": "请求超时",
+        "rate-limited": "请求受限",
+        "protocol-error": "协议错误",
+        "authentication": "认证失败",
+        "not-configured": "未配置",
+        "provider": "Provider 错误"
+      }
     },
     "display": "显示",
     "conversations": "对话",
@@ -462,9 +581,40 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills", "fixedRoot": "Managed in .agents/skills", "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.", "noSkills": "No shared skills configured. Click + to create one.", "skillBadge": "skill", "diagnosticsTitle": "Skills needing attention", "loadFailed": "Could not load shared skills.", "savedRefreshFailed": "Saved, but provider refresh failed.", "validationFailed": "Invalid skill: {message}", "collisionFailed": "A skill named \"{name}\" already exists.", "saveFailed": "Failed to save shared skill: {message}", "deleteFailed": "Failed to move shared skill to trash: {message}", "staleConflict": "This skill changed elsewhere; refresh before saving.", "created": "Shared skill \"{name}\" created.", "updated": "Shared skill \"{name}\" updated.", "deleted": "Shared skill \"{name}\" moved to trash.",
-      "modal": { "titleEdit": "Edit Shared Skill", "titleAdd": "Add Shared Skill", "name": "Skill name", "nameDesc": "Lowercase letters and numbers separated by single hyphens", "namePlaceholder": "code-reviewer", "description": "Description", "descriptionDesc": "Required portable description used by providers to select the skill", "descriptionPlaceholder": "Reviews code for correctness and maintainability", "instructions": "Instructions", "instructionsDesc": "Required SKILL.md instructions", "instructionsPlaceholder": "Review the supplied code and report actionable findings..." },
-      "delete": { "title": "Delete Shared Skill", "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.", "confirm": "Move to trash" }
+      "sectionTitle": "Skills",
+      "fixedRoot": "Managed in .agents/skills",
+      "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.",
+      "noSkills": "No shared skills configured. Click + to create one.",
+      "skillBadge": "skill",
+      "diagnosticsTitle": "Skills needing attention",
+      "loadFailed": "Could not load shared skills.",
+      "savedRefreshFailed": "Saved, but provider refresh failed.",
+      "validationFailed": "Invalid skill: {message}",
+      "collisionFailed": "A skill named \"{name}\" already exists.",
+      "saveFailed": "Failed to save shared skill: {message}",
+      "deleteFailed": "Failed to move shared skill to trash: {message}",
+      "staleConflict": "This skill changed elsewhere; refresh before saving.",
+      "created": "Shared skill \"{name}\" created.",
+      "updated": "Shared skill \"{name}\" updated.",
+      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "modal": {
+        "titleEdit": "Edit Shared Skill",
+        "titleAdd": "Add Shared Skill",
+        "name": "Skill name",
+        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "namePlaceholder": "code-reviewer",
+        "description": "Description",
+        "descriptionDesc": "Required portable description used by providers to select the skill",
+        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
+        "instructions": "Instructions",
+        "instructionsDesc": "Required SKILL.md instructions",
+        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+      },
+      "delete": {
+        "title": "Delete Shared Skill",
+        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
+        "confirm": "Move to trash"
+      }
     },
     "codexSkills": {
       "modal": {

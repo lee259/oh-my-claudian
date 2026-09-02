@@ -147,6 +147,8 @@ jest.mock('@/providers/codex/ui/CodexModelPicker', () => ({
 jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
   renderProviderReadinessPanel: jest.fn(() => ({
     refresh: mockRefreshProviderReadiness,
+    root: { createDiv: jest.fn(() => createElement()), createEl: jest.fn(() => createElement()) },
+    cliDetail: { createDiv: jest.fn(() => createElement()) },
   })),
 }));
 

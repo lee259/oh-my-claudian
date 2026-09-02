@@ -5,6 +5,7 @@ import { assessProviderReadiness } from '../../../core/providers/ProviderReadine
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
@@ -20,6 +21,7 @@ import { getCodexWorkspaceServices } from '../app/CodexWorkspaceServices';
 import { getCodexModelOptions } from '../modelOptions';
 import { getDefaultCodexModel } from '../models';
 import { isWindowsStyleCliReference } from '../runtime/CodexBinaryLocator';
+import { codexCliMetadata } from '../runtime/CodexCliMetadata';
 import { getCodexProviderSettings, updateCodexProviderSettings } from '../settings';
 import { renderCodexModelPicker } from './CodexModelPicker';
 import { CodexSubagentSettings } from './CodexSubagentSettings';
@@ -355,6 +357,18 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       documentationUrl: 'https://developers.openai.com/codex/mcp',
       heading: t('settings.mcpServers.name'),
       setupCommand: 'codex mcp',
+    });
+
+    // --- CLI lifecycle ---
+
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: codexCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('codex'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('codex'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
 
     // --- Environment ---

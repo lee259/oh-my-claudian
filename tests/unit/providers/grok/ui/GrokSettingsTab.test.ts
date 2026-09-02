@@ -116,6 +116,7 @@ interface MockElement {
   appendText(value: string): void;
   createDiv(options?: { cls?: string; text?: string }): MockElement;
   createEl(tag: string, options?: { cls?: string; href?: string; text?: string }): MockElement;
+  createSpan(options?: { cls?: string; text?: string }): MockElement;
   setText(value: string): void;
   toggleClass(cls: string, force: boolean): void;
 }
@@ -144,6 +145,11 @@ function createElement(
     },
     createEl(childTag, childOptions) {
       const child = createElement(childTag, childOptions);
+      element.children.push(child);
+      return child;
+    },
+    createSpan(childOptions) {
+      const child = createElement('span', childOptions);
       element.children.push(child);
       return child;
     },

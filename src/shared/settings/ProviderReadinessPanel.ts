@@ -17,7 +17,15 @@ export interface ProviderReadinessPanelOptions {
 }
 
 export interface ProviderReadinessPanelController {
-  refresh(): Promise<void>;
+  /** Re-run the readiness check and re-render. Pass true to also refresh the
+   *  provider catalog (e.g. re-run model discovery) first. */
+  refresh(refreshCatalog?: boolean): Promise<void>;
+  /** Root container element, for appending related content (e.g. CLI lifecycle). */
+  root: HTMLElement;
+  /** Stable container for CLI lifecycle content, rendered below the checks.
+   *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
+   *  attached here keeps its own state. */
+  cliDetail: HTMLElement;
 }
 
 const MIN_REFRESH_FEEDBACK_MS = 120;
@@ -33,14 +41,7 @@ export function renderProviderReadinessPanel(
 
   const summary = root.createDiv({ cls: 'claudian-provider-readiness-summary' });
   const checks = root.createDiv({ cls: 'claudian-provider-readiness-checks' });
-  const refreshButton = options.onRefresh
-    ? root.createEl('button', {
-      cls: 'claudian-provider-readiness-refresh',
-      text: t('settings.providerReadiness.refresh'),
-    })
-    : null;
-
-  refreshButton?.addEventListener?.('click', () => { void refresh(true); });
+  const cliDetail = root.createDiv({ cls: 'claudian-provider-readiness-cli-detail' });
 
   const renderSnapshot = (snapshot: ProviderReadinessSnapshot): void => {
     summary.setText(t(`settings.providerReadiness.status.${snapshot.status}`));
@@ -52,33 +53,20 @@ export function renderProviderReadinessPanel(
   };
 
   const refresh = async (refreshCatalog = false): Promise<void> => {
-    if (refreshButton) {
-      refreshButton.disabled = true;
-      refreshButton.setAttribute?.('aria-busy', 'true');
-      refreshButton.setText?.(t('settings.providerReadiness.checking'));
-    }
     summary.setText(t('settings.providerReadiness.checking'));
-    try {
-      if (refreshCatalog) {
-        const startedAt = Date.now();
-        await options.onRefresh?.();
-        const remaining = MIN_REFRESH_FEEDBACK_MS - (Date.now() - startedAt);
-        if (remaining > 0) {
-          await new Promise<void>(resolve => window.setTimeout(resolve, remaining));
-        }
-      }
-      renderSnapshot(await options.getSnapshot());
-    } finally {
-      if (refreshButton) {
-        refreshButton.disabled = false;
-        refreshButton.removeAttribute?.('aria-busy');
-        refreshButton.setText?.(t('settings.providerReadiness.refresh'));
+    if (refreshCatalog) {
+      const startedAt = Date.now();
+      await options.onRefresh?.();
+      const remaining = MIN_REFRESH_FEEDBACK_MS - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await new Promise<void>(resolve => window.setTimeout(resolve, remaining));
       }
     }
+    renderSnapshot(await options.getSnapshot());
   };
 
   void refresh();
-  return { refresh };
+  return { refresh, root, cliDetail };
 }
 
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {

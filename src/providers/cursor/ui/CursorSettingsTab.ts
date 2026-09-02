@@ -8,6 +8,7 @@ import type {
   ProviderSettingsTabRenderer,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
@@ -20,6 +21,7 @@ import { getHostnameKey } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetCursorWorkspaceServices } from '../app/CursorWorkspaceServices';
 import { normalizeCursorVisibleModels } from '../models';
+import { cursorCliMetadata } from '../runtime/CursorCliMetadata';
 import {
   getCursorProviderSettings,
   updateCursorProviderSettings,
@@ -89,6 +91,15 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
         ? 'C:\\Users\\you\\.local\\bin\\agent.exe'
         : '/Users/you/.local/bin/agent',
       validate: validateCliPath,
+    });
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: cursorCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('cursor'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('cursor'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
     new Setting(container).setName(t('settings.cursor.models')).setHeading();
     renderCursorModelPicker(container, context, settings);

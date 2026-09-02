@@ -12,12 +12,16 @@ export interface ManagedCommandRequest {
   spawn?: ManagedStdioProcessOptions['spawn'];
   timeoutMs: number;
   stdoutLimitBytes: number;
+  /** Also pipe stderr and expose it on the result. Defaults to false. */
+  captureStderr?: boolean;
 }
 
 export interface ManagedCommandResult {
   exitCode: number | null;
   stdout: string;
   termination?: ManagedCommandTermination;
+  /** Captured stderr output when `captureStderr` is enabled. */
+  stderr?: string;
 }
 
 export class ManagedCommandRunner {
@@ -35,9 +39,10 @@ export class ManagedCommandRunner {
         finalShutdownTimeoutMs: 0,
         sigkillTimeoutMs: 0,
         spawn: request.spawn,
-        stdio: ['ignore', 'pipe', 'ignore'],
+        stdio: request.captureStderr ? 'pipe' : ['ignore', 'pipe', 'ignore'],
       });
       const chunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
       let byteLength = 0;
       let settled = false;
       let timeout: number | null = null;
@@ -67,10 +72,14 @@ export class ManagedCommandRunner {
           finish({ exitCode: null, stdout: '', termination: 'error' });
           return;
         }
-        finish({
+        const result: ManagedCommandResult = {
           exitCode: code,
           stdout: Buffer.concat(chunks).toString('utf8'),
-        });
+        };
+        if (stderrChunks.length > 0) {
+          result.stderr = Buffer.concat(stderrChunks).toString('utf8');
+        }
+        finish(result);
       });
 
       try {
@@ -94,6 +103,12 @@ export class ManagedCommandRunner {
         }
         chunks.push(buffer);
       });
+
+      if (request.captureStderr) {
+        process.stderr.on('data', (chunk: Buffer | string) => {
+          stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+      }
     });
   }
 }

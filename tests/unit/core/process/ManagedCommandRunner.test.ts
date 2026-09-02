@@ -58,6 +58,30 @@ describe('ManagedCommandRunner', () => {
     });
   });
 
+  it('collects stderr when captureStderr is enabled', async () => {
+    const pending = runCommand({ captureStderr: true });
+    proc.stdout.emit('data', 'version 1.2.3');
+    proc.stderr.emit('data', Buffer.from('warning: ignored'));
+    proc.emit('close', 0, null);
+
+    await expect(pending).resolves.toEqual({
+      exitCode: 0,
+      stdout: 'version 1.2.3',
+      stderr: 'warning: ignored',
+    });
+  });
+
+  it('does not expose stderr when captureStderr is disabled', async () => {
+    const pending = runCommand();
+    proc.stderr.emit('data', 'should not be captured');
+    proc.emit('close', 0, null);
+
+    await expect(pending).resolves.toEqual({
+      exitCode: 0,
+      stdout: '',
+    });
+  });
+
   it('aborts before spawning when the signal is already cancelled', async () => {
     const controller = new AbortController();
     controller.abort();
