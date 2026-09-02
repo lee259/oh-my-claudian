@@ -8,6 +8,7 @@ import type {
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
@@ -34,6 +35,7 @@ import {
   type OpencodeDiscoveredModel,
   splitOpencodeModelLabel,
 } from '../models';
+import { opencodeCliMetadata } from '../runtime/OpencodeCliMetadata';
 import {
   getOpencodeProviderSettings,
   normalizeOpencodeVisibleModels,
@@ -204,6 +206,16 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       desc: 'Extra environment variables passed to OpenCode. `OPENCODE_ENABLE_EXA=1` is enabled by default.',
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'opencode'),
+    });
+
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: opencodeCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('opencode'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('opencode'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
   },
 };

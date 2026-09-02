@@ -9,6 +9,7 @@ import type {
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
@@ -27,6 +28,7 @@ import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetPiWorkspaceServices } from '../app/PiWorkspaceServices';
 import { sameDiscoveredModels, sameStringList } from '../internal/compareCollections';
 import { decodePiModelId, type PiDiscoveredModel } from '../models';
+import { piCliMetadata } from '../runtime/PiCliMetadata';
 import { PiModelDiscoveryService } from '../runtime/PiModelDiscoveryService';
 import {
   getPiProviderSettings,
@@ -173,6 +175,16 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       placeholder: 'PI_CODING_AGENT_SESSION_DIR=/path/to/sessions',
       plugin: context.plugin,
       scope: 'provider:pi',
+    });
+
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: piCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('pi'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('pi'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
   },
 };

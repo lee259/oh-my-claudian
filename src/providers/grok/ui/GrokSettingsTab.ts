@@ -12,6 +12,7 @@ import type {
 } from '../../../core/providers/types';
 import type { ClaudianSettings } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
@@ -30,6 +31,7 @@ import { getHostnameKey } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import type { GrokWorkspaceServices } from '../app/GrokWorkspaceServices';
 import type { GrokDiscoveredModel } from '../models';
+import { grokCliMetadata } from '../runtime/GrokCliMetadata';
 import {
   clearCurrentGrokCatalog,
   getGrokProviderSettings,
@@ -197,6 +199,16 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       plugin: context.plugin,
       renderCustomContextLimits: target => context.renderCustomContextLimits(target, GROK_PROVIDER_ID),
       scope: 'provider:grok',
+    });
+
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: grokCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath(GROK_PROVIDER_ID),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables(GROK_PROVIDER_ID),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
   },
 };

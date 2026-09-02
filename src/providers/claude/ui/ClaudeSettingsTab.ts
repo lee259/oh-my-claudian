@@ -5,6 +5,7 @@ import { assessProviderReadiness } from '../../../core/providers/ProviderReadine
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { McpSettingsManager } from '../../../shared/settings/McpSettingsManager';
@@ -19,6 +20,7 @@ import {
   resolveClaudeModelEnvironmentTypePreference,
   resolveClaudeModelSelection,
 } from '../modelOptions';
+import { claudeCliMetadata } from '../runtime/ClaudeCliMetadata';
 import {
   CLAUDE_SAFE_MODES,
   type ClaudeSafeMode,
@@ -409,6 +411,18 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     const bangBashValidationEl = container.createDiv({
       cls: 'claudian-bang-bash-validation claudian-setting-validation claudian-setting-validation-error claudian-hidden',
+    });
+
+    // --- CLI lifecycle ---
+
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: claudeCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('claude'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('claude'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
   },
 };

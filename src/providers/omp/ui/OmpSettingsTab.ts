@@ -8,6 +8,7 @@ import type {
   ProviderSettingsTabRenderer,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
@@ -20,6 +21,7 @@ import { getHostnameKey } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetOmpWorkspaceServices } from '../app/OmpWorkspaceServices';
 import { normalizeOmpVisibleModels } from '../models';
+import { ompCliMetadata } from '../runtime/OmpCliMetadata';
 import {
   getOmpProviderSettings,
   updateOmpProviderSettings,
@@ -89,6 +91,15 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
         ? 'C:\\Users\\you\\.bun\\bin\\omp.exe'
         : '/Users/you/.bun/bin/omp',
       validate: validateCliPath,
+    });
+    renderCliLifecycleSection({
+      container: readinessPanel.cliDetail,
+      metadata: ompCliMetadata,
+      resolveCliPath: () => context.plugin.getResolvedProviderCliPath('omp'),
+      getRuntimeEnvText: () => context.plugin.getActiveEnvironmentVariables('omp'),
+      app: context.plugin.app,
+      onCliChanged: async () => { await readinessPanel.refresh(); },
+      onCheckAgain: () => readinessPanel.refresh(true),
     });
     new Setting(container).setName(t('settings.omp.models')).setHeading();
     renderOmpModelPicker(container, context, settings);
