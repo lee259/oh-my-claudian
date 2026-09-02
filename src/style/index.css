@@ -61,6 +61,7 @@
 @import "./settings/agent-skills.css";
 @import "./settings/provider-model-picker.css";
 @import "./settings/provider-readiness.css";
+@import "./settings/cli-lifecycle.css";
 @import "./settings/getting-started.css";
 @import "./settings/provider-capability-matrix.css";
 

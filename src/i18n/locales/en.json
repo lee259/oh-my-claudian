@@ -106,35 +106,154 @@
       "codex": "Codex"
     },
     "omp": {
-      "setup": "Setup", "enable": "Enable OMP", "enableDesc": "Enable the Oh My Pi ACP provider.",
-      "cliPath": "CLI path", "cliPathDesc": "Absolute path to OMP on this computer. Paste the output of \"which omp\" (or \"where omp\" on Windows). Leave empty to use automatic detection.",
-      "models": "Models", "noModels": "No OMP models discovered yet. Check OMP login and click Discover.",
-      "catalogFailed": "Could not load the OMP model catalog. Check the CLI path and login state.", "loadingModels": "Loading OMP models...",
-      "discoveryFailed": "OMP model discovery failed: {error}", "workspaceNotInitialized": "OMP workspace is not initialized",
-      "safe": "Safe", "yolo": "YOLO", "permissionRequest": "OMP requests permission to use {tool}.", "tool": "a tool"
+      "setup": "Setup",
+      "enable": "Enable OMP",
+      "enableDesc": "Enable the Oh My Pi ACP provider.",
+      "cliPath": "CLI path",
+      "cliPathDesc": "Absolute path to OMP on this computer. Paste the output of \"which omp\" (or \"where omp\" on Windows). Leave empty to use automatic detection.",
+      "models": "Models",
+      "noModels": "No OMP models discovered yet. Check OMP login and click Discover.",
+      "catalogFailed": "Could not load the OMP model catalog. Check the CLI path and login state.",
+      "loadingModels": "Loading OMP models...",
+      "discoveryFailed": "OMP model discovery failed: {error}",
+      "workspaceNotInitialized": "OMP workspace is not initialized",
+      "safe": "Safe",
+      "yolo": "YOLO",
+      "permissionRequest": "OMP requests permission to use {tool}.",
+      "tool": "a tool"
     },
-    "cursor": {"setup":"Setup","enable":"Enable Cursor","enableDesc":"Enable Cursor Agent through its ACP CLI.","cliPath":"CLI path","cliPathDesc":"Absolute path to the Cursor Agent CLI. Paste the output of \"which agent\" (or \"where agent\" on Windows). Leave empty for automatic detection.","models":"Models","noModels":"No Cursor models discovered yet. Run agent login and click Discover.","catalogFailed":"Could not load the Cursor model catalog. Check the CLI path and login state.","loadingModels":"Loading Cursor models...","discoveryFailed":"Cursor model discovery failed: {error}","workspaceNotInitialized":"Cursor workspace is not initialized","agent":"Agent","plan":"Plan","ask":"Ask","permissionRequest":"Cursor requests permission to use {tool}.","tool":"a tool"},
-    "grok": {"cliPathDesc":"Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."},
-    "opencode": {"cliPathDesc":"Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."},
-    "pi": {"cliPathDesc":"Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."},
+    "cursor": {
+      "setup": "Setup",
+      "enable": "Enable Cursor",
+      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
+      "cliPath": "CLI path",
+      "cliPathDesc": "Absolute path to the Cursor Agent CLI. Paste the output of \"which agent\" (or \"where agent\" on Windows). Leave empty for automatic detection.",
+      "models": "Models",
+      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
+      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
+      "loadingModels": "Loading Cursor models...",
+      "discoveryFailed": "Cursor model discovery failed: {error}",
+      "workspaceNotInitialized": "Cursor workspace is not initialized",
+      "agent": "Agent",
+      "plan": "Plan",
+      "ask": "Ask",
+      "permissionRequest": "Cursor requests permission to use {tool}.",
+      "tool": "a tool"
+    },
+    "grok": {
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+    },
+    "opencode": {
+      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+    },
+    "pi": {
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+    },
     "providerReadiness": {
       "title": "Readiness",
       "desc": "Check whether {provider} is ready to start a chat.",
       "checking": "Checking provider readiness…",
       "refresh": "Check again",
-      "status": { "disabled": "Disabled", "blocked": "Action required", "attention": "Needs attention", "ready": "Ready" },
-      "check": { "enabled": "Provider enabled", "cli": "CLI available", "models": "Model catalog available", "selection": "Chat model selected" },
-      "hint": { "enableProvider": "Enable this provider to use it in chat.", "configureCli": "Set a valid CLI path or make the CLI available on Obsidian's PATH.", "refreshModels": "Check the provider login or session, then check again to load models.", "selectModel": "Select at least one chat model below." }
+      "status": {
+        "disabled": "Disabled",
+        "blocked": "Action required",
+        "attention": "Needs attention",
+        "ready": "Ready"
+      },
+      "check": {
+        "enabled": "Provider enabled",
+        "cli": "CLI available",
+        "models": "Model catalog available",
+        "selection": "Chat model selected"
+      },
+      "hint": {
+        "enableProvider": "Enable this provider to use it in chat.",
+        "configureCli": "Set a valid CLI path or make the CLI available on Obsidian's PATH.",
+        "refreshModels": "Check the provider login or session, then check again to load models.",
+        "selectModel": "Select at least one chat model below."
+      }
+    },
+    "cliLifecycle": {
+      "label": "{cli} CLI",
+      "checking": "Checking CLI…",
+      "currentVersion": "Current version",
+      "latestVersion": "Latest version",
+      "notInstalled": "Not installed",
+      "installedButBroken": "Installed but not running",
+      "updateAvailable": "Update available",
+      "install": "Install",
+      "installConfirm": "Install {cli}?\n\nCommand: {command}",
+      "installDone": "{cli} installed successfully.",
+      "installFailed": "{cli} installation failed.",
+      "update": "Update",
+      "updateConfirm": "Update {cli}?\n\nCommand: {command}",
+      "updateDone": "{cli} updated successfully.",
+      "updateFailed": "{cli} update failed.",
+      "versionUnchanged": "{cli} is still on {version} after updating. The command may have been a no-op.",
+      "ready": "Up to date",
+      "checkEnv": "The CLI is installed but cannot run. Check the runtime environment (Node version, PATH).",
+      "probe": {
+        "timedOut": "Version probe timed out.",
+        "failedToStart": "Failed to start the CLI process.",
+        "outputTooLarge": "Version probe produced too much output.",
+        "notFound": "CLI not installed or not on PATH."
+      }
     },
     "providerDiagnostics": {
-      "kicker": "Troubleshooting", "title": "Provider diagnostics", "whatHappened": "What happened", "readiness": "Readiness checks",
-      "provider": "Provider", "category": "Category", "status": "Status", "platform": "Platform", "time": "Time",
-      "retry": "Retry message", "rebuild": "Rebuild session", "details": "View details", "copy": "Copy report", "close": "Close", "copied": "Provider diagnostic report copied.", "copyFailed": "Could not copy provider diagnostic report.",
-      "statusValue": { "idle": "Idle", "starting": "Starting", "running": "Running", "failed": "Failed" },
-      "check": { "enabled": "Provider enabled", "cli": "CLI available", "models": "Model catalog available", "selection": "Chat model selected" },
-      "checkStatus": { "disabled": "Disabled", "blocked": "Blocked", "attention": "Needs attention", "ready": "Ready" },
-      "remediation": { "enableProvider": "enable provider", "configureCli": "configure CLI", "refreshModels": "refresh models", "selectModel": "select model" },
-      "categoryValue": { "unknown": "Unknown", "cli-not-found": "CLI not found", "cli-start-failed": "CLI failed to start", "session-resume-failed": "Session resume failed", "model-unavailable": "Model unavailable", "permission-denied": "Permission denied", "timeout": "Timed out", "rate-limited": "Rate limited", "protocol-error": "Protocol error", "authentication": "Authentication failed", "not-configured": "Not configured", "provider": "Provider error" }
+      "kicker": "Troubleshooting",
+      "title": "Provider diagnostics",
+      "whatHappened": "What happened",
+      "readiness": "Readiness checks",
+      "provider": "Provider",
+      "category": "Category",
+      "status": "Status",
+      "platform": "Platform",
+      "time": "Time",
+      "retry": "Retry message",
+      "rebuild": "Rebuild session",
+      "details": "View details",
+      "copy": "Copy report",
+      "close": "Close",
+      "copied": "Provider diagnostic report copied.",
+      "copyFailed": "Could not copy provider diagnostic report.",
+      "statusValue": {
+        "idle": "Idle",
+        "starting": "Starting",
+        "running": "Running",
+        "failed": "Failed"
+      },
+      "check": {
+        "enabled": "Provider enabled",
+        "cli": "CLI available",
+        "models": "Model catalog available",
+        "selection": "Chat model selected"
+      },
+      "checkStatus": {
+        "disabled": "Disabled",
+        "blocked": "Blocked",
+        "attention": "Needs attention",
+        "ready": "Ready"
+      },
+      "remediation": {
+        "enableProvider": "enable provider",
+        "configureCli": "configure CLI",
+        "refreshModels": "refresh models",
+        "selectModel": "select model"
+      },
+      "categoryValue": {
+        "unknown": "Unknown",
+        "cli-not-found": "CLI not found",
+        "cli-start-failed": "CLI failed to start",
+        "session-resume-failed": "Session resume failed",
+        "model-unavailable": "Model unavailable",
+        "permission-denied": "Permission denied",
+        "timeout": "Timed out",
+        "rate-limited": "Rate limited",
+        "protocol-error": "Protocol error",
+        "authentication": "Authentication failed",
+        "not-configured": "Not configured",
+        "provider": "Provider error"
+      }
     },
     "display": "Display",
     "conversations": "Conversations",
@@ -408,8 +527,8 @@
       },
       "cliPath": {
         "name": "Codex CLI path",
-      "descUnix": "Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
-      "descWindows": "Custom path to the local Codex CLI. Leave empty to auto-detect from PATH. Paste the output of \"where codex\" or use the native executable path, usually `codex.exe`.",
+        "descUnix": "Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
+        "descWindows": "Custom path to the local Codex CLI. Leave empty to auto-detect from PATH. Paste the output of \"where codex\" or use the native executable path, usually `codex.exe`.",
         "descWsl": "Linux-side Codex command or absolute path to run inside WSL. Leave empty for PATH lookup inside the selected distro.",
         "validation": {
           "wslWindowsPath": "WSL mode expects a Linux command or Linux absolute path, not a Windows executable path."

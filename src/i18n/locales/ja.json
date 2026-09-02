@@ -105,13 +105,156 @@
       "claude": "Claude",
       "codex": "Codex"
     },
-    "omp": { "setup": "セットアップ", "enable": "OMP を有効化", "enableDesc": "Oh My Pi ACP プロバイダーを有効にします。", "cliPath": "CLI パス", "cliPathDesc": "このコンピューター上の OMP の絶対パスです。", "models": "モデル", "noModels": "OMP モデルがまだ見つかりません。", "catalogFailed": "OMP モデルカタログを読み込めませんでした。", "loadingModels": "OMP モデルを読み込み中…", "discoveryFailed": "OMP モデルの検出に失敗しました：{error}", "workspaceNotInitialized": "OMP ワークスペースが初期化されていません", "safe": "安全", "yolo": "YOLO", "permissionRequest": "OMP が{tool}を使用する権限を要求しています。", "tool": "ツール" },
-    "cursor": {"setup":"Setup","enable":"Enable Cursor","enableDesc":"Enable Cursor Agent through its ACP CLI.","cliPath":"CLI path","cliPathDesc":"Absolute path to the Cursor Agent CLI on this computer.","models":"Models","noModels":"No Cursor models discovered yet. Run agent login and click Discover.","catalogFailed":"Could not load the Cursor model catalog. Check the CLI path and login state.","loadingModels":"Loading Cursor models...","discoveryFailed":"Cursor model discovery failed: {error}","workspaceNotInitialized":"Cursor workspace is not initialized","agent":"Agent","plan":"Plan","ask":"Ask","permissionRequest":"Cursor requests permission to use {tool}.","tool":"a tool"},
-    "grok": {"cliPathDesc":"Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."},
-    "opencode": {"cliPathDesc":"Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."},
-    "pi": {"cliPathDesc":"Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."},
-    "providerReadiness": { "title": "準備状況", "desc": "{provider} がチャットを開始できる状態か確認します。", "checking": "プロバイダーの準備状況を確認中…", "refresh": "再確認", "status": { "disabled": "無効", "blocked": "対応が必要", "attention": "要確認", "ready": "準備完了" }, "check": { "enabled": "プロバイダーが有効", "cli": "CLI が利用可能", "models": "モデルカタログが利用可能", "selection": "チャットモデルを選択済み" }, "hint": { "enableProvider": "このプロバイダーを有効にするとチャットで使用できます。", "configureCli": "有効な CLI パスを設定するか、Obsidian の PATH から CLI を見つけられるようにしてください。", "refreshModels": "プロバイダーのログインまたはセッションを確認してから、再確認してモデルを読み込んでください。", "selectModel": "下からチャットモデルを1つ以上選択してください。" } },
-    "providerDiagnostics": { "kicker": "トラブルシューティング", "title": "Provider 診断", "whatHappened": "発生した問題", "readiness": "準備状況チェック", "provider": "Provider", "category": "カテゴリ", "status": "状態", "platform": "プラットフォーム", "time": "時刻", "retry": "メッセージを再試行", "rebuild": "セッションを再構築", "details": "詳細を表示", "copy": "レポートをコピー", "close": "閉じる", "copied": "診断レポートをコピーしました。", "copyFailed": "診断レポートをコピーできませんでした。", "statusValue": { "idle": "待機中", "starting": "起動中", "running": "実行中", "failed": "失敗" }, "check": { "enabled": "Provider が有効", "cli": "CLI が利用可能", "models": "モデルカタログが利用可能", "selection": "チャットモデルを選択済み" }, "checkStatus": { "disabled": "無効", "blocked": "ブロック", "attention": "要確認", "ready": "準備完了" }, "remediation": { "enableProvider": "Provider を有効化", "configureCli": "CLI を設定", "refreshModels": "モデルを更新", "selectModel": "モデルを選択" }, "categoryValue": { "unknown": "不明なエラー", "cli-not-found": "CLI が見つかりません", "cli-start-failed": "CLI の起動に失敗", "session-resume-failed": "セッションの再開に失敗", "model-unavailable": "モデルを利用できません", "permission-denied": "権限がありません", "timeout": "タイムアウト", "rate-limited": "レート制限", "protocol-error": "プロトコルエラー", "authentication": "認証に失敗", "not-configured": "未設定", "provider": "Provider エラー" } },
+    "omp": {
+      "setup": "セットアップ",
+      "enable": "OMP を有効化",
+      "enableDesc": "Oh My Pi ACP プロバイダーを有効にします。",
+      "cliPath": "CLI パス",
+      "cliPathDesc": "このコンピューター上の OMP の絶対パスです。",
+      "models": "モデル",
+      "noModels": "OMP モデルがまだ見つかりません。",
+      "catalogFailed": "OMP モデルカタログを読み込めませんでした。",
+      "loadingModels": "OMP モデルを読み込み中…",
+      "discoveryFailed": "OMP モデルの検出に失敗しました：{error}",
+      "workspaceNotInitialized": "OMP ワークスペースが初期化されていません",
+      "safe": "安全",
+      "yolo": "YOLO",
+      "permissionRequest": "OMP が{tool}を使用する権限を要求しています。",
+      "tool": "ツール"
+    },
+    "cursor": {
+      "setup": "Setup",
+      "enable": "Enable Cursor",
+      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
+      "cliPath": "CLI path",
+      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
+      "models": "Models",
+      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
+      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
+      "loadingModels": "Loading Cursor models...",
+      "discoveryFailed": "Cursor model discovery failed: {error}",
+      "workspaceNotInitialized": "Cursor workspace is not initialized",
+      "agent": "Agent",
+      "plan": "Plan",
+      "ask": "Ask",
+      "permissionRequest": "Cursor requests permission to use {tool}.",
+      "tool": "a tool"
+    },
+    "grok": {
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+    },
+    "opencode": {
+      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+    },
+    "pi": {
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+    },
+    "providerReadiness": {
+      "title": "準備状況",
+      "desc": "{provider} がチャットを開始できる状態か確認します。",
+      "checking": "プロバイダーの準備状況を確認中…",
+      "refresh": "再確認",
+      "status": {
+        "disabled": "無効",
+        "blocked": "対応が必要",
+        "attention": "要確認",
+        "ready": "準備完了"
+      },
+      "check": {
+        "enabled": "プロバイダーが有効",
+        "cli": "CLI が利用可能",
+        "models": "モデルカタログが利用可能",
+        "selection": "チャットモデルを選択済み"
+      },
+      "hint": {
+        "enableProvider": "このプロバイダーを有効にするとチャットで使用できます。",
+        "configureCli": "有効な CLI パスを設定するか、Obsidian の PATH から CLI を見つけられるようにしてください。",
+        "refreshModels": "プロバイダーのログインまたはセッションを確認してから、再確認してモデルを読み込んでください。",
+        "selectModel": "下からチャットモデルを1つ以上選択してください。"
+      }
+    },
+    "cliLifecycle": {
+      "label": "{cli} CLI",
+      "checking": "CLI を確認中…",
+      "currentVersion": "現在のバージョン",
+      "latestVersion": "最新バージョン",
+      "notInstalled": "未インストール",
+      "installedButBroken": "インストール済みだが起動不可",
+      "updateAvailable": "更新があります",
+      "install": "インストール",
+      "installConfirm": "{cli} をインストールしますか？\n\nコマンド: {command}",
+      "installDone": "{cli} のインストールが完了しました。",
+      "installFailed": "{cli} のインストールに失敗しました。",
+      "update": "更新",
+      "updateConfirm": "{cli} を更新しますか？\n\nコマンド: {command}",
+      "updateDone": "{cli} を更新しました。",
+      "updateFailed": "{cli} の更新に失敗しました。",
+      "ready": "最新です",
+      "checkEnv": "CLI はインストールされていますが実行できません。実行環境（Node バージョン、PATH など）を確認してください。",
+      "probe": {
+        "timedOut": "バージョン確認がタイムアウトしました。",
+        "failedToStart": "CLI プロセスを起動できませんでした。",
+        "outputTooLarge": "バージョン確認の出力が大きすぎます。",
+        "notFound": "CLI が見つからないか、PATH にありません。"
+      },
+      "versionUnchanged": "更新後も {cli} は {version} のままです。コマンドが実際には実行されなかった可能性があります。"
+    },
+    "providerDiagnostics": {
+      "kicker": "トラブルシューティング",
+      "title": "Provider 診断",
+      "whatHappened": "発生した問題",
+      "readiness": "準備状況チェック",
+      "provider": "Provider",
+      "category": "カテゴリ",
+      "status": "状態",
+      "platform": "プラットフォーム",
+      "time": "時刻",
+      "retry": "メッセージを再試行",
+      "rebuild": "セッションを再構築",
+      "details": "詳細を表示",
+      "copy": "レポートをコピー",
+      "close": "閉じる",
+      "copied": "診断レポートをコピーしました。",
+      "copyFailed": "診断レポートをコピーできませんでした。",
+      "statusValue": {
+        "idle": "待機中",
+        "starting": "起動中",
+        "running": "実行中",
+        "failed": "失敗"
+      },
+      "check": {
+        "enabled": "Provider が有効",
+        "cli": "CLI が利用可能",
+        "models": "モデルカタログが利用可能",
+        "selection": "チャットモデルを選択済み"
+      },
+      "checkStatus": {
+        "disabled": "無効",
+        "blocked": "ブロック",
+        "attention": "要確認",
+        "ready": "準備完了"
+      },
+      "remediation": {
+        "enableProvider": "Provider を有効化",
+        "configureCli": "CLI を設定",
+        "refreshModels": "モデルを更新",
+        "selectModel": "モデルを選択"
+      },
+      "categoryValue": {
+        "unknown": "不明なエラー",
+        "cli-not-found": "CLI が見つかりません",
+        "cli-start-failed": "CLI の起動に失敗",
+        "session-resume-failed": "セッションの再開に失敗",
+        "model-unavailable": "モデルを利用できません",
+        "permission-denied": "権限がありません",
+        "timeout": "タイムアウト",
+        "rate-limited": "レート制限",
+        "protocol-error": "プロトコルエラー",
+        "authentication": "認証に失敗",
+        "not-configured": "未設定",
+        "provider": "Provider エラー"
+      }
+    },
     "display": "表示",
     "conversations": "会話",
     "content": "コンテンツ",
@@ -438,9 +581,40 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills", "fixedRoot": "Managed in .agents/skills", "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.", "noSkills": "No shared skills configured. Click + to create one.", "skillBadge": "skill", "diagnosticsTitle": "Skills needing attention", "loadFailed": "Could not load shared skills.", "savedRefreshFailed": "Saved, but provider refresh failed.", "validationFailed": "Invalid skill: {message}", "collisionFailed": "A skill named \"{name}\" already exists.", "saveFailed": "Failed to save shared skill: {message}", "deleteFailed": "Failed to move shared skill to trash: {message}", "staleConflict": "This skill changed elsewhere; refresh before saving.", "created": "Shared skill \"{name}\" created.", "updated": "Shared skill \"{name}\" updated.", "deleted": "Shared skill \"{name}\" moved to trash.",
-      "modal": { "titleEdit": "Edit Shared Skill", "titleAdd": "Add Shared Skill", "name": "Skill name", "nameDesc": "Lowercase letters and numbers separated by single hyphens", "namePlaceholder": "code-reviewer", "description": "Description", "descriptionDesc": "Required portable description used by providers to select the skill", "descriptionPlaceholder": "Reviews code for correctness and maintainability", "instructions": "Instructions", "instructionsDesc": "Required SKILL.md instructions", "instructionsPlaceholder": "Review the supplied code and report actionable findings..." },
-      "delete": { "title": "Delete Shared Skill", "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.", "confirm": "Move to trash" }
+      "sectionTitle": "Skills",
+      "fixedRoot": "Managed in .agents/skills",
+      "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.",
+      "noSkills": "No shared skills configured. Click + to create one.",
+      "skillBadge": "skill",
+      "diagnosticsTitle": "Skills needing attention",
+      "loadFailed": "Could not load shared skills.",
+      "savedRefreshFailed": "Saved, but provider refresh failed.",
+      "validationFailed": "Invalid skill: {message}",
+      "collisionFailed": "A skill named \"{name}\" already exists.",
+      "saveFailed": "Failed to save shared skill: {message}",
+      "deleteFailed": "Failed to move shared skill to trash: {message}",
+      "staleConflict": "This skill changed elsewhere; refresh before saving.",
+      "created": "Shared skill \"{name}\" created.",
+      "updated": "Shared skill \"{name}\" updated.",
+      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "modal": {
+        "titleEdit": "Edit Shared Skill",
+        "titleAdd": "Add Shared Skill",
+        "name": "Skill name",
+        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "namePlaceholder": "code-reviewer",
+        "description": "Description",
+        "descriptionDesc": "Required portable description used by providers to select the skill",
+        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
+        "instructions": "Instructions",
+        "instructionsDesc": "Required SKILL.md instructions",
+        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+      },
+      "delete": {
+        "title": "Delete Shared Skill",
+        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
+        "confirm": "Move to trash"
+      }
     },
     "codexSkills": {
       "modal": {

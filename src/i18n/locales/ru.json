@@ -105,13 +105,156 @@
       "claude": "Claude",
       "codex": "Codex"
     },
-    "omp": { "setup": "Настройка", "enable": "Включить OMP", "enableDesc": "Включить провайдер Oh My Pi ACP.", "cliPath": "Путь к CLI", "cliPathDesc": "Абсолютный путь к OMP на этом компьютере.", "models": "Модели", "noModels": "Модели OMP пока не обнаружены.", "catalogFailed": "Не удалось загрузить каталог моделей OMP.", "loadingModels": "Загрузка моделей OMP…", "discoveryFailed": "Не удалось обнаружить модели OMP: {error}", "workspaceNotInitialized": "Рабочая область OMP не инициализирована", "safe": "Безопасно", "yolo": "YOLO", "permissionRequest": "OMP запрашивает разрешение на использование: {tool}.", "tool": "инструмент" },
-    "cursor": {"setup":"Setup","enable":"Enable Cursor","enableDesc":"Enable Cursor Agent through its ACP CLI.","cliPath":"CLI path","cliPathDesc":"Absolute path to the Cursor Agent CLI on this computer.","models":"Models","noModels":"No Cursor models discovered yet. Run agent login and click Discover.","catalogFailed":"Could not load the Cursor model catalog. Check the CLI path and login state.","loadingModels":"Loading Cursor models...","discoveryFailed":"Cursor model discovery failed: {error}","workspaceNotInitialized":"Cursor workspace is not initialized","agent":"Agent","plan":"Plan","ask":"Ask","permissionRequest":"Cursor requests permission to use {tool}.","tool":"a tool"},
-    "grok": {"cliPathDesc":"Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."},
-    "opencode": {"cliPathDesc":"Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."},
-    "pi": {"cliPathDesc":"Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."},
-    "providerReadiness": { "title": "Готовность", "desc": "Проверить, готов ли {provider} начать чат.", "checking": "Проверка готовности провайдера…", "refresh": "Проверить снова", "status": { "disabled": "Отключено", "blocked": "Требуется действие", "attention": "Требует внимания", "ready": "Готово" }, "check": { "enabled": "Провайдер включён", "cli": "CLI доступен", "models": "Каталог моделей доступен", "selection": "Модель чата выбрана" }, "hint": { "enableProvider": "Включите этого провайдера, чтобы использовать его в чате.", "configureCli": "Укажите корректный путь к CLI или сделайте CLI доступным в PATH Obsidian.", "refreshModels": "Проверьте вход или сеанс провайдера, затем повторите проверку для загрузки моделей.", "selectModel": "Выберите ниже хотя бы одну модель чата." } },
-    "providerDiagnostics": { "kicker": "Устранение неполадок", "title": "Диагностика провайдера", "whatHappened": "Что произошло", "readiness": "Проверки готовности", "provider": "Провайдер", "category": "Категория", "status": "Состояние", "platform": "Платформа", "time": "Время", "retry": "Повторить сообщение", "rebuild": "Пересоздать сеанс", "details": "Подробнее", "copy": "Копировать отчёт", "close": "Закрыть", "copied": "Отчёт диагностики скопирован.", "copyFailed": "Не удалось скопировать отчёт диагностики.", "statusValue": { "idle": "Ожидание", "starting": "Запуск", "running": "Выполняется", "failed": "Ошибка" }, "check": { "enabled": "Провайдер включён", "cli": "CLI доступен", "models": "Каталог моделей доступен", "selection": "Модель чата выбрана" }, "checkStatus": { "disabled": "Отключено", "blocked": "Заблокировано", "attention": "Требует внимания", "ready": "Готово" }, "remediation": { "enableProvider": "включить провайдера", "configureCli": "настроить CLI", "refreshModels": "обновить модели", "selectModel": "выбрать модель" }, "categoryValue": { "unknown": "Неизвестная ошибка", "cli-not-found": "CLI не найден", "cli-start-failed": "Не удалось запустить CLI", "session-resume-failed": "Не удалось возобновить сеанс", "model-unavailable": "Модель недоступна", "permission-denied": "Доступ запрещён", "timeout": "Истекло время ожидания", "rate-limited": "Ограничение запросов", "protocol-error": "Ошибка протокола", "authentication": "Ошибка аутентификации", "not-configured": "Не настроено", "provider": "Ошибка провайдера" } },
+    "omp": {
+      "setup": "Настройка",
+      "enable": "Включить OMP",
+      "enableDesc": "Включить провайдер Oh My Pi ACP.",
+      "cliPath": "Путь к CLI",
+      "cliPathDesc": "Абсолютный путь к OMP на этом компьютере.",
+      "models": "Модели",
+      "noModels": "Модели OMP пока не обнаружены.",
+      "catalogFailed": "Не удалось загрузить каталог моделей OMP.",
+      "loadingModels": "Загрузка моделей OMP…",
+      "discoveryFailed": "Не удалось обнаружить модели OMP: {error}",
+      "workspaceNotInitialized": "Рабочая область OMP не инициализирована",
+      "safe": "Безопасно",
+      "yolo": "YOLO",
+      "permissionRequest": "OMP запрашивает разрешение на использование: {tool}.",
+      "tool": "инструмент"
+    },
+    "cursor": {
+      "setup": "Setup",
+      "enable": "Enable Cursor",
+      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
+      "cliPath": "CLI path",
+      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
+      "models": "Models",
+      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
+      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
+      "loadingModels": "Loading Cursor models...",
+      "discoveryFailed": "Cursor model discovery failed: {error}",
+      "workspaceNotInitialized": "Cursor workspace is not initialized",
+      "agent": "Agent",
+      "plan": "Plan",
+      "ask": "Ask",
+      "permissionRequest": "Cursor requests permission to use {tool}.",
+      "tool": "a tool"
+    },
+    "grok": {
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+    },
+    "opencode": {
+      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+    },
+    "pi": {
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+    },
+    "providerReadiness": {
+      "title": "Готовность",
+      "desc": "Проверить, готов ли {provider} начать чат.",
+      "checking": "Проверка готовности провайдера…",
+      "refresh": "Проверить снова",
+      "status": {
+        "disabled": "Отключено",
+        "blocked": "Требуется действие",
+        "attention": "Требует внимания",
+        "ready": "Готово"
+      },
+      "check": {
+        "enabled": "Провайдер включён",
+        "cli": "CLI доступен",
+        "models": "Каталог моделей доступен",
+        "selection": "Модель чата выбрана"
+      },
+      "hint": {
+        "enableProvider": "Включите этого провайдера, чтобы использовать его в чате.",
+        "configureCli": "Укажите корректный путь к CLI или сделайте CLI доступным в PATH Obsidian.",
+        "refreshModels": "Проверьте вход или сеанс провайдера, затем повторите проверку для загрузки моделей.",
+        "selectModel": "Выберите ниже хотя бы одну модель чата."
+      }
+    },
+    "cliLifecycle": {
+      "label": "CLI {cli}",
+      "checking": "Проверка CLI…",
+      "currentVersion": "Текущая версия",
+      "latestVersion": "Последняя версия",
+      "notInstalled": "Не установлен",
+      "installedButBroken": "Установлен, но не запускается",
+      "updateAvailable": "Доступно обновление",
+      "install": "Установить",
+      "installConfirm": "Установить {cli}?\n\nКоманда: {command}",
+      "installDone": "{cli} успешно установлен.",
+      "installFailed": "Не удалось установить {cli}.",
+      "update": "Обновить",
+      "updateConfirm": "Обновить {cli}?\n\nКоманда: {command}",
+      "updateDone": "{cli} успешно обновлён.",
+      "updateFailed": "Не удалось обновить {cli}.",
+      "ready": "Актуальная версия",
+      "checkEnv": "CLI установлен, но не запускается. Проверьте среду выполнения (версия Node, PATH).",
+      "probe": {
+        "timedOut": "Истекло время проверки версии.",
+        "failedToStart": "Не удалось запустить процесс CLI.",
+        "outputTooLarge": "Слишком большой вывод проверки версии.",
+        "notFound": "CLI не установлен или отсутствует в PATH."
+      },
+      "versionUnchanged": "{cli} после обновления всё ещё на {version}. Возможно, команда не дала результата."
+    },
+    "providerDiagnostics": {
+      "kicker": "Устранение неполадок",
+      "title": "Диагностика провайдера",
+      "whatHappened": "Что произошло",
+      "readiness": "Проверки готовности",
+      "provider": "Провайдер",
+      "category": "Категория",
+      "status": "Состояние",
+      "platform": "Платформа",
+      "time": "Время",
+      "retry": "Повторить сообщение",
+      "rebuild": "Пересоздать сеанс",
+      "details": "Подробнее",
+      "copy": "Копировать отчёт",
+      "close": "Закрыть",
+      "copied": "Отчёт диагностики скопирован.",
+      "copyFailed": "Не удалось скопировать отчёт диагностики.",
+      "statusValue": {
+        "idle": "Ожидание",
+        "starting": "Запуск",
+        "running": "Выполняется",
+        "failed": "Ошибка"
+      },
+      "check": {
+        "enabled": "Провайдер включён",
+        "cli": "CLI доступен",
+        "models": "Каталог моделей доступен",
+        "selection": "Модель чата выбрана"
+      },
+      "checkStatus": {
+        "disabled": "Отключено",
+        "blocked": "Заблокировано",
+        "attention": "Требует внимания",
+        "ready": "Готово"
+      },
+      "remediation": {
+        "enableProvider": "включить провайдера",
+        "configureCli": "настроить CLI",
+        "refreshModels": "обновить модели",
+        "selectModel": "выбрать модель"
+      },
+      "categoryValue": {
+        "unknown": "Неизвестная ошибка",
+        "cli-not-found": "CLI не найден",
+        "cli-start-failed": "Не удалось запустить CLI",
+        "session-resume-failed": "Не удалось возобновить сеанс",
+        "model-unavailable": "Модель недоступна",
+        "permission-denied": "Доступ запрещён",
+        "timeout": "Истекло время ожидания",
+        "rate-limited": "Ограничение запросов",
+        "protocol-error": "Ошибка протокола",
+        "authentication": "Ошибка аутентификации",
+        "not-configured": "Не настроено",
+        "provider": "Ошибка провайдера"
+      }
+    },
     "display": "Отображение",
     "conversations": "Разговоры",
     "content": "Содержание",
@@ -438,9 +581,40 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills", "fixedRoot": "Managed in .agents/skills", "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.", "noSkills": "No shared skills configured. Click + to create one.", "skillBadge": "skill", "diagnosticsTitle": "Skills needing attention", "loadFailed": "Could not load shared skills.", "savedRefreshFailed": "Saved, but provider refresh failed.", "validationFailed": "Invalid skill: {message}", "collisionFailed": "A skill named \"{name}\" already exists.", "saveFailed": "Failed to save shared skill: {message}", "deleteFailed": "Failed to move shared skill to trash: {message}", "staleConflict": "This skill changed elsewhere; refresh before saving.", "created": "Shared skill \"{name}\" created.", "updated": "Shared skill \"{name}\" updated.", "deleted": "Shared skill \"{name}\" moved to trash.",
-      "modal": { "titleEdit": "Edit Shared Skill", "titleAdd": "Add Shared Skill", "name": "Skill name", "nameDesc": "Lowercase letters and numbers separated by single hyphens", "namePlaceholder": "code-reviewer", "description": "Description", "descriptionDesc": "Required portable description used by providers to select the skill", "descriptionPlaceholder": "Reviews code for correctness and maintainability", "instructions": "Instructions", "instructionsDesc": "Required SKILL.md instructions", "instructionsPlaceholder": "Review the supplied code and report actionable findings..." },
-      "delete": { "title": "Delete Shared Skill", "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.", "confirm": "Move to trash" }
+      "sectionTitle": "Skills",
+      "fixedRoot": "Managed in .agents/skills",
+      "sharedExpectation": "Manage shared skills in .agents/skills/ for compatible providers.",
+      "noSkills": "No shared skills configured. Click + to create one.",
+      "skillBadge": "skill",
+      "diagnosticsTitle": "Skills needing attention",
+      "loadFailed": "Could not load shared skills.",
+      "savedRefreshFailed": "Saved, but provider refresh failed.",
+      "validationFailed": "Invalid skill: {message}",
+      "collisionFailed": "A skill named \"{name}\" already exists.",
+      "saveFailed": "Failed to save shared skill: {message}",
+      "deleteFailed": "Failed to move shared skill to trash: {message}",
+      "staleConflict": "This skill changed elsewhere; refresh before saving.",
+      "created": "Shared skill \"{name}\" created.",
+      "updated": "Shared skill \"{name}\" updated.",
+      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "modal": {
+        "titleEdit": "Edit Shared Skill",
+        "titleAdd": "Add Shared Skill",
+        "name": "Skill name",
+        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "namePlaceholder": "code-reviewer",
+        "description": "Description",
+        "descriptionDesc": "Required portable description used by providers to select the skill",
+        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
+        "instructions": "Instructions",
+        "instructionsDesc": "Required SKILL.md instructions",
+        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+      },
+      "delete": {
+        "title": "Delete Shared Skill",
+        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
+        "confirm": "Move to trash"
+      }
     },
     "codexSkills": {
       "modal": {
