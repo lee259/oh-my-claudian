@@ -155,7 +155,9 @@ function renderVersionInfo(
 
     if (info.version && isUpdateAvailable(info.version, info.latestVersion)) {
       const badge = container.createDiv({ cls: 'claudian-cli-lifecycle-update-badge' });
-      badge.setText(t('settings.cliLifecycle.updateAvailable'));
+      badge.setText(t('settings.cliLifecycle.updateAvailable', {
+        version: info.latestVersion,
+      }));
     }
   }
 
@@ -193,10 +195,13 @@ function renderActionButtons(
   if (!info.installedButBroken && !info.version) {
     const installCmd = resolveCliInstallCommand(metadata);
     if (installCmd) {
-      row.createEl('button', {
+      const btn = row.createEl('button', {
         cls: 'mod-cta',
         text: t('settings.cliLifecycle.install'),
-      }).addEventListener?.('click', () => {
+      });
+      btn.addEventListener?.('click', () => {
+        btn.disabled = true;
+        btn.setText?.(t('settings.cliLifecycle.installing'));
         void runLifecycleAction(
           app,
           installCmd,
@@ -206,17 +211,25 @@ function renderActionButtons(
           refresh,
           onCliChanged,
           reprobeVersion,
-        );
+        ).finally(() => {
+          // refresh() re-renders the action row, so this element may already
+          // be detached — resetting it is a no-op then.
+          btn.disabled = false;
+          btn.setText?.(t('settings.cliLifecycle.install'));
+        });
       });
     }
   } else if (!info.installedButBroken && info.version) {
     if (info.latestVersion && isUpdateAvailable(info.version, info.latestVersion)) {
       const updateCmd = resolveCliUpdateCommand(metadata);
       if (updateCmd) {
-        row.createEl('button', {
+        const btn = row.createEl('button', {
           cls: 'mod-cta',
           text: t('settings.cliLifecycle.update'),
-        }).addEventListener?.('click', () => {
+        });
+        btn.addEventListener?.('click', () => {
+          btn.disabled = true;
+          btn.setText?.(t('settings.cliLifecycle.updating'));
           void runLifecycleAction(
             app,
             updateCmd,
@@ -226,7 +239,12 @@ function renderActionButtons(
             refresh,
             onCliChanged,
             reprobeVersion,
-          );
+          ).finally(() => {
+            // refresh() re-renders the action row, so this element may
+            // already be detached — resetting it is a no-op then.
+            btn.disabled = false;
+            btn.setText?.(t('settings.cliLifecycle.update'));
+          });
         });
       }
     } else {
