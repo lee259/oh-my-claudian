@@ -66,4 +66,70 @@ describe('PiCommandMetadataProbe', () => {
     expect(createKernel).not.toHaveBeenCalled();
     await probe.dispose();
   });
+
+  it('falls back to a pushed command catalog when get_commands is unsupported', async () => {
+    const kernel = {
+      request: jest.fn(async () => {
+        throw new Error('Request timeout: get_commands (10000ms)');
+      }),
+      shutdown: jest.fn(async () => undefined),
+      start: jest.fn(),
+    };
+    const createKernel = jest.fn((_spec, callbacks) => {
+      queueMicrotask(() => callbacks.onEvent({
+        commands: [
+          { name: 'skill:project-probe', source: 'skill' },
+          { description: 'Run tests', name: 'test', source: 'runtime' },
+        ],
+        type: 'available_commands_update',
+      }));
+      return kernel as any;
+    });
+    const host = {
+      getResolvedProviderCliPath: jest.fn(async () => '/bin/pi'),
+      settings: {},
+    } as unknown as ProviderHost;
+    const probe = new PiCommandMetadataProbe(host, createKernel);
+
+    await expect(probe.load('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        id: 'pi:skill:skill:project-probe',
+        kind: 'skill',
+        name: 'skill:project-probe',
+      }),
+      expect.objectContaining({
+        id: 'pi:runtime:test',
+        kind: 'command',
+        name: 'test',
+      }),
+    ]);
+    expect(kernel.request).toHaveBeenCalledWith(
+      'get_commands',
+      {},
+      10_000,
+      expect.any(AbortSignal),
+    );
+    await probe.dispose();
+  });
+
+  it('rethrows the get_commands failure when no pushed catalog is available', async () => {
+    const kernel = {
+      request: jest.fn(async () => {
+        throw new Error('Request timeout: get_commands (10000ms)');
+      }),
+      shutdown: jest.fn(async () => undefined),
+      start: jest.fn(),
+    };
+    const createKernel = jest.fn(() => kernel as any);
+    const host = {
+      getResolvedProviderCliPath: jest.fn(async () => '/bin/pi'),
+      settings: {},
+    } as unknown as ProviderHost;
+    const probe = new PiCommandMetadataProbe(host, createKernel);
+
+    await expect(probe.load('/vault')).rejects.toThrow(
+      'Request timeout: get_commands (10000ms)',
+    );
+    await probe.dispose();
+  });
 });
