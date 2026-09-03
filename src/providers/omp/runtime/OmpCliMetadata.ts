@@ -1,11 +1,19 @@
 import type { CliProviderMetadata } from '../../../core/providers/cli/CliProviderMetadata';
 
-/**
- * OMP (Oh My Pi) CLI. The install method is provider-documented rather than
- * a stable public npm package, so install/update are intentionally omitted;
- * version probing still works through the binary name.
- */
+/** OMP (Oh My Pi) CLI lifecycle metadata. */
 export const ompCliMetadata: CliProviderMetadata = {
   binaryName: 'omp',
   displayName: 'OMP',
+  install: {
+    command: 'bash',
+    args: ['-lc', 'curl -fsSL https://omp.sh/install | bash'],
+  },
+  platform: {
+    win32: {
+      install: {
+        command: 'powershell',
+        args: ['-NoProfile', '-Command', "irm 'https://omp.sh/install.ps1' | iex"],
+      },
+    },
+  },
 };

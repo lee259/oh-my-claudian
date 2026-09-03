@@ -28,7 +28,7 @@ Provider capabilities are intentionally different. The plugin exposes controls o
 - Single-panel and dual-pane layouts with vault navigation and session management.
 - Inline editing with a word-level diff preview.
 - Slash commands, skills, `@` mentions, instruction mode, and Mermaid rendering.
-- Model discovery, readiness diagnostics, provider-specific permissions and planning controls where available.
+- Model discovery, readiness diagnostics, and CLI version management, with provider-specific permissions and planning controls where available.
 - File and folder attachments from Obsidian or your desktop as clickable context chips.
 - External-file access boundaries and approval-aware write handling.
 - Internationalized UI with 10 locales, including Simplified and Traditional Chinese.
@@ -63,12 +63,13 @@ Then enable the plugin under **Settings → Community plugins**.
 ## Quick start
 
 1. Open **Settings → Oh My Claudian** and choose a provider tab.
-2. Enable the provider, check its **Readiness** panel, and select a chat model.
-3. Open the chat sidebar from the ribbon icon or command palette and send a message.
+2. Enable the provider and check its **Readiness** panel. If its CLI is missing, select **Install**, review the official command, and confirm it. Claudian rechecks the CLI when installation finishes.
+3. Sign in through the provider's own CLI when required, then select a chat model.
+4. Open the chat sidebar from the ribbon icon or command palette and send a message.
 
 Use `/` for commands and skills, `@` to reference vault files or provider resources, and drag files or folders into the composer to attach them. Select note text and use the inline-edit command to preview and apply changes.
 
-Each provider CLI is installed, authenticated, and configured outside the plugin. If Obsidian cannot find a CLI, leave automatic detection enabled first; otherwise set the provider's executable path in its settings tab. OMP and Cursor require separate CLI login, for example `agent login` for Cursor Agent.
+Installation still runs on your machine and requires your confirmation; the plugin does not download or execute a CLI silently. If automatic detection cannot find an already-installed CLI, set its executable path in the provider settings. Authentication and account setup remain provider-native—for example, run `agent login` for Cursor Agent.
 
 ## Safety and privacy
 

@@ -1,11 +1,19 @@
 import type { CliProviderMetadata } from '../../../core/providers/cli/CliProviderMetadata';
 
-/**
- * Cursor Agent CLI (`agent`). The CLI ships with the Cursor desktop app, so
- * there is no standalone npm install path; install/update are intentionally
- * omitted, while version probing still works through the binary name.
- */
+/** Cursor Agent CLI (`agent`) lifecycle metadata. */
 export const cursorCliMetadata: CliProviderMetadata = {
   binaryName: 'agent',
   displayName: 'Cursor',
+  install: {
+    command: 'bash',
+    args: ['-lc', 'curl -fsSL https://cursor.com/install | bash'],
+  },
+  platform: {
+    win32: {
+      install: {
+        command: 'powershell',
+        args: ['-NoProfile', '-Command', "irm 'https://cursor.com/install?win32=true' | iex"],
+      },
+    },
+  },
 };
