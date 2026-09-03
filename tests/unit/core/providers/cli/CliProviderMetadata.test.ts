@@ -4,6 +4,9 @@ import {
   resolveCliInstallerUrl,
   resolveCliUpdateCommand,
 } from '@/core/providers/cli/CliProviderMetadata';
+import { cursorCliMetadata } from '@/providers/cursor/runtime/CursorCliMetadata';
+import { grokCliMetadata } from '@/providers/grok/runtime/GrokCliMetadata';
+import { ompCliMetadata } from '@/providers/omp/runtime/OmpCliMetadata';
 
 const baseMetadata: CliProviderMetadata = {
   binaryName: 'claude',
@@ -14,6 +17,17 @@ describe('resolveCliInstallCommand', () => {
   it('falls back to npm install -g when only an npm package is known', () => {
     expect(resolveCliInstallCommand({ ...baseMetadata, npmPackage: '@anthropic-ai/claude-code' }))
       .toEqual({ command: 'npm', args: ['install', '-g', '@anthropic-ai/claude-code@latest'] });
+  });
+
+  it.each([
+    ['Cursor', cursorCliMetadata, 'https://cursor.com/install'],
+    ['Grok', grokCliMetadata, 'https://x.ai/cli/install.sh'],
+    ['OMP', ompCliMetadata, 'https://omp.sh/install'],
+  ])('uses the official installer for %s when the CLI is missing', (_name, metadata, installerUrl) => {
+    expect(resolveCliInstallCommand(metadata)).toEqual({
+      command: 'bash',
+      args: ['-lc', `curl -fsSL ${installerUrl} | bash`],
+    });
   });
 
   it('returns null when no npm package or install command is defined', () => {
