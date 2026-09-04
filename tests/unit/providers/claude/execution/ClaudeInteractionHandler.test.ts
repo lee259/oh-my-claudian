@@ -108,6 +108,33 @@ describe('createClaudeExecutionCanUseTool', () => {
       });
   });
 
+  it('does not persist provider suggestions for an allow-once decision', async () => {
+    const port = createPort();
+    port.requestApproval.mockResolvedValue({
+      interactionId: 'claude:session-local:native-tool-1',
+      decision: 'allow',
+    });
+    const handler = createHandler(port);
+    const input = { command: 'ls /external/path' };
+    const suggestions = [{
+      type: 'addRules' as const,
+      behavior: 'allow' as const,
+      rules: [{ toolName: 'Bash', ruleContent: 'ls *' }],
+      destination: 'session' as const,
+    }];
+
+    const result = await handler('Bash', input, {
+      ...nativeOptions,
+      suggestions,
+    });
+
+    expect(result).toEqual({
+      behavior: 'allow',
+      updatedInput: input,
+    });
+    expect(result && 'updatedPermissions' in result).toBe(false);
+  });
+
   it('routes direct edits outside the vault through the approval flow', async () => {
     const port = createPort();
     const handler = createHandler(port, jest.fn(), '/vault');
