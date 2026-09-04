@@ -3,8 +3,6 @@
 }
 
 .claudian-session-sidebar {
-  --claudian-sidebar-surface-footer-height: 40px;
-
   position: relative;
   display: none;
   flex: 0 0 var(--claudian-session-sidebar-width, 240px);
