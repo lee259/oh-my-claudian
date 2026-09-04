@@ -131,7 +131,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
     renderer: {
       addMessage: jest.fn().mockImplementation(() => {
         const el = createMockEl();
-        el.querySelector = jest.fn().mockReturnValue(createMockEl());
+        el.createDiv({ cls: 'claudian-message-content' });
         return el;
       }),
       appendInterruptIndicator: jest.fn(),
@@ -1558,6 +1558,86 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.sendMessage({ content: 'finish this' });
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores and renders response duration footer on ordinary success when elapsed time exceeds one second', async () => {
+    let currentTime = 1000;
+    const nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => currentTime);
+    try {
+      const fixture = createFixture();
+      fixture.coordinator.execute.mockImplementationOnce(async () => {
+        currentTime += 1500;
+        return { accepted: true, planCompleted: false, status: 'completed' };
+      });
+
+      await fixture.controller.sendMessage({ content: 'test request' });
+
+      const assistantMessage = fixture.state.messages[1];
+      expect(assistantMessage.durationSeconds).toBe(1);
+      expect(assistantMessage.durationFlavorWord).toBeDefined();
+
+      const assistantMsgEl = jest.mocked(fixture.deps.renderer.addMessage).mock.results.at(-1)?.value;
+      expect(assistantMsgEl?.querySelector('.claudian-response-footer')).not.toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('suppresses response duration and DOM footer on normalized execution errors when elapsed time exceeds one second', async () => {
+    let currentTime = 1000;
+    const nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => currentTime);
+    try {
+      const fixture = createFixture();
+      fixture.coordinator.execute.mockImplementationOnce(async () => {
+        currentTime += 1500;
+        return {
+          accepted: true,
+          error: new Error('Model overloaded'),
+          planCompleted: false,
+          status: 'error',
+        };
+      });
+
+      await fixture.controller.sendMessage({ content: 'test request' });
+
+      expect(fixture.deps.streamController.appendText).toHaveBeenCalledWith(
+        '\n\n**Error:** Model overloaded',
+      );
+      const assistantMessage = fixture.state.messages[1];
+      expect(assistantMessage.durationSeconds).toBeUndefined();
+      expect(assistantMessage.durationFlavorWord).toBeUndefined();
+
+      const assistantMsgEl = jest.mocked(fixture.deps.renderer.addMessage).mock.results.at(-1)?.value;
+      expect(assistantMsgEl?.querySelector('.claudian-response-footer')).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('suppresses response duration and DOM footer on catch-path rejections when elapsed time exceeds one second', async () => {
+    let currentTime = 1000;
+    const nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => currentTime);
+    try {
+      const fixture = createFixture();
+      fixture.coordinator.execute.mockImplementationOnce(async () => {
+        currentTime += 1500;
+        throw new Error('stream failed');
+      });
+
+      await fixture.controller.sendMessage({ content: 'test request' });
+
+      expect(fixture.deps.streamController.appendText).toHaveBeenCalledWith(
+        '\n\n**Error:** stream failed',
+      );
+      const assistantMessage = fixture.state.messages[1];
+      expect(assistantMessage.durationSeconds).toBeUndefined();
+      expect(assistantMessage.durationFlavorWord).toBeUndefined();
+
+      const assistantMsgEl = jest.mocked(fixture.deps.renderer.addMessage).mock.results.at(-1)?.value;
+      expect(assistantMsgEl?.querySelector('.claudian-response-footer')).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('reports a terminal accepted error as reviewable', async () => {
