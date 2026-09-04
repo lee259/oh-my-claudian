@@ -19,7 +19,7 @@ import {
   TOOL_EXIT_PLAN_MODE,
 } from '../../../core/tools/toolNames';
 import type { PermissionMode } from '../../../core/types/settings';
-import { buildPermissionUpdates } from '../security/ClaudePermissionUpdates';
+import { buildPersistentPermissionUpdates } from '../security/ClaudePermissionUpdates';
 
 export interface ClaudeExecutionInteractionDeps {
   readonly interactionPort: ProviderInteractionPort;
@@ -201,10 +201,9 @@ export class ClaudeInteractionHandler {
         return {
           behavior: 'allow',
           updatedInput: input,
-          updatedPermissions: buildPermissionUpdates(
+          updatedPermissions: buildPersistentPermissionUpdates(
             toolName,
             input,
-            decision,
             options.suggestions,
           ),
         };
