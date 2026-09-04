@@ -60,6 +60,17 @@ export function findCodexBinaryPath(
     return userLocalBinary;
   }
 
+  // The unified ChatGPT desktop app bundles a codex CLI. Treat it as a
+  // legacy-location fallback (after user-local installs) but prefer it over
+  // generic PATH auto-detection so the bundled binary is not shadowed.
+  const unifiedAppBinary = findCodexBinaryInDirs(
+    getChatGptAppCodexDirs(platform),
+    platform,
+  );
+  if (unifiedAppBinary) {
+    return unifiedAppBinary;
+  }
+
   return findCliBinaryPath('codex', additionalPath, platform);
 }
 
@@ -107,6 +118,18 @@ function getUserLocalCodexBinaryDirs(platform: NodeJS.Platform): string[] {
   }
 
   return [path.join(getHomeDir(), '.local', 'bin')];
+}
+
+function getChatGptAppCodexDirs(platform: NodeJS.Platform): string[] {
+  if (platform !== 'darwin') {
+    return [];
+  }
+
+  const home = getHomeDir();
+  return [
+    path.join(home, 'Applications', 'ChatGPT.app', 'Contents', 'Resources'),
+    '/Applications/ChatGPT.app/Contents/Resources',
+  ];
 }
 
 function getHomeDir(): string {
