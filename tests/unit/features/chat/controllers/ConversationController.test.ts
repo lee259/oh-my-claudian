@@ -4603,3 +4603,43 @@ describe('ConversationController running transcript refresh', () => {
     clearSpy.mockRestore();
   });
 });
+
+describe('ConversationController rich transcript rendering', () => {
+  let controller: ConversationController;
+  let deps: ConversationControllerDeps;
+  let messagesEl: any;
+  let loadSubagentConversation: jest.Mock;
+  let renderContent: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Menu as typeof Menu & { instances: unknown[] }).instances.length = 0;
+    deps = createMockDeps();
+    messagesEl = (deps.getMessagesEl as () => any)();
+    renderContent = jest.fn().mockResolvedValue(undefined);
+    deps.renderer = { renderMessages: jest.fn(), renderContent } as any;
+    loadSubagentConversation = jest.fn().mockResolvedValue([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: '**bold** result',
+        timestamp: Date.now(),
+      },
+    ] as any);
+    deps.loadSubagentConversation = loadSubagentConversation;
+    deps.isDisposed = () => false;
+    controller = new ConversationController(deps);
+  });
+
+  it('delegates transcript text to the host markdown pipeline', async () => {
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'completed',
+    });
+    expect(renderContent).toHaveBeenCalled();
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    expect(root.querySelector('.claudian-subagent-transcript-markdown')).toBeTruthy();
+    controller.closeSubagentTranscript();
+  });
+});

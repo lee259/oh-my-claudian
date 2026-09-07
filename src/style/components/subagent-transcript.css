@@ -132,6 +132,26 @@
   color: var(--text-normal);
 }
 
+.claudian-subagent-transcript-markdown {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-normal);
+}
+
+.claudian-subagent-transcript-markdown p:first-child {
+  margin-top: 0;
+}
+
+.claudian-subagent-transcript-thinking {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .claudian-subagent-transcript-tool {
   margin-top: 6px;
   font-family: var(--font-monospace);
