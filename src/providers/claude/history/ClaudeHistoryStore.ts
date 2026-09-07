@@ -33,6 +33,7 @@ import {
   sdkSessionExists,
 } from './sdkSessionPaths';
 import {
+  getSubagentSidecarPath,
   isValidAgentId,
   loadSubagentFinalResult,
   loadSubagentToolCalls,
@@ -143,12 +144,39 @@ export async function loadSDKSessionMessages(
     return { messages: [], skippedLines: result.skippedLines, error: result.error };
   }
 
-  const filteredEntries = filterActiveBranch(result.messages, resumeAtMessageId);
+  const messages = await assembleSDKChatMessages(vaultPath, sessionId, result.messages, {
+    resumeAtMessageId,
+    sessionPath,
+    pathContext,
+  });
+  return { messages, skippedLines: result.skippedLines };
+}
+
+/**
+ * Assembles raw SDK transcript entries into {@link ChatMessage}s, merging
+ * consecutive assistant turns and hydrating tool results and async subagents.
+ * Shared by main-session replay and subagent transcript replay.
+ */
+async function assembleSDKChatMessages(
+  vaultPath: string,
+  sessionId: string,
+  entries: SDKNativeMessage[],
+  options?: {
+    resumeAtMessageId?: string;
+    sessionPath?: string;
+    pathContext?: ProviderHistoryPathContext;
+  },
+): Promise<ChatMessage[]> {
+  const resumeAtMessageId = options?.resumeAtMessageId;
+  const sessionPath = options?.sessionPath;
+  const pathContext = options?.pathContext;
+
+  const filteredEntries = filterActiveBranch(entries, resumeAtMessageId);
 
   const toolResults = collectToolResults(filteredEntries);
   const toolUseResults = collectStructuredPatchResults(filteredEntries);
   const asyncSubagentResults = collectAsyncSubagentResults(filteredEntries);
-  const nativeTurnDurations = collectNativeTurnDurations(result.messages);
+  const nativeTurnDurations = collectNativeTurnDurations(entries);
 
   const chatMessages: ChatMessage[] = [];
   let pendingAssistant: ChatMessage | null = null;
@@ -255,7 +283,41 @@ export async function loadSDKSessionMessages(
 
   chatMessages.sort((a, b) => a.timestamp - b.timestamp);
 
-  return { messages: chatMessages, skippedLines: result.skippedLines };
+  return chatMessages;
+}
+
+/**
+ * Loads the full read-only transcript of an async subagent as chat messages by
+ * replaying its sidecar JSONL (`agent-{agentId}.jsonl`). Returns null when the
+ * sidecar is missing, the ids are invalid, or the file cannot be read.
+ */
+export async function loadSubagentConversation(
+  vaultPath: string,
+  sessionId: string,
+  agentId: string,
+  sessionPath?: string,
+  pathContext?: ProviderHistoryPathContext,
+): Promise<ChatMessage[] | null> {
+  const subagentFilePath = getSubagentSidecarPath(
+    vaultPath,
+    sessionId,
+    agentId,
+    sessionPath,
+    pathContext,
+  );
+  if (!subagentFilePath) {
+    return null;
+  }
+
+  const result = await readSDKSessionFile(subagentFilePath);
+  if (result.error) {
+    return null;
+  }
+
+  return assembleSDKChatMessages(vaultPath, sessionId, result.messages, {
+    sessionPath,
+    pathContext,
+  });
 }
 
 function collectNativeTurnDurations(

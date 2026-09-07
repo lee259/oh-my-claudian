@@ -14,6 +14,8 @@ describe('ClaudeSubagentHistoryService', () => {
       .mockResolvedValue([{ id: 'tool-1' }] as any);
     const loadFinalResult = jest.spyOn(ClaudeHistoryStore, 'loadSubagentFinalResult')
       .mockResolvedValue('Final result');
+    const loadConversation = jest.spyOn(ClaudeHistoryStore, 'loadSubagentConversation')
+      .mockResolvedValue([{ id: 'msg-1', role: 'user', content: 'Hello', timestamp: 1 }] as any);
     const host = {
       executionLifecycleRegistry: new ProviderExecutionLifecycleRegistry(),
       getActiveEnvironmentVariables: jest.fn()
@@ -32,6 +34,9 @@ describe('ClaudeSubagentHistoryService', () => {
 
     await expect(service.loadToolCalls(request)).resolves.toEqual([{ id: 'tool-1' }]);
     await expect(service.loadFinalResult(request)).resolves.toBe('Final result');
+    await expect(service.loadConversation(request)).resolves.toEqual([
+      { id: 'msg-1', role: 'user', content: 'Hello', timestamp: 1 },
+    ]);
 
     const expectedContext = expect.objectContaining({
       environment: expect.objectContaining({
@@ -49,6 +54,13 @@ describe('ClaudeSubagentHistoryService', () => {
       expectedContext,
     );
     expect(loadFinalResult).toHaveBeenCalledWith(
+      '/vault',
+      'session-1',
+      'agent-1',
+      undefined,
+      expectedContext,
+    );
+    expect(loadConversation).toHaveBeenCalledWith(
       '/vault',
       'session-1',
       'agent-1',

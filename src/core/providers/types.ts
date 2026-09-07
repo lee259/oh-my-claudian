@@ -9,6 +9,7 @@ import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type {
   AgentDefinition,
   AuxiliaryContinuityReset,
+  ChatMessage,
   Conversation,
   InstructionRefineResult,
   ManagedMcpServer,
@@ -553,6 +554,11 @@ export interface ProviderSubagentHistoryRequest {
 export interface ProviderSubagentHistoryService {
   loadToolCalls(request: ProviderSubagentHistoryRequest): Promise<ToolCallInfo[]>;
   loadFinalResult(request: ProviderSubagentHistoryRequest): Promise<string | null>;
+  /**
+   * Loads the full read-only transcript of a subagent as chat messages, or
+   * null when the provider cannot replay it (missing file or unsupported).
+   */
+  loadConversation?(request: ProviderSubagentHistoryRequest): Promise<ChatMessage[] | null>;
 }
 
 export interface ProviderHistoryPathContext {
