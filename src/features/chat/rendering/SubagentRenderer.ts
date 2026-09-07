@@ -399,6 +399,7 @@ export interface OpenSubagentTranscriptDetail {
   taskToolId: string;
   agentId?: string;
   description?: string;
+  status?: 'running' | 'completed' | 'error' | 'orphaned';
 }
 
 /** Adds (or returns) an "open full conversation" button to an async card header. */
@@ -423,10 +424,13 @@ function createOpenTranscriptButton(
   setIcon(btnEl, 'external-link');
 
   const dispatchOpen = () => {
+    const status = (['running', 'completed', 'error', 'orphaned'] as const)
+      .find(candidate => wrapperEl.hasClass(candidate));
     const detail: OpenSubagentTranscriptDetail = {
       taskToolId: info.id,
       agentId: info.agentId,
       description: info.description,
+      status,
     };
     wrapperEl.dispatchEvent(new CustomEvent(OPEN_SUBAGENT_TRANSCRIPT_EVENT, {
       bubbles: true,

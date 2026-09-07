@@ -1,7 +1,9 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { Conversation, ProviderId } from '../../../core/types';
+import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { ConversationController } from '../controllers/ConversationController';
+import { getTabProviderId } from './providerResolution';
 import type { TabData } from './types';
 
 export interface TabConversationControllerOptions {
@@ -57,6 +59,22 @@ export function createTabConversationController(
       awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
       isDisposed: () => tab.lifecycleState === 'closing',
       ensureExecutionForConversation: options.onConversationBindingChanged,
+      loadSubagentConversation: async (request) => {
+        const vaultPath = getVaultPath(plugin.app);
+        if (!vaultPath) return null;
+        const service = ProviderRegistry.createSubagentHistoryService(
+          plugin.providerHost,
+          getTabProviderId(tab, plugin),
+        );
+        if (!service?.loadConversation) return null;
+        const providerSessionId = tab.executionCoordinator?.snapshot?.providerSessionId ?? null;
+        if (!providerSessionId) return null;
+        return service.loadConversation({
+          providerSessionId,
+          subagentId: request.subagentId,
+          vaultPath,
+        });
+      },
     },
     {
       onNewConversation: options.onNewConversation,

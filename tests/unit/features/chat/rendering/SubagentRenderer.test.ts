@@ -458,6 +458,7 @@ describe('Async Subagent Renderer', () => {
         taskToolId: 'task-open',
         agentId: 'agent-open',
         description: 'Transcribe me',
+        status: 'running',
       });
     });
 

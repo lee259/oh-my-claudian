@@ -2,9 +2,14 @@
  * subagent, shown above the live main conversation while it keeps streaming. */
 
 .claudian-subagent-transcript {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+  background: var(--background-primary);
 }
 
 .claudian-subagent-transcript-backbar {
