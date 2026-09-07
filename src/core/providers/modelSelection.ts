@@ -72,3 +72,21 @@ export function toProviderRuntimeModelId(
   const decoded = decodeProviderModelSelectionId(value);
   return decoded && decoded.providerId === providerId ? decoded.modelId : value;
 }
+
+/** Resolves a user-defined limit whether it was stored under a raw or namespaced model id. */
+export function resolveProviderCustomContextLimit(
+  providerId: ProviderId,
+  model: string,
+  customLimits?: Record<string, number>,
+): number | undefined {
+  if (!customLimits) return undefined;
+
+  const selectedModel = model.trim();
+  const runtimeModel = toProviderRuntimeModelId(providerId, selectedModel).trim();
+  const namespacedModel = encodeProviderModelSelectionId(providerId, runtimeModel);
+  for (const candidate of new Set([selectedModel, runtimeModel, namespacedModel])) {
+    const limit = customLimits[candidate];
+    if (Number.isFinite(limit) && limit > 0) return limit;
+  }
+  return undefined;
+}

@@ -5,6 +5,7 @@ import type {
   ProviderExecutionEvent,
 } from '../../../core/execution';
 import { resolveConversationModel } from '../../../core/providers/conversationModel';
+import { resolveProviderCustomContextLimit } from '../../../core/providers/modelSelection';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import {
@@ -81,6 +82,7 @@ import type { SubagentManager } from '../services/SubagentManager';
 import type { AsyncSubagentCompletion } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { FileContextManager } from '../ui/FileContext';
+import { recalculateUsageForModel } from '../utils/usageInfo';
 import { StreamingRenderCoordinator } from './StreamingRenderCoordinator';
 
 export interface StreamControllerDeps {
@@ -332,9 +334,24 @@ export class StreamController {
     if (state.ignoreUsageUpdates) return;
 
     const activeModel = this.getActiveProviderModel();
-    const nextUsage = activeModel && !usage.model
+    const reportedUsage = activeModel && !usage.model
       ? { ...usage, model: activeModel }
       : usage;
+    const customContextLimit = activeModel
+      ? resolveProviderCustomContextLimit(
+          this.getActiveProviderId(),
+          activeModel,
+          this.deps.plugin.settings.customContextLimits,
+        )
+      : undefined;
+    const nextUsage = activeModel && customContextLimit
+      ? recalculateUsageForModel(
+          reportedUsage,
+          activeModel,
+          customContextLimit,
+          customContextLimit,
+        )
+      : reportedUsage;
     const previousHighest = this.highestContextUsage;
     const isSameContext = previousHighest
       && previousHighest.model === nextUsage.model

@@ -152,6 +152,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private activeTab: SettingsTabId = 'general';
   private refreshTitleModelOptions: (() => void) | null = null;
   private displayGeneration = 0;
+  private customContextLimitRefreshTimer: number | null = null;
+  private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
@@ -741,6 +743,21 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.refreshTitleModelOptions?.();
   }
 
+  private scheduleCustomContextLimitRefresh(providerId: ProviderId): void {
+    this.pendingCustomContextLimitRefreshProviders.add(providerId);
+    if (this.customContextLimitRefreshTimer !== null) {
+      window.clearTimeout(this.customContextLimitRefreshTimer);
+    }
+    this.customContextLimitRefreshTimer = window.setTimeout(() => {
+      this.customContextLimitRefreshTimer = null;
+      const providers = Array.from(this.pendingCustomContextLimitRefreshProviders);
+      this.pendingCustomContextLimitRefreshProviders.clear();
+      for (const pendingProviderId of providers) {
+        this.notifyProviderModelOptionsChanged(pendingProviderId);
+      }
+    }, 150);
+  }
+
   private refreshDualPaneLayouts(): void {
     for (const view of this.plugin.getAllViews()) {
       view.refreshDualPaneLayout();
@@ -904,6 +921,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             settings.customContextLimits[modelId] = parseContextLimit(trimmed)!;
           }
         });
+        this.scheduleCustomContextLimitRefresh(providerId);
       };
 
       inputEl.addEventListener('input', () => {

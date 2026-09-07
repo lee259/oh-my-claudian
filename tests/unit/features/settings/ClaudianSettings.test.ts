@@ -46,4 +46,30 @@ describe('ClaudianSettingTab model option updates', () => {
       expect.any(Function),
     );
   });
+
+  it('debounces context-limit refreshes per provider', () => {
+    jest.useFakeTimers();
+    try {
+      const notifyProviderChatOptionsChanged = jest.fn();
+      const plugin = {
+        notifyProviderChatOptionsChanged,
+        notifyAgentSkillsChanged: jest.fn(),
+        storage: { getAdapter: jest.fn(() => ({})) },
+      };
+      const tab = new ClaudianSettingTab({} as any, plugin as any);
+
+      (tab as any).scheduleCustomContextLimitRefresh('codex');
+      (tab as any).scheduleCustomContextLimitRefresh('codex');
+      (tab as any).scheduleCustomContextLimitRefresh('opencode');
+
+      jest.advanceTimersByTime(149);
+      expect(notifyProviderChatOptionsChanged).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(1);
+      expect(notifyProviderChatOptionsChanged).toHaveBeenCalledTimes(2);
+      expect(notifyProviderChatOptionsChanged).toHaveBeenCalledWith('codex');
+      expect(notifyProviderChatOptionsChanged).toHaveBeenCalledWith('opencode');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
