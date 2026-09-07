@@ -7,6 +7,7 @@ import {
 import { cursorCliMetadata } from '@/providers/cursor/runtime/CursorCliMetadata';
 import { grokCliMetadata } from '@/providers/grok/runtime/GrokCliMetadata';
 import { ompCliMetadata } from '@/providers/omp/runtime/OmpCliMetadata';
+import { piCliMetadata } from '@/providers/pi/runtime/PiCliMetadata';
 
 const baseMetadata: CliProviderMetadata = {
   binaryName: 'claude',
@@ -59,6 +60,10 @@ describe('resolveCliInstallCommand', () => {
 });
 
 describe('resolveCliUpdateCommand', () => {
+  it('uses Pi native self-update instead of the npm fallback', () => {
+    expect(resolveCliUpdateCommand(piCliMetadata)).toEqual({ command: 'pi', args: ['update'] });
+  });
+
   it('falls back to npm install -g @latest when only an npm package is known', () => {
     expect(resolveCliUpdateCommand({ ...baseMetadata, npmPackage: '@openai/codex' }))
       .toEqual({ command: 'npm', args: ['install', '-g', '@openai/codex@latest'] });

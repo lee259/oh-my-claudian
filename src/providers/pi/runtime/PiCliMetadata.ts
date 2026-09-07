@@ -5,7 +5,8 @@ export const piCliMetadata: CliProviderMetadata = {
   displayName: 'Pi',
   // Package migrated from @mariozechner/pi-coding-agent (last published
   // 0.73.1) to @earendil-works/pi-coding-agent. The registry name drives the
-  // latest-version probe AND the npm install/update commands, so both must
-  // point at the current package. Keep PiSubprocess's PI_PACKAGE_NAME in sync.
+  // latest-version probe and the npm install command, so it must point at
+  // the current package. Keep PiSubprocess's PI_PACKAGE_NAME in sync.
   npmPackage: '@earendil-works/pi-coding-agent',
+  update: { command: 'pi', args: ['update'] },
 };
