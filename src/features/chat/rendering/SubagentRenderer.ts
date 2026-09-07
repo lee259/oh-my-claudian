@@ -507,11 +507,24 @@ function updateAsyncLabel(state: AsyncSubagentState): void {
   );
 }
 
-function renderAsyncContentLikeSync(
-  contentEl: HTMLElement,
-  subagent: SubagentInfo,
-  displayStatus: 'running' | 'completed' | 'error' | 'orphaned'
-): void {
+interface AsyncContentSections {
+  toolsContainerEl: HTMLElement;
+  renderedToolIds: Set<string>;
+  resultBodyEl: HTMLElement | null;
+  resultOutputEl: HTMLElement | null;
+}
+
+/**
+ * Per-content-element async card sections. Keyed by the async card's content
+ * element so repeated status publishes reconcile in place instead of tearing
+ * down and rebuilding the whole card (prompt + every tool view + result).
+ */
+const asyncContentSections = new WeakMap<HTMLElement, AsyncContentSections>();
+
+function getOrCreateAsyncContentSections(contentEl: HTMLElement, subagent: SubagentInfo): AsyncContentSections {
+  const existing = asyncContentSections.get(contentEl);
+  if (existing) return existing;
+
   contentEl.empty();
 
   const promptSection = createSection(contentEl, 'Prompt', 'claudian-subagent-prompt-body');
@@ -519,21 +532,53 @@ function renderAsyncContentLikeSync(
   setPromptText(promptSection.bodyEl, subagent.prompt || '');
 
   const toolsContainerEl = contentEl.createDiv({ cls: 'claudian-subagent-tools' });
+  const sections: AsyncContentSections = {
+    toolsContainerEl,
+    renderedToolIds: new Set(),
+    resultBodyEl: null,
+    resultOutputEl: null,
+  };
+  asyncContentSections.set(contentEl, sections);
+  return sections;
+}
+
+function appendMissingAsyncToolViews(sections: AsyncContentSections, subagent: SubagentInfo): void {
   for (const originalToolCall of subagent.toolCalls) {
+    if (sections.renderedToolIds.has(originalToolCall.id)) continue;
     const toolCall: ToolCallInfo = {
       ...originalToolCall,
       input: { ...originalToolCall.input },
     };
-    createSubagentToolView(toolsContainerEl, toolCall);
+    createSubagentToolView(sections.toolsContainerEl, toolCall);
+    sections.renderedToolIds.add(originalToolCall.id);
   }
+}
+
+function ensureAsyncResultSection(contentEl: HTMLElement, sections: AsyncContentSections): HTMLElement {
+  if (!sections.resultBodyEl) {
+    const resultSection = createSection(contentEl, 'Result', 'claudian-subagent-result-body');
+    resultSection.wrapperEl.addClass('claudian-subagent-section-result');
+    sections.resultBodyEl = resultSection.bodyEl;
+  }
+  if (!sections.resultOutputEl) {
+    sections.resultOutputEl = sections.resultBodyEl.createDiv({ cls: 'claudian-subagent-result-output' });
+  }
+  return sections.resultOutputEl;
+}
+
+function renderAsyncContentLikeSync(
+  contentEl: HTMLElement,
+  subagent: SubagentInfo,
+  displayStatus: 'running' | 'completed' | 'error' | 'orphaned'
+): void {
+  const sections = getOrCreateAsyncContentSections(contentEl, subagent);
+  appendMissingAsyncToolViews(sections, subagent);
 
   if (displayStatus === 'running') {
     return;
   }
 
-  const resultSection = createSection(contentEl, 'Result', 'claudian-subagent-result-body');
-  resultSection.wrapperEl.addClass('claudian-subagent-section-result');
-  const resultEl = resultSection.bodyEl.createDiv({ cls: 'claudian-subagent-result-output' });
+  const resultEl = ensureAsyncResultSection(contentEl, sections);
 
   if (displayStatus === 'orphaned') {
     resultEl.setText(subagent.result || 'Conversation ended before task completed');

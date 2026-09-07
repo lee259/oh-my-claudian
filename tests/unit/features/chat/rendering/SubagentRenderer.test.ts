@@ -414,6 +414,113 @@ describe('Async Subagent Renderer', () => {
     expect(contentText).toContain('Conversation ended before task completed');
   });
 
+  describe('idempotent incremental content (no rebuild on repeat publishes)', () => {
+    const makeToolCalls = (): ToolCallInfo[] => [
+      {
+        id: 'tool-a',
+        name: 'Read',
+        input: { file_path: 'a.md' },
+        status: 'completed',
+        result: 'A',
+        isExpanded: false,
+      },
+      {
+        id: 'tool-b',
+        name: 'Grep',
+        input: { pattern: 'x' },
+        status: 'completed',
+        result: 'B',
+        isExpanded: false,
+      },
+    ];
+
+    it('keeps tool item DOM nodes stable across repeated running updates', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rep-run', { description: 'Bg', prompt: 'P' });
+      state.info.toolCalls.push(...makeToolCalls());
+
+      updateAsyncSubagentRunning(state, 'agent-rep-run');
+      const toolsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const promptBefore = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+      expect(toolsBefore).toHaveLength(2);
+
+      // Second publish with identical content must not rebuild the DOM.
+      updateAsyncSubagentRunning(state, 'agent-rep-run');
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const promptAfter = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+
+      expect(toolsAfter).toHaveLength(2);
+      expect(toolsAfter[0]).toBe(toolsBefore[0]);
+      expect(toolsAfter[1]).toBe(toolsBefore[1]);
+      expect(promptAfter).toBe(promptBefore);
+    });
+
+    it('does not detach or duplicate tool/result DOM when finalize is published repeatedly', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rep-final', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-rep-final');
+      state.info.toolCalls.push(...makeToolCalls());
+
+      finalizeAsyncSubagent(state, 'first result', false);
+      const toolsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const sectionsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-section');
+      expect(toolsBefore).toHaveLength(2);
+      expect(resultBefore.textContent).toBe('first result');
+
+      // Duplicate terminal publishes (notification + tool_output + hydration refresh).
+      finalizeAsyncSubagent(state, 'first result', false);
+      finalizeAsyncSubagent(state, 'first result', false);
+
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const sectionsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-section');
+
+      expect(toolsAfter).toHaveLength(2);
+      expect(toolsAfter[0]).toBe(toolsBefore[0]);
+      expect(toolsAfter[1]).toBe(toolsBefore[1]);
+      expect(resultAfter).toBe(resultBefore);
+      expect(resultAfter.textContent).toBe('first result');
+      expect(sectionsAfter).toHaveLength(sectionsBefore.length);
+    });
+
+    it('appends newly hydrated tool calls without rebuilding prior result DOM', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-hydrate', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-hydrate');
+
+      // Terminal publish arrives before tool calls have been hydrated.
+      finalizeAsyncSubagent(state, 'done', false);
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const promptBefore = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+      expect(resultBefore.textContent).toBe('done');
+      expect((state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item')).toHaveLength(0);
+
+      // Hydration adds tool calls and triggers a refresh publish.
+      state.info.toolCalls.push(...makeToolCalls());
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      expect(toolsAfter).toHaveLength(2);
+      expect(resultAfter).toBe(resultBefore);
+      expect((state.contentEl as any).querySelector('.claudian-subagent-prompt-text')).toBe(promptBefore);
+      expect(resultAfter.textContent).toBe('done');
+    });
+
+    it('updates the result text in place when a later refresh publishes richer content', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rich', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-rich');
+
+      finalizeAsyncSubagent(state, 'DONE', false);
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+
+      finalizeAsyncSubagent(state, 'full hydrated result text', false);
+
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      expect(resultAfter).toBe(resultBefore);
+      expect((state.contentEl as any).querySelectorAll('.claudian-subagent-result-output')).toHaveLength(1);
+      expect(resultAfter.textContent).toBe('full hydrated result text');
+    });
+  });
+
   describe('open transcript entry (live cards)', () => {
     it('adds an open button once the agent id is known', () => {
       const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
