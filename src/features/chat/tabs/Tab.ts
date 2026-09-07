@@ -17,6 +17,7 @@ import {
   resolveNewConversationModel,
 } from '../../../core/providers/conversationModel';
 import { getEnabledProviderForModel, getProviderForModel } from '../../../core/providers/modelRouting';
+import { resolveProviderCustomContextLimit } from '../../../core/providers/modelSelection';
 import {
   createProviderDiagnosticError,
   createProviderDiagnosticReport,
@@ -1342,7 +1343,16 @@ function initializeInputToolbar(
           providerSettings.customContextLimits,
           providerSettings,
         );
-        tab.state.usage = recalculateUsageForModel(currentUsage, normalizedModel, newContextWindow);
+        tab.state.usage = recalculateUsageForModel(
+          currentUsage,
+          normalizedModel,
+          newContextWindow,
+          resolveProviderCustomContextLimit(
+            boundProvider,
+            normalizedModel,
+            providerSettings.customContextLimits,
+          ),
+        );
       }
     },
     onModeChange: async (mode: string) => {
