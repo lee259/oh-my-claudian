@@ -330,6 +330,18 @@ describe('Async Subagent Renderer', () => {
     expect((state.wrapperEl as any).getClasses()).toEqual(expect.arrayContaining(['async', 'pending']));
   });
 
+  it('shows an animated running indicator icon while pending and running', () => {
+    (setIcon as jest.Mock).mockClear();
+    const state = createAsyncSubagentBlock(parentEl as any, 'task-spin', { description: 'Background job' });
+    expect(setIcon).toHaveBeenCalledWith(state.statusEl, 'loader-2');
+
+    (setIcon as jest.Mock).mockClear();
+    updateAsyncSubagentRunning(state, 'agent-spin');
+    expect(setIcon).toHaveBeenCalledWith(state.statusEl, 'loader-2');
+    expect(state.statusEl.className).toContain('status-running');
+    expect(state.statusEl.getAttribute('aria-label')).toBe('Status: running');
+  });
+
   it('shows prompt in content and keeps label visible while running', () => {
     const state = createAsyncSubagentBlock(parentEl as any, 'task-2', { description: 'Background job', prompt: 'Do the work' });
 
@@ -552,11 +564,14 @@ describe('Async Subagent Renderer', () => {
         prompt: 'Do some work',
       };
 
+      (setIcon as jest.Mock).mockClear();
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
 
       expect((wrapperEl as any).hasClass('running')).toBe(true);
       const contentText = getTextByClass(wrapperEl as any, 'claudian-subagent-prompt-text')[0];
       expect(contentText).toContain('Do some work');
+      // Running cards keep an animated indicator icon
+      expect(setIcon).toHaveBeenCalledWith(expect.anything(), 'loader-2');
     });
 
     it('renders pending status as running', () => {

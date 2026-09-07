@@ -223,6 +223,12 @@
   color: var(--interactive-accent);
 }
 
+/* Animated running indicator on async subagent cards */
+.claudian-subagent-list.async .claudian-subagent-status.status-running svg {
+  color: var(--interactive-accent);
+  animation: claudian-spin 0.9s linear infinite;
+}
+
 .claudian-subagent-list.async.pending .claudian-subagent-status-text {
   color: var(--text-muted);
 }
