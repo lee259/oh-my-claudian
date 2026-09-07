@@ -414,7 +414,99 @@ describe('Async Subagent Renderer', () => {
     expect(contentText).toContain('Conversation ended before task completed');
   });
 
+  describe('open transcript entry (live cards)', () => {
+    it('adds an open button once the agent id is known', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+
+      // Pending state has no agent id yet, so no entry button.
+      expect(state.openTranscriptBtnEl).toBeUndefined();
+      expect((state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript')).toBeNull();
+
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      expect(state.openTranscriptBtnEl).toBeTruthy();
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+      expect(btn).toBe(state.openTranscriptBtnEl);
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Transcribe me');
+    });
+
+    it('does not toggle collapse when the open button is clicked', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      btn.click();
+
+      expect(state.info.isExpanded).toBe(false);
+      expect((state.wrapperEl as any).hasClass('expanded')).toBe(false);
+    });
+
+    it('dispatches a bubbling open event with task id and agent id', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      const listener = jest.fn();
+      (state.wrapperEl as any).addEventListener('claudian:open-subagent-transcript', listener);
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      btn.click();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      const event = listener.mock.calls[0][0];
+      expect(event.type).toBe('claudian:open-subagent-transcript');
+      expect(event.detail).toEqual({
+        taskToolId: 'task-open',
+        agentId: 'agent-open',
+        description: 'Transcribe me',
+      });
+    });
+
+    it('keeps the entry button through finalize and does not duplicate it', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const buttons = (state.wrapperEl as any).querySelectorAll('.claudian-subagent-open-transcript');
+      expect(buttons).toHaveLength(1);
+      expect(state.openTranscriptBtnEl).toBeTruthy();
+    });
+  });
+
   describe('renderStoredAsyncSubagent', () => {
+    it('adds an open entry button when the stored agent id is known', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        agentId: 'agent-stored',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      const btn = (wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      expect(btn).toBeTruthy();
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Stored task');
+    });
+
+    it('omits the open entry button when no stored agent id exists', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      expect((wrapperEl as any).querySelector('.claudian-subagent-open-transcript')).toBeNull();
+    });
+
     it('should return wrapper element', () => {
       const subagent: SubagentInfo = {
         id: 'task-1',

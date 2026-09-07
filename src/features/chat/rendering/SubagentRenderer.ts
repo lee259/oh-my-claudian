@@ -384,7 +384,70 @@ export interface AsyncSubagentState {
   labelEl: HTMLElement;
   statusTextEl: HTMLElement;  // Running / Completed / Error / Orphaned
   statusEl: HTMLElement;
+  openTranscriptBtnEl?: HTMLElement | null;
   info: SubagentInfo;
+}
+
+/**
+ * Bubbling DOM event dispatched from an async subagent card when the user asks
+ * to open the subagent's full conversation. The event target is the card
+ * wrapper; `detail` carries the task tool-use id and the runtime agent id.
+ */
+export const OPEN_SUBAGENT_TRANSCRIPT_EVENT = 'claudian:open-subagent-transcript';
+
+export interface OpenSubagentTranscriptDetail {
+  taskToolId: string;
+  agentId?: string;
+  description?: string;
+}
+
+/** Adds (or returns) an "open full conversation" button to an async card header. */
+function ensureOpenTranscriptButton(state: AsyncSubagentState): HTMLElement | null {
+  if (state.openTranscriptBtnEl) return state.openTranscriptBtnEl;
+  const btnEl = createOpenTranscriptButton(state.headerEl, state.wrapperEl, state.info);
+  state.openTranscriptBtnEl = btnEl;
+  return btnEl;
+}
+
+function createOpenTranscriptButton(
+  headerEl: HTMLElement,
+  wrapperEl: HTMLElement,
+  info: SubagentInfo,
+): HTMLElement | null {
+  if (!info.agentId) return null;
+
+  const btnEl = headerEl.createDiv({ cls: 'claudian-subagent-open-transcript' });
+  btnEl.setAttribute('aria-label', `Open full conversation of ${truncateDescription(info.description)}`);
+  btnEl.setAttribute('role', 'button');
+  btnEl.setAttribute('tabindex', '0');
+  setIcon(btnEl, 'external-link');
+
+  const dispatchOpen = () => {
+    const detail: OpenSubagentTranscriptDetail = {
+      taskToolId: info.id,
+      agentId: info.agentId,
+      description: info.description,
+    };
+    wrapperEl.dispatchEvent(new CustomEvent(OPEN_SUBAGENT_TRANSCRIPT_EVENT, {
+      bubbles: true,
+      detail,
+    }));
+  };
+
+  btnEl.addEventListener('click', (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault?.();
+    dispatchOpen();
+  });
+  btnEl.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault?.();
+      event.stopPropagation();
+      dispatchOpen();
+    }
+  });
+
+  return btnEl;
 }
 
 function setAsyncWrapperStatus(wrapperEl: HTMLElement, status: string): void {
@@ -554,6 +617,8 @@ export function updateAsyncSubagentRunning(
   state.statusTextEl.setText('Running in background');
   setAsyncRunningIcon(state.statusEl, 'running');
 
+  ensureOpenTranscriptButton(state);
+
   renderAsyncContentLikeSync(state.contentEl, state.info, 'running');
 }
 
@@ -682,6 +747,8 @@ export function renderStoredAsyncSubagent(
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-content' });
   renderAsyncContentLikeSync(contentEl, subagent, displayStatus);
+
+  createOpenTranscriptButton(headerEl, wrapperEl, subagent);
 
   const state = { isExpanded: false };
   setupCollapsible(wrapperEl, headerEl, contentEl, state);

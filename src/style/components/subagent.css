@@ -229,6 +229,36 @@
   animation: claudian-spin 0.9s linear infinite;
 }
 
+/* Open full-conversation entry on async subagent cards */
+.claudian-subagent-open-transcript {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.claudian-subagent-open-transcript svg {
+  width: 13px;
+  height: 13px;
+  color: inherit;
+}
+
+.claudian-subagent-open-transcript:hover,
+.claudian-subagent-open-transcript:focus-visible {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
 .claudian-subagent-list.async.pending .claudian-subagent-status-text {
   color: var(--text-muted);
 }
