@@ -1,6 +1,22 @@
+import type * as ChildProcess from 'child_process';
+
 import { buildCodexLaunchSpec } from '@/providers/codex/runtime/CodexLaunchSpecBuilder';
 
+const childProcess = jest.requireActual<typeof ChildProcess>('child_process');
+
 describe('buildCodexLaunchSpec', () => {
+  let execFileSyncSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    execFileSyncSpy = jest.spyOn(childProcess, 'execFileSync').mockImplementation(() => {
+      throw Object.assign(new Error('spawnSync wsl.exe ENOENT'), { code: 'ENOENT' });
+    });
+  });
+
+  afterEach(() => {
+    execFileSyncSpy.mockRestore();
+  });
+
   it('builds a native Windows launch spec with a direct codex executable', () => {
     const spec = buildCodexLaunchSpec({
       settings: {
@@ -93,6 +109,26 @@ describe('buildCodexLaunchSpec', () => {
     expect(spec.pathMapper.toHostPath('/home/user/.codex/sessions')).toBe(
       '\\\\wsl$\\Ubuntu\\home\\user\\.codex\\sessions',
     );
+  });
+
+  it('uses the native WSL default when the injected resolver returns no distro', () => {
+    execFileSyncSpy.mockReturnValue(Buffer.from(
+      '  NAME              STATE           VERSION\r\n'
+      + '* Ubuntu-24.04      Running         2\r\n'
+      + '  Debian            Stopped         2\r\n',
+      'utf16le',
+    ));
+
+    const spec = buildCodexLaunchSpec({
+      settings: { providerConfigs: { codex: { installationMethod: 'wsl' } } },
+      resolvedCliCommand: 'codex',
+      hostVaultPath: 'C:\\repo',
+      env: {},
+      hostPlatform: 'win32',
+      resolveDefaultWslDistro: () => undefined,
+    });
+
+    expect(spec.target.distroName).toBe('Ubuntu-24.04');
   });
 
   it('fails fast when the workspace path cannot be represented inside WSL', () => {
