@@ -24,7 +24,10 @@ jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
     toolCallStates: new Map(),
   })),
   createAsyncSubagentBlock: jest.fn().mockImplementation((_parentEl: any, toolId: string, input: any) => ({
-    wrapperEl: { querySelector: jest.fn().mockReturnValue(null) },
+    wrapperEl: {
+      querySelector: jest.fn().mockReturnValue(null),
+      remove: jest.fn(),
+    },
     info: {
       id: toolId,
       description: input?.description || 'Background task',
@@ -1163,6 +1166,88 @@ Only this is the final result.
       expect(second.action).toBe('created_async');
       expect((second as any).info.id).toBe('task-upgrade');
       expect(manager.hasPendingTask('task-upgrade')).toBe(false);
+    });
+
+    it('shows async pending preview as soon as a spawn chunk has a description', () => {
+      const { createAsyncSubagentBlock } = jest.requireMock('@/features/chat/rendering/SubagentRenderer');
+      const { manager } = createManager();
+      const parentEl = createMockEl();
+
+      const result = manager.handleTaskToolUse(
+        'task-preview',
+        { description: 'Bg task', prompt: 'draft' },
+        parentEl
+      );
+
+      expect(result.action).toBe('buffered');
+      expect(manager.hasPendingTask('task-preview')).toBe(true);
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+      expect(createAsyncSubagentBlock).toHaveBeenCalledWith(
+        parentEl, 'task-preview', { description: 'Bg task', prompt: 'draft' }
+      );
+      expect(manager.subagentsSpawnedThisStream).toBe(0);
+    });
+
+    it('promotes the preview into the same async card when run_in_background=true arrives later', () => {
+      const { createAsyncSubagentBlock } = jest.requireMock('@/features/chat/rendering/SubagentRenderer');
+      const { manager } = createManager();
+      const parentEl = createMockEl();
+
+      manager.handleTaskToolUse('task-preview', { description: 'Bg task' }, parentEl);
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+
+      const result = manager.handleTaskToolUse(
+        'task-preview',
+        { run_in_background: true, description: 'Bg task', prompt: 'full prompt' },
+        parentEl
+      );
+
+      expect(result.action).toBe('created_async');
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+      expect((result as any).info.description).toBe('Bg task');
+      expect(manager.hasPendingTask('task-preview')).toBe(false);
+      expect(manager.subagentsSpawnedThisStream).toBe(1);
+    });
+
+    it('replaces the preview with a single sync card when sync is confirmed by a child chunk', () => {
+      const { createAsyncSubagentBlock, createSubagentBlock } = jest.requireMock(
+        '@/features/chat/rendering/SubagentRenderer'
+      );
+      const { manager } = createManager();
+      const parentEl = createMockEl();
+
+      manager.handleTaskToolUse('task-preview', { description: 'Inline task' }, parentEl);
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+      const previewDomState = createAsyncSubagentBlock.mock.results[0].value;
+
+      const result = manager.renderPendingTask('task-preview', parentEl);
+
+      expect(result?.mode).toBe('sync');
+      expect(createSubagentBlock).toHaveBeenCalledTimes(1);
+      expect(previewDomState.wrapperEl.remove).toHaveBeenCalled();
+      expect(manager.hasPendingTask('task-preview')).toBe(false);
+      expect(manager.getByTaskId('task-preview')).toBeUndefined();
+      expect(manager.subagentsSpawnedThisStream).toBe(1);
+    });
+
+    it('promotes the preview on async task result when mode is inferred from agent_id', () => {
+      const { createAsyncSubagentBlock } = jest.requireMock('@/features/chat/rendering/SubagentRenderer');
+      const { manager } = createManager();
+      const parentEl = createMockEl();
+
+      manager.handleTaskToolUse('task-preview', { description: 'Bg task' }, parentEl);
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+
+      const result = manager.renderPendingTaskFromTaskResult(
+        'task-preview',
+        '{"agent_id":"agent-9"}',
+        false
+      );
+
+      expect(result?.mode).toBe('async');
+      expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
+      expect(manager.getByTaskId('task-preview')).toBeDefined();
+      expect(manager.subagentsSpawnedThisStream).toBe(1);
     });
 
     it('returns label_updated for already rendered sync subagent', () => {
