@@ -7,6 +7,19 @@ jest.mock('obsidian', () => ({
 }));
 
 describe('ComposerContextTray', () => {
+  it('marks a chip as removable only while its removal action is available', () => {
+    const containerEl = createMockEl();
+    const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
+    const item = { id: 'linked-content', kind: 'file' as const, label: 'Draft.md' };
+
+    tray.setItems('files', [{ ...item, onRemove: jest.fn() }]);
+    expect(containerEl.querySelector('.claudian-context-chip')?.hasClass('claudian-context-chip--removable')).toBe(true);
+
+    tray.setItems('files', [item]);
+    expect(containerEl.querySelector('.claudian-context-chip')?.hasClass('claudian-context-chip--removable')).toBe(false);
+    tray.destroy();
+  });
+
   it('owns empty-state visibility and renders slots in semantic order', () => {
     const containerEl = createMockEl();
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);

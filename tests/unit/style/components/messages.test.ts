@@ -33,4 +33,10 @@ describe('Message styles', () => {
     expect(assistantRule).toContain('content-visibility: auto;');
     expect(assistantRule).toContain('contain-intrinsic-size: auto 23.5rem;');
   });
+
+  it('disables assistant layout isolation on Windows only', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(/body\.mod-windows \.claudian-message-assistant\s*{[^}]*content-visibility:\s*visible;[^}]*contain-intrinsic-size:\s*none;/);
+  });
 });
