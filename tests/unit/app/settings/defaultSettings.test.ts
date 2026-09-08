@@ -5,7 +5,7 @@ describe('DEFAULT_CLAUDIAN_SETTINGS', () => {
     expect('renderDiagramsInChat' in DEFAULT_CLAUDIAN_SETTINGS).toBe(false);
   });
 
-  it('keeps Claudian system instructions opt-in by default', () => {
-    expect(DEFAULT_CLAUDIAN_SETTINGS.useClaudianSystemPrompt).toBe(false);
+  it('enables Claudian system instructions by default', () => {
+    expect(DEFAULT_CLAUDIAN_SETTINGS.useClaudianSystemPrompt).toBe(true);
   });
 });

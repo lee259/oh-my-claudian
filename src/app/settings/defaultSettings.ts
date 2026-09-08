@@ -19,7 +19,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   excludedTags: [],
   mediaFolder: '',
   systemPrompt: '',
-  useClaudianSystemPrompt: false,
+  useClaudianSystemPrompt: true,
   persistentExternalContextPaths: [],
 
   sharedEnvironmentVariables: '',
