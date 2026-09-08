@@ -68,6 +68,17 @@
       "expandOutput": "Expand command output",
       "running": "Running...",
       "copyFailed": "Failed to copy to clipboard"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Running in background",
+      "completedLabel": "Completed",
+      "errorLabel": "Error",
+      "orphanedLabel": "Orphaned",
+      "title": "Subagent conversation",
+      "subtitle": "Read-only transcript",
+      "backAriaLabel": "Back to conversation",
+      "empty": "No conversation recorded for this subagent.",
+      "unavailable": "Full conversation not available for this subagent."
     }
   },
   "settings": {

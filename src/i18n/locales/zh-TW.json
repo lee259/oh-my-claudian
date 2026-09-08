@@ -68,6 +68,17 @@
       "expandOutput": "展開指令輸出",
       "running": "執行中...",
       "copyFailed": "複製到剪貼簿失敗"
+    },
+    "subagentTranscript": {
+      "runningLabel": "背景執行中",
+      "completedLabel": "已完成",
+      "errorLabel": "錯誤",
+      "orphanedLabel": "已中斷",
+      "title": "子代理對話",
+      "subtitle": "唯讀轉錄",
+      "backAriaLabel": "返回對話",
+      "empty": "未記錄此子代理的對話。",
+      "unavailable": "無法查看此子代理的完整對話。"
     }
   },
   "settings": {

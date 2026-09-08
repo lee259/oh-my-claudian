@@ -1,10 +1,7 @@
 import { setIcon } from 'obsidian';
 
 import type { ChatMessage } from '@/core/types';
-import {
-  SubagentTranscriptPanel,
-  type TranscriptEntryView,
-} from '@/features/chat/ui/SubagentTranscriptPanel';
+import { SubagentTranscriptPanel } from '@/features/chat/ui/SubagentTranscriptPanel';
 
 // Shared obsidian mock (setIcon is also provided globally by the obsidian mock).
 jest.mock('obsidian', () => ({
@@ -35,6 +32,102 @@ const getTextsByClass = (el: MockElement, cls: string): string[] => {
   return out;
 };
 
+function createMockChild(): MockElement {
+  const el: MockElement = {
+    tagName: 'DIV',
+    children: [],
+    dataset: {},
+    style: {},
+    classes: new Set<string>(),
+    parent: null,
+    textContent: '',
+    isConnected: true,
+    listeners: {} as Record<string, Array<(...args: any[]) => void>>,
+    focus: jest.fn(),
+    addClass(cls: string) {
+      cls.split(/\s+/).filter(Boolean).forEach((c: string) => this.classes.add(c));
+    },
+    removeClass(cls: string) {
+      cls.split(/\s+/).filter(Boolean).forEach((c: string) => this.classes.delete(c));
+    },
+    hasClass(cls: string) {
+      return this.classes.has(cls);
+    },
+    toggleClass(cls: string, force: boolean) {
+      if (force === undefined) {
+        if (this.classes.has(cls)) this.classes.delete(cls);
+        else this.classes.add(cls);
+      } else if (force) {
+        this.classes.add(cls);
+      } else {
+        this.classes.delete(cls);
+      }
+    },
+    setAttribute(name: string, value: string) {
+      this.dataset[name.replace(/^data-/, '')] = value;
+    },
+    getAttribute(name: string) {
+      return this.dataset[name.replace(/^data-/, '')] ?? null;
+    },
+    removeAttribute(name: string) {
+      delete this.dataset[name.replace(/^data-/, '')];
+    },
+    appendChild(child: MockElement) {
+      child.parent = this;
+      this.children.push(child);
+      return child;
+    },
+    remove() {
+      if (!this.parent) return;
+      this.parent.children = this.parent.children.filter((c: MockElement) => c !== this);
+      this.parent = null;
+      this.isConnected = false;
+    },
+    empty() {
+      this.children = [];
+    },
+    setText(text: string) {
+      this.textContent = text;
+    },
+    createDiv(opts?: { cls?: string; text?: string }) {
+      const child = createMockChild();
+      if (opts?.cls) child.addClass(opts.cls);
+      if (opts?.text) child.textContent = opts.text;
+      this.appendChild(child);
+      return child;
+    },
+    addEventListener(event: string, handler: (...args: any[]) => void) {
+      (this.listeners[event] ??= []).push(handler);
+    },
+    dispatchEvent(event: string | { type: string }, payload?: any) {
+      const type = typeof event === 'string' ? event : event.type;
+      (this.listeners[type] ?? []).forEach((h: (...args: any[]) => void) =>
+        h(payload ?? { type, target: this, stopPropagation: () => {}, preventDefault: () => {} }),
+      );
+    },
+    click() {
+      this.dispatchEvent({
+        type: 'click',
+        target: this,
+        stopPropagation: () => {},
+        preventDefault: () => {},
+      });
+    },
+    get classesSet() {
+      return this.classes;
+    },
+    ownerDocument: {
+      activeElement: null,
+      body: null,
+      defaultView: {
+        setTimeout: (fn: () => void) => setTimeout(fn, 0) as unknown as number,
+        clearTimeout: (h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>),
+      },
+    },
+  };
+  return el;
+}
+
 const mockMessage = (partial: Partial<ChatMessage> = {}): ChatMessage => ({
   id: 'm1',
   role: 'user',
@@ -49,125 +142,13 @@ describe('SubagentTranscriptPanel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    hostEl = {
-      tagName: 'DIV',
-      children: [],
-      dataset: {},
-      style: {},
-      addClass: jest.fn(),
-      removeClass: jest.fn(),
-      hasClass: jest.fn(() => false),
-      toggleClass: jest.fn(),
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(() => null),
-      appendChild(child: MockElement) {
-        this.children.push(child);
-        child.parent = this;
-        return child;
-      },
-      createDiv(opts?: { cls?: string; text?: string }) {
-        const child = createMockChild();
-        if (opts?.cls) child.addClass(opts.cls);
-        if (opts?.text) child.textContent = opts.text;
-        this.appendChild(child);
-        return child;
-      },
-      ownerDocument: {
-        defaultView: {
-          setTimeout: (fn: () => void) => setTimeout(fn, 0) as unknown as number,
-          clearTimeout: (h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>),
-        },
-      },
-    };
+    hostEl = createMockChild();
     panel = new SubagentTranscriptPanel(hostEl);
   });
 
   afterEach(() => {
     panel.destroy();
   });
-
-  function createMockChild(): MockElement {
-    const el: MockElement = {
-      tagName: 'DIV',
-      children: [],
-      dataset: {},
-      style: {},
-      classes: new Set<string>(),
-      parent: null,
-      textContent: '',
-      listeners: {} as Record<string, Array<(...args: any[]) => void>>,
-      addClass(cls: string) {
-        cls.split(/\s+/).filter(Boolean).forEach((c: string) => this.classes.add(c));
-      },
-      removeClass(cls: string) {
-        cls.split(/\s+/).filter(Boolean).forEach((c: string) => this.classes.delete(c));
-      },
-      hasClass(cls: string) {
-        return this.classes.has(cls);
-      },
-      toggleClass(cls: string, force: boolean) {
-        if (force === undefined) {
-          if (this.classes.has(cls)) this.classes.delete(cls);
-          else this.classes.add(cls);
-        } else if (force) {
-          this.classes.add(cls);
-        } else {
-          this.classes.delete(cls);
-        }
-      },
-      setAttribute(name: string, value: string) {
-        this.dataset[name.replace(/^data-/, '')] = value;
-      },
-      getAttribute(name: string) {
-        return this.dataset[name.replace(/^data-/, '')] ?? null;
-      },
-      appendChild(child: MockElement) {
-        child.parent = this;
-        this.children.push(child);
-        return child;
-      },
-      remove() {
-        if (!this.parent) return;
-        this.parent.children = this.parent.children.filter((c: MockElement) => c !== this);
-        this.parent = null;
-      },
-      empty() {
-        this.children = [];
-      },
-      setText(text: string) {
-        this.textContent = text;
-      },
-      createDiv(opts?: { cls?: string; text?: string }) {
-        const child = createMockChild();
-        if (opts?.cls) child.addClass(opts.cls);
-        if (opts?.text) child.textContent = opts.text;
-        this.appendChild(child);
-        return child;
-      },
-      addEventListener(event: string, handler: (...args: any[]) => void) {
-        (this.listeners[event] ??= []).push(handler);
-      },
-      dispatchEvent(event: string | { type: string }, payload?: any) {
-        const type = typeof event === 'string' ? event : event.type;
-        (this.listeners[type] ?? []).forEach((h: (...args: any[]) => void) =>
-          h(payload ?? { type, target: this, stopPropagation: () => {}, preventDefault: () => {} }),
-        );
-      },
-      click() {
-        this.dispatchEvent({ type: 'click', target: this, stopPropagation: () => {}, preventDefault: () => {} });
-      },
-      get classesSet() {
-        return this.classes;
-      },
-      ownerDocument: {
-        defaultView: {
-          setTimeout: (fn: () => void) => setTimeout(fn, 0) as unknown as number,
-          clearTimeout: (h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>),
-        },
-      },
-    };
-    return el;
-  }
 
   describe('open/close lifecycle', () => {
     it('is closed by default and does not create DOM until opened', () => {
@@ -188,6 +169,16 @@ describe('SubagentTranscriptPanel', () => {
 
       const titles = getTextsByClass(root, 'claudian-subagent-transcript-title');
       expect(titles).toContain('Write tests');
+    });
+
+    it('exposes the overlay as a dialog and the back bar as a button', () => {
+      panel.open({ description: 'task', status: 'running' });
+
+      const root = hostEl.children[0];
+      expect(root.getAttribute('role')).toBe('dialog');
+      const backBar = getByClass(root, 'claudian-subagent-transcript-backbar');
+      expect(backBar.getAttribute('role')).toBe('button');
+      expect(backBar.getAttribute('tabindex')).toBe('0');
     });
 
     it('hides overlay again on close()', () => {
@@ -211,6 +202,44 @@ describe('SubagentTranscriptPanel', () => {
       expect(onBack).toHaveBeenCalledTimes(1);
       expect(panel.isOpen()).toBe(false);
     });
+
+    it('Escape closes the panel and invokes the back callback', () => {
+      const onBack = jest.fn();
+      panel.setBackHandler(onBack);
+      panel.open({ description: 'task', status: 'running' });
+
+      const root = hostEl.children[0];
+      const preventDefault = jest.fn();
+      root.dispatchEvent(
+        { type: 'keydown' },
+        {
+          key: 'Escape',
+          target: root,
+          preventDefault,
+          stopPropagation: () => {},
+        },
+      );
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(onBack).toHaveBeenCalledTimes(1);
+      expect(panel.isOpen()).toBe(false);
+    });
+
+    it('moves focus to the back bar on open and restores the previous focus on close', () => {
+      const previousFocus = jest.fn();
+      const previousEl = {
+        ...createMockChild(),
+        focus: previousFocus,
+      };
+      hostEl.ownerDocument.activeElement = previousEl;
+
+      panel.open({ description: 'task', status: 'running' });
+      const backBar = getByClass(hostEl, 'claudian-subagent-transcript-backbar')!;
+      expect(backBar.focus).toHaveBeenCalledTimes(1);
+
+      panel.close();
+      expect(previousFocus).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('status display', () => {
@@ -229,6 +258,18 @@ describe('SubagentTranscriptPanel', () => {
       panel.setStatus('completed');
       const texts = getTextsByClass(hostEl, 'claudian-subagent-transcript-status');
       expect(texts.join(' ').toLowerCase()).toContain('completed');
+    });
+
+    it('keeps only the current status class on the status icon element', () => {
+      panel.open({ description: 'task', status: 'running' });
+      const icon = getByClass(hostEl, 'claudian-subagent-transcript-status-icon')!;
+      expect(icon.hasClass('status-running')).toBe(true);
+      expect(icon.hasClass('status-completed')).toBe(false);
+
+      panel.setStatus('completed');
+      expect(icon.hasClass('status-running')).toBe(false);
+      expect(icon.hasClass('status-completed')).toBe(true);
+      expect(icon.hasClass('status-error')).toBe(false);
     });
   });
 
@@ -250,6 +291,43 @@ describe('SubagentTranscriptPanel', () => {
       expect(renderMessages.mock.calls[0][1]).toEqual(messages);
     });
 
+    it('skips rebuilding the DOM when the transcript content is unchanged', () => {
+      const renderMessages = jest.fn((container: MockElement, messages: ChatMessage[]) => {
+        for (const message of messages) {
+          container.createDiv({ cls: `row-${message.id}` });
+        }
+      });
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      const messages = [
+        mockMessage({ id: 'u1', role: 'user', content: 'fix bug' }),
+        mockMessage({ id: 'a1', role: 'assistant', content: 'done' }),
+      ];
+      panel.renderMessages(messages);
+      panel.renderMessages(messages);
+      panel.renderMessages(messages);
+
+      expect(renderMessages).toHaveBeenCalledTimes(1);
+      const container = renderMessages.mock.calls[0][0];
+      expect(container.children.length).toBe(2);
+      expect(container.hasClass('claudian-subagent-transcript-messages')).toBe(true);
+    });
+
+    it('re-renders when the transcript gains new messages', () => {
+      const renderMessages = jest.fn();
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      panel.renderMessages([mockMessage({ id: 'u1', role: 'user', content: 'hi' })]);
+      panel.renderMessages([
+        mockMessage({ id: 'u1', role: 'user', content: 'hi' }),
+        mockMessage({ id: 'a1', role: 'assistant', content: 'done' }),
+      ]);
+
+      expect(renderMessages).toHaveBeenCalledTimes(2);
+    });
+
     it('shows an empty state when the transcript has no entries', () => {
       panel.open({ description: 'task', status: 'completed' });
       panel.renderMessages([]);
@@ -258,18 +336,18 @@ describe('SubagentTranscriptPanel', () => {
       const empty = getByClass(root, 'claudian-subagent-transcript-empty');
       expect(empty).toBeTruthy();
     });
-  });
 
-  describe('type-level helpers (TranscriptEntryView)', () => {
-    it('supports a read-only entry view shape', () => {
-      const entry: TranscriptEntryView = {
-        messageId: 'x',
-        role: 'user',
-        content: 'hi',
-        toolCalls: [],
-      };
-      expect(entry.messageId).toBe('x');
-      expect(entry.role).toBe('user');
+    it('re-renders after an empty state once content arrives', () => {
+      const renderMessages = jest.fn();
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      panel.renderMessages([]);
+      expect(renderMessages).not.toHaveBeenCalled();
+
+      const messages = [mockMessage({ id: 'a1', role: 'assistant', content: 'now ready' })];
+      panel.renderMessages(messages);
+      expect(renderMessages).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -281,6 +359,20 @@ describe('SubagentTranscriptPanel', () => {
       const root = hostEl.children[0];
       const unavail = getByClass(root, 'claudian-subagent-transcript-unavailable');
       expect(unavail).toBeTruthy();
+    });
+
+    it('clears the cached signature so the next render is not skipped', () => {
+      const renderMessages = jest.fn();
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      const messages = [mockMessage({ id: 'a1', role: 'assistant', content: 'done' })];
+      panel.renderMessages(messages);
+      expect(renderMessages).toHaveBeenCalledTimes(1);
+
+      panel.showUnavailable();
+      panel.renderMessages(messages);
+      expect(renderMessages).toHaveBeenCalledTimes(2);
     });
   });
 });

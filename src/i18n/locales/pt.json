@@ -68,6 +68,17 @@
       "expandOutput": "Expandir a saída do comando",
       "running": "Executando...",
       "copyFailed": "Falha ao copiar para a área de transferência"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Executando em segundo plano",
+      "completedLabel": "Concluído",
+      "errorLabel": "Erro",
+      "orphanedLabel": "Órfão",
+      "title": "Conversa do subagente",
+      "subtitle": "Transcrição somente leitura",
+      "backAriaLabel": "Voltar à conversa",
+      "empty": "Nenhuma conversa registrada para este subagente.",
+      "unavailable": "A conversa completa não está disponível para este subagente."
     }
   },
   "settings": {

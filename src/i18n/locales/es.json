@@ -68,6 +68,17 @@
       "expandOutput": "Expandir la salida del comando",
       "running": "Ejecutando...",
       "copyFailed": "No se pudo copiar al portapapeles"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Ejecutándose en segundo plano",
+      "completedLabel": "Completado",
+      "errorLabel": "Error",
+      "orphanedLabel": "Huérfano",
+      "title": "Conversación del subagente",
+      "subtitle": "Transcripción de solo lectura",
+      "backAriaLabel": "Volver a la conversación",
+      "empty": "No hay ninguna conversación registrada para este subagente.",
+      "unavailable": "La conversación completa no está disponible para este subagente."
     }
   },
   "settings": {

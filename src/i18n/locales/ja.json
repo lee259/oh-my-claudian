@@ -68,6 +68,17 @@
       "expandOutput": "コマンド出力を展開",
       "running": "実行中...",
       "copyFailed": "クリップボードへのコピーに失敗しました"
+    },
+    "subagentTranscript": {
+      "runningLabel": "バックグラウンドで実行中",
+      "completedLabel": "完了",
+      "errorLabel": "エラー",
+      "orphanedLabel": "切断されました",
+      "title": "サブエージェントの会話",
+      "subtitle": "読み取り専用トランスクリプト",
+      "backAriaLabel": "会話に戻る",
+      "empty": "このサブエージェントの会話は記録されていません。",
+      "unavailable": "このサブエージェントの完全な会話を表示できません。"
     }
   },
   "settings": {

@@ -68,6 +68,17 @@
       "expandOutput": "Développer la sortie de la commande",
       "running": "Exécution...",
       "copyFailed": "Échec de la copie dans le presse-papiers"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Exécution en arrière-plan",
+      "completedLabel": "Terminé",
+      "errorLabel": "Erreur",
+      "orphanedLabel": "Orphelin",
+      "title": "Conversation du sous-agent",
+      "subtitle": "Transcription en lecture seule",
+      "backAriaLabel": "Retour à la conversation",
+      "empty": "Aucune conversation enregistrée pour ce sous-agent.",
+      "unavailable": "Conversation complète non disponible pour ce sous-agent."
     }
   },
   "settings": {

@@ -68,6 +68,17 @@
       "expandOutput": "展开命令输出",
       "running": "运行中...",
       "copyFailed": "复制到剪贴板失败"
+    },
+    "subagentTranscript": {
+      "runningLabel": "后台运行中",
+      "completedLabel": "已完成",
+      "errorLabel": "出错",
+      "orphanedLabel": "已中断",
+      "title": "子代理对话",
+      "subtitle": "只读转录",
+      "backAriaLabel": "返回对话",
+      "empty": "未记录该子代理的对话。",
+      "unavailable": "无法查看该子代理的完整对话。"
     }
   },
   "settings": {

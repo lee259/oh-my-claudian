@@ -68,6 +68,17 @@
       "expandOutput": "명령 출력 펼치기",
       "running": "실행 중...",
       "copyFailed": "클립보드에 복사하지 못했습니다"
+    },
+    "subagentTranscript": {
+      "runningLabel": "백그라운드에서 실행 중",
+      "completedLabel": "완료됨",
+      "errorLabel": "오류",
+      "orphanedLabel": "연결 끊김",
+      "title": "하위 에이전트 대화",
+      "subtitle": "읽기 전용 대화 기록",
+      "backAriaLabel": "대화로 돌아가기",
+      "empty": "이 하위 에이전트의 대화 기록이 없습니다.",
+      "unavailable": "이 하위 에이전트의 전체 대화를 볼 수 없습니다."
     }
   },
   "settings": {
