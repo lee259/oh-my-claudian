@@ -4481,12 +4481,11 @@ describe('ConversationController subagent transcript view', () => {
     expect(root.querySelector('.claudian-subagent-transcript-unavailable')).toBeTruthy();
   });
 
-  it('marks the panel unavailable when no loader is configured', async () => {
+  it('does not open a panel when transcript replay is unavailable', async () => {
     delete (deps as Partial<ConversationControllerDeps>).loadSubagentConversation;
     await controller.openSubagentTranscript(transcriptDetail());
-    expect(controller.isSubagentTranscriptOpen()).toBe(true);
-    const root = messagesEl.querySelector('.claudian-subagent-transcript');
-    expect(root.querySelector('.claudian-subagent-transcript-unavailable')).toBeTruthy();
+    expect(controller.isSubagentTranscriptOpen()).toBe(false);
+    expect(messagesEl.querySelector('.claudian-subagent-transcript')).toBeNull();
   });
 
   it('closes when the back bar is clicked', async () => {

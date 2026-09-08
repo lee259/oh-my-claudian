@@ -282,6 +282,11 @@
   outline: none;
 }
 
+/* Only providers with a replayable native transcript expose the detail view. */
+.claudian-subagent-transcript-unavailable .claudian-subagent-open-transcript {
+  display: none;
+}
+
 .claudian-subagent-list.async.pending .claudian-subagent-status-text {
   color: var(--text-muted);
 }

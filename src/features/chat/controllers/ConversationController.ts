@@ -202,6 +202,10 @@ export class ConversationController {
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
     this.callbacks = callbacks;
+    this.deps.getMessagesEl().toggleClass(
+      'claudian-subagent-transcript-unavailable',
+      !this.deps.loadSubagentConversation,
+    );
     this.attachSubagentTranscriptOpenListener();
   }
 
@@ -240,7 +244,7 @@ export class ConversationController {
   async openSubagentTranscript(detail: OpenSubagentTranscriptDetail): Promise<void> {
     if (this.deps.isDisposed?.()) return;
     const agentId = detail.agentId;
-    if (!agentId) return;
+    if (!agentId || !this.deps.loadSubagentConversation) return;
 
     this.subagentTranscriptTaskToolId = detail.taskToolId;
     this.subagentTranscriptAgentId = agentId;

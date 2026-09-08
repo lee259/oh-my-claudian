@@ -26,6 +26,13 @@ export function createTabConversationController(
   options: TabConversationControllerOptions,
 ): ConversationController {
   const { dom, state, services, ui } = tab;
+  const subagentHistoryService = ProviderRegistry.createSubagentHistoryService(
+    plugin.providerHost,
+    getTabProviderId(tab, plugin),
+  );
+  const loadSubagentConversation = subagentHistoryService?.loadConversation?.bind(
+    subagentHistoryService,
+  );
   return new ConversationController(
     {
       plugin,
@@ -59,22 +66,19 @@ export function createTabConversationController(
       awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
       isDisposed: () => tab.lifecycleState === 'closing',
       ensureExecutionForConversation: options.onConversationBindingChanged,
-      loadSubagentConversation: async (request) => {
-        const vaultPath = getVaultPath(plugin.app);
-        if (!vaultPath) return null;
-        const service = ProviderRegistry.createSubagentHistoryService(
-          plugin.providerHost,
-          getTabProviderId(tab, plugin),
-        );
-        if (!service?.loadConversation) return null;
-        const providerSessionId = tab.executionCoordinator?.snapshot?.providerSessionId ?? null;
-        if (!providerSessionId) return null;
-        return service.loadConversation({
-          providerSessionId,
-          subagentId: request.subagentId,
-          vaultPath,
-        });
-      },
+      ...(loadSubagentConversation ? {
+        loadSubagentConversation: async (request: { subagentId: string }) => {
+          const vaultPath = getVaultPath(plugin.app);
+          if (!vaultPath) return null;
+          const providerSessionId = tab.executionCoordinator?.snapshot?.providerSessionId ?? null;
+          if (!providerSessionId) return null;
+          return loadSubagentConversation({
+            providerSessionId,
+            subagentId: request.subagentId,
+            vaultPath,
+          });
+        },
+      } : {}),
     },
     {
       onNewConversation: options.onNewConversation,
