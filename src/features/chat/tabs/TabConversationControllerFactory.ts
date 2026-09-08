@@ -16,6 +16,22 @@ export interface TabConversationControllerOptions {
 }
 
 /**
+ * Resolves the provider session backing a subagent transcript without warming
+ * execution. Cold tabs after plugin reload retain this id on the conversation.
+ */
+export function resolveSubagentTranscriptSessionId(
+  liveProviderSessionId: string | null | undefined,
+  conversation: Conversation | null,
+): string | null {
+  if (liveProviderSessionId) return liveProviderSessionId;
+  if (conversation?.sessionId) return conversation.sessionId;
+  const providerSessionId = conversation?.providerState?.providerSessionId;
+  return typeof providerSessionId === 'string' && providerSessionId.trim().length > 0
+    ? providerSessionId
+    : null;
+}
+
+/**
  * Assembles ConversationController against the tab runtime. Conversation
  * binding remains a hook because provider settings, command catalogs, and
  * execution sessions must change as one tab-owned transaction.
@@ -70,7 +86,13 @@ export function createTabConversationController(
         loadSubagentConversation: async (request: { subagentId: string }) => {
           const vaultPath = getVaultPath(plugin.app);
           if (!vaultPath) return null;
-          const providerSessionId = tab.executionCoordinator?.snapshot?.providerSessionId ?? null;
+          const conversation = tab.conversationId
+            ? plugin.getConversationSync(tab.conversationId)
+            : null;
+          const providerSessionId = resolveSubagentTranscriptSessionId(
+            tab.executionCoordinator?.snapshot?.providerSessionId,
+            conversation,
+          );
           if (!providerSessionId) return null;
           return loadSubagentConversation({
             providerSessionId,
