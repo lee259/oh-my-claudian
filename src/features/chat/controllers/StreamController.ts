@@ -942,7 +942,7 @@ export class StreamController {
     this.lifecycleAgentIdToSpawnId.set(agentId, spawnId);
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (state?.info.mode === 'async' && isNewBinding) {
-      updateAsyncSubagentRunning(state as AsyncSubagentState, agentId);
+      updateAsyncSubagentRunning(state, agentId);
     }
     if (isNewBinding && msg && adapter) {
       this.hideNewlyLinkedProviderSubagentTools(spawnId, msg, adapter);
@@ -993,7 +993,7 @@ export class StreamController {
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (!state) return;
     if (state.info.mode === 'async') {
-      finalizeAsyncSubagent(state as AsyncSubagentState, result, isError);
+      finalizeAsyncSubagent(state, result, isError);
       return;
     }
     finalizeSubagentBlock(state as SubagentState, result, isError);
