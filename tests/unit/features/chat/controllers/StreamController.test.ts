@@ -285,6 +285,17 @@ describe('StreamController - Text Content', () => {
       );
     });
 
+    it('appends background text incrementally without re-rendering Markdown', () => {
+      const textEl = createMockEl();
+      deps.state.currentTextEl = textEl;
+
+      controller.appendBackgroundText('Hello ');
+      controller.appendBackgroundText('World');
+
+      expect(textEl.textContent).toBe('Hello World');
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+    });
+
     it('should throttle successive streaming text renders', async () => {
       deps.state.currentTextEl = createMockEl();
 
@@ -3210,6 +3221,7 @@ describe('StreamController - Text Content', () => {
           description: 'Codex subagent (gpt-5.4-mini)',
           prompt: 'Inspect utils.ts and return the final patch summary.',
         }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
       expect(subagentState.info.description).toBe('Zeno (gpt-5.4-mini)');
       expect(finalizeSubagentBlock).toHaveBeenCalledWith(

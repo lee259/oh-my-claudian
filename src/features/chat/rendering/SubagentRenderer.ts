@@ -3,14 +3,21 @@ import { setIcon } from 'obsidian';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
 import type { SubagentInfo, ToolCallInfo } from '../../../core/types';
+import type { FileReference } from '../../../utils/FileReference';
 import { setupCollapsible } from './collapsible';
 import {
+  getToolFilePath,
   getToolLabel,
   getToolName,
   getToolSummary,
+  makeFileSummaryInteractive,
   renderExpandedContent,
   setToolIcon,
 } from './ToolCallRenderer';
+
+export interface SubagentRenderOptions {
+  onOpenFile?: (fileReference: FileReference) => void;
+}
 
 interface SubagentToolView {
   wrapperEl: HTMLElement;
@@ -30,6 +37,8 @@ export interface SubagentState {
   contentEl: HTMLElement;
   headerEl: HTMLElement;
   labelEl: HTMLElement;
+  resultSummaryEl: HTMLElement;
+  statusTextEl: HTMLElement;
   statusEl: HTMLElement;
   promptSectionEl: HTMLElement;
   promptBodyEl: HTMLElement;
@@ -38,6 +47,7 @@ export interface SubagentState {
   resultBodyEl: HTMLElement | null;
   toolElements: Map<string, SubagentToolView>;
   info: SubagentInfo;
+  onOpenFile?: (fileReference: FileReference) => void;
 }
 
 const SUBAGENT_TOOL_STATUS_ICONS: Partial<Record<ToolCallInfo['status'], string>> = {
@@ -45,6 +55,25 @@ const SUBAGENT_TOOL_STATUS_ICONS: Partial<Record<ToolCallInfo['status'], string>
   error: 'x',
   blocked: 'shield-off',
 };
+
+const RESULT_SUMMARY_MAX_LENGTH = 120;
+
+function summarizeResult(text: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= RESULT_SUMMARY_MAX_LENGTH) return normalized;
+  return `${normalized.slice(0, RESULT_SUMMARY_MAX_LENGTH - 1).trimEnd()}…`;
+}
+
+function updateResultSummary(summaryEl: HTMLElement, result: string): void {
+  const summary = summarizeResult(result);
+  summaryEl.setText(summary);
+  summaryEl.toggleClass('claudian-hidden', summary.length === 0);
+  if (summary.length > 0) {
+    summaryEl.setAttribute('title', summary);
+  } else {
+    summaryEl.removeAttribute('title');
+  }
+}
 
 function extractTaskDescription(input: Record<string, unknown>): string {
   return (input.description as string) || 'Subagent task';
@@ -126,7 +155,11 @@ function updateSubagentToolView(view: SubagentToolView, toolCall: ToolCallInfo):
   renderSubagentToolContent(view.contentEl, toolCall);
 }
 
-function createSubagentToolView(parentEl: HTMLElement, toolCall: ToolCallInfo): SubagentToolView {
+function createSubagentToolView(
+  parentEl: HTMLElement,
+  toolCall: ToolCallInfo,
+  onOpenFile?: (fileReference: FileReference) => void,
+): SubagentToolView {
   const wrapperEl = parentEl.createDiv({
     cls: `claudian-subagent-tool-item claudian-subagent-tool-${toolCall.status}`,
   });
@@ -143,6 +176,7 @@ function createSubagentToolView(parentEl: HTMLElement, toolCall: ToolCallInfo): 
   const nameEl = headerEl.createDiv({ cls: 'claudian-subagent-tool-name' });
   const summaryEl = headerEl.createDiv({ cls: 'claudian-subagent-tool-summary' });
   const statusEl = headerEl.createDiv({ cls: 'claudian-subagent-tool-status' });
+  makeFileSummaryInteractive(summaryEl, getToolFilePath(toolCall), onOpenFile);
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-tool-content' });
 
@@ -220,7 +254,8 @@ function hydrateSyncSubagentStateFromStored(state: SubagentState, subagent: Suba
 export function createSubagentBlock(
   parentEl: HTMLElement,
   taskToolId: string,
-  taskInput: Record<string, unknown>
+  taskInput: Record<string, unknown>,
+  options: SubagentRenderOptions = {},
 ): SubagentState {
   const description = extractTaskDescription(taskInput);
   const prompt = extractTaskPrompt(taskInput);
@@ -248,6 +283,13 @@ export function createSubagentBlock(
   const labelEl = headerEl.createDiv({ cls: 'claudian-subagent-label' });
   labelEl.setText(truncateDescription(description));
 
+  const resultSummaryEl = headerEl.createDiv({
+    cls: 'claudian-subagent-result-summary claudian-hidden',
+  });
+
+  const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
+  statusTextEl.setText('Running');
+
   const statusEl = headerEl.createDiv({ cls: 'claudian-subagent-status status-running' });
   statusEl.setAttribute('aria-label', 'Status: running');
 
@@ -266,6 +308,8 @@ export function createSubagentBlock(
     contentEl,
     headerEl,
     labelEl,
+    resultSummaryEl,
+    statusTextEl,
     statusEl,
     promptSectionEl: promptSection.wrapperEl,
     promptBodyEl: promptSection.bodyEl,
@@ -273,6 +317,7 @@ export function createSubagentBlock(
     resultSectionEl: null,
     resultBodyEl: null,
     toolElements: new Map<string, SubagentToolView>(),
+    onOpenFile: options.onOpenFile,
     info,
   };
 
@@ -311,7 +356,7 @@ export function addSubagentToolCall(
 
   state.info.toolCalls.push(toolCall);
 
-  const toolView = createSubagentToolView(state.toolsContainerEl, toolCall);
+  const toolView = createSubagentToolView(state.toolsContainerEl, toolCall, state.onOpenFile);
   state.toolElements.set(toolCall.id, toolView);
 
   updateSyncHeaderAria(state);
@@ -348,6 +393,7 @@ export function finalizeSubagentBlock(
   state.statusEl.className = 'claudian-subagent-status';
   state.statusEl.addClass(`status-${state.info.status}`);
   state.statusEl.empty();
+  state.statusTextEl.setText(isError ? 'Error' : 'Completed');
   if (state.info.status === 'completed') {
     setIcon(state.statusEl, 'check');
     state.wrapperEl.removeClass('error');
@@ -360,18 +406,20 @@ export function finalizeSubagentBlock(
 
   const finalText = result?.trim() ? result : (isError ? 'ERROR' : 'DONE');
   setResultText(state, finalText);
+  updateResultSummary(state.resultSummaryEl, finalText);
 
   updateSyncHeaderAria(state);
 }
 
 export function renderStoredSubagent(
   parentEl: HTMLElement,
-  subagent: SubagentInfo
+  subagent: SubagentInfo,
+  options: SubagentRenderOptions = {},
 ): HTMLElement {
   const state = createSubagentBlock(parentEl, subagent.id, {
     description: subagent.description,
     prompt: subagent.prompt,
-  });
+  }, options);
 
   hydrateSyncSubagentStateFromStored(state, subagent);
   return state.wrapperEl;
@@ -382,10 +430,12 @@ export interface AsyncSubagentState {
   contentEl: HTMLElement;
   headerEl: HTMLElement;
   labelEl: HTMLElement;
+  resultSummaryEl: HTMLElement;
   statusTextEl: HTMLElement;  // Running / Completed / Error / Orphaned
   statusEl: HTMLElement;
   openTranscriptBtnEl?: HTMLElement | null;
   info: SubagentInfo;
+  onOpenFile?: (fileReference: FileReference) => void;
 }
 
 /**
@@ -480,7 +530,7 @@ function getAsyncDisplayStatus(asyncStatus: string | undefined): 'running' | 'co
 function getAsyncStatusText(asyncStatus: string | undefined): string {
   switch (asyncStatus) {
     case 'pending': return 'Initializing';
-    case 'completed': return ''; // Just show tick icon, no text
+    case 'completed': return 'Completed';
     case 'error': return 'Error';
     case 'orphaned': return 'Orphaned';
     default: return 'Running in background';
@@ -512,6 +562,7 @@ interface AsyncContentSections {
   renderedToolIds: Set<string>;
   resultBodyEl: HTMLElement | null;
   resultOutputEl: HTMLElement | null;
+  onOpenFile?: (fileReference: FileReference) => void;
 }
 
 /**
@@ -521,7 +572,11 @@ interface AsyncContentSections {
  */
 const asyncContentSections = new WeakMap<HTMLElement, AsyncContentSections>();
 
-function getOrCreateAsyncContentSections(contentEl: HTMLElement, subagent: SubagentInfo): AsyncContentSections {
+function getOrCreateAsyncContentSections(
+  contentEl: HTMLElement,
+  subagent: SubagentInfo,
+  onOpenFile?: (fileReference: FileReference) => void,
+): AsyncContentSections {
   const existing = asyncContentSections.get(contentEl);
   if (existing) return existing;
 
@@ -537,6 +592,7 @@ function getOrCreateAsyncContentSections(contentEl: HTMLElement, subagent: Subag
     renderedToolIds: new Set(),
     resultBodyEl: null,
     resultOutputEl: null,
+    onOpenFile,
   };
   asyncContentSections.set(contentEl, sections);
   return sections;
@@ -549,7 +605,7 @@ function appendMissingAsyncToolViews(sections: AsyncContentSections, subagent: S
       ...originalToolCall,
       input: { ...originalToolCall.input },
     };
-    createSubagentToolView(sections.toolsContainerEl, toolCall);
+    createSubagentToolView(sections.toolsContainerEl, toolCall, sections.onOpenFile);
     sections.renderedToolIds.add(originalToolCall.id);
   }
 }
@@ -569,9 +625,10 @@ function ensureAsyncResultSection(contentEl: HTMLElement, sections: AsyncContent
 function renderAsyncContentLikeSync(
   contentEl: HTMLElement,
   subagent: SubagentInfo,
-  displayStatus: 'running' | 'completed' | 'error' | 'orphaned'
+  displayStatus: 'running' | 'completed' | 'error' | 'orphaned',
+  onOpenFile?: (fileReference: FileReference) => void,
 ): void {
-  const sections = getOrCreateAsyncContentSections(contentEl, subagent);
+  const sections = getOrCreateAsyncContentSections(contentEl, subagent, onOpenFile);
   appendMissingAsyncToolViews(sections, subagent);
 
   if (displayStatus === 'running') {
@@ -597,7 +654,8 @@ function renderAsyncContentLikeSync(
 export function createAsyncSubagentBlock(
   parentEl: HTMLElement,
   taskToolId: string,
-  taskInput: Record<string, unknown>
+  taskInput: Record<string, unknown>,
+  options: SubagentRenderOptions = {},
 ): AsyncSubagentState {
   const description = (taskInput.description as string) || 'Background task';
   const prompt = (taskInput.prompt as string) || '';
@@ -630,6 +688,10 @@ export function createAsyncSubagentBlock(
   const labelEl = headerEl.createDiv({ cls: 'claudian-subagent-label' });
   labelEl.setText(truncateDescription(description));
 
+  const resultSummaryEl = headerEl.createDiv({
+    cls: 'claudian-subagent-result-summary claudian-hidden',
+  });
+
   const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
   statusTextEl.setText('Initializing');
 
@@ -638,7 +700,7 @@ export function createAsyncSubagentBlock(
   setIcon(statusEl, 'loader-2');
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-content' });
-  renderAsyncContentLikeSync(contentEl, info, 'running');
+  renderAsyncContentLikeSync(contentEl, info, 'running', options.onOpenFile);
 
   setupCollapsible(wrapperEl, headerEl, contentEl, info);
 
@@ -647,9 +709,11 @@ export function createAsyncSubagentBlock(
     contentEl,
     headerEl,
     labelEl,
+    resultSummaryEl,
     statusTextEl,
     statusEl,
     info,
+    onOpenFile: options.onOpenFile,
   };
 }
 
@@ -668,7 +732,7 @@ export function updateAsyncSubagentRunning(
 
   ensureOpenTranscriptButton(state);
 
-  renderAsyncContentLikeSync(state.contentEl, state.info, 'running');
+  renderAsyncContentLikeSync(state.contentEl, state.info, 'running', state.onOpenFile);
 }
 
 export function finalizeAsyncSubagent(
@@ -683,7 +747,7 @@ export function finalizeAsyncSubagent(
   setAsyncWrapperStatus(state.wrapperEl, isError ? 'error' : 'completed');
   updateAsyncLabel(state);
 
-  state.statusTextEl.setText(isError ? 'Error' : '');
+  state.statusTextEl.setText(isError ? 'Error' : 'Completed');
 
   state.statusEl.className = 'claudian-subagent-status';
   state.statusEl.addClass(`status-${isError ? 'error' : 'completed'}`);
@@ -700,7 +764,9 @@ export function finalizeAsyncSubagent(
     state.wrapperEl.addClass('done');
   }
 
-  renderAsyncContentLikeSync(state.contentEl, state.info, isError ? 'error' : 'completed');
+  updateResultSummary(state.resultSummaryEl, result?.trim() ? result : (isError ? 'ERROR' : 'DONE'));
+
+  renderAsyncContentLikeSync(state.contentEl, state.info, isError ? 'error' : 'completed', state.onOpenFile);
 }
 
 export function markAsyncSubagentOrphaned(state: AsyncSubagentState): void {
@@ -720,7 +786,9 @@ export function markAsyncSubagentOrphaned(state: AsyncSubagentState): void {
   state.wrapperEl.addClass('error');
   state.wrapperEl.addClass('orphaned');
 
-  renderAsyncContentLikeSync(state.contentEl, state.info, 'orphaned');
+  updateResultSummary(state.resultSummaryEl, state.info.result);
+
+  renderAsyncContentLikeSync(state.contentEl, state.info, 'orphaned', state.onOpenFile);
 }
 
 /**
@@ -729,7 +797,8 @@ export function markAsyncSubagentOrphaned(state: AsyncSubagentState): void {
  */
 export function renderStoredAsyncSubagent(
   parentEl: HTMLElement,
-  subagent: SubagentInfo
+  subagent: SubagentInfo,
+  options: SubagentRenderOptions = {},
 ): HTMLElement {
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-subagent-list' });
   const displayStatus = getAsyncDisplayStatus(subagent.asyncStatus);
@@ -795,7 +864,7 @@ export function renderStoredAsyncSubagent(
   }
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-content' });
-  renderAsyncContentLikeSync(contentEl, subagent, displayStatus);
+  renderAsyncContentLikeSync(contentEl, subagent, displayStatus, options.onOpenFile);
 
   createOpenTranscriptButton(headerEl, wrapperEl, subagent);
 

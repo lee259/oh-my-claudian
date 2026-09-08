@@ -20,6 +20,7 @@ import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
   type ScheduledAnimationFrame,
+  scheduleDelayedFrame,
 } from '../../utils/animationFrame';
 import { getVaultFileByPath, revealWorkspaceLeaf } from '../../utils/obsidianCompat';
 import type { FeatureHost, FeatureTabManagerHost } from '../FeatureHost';
@@ -58,6 +59,7 @@ const MIN_CHAT_PANEL_WIDTH = 320;
 const MIN_SESSION_SIDEBAR_WIDTH = 180;
 const SESSION_RESIZER_WIDTH = 5;
 const SESSION_RESIZE_KEYBOARD_STEP = 16;
+const HISTORY_SURFACE_REFRESH_DELAY_MS = 200;
 const SIDEBAR_SURFACE_ROTATION: readonly SidebarSurface[] = ['sessions', 'files'];
 
 export class ClaudianView extends ItemView {
@@ -318,11 +320,11 @@ export class ClaudianView extends ItemView {
         },
         onTabStreamingChanged: () => {
           this.updateTabBar();
-          this.notifyConversationNavigationChanged();
+          this.notifyConversationListChanged();
         },
         onTabWorkChanged: () => {
           this.updateTabBar();
-          this.notifyConversationNavigationChanged();
+          this.notifyConversationListChanged();
         },
         onTabRewindingChanged: () => this.updateTabBar(),
         onTabTitleChanged: () => this.updateTabBar(),
@@ -366,6 +368,10 @@ export class ClaudianView extends ItemView {
     this.stopSessionSidebarResize();
     this.vaultFileTree?.destroy();
     this.vaultFileTree = null;
+    if (this.pendingHistorySurfaceUpdate) {
+      cancelScheduledAnimationFrame(this.pendingHistorySurfaceUpdate);
+      this.pendingHistorySurfaceUpdate = null;
+    }
     if (this.pendingTabBarUpdate !== null) {
       cancelScheduledAnimationFrame(this.pendingTabBarUpdate);
       this.pendingTabBarUpdate = null;
@@ -822,6 +828,7 @@ export class ClaudianView extends ItemView {
   private historyDropdownDirty = true;
   private sessionSidebarDirty = true;
   private historySurfaceRendered = false;
+  private pendingHistorySurfaceUpdate: ScheduledAnimationFrame | null = null;
 
   private updateHistoryDropdown(): void {
     this.historyDropdownDirty = true;
@@ -832,6 +839,21 @@ export class ClaudianView extends ItemView {
     if (this.isWideSessionLayout && this.activeSidebarSurface !== 'files') {
       this.renderSessionSidebar();
     }
+  }
+
+  private scheduleHistorySurfaceUpdate(): void {
+    if (this.pendingHistorySurfaceUpdate) return;
+
+    this.pendingHistorySurfaceUpdate = scheduleDelayedFrame(() => {
+      this.pendingHistorySurfaceUpdate = null;
+      this.updateHistoryDropdown();
+    }, HISTORY_SURFACE_REFRESH_DELAY_MS, this.containerEl?.ownerDocument.defaultView ?? null);
+  }
+
+  private hasActiveStreamingOrBackgroundWork(): boolean {
+    return this.tabManager?.getAllTabs().some(tab => (
+      tab.state.isStreaming || tab.session.hasBackgroundWork
+    )) ?? false;
   }
 
   private renderHistoryDropdown(): void {
@@ -2290,7 +2312,16 @@ export class ClaudianView extends ItemView {
   }
 
   notifyConversationListChanged(): void {
-    this.updateHistoryDropdown();
+    this.historyDropdownDirty = true;
+    this.sessionSidebarDirty = true;
+    if (this.hasActiveStreamingOrBackgroundWork()) {
+      if (this.pendingHistorySurfaceUpdate) {
+        cancelScheduledAnimationFrame(this.pendingHistorySurfaceUpdate);
+        this.pendingHistorySurfaceUpdate = null;
+      }
+      return;
+    }
+    this.scheduleHistorySurfaceUpdate();
   }
 
   private notifyConversationNavigationChanged(): void {

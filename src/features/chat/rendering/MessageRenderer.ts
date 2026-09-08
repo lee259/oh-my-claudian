@@ -606,10 +606,18 @@ export class MessageRenderer {
   ): void {
     const subagentInfo = this.resolveTaskSubagent(toolCall, modeHint);
     if (subagentInfo.mode === 'async') {
-      renderStoredAsyncSubagent(contentEl, subagentInfo);
+      renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onOpenFile: (fileReference) => runRendererAction(async () => {
+          await openVaultFile(this.app, fileReference);
+        }),
+      });
       return;
     }
-    renderStoredSubagent(contentEl, subagentInfo);
+    renderStoredSubagent(contentEl, subagentInfo, {
+      onOpenFile: (fileReference) => runRendererAction(async () => {
+        await openVaultFile(this.app, fileReference);
+      }),
+    });
   }
 
   /**
@@ -632,10 +640,18 @@ export class MessageRenderer {
       msg.toolCalls ?? [],
     );
     if (subagentInfo.mode === 'async') {
-      renderStoredAsyncSubagent(contentEl, subagentInfo);
+      renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onOpenFile: (fileReference) => runRendererAction(async () => {
+          await openVaultFile(this.app, fileReference);
+        }),
+      });
       return;
     }
-    renderStoredSubagent(contentEl, subagentInfo);
+    renderStoredSubagent(contentEl, subagentInfo, {
+      onOpenFile: (fileReference) => runRendererAction(async () => {
+        await openVaultFile(this.app, fileReference);
+      }),
+    });
   }
 
   private resolveTaskSubagent(toolCall: ToolCallInfo, modeHint?: 'sync' | 'async'): SubagentInfo {

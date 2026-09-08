@@ -10,6 +10,7 @@ import type {
   SubagentInfo,
   ToolCallInfo,
 } from '../../../core/types';
+import type { FileReference } from '../../../utils/FileReference';
 import { extractFinalResultFromSubagentJsonl } from '../../../utils/subagentJsonl';
 import {
   addSubagentToolCall,
@@ -93,6 +94,7 @@ export class SubagentManager {
   private asyncDomStates: Map<string, AsyncSubagentState> = new Map();
 
   private onStateChange: SubagentStateChangeCallback;
+  private onOpenFile: ((fileReference: FileReference) => void) | undefined;
   private taskResultInterpreter: ProviderTaskResultInterpreter;
 
   constructor(
@@ -105,6 +107,12 @@ export class SubagentManager {
 
   public setCallback(callback: SubagentStateChangeCallback): void {
     this.onStateChange = callback;
+  }
+
+  public setFileOpenCallback(
+    callback: ((fileReference: FileReference) => void) | undefined,
+  ): void {
+    this.onOpenFile = callback;
   }
 
   public setTaskResultInterpreter(interpreter: ProviderTaskResultInterpreter): void {
@@ -681,7 +689,9 @@ export class SubagentManager {
     taskInput: Record<string, unknown>,
     parentEl: HTMLElement
   ): HandleTaskResult {
-    const subagentState = createSubagentBlock(parentEl, taskToolId, taskInput);
+    const subagentState = createSubagentBlock(parentEl, taskToolId, taskInput, {
+      onOpenFile: this.onOpenFile,
+    });
     this.syncSubagents.set(taskToolId, subagentState);
     return { action: 'created_sync', subagentState };
   }
@@ -710,7 +720,9 @@ export class SubagentManager {
     this.asyncSubagents.set(taskToolId, record);
 
     const domState = existingPreview
-      ?? createAsyncSubagentBlock(parentEl, taskToolId, taskInput);
+      ?? createAsyncSubagentBlock(parentEl, taskToolId, taskInput, {
+        onOpenFile: this.onOpenFile,
+      });
     if (existingPreview) {
       // Promote the pending preview card in place: adopt its DOM as the
       // canonical card instead of rendering a second one, and sync the
@@ -746,7 +758,9 @@ export class SubagentManager {
     if (!parentEl || this.asyncPreviews.has(taskToolId)) return;
     const description = (taskInput?.description as string) || '';
     if (!description) return;
-    const domState = createAsyncSubagentBlock(parentEl, taskToolId, taskInput);
+    const domState = createAsyncSubagentBlock(parentEl, taskToolId, taskInput, {
+      onOpenFile: this.onOpenFile,
+    });
     this.asyncPreviews.set(taskToolId, domState);
   }
 

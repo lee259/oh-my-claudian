@@ -92,6 +92,15 @@ describe('systemPrompt', () => {
       expect(prompt).not.toContain('A leading slash or absolute path will FAIL');
     });
 
+    it('guides link-aware vault moves through the running Obsidian app', () => {
+      const prompt = buildSystemPrompt();
+
+      expect(prompt).toContain('## File Operations');
+      expect(prompt).toContain('Move or rename Vault notes, attachments, and folders through the running Obsidian app');
+      expect(prompt).toContain('Do not use shell `mv`');
+      expect(prompt).toContain('property:set');
+    });
+
     it('should document live context shapes and legacy compatibility', () => {
       const prompt = buildSystemPrompt();
 

@@ -823,7 +823,7 @@ export interface ToolCallRenderOptions {
   onOpenFile?: (fileReference: FileReference) => void;
 }
 
-function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefined {
+export function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefined {
   const fileTools: string[] = [TOOL_READ, TOOL_WRITE, TOOL_EDIT];
   if (!fileTools.includes(toolCall.name)) {
     return undefined;
@@ -832,7 +832,7 @@ function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefined {
   return typeof filePath === 'string' && filePath.trim() ? parseFileReference(filePath) : undefined;
 }
 
-function makeFileSummaryInteractive(
+export function makeFileSummaryInteractive(
   summaryEl: HTMLElement,
   fileReference: FileReference | undefined,
   onOpenFile: ((fileReference: FileReference) => void) | undefined,

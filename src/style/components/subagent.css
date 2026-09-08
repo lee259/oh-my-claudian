@@ -40,11 +40,27 @@
 }
 
 .claudian-subagent-label {
-  flex: 1;
+  flex: 0 1 auto;
+  max-width: 48%;
+  min-width: 0;
   font-family: var(--font-monospace);
   font-size: 13px;
   font-weight: 400;
   color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-subagent-result-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .claudian-subagent-status {
@@ -215,8 +231,16 @@
   font-size: 11px;
   font-family: var(--font-monospace);
   color: var(--text-muted);
-  margin-inline-start: auto;
-  padding-inline-start: 8px;
+  flex-shrink: 0;
+  padding-inline-start: 4px;
+}
+
+.claudian-subagent-list.done .claudian-subagent-result-summary {
+  color: var(--text-muted);
+}
+
+.claudian-subagent-list.error .claudian-subagent-result-summary {
+  color: var(--text-error);
 }
 
 .claudian-subagent-list.async .claudian-subagent-icon {

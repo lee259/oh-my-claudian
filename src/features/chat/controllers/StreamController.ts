@@ -745,10 +745,14 @@ export class StreamController {
       ? createAsyncSubagentBlock(parentEl, spawnId, {
         description: subagentInfo.description,
         prompt: subagentInfo.prompt,
+      }, {
+        onOpenFile: (fileReference) => { void openVaultFile(this.deps.plugin.app, fileReference); },
       })
       : createSubagentBlock(parentEl, spawnId, {
         description: subagentInfo.description,
         prompt: subagentInfo.prompt,
+      }, {
+        onOpenFile: (fileReference) => { void openVaultFile(this.deps.plugin.app, fileReference); },
       });
     if (previousEl?.parentElement === parentEl) {
       parentEl.insertBefore(subagentState.wrapperEl, previousEl);
@@ -1132,15 +1136,45 @@ export class StreamController {
     );
   }
 
+  /**
+   * Keeps high-volume background turns responsive by deferring expensive
+   * Markdown parsing until their terminal event. Foreground turns retain the
+   * existing formatted streaming behavior.
+   */
+  appendBackgroundText(text: string): void {
+    const { state } = this.deps;
+    if (!state.currentContentEl) return;
+
+    this.hideThinkingIndicator();
+    if (!state.currentTextEl) {
+      state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
+      state.currentTextContent = '';
+    }
+
+    state.currentTextContent += text;
+    state.currentTextEl.appendText(text);
+    state.currentTextEl.addClass('claudian-text-block--plain-streaming');
+    this.scrollToBottom();
+  }
+
   async finalizeCurrentTextBlock(msg?: ChatMessage): Promise<void> {
     const { state, renderer } = this.deps;
     const textEl = state.currentTextEl;
     const content = state.currentTextContent;
 
-    if (textEl && this.getStreamingRenderOptions(content)) {
-      this.textRenderCoordinator.request({ el: textEl, content });
+    if (textEl?.hasClass('claudian-text-block--plain-streaming')) {
+      textEl.removeClass('claudian-text-block--plain-streaming');
+      await this.deps.renderer.renderContent(
+        textEl,
+        content,
+        this.getStreamingRenderOptions(content),
+      );
+    } else {
+      if (textEl && this.getStreamingRenderOptions(content)) {
+        this.textRenderCoordinator.request({ el: textEl, content });
+      }
+      await this.textRenderCoordinator.flush();
     }
-    await this.textRenderCoordinator.flush();
 
     if (msg && content) {
       msg.contentBlocks = msg.contentBlocks || [];
@@ -1487,15 +1521,33 @@ export class StreamController {
   public async handleAsyncSubagentCompletion(
     completion: AsyncSubagentCompletion,
   ): Promise<boolean> {
-    const handled = this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
-    await this.hydrateAsyncSubagentHistory(
-      handled,
-      completion.providerSessionId,
-    );
+    const handled = this.applyAsyncSubagentCompletion(completion);
+    await this.recoverAsyncSubagentCompletion(handled, completion.providerSessionId);
     if (handled) {
       this.showThinkingIndicator();
     }
     return handled !== undefined;
+  }
+
+  /**
+   * Applies the terminal subagent state before any transcript recovery. This
+   * keeps the completed card responsive while the parent turn continues.
+   */
+  public applyAsyncSubagentCompletion(
+    completion: AsyncSubagentCompletion,
+  ): SubagentInfo | undefined {
+    return this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
+  }
+
+  /**
+   * Hydrates optional transcript details after the terminal state is already
+   * visible. Callers that serialize background work can enqueue this safely.
+   */
+  public async recoverAsyncSubagentCompletion(
+    subagent: SubagentInfo | undefined,
+    providerSessionId?: string,
+  ): Promise<void> {
+    await this.hydrateAsyncSubagentHistory(subagent, providerSessionId);
   }
 
   private async hydrateAsyncSubagentHistory(

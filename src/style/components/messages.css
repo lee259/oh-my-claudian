@@ -137,6 +137,10 @@ body.mod-windows .claudian-message-assistant {
   margin: 0;
 }
 
+.claudian-text-block--plain-streaming {
+  white-space: pre-wrap;
+}
+
 button.claudian-text-copy-btn {
   appearance: none;
   position: absolute;

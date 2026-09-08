@@ -380,7 +380,7 @@ describe('Async Subagent Renderer', () => {
     finalizeAsyncSubagent(state, 'all done', false);
 
     expect(state.labelEl.textContent).toBe('Background job');
-    expect(state.statusTextEl.textContent).toBe('');
+    expect(state.statusTextEl.textContent).toBe('Completed');
     expect((state.wrapperEl as any).hasClass('done')).toBe(true);
     const contentText = getTextByClass(state.contentEl as any, 'claudian-subagent-result-output')[0];
     expect(contentText).toBe('all done');
@@ -818,6 +818,33 @@ describe('addSubagentToolCall', () => {
     expect(getTextByClass(state.wrapperEl as any, 'claudian-subagent-count')).toEqual([]);
   });
 
+  it('opens a Read file reference without expanding the subagent tool card', () => {
+    const onOpenFile = jest.fn();
+    const state = createSubagentBlock(
+      parentEl as any,
+      'task-1',
+      { description: 'Test task' },
+      { onOpenFile },
+    );
+    const toolCall: ToolCallInfo = {
+      id: 'tool-1',
+      name: 'Read',
+      input: { file_path: 'notes/file.md:140-185' },
+      status: 'running',
+      isExpanded: false,
+    };
+
+    addSubagentToolCall(state, toolCall);
+    (state.wrapperEl.querySelector('.claudian-subagent-tool-summary') as HTMLElement).click();
+
+    expect(onOpenFile).toHaveBeenCalledWith({
+      path: 'notes/file.md',
+      lineStart: 140,
+      lineEnd: 185,
+    });
+    expect(toolCall.isExpanded).toBe(false);
+  });
+
   it('clears previous content and renders new tool item', () => {
     const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
 
@@ -971,6 +998,34 @@ describe('finalizeSubagentBlock', () => {
 
     const doneText = getTextByClass(state.contentEl as any, 'claudian-subagent-result-output')[0];
     expect(doneText).toBe('Done');
+  });
+
+  it('adds a concise result summary to the collapsed header', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
+
+    finalizeSubagentBlock(
+      state,
+      'Implemented the requested behavior and added regression coverage. Full details follow.',
+      false,
+    );
+
+    const summary = getTextByClass(state.wrapperEl as any, 'claudian-subagent-result-summary')[0];
+    expect(summary).toBe('Implemented the requested behavior and added regression coverage. Full details follow.');
+    const summaryEl = state.wrapperEl.querySelector('.claudian-subagent-result-summary') as HTMLElement;
+    expect(summaryEl.getAttribute('title')).toBe(summaryEl.textContent);
+    expect(getTextByClass(state.wrapperEl as any, 'claudian-subagent-status-text')[0])
+      .toBe('Completed');
+  });
+
+  it('does not retain a full result in the header tooltip', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
+    const result = `Completed: ${'detail '.repeat(10_000)}`;
+
+    finalizeSubagentBlock(state, result, false);
+
+    const summaryEl = state.wrapperEl.querySelector('.claudian-subagent-result-summary') as HTMLElement;
+    expect(summaryEl.textContent).toHaveLength(120);
+    expect(summaryEl.getAttribute('title')).toBe(summaryEl.textContent);
   });
 
   it('shows ERROR text when isError is true', () => {

@@ -47,6 +47,7 @@ import {
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
 import { getEnhancedPath } from '../../../utils/env';
+import { openVaultFile } from '../../../utils/obsidianCompat';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
@@ -100,16 +101,20 @@ type TabProviderSettings = Record<string, unknown> & {
   customContextLimits?: Record<string, number>;
 };
 
-interface BackgroundTurnRenderResult {
-  chunks: StreamChunk[];
-  metadata: {
-    assistantMessageId?: string;
-  };
+interface BackgroundTurnRenderState {
+  assistantMsg: ChatMessage;
+  hasVisibleContent: boolean;
+  hiddenToolIds: Set<string>;
+  contentEl: HTMLElement | null;
+  textEl: HTMLElement | null;
+  textContent: string;
+  thinkingState: TabData['state']['currentThinkingState'];
+  toolCallElements: Map<string, HTMLElement>;
 }
 
 const backgroundTurnBuffers = new WeakMap<
   TabData,
-  Map<string, Map<string, ProviderBackgroundOutputEvent[]>>
+  Map<string, Map<string, BackgroundTurnRenderState>>
 >();
 
 /**
@@ -874,26 +879,18 @@ async function handleTabSessionEvent(
 
   const turns = getBackgroundTurnBuffers(tab, context.bindingId);
   if (event.type === 'background_turn_started') {
-    turns.set(event.scope.turnId, []);
+    turns.set(event.scope.turnId, createBackgroundTurnRenderState());
     return;
   }
   if (event.type === 'background_turn_completed') {
-    const hasBufferedTurn = turns.has(event.scope.turnId);
-    const events = turns.get(event.scope.turnId) ?? [];
+    const turn = turns.get(event.scope.turnId);
     turns.delete(event.scope.turnId);
     deleteBackgroundTurnBuffersIfEmpty(tab, context.bindingId, turns);
-    if (!hasBufferedTurn) return;
-    const chunks = events
-      .map(providerOutputEventToStreamChunk)
-      .filter((chunk): chunk is StreamChunk => chunk !== null);
-    const hasVisibleOutput = await renderAutoTriggeredTurn(tab, {
-      chunks,
-      metadata: {
-        ...(event.nativeAssistantId
-          ? { assistantMessageId: event.nativeAssistantId }
-          : {}),
-      },
-    }, isCurrent);
+    if (!turn) return;
+    if (event.nativeAssistantId) {
+      turn.assistantMsg.assistantMessageId = event.nativeAssistantId;
+    }
+    const hasVisibleOutput = await finalizeBackgroundTurn(tab, turn, isCurrent);
     if (isCurrent()) {
       const reportReviewableSettlement = hasVisibleOutput
         ? tab.captureReviewableSettlement?.()
@@ -906,7 +903,9 @@ async function handleTabSessionEvent(
     }
     return;
   }
-  turns.get(event.scope.turnId)?.push(event as ProviderBackgroundOutputEvent);
+  const turn = turns.get(event.scope.turnId);
+  if (!turn) return;
+  await renderBackgroundTurnEvent(tab, turn, event as ProviderBackgroundOutputEvent, isCurrent);
 }
 
 function enqueueTabSessionEvent(
@@ -925,6 +924,45 @@ function enqueueTabSessionEvent(
     return undefined;
   }
 
+  // A completed background task must update its card immediately. Keeping this
+  // behind the general background FIFO makes the UI appear frozen while the
+  // parent agent is still producing output or while transcript recovery runs.
+  if (event.type === 'async_subagent_completed') {
+    const streamController = tab.controllers.streamController;
+    if (!streamController) return undefined;
+    const providerSessionId = event.providerSessionId
+      ?? tab.executionCoordinator?.snapshot?.providerSessionId;
+    if (!providerSessionId) return undefined;
+
+    const subagent = streamController.applyAsyncSubagentCompletion({
+      type: 'async_subagent_completion',
+      providerSessionId,
+      taskId: event.subagentId,
+      status: event.status,
+      ...(event.result !== undefined ? { result: event.result } : {}),
+    });
+    if (!subagent) return undefined;
+
+    streamController.showThinkingIndicator();
+    const pending = enqueueTabBackgroundWork(tab, async () => {
+      if (!isCurrent()) return;
+      await streamController.recoverAsyncSubagentCompletion(
+        subagent,
+        providerSessionId,
+      );
+      if (!isCurrent()) return;
+      const reportReviewableSettlement = tab.captureReviewableSettlement?.(
+        event.status === 'error' ? 'error' : 'completed',
+      );
+      try {
+        await tab.controllers.conversationController?.save(true);
+      } finally {
+        if (isCurrent()) reportReviewableSettlement?.();
+      }
+    });
+    return pending ?? undefined;
+  }
+
   const pending = enqueueTabBackgroundWork(tab, async () => {
     if (!isCurrent()) {
       discardBackgroundTurnBuffers(tab, context.bindingId);
@@ -941,7 +979,7 @@ function enqueueTabSessionEvent(
 function getBackgroundTurnBuffers(
   tab: TabData,
   bindingId: string,
-): Map<string, ProviderBackgroundOutputEvent[]> {
+): Map<string, BackgroundTurnRenderState> {
   let bindings = backgroundTurnBuffers.get(tab);
   if (!bindings) {
     bindings = new Map();
@@ -958,7 +996,7 @@ function getBackgroundTurnBuffers(
 function deleteBackgroundTurnBuffersIfEmpty(
   tab: TabData,
   bindingId: string,
-  turns: Map<string, ProviderBackgroundOutputEvent[]>,
+  turns: Map<string, BackgroundTurnRenderState>,
 ): void {
   if (turns.size > 0) return;
   const bindings = backgroundTurnBuffers.get(tab);
@@ -1842,6 +1880,9 @@ export function initializeTabRuntimeControllers(
       tab.controllers.streamController?.onAsyncSubagentStateChange(subagent);
     }
   );
+  services.subagentManager.setFileOpenCallback((fileReference) => {
+    void openVaultFile(plugin.app, fileReference);
+  });
 
   tab.controllers.conversationController = createTabConversationController(tab, plugin, {
     ensureExecutionInitialized,
@@ -2279,92 +2320,138 @@ function hasVisibleAutoTurnMessageContent(msg: ChatMessage): boolean {
   ) ?? false;
 }
 
-async function renderAutoTriggeredTurn(
+function createBackgroundTurnRenderState(): BackgroundTurnRenderState {
+  return {
+    assistantMsg: {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      toolCalls: [],
+      contentBlocks: [],
+    },
+    hasVisibleContent: false,
+    hiddenToolIds: new Set(),
+    contentEl: null,
+    textEl: null,
+    textContent: '',
+    thinkingState: null,
+    toolCallElements: new Map(),
+  };
+}
+
+async function withBackgroundTurnRenderContext<T>(
   tab: TabData,
-  result: BackgroundTurnRenderResult,
-  isCurrent: () => boolean,
-): Promise<boolean> {
-  if (!isCurrent() || !tab.dom.contentEl.isConnected) {
-    return false;
-  }
-
-  const { chunks, metadata } = result;
-  if (chunks.length === 0) return false;
-
-  const hiddenToolIds = new Set(
-    chunks
-      .filter((chunk): chunk is Extract<StreamChunk, { type: 'tool_use' }> =>
-        chunk.type === 'tool_use' && chunk.name === TOOL_AGENT_OUTPUT
-      )
-      .map(chunk => chunk.id)
-  );
-  const hasVisibleContent = chunks.some(chunk => isVisibleAutoTurnChunk(chunk, hiddenToolIds));
-
-  const assistantMsg: ChatMessage = {
-    id: metadata.assistantMessageId ?? generateMessageId(),
-    role: 'assistant',
-    content: '',
-    timestamp: Date.now(),
-    toolCalls: [],
-    contentBlocks: [],
-    ...(metadata.assistantMessageId && { assistantMessageId: metadata.assistantMessageId }),
+  turn: BackgroundTurnRenderState,
+  render: () => Promise<T>,
+): Promise<T> {
+  const foreground = {
+    contentEl: tab.state.currentContentEl,
+    textEl: tab.state.currentTextEl,
+    textContent: tab.state.currentTextContent,
+    thinkingState: tab.state.currentThinkingState,
+    toolCallElements: new Map(tab.state.toolCallElements),
   };
 
-  const previousContentEl = tab.state.currentContentEl;
-  const previousTextEl = tab.state.currentTextEl;
-  const previousTextContent = tab.state.currentTextContent;
-  const previousThinkingState = tab.state.currentThinkingState;
-
-  if (hasVisibleContent) {
-    tab.state.addMessage(assistantMsg);
-    const msgEl = tab.renderer?.addMessage?.(assistantMsg);
-    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
-    if (contentEl) {
-      if (!previousContentEl) {
-        tab.state.toolCallElements.clear();
-      }
-      tab.state.currentContentEl = contentEl;
-      tab.state.currentTextEl = null;
-      tab.state.currentTextContent = '';
-      tab.state.currentThinkingState = null;
-    }
+  tab.state.currentContentEl = turn.contentEl;
+  tab.state.currentTextEl = turn.textEl;
+  tab.state.currentTextContent = turn.textContent;
+  tab.state.currentThinkingState = turn.thinkingState;
+  tab.state.toolCallElements.clear();
+  for (const [toolId, toolEl] of turn.toolCallElements) {
+    tab.state.toolCallElements.set(toolId, toolEl);
   }
 
   try {
-    for (const chunk of chunks) {
-      if (!isCurrent()) return false;
-      await tab.controllers.streamController?.handleStreamChunk(chunk, assistantMsg);
-      if (!isCurrent()) return false;
-    }
-
-    if (
-      isCurrent()
-      && hasVisibleContent
-      && !hasVisibleAutoTurnMessageContent(assistantMsg)
-    ) {
-      const placeholder = '(background task completed)';
-      assistantMsg.content = placeholder;
-      await tab.controllers.streamController?.appendText(placeholder);
-    }
-
-    if (isCurrent() && hasVisibleContent) {
-      await tab.controllers.streamController?.finalizeCurrentThinkingBlock(assistantMsg);
-      if (!isCurrent()) return false;
-      await tab.controllers.streamController?.finalizeCurrentTextBlock(assistantMsg);
-      if (!isCurrent()) return false;
-    }
+    return await render();
   } finally {
-    if (hasVisibleContent) {
-      tab.controllers.streamController?.hideThinkingIndicator();
-      tab.services.subagentManager.resetStreamingState?.();
-      tab.state.currentContentEl = previousContentEl;
-      tab.state.currentTextEl = previousTextEl;
-      tab.state.currentTextContent = previousTextContent;
-      tab.state.currentThinkingState = previousThinkingState;
-      tab.renderer?.scrollToBottom();
+    turn.contentEl = tab.state.currentContentEl;
+    turn.textEl = tab.state.currentTextEl;
+    turn.textContent = tab.state.currentTextContent;
+    turn.thinkingState = tab.state.currentThinkingState;
+    turn.toolCallElements = new Map(tab.state.toolCallElements);
+
+    tab.state.currentContentEl = foreground.contentEl;
+    tab.state.currentTextEl = foreground.textEl;
+    tab.state.currentTextContent = foreground.textContent;
+    tab.state.currentThinkingState = foreground.thinkingState;
+    tab.state.toolCallElements.clear();
+    for (const [toolId, toolEl] of foreground.toolCallElements) {
+      tab.state.toolCallElements.set(toolId, toolEl);
     }
   }
-  return hasVisibleContent;
+}
+
+async function renderBackgroundTurnEvent(
+  tab: TabData,
+  turn: BackgroundTurnRenderState,
+  event: ProviderBackgroundOutputEvent,
+  isCurrent: () => boolean,
+): Promise<void> {
+  if (!isCurrent() || !tab.dom.contentEl.isConnected) return;
+  const chunk = providerOutputEventToStreamChunk(event);
+  if (!chunk) return;
+
+  if (chunk.type === 'tool_use' && chunk.name === TOOL_AGENT_OUTPUT) {
+    turn.hiddenToolIds.add(chunk.id);
+  }
+  const isVisible = isVisibleAutoTurnChunk(chunk, turn.hiddenToolIds);
+  if (isVisible && !turn.hasVisibleContent) {
+    turn.hasVisibleContent = true;
+    tab.state.addMessage(turn.assistantMsg);
+    const msgEl = tab.renderer?.addMessage?.(turn.assistantMsg);
+    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
+    if (contentEl) {
+      turn.contentEl = contentEl;
+    }
+  }
+
+  if (turn.hasVisibleContent && chunk.type === 'text') {
+    turn.assistantMsg.content += chunk.content;
+    const streamController = tab.controllers.streamController;
+    await withBackgroundTurnRenderContext(tab, turn, async () => {
+      if (streamController?.appendBackgroundText) {
+        streamController.appendBackgroundText(chunk.content);
+      } else {
+        await streamController?.handleStreamChunk(chunk, turn.assistantMsg);
+      }
+    });
+    return;
+  }
+
+  if (turn.hasVisibleContent || chunk.type === 'usage') {
+    await withBackgroundTurnRenderContext(tab, turn, async () => {
+      await tab.controllers.streamController?.handleStreamChunk(chunk, turn.assistantMsg);
+    });
+  }
+}
+
+async function finalizeBackgroundTurn(
+  tab: TabData,
+  turn: BackgroundTurnRenderState,
+  isCurrent: () => boolean,
+): Promise<boolean> {
+  if (!isCurrent() || !turn.hasVisibleContent) return false;
+  const { assistantMsg } = turn;
+  try {
+    await withBackgroundTurnRenderContext(tab, turn, async () => {
+      if (!hasVisibleAutoTurnMessageContent(assistantMsg)) {
+        const placeholder = '(background task completed)';
+        assistantMsg.content = placeholder;
+        await tab.controllers.streamController?.appendText(placeholder);
+      }
+      if (!isCurrent()) return;
+      await tab.controllers.streamController?.finalizeCurrentThinkingBlock(assistantMsg);
+      if (!isCurrent()) return;
+      await tab.controllers.streamController?.finalizeCurrentTextBlock(assistantMsg);
+    });
+    if (!isCurrent()) return false;
+    return true;
+  } finally {
+    tab.controllers.streamController?.hideThinkingIndicator();
+    tab.services.subagentManager.resetStreamingState?.();
+    tab.renderer?.scrollToBottom();
+  }
 }
 
 export async function updatePlanModeUI(

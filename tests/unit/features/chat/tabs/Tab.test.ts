@@ -853,6 +853,13 @@ describe('Tab provider execution ownership', () => {
       text: 'background result',
       scope: { ...backgroundScope, sequence: 2 },
     }, context);
+
+    expect(tab.controllers.streamController!.handleStreamChunk).toHaveBeenCalledWith(
+      { content: 'background result', type: 'text' },
+      expect.objectContaining({ role: 'assistant' }),
+    );
+    expect(tab.controllers.conversationController!.save).not.toHaveBeenCalled();
+
     await coordinatorDeps[0].onSessionEvent?.({
       type: 'background_turn_completed',
       reason: 'completed',
@@ -865,6 +872,51 @@ describe('Tab provider execution ownership', () => {
     );
     expect(tab.controllers.conversationController!.save).toHaveBeenCalledWith(true);
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores the foreground stream target between background output events', async () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    Object.defineProperty(tab.dom.contentEl, 'isConnected', { value: true });
+    const foregroundContentEl = createMockEl();
+    const foregroundTextEl = createMockEl();
+    const backgroundContentEl = createMockEl();
+    const assistantEl = createMockEl();
+    assistantEl.querySelector = jest.fn().mockReturnValue(backgroundContentEl);
+    tab.renderer = {
+      addMessage: jest.fn().mockReturnValue(assistantEl),
+      scrollToBottom: jest.fn(),
+    } as any;
+    tab.state.currentContentEl = foregroundContentEl as any;
+    tab.state.currentTextEl = foregroundTextEl as any;
+    tab.state.currentTextContent = 'foreground output';
+    const appendBackgroundText = jest.fn();
+    tab.controllers.streamController = {
+      appendBackgroundText,
+      handleStreamChunk: jest.fn(),
+    } as any;
+    const backgroundScope = {
+      kind: 'background' as const,
+      sequence: 1,
+      sessionInstanceId: 'session-instance-1',
+      turnId: 'background-turn-interleaved',
+    };
+    const context = createEventContext();
+
+    await coordinatorDeps[0].onSessionEvent?.({
+      type: 'background_turn_started',
+      scope: backgroundScope,
+    }, context);
+    await coordinatorDeps[0].onSessionEvent?.({
+      type: 'text_delta',
+      text: 'child result',
+      scope: { ...backgroundScope, sequence: 2 },
+    }, context);
+
+    expect(appendBackgroundText).toHaveBeenCalledWith('child result');
+    expect(tab.state.currentContentEl).toBe(foregroundContentEl);
+    expect(tab.state.currentTextEl).toBe(foregroundTextEl);
+    expect(tab.state.currentTextContent).toBe('foreground output');
   });
 
   it('captures background review activity before persistence completes', async () => {
@@ -1078,7 +1130,7 @@ describe('Tab provider execution ownership', () => {
       scope: { ...backgroundScope, sequence: 3 },
     }, context);
 
-    expect(handleStreamChunk).not.toHaveBeenCalled();
+    expect(handleStreamChunk).toHaveBeenCalledTimes(1);
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -1090,8 +1142,14 @@ describe('Tab provider execution ownership', () => {
       containerEl: createMockEl() as any,
       captureReviewableSettlement: () => onReviewableSettlement,
     });
-    const handleAsyncSubagentCompletion = jest.fn().mockResolvedValue(true);
-    tab.controllers.streamController = { handleAsyncSubagentCompletion } as any;
+    const subagent = { id: 'task-1', mode: 'async', status: 'completed' } as any;
+    const applyAsyncSubagentCompletion = jest.fn().mockReturnValue(subagent);
+    const recoverAsyncSubagentCompletion = jest.fn().mockResolvedValue(undefined);
+    tab.controllers.streamController = {
+      applyAsyncSubagentCompletion,
+      recoverAsyncSubagentCompletion,
+      showThinkingIndicator: jest.fn(),
+    } as any;
     tab.controllers.conversationController = {
       save: jest.fn().mockResolvedValue(undefined),
     } as any;
@@ -1110,15 +1168,81 @@ describe('Tab provider execution ownership', () => {
       type: 'async_subagent_completed',
     }, createEventContext());
 
-    expect(handleAsyncSubagentCompletion).toHaveBeenCalledWith({
+    expect(applyAsyncSubagentCompletion).toHaveBeenCalledWith({
       providerSessionId: 'native-session',
       result: 'done',
       status: 'completed',
       taskId: 'subagent-1',
       type: 'async_subagent_completion',
     });
+    expect(recoverAsyncSubagentCompletion).toHaveBeenCalledWith(
+      subagent,
+      'native-session',
+    );
     expect(tab.controllers.conversationController!.save).toHaveBeenCalledWith(true);
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies async subagent completion before queued background recovery', async () => {
+    const plugin = createPlugin();
+    const tab = createTab({
+      plugin,
+      containerEl: createMockEl() as any,
+    });
+    const subagent = {
+      id: 'task-1',
+      mode: 'async' as const,
+      status: 'completed' as const,
+    };
+    const applyAsyncSubagentCompletion = jest.fn().mockReturnValue(subagent);
+    const recoverAsyncSubagentCompletion = jest.fn().mockResolvedValue(undefined);
+    const showThinkingIndicator = jest.fn();
+    const save = jest.fn().mockResolvedValue(undefined);
+    tab.controllers.streamController = {
+      applyAsyncSubagentCompletion,
+      recoverAsyncSubagentCompletion,
+      showThinkingIndicator,
+    } as any;
+    tab.controllers.conversationController = { save } as any;
+    coordinatorInstances[0].snapshot = { providerSessionId: 'native-session' };
+
+    let releaseBackgroundWork!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      releaseBackgroundWork = resolve;
+    });
+    tab.session.enqueueBackgroundWork(() => blocked);
+    await Promise.resolve();
+
+    const completion = coordinatorDeps[0].onSessionEvent?.({
+      originatingTurnId: 'turn-1',
+      scope: {
+        kind: 'session',
+        sequence: 1,
+        sessionInstanceId: 'session-instance-1',
+      },
+      status: 'completed',
+      subagentId: 'subagent-1',
+      type: 'async_subagent_completed',
+    }, createEventContext());
+
+    expect(applyAsyncSubagentCompletion).toHaveBeenCalledWith({
+      providerSessionId: 'native-session',
+      status: 'completed',
+      taskId: 'subagent-1',
+      type: 'async_subagent_completion',
+    });
+    expect(showThinkingIndicator).toHaveBeenCalledTimes(1);
+    expect(recoverAsyncSubagentCompletion).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+
+    releaseBackgroundWork();
+    await completion;
+
+    expect(recoverAsyncSubagentCompletion).toHaveBeenCalledWith(
+      subagent,
+      'native-session',
+    );
+    expect(save).toHaveBeenCalledWith(true);
   });
 
   it('drains deferred background rendering before a conversation transition can proceed', async () => {
@@ -1177,7 +1301,7 @@ describe('Tab provider execution ownership', () => {
       type: 'background_turn_started',
       scope: backgroundScope,
     }, context);
-    await coordinatorDeps[0].onSessionEvent?.({
+    const textDelta = coordinatorDeps[0].onSessionEvent?.({
       type: 'text_delta',
       text: 'old conversation result',
       scope: { ...backgroundScope, sequence: 2 },
@@ -1201,6 +1325,7 @@ describe('Tab provider execution ownership', () => {
     expect(switchConversation).not.toHaveBeenCalled();
 
     releaseRender();
+    await textDelta;
     await completion;
     await transition;
 
@@ -1235,12 +1360,21 @@ describe('Tab provider execution ownership', () => {
     tab.renderer = {
       renderMessages: jest.fn().mockReturnValue(createMockEl()),
     } as any;
-    let releaseRecovery!: (applied: boolean) => void;
-    const recoveryBlocked = new Promise<boolean>((resolve) => {
+    let releaseRecovery!: () => void;
+    const recoveryBlocked = new Promise<void>((resolve) => {
       releaseRecovery = resolve;
     });
-    const handleAsyncSubagentCompletion = jest.fn().mockReturnValue(recoveryBlocked);
-    tab.controllers.streamController = { handleAsyncSubagentCompletion } as any;
+    const applyAsyncSubagentCompletion = jest.fn().mockReturnValue({
+      id: 'task-1',
+      mode: 'async',
+      status: 'completed',
+    });
+    const recoverAsyncSubagentCompletion = jest.fn().mockReturnValue(recoveryBlocked);
+    tab.controllers.streamController = {
+      applyAsyncSubagentCompletion,
+      recoverAsyncSubagentCompletion,
+      showThinkingIndicator: jest.fn(),
+    } as any;
     const conversationController = installTransitionController(tab, plugin);
     const save = jest.spyOn(conversationController, 'save');
     coordinatorInstances[0].snapshot = { providerSessionId: 'native-session' };
@@ -1259,12 +1393,13 @@ describe('Tab provider execution ownership', () => {
     }, context);
     for (
       let attempt = 0;
-      attempt < 10 && handleAsyncSubagentCompletion.mock.calls.length === 0;
+      attempt < 10 && recoverAsyncSubagentCompletion.mock.calls.length === 0;
       attempt++
     ) {
       await Promise.resolve();
     }
-    expect(handleAsyncSubagentCompletion).toHaveBeenCalledTimes(1);
+    expect(applyAsyncSubagentCompletion).toHaveBeenCalledTimes(1);
+    expect(recoverAsyncSubagentCompletion).toHaveBeenCalledTimes(1);
 
     const transition = conversationController.switchTo(nextConversation.id);
     const earlyTransition = await Promise.race([
@@ -1275,7 +1410,7 @@ describe('Tab provider execution ownership', () => {
     expect(switchConversation).not.toHaveBeenCalled();
 
     coordinatorInstances[0].isEventContextCurrent.mockReturnValue(false);
-    releaseRecovery(true);
+    releaseRecovery();
     await completion;
     await transition;
 

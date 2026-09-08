@@ -1036,7 +1036,8 @@ describe('MessageRenderer', () => {
         description: 'Run tests',
         status: 'completed',
         result: 'All passed',
-      })
+      }),
+      expect.objectContaining({ onOpenFile: expect.any(Function) }),
     );
   });
 
@@ -1083,7 +1084,8 @@ describe('MessageRenderer', () => {
         id: 'task-async-1',
         mode: 'async',
         asyncStatus: 'running',
-      })
+      }),
+      expect.objectContaining({ onOpenFile: expect.any(Function) }),
     );
     expect(renderStoredSubagent).not.toHaveBeenCalled();
   });
@@ -1120,7 +1122,8 @@ describe('MessageRenderer', () => {
       expect.objectContaining({
         id: 'task-async-structured-1',
         asyncStatus: 'running',
-      })
+      }),
+      expect.objectContaining({ onOpenFile: expect.any(Function) }),
     );
   });
 
@@ -1163,7 +1166,8 @@ describe('MessageRenderer', () => {
       expect.objectContaining({
         id: 'task-hint-1',
         mode: 'async',
-      })
+      }),
+      expect.objectContaining({ onOpenFile: expect.any(Function) }),
     );
     expect(renderStoredSubagent).not.toHaveBeenCalled();
   });
@@ -1761,7 +1765,8 @@ describe('MessageRenderer', () => {
           description: 'Failing task',
           status: 'error',
           result: 'Something went wrong',
-        })
+        }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
     });
 
@@ -1797,7 +1802,8 @@ describe('MessageRenderer', () => {
           id: 'task-run',
           description: 'Running task',
           status: 'running',
-        })
+        }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
     });
 
@@ -1834,7 +1840,8 @@ describe('MessageRenderer', () => {
           id: 'task-no-desc',
           description: 'Subagent task',
           status: 'completed',
-        })
+        }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
     });
 
@@ -1883,7 +1890,8 @@ describe('MessageRenderer', () => {
           prompt: 'Inspect utils.ts and return the final patch summary.',
           status: 'completed',
           result: 'Patched utils.ts and verified imports.',
-        })
+        }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
     });
 
@@ -1938,6 +1946,7 @@ describe('MessageRenderer', () => {
           result: 'All mappings verified.',
           status: 'completed',
         }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
       expect(renderStoredSubagent).not.toHaveBeenCalled();
       expect(renderStoredToolCall).not.toHaveBeenCalled();

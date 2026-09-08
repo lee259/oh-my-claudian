@@ -1183,7 +1183,10 @@ Only this is the final result.
       expect(manager.hasPendingTask('task-preview')).toBe(true);
       expect(createAsyncSubagentBlock).toHaveBeenCalledTimes(1);
       expect(createAsyncSubagentBlock).toHaveBeenCalledWith(
-        parentEl, 'task-preview', { description: 'Bg task', prompt: 'draft' }
+        parentEl,
+        'task-preview',
+        { description: 'Bg task', prompt: 'draft' },
+        { onOpenFile: undefined },
       );
       expect(manager.subagentsSpawnedThisStream).toBe(0);
     });

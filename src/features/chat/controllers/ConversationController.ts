@@ -191,6 +191,8 @@ export class ConversationController {
   private metadataPopoverEl: HTMLElement | null = null;
   private metadataPopoverTarget: HTMLElement | null = null;
   private metadataPopoverSequence = 0;
+  private readonly metadataPopoverSyncHandlers = new WeakMap<HTMLElement, () => void>();
+  private readonly pendingMetadataPopoverSyncContainers = new Set<HTMLElement>();
   private subagentTranscriptPanel: SubagentTranscriptPanel | null = null;
   private subagentTranscriptRefreshTimer: number | null = null;
   private subagentTranscriptTaskToolId: string | null = null;
@@ -1060,6 +1062,7 @@ export class ConversationController {
       this.historyViewport.commit(container, renderRoot);
       options.onBeforeRestoreListState?.(container);
       this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
+      this.scheduleMetadataPopoverSync(container, options);
       return;
     }
 
@@ -1152,6 +1155,7 @@ export class ConversationController {
     this.historyViewport.commit(container, renderRoot);
     options.onBeforeRestoreListState?.(container);
     this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
+    this.scheduleMetadataPopoverSync(container, options);
   }
 
   private renderLinkedNoteSection(
@@ -1695,13 +1699,26 @@ export class ConversationController {
       this.closeSessionMetadataPopover();
     });
 
-    // A layout switch can replace the hovered item without dispatching a new
-    // mouseenter event. Synchronize once after insertion so the metadata card
-    // remains available when the pointer is already over the new item.
-    queueMicrotask(() => {
+    this.metadataPopoverSyncHandlers.set(item, () => {
       if (typeof item.matches === 'function' && item.matches(':hover')) {
         this.showSessionMetadataPopover(item, focusTarget, conversation, options);
       }
+    });
+  }
+
+  private scheduleMetadataPopoverSync(
+    container: HTMLElement,
+    options: HistoryRenderOptions,
+  ): void {
+    if (!options.showMetadataPopover || this.pendingMetadataPopoverSyncContainers.has(container)) {
+      return;
+    }
+    this.pendingMetadataPopoverSyncContainers.add(container);
+    queueMicrotask(() => {
+      this.pendingMetadataPopoverSyncContainers.delete(container);
+      const hoveredItem = container.querySelector<HTMLElement>('.claudian-history-item:hover');
+      if (!hoveredItem) return;
+      this.metadataPopoverSyncHandlers.get(hoveredItem)?.();
     });
   }
 

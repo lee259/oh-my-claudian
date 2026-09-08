@@ -1265,9 +1265,17 @@ describe('ConversationController', () => {
           configurable: true,
           value: body,
         });
+        const querySelector = container.querySelector.bind(container);
+        jest.spyOn(container, 'querySelector').mockImplementation((...args: unknown[]) => {
+          const [selector] = args;
+          return selector === '.claudian-history-item:hover'
+            ? item
+            : querySelector(String(selector));
+        });
         item.matches = jest.fn().mockReturnValue(true);
         await Promise.resolve();
 
+        expect(container.querySelector).toHaveBeenCalledWith('.claudian-history-item:hover');
         expect(body.querySelector('.claudian-session-metadata-popover'))
           .not.toBeNull();
       });
