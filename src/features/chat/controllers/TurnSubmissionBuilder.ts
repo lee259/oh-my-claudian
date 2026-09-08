@@ -114,9 +114,11 @@ export class TurnSubmissionBuilder {
         ...(mode ? { mode } : {}),
         ...(reasoning ? { reasoning } : {}),
         ...(serviceTier ? { serviceTier } : {}),
-        systemInstructions: systemPrompt
-          ? { kind: 'explicit', instructions: systemPrompt }
-          : { kind: 'none' },
+        systemInstructions: this.deps.plugin.settings.useClaudianSystemPrompt === true
+          ? { kind: 'provider-default' }
+          : systemPrompt
+            ? { kind: 'explicit', instructions: systemPrompt }
+            : { kind: 'none' },
       },
       context: {
         ...(request.browserSelection ? { browserSelection: request.browserSelection } : {}),

@@ -280,6 +280,10 @@
       "name": "Prompt de sistema personalizado",
       "desc": "Instruções adicionais anexadas ao prompt de sistema padrão"
     },
+    "useClaudianSystemPrompt": {
+      "name": "Usar o prompt de sistema do Oh My Claudian",
+      "desc": "Aplica instruções de cofre, operações de arquivo e segurança. Desativado, envia apenas seu prompt personalizado."
+    },
     "autoTitle": {
       "name": "Gerar automaticamente títulos de conversa",
       "desc": "Gera automaticamente títulos de conversa após a primeira mensagem do usuário."

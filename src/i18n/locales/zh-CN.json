@@ -278,7 +278,11 @@
     },
     "systemPrompt": {
       "name": "自定义系统提示词",
-      "desc": "附加到默认系统提示词的额外指令"
+      "desc": "自定义指令。关闭 Oh My Claudian 系统提示词时仅发送本内容；开启后会附加到基础提示词。"
+    },
+    "useClaudianSystemPrompt": {
+      "name": "使用 Oh My Claudian 系统提示词",
+      "desc": "启用 Vault、文件操作和安全规则。关闭时仅发送你的自定义系统提示词。"
     },
     "autoTitle": {
       "name": "自动生成对话标题",

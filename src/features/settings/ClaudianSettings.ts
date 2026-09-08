@@ -574,6 +574,20 @@ export class ClaudianSettingTab extends PluginSettingTab {
       });
 
     new Setting(container)
+      .setName(t('settings.useClaudianSystemPrompt.name'))
+      .setDesc(t('settings.useClaudianSystemPrompt.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useClaudianSystemPrompt === true)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.useClaudianSystemPrompt = value;
+            });
+            await this.restartServiceForPromptChange();
+          })
+      );
+
+    new Setting(container)
       .setName(t('settings.excludedTags.name'))
       .setDesc(t('settings.excludedTags.desc'))
       .addTextArea((text) => {

@@ -122,6 +122,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
       enableAutoTitleGeneration: false,
       permissionMode: 'normal',
       systemPrompt: '',
+      useClaudianSystemPrompt: false,
     },
     updateConversation: jest.fn().mockResolvedValue(undefined),
   };
@@ -293,6 +294,17 @@ describe('InputController coordinator execution', () => {
 
     const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
     expect(submission.configuration.systemInstructions).toEqual({ kind: 'none' });
+  });
+
+  it('uses the Claudian system instructions only when the user enables them', async () => {
+    const fixture = createFixture();
+    fixture.plugin.settings.useClaudianSystemPrompt = true;
+    fixture.input.value = 'first';
+
+    await fixture.controller.sendMessage();
+
+    const submission = fixture.coordinator.execute.mock.calls[0][0] as ChatTurnSubmission;
+    expect(submission.configuration.systemInstructions).toEqual({ kind: 'provider-default' });
   });
 
   it('passes a configured custom prompt as explicit system instructions', async () => {

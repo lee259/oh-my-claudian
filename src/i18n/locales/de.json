@@ -280,6 +280,10 @@
       "name": "Benutzerdefinierter System-Prompt",
       "desc": "Zusätzliche Anweisungen, die an den Standard-System-Prompt angehängt werden"
     },
+    "useClaudianSystemPrompt": {
+      "name": "Oh My Claudian-System-Prompt verwenden",
+      "desc": "Wendet Vault-, Dateioperations- und Sicherheitsanweisungen an. Deaktiviert wird nur dein eigener System-Prompt gesendet."
+    },
     "autoTitle": {
       "name": "Konversationstitel automatisch generieren",
       "desc": "Generiert automatisch Konversationstitel nach der ersten Nutzernachricht."
