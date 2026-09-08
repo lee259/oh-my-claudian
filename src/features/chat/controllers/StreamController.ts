@@ -1741,19 +1741,66 @@ export class StreamController {
 
   /** Callback from SubagentManager when async state changes. Updates messages only (DOM handled by manager). */
   onAsyncSubagentStateChange(subagent: SubagentInfo): void {
-    this.updateSubagentInMessages(subagent);
+    const message = this.updateSubagentInMessages(subagent);
+    if (
+      message
+      && subagent.mode === 'async'
+      && (subagent.asyncStatus === 'completed' || subagent.asyncStatus === 'error')
+      && this.deps.state.currentContentEl
+    ) {
+      this.deps.subagentManager.moveCompletedAsyncSubagentToTail(
+        subagent.id,
+        this.deps.state.currentContentEl,
+        () => {
+          this.sealCurrentTextBlockForAsyncSubagent(message);
+          this.moveSubagentContentBlockToTail(message, subagent.id);
+        },
+      );
+    }
     this.scrollToBottom();
   }
 
-  private updateSubagentInMessages(subagent: SubagentInfo): void {
+  private updateSubagentInMessages(subagent: SubagentInfo): ChatMessage | undefined {
     const { state } = this.deps;
     for (let i = state.messages.length - 1; i >= 0; i--) {
       const msg = state.messages[i];
       if (msg.role !== 'assistant') continue;
       if (this.linkTaskToolCallToSubagent(msg, subagent)) {
-        return;
+        return msg;
       }
     }
+    return undefined;
+  }
+
+  /**
+   * A background completion can arrive between parent text deltas. Seal that
+   * text synchronously before moving the card, otherwise future deltas append
+   * into the same DOM block and appear before the completion.
+   */
+  private sealCurrentTextBlockForAsyncSubagent(message: ChatMessage): void {
+    const { state, renderer } = this.deps;
+    const textEl = state.currentTextEl;
+    const content = state.currentTextContent;
+    if (!textEl || !content) return;
+
+    this.textRenderCoordinator.cancel();
+    void renderer.renderContent(textEl, content, this.getStreamingRenderOptions(content));
+    message.contentBlocks = message.contentBlocks || [];
+    message.contentBlocks.push({ type: 'text', content });
+    renderer.addTextCopyButton(textEl, content);
+    state.currentTextEl = null;
+    state.currentTextContent = '';
+  }
+
+  private moveSubagentContentBlockToTail(message: ChatMessage, subagentId: string): void {
+    const blocks = message.contentBlocks;
+    if (!blocks) return;
+    const index = blocks.findIndex(
+      block => block.type === 'subagent' && block.subagentId === subagentId,
+    );
+    if (index < 0) return;
+    const [subagentBlock] = blocks.splice(index, 1);
+    blocks.push(subagentBlock);
   }
 
   private ensureTaskToolCall(

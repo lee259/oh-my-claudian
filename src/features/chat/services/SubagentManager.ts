@@ -92,6 +92,7 @@ export class SubagentManager {
   private deferredAsyncCompletions: Map<string, AsyncSubagentCompletion> = new Map();
   private outputToolToTaskToolUseId: Map<string, string> = new Map();
   private asyncDomStates: Map<string, AsyncSubagentState> = new Map();
+  private completionAnchoredAsyncTaskIds: Set<string> = new Set();
 
   private onStateChange: SubagentStateChangeCallback;
   private onOpenFile: ((fileReference: FileReference) => void) | undefined;
@@ -549,6 +550,28 @@ export class SubagentManager {
     this.onStateChange(subagent);
   }
 
+  /**
+   * Moves a terminal async task to the end of the parent message exactly once.
+   * The caller owns any active parent stream segment and can seal it immediately
+   * before the move so subsequent text renders after the completed task.
+   */
+  public moveCompletedAsyncSubagentToTail(
+    taskToolId: string,
+    parentEl: HTMLElement,
+    beforeMove: () => void,
+  ): boolean {
+    if (this.completionAnchoredAsyncTaskIds.has(taskToolId)) return false;
+
+    const asyncState = this.asyncDomStates.get(taskToolId);
+    if (!asyncState || asyncState.wrapperEl.parentElement !== parentEl) return false;
+
+    beforeMove();
+    asyncState.wrapperEl.remove();
+    parentEl.appendChild(asyncState.wrapperEl);
+    this.completionAnchoredAsyncTaskIds.add(taskToolId);
+    return true;
+  }
+
   // ============================================
   // Lifecycle
   // ============================================
@@ -592,6 +615,7 @@ export class SubagentManager {
     this.deferredAsyncCompletions.clear();
     this.outputToolToTaskToolUseId.clear();
     this.asyncDomStates.clear();
+    this.completionAnchoredAsyncTaskIds.clear();
     this.clearAsyncPreviews();
   }
 
