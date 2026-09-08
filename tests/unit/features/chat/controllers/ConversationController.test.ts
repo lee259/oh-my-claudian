@@ -2,7 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import { Menu, Notice, setIcon } from 'obsidian';
 
 import { ConversationController, type ConversationControllerDeps } from '@/features/chat/controllers/ConversationController';
-import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '@/features/chat/rendering/SubagentRenderer';
+import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '@/features/chat/OpenSubagentTranscriptEvent';
 import { HistoryViewport } from '@/features/chat/session-manager/HistoryViewport';
 import { ChatState } from '@/features/chat/state/ChatState';
 import { OPENAI_PROVIDER_ICON } from '@/shared/icons';
@@ -4592,8 +4592,8 @@ describe('ConversationController running transcript refresh', () => {
     // Terminal sync clears the refresh loop and the tracked task id.
     expect(timerSpy).not.toHaveBeenCalled();
     const root = messagesEl.querySelector('.claudian-subagent-transcript');
-    expect(root.querySelector('.claudian-subagent-transcript-status')?.getAttribute('aria-label'))
-      .toBe('Status: completed');
+    const statusText = root.querySelector('.claudian-subagent-transcript-status')?.textContent;
+    expect(String(statusText).toLowerCase()).toContain('completed');
     timerSpy.mockRestore();
     controller.closeSubagentTranscript();
   });

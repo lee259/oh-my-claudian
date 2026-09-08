@@ -21,11 +21,12 @@ import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import type { FeatureHost } from '../../FeatureHost';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
-import type { MessageRenderer } from '../rendering/MessageRenderer';
 import {
+  isTerminalSubagentTranscriptStatus,
   OPEN_SUBAGENT_TRANSCRIPT_EVENT,
   type OpenSubagentTranscriptDetail,
-} from '../rendering/SubagentRenderer';
+} from '../OpenSubagentTranscriptEvent';
+import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { createWelcomeElement, renderWelcomeContent } from '../rendering/WelcomeRenderer';
 import { findRewindContext } from '../rewind';
@@ -108,9 +109,18 @@ export interface ConversationControllerDeps {
   awaitBackgroundWork?: () => Promise<void>;
   /** True once the owning tab has begun teardown. */
   isDisposed?: () => boolean;
+  /**
+   * Resolves the provider session that owns async subagent sidecars for the
+   * current conversation. Invoked when a transcript opens so the panel pins
+   * that session instead of re-resolving against later (resumed/forked)
+   * sessions on every poll.
+   */
+  resolveTranscriptProviderSessionId?: () => string | null;
   /** Loads the read-only transcript of one async subagent; optional. */
   loadSubagentConversation?: (request: {
     subagentId: string;
+    /** Provider session to read the sidecar from; otherwise resolved live. */
+    providerSessionId?: string;
   }) => Promise<ChatMessage[] | null>;
 }
 
@@ -196,13 +206,19 @@ export class ConversationController {
   private subagentTranscriptRefreshTimer: number | null = null;
   private subagentTranscriptTaskToolId: string | null = null;
   private subagentTranscriptAgentId: string | null = null;
+  private subagentTranscriptProviderSessionId: string | null = null;
+  private subagentTranscriptOpenSeq = 0;
   private subagentTranscriptListenerAttached = false;
 
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
     this.callbacks = callbacks;
+    // Marker for "no replayable subagent transcript loader": hides the open
+    // full-conversation affordance on async subagent cards. Deliberately a
+    // distinct class from the panel's notice styling, which shares the
+    // transcript panel scope only.
     this.deps.getMessagesEl().toggleClass(
-      'claudian-subagent-transcript-unavailable',
+      'claudian-no-subagent-transcript',
       !this.deps.loadSubagentConversation,
     );
     this.attachSubagentTranscriptOpenListener();
@@ -245,8 +261,16 @@ export class ConversationController {
     const agentId = detail.agentId;
     if (!agentId || !this.deps.loadSubagentConversation) return;
 
+    // Guard against superseded opens: a slower load for a previously opened
+    // subagent must never render into the panel of a newer target.
+    const openSeq = ++this.subagentTranscriptOpenSeq;
     this.subagentTranscriptTaskToolId = detail.taskToolId;
     this.subagentTranscriptAgentId = agentId;
+    // Pin the owning provider session when the transcript opens. Polling must
+    // keep reading the sidecar of the session that spawned the subagent, even
+    // if the main conversation resumes or forks into a new session meanwhile.
+    this.subagentTranscriptProviderSessionId
+      = this.deps.resolveTranscriptProviderSessionId?.() ?? null;
 
     const panel = this.ensureSubagentTranscriptPanel();
     if (!panel) return;
@@ -258,6 +282,7 @@ export class ConversationController {
     });
 
     await this.refreshSubagentTranscript();
+    if (openSeq !== this.subagentTranscriptOpenSeq) return;
 
     if ((detail.status ?? 'running') === 'running' && this.subagentTranscriptTaskToolId) {
       this.scheduleSubagentTranscriptRefresh();
@@ -266,10 +291,12 @@ export class ConversationController {
 
   /** Closes the subagent transcript overlay and stops any live refresh. */
   closeSubagentTranscript(): void {
+    this.subagentTranscriptOpenSeq++;
     this.clearSubagentTranscriptRefresh();
     this.subagentTranscriptPanel?.close();
     this.subagentTranscriptTaskToolId = null;
     this.subagentTranscriptAgentId = null;
+    this.subagentTranscriptProviderSessionId = null;
   }
 
   /** True while the subagent transcript overlay is visible. */
@@ -305,6 +332,7 @@ export class ConversationController {
   }
 
   private async refreshSubagentTranscript(): Promise<void> {
+    const openSeq = this.subagentTranscriptOpenSeq;
     const agentId = this.subagentTranscriptAgentId;
     const panel = this.subagentTranscriptPanel;
     const loader = this.deps.loadSubagentConversation;
@@ -316,8 +344,15 @@ export class ConversationController {
     }
 
     try {
-      const messages = await loader({ subagentId: agentId });
-      if (this.deps.isDisposed?.() || !panel.isOpen()) return;
+      const providerSessionId = this.subagentTranscriptProviderSessionId;
+      const messages = await loader(providerSessionId
+        ? { subagentId: agentId, providerSessionId }
+        : { subagentId: agentId });
+      if (
+        this.deps.isDisposed?.()
+        || !panel.isOpen()
+        || openSeq !== this.subagentTranscriptOpenSeq
+      ) return;
       if (!messages) {
         panel.showUnavailable();
         return;
@@ -325,7 +360,11 @@ export class ConversationController {
       panel.renderMessages(messages);
       this.syncSubagentTranscriptStatusFromManager();
     } catch {
-      if (!this.deps.isDisposed?.() && panel.isOpen()) {
+      if (
+        !this.deps.isDisposed?.()
+        && panel.isOpen()
+        && openSeq === this.subagentTranscriptOpenSeq
+      ) {
         panel.showUnavailable();
       }
     }
@@ -341,13 +380,9 @@ export class ConversationController {
     if (!taskToolId) return;
     const subagent = this.deps.subagentManager.getByTaskId?.(taskToolId);
     const asyncStatus = subagent?.asyncStatus;
-    if (!asyncStatus || asyncStatus === 'running') return;
+    if (!isTerminalSubagentTranscriptStatus(asyncStatus)) return;
 
-    const terminal = (['completed', 'error', 'orphaned'] as const)
-      .find(candidate => candidate === asyncStatus);
-    if (!terminal) return;
-
-    this.subagentTranscriptPanel?.setStatus(terminal);
+    this.subagentTranscriptPanel?.setStatus(asyncStatus);
     this.clearSubagentTranscriptRefresh();
     this.subagentTranscriptTaskToolId = null;
   }

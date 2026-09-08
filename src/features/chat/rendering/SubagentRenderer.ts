@@ -4,6 +4,7 @@ import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
 import type { SubagentInfo, ToolCallInfo } from '../../../core/types';
 import type { FileReference } from '../../../utils/FileReference';
+import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
 import { setupCollapsible } from './collapsible';
 import {
   getToolFilePath,
@@ -439,20 +440,8 @@ export interface AsyncSubagentState {
 }
 
 /**
- * Bubbling DOM event dispatched from an async subagent card when the user asks
- * to open the subagent's full conversation. The event target is the card
- * wrapper; `detail` carries the task tool-use id and the runtime agent id.
+ * Adds (or returns) an "open full conversation" button to an async card header.
  */
-export const OPEN_SUBAGENT_TRANSCRIPT_EVENT = 'claudian:open-subagent-transcript';
-
-export interface OpenSubagentTranscriptDetail {
-  taskToolId: string;
-  agentId?: string;
-  description?: string;
-  status?: 'running' | 'completed' | 'error' | 'orphaned';
-}
-
-/** Adds (or returns) an "open full conversation" button to an async card header. */
 function ensureOpenTranscriptButton(state: AsyncSubagentState): HTMLElement | null {
   if (state.openTranscriptBtnEl) return state.openTranscriptBtnEl;
   const btnEl = createOpenTranscriptButton(state.headerEl, state.wrapperEl, state.info);
@@ -829,6 +818,21 @@ export function renderStoredAsyncSubagent(
 
   const labelEl = headerEl.createDiv({ cls: 'claudian-subagent-label' });
   labelEl.setText(truncateDescription(subagent.description));
+
+  // Mirror the live async card header: a collapsed result summary between the
+  // label and the status. Kept hidden until a terminal result is available so
+  // live and replayed cards of the same task look the same.
+  const resultSummaryEl = headerEl.createDiv({
+    cls: 'claudian-subagent-result-summary claudian-hidden',
+  });
+  if (displayStatus === 'completed' || displayStatus === 'error' || displayStatus === 'orphaned') {
+    const fallback = displayStatus === 'error'
+      ? 'ERROR'
+      : displayStatus === 'orphaned'
+        ? 'Conversation ended before task completed'
+        : 'DONE';
+    updateResultSummary(resultSummaryEl, subagent.result?.trim() ? subagent.result : fallback);
+  }
 
   const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
   statusTextEl.setText(statusText);

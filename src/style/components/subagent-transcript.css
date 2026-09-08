@@ -90,7 +90,20 @@
 .claudian-subagent-transcript-status-icon svg {
   width: 14px;
   height: 14px;
+}
+
+/* Only the running state animates; terminal icons stay static. */
+.claudian-subagent-transcript-status-icon.status-running svg {
   animation: claudian-spin 0.9s linear infinite;
+}
+
+.claudian-subagent-transcript-status-icon.status-error svg,
+.claudian-subagent-transcript-status-icon.status-orphaned svg {
+  color: var(--color-red);
+}
+
+.claudian-subagent-transcript-status-icon.status-completed svg {
+  color: var(--color-green);
 }
 
 .claudian-subagent-transcript-messages {
@@ -113,26 +126,6 @@
   word-break: break-word;
   font-size: 13px;
   color: var(--text-normal);
-}
-
-.claudian-subagent-transcript-markdown {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-normal);
-}
-
-.claudian-subagent-transcript-markdown p:first-child {
-  margin-top: 0;
-}
-
-.claudian-subagent-transcript-thinking {
-  margin-top: 6px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-  font-style: italic;
-  color: var(--text-muted);
 }
 
 .claudian-subagent-transcript-tool {

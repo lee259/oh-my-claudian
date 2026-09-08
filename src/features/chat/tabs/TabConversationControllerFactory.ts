@@ -49,6 +49,15 @@ export function createTabConversationController(
   const loadSubagentConversation = subagentHistoryService?.loadConversation?.bind(
     subagentHistoryService,
   );
+  const resolveSessionId = (): string | null => {
+    const conversation = tab.conversationId
+      ? plugin.getConversationSync(tab.conversationId)
+      : null;
+    return resolveSubagentTranscriptSessionId(
+      tab.executionCoordinator?.snapshot?.providerSessionId,
+      conversation,
+    );
+  };
   return new ConversationController(
     {
       plugin,
@@ -82,17 +91,17 @@ export function createTabConversationController(
       awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
       isDisposed: () => tab.lifecycleState === 'closing',
       ensureExecutionForConversation: options.onConversationBindingChanged,
+      resolveTranscriptProviderSessionId: resolveSessionId,
       ...(loadSubagentConversation ? {
-        loadSubagentConversation: async (request: { subagentId: string }) => {
+        loadSubagentConversation: async (request: {
+          subagentId: string;
+          providerSessionId?: string;
+        }) => {
           const vaultPath = getVaultPath(plugin.app);
           if (!vaultPath) return null;
-          const conversation = tab.conversationId
-            ? plugin.getConversationSync(tab.conversationId)
-            : null;
-          const providerSessionId = resolveSubagentTranscriptSessionId(
-            tab.executionCoordinator?.snapshot?.providerSessionId,
-            conversation,
-          );
+          // Prefer the session pinned when the transcript opened; fall back to
+          // the live resolution for callers that do not pin.
+          const providerSessionId = request.providerSessionId ?? resolveSessionId();
           if (!providerSessionId) return null;
           return loadSubagentConversation({
             providerSessionId,

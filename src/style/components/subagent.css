@@ -282,8 +282,10 @@
   outline: none;
 }
 
-/* Only providers with a replayable native transcript expose the detail view. */
-.claudian-subagent-transcript-unavailable .claudian-subagent-open-transcript {
+/* Only providers with a replayable native transcript expose the detail view.
+ * The marker class is toggled by the conversation controller on the messages
+ * list; it must stay free of visual styles so it never restyles the list. */
+.claudian-no-subagent-transcript .claudian-subagent-open-transcript {
   display: none;
 }
 
@@ -310,4 +312,4 @@
 .claudian-subagent-list.async.orphaned .claudian-subagent-status-text {
   color: var(--color-orange);
 }
-  padding-inline-start: 4px;
+
