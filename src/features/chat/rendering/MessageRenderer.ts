@@ -288,6 +288,23 @@ export class MessageRenderer {
     return newWelcomeEl;
   }
 
+  /**
+   * Renders stored messages into a read-only surface with the main
+   * conversation's message pipeline, without affecting live stream state.
+   */
+  renderMessagesInto(containerEl: HTMLElement, messages: ChatMessage[]): void {
+    const mainMessagesEl = this.messagesEl;
+    this.messagesEl = containerEl;
+    try {
+      containerEl.empty();
+      for (let index = 0; index < messages.length; index++) {
+        this.renderStoredMessage(messages[index], messages, index);
+      }
+    } finally {
+      this.messagesEl = mainMessagesEl;
+    }
+  }
+
   renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
     // Bare interrupt marker: user-role interrupts (Claude bracket markers) always render
     // as a standalone indicator. Assistant-role interrupts (Codex partial responses)

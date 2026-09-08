@@ -4639,14 +4639,21 @@ describe('ConversationController rich transcript rendering', () => {
   });
 
   it('delegates transcript text to the host markdown pipeline', async () => {
+    const renderMessagesInto = jest.fn();
+    deps.renderer = { renderMessages: jest.fn(), renderMessagesInto } as any;
+    controller = new ConversationController(deps);
+
     await controller.openSubagentTranscript({
       taskToolId: 'task-1',
       agentId: 'agent-1',
       status: 'completed',
     });
-    expect(renderContent).toHaveBeenCalled();
+    expect(renderMessagesInto).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([expect.objectContaining({ content: '**bold** result' })]),
+    );
     const root = messagesEl.querySelector('.claudian-subagent-transcript');
-    expect(root.querySelector('.claudian-subagent-transcript-markdown')).toBeTruthy();
+    expect(root).toBeTruthy();
     controller.closeSubagentTranscript();
   });
 });

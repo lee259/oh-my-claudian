@@ -200,7 +200,7 @@ export class SubagentTranscriptPanel {
     });
 
     const messagesContainerEl = rootEl.createDiv({
-      cls: 'claudian-subagent-transcript-messages',
+      cls: 'claudian-messages claudian-subagent-transcript-messages',
     });
 
     this.rootEl = rootEl;

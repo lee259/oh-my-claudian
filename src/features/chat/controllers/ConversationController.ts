@@ -26,7 +26,6 @@ import {
   OPEN_SUBAGENT_TRANSCRIPT_EVENT,
   type OpenSubagentTranscriptDetail,
 } from '../rendering/SubagentRenderer';
-import { renderSubagentTranscriptMessages } from '../rendering/SubagentTranscriptRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { createWelcomeElement, renderWelcomeContent } from '../rendering/WelcomeRenderer';
 import { findRewindContext } from '../rewind';
@@ -291,19 +290,17 @@ export class ConversationController {
 
   /**
    * Delegates transcript entry rendering to the shared stored-message pipeline
-   * when the host renderer exposes markdown rendering. The panel keeps its
-   * plain-text fallback when it does not, so the overlay always stays readable.
+   * using the same stored-message pipeline as the main conversation. The panel
+   * keeps its plain-text fallback when that renderer is not available.
    */
   private configureSubagentTranscriptRenderer(): void {
     const panel = this.subagentTranscriptPanel;
     if (!panel) return;
     const renderer = this.deps.renderer;
-    if (typeof renderer.renderContent !== 'function') return;
+    if (typeof renderer.renderMessagesInto !== 'function') return;
 
     panel.setMessageRenderer((containerEl, messages) => {
-      renderSubagentTranscriptMessages(containerEl, messages, {
-        renderMarkdown: (el, markdown) => renderer.renderContent(el, markdown),
-      });
+      renderer.renderMessagesInto(containerEl, messages);
     });
   }
 
