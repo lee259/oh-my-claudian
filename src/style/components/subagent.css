@@ -1,5 +1,7 @@
 .claudian-subagent-list {
-  margin: 8px 0;
+  margin: 10px 0;
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--background-modifier-border);
 }
 
 .claudian-text-block+.claudian-subagent-list {
@@ -20,9 +22,11 @@
 
 .claudian-subagent-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  row-gap: 2px;
+  padding: 2px 0;
   cursor: pointer;
   overflow: hidden;
 }
@@ -30,7 +34,7 @@
 .claudian-subagent-icon {
   display: flex;
   align-items: center;
-  color: var(--interactive-accent);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -41,26 +45,34 @@
 
 .claudian-subagent-label {
   flex: 0 1 auto;
-  max-width: 48%;
+  max-width: 58%;
   min-width: 0;
-  font-family: var(--font-monospace);
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-normal);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.claudian-subagent-result-summary {
-  flex: 1 1 auto;
-  min-width: 0;
+.claudian-subagent-label::before {
+  content: "Delegated · ";
   color: var(--text-muted);
-  font-family: var(--font-monospace);
-  font-size: 12px;
+  font-weight: 400;
+}
+
+.claudian-subagent-result-summary {
+  order: 2;
+  flex: 1 0 100%;
+  min-width: 0;
+  margin-inline-start: 22px;
+  color: var(--text-normal);
+  font-size: 13px;
+  line-height: 1.5;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .claudian-subagent-status {
@@ -87,10 +99,10 @@
 }
 
 .claudian-subagent-content {
-  padding: 4px 0;
-  padding-inline-start: 16px;
-  margin-inline-start: 7px;
-  border-inline-start: 2px solid var(--background-modifier-border);
+  padding: 6px 0 2px;
+  padding-inline-start: 22px;
+  margin: 0;
+  border: 0;
 }
 
 .claudian-subagent-section {
@@ -122,8 +134,7 @@
   padding-inline-start: 6px;
 }
 
-.claudian-subagent-prompt-text,
-.claudian-subagent-result-output {
+.claudian-subagent-prompt-text {
   font-family: var(--font-monospace);
   font-size: 12px;
   line-height: 1.4;
@@ -133,6 +144,12 @@
 }
 
 .claudian-subagent-result-output {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.55;
+  color: var(--text-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
   max-height: 220px;
   overflow-y: auto;
 }
@@ -229,10 +246,8 @@
 
 .claudian-subagent-status-text {
   font-size: 11px;
-  font-family: var(--font-monospace);
   color: var(--text-muted);
   flex-shrink: 0;
-  padding-inline-start: 4px;
 }
 
 .claudian-subagent-list.done .claudian-subagent-result-summary {
@@ -244,7 +259,7 @@
 }
 
 .claudian-subagent-list.async .claudian-subagent-icon {
-  color: var(--interactive-accent);
+  color: var(--text-muted);
 }
 
 /* Animated running indicator on async subagent cards */
@@ -263,7 +278,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
-  padding: 2px;
+  padding: 2px 0;
   border-radius: 4px;
   cursor: pointer;
 }
@@ -277,7 +292,7 @@
 .claudian-subagent-open-transcript:hover,
 .claudian-subagent-open-transcript:focus-visible {
   color: var(--text-normal);
-  background-color: var(--background-modifier-hover);
+  background: transparent;
   border: 0;
   box-shadow: none;
   outline: none;
