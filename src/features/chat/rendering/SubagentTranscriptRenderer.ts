@@ -34,19 +34,21 @@ export function renderSubagentTranscriptMessages(
     }
 
     const entry = containerEl.createDiv({
-      cls: `claudian-subagent-transcript-entry claudian-subagent-transcript-entry-${msg.role}`,
+      cls: `claudian-message claudian-message-${msg.role} claudian-subagent-transcript-entry`,
     });
-    entry.createDiv({ cls: 'claudian-subagent-transcript-entry-role', text: msg.role });
+    const contentEl = entry.createDiv({
+      cls: 'claudian-message-content claudian-subagent-transcript-entry-content',
+    });
 
     for (const text of texts) {
       if (text.kind === 'thinking') {
-        const thinkingEl = entry.createDiv({
+        const thinkingEl = contentEl.createDiv({
           cls: 'claudian-subagent-transcript-thinking',
         });
         thinkingEl.setText(text.content);
         continue;
       }
-      const textEl = entry.createDiv({
+      const textEl = contentEl.createDiv({
         cls: renderMarkdown
           ? 'claudian-subagent-transcript-markdown'
           : 'claudian-subagent-transcript-entry-text',
@@ -62,7 +64,7 @@ export function renderSubagentTranscriptMessages(
     }
 
     for (const toolCall of toolCalls) {
-      renderStoredToolCall(entry, toolCall);
+      renderStoredToolCall(contentEl, toolCall);
     }
   }
 }

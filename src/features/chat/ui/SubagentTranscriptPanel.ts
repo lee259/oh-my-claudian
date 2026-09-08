@@ -124,13 +124,15 @@ export class SubagentTranscriptPanel {
     // Minimal fallback so the panel remains informative without a renderer.
     for (const msg of messages) {
       const row = this.messagesContainerEl.createDiv({
-        cls: `claudian-subagent-transcript-entry claudian-subagent-transcript-entry-${msg.role}`,
+        cls: `claudian-message claudian-message-${msg.role} claudian-subagent-transcript-entry`,
       });
-      row.createDiv({ cls: 'claudian-subagent-transcript-entry-role', text: msg.role });
-      const textEl = row.createDiv({ cls: 'claudian-subagent-transcript-entry-text' });
+      const contentEl = row.createDiv({
+        cls: 'claudian-message-content claudian-subagent-transcript-entry-content',
+      });
+      const textEl = contentEl.createDiv({ cls: 'claudian-subagent-transcript-entry-text' });
       textEl.setText(msg.content);
       for (const toolCall of msg.toolCalls ?? []) {
-        const toolEl = row.createDiv({ cls: 'claudian-subagent-transcript-tool' });
+        const toolEl = contentEl.createDiv({ cls: 'claudian-subagent-transcript-tool' });
         toolEl.setText(`${toolCall.name} (${toolCall.status ?? 'unknown'})`);
       }
     }

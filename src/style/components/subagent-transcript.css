@@ -95,10 +95,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 16px 12px 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .claudian-subagent-transcript-empty,
@@ -110,19 +110,11 @@
 }
 
 .claudian-subagent-transcript-entry {
-  border-radius: 8px;
-  border: 1px solid var(--background-modifier-border);
-  padding: 8px 10px;
-  max-width: 100%;
+  margin: 0;
 }
 
-.claudian-subagent-transcript-entry-role {
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+.claudian-subagent-transcript-entry.claudian-message-user {
+  margin-block-end: 16px;
 }
 
 .claudian-subagent-transcript-entry-text {
@@ -133,7 +125,7 @@
 }
 
 .claudian-subagent-transcript-markdown {
-  margin-top: 4px;
+  margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-normal);

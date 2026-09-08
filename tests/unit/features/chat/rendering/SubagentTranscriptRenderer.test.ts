@@ -14,7 +14,7 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
 }
 
 describe('renderSubagentTranscriptMessages', () => {
-  it('renders one bordered entry per message with a role label', () => {
+  it('renders transcript entries with the same role surfaces as the main chat', () => {
     const container = createMockEl();
     renderSubagentTranscriptMessages(container, [
       message({ id: 'a', role: 'user', content: 'hi there' }),
@@ -23,8 +23,9 @@ describe('renderSubagentTranscriptMessages', () => {
 
     const entries = container.querySelectorAll('.claudian-subagent-transcript-entry');
     expect(entries.length).toBe(2);
-    expect(container.querySelector('.claudian-subagent-transcript-entry-role')?.textContent)
-      .toBe('user');
+    expect(entries[0].hasClass('claudian-message-user')).toBe(true);
+    expect(entries[1].hasClass('claudian-message-assistant')).toBe(true);
+    expect(entries[0].querySelector('.claudian-message-content')).toBeTruthy();
   });
 
   it('renders text content through the markdown renderer when provided', () => {
