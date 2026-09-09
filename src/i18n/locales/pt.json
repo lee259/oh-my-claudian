@@ -80,6 +80,12 @@
       "backAriaLabel": "Voltar à conversa",
       "empty": "Nenhuma conversa registrada para este subagente.",
       "unavailable": "A conversa completa não está disponível para este subagente."
+    },
+    "completedWork": {
+      "inProgress": "Em andamento · {seconds} s",
+      "label": "Concluído",
+      "seconds": "Levou {seconds} s",
+      "minutes": "Levou {minutes} min {seconds} s"
     }
   },
   "settings": {

@@ -812,6 +812,9 @@ describe('Tab provider execution ownership', () => {
   });
 
   it('buffers normalized background output and persists it on completion', async () => {
+    const now = jest.spyOn(performance, 'now')
+      .mockReturnValueOnce(10_000)
+      .mockReturnValueOnce(15_000);
     const plugin = createPlugin();
     const onReviewableSettlement = jest.fn();
     const tab = createTab({
@@ -824,6 +827,7 @@ describe('Tab provider execution ownership', () => {
     assistantEl.querySelector = jest.fn().mockReturnValue(createMockEl());
     tab.renderer = {
       addMessage: jest.fn().mockReturnValue(assistantEl),
+      finalizeCompletedWork: jest.fn(),
       scrollToBottom: jest.fn(),
     } as any;
     tab.controllers.streamController = {
@@ -872,6 +876,10 @@ describe('Tab provider execution ownership', () => {
     );
     expect(tab.controllers.conversationController!.save).toHaveBeenCalledWith(true);
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+    expect(tab.renderer!.finalizeCompletedWork).toHaveBeenCalledWith(
+      expect.objectContaining({ durationSeconds: 5 }),
+    );
+    now.mockRestore();
   });
 
   it('restores the foreground stream target between background output events', async () => {
@@ -890,6 +898,7 @@ describe('Tab provider execution ownership', () => {
     tab.state.currentContentEl = foregroundContentEl as any;
     tab.state.currentTextEl = foregroundTextEl as any;
     tab.state.currentTextContent = 'foreground output';
+    tab.state.responseStartTime = 42;
     const appendBackgroundText = jest.fn();
     tab.controllers.streamController = {
       appendBackgroundText,
@@ -917,6 +926,7 @@ describe('Tab provider execution ownership', () => {
     expect(tab.state.currentContentEl).toBe(foregroundContentEl);
     expect(tab.state.currentTextEl).toBe(foregroundTextEl);
     expect(tab.state.currentTextContent).toBe('foreground output');
+    expect(tab.state.responseStartTime).toBe(42);
   });
 
   it('captures background review activity before persistence completes', async () => {

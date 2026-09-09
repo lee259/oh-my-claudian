@@ -80,6 +80,12 @@
       "backAriaLabel": "返回对话",
       "empty": "未记录该子代理的对话。",
       "unavailable": "无法查看该子代理的完整对话。"
+    },
+    "completedWork": {
+      "inProgress": "进行中 · 用时 {seconds} 秒",
+      "label": "已完成",
+      "seconds": "用时 {seconds} 秒",
+      "minutes": "用时 {minutes} 分 {seconds} 秒"
     }
   },
   "settings": {

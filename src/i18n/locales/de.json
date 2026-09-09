@@ -80,6 +80,12 @@
       "backAriaLabel": "Zurück zur Konversation",
       "empty": "Für diesen Subagent wurde keine Konversation aufgezeichnet.",
       "unavailable": "Die vollständige Konversation ist für diesen Subagent nicht verfügbar."
+    },
+    "completedWork": {
+      "inProgress": "In Arbeit · {seconds} Sek.",
+      "label": "Abgeschlossen",
+      "seconds": "Dauer: {seconds} Sek.",
+      "minutes": "Dauer: {minutes} Min. {seconds} Sek."
     }
   },
   "settings": {

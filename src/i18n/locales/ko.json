@@ -80,6 +80,12 @@
       "backAriaLabel": "대화로 돌아가기",
       "empty": "이 하위 에이전트의 대화 기록이 없습니다.",
       "unavailable": "이 하위 에이전트의 전체 대화를 볼 수 없습니다."
+    },
+    "completedWork": {
+      "inProgress": "작업 중 · {seconds}초",
+      "label": "완료됨",
+      "seconds": "{seconds}초 소요",
+      "minutes": "{minutes}분 {seconds}초 소요"
     }
   },
   "settings": {

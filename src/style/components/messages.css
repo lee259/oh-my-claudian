@@ -272,6 +272,102 @@ button.claudian-text-copy-btn.copied {
   margin-top: 8px;
 }
 
+/* Completed reasoning and tool activity stays available without competing
+ * with the final answer in long assistant turns. */
+.claudian-completed-work {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.claudian-completed-work-status {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  margin-bottom: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+button.claudian-completed-work-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: start;
+}
+
+.claudian-completed-work-indicator {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.claudian-completed-work-indicator svg {
+  width: 14px;
+  height: 14px;
+}
+
+button.claudian-completed-work-header:hover,
+button.claudian-completed-work-header:focus-visible {
+  border: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+button.claudian-completed-work-header:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-completed-work-history {
+  box-sizing: border-box;
+  margin-top: 10px;
+  padding: 12px;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.claudian-completed-work-history > :first-child {
+  margin-top: 0;
+}
+
+.claudian-completed-work-history > :last-child {
+  margin-bottom: 0;
+}
+
+/* The completed-work panel is the only scroll container for its details.
+ * Nested thinking output expands into it instead of producing a second rail. */
+.claudian-completed-work-history .claudian-thinking-content {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.claudian-completed-work-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.claudian-completed-work-history::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
 .claudian-baked-duration {
   color: var(--text-muted);
   font-size: 12px;

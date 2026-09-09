@@ -80,6 +80,12 @@
       "backAriaLabel": "会話に戻る",
       "empty": "このサブエージェントの会話は記録されていません。",
       "unavailable": "このサブエージェントの完全な会話を表示できません。"
+    },
+    "completedWork": {
+      "inProgress": "作業中 · {seconds} 秒",
+      "label": "完了",
+      "seconds": "所要時間 {seconds} 秒",
+      "minutes": "所要時間 {minutes} 分 {seconds} 秒"
     }
   },
   "settings": {

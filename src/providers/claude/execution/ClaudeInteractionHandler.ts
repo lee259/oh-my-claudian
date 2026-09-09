@@ -51,6 +51,7 @@ export class ClaudeInteractionHandler {
       };
     }
 
+    let requiresExternalWriteApproval = false;
     if (isEditTool(toolName) && this.deps.workspaceRoot) {
       const requestedPath = getActionPattern(toolName, input);
       if (requestedPath) {
@@ -67,7 +68,24 @@ export class ClaudeInteractionHandler {
             interrupt: false,
           };
         }
+        requiresExternalWriteApproval = decision.outcome === 'needsApproval';
       }
+    }
+
+    // The SDK still calls canUseTool when it is registered, even while the
+    // session runs in bypassPermissions mode. Do not turn YOLO back into an
+    // approval flow for ordinary tools. External writes remain explicitly
+    // guarded by Claudian's local-file boundary.
+    if (
+      this.deps.getPermissionMode() === 'yolo'
+      && !requiresExternalWriteApproval
+      && toolName !== TOOL_ASK_USER_QUESTION
+      && toolName !== TOOL_EXIT_PLAN_MODE
+    ) {
+      return {
+        behavior: 'allow',
+        updatedInput: input,
+      };
     }
 
     const turnId = this.deps.getTurnId();

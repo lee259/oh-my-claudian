@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { createVaultBoundaryHook } from '@/providers/claude/execution/ClaudeExecutionRequestEncoder';
 
 describe('createVaultBoundaryHook', () => {
-  it('asks before an Edit targets a file outside the vault', async () => {
+  it('defers external Edit approval to canUseTool so the native turn can resume', async () => {
     const testRoot = mkdtempSync(path.join(tmpdir(), 'claudian-vault-hook-'));
     const vaultRoot = path.join(testRoot, 'vault');
     mkdirSync(vaultRoot);
@@ -21,18 +21,13 @@ describe('createVaultBoundaryHook', () => {
         transcript_path: '',
       } as never, 'tool-1', {
         signal: new AbortController().signal,
-      } as never)).resolves.toEqual(expect.objectContaining({
-        continue: false,
-        hookSpecificOutput: expect.objectContaining({
-          permissionDecision: 'ask',
-        }),
-      }));
+      } as never)).resolves.toEqual(expect.objectContaining({ continue: true }));
     } finally {
       rmSync(testRoot, { force: true, recursive: true });
     }
   });
 
-  it('asks before a Bash command writes to a file outside the vault', async () => {
+  it('does not block a Bash command that references a file outside the vault', async () => {
     const testRoot = mkdtempSync(path.join(tmpdir(), 'claudian-vault-hook-'));
     const vaultRoot = path.join(testRoot, 'vault');
     const outsideFile = path.join(testRoot, 'outside.md');
@@ -49,14 +44,10 @@ describe('createVaultBoundaryHook', () => {
         transcript_path: '',
       } as never, 'tool-2', {
         signal: new AbortController().signal,
-      } as never)).resolves.toEqual(expect.objectContaining({
-        continue: false,
-        hookSpecificOutput: expect.objectContaining({
-          permissionDecision: 'ask',
-        }),
-      }));
+      } as never)).resolves.toEqual(expect.objectContaining({ continue: true }));
     } finally {
       rmSync(testRoot, { force: true, recursive: true });
     }
   });
+
 });

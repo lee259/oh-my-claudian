@@ -80,6 +80,12 @@
       "backAriaLabel": "Back to conversation",
       "empty": "No conversation recorded for this subagent.",
       "unavailable": "Full conversation not available for this subagent."
+    },
+    "completedWork": {
+      "inProgress": "Working · {seconds}s",
+      "label": "Completed",
+      "seconds": "Took {seconds}s",
+      "minutes": "Took {minutes}m {seconds}s"
     }
   },
   "settings": {

@@ -107,6 +107,13 @@ describe('loadSubagentConversation', () => {
             content: [{ type: 'text', text: 'The repo has src/ and README.md.' }],
           },
         }),
+        JSON.stringify({
+          type: 'system',
+          uuid: 'duration-1',
+          parentUuid: 'asst-2',
+          subtype: 'turn_duration',
+          duration_ms: 100_000,
+        }),
       ],
     );
 
@@ -127,6 +134,7 @@ describe('loadSubagentConversation', () => {
       .map(m => m.content)
       .join('\n');
     expect(assistantText).toContain('The repo has src/ and README.md.');
+    expect(messages!.at(-1)?.durationSeconds).toBe(100);
 
     const toolCallMessage = messages!
       .find(m => m.role === 'assistant' && m.toolCalls?.some(tc => tc.id === 'tool-1'));
@@ -151,6 +159,40 @@ describe('loadSubagentConversation', () => {
     );
 
     expect(messages).toBeNull();
+  });
+
+  it('falls back to transcript timestamps when native turn duration is absent', async () => {
+    writeAgentSidecar(
+      tempConfigDir,
+      'session-2',
+      'agent-2',
+      [
+        JSON.stringify({
+          type: 'user',
+          uuid: 'user-1',
+          parentUuid: null,
+          timestamp: '2024-01-15T10:00:00Z',
+          message: { content: 'Summarize this.' },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          uuid: 'assistant-1',
+          parentUuid: 'user-1',
+          timestamp: '2024-01-15T10:01:40Z',
+          message: { content: [{ type: 'text', text: 'Summary.' }] },
+        }),
+      ],
+    );
+
+    const messages = await loadSubagentConversation(
+      VAULT_PATH,
+      'session-2',
+      'agent-2',
+      undefined,
+      pathContext(tempConfigDir) as any,
+    );
+
+    expect(messages?.find(message => message.role === 'assistant')?.durationSeconds).toBe(100);
   });
 
   it('returns null for invalid agent ids', async () => {

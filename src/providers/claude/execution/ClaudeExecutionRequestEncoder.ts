@@ -394,28 +394,18 @@ function createReadOnlyHook(): HookCallbackMatcher {
   };
 }
 
-export function createVaultBoundaryHook(workspaceRoot: string): HookCallbackMatcher {
+export function createVaultBoundaryHook(
+  workspaceRoot: string,
+): HookCallbackMatcher {
   return {
     hooks: [async (hookInput) => {
       const record = hookInput as unknown as Record<string, unknown>;
       const toolName = typeof record.tool_name === 'string' ? record.tool_name : '';
       if (toolName === 'Bash') {
-        const command = typeof record.tool_input === 'object'
-          && record.tool_input !== null
-          && typeof (record.tool_input as Record<string, unknown>).command === 'string'
-          ? (record.tool_input as Record<string, string>).command
-          : '';
-        const externalPath = findExternalCommandPath(command, workspaceRoot);
-        if (!externalPath) return { continue: true };
-        return {
-          continue: false,
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse' as const,
-            permissionDecision: 'ask' as const,
-            permissionDecisionReason:
-              `This command references a path outside the current vault: ${externalPath}`,
-          },
-        };
+        // PreToolUse hooks cannot route an "ask" response through Claudian's
+        // interaction port. Returning one makes the SDK reject the tool and
+        // can prematurely end the native turn. Let Bash use canUseTool instead.
+        return { continue: true };
       }
       if (!isEditTool(toolName)) return { continue: true };
 
@@ -440,17 +430,12 @@ export function createVaultBoundaryHook(workspaceRoot: string): HookCallbackMatc
         workspaceRoot,
         externalPathMode: 'needsApproval',
       });
-      if (decision.outcome === 'allow') return { continue: true };
-      if (decision.outcome === 'needsApproval') {
-        return {
-          continue: false,
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse' as const,
-            permissionDecision: 'ask' as const,
-            permissionDecisionReason:
-              'This edit is outside the current vault and requires approval.',
-          },
-        };
+      if (decision.outcome !== 'deny') {
+        // Permission prompts must be produced by canUseTool, which can wait
+        // for Claudian's approval UI and then return an allow response to the
+        // same native turn. PreToolUse "ask" results are handled inside the
+        // SDK and reject the tool before that UI response can resume it.
+        return { continue: true };
       }
       return {
         continue: false,
@@ -463,21 +448,6 @@ export function createVaultBoundaryHook(workspaceRoot: string): HookCallbackMatc
       };
     }],
   };
-}
-
-function findExternalCommandPath(command: string, workspaceRoot: string): string | null {
-  const candidates = command.match(/(?:^|[\s"'=])((?:\/|\.\.\/|\.\/)[^\s"';&|`]*)/g) ?? [];
-  for (const candidate of candidates) {
-    const requestedPath = candidate.trim().replace(/^[\s"'=]+/u, '');
-    const decision = evaluatePathAccess({
-      operation: 'write',
-      requestedPath,
-      workspaceRoot,
-      externalPathMode: 'needsApproval',
-    });
-    if (decision.outcome !== 'allow') return requestedPath;
-  }
-  return null;
 }
 
 function isPermissionMode(value: unknown): value is PermissionMode {

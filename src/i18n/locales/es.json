@@ -80,6 +80,12 @@
       "backAriaLabel": "Volver a la conversación",
       "empty": "No hay ninguna conversación registrada para este subagente.",
       "unavailable": "La conversación completa no está disponible para este subagente."
+    },
+    "completedWork": {
+      "inProgress": "En curso · {seconds} s",
+      "label": "Completado",
+      "seconds": "Duró {seconds} s",
+      "minutes": "Duró {minutes} min {seconds} s"
     }
   },
   "settings": {
