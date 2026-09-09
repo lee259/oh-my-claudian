@@ -149,7 +149,7 @@ describe('MessageRenderer', () => {
       expect(contentEl.contains(thinkingEl)).toBe(true);
     });
 
-    it('keeps compacted turns expanded', () => {
+    it('collapses compacted work while keeping its boundary in history', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -158,6 +158,7 @@ describe('MessageRenderer', () => {
       });
       const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
       contentEl.createDiv({ cls: 'claudian-tool-call' });
+      contentEl.createDiv({ cls: 'claudian-compact-boundary' });
       contentEl.createDiv({ cls: 'claudian-text-block', text: 'Final answer' });
       const querySelector = messagesEl.querySelector.bind(messagesEl);
       messagesEl.querySelector = jest.fn((selector: string) =>
@@ -168,62 +169,10 @@ describe('MessageRenderer', () => {
         contentBlocks: [{ type: 'context_compacted' }, { type: 'text', content: 'Final answer' }],
       } as ChatMessage);
 
-      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
-    });
-
-    it('folds replayed work-only assistant fragments into the following final answer', () => {
-      const messagesEl = createMockEl();
-      const { renderer } = createRenderer(messagesEl);
-      (renderStoredThinkingBlock as jest.Mock).mockImplementation(
-        (parent: HTMLElement, content: string) => parent.createDiv({
-          cls: 'claudian-thinking-block',
-          text: content,
-        }),
-      );
-      const messages: ChatMessage[] = [
-        { id: 'user-1', role: 'user', content: 'Review this', timestamp: 1 },
-        {
-          id: 'work-1',
-          role: 'assistant',
-          content: '',
-          timestamp: 2,
-          contentBlocks: [{ type: 'thinking', content: 'I will inspect the resume.' }],
-        },
-        {
-          id: 'answer-1',
-          role: 'assistant',
-          content: 'Candidate should proceed.',
-          timestamp: 3,
-          durationSeconds: 24,
-          contentBlocks: [{ type: 'text', content: 'Candidate should proceed.' }],
-        },
-      ];
-      const createDiv = messagesEl.createDiv.bind(messagesEl);
-      messagesEl.createDiv = (options: { cls?: string; text?: string; attr?: Record<string, string> }) => {
-        const element = createDiv(options);
-        for (const [name, value] of Object.entries(options.attr ?? {})) {
-          element.setAttribute(name, value);
-        }
-        return element;
-      };
-      const querySelector = messagesEl.querySelector.bind(messagesEl);
-      messagesEl.querySelector = jest.fn((selector: string) => {
-        const messageId = selector.match(/^\[data-message-id="(.+)"\]$/)?.[1];
-        if (messageId) {
-          return messagesEl.children.find((child: any) => child.dataset.messageId === messageId) ?? null;
-        }
-        return querySelector(selector);
-      });
-
-      renderer.renderMessages(messages, () => 'Hello');
-
-      const answerEl = messagesEl.querySelector('[data-message-id="answer-1"]') as HTMLElement | null;
-      const workEl = answerEl?.querySelector('.claudian-completed-work');
+      const workEl = contentEl.querySelector('.claudian-completed-work');
       expect(workEl).toBeTruthy();
-      expect(workEl?.querySelector('.claudian-completed-work-history')?.children[0].textContent)
-        .toContain('I will inspect the resume.');
-      expect(answerEl?.querySelector('.claudian-message-content')?.children)
-        .toContainEqual(expect.objectContaining({ className: 'claudian-text-block' }));
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.children)
+        .toContainEqual(expect.objectContaining({ className: 'claudian-compact-boundary' }));
     });
 
   });
