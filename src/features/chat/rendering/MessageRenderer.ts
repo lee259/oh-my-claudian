@@ -290,6 +290,7 @@ export class MessageRenderer {
     for (let i = 0; i < messages.length; i++) {
       this.renderStoredMessage(messages[i], messages, i);
     }
+    this.collapseStoredWorkFragments(messages);
 
     this.scrollToBottom();
     return newWelcomeEl;
@@ -316,10 +317,72 @@ export class MessageRenderer {
       for (let index = 0; index < messages.length; index++) {
         this.renderStoredMessage(messages[index], messages, index);
       }
+      this.collapseStoredWorkFragments(messages);
     } finally {
       this.messagesEl = mainMessagesEl;
       this.suppressConversationActions = previousSuppress;
     }
+  }
+
+  /**
+   * Claude transcript replay can split one completed turn into assistant
+   * fragments: thought/tool-only messages followed by a separate final answer.
+   * Rejoin only adjacent work-only fragments at render time so replay keeps the
+   * same completed-work disclosure as the live, single-message path.
+   */
+  private collapseStoredWorkFragments(messages: ChatMessage[]): void {
+    for (let answerIndex = 0; answerIndex < messages.length; answerIndex++) {
+      const answer = messages[answerIndex];
+      if (!this.isStoredFinalAnswer(answer)) continue;
+
+      const workMessages: ChatMessage[] = [];
+      for (let index = answerIndex - 1; index >= 0; index--) {
+        const candidate = messages[index];
+        if (!this.isStoredWorkOnlyFragment(candidate)) break;
+        workMessages.unshift(candidate);
+      }
+      if (workMessages.length === 0) continue;
+
+      const answerEl = this.messagesEl.querySelector<HTMLElement>(
+        `[data-message-id="${answer.id}"]`,
+      );
+      const answerContentEl = answerEl?.querySelector<HTMLElement>('.claudian-message-content');
+      if (!answerContentEl) continue;
+
+      const workEls: HTMLElement[] = [];
+      for (const workMessage of workMessages) {
+        const workMessageEl = this.messagesEl.querySelector<HTMLElement>(
+          `[data-message-id="${workMessage.id}"]`,
+        );
+        const workContentEl = workMessageEl?.querySelector<HTMLElement>('.claudian-message-content');
+        if (!workMessageEl || !workContentEl || workContentEl.children.length === 0) continue;
+
+        const firstAnswerChild = answerContentEl.firstElementChild;
+        for (const child of Array.from(workContentEl.children) as HTMLElement[]) {
+          answerContentEl.insertBefore(child, firstAnswerChild);
+          workEls.push(child);
+        }
+        workMessageEl.remove();
+      }
+
+      if (workEls.length > 0) {
+        this.finalizeCompletedWork(answer);
+      }
+    }
+  }
+
+  private isStoredFinalAnswer(message: ChatMessage): boolean {
+    if (message.role !== 'assistant' || message.isInterrupt) return false;
+    if (message.content.trim().length > 0) return true;
+    return message.contentBlocks?.some(
+      block => block.type === 'text' && block.content.trim().length > 0,
+    ) ?? false;
+  }
+
+  private isStoredWorkOnlyFragment(message: ChatMessage): boolean {
+    if (message.role !== 'assistant' || message.isInterrupt) return false;
+    if (message.contentBlocks?.some(block => block.type === 'context_compacted')) return false;
+    return !this.isStoredFinalAnswer(message);
   }
 
   renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
