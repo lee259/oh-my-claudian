@@ -74,6 +74,7 @@
       "completedLabel": "Concluído",
       "errorLabel": "Erro",
       "orphanedLabel": "Órfão",
+      "pendingLabel": "Inicializando",
       "title": "Conversa do subagente",
       "subtitle": "Transcrição somente leitura",
       "backAriaLabel": "Voltar à conversa",

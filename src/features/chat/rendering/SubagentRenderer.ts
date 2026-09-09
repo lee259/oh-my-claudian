@@ -3,6 +3,7 @@ import { setIcon } from 'obsidian';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
 import type { SubagentInfo, ToolCallInfo } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import type { FileReference } from '../../../utils/FileReference';
 import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
 import { setupCollapsible } from './collapsible';
@@ -429,6 +430,7 @@ export function renderStoredSubagent(
 export interface AsyncSubagentState {
   wrapperEl: HTMLElement;
   contentEl: HTMLElement;
+  headerRowEl: HTMLElement;
   headerEl: HTMLElement;
   labelEl: HTMLElement;
   resultSummaryEl: HTMLElement;
@@ -441,22 +443,24 @@ export interface AsyncSubagentState {
 
 /**
  * Adds (or returns) an "open full conversation" button to an async card header.
+ * The button is a sibling of the collapse toggle inside the header row, so the
+ * toggle button never nests another interactive control.
  */
 function ensureOpenTranscriptButton(state: AsyncSubagentState): HTMLElement | null {
   if (state.openTranscriptBtnEl) return state.openTranscriptBtnEl;
-  const btnEl = createOpenTranscriptButton(state.headerEl, state.wrapperEl, state.info);
+  const btnEl = createOpenTranscriptButton(state.headerRowEl, state.wrapperEl, state.info);
   state.openTranscriptBtnEl = btnEl;
   return btnEl;
 }
 
 function createOpenTranscriptButton(
-  headerEl: HTMLElement,
+  containerEl: HTMLElement,
   wrapperEl: HTMLElement,
   info: SubagentInfo,
 ): HTMLElement | null {
   if (!info.agentId) return null;
 
-  const btnEl = headerEl.createDiv({ cls: 'claudian-subagent-open-transcript' });
+  const btnEl = containerEl.createDiv({ cls: 'claudian-subagent-open-transcript' });
   btnEl.setAttribute('aria-label', `Open full conversation of ${truncateDescription(info.description)}`);
   btnEl.setAttribute('role', 'button');
   btnEl.setAttribute('tabindex', '0');
@@ -516,30 +520,26 @@ function getAsyncDisplayStatus(asyncStatus: string | undefined): 'running' | 'co
   }
 }
 
-function getAsyncStatusText(asyncStatus: string | undefined): string {
+/**
+ * Async card status label, shared by the visible status text and the
+ * screen-reader label. Localized through the transcript status keys so the
+ * async card and the transcript overlay describe the same status in the same
+ * words.
+ */
+function getAsyncStatusLabel(asyncStatus: string | undefined): string {
   switch (asyncStatus) {
-    case 'pending': return 'Initializing';
-    case 'completed': return 'Completed';
-    case 'error': return 'Error';
-    case 'orphaned': return 'Orphaned';
-    default: return 'Running in background';
-  }
-}
-
-function getAsyncStatusAriaLabel(asyncStatus: string | undefined): string {
-  switch (asyncStatus) {
-    case 'pending': return 'Initializing';
-    case 'completed': return 'Completed';
-    case 'error': return 'Error';
-    case 'orphaned': return 'Orphaned';
-    default: return 'Running in background';
+    case 'pending': return t('chat.subagentTranscript.pendingLabel');
+    case 'completed': return t('chat.subagentTranscript.completedLabel');
+    case 'error': return t('chat.subagentTranscript.errorLabel');
+    case 'orphaned': return t('chat.subagentTranscript.orphanedLabel');
+    default: return t('chat.subagentTranscript.runningLabel');
   }
 }
 
 function updateAsyncLabel(state: AsyncSubagentState): void {
   state.labelEl.setText(truncateDescription(state.info.description));
 
-  const statusLabel = getAsyncStatusAriaLabel(state.info.asyncStatus);
+  const statusLabel = getAsyncStatusLabel(state.info.asyncStatus);
   state.headerEl.setAttribute(
     'aria-label',
     `Background task: ${truncateDescription(state.info.description)} - ${statusLabel} - click to expand`
@@ -639,6 +639,11 @@ function renderAsyncContentLikeSync(
 /**
  * Create an async subagent block for a background Agent tool call.
  * Expandable to show the task prompt. Collapsed by default.
+ *
+ * The transcript entry button must not nest inside the collapsible toggle
+ * button (interactive content inside interactive content is invalid ARIA), so
+ * the header is split: a plain flex row holds the toggle button and, once the
+ * provider agent id is known, the transcript button as siblings.
  */
 export function createAsyncSubagentBlock(
   parentEl: HTMLElement,
@@ -664,11 +669,13 @@ export function createAsyncSubagentBlock(
   setAsyncWrapperStatus(wrapperEl, 'pending');
   wrapperEl.dataset.asyncSubagentId = taskToolId;
 
-  const headerEl = wrapperEl.createDiv({ cls: 'claudian-subagent-header' });
+  const headerRowEl = wrapperEl.createDiv({ cls: 'claudian-subagent-header-row' });
+
+  const headerEl = headerRowEl.createDiv({ cls: 'claudian-subagent-header' });
   headerEl.setAttribute('tabindex', '0');
   headerEl.setAttribute('role', 'button');
   headerEl.setAttribute('aria-expanded', 'false');
-  headerEl.setAttribute('aria-label', `Background task: ${description} - Initializing - click to expand`);
+  headerEl.setAttribute('aria-label', `Background task: ${description} - ${getAsyncStatusLabel('pending')} - click to expand`);
 
   const iconEl = headerEl.createDiv({ cls: 'claudian-subagent-icon' });
   iconEl.setAttribute('aria-hidden', 'true');
@@ -682,7 +689,7 @@ export function createAsyncSubagentBlock(
   });
 
   const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
-  statusTextEl.setText('Initializing');
+  statusTextEl.setText(getAsyncStatusLabel('pending'));
 
   const statusEl = headerEl.createDiv({ cls: 'claudian-subagent-status status-running' });
   statusEl.setAttribute('aria-label', 'Status: running');
@@ -696,6 +703,7 @@ export function createAsyncSubagentBlock(
   return {
     wrapperEl,
     contentEl,
+    headerRowEl,
     headerEl,
     labelEl,
     resultSummaryEl,
@@ -716,7 +724,7 @@ export function updateAsyncSubagentRunning(
   setAsyncWrapperStatus(state.wrapperEl, 'running');
   updateAsyncLabel(state);
 
-  state.statusTextEl.setText('Running in background');
+  state.statusTextEl.setText(getAsyncStatusLabel('running'));
   setAsyncRunningIcon(state.statusEl, 'running');
 
   ensureOpenTranscriptButton(state);
@@ -736,7 +744,12 @@ export function finalizeAsyncSubagent(
   setAsyncWrapperStatus(state.wrapperEl, isError ? 'error' : 'completed');
   updateAsyncLabel(state);
 
-  state.statusTextEl.setText(isError ? 'Error' : 'Completed');
+  // A completion notification can arrive before the launch result. In that
+  // ordering the card never passes through updateAsyncSubagentRunning(), even
+  // though the notification supplies an agent id for transcript replay.
+  ensureOpenTranscriptButton(state);
+
+  state.statusTextEl.setText(getAsyncStatusLabel(isError ? 'error' : 'completed'));
 
   state.statusEl.className = 'claudian-subagent-status';
   state.statusEl.addClass(`status-${isError ? 'error' : 'completed'}`);
@@ -766,7 +779,7 @@ export function markAsyncSubagentOrphaned(state: AsyncSubagentState): void {
   setAsyncWrapperStatus(state.wrapperEl, 'orphaned');
   updateAsyncLabel(state);
 
-  state.statusTextEl.setText('Orphaned');
+  state.statusTextEl.setText(getAsyncStatusLabel('orphaned'));
 
   state.statusEl.className = 'claudian-subagent-status status-error';
   state.statusEl.empty();
@@ -800,16 +813,20 @@ export function renderStoredAsyncSubagent(
   }
   wrapperEl.dataset.asyncSubagentId = subagent.id;
 
-  const statusText = getAsyncStatusText(subagent.asyncStatus);
-  const statusAriaLabel = getAsyncStatusAriaLabel(subagent.asyncStatus);
+  const statusLabel = getAsyncStatusLabel(subagent.asyncStatus);
 
-  const headerEl = wrapperEl.createDiv({ cls: 'claudian-subagent-header' });
+  // Transcript entry and the collapse toggle must be sibling interactive
+  // controls, so the header row is a plain container (see
+  // createAsyncSubagentBlock for the same structure on live cards).
+  const headerRowEl = wrapperEl.createDiv({ cls: 'claudian-subagent-header-row' });
+
+  const headerEl = headerRowEl.createDiv({ cls: 'claudian-subagent-header' });
   headerEl.setAttribute('tabindex', '0');
   headerEl.setAttribute('role', 'button');
   headerEl.setAttribute('aria-expanded', 'false');
   headerEl.setAttribute(
     'aria-label',
-    `Background task: ${subagent.description} - ${statusAriaLabel} - click to expand`
+    `Background task: ${subagent.description} - ${statusLabel} - click to expand`
   );
 
   const iconEl = headerEl.createDiv({ cls: 'claudian-subagent-icon' });
@@ -835,7 +852,7 @@ export function renderStoredAsyncSubagent(
   }
 
   const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
-  statusTextEl.setText(statusText);
+  statusTextEl.setText(statusLabel);
 
   let statusIconClass: string;
   switch (displayStatus) {
@@ -850,7 +867,7 @@ export function renderStoredAsyncSubagent(
       statusIconClass = 'status-running';
   }
   const statusEl = headerEl.createDiv({ cls: `claudian-subagent-status ${statusIconClass}` });
-  statusEl.setAttribute('aria-label', `Status: ${statusAriaLabel}`);
+  statusEl.setAttribute('aria-label', `Status: ${statusLabel}`);
 
   switch (displayStatus) {
     case 'completed':
@@ -870,7 +887,7 @@ export function renderStoredAsyncSubagent(
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-content' });
   renderAsyncContentLikeSync(contentEl, subagent, displayStatus, options.onOpenFile);
 
-  createOpenTranscriptButton(headerEl, wrapperEl, subagent);
+  createOpenTranscriptButton(headerRowEl, wrapperEl, subagent);
 
   const state = { isExpanded: false };
   setupCollapsible(wrapperEl, headerEl, contentEl, state);

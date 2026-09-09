@@ -848,29 +848,6 @@ async function handleTabSessionEvent(
     if (!isCurrent()) return;
     return;
   }
-  if (event.type === 'async_subagent_completed') {
-    const providerSessionId = event.providerSessionId
-      ?? tab.executionCoordinator?.snapshot?.providerSessionId;
-    if (!providerSessionId) return;
-    const applied = await tab.controllers.streamController?.handleAsyncSubagentCompletion({
-      type: 'async_subagent_completion',
-      providerSessionId,
-      taskId: event.subagentId,
-      status: event.status,
-      ...(event.result !== undefined ? { result: event.result } : {}),
-    });
-    if (applied && isCurrent()) {
-      const reportReviewableSettlement = tab.captureReviewableSettlement?.(
-        event.status === 'error' ? 'error' : 'completed',
-      );
-      try {
-        await tab.controllers.conversationController?.save(true);
-      } finally {
-        if (isCurrent()) reportReviewableSettlement?.();
-      }
-    }
-    return;
-  }
   if (event.type === 'session_error') {
     new Notice(event.message);
     return;

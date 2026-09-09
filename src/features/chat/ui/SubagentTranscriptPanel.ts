@@ -299,8 +299,9 @@ export class SubagentTranscriptPanel {
 
   /**
    * Keeps the panel's viewport stable across refresh re-renders: users pinned
-   * to the bottom follow new content, and scrolled-up readers keep their
-   * approximate offset instead of being yanked back to the top.
+   * to the bottom follow new content, and scrolled-up readers stay on the
+   * same messages instead of being yanked to the top or dragged downward by
+   * content appended below them.
    */
   private restoreScrollPosition(
     container: HTMLElement,
@@ -316,8 +317,13 @@ export class SubagentTranscriptPanel {
       container.scrollTop = container.scrollHeight;
       return;
     }
-    const growth = container.scrollHeight - previousScrollHeight;
-    container.scrollTop = Math.max(0, previousScrollTop + growth);
+    // Transcripts only ever grow at the bottom, so a scrolled-up reader's
+    // messages keep their absolute offset; restoring the raw scrollTop keeps
+    // them in place. Clamping keeps the value valid if the content shrank.
+    container.scrollTop = Math.min(
+      Math.max(0, previousScrollTop),
+      container.scrollHeight,
+    );
   }
 }
 

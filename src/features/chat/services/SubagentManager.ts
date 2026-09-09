@@ -505,6 +505,14 @@ export class SubagentManager {
     const subagent = record.info;
     this.bindProviderIdentifier(completion.taskId, subagent.id);
 
+    // Notifications carry the provider agent id in `taskId`. Live tool results
+    // normally set `agentId` earlier, but when a notification resolves the
+    // record first (deferred path) we must record it so the transcript stays
+    // addressable (e.g. sidecar file name) and the completion is not lost.
+    if (!subagent.agentId) {
+      subagent.agentId = completion.taskId;
+    }
+
     if (record.nativeCompletion) return undefined;
 
     const result = completion.result?.trim()

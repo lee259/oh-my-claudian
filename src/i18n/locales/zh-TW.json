@@ -74,6 +74,7 @@
       "completedLabel": "已完成",
       "errorLabel": "錯誤",
       "orphanedLabel": "已中斷",
+      "pendingLabel": "初始化中",
       "title": "子代理對話",
       "subtitle": "唯讀轉錄",
       "backAriaLabel": "返回對話",

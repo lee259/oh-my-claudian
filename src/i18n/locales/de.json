@@ -74,6 +74,7 @@
       "completedLabel": "Abgeschlossen",
       "errorLabel": "Fehler",
       "orphanedLabel": "Verwaist",
+      "pendingLabel": "Wird initialisiert",
       "title": "Subagent-Konversation",
       "subtitle": "Schreibgeschütztes Transkript",
       "backAriaLabel": "Zurück zur Konversation",

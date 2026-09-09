@@ -74,6 +74,7 @@
       "completedLabel": "완료됨",
       "errorLabel": "오류",
       "orphanedLabel": "연결 끊김",
+      "pendingLabel": "초기화 중",
       "title": "하위 에이전트 대화",
       "subtitle": "읽기 전용 대화 기록",
       "backAriaLabel": "대화로 돌아가기",

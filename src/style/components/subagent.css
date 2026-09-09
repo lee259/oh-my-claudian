@@ -27,6 +27,22 @@
   overflow: hidden;
 }
 
+/* Async cards keep the collapse toggle and the transcript entry as sibling
+ * interactive controls (buttons inside buttons are invalid ARIA). The header
+ * row is a plain flex container; the toggle button fills the row and the
+ * transcript button sits at the far right. */
+.claudian-subagent-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claudian-subagent-header-row > .claudian-subagent-header {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline-end: 0;
+}
+
 .claudian-subagent-icon {
   display: flex;
   align-items: center;

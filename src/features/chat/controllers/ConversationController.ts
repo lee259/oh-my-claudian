@@ -284,7 +284,7 @@ export class ConversationController {
     await this.refreshSubagentTranscript();
     if (openSeq !== this.subagentTranscriptOpenSeq) return;
 
-    if ((detail.status ?? 'running') === 'running' && this.subagentTranscriptTaskToolId) {
+    if ((detail.status ?? 'running') === 'running' && this.shouldContinueSubagentTranscriptRefresh()) {
       this.scheduleSubagentTranscriptRefresh();
     }
   }
@@ -355,6 +355,10 @@ export class ConversationController {
       ) return;
       if (!messages) {
         panel.showUnavailable();
+        // The terminal check must not depend on a successful load: a task that
+        // reached a terminal state in the manager stops the poll loop even when
+        // the sidecar loader keeps returning null (e.g. missing transcript).
+        this.syncSubagentTranscriptStatusFromManager();
         return;
       }
       panel.renderMessages(messages);
@@ -366,8 +370,24 @@ export class ConversationController {
         && openSeq === this.subagentTranscriptOpenSeq
       ) {
         panel.showUnavailable();
+        this.syncSubagentTranscriptStatusFromManager();
       }
     }
+  }
+
+  /**
+   * Whether the refresh loop should keep scheduling ticks. Polling continues
+   * only while the owning runtime still tracks a pending/running subagent:
+   * terminal states stop the loop via syncSubagentTranscriptStatusFromManager,
+   * and reload-recovered stored cards without a live manager record have no
+   * source of updates, so their transcript is a static snapshot.
+   */
+  private shouldContinueSubagentTranscriptRefresh(): boolean {
+    const taskToolId = this.subagentTranscriptTaskToolId;
+    if (!taskToolId) return false;
+    const subagent = this.deps.subagentManager.getByTaskId?.(taskToolId);
+    if (!subagent) return false;
+    return subagent.asyncStatus === 'pending' || subagent.asyncStatus === 'running';
   }
 
   /**
@@ -398,8 +418,10 @@ export class ConversationController {
         if (!this.subagentTranscriptTaskToolId) return;
         await this.refreshSubagentTranscript();
         if (this.deps.isDisposed?.() || !this.subagentTranscriptPanel?.isOpen()) return;
-        // Terminal states stop the loop in syncSubagentTranscriptStatusFromManager.
-        if (this.subagentTranscriptTaskToolId) {
+        // Terminal states stop the loop in syncSubagentTranscriptStatusFromManager;
+        // stored cards without a live manager record stop because nothing updates
+        // their sidecar snapshot anymore.
+        if (this.shouldContinueSubagentTranscriptRefresh()) {
           this.scheduleSubagentTranscriptRefresh();
         }
       })();

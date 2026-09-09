@@ -240,6 +240,33 @@ describe('SubagentManager', () => {
       });
     });
 
+    it('records agentId from the notification taskId when no tool result ever arrives', () => {
+      const { manager } = createManager();
+      const parentEl = createMockEl();
+
+      manager.handleTaskToolUse(
+        'task-1',
+        { description: 'Background', run_in_background: true },
+        parentEl,
+      );
+
+      manager.handleAsyncSubagentCompletion({
+        type: 'async_subagent_completion',
+        providerSessionId: 'session-1',
+        taskId: 'agent-notify-1',
+        toolUseId: 'task-1',
+        status: 'completed',
+        result: 'Notification only',
+      });
+
+      const completed = manager.getByTaskId('task-1');
+      expect(completed).toMatchObject({
+        agentId: 'agent-notify-1',
+        asyncStatus: 'completed',
+        result: 'Notification only',
+      });
+    });
+
     it('transitions from pending to running when agent_id is parsed', () => {
       const { manager, updates } = createManager();
       const parentEl = createMockEl();

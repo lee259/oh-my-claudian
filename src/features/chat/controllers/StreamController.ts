@@ -117,6 +117,17 @@ interface StreamingContentSnapshot {
   options?: RenderContentOptions;
 }
 
+/**
+ * Narrowing guard for the mixed subagent-state map. Kept as an explicit
+ * predicate instead of a structural subtype check because live async cards
+ * carry header-row fields that stored sync cards do not.
+ */
+function isAsyncSubagentState(
+  state: SubagentState | AsyncSubagentState | undefined,
+): state is AsyncSubagentState {
+  return state?.info.mode === 'async';
+}
+
 const STREAMING_RENDER_MIN_INTERVAL_MS = 150;
 
 export class StreamController {
@@ -941,7 +952,7 @@ export class StreamController {
     const isNewBinding = this.lifecycleAgentIdToSpawnId.get(agentId) !== spawnId;
     this.lifecycleAgentIdToSpawnId.set(agentId, spawnId);
     const state = this.lifecycleSubagentStates.get(spawnId);
-    if (state?.info.mode === 'async' && isNewBinding) {
+    if (isAsyncSubagentState(state) && isNewBinding) {
       updateAsyncSubagentRunning(state, agentId);
     }
     if (isNewBinding && msg && adapter) {
@@ -992,11 +1003,11 @@ export class StreamController {
   ): void {
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (!state) return;
-    if (state.info.mode === 'async') {
+    if (isAsyncSubagentState(state)) {
       finalizeAsyncSubagent(state, result, isError);
       return;
     }
-    finalizeSubagentBlock(state as SubagentState, result, isError);
+    finalizeSubagentBlock(state, result, isError);
   }
 
   private async handleToolResult(

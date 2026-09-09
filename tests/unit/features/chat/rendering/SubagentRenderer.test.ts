@@ -14,6 +14,7 @@ import {
   updateAsyncSubagentRunning,
   updateSubagentToolResult,
 } from '@/features/chat/rendering/SubagentRenderer';
+import { setLocale, t } from '@/i18n/i18n';
 
 const getTextByClass = (el: MockElement, cls: string): string[] => {
   const results: string[] = [];
@@ -537,6 +538,21 @@ describe('Async Subagent Renderer', () => {
       expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Transcribe me');
     });
 
+    it('keeps the open button outside the collapsible toggle button', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      // Header row is a plain container; the toggle button and the transcript
+      // button are sibling interactive controls (never button-in-button).
+      const headerRowEl = (state.headerRowEl as any);
+      expect(headerRowEl.getAttribute('role')).not.toBe('button');
+      expect((headerRowEl as any).children[0]).toBe(state.headerEl);
+      expect((headerRowEl as any).children[1]).toBe(state.openTranscriptBtnEl);
+      expect(state.headerEl.getAttribute('role')).toBe('button');
+      // The transcript button must not be reachable from inside the toggle.
+      expect(state.headerEl.querySelector('.claudian-subagent-open-transcript')).toBeNull();
+    });
+
     it('does not toggle collapse when the open button is clicked', () => {
       const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
       updateAsyncSubagentRunning(state, 'agent-open');
@@ -578,6 +594,17 @@ describe('Async Subagent Renderer', () => {
       expect(buttons).toHaveLength(1);
       expect(state.openTranscriptBtnEl).toBeTruthy();
     });
+
+    it('adds the entry button when a task completes before its running update', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-early', { description: 'Fast task' });
+      state.info.agentId = 'agent-early';
+
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+      expect(btn).toBeTruthy();
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Fast task');
+    });
   });
 
   describe('renderStoredAsyncSubagent', () => {
@@ -598,6 +625,32 @@ describe('Async Subagent Renderer', () => {
 
       expect(btn).toBeTruthy();
       expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Stored task');
+    });
+
+    it('keeps the open entry button outside the stored toggle button', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        agentId: 'agent-stored',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      const headerRowEl = (wrapperEl as any).children[0];
+      const headerEl = headerRowEl.children[0];
+      const openBtn = (wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      // The stored card mirrors the live structure: a plain header row holding
+      // the toggle button and the transcript button as siblings.
+      expect(headerRowEl.getAttribute('role')).not.toBe('button');
+      expect(headerEl.getAttribute('role')).toBe('button');
+      expect(openBtn).toBeTruthy();
+      expect(openBtn).not.toBe(headerEl);
+      expect(headerEl.querySelector('.claudian-subagent-open-transcript')).toBeNull();
     });
 
     it('omits the open entry button when no stored agent id exists', () => {
@@ -644,7 +697,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       // Click to expand
       headerEl.click();
@@ -664,7 +717,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       const enterEvent = { key: 'Enter', preventDefault: jest.fn() };
       headerEl.dispatchEvent({ type: 'keydown', ...enterEvent });
@@ -684,7 +737,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       expect(headerEl.getAttribute('aria-label')).toContain('click to expand');
     });
@@ -701,7 +754,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       // Click to expand
       headerEl.click();
@@ -1183,5 +1236,54 @@ describe('renderStoredSubagent status variants', () => {
 
     const labelTexts = getTextByClass(wrapperEl as any, 'claudian-subagent-label');
     expect(labelTexts[0]).toBe('A'.repeat(40) + '...');
+  });
+});
+
+describe('async status label i18n', () => {
+  let parentEl: MockElement;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    parentEl = createMockEl('div');
+    setLocale('en');
+  });
+
+  afterEach(() => {
+    setLocale('en');
+  });
+
+  it('localizes live async card status text for a non-English locale', () => {
+    setLocale('zh-CN');
+
+    const state = createAsyncSubagentBlock(parentEl as any, 'task-i18n', { description: 'Background job' });
+    expect(state.statusTextEl.textContent).toBe('初始化中');
+
+    updateAsyncSubagentRunning(state, 'agent-i18n');
+    expect(state.statusTextEl.textContent).toBe('后台运行中');
+
+    finalizeAsyncSubagent(state, 'all done', false);
+    expect(state.statusTextEl.textContent).toBe('已完成');
+  });
+
+  it('localizes stored async card status text for a non-English locale', () => {
+    setLocale('zh-CN');
+
+    const wrapperEl = renderStoredAsyncSubagent(parentEl as any, {
+      id: 'task-i18n',
+      description: 'Background job',
+      status: 'completed',
+      asyncStatus: 'completed',
+      mode: 'async',
+      toolCalls: [],
+      isExpanded: false,
+    } as SubagentInfo);
+
+    const statusTexts = getTextByClass(wrapperEl as any, 'claudian-subagent-status-text');
+    expect(statusTexts[0]).toBe('已完成');
+  });
+
+  it('uses the transcript overlay wording for running statuses', () => {
+    expect(t('chat.subagentTranscript.pendingLabel')).toBe('Initializing');
+    expect(t('chat.subagentTranscript.runningLabel')).toBe('Running in background');
   });
 });

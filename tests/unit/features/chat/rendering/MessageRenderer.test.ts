@@ -2420,4 +2420,53 @@ describe('MessageRenderer', () => {
       );
     });
   });
+
+  describe('renderMessagesInto read-only surface', () => {
+    const eligibleMessages = (): ChatMessage[] => [
+      { id: 'u1', role: 'user', content: 'hello', timestamp: 1, userMessageId: 'user-u' },
+      { id: 'a1', role: 'assistant', content: 'response', timestamp: 2, assistantMessageId: 'resp-a' },
+    ];
+
+    it('suppresses conversation actions by default', () => {
+      const messagesEl = createMockEl();
+      const rewindCallback = jest.fn().mockResolvedValue(undefined);
+      const forkCallback = jest.fn().mockResolvedValue(undefined);
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        messagesEl,
+        rewindCallback,
+        forkCallback,
+        mockCapabilities(),
+      );
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      const container = createMockEl();
+      renderer.renderMessagesInto(container, eligibleMessages());
+
+      expect(container.querySelector('.claudian-message-rewind-btn')).toBeNull();
+      expect(container.querySelector('.claudian-message-fork-btn')).toBeNull();
+    });
+
+    it('keeps the read-only surface inert even when the source renderer stays interactive', () => {
+      const messagesEl = createMockEl();
+      const rewindCallback = jest.fn().mockResolvedValue(undefined);
+      const forkCallback = jest.fn().mockResolvedValue(undefined);
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        messagesEl,
+        rewindCallback,
+        forkCallback,
+        mockCapabilities(),
+      );
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      // Main renderer surface still shows the actions afterwards.
+      const container = createMockEl();
+      renderer.renderMessagesInto(container, eligibleMessages());
+      renderer.renderStoredMessage(eligibleMessages()[0], eligibleMessages(), 0);
+      expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
+    });
+  });
 });

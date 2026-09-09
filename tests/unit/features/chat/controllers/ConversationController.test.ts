@@ -4598,6 +4598,46 @@ describe('ConversationController running transcript refresh', () => {
     controller.closeSubagentTranscript();
   });
 
+  it('stops polling and reflects the terminal state when the loader returns null', async () => {
+    loadSubagentConversation.mockResolvedValue(null);
+    subagentManager.getByTaskId.mockReturnValue({
+      id: 'task-1',
+      asyncStatus: 'completed',
+      toolCalls: [],
+      status: 'completed',
+    });
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    // Terminal sync runs even when the loader keeps returning null: the poll
+    // loop must stop instead of retrying forever against a missing sidecar.
+    expect(timerSpy).not.toHaveBeenCalled();
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    const statusText = root.querySelector('.claudian-subagent-transcript-status')?.textContent;
+    expect(String(statusText).toLowerCase()).toContain('completed');
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
+  it('does not poll a stored running card without a live manager record', async () => {
+    subagentManager.getByTaskId.mockReturnValue(undefined);
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    // A reload-recovered stored card has no live runtime record, so nothing
+    // will ever terminalize it through the manager; render once and stop.
+    expect(loadSubagentConversation).toHaveBeenCalledTimes(1);
+    expect(timerSpy).not.toHaveBeenCalled();
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
   it('closing the panel clears the pending refresh timer', async () => {
     const clearSpy = jest.spyOn(window, 'clearTimeout');
     await controller.openSubagentTranscript({

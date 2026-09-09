@@ -74,6 +74,7 @@
       "completedLabel": "Завершено",
       "errorLabel": "Ошибка",
       "orphanedLabel": "Потеряно",
+      "pendingLabel": "Инициализация",
       "title": "Разговор субагента",
       "subtitle": "Транскрипт только для чтения",
       "backAriaLabel": "Вернуться к разговору",

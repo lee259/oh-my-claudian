@@ -42,6 +42,9 @@ function createMockChild(): MockElement {
     parent: null,
     textContent: '',
     isConnected: true,
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
     listeners: {} as Record<string, Array<(...args: any[]) => void>>,
     focus: jest.fn(),
     addClass(cls: string) {
@@ -348,6 +351,78 @@ describe('SubagentTranscriptPanel', () => {
       const messages = [mockMessage({ id: 'a1', role: 'assistant', content: 'now ready' })];
       panel.renderMessages(messages);
       expect(renderMessages).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('scroll position restore', () => {
+    // Real DOM grows scrollHeight when rows render; the mock does not, so the
+    // renderer emulates layout by deriving the height from the row count.
+    const rowHeightPx = 100;
+    const growingRenderer = () => {
+      return jest.fn((container: MockElement, msgs: ChatMessage[]) => {
+        for (const message of msgs) {
+          container.createDiv({ cls: `row-${message.id}` });
+        }
+        container.scrollHeight = msgs.length * rowHeightPx;
+      });
+    };
+    const longTranscript = Array.from({ length: 10 }, (_, index) => (
+      mockMessage({ id: `a${index + 1}`, role: 'assistant', content: `msg ${index + 1}` })
+    ));
+
+    it('follows new content when the reader is pinned to the bottom', () => {
+      const renderMessages = growingRenderer();
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      panel.renderMessages(longTranscript);
+      const container = renderMessages.mock.calls[0][0];
+      container.scrollTop = 900;
+      container.clientHeight = 100;
+
+      panel.renderMessages([
+        ...longTranscript,
+        mockMessage({ id: 'a11', role: 'assistant', content: 'msg 11' }),
+        mockMessage({ id: 'a12', role: 'assistant', content: 'msg 12' }),
+      ]);
+
+      expect(container.scrollTop).toBe(1200);
+    });
+
+    it('keeps a scrolled-up reader anchored when content is appended below', () => {
+      const renderMessages = growingRenderer();
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      panel.renderMessages(longTranscript);
+      const container = renderMessages.mock.calls[0][0];
+      container.scrollTop = 300;
+      container.clientHeight = 100;
+
+      panel.renderMessages([
+        ...longTranscript,
+        mockMessage({ id: 'a11', role: 'assistant', content: 'msg 11' }),
+        mockMessage({ id: 'a12', role: 'assistant', content: 'msg 12' }),
+        mockMessage({ id: 'a13', role: 'assistant', content: 'msg 13' }),
+      ]);
+
+      // Growth of 300px below the reader must not drag them toward the bottom.
+      expect(container.scrollTop).toBe(300);
+    });
+
+    it('leaves the scroll position untouched on the first render', () => {
+      const renderMessages = jest.fn((container: MockElement, msgs: ChatMessage[]) => {
+        for (const message of msgs) {
+          container.createDiv({ cls: `row-${message.id}` });
+        }
+      });
+      panel.setMessageRenderer(renderMessages);
+      panel.open({ description: 'task', status: 'running' });
+
+      panel.renderMessages([mockMessage({ id: 'a1', role: 'assistant', content: 'one' })]);
+
+      const container = renderMessages.mock.calls[0][0];
+      expect(container.scrollTop).toBe(0);
     });
   });
 

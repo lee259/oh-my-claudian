@@ -74,6 +74,7 @@
       "completedLabel": "完了",
       "errorLabel": "エラー",
       "orphanedLabel": "切断されました",
+      "pendingLabel": "初期化中",
       "title": "サブエージェントの会話",
       "subtitle": "読み取り専用トランスクリプト",
       "backAriaLabel": "会話に戻る",
