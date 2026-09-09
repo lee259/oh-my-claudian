@@ -27,6 +27,17 @@ function getPathRules(vaultPath?: string): string {
 **External context paths**: When external directories are selected, use absolute paths to access files there. These directories are explicitly granted for the current session.`;
 }
 
+function getFileOperations(): string {
+  return `## File Operations
+
+- Use built-in filesystem tools for ordinary reads, edits, file creation, directory creation, listing, and text search.
+- Use Obsidian-native operations for resolved links and backlinks, indexed tags and tasks, and live app state that filesystem tools cannot reliably provide.
+- For targeted frontmatter property updates, prefer Obsidian-native property operations (for example, the Obsidian CLI's \`property:set\` and \`property:remove\`) so Obsidian handles YAML serialization.
+- Move or rename Vault notes, attachments, and folders through the running Obsidian app so it can update links according to the user's link-update settings. Do not use shell \`mv\`, filesystem rename APIs, or copy-and-delete followed by manual link replacements.
+- When an Obsidian CLI is available, use its vault-relative move or rename operation and explicitly target the current Vault. For folder moves, resolve the source through the running app's vault API, confirm the source is a folder, check that the destination does not already exist, and rename through the app's file manager.
+- For requested deletions, prefer Obsidian's trash behavior. Permanent deletion must be explicitly requested.`;
+}
+
 function getUserContext(userName?: string): string {
   const trimmedUserName = userName?.trim();
   return trimmedUserName
@@ -159,6 +170,7 @@ function getBaseSystemPrompt(
     getUserContext(userName),
     getTimeContext(toolGuidanceProfile),
     getVaultContext(vaultPath),
+    getFileOperations(),
   ].filter(Boolean).join('\n\n');
 }
 

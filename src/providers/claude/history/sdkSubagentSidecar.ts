@@ -172,7 +172,7 @@ function buildToolCallsFromSubagentEvents(events: SubagentToolEvent[]): ToolCall
     .map(entry => entry.toolCall);
 }
 
-function getSubagentSidecarPath(
+export function getSubagentSidecarPath(
   vaultPath: string,
   sessionId: string,
   agentId: string,

@@ -117,6 +117,17 @@ interface StreamingContentSnapshot {
   options?: RenderContentOptions;
 }
 
+/**
+ * Narrowing guard for the mixed subagent-state map. Kept as an explicit
+ * predicate instead of a structural subtype check because live async cards
+ * carry header-row fields that stored sync cards do not.
+ */
+function isAsyncSubagentState(
+  state: SubagentState | AsyncSubagentState | undefined,
+): state is AsyncSubagentState {
+  return state?.info.mode === 'async';
+}
+
 const STREAMING_RENDER_MIN_INTERVAL_MS = 150;
 
 export class StreamController {
@@ -745,10 +756,14 @@ export class StreamController {
       ? createAsyncSubagentBlock(parentEl, spawnId, {
         description: subagentInfo.description,
         prompt: subagentInfo.prompt,
+      }, {
+        onOpenFile: (fileReference) => { void openVaultFile(this.deps.plugin.app, fileReference); },
       })
       : createSubagentBlock(parentEl, spawnId, {
         description: subagentInfo.description,
         prompt: subagentInfo.prompt,
+      }, {
+        onOpenFile: (fileReference) => { void openVaultFile(this.deps.plugin.app, fileReference); },
       });
     if (previousEl?.parentElement === parentEl) {
       parentEl.insertBefore(subagentState.wrapperEl, previousEl);
@@ -937,8 +952,8 @@ export class StreamController {
     const isNewBinding = this.lifecycleAgentIdToSpawnId.get(agentId) !== spawnId;
     this.lifecycleAgentIdToSpawnId.set(agentId, spawnId);
     const state = this.lifecycleSubagentStates.get(spawnId);
-    if (state?.info.mode === 'async' && isNewBinding) {
-      updateAsyncSubagentRunning(state as AsyncSubagentState, agentId);
+    if (isAsyncSubagentState(state) && isNewBinding) {
+      updateAsyncSubagentRunning(state, agentId);
     }
     if (isNewBinding && msg && adapter) {
       this.hideNewlyLinkedProviderSubagentTools(spawnId, msg, adapter);
@@ -988,11 +1003,11 @@ export class StreamController {
   ): void {
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (!state) return;
-    if (state.info.mode === 'async') {
-      finalizeAsyncSubagent(state as AsyncSubagentState, result, isError);
+    if (isAsyncSubagentState(state)) {
+      finalizeAsyncSubagent(state, result, isError);
       return;
     }
-    finalizeSubagentBlock(state as SubagentState, result, isError);
+    finalizeSubagentBlock(state, result, isError);
   }
 
   private async handleToolResult(
@@ -1132,15 +1147,45 @@ export class StreamController {
     );
   }
 
+  /**
+   * Keeps high-volume background turns responsive by deferring expensive
+   * Markdown parsing until their terminal event. Foreground turns retain the
+   * existing formatted streaming behavior.
+   */
+  appendBackgroundText(text: string): void {
+    const { state } = this.deps;
+    if (!state.currentContentEl) return;
+
+    this.hideThinkingIndicator();
+    if (!state.currentTextEl) {
+      state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
+      state.currentTextContent = '';
+    }
+
+    state.currentTextContent += text;
+    state.currentTextEl.appendText(text);
+    state.currentTextEl.addClass('claudian-text-block--plain-streaming');
+    this.scrollToBottom();
+  }
+
   async finalizeCurrentTextBlock(msg?: ChatMessage): Promise<void> {
     const { state, renderer } = this.deps;
     const textEl = state.currentTextEl;
     const content = state.currentTextContent;
 
-    if (textEl && this.getStreamingRenderOptions(content)) {
-      this.textRenderCoordinator.request({ el: textEl, content });
+    if (textEl?.hasClass('claudian-text-block--plain-streaming')) {
+      textEl.removeClass('claudian-text-block--plain-streaming');
+      await this.deps.renderer.renderContent(
+        textEl,
+        content,
+        this.getStreamingRenderOptions(content),
+      );
+    } else {
+      if (textEl && this.getStreamingRenderOptions(content)) {
+        this.textRenderCoordinator.request({ el: textEl, content });
+      }
+      await this.textRenderCoordinator.flush();
     }
-    await this.textRenderCoordinator.flush();
 
     if (msg && content) {
       msg.contentBlocks = msg.contentBlocks || [];
@@ -1487,15 +1532,33 @@ export class StreamController {
   public async handleAsyncSubagentCompletion(
     completion: AsyncSubagentCompletion,
   ): Promise<boolean> {
-    const handled = this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
-    await this.hydrateAsyncSubagentHistory(
-      handled,
-      completion.providerSessionId,
-    );
+    const handled = this.applyAsyncSubagentCompletion(completion);
+    await this.recoverAsyncSubagentCompletion(handled, completion.providerSessionId);
     if (handled) {
       this.showThinkingIndicator();
     }
     return handled !== undefined;
+  }
+
+  /**
+   * Applies the terminal subagent state before any transcript recovery. This
+   * keeps the completed card responsive while the parent turn continues.
+   */
+  public applyAsyncSubagentCompletion(
+    completion: AsyncSubagentCompletion,
+  ): SubagentInfo | undefined {
+    return this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
+  }
+
+  /**
+   * Hydrates optional transcript details after the terminal state is already
+   * visible. Callers that serialize background work can enqueue this safely.
+   */
+  public async recoverAsyncSubagentCompletion(
+    subagent: SubagentInfo | undefined,
+    providerSessionId?: string,
+  ): Promise<void> {
+    await this.hydrateAsyncSubagentHistory(subagent, providerSessionId);
   }
 
   private async hydrateAsyncSubagentHistory(
@@ -1689,19 +1752,66 @@ export class StreamController {
 
   /** Callback from SubagentManager when async state changes. Updates messages only (DOM handled by manager). */
   onAsyncSubagentStateChange(subagent: SubagentInfo): void {
-    this.updateSubagentInMessages(subagent);
+    const message = this.updateSubagentInMessages(subagent);
+    if (
+      message
+      && subagent.mode === 'async'
+      && (subagent.asyncStatus === 'completed' || subagent.asyncStatus === 'error')
+      && this.deps.state.currentContentEl
+    ) {
+      this.deps.subagentManager.moveCompletedAsyncSubagentToTail(
+        subagent.id,
+        this.deps.state.currentContentEl,
+        () => {
+          this.sealCurrentTextBlockForAsyncSubagent(message);
+          this.moveSubagentContentBlockToTail(message, subagent.id);
+        },
+      );
+    }
     this.scrollToBottom();
   }
 
-  private updateSubagentInMessages(subagent: SubagentInfo): void {
+  private updateSubagentInMessages(subagent: SubagentInfo): ChatMessage | undefined {
     const { state } = this.deps;
     for (let i = state.messages.length - 1; i >= 0; i--) {
       const msg = state.messages[i];
       if (msg.role !== 'assistant') continue;
       if (this.linkTaskToolCallToSubagent(msg, subagent)) {
-        return;
+        return msg;
       }
     }
+    return undefined;
+  }
+
+  /**
+   * A background completion can arrive between parent text deltas. Seal that
+   * text synchronously before moving the card, otherwise future deltas append
+   * into the same DOM block and appear before the completion.
+   */
+  private sealCurrentTextBlockForAsyncSubagent(message: ChatMessage): void {
+    const { state, renderer } = this.deps;
+    const textEl = state.currentTextEl;
+    const content = state.currentTextContent;
+    if (!textEl || !content) return;
+
+    this.textRenderCoordinator.cancel();
+    void renderer.renderContent(textEl, content, this.getStreamingRenderOptions(content));
+    message.contentBlocks = message.contentBlocks || [];
+    message.contentBlocks.push({ type: 'text', content });
+    renderer.addTextCopyButton(textEl, content);
+    state.currentTextEl = null;
+    state.currentTextContent = '';
+  }
+
+  private moveSubagentContentBlockToTail(message: ChatMessage, subagentId: string): void {
+    const blocks = message.contentBlocks;
+    if (!blocks) return;
+    const index = blocks.findIndex(
+      block => block.type === 'subagent' && block.subagentId === subagentId,
+    );
+    if (index < 0) return;
+    const [subagentBlock] = blocks.splice(index, 1);
+    blocks.push(subagentBlock);
   }
 
   private ensureTaskToolCall(

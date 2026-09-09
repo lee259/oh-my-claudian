@@ -139,6 +139,7 @@ export interface ClaudianSettings {
   excludedTags: string[];
   mediaFolder: string;
   systemPrompt: string;
+  useClaudianSystemPrompt: boolean;
   persistentExternalContextPaths: string[];
 
   // Environment

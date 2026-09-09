@@ -7,6 +7,7 @@ import type {
 } from '../../../core/providers/types';
 import { parseEnvironmentVariables } from '../../../utils/env';
 import {
+  loadSubagentConversation,
   loadSubagentFinalResult,
   loadSubagentToolCalls,
 } from './ClaudeHistoryStore';
@@ -26,6 +27,16 @@ export class ClaudeSubagentHistoryService implements ProviderSubagentHistoryServ
 
   loadFinalResult(request: ProviderSubagentHistoryRequest) {
     return loadSubagentFinalResult(
+      request.vaultPath,
+      request.providerSessionId,
+      request.subagentId,
+      undefined,
+      this.buildPathContext(request.vaultPath),
+    );
+  }
+
+  loadConversation(request: ProviderSubagentHistoryRequest) {
+    return loadSubagentConversation(
       request.vaultPath,
       request.providerSessionId,
       request.subagentId,

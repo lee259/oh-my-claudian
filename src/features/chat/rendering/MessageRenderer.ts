@@ -84,6 +84,8 @@ export class MessageRenderer {
   private liveMessageEls = new Map<string, HTMLElement>();
   private readonly imagePreviewModal = new ImagePreviewModal();
   private isDisposed = false;
+  /** Set while rendering a read-only surface (e.g. subagent transcripts). */
+  private suppressConversationActions = false;
 
   constructor(
     plugin: FeatureHost,
@@ -288,6 +290,33 @@ export class MessageRenderer {
     return newWelcomeEl;
   }
 
+  /**
+   * Renders stored messages into a read-only surface with the main
+   * conversation's message pipeline, without affecting live stream state.
+   * Conversation-scoped user actions (rewind/fork) are suppressed by default:
+   * those ids only exist in the source conversation, never in the read-only
+   * surface, so invoking them would target the wrong conversation.
+   */
+  renderMessagesInto(
+    containerEl: HTMLElement,
+    messages: ChatMessage[],
+    options?: { suppressConversationActions?: boolean },
+  ): void {
+    const mainMessagesEl = this.messagesEl;
+    const previousSuppress = this.suppressConversationActions;
+    this.messagesEl = containerEl;
+    this.suppressConversationActions = options?.suppressConversationActions ?? true;
+    try {
+      containerEl.empty();
+      for (let index = 0; index < messages.length; index++) {
+        this.renderStoredMessage(messages[index], messages, index);
+      }
+    } finally {
+      this.messagesEl = mainMessagesEl;
+      this.suppressConversationActions = previousSuppress;
+    }
+  }
+
   renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
     // Bare interrupt marker: user-role interrupts (Claude bracket markers) always render
     // as a standalone indicator. Assistant-role interrupts (Codex partial responses)
@@ -339,7 +368,7 @@ export class MessageRenderer {
         this.addUserCopyButton(msgEl, textToShow);
         this.applyTocTitle(msgEl, textToShow);
       }
-      if (msg.userMessageId) {
+      if (msg.userMessageId && !this.suppressConversationActions) {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
           this.addRewindButton(msgEl, msg.id);
         }
@@ -606,10 +635,18 @@ export class MessageRenderer {
   ): void {
     const subagentInfo = this.resolveTaskSubagent(toolCall, modeHint);
     if (subagentInfo.mode === 'async') {
-      renderStoredAsyncSubagent(contentEl, subagentInfo);
+      renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onOpenFile: (fileReference) => runRendererAction(async () => {
+          await openVaultFile(this.app, fileReference);
+        }),
+      });
       return;
     }
-    renderStoredSubagent(contentEl, subagentInfo);
+    renderStoredSubagent(contentEl, subagentInfo, {
+      onOpenFile: (fileReference) => runRendererAction(async () => {
+        await openVaultFile(this.app, fileReference);
+      }),
+    });
   }
 
   /**
@@ -632,10 +669,18 @@ export class MessageRenderer {
       msg.toolCalls ?? [],
     );
     if (subagentInfo.mode === 'async') {
-      renderStoredAsyncSubagent(contentEl, subagentInfo);
+      renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onOpenFile: (fileReference) => runRendererAction(async () => {
+          await openVaultFile(this.app, fileReference);
+        }),
+      });
       return;
     }
-    renderStoredSubagent(contentEl, subagentInfo);
+    renderStoredSubagent(contentEl, subagentInfo, {
+      onOpenFile: (fileReference) => runRendererAction(async () => {
+        await openVaultFile(this.app, fileReference);
+      }),
+    });
   }
 
   private resolveTaskSubagent(toolCall: ToolCallInfo, modeHint?: 'sync' | 'async'): SubagentInfo {

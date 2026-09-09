@@ -14,6 +14,7 @@ import {
   updateAsyncSubagentRunning,
   updateSubagentToolResult,
 } from '@/features/chat/rendering/SubagentRenderer';
+import { setLocale, t } from '@/i18n/i18n';
 
 const getTextByClass = (el: MockElement, cls: string): string[] => {
   const results: string[] = [];
@@ -330,6 +331,18 @@ describe('Async Subagent Renderer', () => {
     expect((state.wrapperEl as any).getClasses()).toEqual(expect.arrayContaining(['async', 'pending']));
   });
 
+  it('shows an animated running indicator icon while pending and running', () => {
+    (setIcon as jest.Mock).mockClear();
+    const state = createAsyncSubagentBlock(parentEl as any, 'task-spin', { description: 'Background job' });
+    expect(setIcon).toHaveBeenCalledWith(state.statusEl, 'loader-2');
+
+    (setIcon as jest.Mock).mockClear();
+    updateAsyncSubagentRunning(state, 'agent-spin');
+    expect(setIcon).toHaveBeenCalledWith(state.statusEl, 'loader-2');
+    expect(state.statusEl.className).toContain('status-running');
+    expect(state.statusEl.getAttribute('aria-label')).toBe('Status: running');
+  });
+
   it('shows prompt in content and keeps label visible while running', () => {
     const state = createAsyncSubagentBlock(parentEl as any, 'task-2', { description: 'Background job', prompt: 'Do the work' });
 
@@ -368,7 +381,7 @@ describe('Async Subagent Renderer', () => {
     finalizeAsyncSubagent(state, 'all done', false);
 
     expect(state.labelEl.textContent).toBe('Background job');
-    expect(state.statusTextEl.textContent).toBe('');
+    expect(state.statusTextEl.textContent).toBe('Completed');
     expect((state.wrapperEl as any).hasClass('done')).toBe(true);
     const contentText = getTextByClass(state.contentEl as any, 'claudian-subagent-result-output')[0];
     expect(contentText).toBe('all done');
@@ -402,7 +415,259 @@ describe('Async Subagent Renderer', () => {
     expect(contentText).toContain('Conversation ended before task completed');
   });
 
+  describe('idempotent incremental content (no rebuild on repeat publishes)', () => {
+    const makeToolCalls = (): ToolCallInfo[] => [
+      {
+        id: 'tool-a',
+        name: 'Read',
+        input: { file_path: 'a.md' },
+        status: 'completed',
+        result: 'A',
+        isExpanded: false,
+      },
+      {
+        id: 'tool-b',
+        name: 'Grep',
+        input: { pattern: 'x' },
+        status: 'completed',
+        result: 'B',
+        isExpanded: false,
+      },
+    ];
+
+    it('keeps tool item DOM nodes stable across repeated running updates', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rep-run', { description: 'Bg', prompt: 'P' });
+      state.info.toolCalls.push(...makeToolCalls());
+
+      updateAsyncSubagentRunning(state, 'agent-rep-run');
+      const toolsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const promptBefore = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+      expect(toolsBefore).toHaveLength(2);
+
+      // Second publish with identical content must not rebuild the DOM.
+      updateAsyncSubagentRunning(state, 'agent-rep-run');
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const promptAfter = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+
+      expect(toolsAfter).toHaveLength(2);
+      expect(toolsAfter[0]).toBe(toolsBefore[0]);
+      expect(toolsAfter[1]).toBe(toolsBefore[1]);
+      expect(promptAfter).toBe(promptBefore);
+    });
+
+    it('does not detach or duplicate tool/result DOM when finalize is published repeatedly', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rep-final', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-rep-final');
+      state.info.toolCalls.push(...makeToolCalls());
+
+      finalizeAsyncSubagent(state, 'first result', false);
+      const toolsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const sectionsBefore = (state.contentEl as any).querySelectorAll('.claudian-subagent-section');
+      expect(toolsBefore).toHaveLength(2);
+      expect(resultBefore.textContent).toBe('first result');
+
+      // Duplicate terminal publishes (notification + tool_output + hydration refresh).
+      finalizeAsyncSubagent(state, 'first result', false);
+      finalizeAsyncSubagent(state, 'first result', false);
+
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const sectionsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-section');
+
+      expect(toolsAfter).toHaveLength(2);
+      expect(toolsAfter[0]).toBe(toolsBefore[0]);
+      expect(toolsAfter[1]).toBe(toolsBefore[1]);
+      expect(resultAfter).toBe(resultBefore);
+      expect(resultAfter.textContent).toBe('first result');
+      expect(sectionsAfter).toHaveLength(sectionsBefore.length);
+    });
+
+    it('appends newly hydrated tool calls without rebuilding prior result DOM', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-hydrate', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-hydrate');
+
+      // Terminal publish arrives before tool calls have been hydrated.
+      finalizeAsyncSubagent(state, 'done', false);
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      const promptBefore = (state.contentEl as any).querySelector('.claudian-subagent-prompt-text');
+      expect(resultBefore.textContent).toBe('done');
+      expect((state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item')).toHaveLength(0);
+
+      // Hydration adds tool calls and triggers a refresh publish.
+      state.info.toolCalls.push(...makeToolCalls());
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const toolsAfter = (state.contentEl as any).querySelectorAll('.claudian-subagent-tool-item');
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      expect(toolsAfter).toHaveLength(2);
+      expect(resultAfter).toBe(resultBefore);
+      expect((state.contentEl as any).querySelector('.claudian-subagent-prompt-text')).toBe(promptBefore);
+      expect(resultAfter.textContent).toBe('done');
+    });
+
+    it('updates the result text in place when a later refresh publishes richer content', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-rich', { description: 'Bg', prompt: 'P' });
+      updateAsyncSubagentRunning(state, 'agent-rich');
+
+      finalizeAsyncSubagent(state, 'DONE', false);
+      const resultBefore = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+
+      finalizeAsyncSubagent(state, 'full hydrated result text', false);
+
+      const resultAfter = (state.contentEl as any).querySelector('.claudian-subagent-result-output');
+      expect(resultAfter).toBe(resultBefore);
+      expect((state.contentEl as any).querySelectorAll('.claudian-subagent-result-output')).toHaveLength(1);
+      expect(resultAfter.textContent).toBe('full hydrated result text');
+    });
+  });
+
+  describe('open transcript entry (live cards)', () => {
+    it('adds an open button once the agent id is known', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+
+      // Pending state has no agent id yet, so no entry button.
+      expect(state.openTranscriptBtnEl).toBeUndefined();
+      expect((state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript')).toBeNull();
+
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      expect(state.openTranscriptBtnEl).toBeTruthy();
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+      expect(btn).toBe(state.openTranscriptBtnEl);
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Transcribe me');
+    });
+
+    it('keeps the open button outside the collapsible toggle button', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      // Header row is a plain container; the toggle button and the transcript
+      // button are sibling interactive controls (never button-in-button).
+      const headerRowEl = (state.headerRowEl as any);
+      expect(headerRowEl.getAttribute('role')).not.toBe('button');
+      expect((headerRowEl as any).children[0]).toBe(state.headerEl);
+      expect((headerRowEl as any).children[1]).toBe(state.openTranscriptBtnEl);
+      expect(state.headerEl.getAttribute('role')).toBe('button');
+      // The transcript button must not be reachable from inside the toggle.
+      expect(state.headerEl.querySelector('.claudian-subagent-open-transcript')).toBeNull();
+    });
+
+    it('does not toggle collapse when the open button is clicked', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      btn.click();
+
+      expect(state.info.isExpanded).toBe(false);
+      expect((state.wrapperEl as any).hasClass('expanded')).toBe(false);
+    });
+
+    it('dispatches a bubbling open event with task id and agent id', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+
+      const listener = jest.fn();
+      (state.wrapperEl as any).addEventListener('claudian:open-subagent-transcript', listener);
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      btn.click();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      const event = listener.mock.calls[0][0];
+      expect(event.type).toBe('claudian:open-subagent-transcript');
+      expect(event.detail).toEqual({
+        taskToolId: 'task-open',
+        agentId: 'agent-open',
+        description: 'Transcribe me',
+        status: 'running',
+      });
+    });
+
+    it('keeps the entry button through finalize and does not duplicate it', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-open', { description: 'Transcribe me' });
+      updateAsyncSubagentRunning(state, 'agent-open');
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const buttons = (state.wrapperEl as any).querySelectorAll('.claudian-subagent-open-transcript');
+      expect(buttons).toHaveLength(1);
+      expect(state.openTranscriptBtnEl).toBeTruthy();
+    });
+
+    it('adds the entry button when a task completes before its running update', () => {
+      const state = createAsyncSubagentBlock(parentEl as any, 'task-early', { description: 'Fast task' });
+      state.info.agentId = 'agent-early';
+
+      finalizeAsyncSubagent(state, 'done', false);
+
+      const btn = (state.wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+      expect(btn).toBeTruthy();
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Fast task');
+    });
+  });
+
   describe('renderStoredAsyncSubagent', () => {
+    it('adds an open entry button when the stored agent id is known', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        agentId: 'agent-stored',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      const btn = (wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      expect(btn).toBeTruthy();
+      expect(btn.getAttribute('aria-label')).toContain('Open full conversation of Stored task');
+    });
+
+    it('keeps the open entry button outside the stored toggle button', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        agentId: 'agent-stored',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      const headerRowEl = (wrapperEl as any).children[0];
+      const headerEl = headerRowEl.children[0];
+      const openBtn = (wrapperEl as any).querySelector('.claudian-subagent-open-transcript');
+
+      // The stored card mirrors the live structure: a plain header row holding
+      // the toggle button and the transcript button as siblings.
+      expect(headerRowEl.getAttribute('role')).not.toBe('button');
+      expect(headerEl.getAttribute('role')).toBe('button');
+      expect(openBtn).toBeTruthy();
+      expect(openBtn).not.toBe(headerEl);
+      expect(headerEl.querySelector('.claudian-subagent-open-transcript')).toBeNull();
+    });
+
+    it('omits the open entry button when no stored agent id exists', () => {
+      const subagent: SubagentInfo = {
+        id: 'task-stored',
+        description: 'Stored task',
+        status: 'completed',
+        toolCalls: [],
+        isExpanded: false,
+        mode: 'async',
+        asyncStatus: 'completed',
+      };
+
+      const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
+      expect((wrapperEl as any).querySelector('.claudian-subagent-open-transcript')).toBeNull();
+    });
+
     it('should return wrapper element', () => {
       const subagent: SubagentInfo = {
         id: 'task-1',
@@ -432,7 +697,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       // Click to expand
       headerEl.click();
@@ -452,7 +717,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       const enterEvent = { key: 'Enter', preventDefault: jest.fn() };
       headerEl.dispatchEvent({ type: 'keydown', ...enterEvent });
@@ -472,7 +737,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       expect(headerEl.getAttribute('aria-label')).toContain('click to expand');
     });
@@ -489,7 +754,7 @@ describe('Async Subagent Renderer', () => {
       };
 
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
-      const headerEl = (wrapperEl as any).children[0];
+      const headerEl = (wrapperEl as any).querySelector('.claudian-subagent-header');
 
       // Click to expand
       headerEl.click();
@@ -552,11 +817,14 @@ describe('Async Subagent Renderer', () => {
         prompt: 'Do some work',
       };
 
+      (setIcon as jest.Mock).mockClear();
       const wrapperEl = renderStoredAsyncSubagent(parentEl as any, subagent);
 
       expect((wrapperEl as any).hasClass('running')).toBe(true);
       const contentText = getTextByClass(wrapperEl as any, 'claudian-subagent-prompt-text')[0];
       expect(contentText).toContain('Do some work');
+      // Running cards keep an animated indicator icon
+      expect(setIcon).toHaveBeenCalledWith(expect.anything(), 'loader-2');
     });
 
     it('renders pending status as running', () => {
@@ -601,6 +869,33 @@ describe('addSubagentToolCall', () => {
 
     expect(state.info.toolCalls).toHaveLength(1);
     expect(getTextByClass(state.wrapperEl as any, 'claudian-subagent-count')).toEqual([]);
+  });
+
+  it('opens a Read file reference without expanding the subagent tool card', () => {
+    const onOpenFile = jest.fn();
+    const state = createSubagentBlock(
+      parentEl as any,
+      'task-1',
+      { description: 'Test task' },
+      { onOpenFile },
+    );
+    const toolCall: ToolCallInfo = {
+      id: 'tool-1',
+      name: 'Read',
+      input: { file_path: 'notes/file.md:140-185' },
+      status: 'running',
+      isExpanded: false,
+    };
+
+    addSubagentToolCall(state, toolCall);
+    (state.wrapperEl.querySelector('.claudian-subagent-tool-summary') as HTMLElement).click();
+
+    expect(onOpenFile).toHaveBeenCalledWith({
+      path: 'notes/file.md',
+      lineStart: 140,
+      lineEnd: 185,
+    });
+    expect(toolCall.isExpanded).toBe(false);
   });
 
   it('clears previous content and renders new tool item', () => {
@@ -758,6 +1053,34 @@ describe('finalizeSubagentBlock', () => {
     expect(doneText).toBe('Done');
   });
 
+  it('adds a concise result summary to the collapsed header', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
+
+    finalizeSubagentBlock(
+      state,
+      'Implemented the requested behavior and added regression coverage. Full details follow.',
+      false,
+    );
+
+    const summary = getTextByClass(state.wrapperEl as any, 'claudian-subagent-result-summary')[0];
+    expect(summary).toBe('Implemented the requested behavior and added regression coverage. Full details follow.');
+    const summaryEl = state.wrapperEl.querySelector('.claudian-subagent-result-summary') as HTMLElement;
+    expect(summaryEl.getAttribute('title')).toBe(summaryEl.textContent);
+    expect(getTextByClass(state.wrapperEl as any, 'claudian-subagent-status-text')[0])
+      .toBe('Completed');
+  });
+
+  it('does not retain a full result in the header tooltip', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
+    const result = `Completed: ${'detail '.repeat(10_000)}`;
+
+    finalizeSubagentBlock(state, result, false);
+
+    const summaryEl = state.wrapperEl.querySelector('.claudian-subagent-result-summary') as HTMLElement;
+    expect(summaryEl.textContent).toHaveLength(120);
+    expect(summaryEl.getAttribute('title')).toBe(summaryEl.textContent);
+  });
+
   it('shows ERROR text when isError is true', () => {
     const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
 
@@ -913,5 +1236,54 @@ describe('renderStoredSubagent status variants', () => {
 
     const labelTexts = getTextByClass(wrapperEl as any, 'claudian-subagent-label');
     expect(labelTexts[0]).toBe('A'.repeat(40) + '...');
+  });
+});
+
+describe('async status label i18n', () => {
+  let parentEl: MockElement;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    parentEl = createMockEl('div');
+    setLocale('en');
+  });
+
+  afterEach(() => {
+    setLocale('en');
+  });
+
+  it('localizes live async card status text for a non-English locale', () => {
+    setLocale('zh-CN');
+
+    const state = createAsyncSubagentBlock(parentEl as any, 'task-i18n', { description: 'Background job' });
+    expect(state.statusTextEl.textContent).toBe('初始化中');
+
+    updateAsyncSubagentRunning(state, 'agent-i18n');
+    expect(state.statusTextEl.textContent).toBe('后台运行中');
+
+    finalizeAsyncSubagent(state, 'all done', false);
+    expect(state.statusTextEl.textContent).toBe('已完成');
+  });
+
+  it('localizes stored async card status text for a non-English locale', () => {
+    setLocale('zh-CN');
+
+    const wrapperEl = renderStoredAsyncSubagent(parentEl as any, {
+      id: 'task-i18n',
+      description: 'Background job',
+      status: 'completed',
+      asyncStatus: 'completed',
+      mode: 'async',
+      toolCalls: [],
+      isExpanded: false,
+    } as SubagentInfo);
+
+    const statusTexts = getTextByClass(wrapperEl as any, 'claudian-subagent-status-text');
+    expect(statusTexts[0]).toBe('已完成');
+  });
+
+  it('uses the transcript overlay wording for running statuses', () => {
+    expect(t('chat.subagentTranscript.pendingLabel')).toBe('Initializing');
+    expect(t('chat.subagentTranscript.runningLabel')).toBe('Running in background');
   });
 });

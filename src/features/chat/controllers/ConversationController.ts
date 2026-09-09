@@ -21,6 +21,11 @@ import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import type { FeatureHost } from '../../FeatureHost';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
+import {
+  isTerminalSubagentTranscriptStatus,
+  OPEN_SUBAGENT_TRANSCRIPT_EVENT,
+  type OpenSubagentTranscriptDetail,
+} from '../OpenSubagentTranscriptEvent';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { createWelcomeElement, renderWelcomeContent } from '../rendering/WelcomeRenderer';
@@ -43,6 +48,7 @@ import type { ImageContextManager } from '../ui/ImageContext';
 import type { ExternalContextSelector, McpServerSelector } from '../ui/InputToolbar';
 import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
+import { SubagentTranscriptPanel } from '../ui/SubagentTranscriptPanel';
 import { recalculateUsageForModel } from '../utils/usageInfo';
 
 function runConversationAction(action: () => Promise<void>, failureMessage: string): void {
@@ -52,6 +58,9 @@ function runConversationAction(action: () => Promise<void>, failureMessage: stri
 }
 
 const MAX_REWIND_CONFLICT_PATHS = 5;
+
+/** Poll interval for refreshing a running subagent's transcript overlay. */
+const SUBAGENT_TRANSCRIPT_REFRESH_MS = 1500;
 
 function buildRewindConflictConfirmation(conflicts: readonly ChatRewindConflict[]): string {
   const visiblePaths = conflicts
@@ -100,6 +109,19 @@ export interface ConversationControllerDeps {
   awaitBackgroundWork?: () => Promise<void>;
   /** True once the owning tab has begun teardown. */
   isDisposed?: () => boolean;
+  /**
+   * Resolves the provider session that owns async subagent sidecars for the
+   * current conversation. Invoked when a transcript opens so the panel pins
+   * that session instead of re-resolving against later (resumed/forked)
+   * sessions on every poll.
+   */
+  resolveTranscriptProviderSessionId?: () => string | null;
+  /** Loads the read-only transcript of one async subagent; optional. */
+  loadSubagentConversation?: (request: {
+    subagentId: string;
+    /** Provider session to read the sidecar from; otherwise resolved live. */
+    providerSessionId?: string;
+  }) => Promise<ChatMessage[] | null>;
 }
 
 type SaveOptions = {
@@ -178,14 +200,239 @@ export class ConversationController {
   private metadataPopoverEl: HTMLElement | null = null;
   private metadataPopoverTarget: HTMLElement | null = null;
   private metadataPopoverSequence = 0;
+  private readonly metadataPopoverSyncHandlers = new WeakMap<HTMLElement, () => void>();
+  private readonly pendingMetadataPopoverSyncContainers = new Set<HTMLElement>();
+  private subagentTranscriptPanel: SubagentTranscriptPanel | null = null;
+  private subagentTranscriptRefreshTimer: number | null = null;
+  private subagentTranscriptTaskToolId: string | null = null;
+  private subagentTranscriptAgentId: string | null = null;
+  private subagentTranscriptProviderSessionId: string | null = null;
+  private subagentTranscriptOpenSeq = 0;
+  private subagentTranscriptListenerAttached = false;
 
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
     this.callbacks = callbacks;
+    // Marker for "no replayable subagent transcript loader": hides the open
+    // full-conversation affordance on async subagent cards. Deliberately a
+    // distinct class from the panel's notice styling, which shares the
+    // transcript panel scope only.
+    this.deps.getMessagesEl().toggleClass(
+      'claudian-no-subagent-transcript',
+      !this.deps.loadSubagentConversation,
+    );
+    this.attachSubagentTranscriptOpenListener();
   }
+
+  private attachSubagentTranscriptOpenListener(): void {
+    if (this.subagentTranscriptListenerAttached) return;
+    const messagesEl = this.deps.getMessagesEl();
+    if (typeof messagesEl?.addEventListener === 'function') {
+      messagesEl.addEventListener(
+        OPEN_SUBAGENT_TRANSCRIPT_EVENT,
+        this.handleSubagentTranscriptOpenEvent,
+      );
+      this.subagentTranscriptListenerAttached = true;
+    }
+  }
+
+  private readonly handleSubagentTranscriptOpenEvent = (event: Event): void => {
+    if (this.deps.isDisposed?.()) return;
+    const detail = (event as CustomEvent<OpenSubagentTranscriptDetail>).detail;
+    if (!detail?.taskToolId) return;
+    void this.openSubagentTranscript(detail);
+  };
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
     return this.deps.getExecutionCoordinator();
+  }
+
+  // ============================================
+  // Subagent Transcript View
+  // ============================================
+
+  /**
+   * Opens the read-only full-conversation view for one async subagent.
+   * The panel overlays the live message area; the main conversation keeps
+   * streaming underneath and reappears when the user navigates back.
+   */
+  async openSubagentTranscript(detail: OpenSubagentTranscriptDetail): Promise<void> {
+    if (this.deps.isDisposed?.()) return;
+    const agentId = detail.agentId;
+    if (!agentId || !this.deps.loadSubagentConversation) return;
+
+    // Guard against superseded opens: a slower load for a previously opened
+    // subagent must never render into the panel of a newer target.
+    const openSeq = ++this.subagentTranscriptOpenSeq;
+    this.subagentTranscriptTaskToolId = detail.taskToolId;
+    this.subagentTranscriptAgentId = agentId;
+    // Pin the owning provider session when the transcript opens. Polling must
+    // keep reading the sidecar of the session that spawned the subagent, even
+    // if the main conversation resumes or forks into a new session meanwhile.
+    this.subagentTranscriptProviderSessionId
+      = this.deps.resolveTranscriptProviderSessionId?.() ?? null;
+
+    const panel = this.ensureSubagentTranscriptPanel();
+    if (!panel) return;
+
+    panel.setBackHandler(() => this.closeSubagentTranscript());
+    panel.open({
+      description: detail.description,
+      status: detail.status ?? 'running',
+    });
+
+    await this.refreshSubagentTranscript();
+    if (openSeq !== this.subagentTranscriptOpenSeq) return;
+
+    if ((detail.status ?? 'running') === 'running' && this.shouldContinueSubagentTranscriptRefresh()) {
+      this.scheduleSubagentTranscriptRefresh();
+    }
+  }
+
+  /** Closes the subagent transcript overlay and stops any live refresh. */
+  closeSubagentTranscript(): void {
+    this.subagentTranscriptOpenSeq++;
+    this.clearSubagentTranscriptRefresh();
+    this.subagentTranscriptPanel?.close();
+    this.subagentTranscriptTaskToolId = null;
+    this.subagentTranscriptAgentId = null;
+    this.subagentTranscriptProviderSessionId = null;
+  }
+
+  /** True while the subagent transcript overlay is visible. */
+  isSubagentTranscriptOpen(): boolean {
+    return this.subagentTranscriptPanel?.isOpen() ?? false;
+  }
+
+  private ensureSubagentTranscriptPanel(): SubagentTranscriptPanel | null {
+    if (!this.subagentTranscriptPanel) {
+      const hostEl = this.deps.getMessagesEl().parentElement
+        ?? this.deps.getMessagesEl();
+      if (!hostEl || typeof hostEl.createDiv !== 'function') return null;
+      this.subagentTranscriptPanel = new SubagentTranscriptPanel(hostEl);
+      this.configureSubagentTranscriptRenderer();
+    }
+    return this.subagentTranscriptPanel;
+  }
+
+  /**
+   * Delegates transcript entry rendering to the shared stored-message pipeline
+   * using the same stored-message pipeline as the main conversation. The panel
+   * keeps its plain-text fallback when that renderer is not available.
+   */
+  private configureSubagentTranscriptRenderer(): void {
+    const panel = this.subagentTranscriptPanel;
+    if (!panel) return;
+    const renderer = this.deps.renderer;
+    if (typeof renderer.renderMessagesInto !== 'function') return;
+
+    panel.setMessageRenderer((containerEl, messages) => {
+      renderer.renderMessagesInto(containerEl, messages);
+    });
+  }
+
+  private async refreshSubagentTranscript(): Promise<void> {
+    const openSeq = this.subagentTranscriptOpenSeq;
+    const agentId = this.subagentTranscriptAgentId;
+    const panel = this.subagentTranscriptPanel;
+    const loader = this.deps.loadSubagentConversation;
+    if (!agentId || !panel || !panel.isOpen()) return;
+
+    if (!loader) {
+      panel.showUnavailable();
+      return;
+    }
+
+    try {
+      const providerSessionId = this.subagentTranscriptProviderSessionId;
+      const messages = await loader(providerSessionId
+        ? { subagentId: agentId, providerSessionId }
+        : { subagentId: agentId });
+      if (
+        this.deps.isDisposed?.()
+        || !panel.isOpen()
+        || openSeq !== this.subagentTranscriptOpenSeq
+      ) return;
+      if (!messages) {
+        panel.showUnavailable();
+        // The terminal check must not depend on a successful load: a task that
+        // reached a terminal state in the manager stops the poll loop even when
+        // the sidecar loader keeps returning null (e.g. missing transcript).
+        this.syncSubagentTranscriptStatusFromManager();
+        return;
+      }
+      panel.renderMessages(messages);
+      this.syncSubagentTranscriptStatusFromManager();
+    } catch {
+      if (
+        !this.deps.isDisposed?.()
+        && panel.isOpen()
+        && openSeq === this.subagentTranscriptOpenSeq
+      ) {
+        panel.showUnavailable();
+        this.syncSubagentTranscriptStatusFromManager();
+      }
+    }
+  }
+
+  /**
+   * Whether the refresh loop should keep scheduling ticks. Polling continues
+   * only while the owning runtime still tracks a pending/running subagent:
+   * terminal states stop the loop via syncSubagentTranscriptStatusFromManager,
+   * and reload-recovered stored cards without a live manager record have no
+   * source of updates, so their transcript is a static snapshot.
+   */
+  private shouldContinueSubagentTranscriptRefresh(): boolean {
+    const taskToolId = this.subagentTranscriptTaskToolId;
+    if (!taskToolId) return false;
+    const subagent = this.deps.subagentManager.getByTaskId?.(taskToolId);
+    if (!subagent) return false;
+    return subagent.asyncStatus === 'pending' || subagent.asyncStatus === 'running';
+  }
+
+  /**
+   * When the owning async subagent has reached a terminal runtime state,
+   * stop live polling and reflect that state on the panel. Live cards are
+   * tracked by the subagent manager; stored cards keep their snapshot state.
+   */
+  private syncSubagentTranscriptStatusFromManager(): void {
+    const taskToolId = this.subagentTranscriptTaskToolId;
+    if (!taskToolId) return;
+    const subagent = this.deps.subagentManager.getByTaskId?.(taskToolId);
+    const asyncStatus = subagent?.asyncStatus;
+    if (!isTerminalSubagentTranscriptStatus(asyncStatus)) return;
+
+    this.subagentTranscriptPanel?.setStatus(asyncStatus);
+    this.clearSubagentTranscriptRefresh();
+    this.subagentTranscriptTaskToolId = null;
+  }
+
+  private scheduleSubagentTranscriptRefresh(): void {
+    this.clearSubagentTranscriptRefresh();
+    if (this.deps.isDisposed?.()) return;
+    this.subagentTranscriptRefreshTimer = window.setTimeout(() => {
+      this.subagentTranscriptRefreshTimer = null;
+      void (async () => {
+        if (this.deps.isDisposed?.()) return;
+        if (!this.subagentTranscriptPanel?.isOpen()) return;
+        if (!this.subagentTranscriptTaskToolId) return;
+        await this.refreshSubagentTranscript();
+        if (this.deps.isDisposed?.() || !this.subagentTranscriptPanel?.isOpen()) return;
+        // Terminal states stop the loop in syncSubagentTranscriptStatusFromManager;
+        // stored cards without a live manager record stop because nothing updates
+        // their sidecar snapshot anymore.
+        if (this.shouldContinueSubagentTranscriptRefresh()) {
+          this.scheduleSubagentTranscriptRefresh();
+        }
+      })();
+    }, SUBAGENT_TRANSCRIPT_REFRESH_MS);
+  }
+
+  private clearSubagentTranscriptRefresh(): void {
+    if (this.subagentTranscriptRefreshTimer !== null) {
+      window.clearTimeout(this.subagentTranscriptRefreshTimer);
+      this.subagentTranscriptRefreshTimer = null;
+    }
   }
 
   // ============================================
@@ -212,6 +459,7 @@ export class ConversationController {
 
     try {
       this.deps.dismissPendingInlinePrompts?.();
+      this.closeSubagentTranscript();
 
       if (isCancellingForegroundTurn) {
         state.cancelRequested = true;
@@ -294,6 +542,7 @@ export class ConversationController {
    */
   async loadActive(): Promise<void> {
     const { plugin, state, renderer } = this.deps;
+    this.closeSubagentTranscript();
 
     const conversationId = state.currentConversationId;
     const conversation = conversationId ? await plugin.getConversationById(conversationId) : null;
@@ -660,6 +909,7 @@ export class ConversationController {
     options?: { autoAttachFile?: boolean }
   ): void {
     const { plugin, state, renderer } = this.deps;
+    this.closeSubagentTranscript();
 
     state.currentConversationId = conversation.id;
     state.messages = [...conversation.messages];
@@ -870,6 +1120,7 @@ export class ConversationController {
       this.historyViewport.commit(container, renderRoot);
       options.onBeforeRestoreListState?.(container);
       this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
+      this.scheduleMetadataPopoverSync(container, options);
       return;
     }
 
@@ -962,6 +1213,7 @@ export class ConversationController {
     this.historyViewport.commit(container, renderRoot);
     options.onBeforeRestoreListState?.(container);
     this.historyViewport.restore({ sessionList, pinnedList }, viewportSnapshot);
+    this.scheduleMetadataPopoverSync(container, options);
   }
 
   private renderLinkedNoteSection(
@@ -1505,13 +1757,26 @@ export class ConversationController {
       this.closeSessionMetadataPopover();
     });
 
-    // A layout switch can replace the hovered item without dispatching a new
-    // mouseenter event. Synchronize once after insertion so the metadata card
-    // remains available when the pointer is already over the new item.
-    queueMicrotask(() => {
+    this.metadataPopoverSyncHandlers.set(item, () => {
       if (typeof item.matches === 'function' && item.matches(':hover')) {
         this.showSessionMetadataPopover(item, focusTarget, conversation, options);
       }
+    });
+  }
+
+  private scheduleMetadataPopoverSync(
+    container: HTMLElement,
+    options: HistoryRenderOptions,
+  ): void {
+    if (!options.showMetadataPopover || this.pendingMetadataPopoverSyncContainers.has(container)) {
+      return;
+    }
+    this.pendingMetadataPopoverSyncContainers.add(container);
+    queueMicrotask(() => {
+      this.pendingMetadataPopoverSyncContainers.delete(container);
+      const hoveredItem = container.querySelector<HTMLElement>('.claudian-history-item:hover');
+      if (!hoveredItem) return;
+      this.metadataPopoverSyncHandlers.get(hoveredItem)?.();
     });
   }
 

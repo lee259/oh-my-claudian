@@ -68,6 +68,18 @@
       "expandOutput": "Expand command output",
       "running": "Running...",
       "copyFailed": "Failed to copy to clipboard"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Running in background",
+      "completedLabel": "Completed",
+      "errorLabel": "Error",
+      "orphanedLabel": "Orphaned",
+      "pendingLabel": "Initializing",
+      "title": "Subagent conversation",
+      "subtitle": "Read-only transcript",
+      "backAriaLabel": "Back to conversation",
+      "empty": "No conversation recorded for this subagent.",
+      "unavailable": "Full conversation not available for this subagent."
     }
   },
   "settings": {
@@ -278,7 +290,11 @@
     },
     "systemPrompt": {
       "name": "Custom system prompt",
-      "desc": "Additional instructions appended to the default system prompt"
+      "desc": "Custom instructions. Sent on their own when the Oh My Claudian system prompt is disabled, or appended to it when enabled."
+    },
+    "useClaudianSystemPrompt": {
+      "name": "Use Oh My Claudian system prompt",
+      "desc": "Apply Oh My Claudian's vault, file-operation, and safety instructions. When disabled, only your custom system prompt is sent."
     },
     "autoTitle": {
       "name": "Auto-generate conversation titles",

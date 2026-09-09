@@ -2,6 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import { Menu, Notice, setIcon } from 'obsidian';
 
 import { ConversationController, type ConversationControllerDeps } from '@/features/chat/controllers/ConversationController';
+import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '@/features/chat/OpenSubagentTranscriptEvent';
 import { HistoryViewport } from '@/features/chat/session-manager/HistoryViewport';
 import { ChatState } from '@/features/chat/state/ChatState';
 import { OPENAI_PROVIDER_ICON } from '@/shared/icons';
@@ -1264,9 +1265,17 @@ describe('ConversationController', () => {
           configurable: true,
           value: body,
         });
+        const querySelector = container.querySelector.bind(container);
+        jest.spyOn(container, 'querySelector').mockImplementation((...args: unknown[]) => {
+          const [selector] = args;
+          return selector === '.claudian-history-item:hover'
+            ? item
+            : querySelector(String(selector));
+        });
         item.matches = jest.fn().mockReturnValue(true);
         await Promise.resolve();
 
+        expect(container.querySelector).toHaveBeenCalledWith('.claudian-history-item:hover');
         expect(body.querySelector('.claudian-session-metadata-popover'))
           .not.toBeNull();
       });
@@ -4411,5 +4420,280 @@ describe('ConversationController - Rewind', () => {
 
       expect(dismissFn).toHaveBeenCalled();
     });
+  });
+});
+
+describe('ConversationController subagent transcript view', () => {
+  let controller: ConversationController;
+  let deps: ConversationControllerDeps;
+  let messagesEl: any;
+  let loadSubagentConversation: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Menu as typeof Menu & { instances: unknown[] }).instances.length = 0;
+    deps = createMockDeps();
+    messagesEl = (deps.getMessagesEl as () => any)();
+    loadSubagentConversation = jest.fn().mockResolvedValue([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'hello from subagent',
+        timestamp: Date.now(),
+      },
+    ] as any);
+    deps.loadSubagentConversation = loadSubagentConversation;
+    deps.isDisposed = () => false;
+    controller = new ConversationController(deps);
+  });
+
+  const transcriptDetail = (
+    overrides: Partial<OpenSubagentTranscriptDetail> = {},
+  ): OpenSubagentTranscriptDetail => ({
+    taskToolId: 'task-1',
+    agentId: 'agent-1',
+    description: 'Sub agent work',
+    status: 'completed',
+    ...overrides,
+  });
+
+  it('does not open without an agent id', async () => {
+    await controller.openSubagentTranscript(transcriptDetail({ agentId: undefined }));
+    expect(controller.isSubagentTranscriptOpen()).toBe(false);
+    expect(loadSubagentConversation).not.toHaveBeenCalled();
+  });
+
+  it('opens the overlay, loads and renders the transcript', async () => {
+    await controller.openSubagentTranscript(transcriptDetail());
+    expect(controller.isSubagentTranscriptOpen()).toBe(true);
+    expect(loadSubagentConversation).toHaveBeenCalledWith({ subagentId: 'agent-1' });
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    expect(root).toBeTruthy();
+    expect(root.querySelector('.claudian-subagent-transcript-entry-text')?.textContent)
+      .toContain('hello from subagent');
+  });
+
+  it('marks the panel unavailable when the loader returns null', async () => {
+    loadSubagentConversation.mockResolvedValueOnce(null);
+    await controller.openSubagentTranscript(transcriptDetail());
+    expect(controller.isSubagentTranscriptOpen()).toBe(true);
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    expect(root.querySelector('.claudian-subagent-transcript-unavailable')).toBeTruthy();
+  });
+
+  it('does not open a panel when transcript replay is unavailable', async () => {
+    delete (deps as Partial<ConversationControllerDeps>).loadSubagentConversation;
+    await controller.openSubagentTranscript(transcriptDetail());
+    expect(controller.isSubagentTranscriptOpen()).toBe(false);
+    expect(messagesEl.querySelector('.claudian-subagent-transcript')).toBeNull();
+  });
+
+  it('closes when the back bar is clicked', async () => {
+    await controller.openSubagentTranscript(transcriptDetail());
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    const backBar = root.querySelector('.claudian-subagent-transcript-backbar');
+    backBar.click();
+    expect(controller.isSubagentTranscriptOpen()).toBe(false);
+  });
+
+  it('opens from the delegated card event', async () => {
+    messagesEl.dispatchEvent({
+      type: OPEN_SUBAGENT_TRANSCRIPT_EVENT,
+      detail: transcriptDetail(),
+      bubbles: true,
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(controller.isSubagentTranscriptOpen()).toBe(true);
+    expect(loadSubagentConversation).toHaveBeenCalledWith({ subagentId: 'agent-1' });
+  });
+
+  it('ignores the delegated event when the tab is disposed', async () => {
+    deps.isDisposed = () => true;
+    messagesEl.dispatchEvent({
+      type: OPEN_SUBAGENT_TRANSCRIPT_EVENT,
+      detail: transcriptDetail(),
+      bubbles: true,
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(controller.isSubagentTranscriptOpen()).toBe(false);
+    expect(loadSubagentConversation).not.toHaveBeenCalled();
+  });
+
+  it('does not schedule refresh polling for a completed transcript', async () => {
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript(transcriptDetail());
+    expect(timerSpy).not.toHaveBeenCalled();
+    timerSpy.mockRestore();
+  });
+});
+
+describe('ConversationController running transcript refresh', () => {
+  let controller: ConversationController;
+  let deps: ConversationControllerDeps;
+  let messagesEl: any;
+  let loadSubagentConversation: jest.Mock;
+  let subagentManager: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Menu as typeof Menu & { instances: unknown[] }).instances.length = 0;
+    deps = createMockDeps();
+    messagesEl = (deps.getMessagesEl as () => any)();
+    loadSubagentConversation = jest.fn().mockResolvedValue([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'tick',
+        timestamp: Date.now(),
+      },
+    ] as any);
+    deps.loadSubagentConversation = loadSubagentConversation;
+    deps.isDisposed = () => false;
+    subagentManager = {
+      orphanAllActive: jest.fn(),
+      clear: jest.fn(),
+      getByTaskId: jest.fn().mockReturnValue({
+        id: 'task-1',
+        asyncStatus: 'running',
+        toolCalls: [],
+        status: 'running',
+      }),
+    };
+    deps.subagentManager = subagentManager;
+    controller = new ConversationController(deps);
+  });
+
+  it('starts polling while the subagent is running', async () => {
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    expect(timerSpy).toHaveBeenCalled();
+    expect(loadSubagentConversation).toHaveBeenCalledWith({ subagentId: 'agent-1' });
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
+  it('stops polling and reflects the terminal state once the manager reports completed', async () => {
+    subagentManager.getByTaskId.mockReturnValue({
+      id: 'task-1',
+      asyncStatus: 'completed',
+      toolCalls: [],
+      status: 'completed',
+    });
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    // Terminal sync clears the refresh loop and the tracked task id.
+    expect(timerSpy).not.toHaveBeenCalled();
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    const statusText = root.querySelector('.claudian-subagent-transcript-status')?.textContent;
+    expect(String(statusText).toLowerCase()).toContain('completed');
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
+  it('stops polling and reflects the terminal state when the loader returns null', async () => {
+    loadSubagentConversation.mockResolvedValue(null);
+    subagentManager.getByTaskId.mockReturnValue({
+      id: 'task-1',
+      asyncStatus: 'completed',
+      toolCalls: [],
+      status: 'completed',
+    });
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    // Terminal sync runs even when the loader keeps returning null: the poll
+    // loop must stop instead of retrying forever against a missing sidecar.
+    expect(timerSpy).not.toHaveBeenCalled();
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    const statusText = root.querySelector('.claudian-subagent-transcript-status')?.textContent;
+    expect(String(statusText).toLowerCase()).toContain('completed');
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
+  it('does not poll a stored running card without a live manager record', async () => {
+    subagentManager.getByTaskId.mockReturnValue(undefined);
+    const timerSpy = jest.spyOn(window, 'setTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    // A reload-recovered stored card has no live runtime record, so nothing
+    // will ever terminalize it through the manager; render once and stop.
+    expect(loadSubagentConversation).toHaveBeenCalledTimes(1);
+    expect(timerSpy).not.toHaveBeenCalled();
+    timerSpy.mockRestore();
+    controller.closeSubagentTranscript();
+  });
+
+  it('closing the panel clears the pending refresh timer', async () => {
+    const clearSpy = jest.spyOn(window, 'clearTimeout');
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'running',
+    });
+    controller.closeSubagentTranscript();
+    expect(clearSpy).toHaveBeenCalled();
+    clearSpy.mockRestore();
+  });
+});
+
+describe('ConversationController rich transcript rendering', () => {
+  let controller: ConversationController;
+  let deps: ConversationControllerDeps;
+  let messagesEl: any;
+  let loadSubagentConversation: jest.Mock;
+  let renderContent: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Menu as typeof Menu & { instances: unknown[] }).instances.length = 0;
+    deps = createMockDeps();
+    messagesEl = (deps.getMessagesEl as () => any)();
+    renderContent = jest.fn().mockResolvedValue(undefined);
+    deps.renderer = { renderMessages: jest.fn(), renderContent } as any;
+    loadSubagentConversation = jest.fn().mockResolvedValue([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: '**bold** result',
+        timestamp: Date.now(),
+      },
+    ] as any);
+    deps.loadSubagentConversation = loadSubagentConversation;
+    deps.isDisposed = () => false;
+    controller = new ConversationController(deps);
+  });
+
+  it('delegates transcript text to the host markdown pipeline', async () => {
+    const renderMessagesInto = jest.fn();
+    deps.renderer = { renderMessages: jest.fn(), renderMessagesInto } as any;
+    controller = new ConversationController(deps);
+
+    await controller.openSubagentTranscript({
+      taskToolId: 'task-1',
+      agentId: 'agent-1',
+      status: 'completed',
+    });
+    expect(renderMessagesInto).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([expect.objectContaining({ content: '**bold** result' })]),
+    );
+    const root = messagesEl.querySelector('.claudian-subagent-transcript');
+    expect(root).toBeTruthy();
+    controller.closeSubagentTranscript();
   });
 });

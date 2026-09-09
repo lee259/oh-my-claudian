@@ -2044,7 +2044,7 @@ describe('ClaudianView tab controls', () => {
     expect(view.getHistoryConversationStatus('closed').attention).toBeUndefined();
   });
 
-  it('notifies other open views when runtime session navigation changes', () => {
+  it('updates local history and notifies other open views when runtime session navigation changes', () => {
     const otherView = { notifyConversationListChanged: jest.fn() };
     const view = Object.create(ClaudianView.prototype) as any;
     Object.assign(view, {
@@ -2056,6 +2056,58 @@ describe('ClaudianView tab controls', () => {
 
     expect(view.updateHistoryDropdown).toHaveBeenCalledTimes(1);
     expect(otherView.notifyConversationListChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces repeated conversation-list notifications into one delayed update', () => {
+    const setTimeout = jest.fn((_callback: () => void) => 1);
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      containerEl: { ownerDocument: { defaultView: { setTimeout } } },
+      pendingHistorySurfaceUpdate: null,
+      updateHistoryDropdown: jest.fn(),
+    });
+
+    view.notifyConversationListChanged();
+    view.notifyConversationListChanged();
+
+    expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 200);
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+    expect(view.updateHistoryDropdown).not.toHaveBeenCalled();
+
+    const scheduledCallback = setTimeout.mock.calls[0]?.[0] as () => void;
+    scheduledCallback();
+
+    expect(view.updateHistoryDropdown).toHaveBeenCalledTimes(1);
+    expect(view.pendingHistorySurfaceUpdate).toBeNull();
+  });
+
+  it('defers history-surface rendering while a tab has active stream work', () => {
+    const setTimeout = jest.fn((_callback: () => void) => 1);
+    const activeTab = {
+      state: { isStreaming: true },
+      session: { hasBackgroundWork: false },
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      containerEl: { ownerDocument: { defaultView: { setTimeout } } },
+      tabManager: { getAllTabs: () => [activeTab] },
+      pendingHistorySurfaceUpdate: null,
+      historyDropdownDirty: false,
+      sessionSidebarDirty: false,
+      updateHistoryDropdown: jest.fn(),
+    });
+
+    view.notifyConversationListChanged();
+
+    expect(view.historyDropdownDirty).toBe(true);
+    expect(view.sessionSidebarDirty).toBe(true);
+    expect(setTimeout).not.toHaveBeenCalled();
+    expect(view.updateHistoryDropdown).not.toHaveBeenCalled();
+
+    activeTab.state.isStreaming = false;
+    view.notifyConversationListChanged();
+
+    expect(setTimeout).toHaveBeenCalledTimes(1);
   });
 
   it('persists linked-note pins through the feature host', async () => {

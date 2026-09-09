@@ -156,6 +156,7 @@ function createMockDeps(): MockStreamControllerDeps {
       handleTaskToolResult: jest.fn(),
       getByTaskId: jest.fn().mockReturnValue(undefined),
       refreshAsyncSubagent: jest.fn(),
+      moveCompletedAsyncSubagentToTail: jest.fn(),
       hasPendingTask: jest.fn().mockReturnValue(false),
       renderPendingTask: jest.fn().mockReturnValue(null),
       renderPendingTaskFromTaskResult: jest.fn().mockReturnValue(null),
@@ -283,6 +284,17 @@ describe('StreamController - Text Content', () => {
         deps.state.currentTextEl,
         'Hello World'
       );
+    });
+
+    it('appends background text incrementally without re-rendering Markdown', () => {
+      const textEl = createMockEl();
+      deps.state.currentTextEl = textEl;
+
+      controller.appendBackgroundText('Hello ');
+      controller.appendBackgroundText('World');
+
+      expect(textEl.textContent).toBe('Hello World');
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
     });
 
     it('should throttle successive streaming text renders', async () => {
@@ -1814,6 +1826,66 @@ describe('StreamController - Text Content', () => {
 
       expect(() => controller.onAsyncSubagentStateChange(subagent)).not.toThrow();
     });
+
+    it('places a completed background task after text already streamed by its parent', () => {
+      const parentOutputEl = createMockEl();
+      const streamedTextEl = createMockEl();
+      deps.state.currentContentEl = parentOutputEl;
+      deps.state.currentTextEl = streamedTextEl;
+      deps.state.currentTextContent = 'Parent output before the task finished.';
+      deps.state.messages = [{
+        id: 'a1',
+        role: 'assistant',
+        content: 'Earlier parent output.Parent output before the task finished.',
+        timestamp: Date.now(),
+        toolCalls: [{
+          id: 'task-1',
+          name: TOOL_SUBAGENT,
+          input: { description: 'test' },
+          status: 'running',
+          subagent: {
+            id: 'task-1',
+            description: 'test',
+            mode: 'async',
+            status: 'running',
+            toolCalls: [],
+          },
+        }],
+        contentBlocks: [
+          { type: 'text', content: 'Earlier parent output.' },
+          { type: 'subagent', subagentId: 'task-1', mode: 'async' },
+        ],
+      }] as any;
+      (deps.subagentManager.moveCompletedAsyncSubagentToTail as jest.Mock)
+        .mockImplementation((_taskId, _parentEl, beforeMove) => {
+          beforeMove();
+          return true;
+        });
+
+      controller.onAsyncSubagentStateChange({
+        id: 'task-1',
+        description: 'test',
+        mode: 'async',
+        isExpanded: false,
+        status: 'completed',
+        asyncStatus: 'completed',
+        result: 'Done',
+        toolCalls: [],
+      });
+
+      expect(deps.state.messages[0].contentBlocks).toEqual([
+        { type: 'text', content: 'Earlier parent output.' },
+        { type: 'text', content: 'Parent output before the task finished.' },
+        { type: 'subagent', subagentId: 'task-1', mode: 'async' },
+      ]);
+      expect(deps.state.currentTextEl).toBeNull();
+      expect(deps.state.currentTextContent).toBe('');
+      expect(deps.subagentManager.moveCompletedAsyncSubagentToTail).toHaveBeenCalledWith(
+        'task-1',
+        parentOutputEl,
+        expect.any(Function),
+      );
+    });
   });
 
   describe('Thinking block finalization', () => {
@@ -3210,6 +3282,7 @@ describe('StreamController - Text Content', () => {
           description: 'Codex subagent (gpt-5.4-mini)',
           prompt: 'Inspect utils.ts and return the final patch summary.',
         }),
+        expect.objectContaining({ onOpenFile: expect.any(Function) }),
       );
       expect(subagentState.info.description).toBe('Zeno (gpt-5.4-mini)');
       expect(finalizeSubagentBlock).toHaveBeenCalledWith(

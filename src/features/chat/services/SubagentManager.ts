@@ -10,6 +10,7 @@ import type {
   SubagentInfo,
   ToolCallInfo,
 } from '../../../core/types';
+import type { FileReference } from '../../../utils/FileReference';
 import { extractFinalResultFromSubagentJsonl } from '../../../utils/subagentJsonl';
 import {
   addSubagentToolCall,
@@ -83,13 +84,18 @@ export class SubagentManager {
   private pendingTasks: Map<string, PendingToolCall> = new Map();
   private _spawnedThisStream = 0;
 
+  /** Async pending preview cards rendered before mode (sync/async) is confirmed. */
+  private asyncPreviews: Map<string, AsyncSubagentState> = new Map();
+
   private asyncSubagents: Map<string, AsyncSubagentRecord> = new Map();
   private providerIdentifierToToolUseIds: Map<string, Set<string>> = new Map();
   private deferredAsyncCompletions: Map<string, AsyncSubagentCompletion> = new Map();
   private outputToolToTaskToolUseId: Map<string, string> = new Map();
   private asyncDomStates: Map<string, AsyncSubagentState> = new Map();
+  private completionAnchoredAsyncTaskIds: Set<string> = new Set();
 
   private onStateChange: SubagentStateChangeCallback;
+  private onOpenFile: ((fileReference: FileReference) => void) | undefined;
   private taskResultInterpreter: ProviderTaskResultInterpreter;
 
   constructor(
@@ -102,6 +108,12 @@ export class SubagentManager {
 
   public setCallback(callback: SubagentStateChangeCallback): void {
     this.onStateChange = callback;
+  }
+
+  public setFileOpenCallback(
+    callback: ((fileReference: FileReference) => void) | undefined,
+  ): void {
+    this.onOpenFile = callback;
   }
 
   public setTaskResultInterpreter(interpreter: ProviderTaskResultInterpreter): void {
@@ -161,6 +173,14 @@ export class SubagentManager {
             ? { action: 'created_sync', subagentState: result.subagentState }
             : { action: 'created_async', info: result.info, domState: result.domState };
         }
+      } else {
+        // Mode still unknown: keep a pending async preview card visible as soon
+        // as the spawn description has streamed in (run_in_background is the
+        // last JSON field), instead of showing nothing until the whole input
+        // (often a long prompt) or the spawn tool_result has arrived.
+        const targetEl = currentContentEl ?? pending.parentEl ?? null;
+        this.ensureAsyncPreview(taskToolId, pending.toolCall.input, targetEl);
+        this.updatePreviewLabel(taskToolId, pending.toolCall.input);
       }
       return { action: 'buffered' };
     }
@@ -188,6 +208,7 @@ export class SubagentManager {
         isExpanded: false,
       };
       this.pendingTasks.set(taskToolId, { toolCall, parentEl: currentContentEl });
+      this.ensureAsyncPreview(taskToolId, taskInput, currentContentEl);
       return { action: 'buffered' };
     }
 
@@ -226,12 +247,19 @@ export class SubagentManager {
 
     try {
       if (input.run_in_background === true) {
-        const result = this.createAsyncTask(pending.toolCall.id, input, targetEl);
+        const existingPreview = this.takeAsyncPreview(pending.toolCall.id);
+        const result = this.createAsyncTask(
+          pending.toolCall.id,
+          input,
+          targetEl,
+          existingPreview
+        );
         if (result.action === 'created_async') {
           this._spawnedThisStream++;
           return { mode: 'async', info: result.info, domState: result.domState };
         }
       } else {
+        this.discardAsyncPreview(pending.toolCall.id);
         const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
         if (result.action === 'created_sync') {
           this._spawnedThisStream++;
@@ -273,12 +301,19 @@ export class SubagentManager {
 
     try {
       if (inferredMode === 'async') {
-        const result = this.createAsyncTask(pending.toolCall.id, input, targetEl);
+        const existingPreview = this.takeAsyncPreview(pending.toolCall.id);
+        const result = this.createAsyncTask(
+          pending.toolCall.id,
+          input,
+          targetEl,
+          existingPreview
+        );
         if (result.action === 'created_async') {
           this._spawnedThisStream++;
           return { mode: 'async', info: result.info, domState: result.domState };
         }
       } else {
+        this.discardAsyncPreview(pending.toolCall.id);
         const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
         if (result.action === 'created_sync') {
           this._spawnedThisStream++;
@@ -470,6 +505,14 @@ export class SubagentManager {
     const subagent = record.info;
     this.bindProviderIdentifier(completion.taskId, subagent.id);
 
+    // Notifications carry the provider agent id in `taskId`. Live tool results
+    // normally set `agentId` earlier, but when a notification resolves the
+    // record first (deferred path) we must record it so the transcript stays
+    // addressable (e.g. sidecar file name) and the completion is not lost.
+    if (!subagent.agentId) {
+      subagent.agentId = completion.taskId;
+    }
+
     if (record.nativeCompletion) return undefined;
 
     const result = completion.result?.trim()
@@ -515,6 +558,28 @@ export class SubagentManager {
     this.onStateChange(subagent);
   }
 
+  /**
+   * Moves a terminal async task to the end of the parent message exactly once.
+   * The caller owns any active parent stream segment and can seal it immediately
+   * before the move so subsequent text renders after the completed task.
+   */
+  public moveCompletedAsyncSubagentToTail(
+    taskToolId: string,
+    parentEl: HTMLElement,
+    beforeMove: () => void,
+  ): boolean {
+    if (this.completionAnchoredAsyncTaskIds.has(taskToolId)) return false;
+
+    const asyncState = this.asyncDomStates.get(taskToolId);
+    if (!asyncState || asyncState.wrapperEl.parentElement !== parentEl) return false;
+
+    beforeMove();
+    asyncState.wrapperEl.remove();
+    parentEl.appendChild(asyncState.wrapperEl);
+    this.completionAnchoredAsyncTaskIds.add(taskToolId);
+    return true;
+  }
+
   // ============================================
   // Lifecycle
   // ============================================
@@ -530,6 +595,7 @@ export class SubagentManager {
   public resetStreamingState(): void {
     this.syncSubagents.clear();
     this.pendingTasks.clear();
+    this.clearAsyncPreviews();
   }
 
   public orphanAllActive(): SubagentInfo[] {
@@ -544,6 +610,7 @@ export class SubagentManager {
 
     this.deferredAsyncCompletions.clear();
     this.outputToolToTaskToolUseId.clear();
+    this.clearAsyncPreviews();
 
     return orphaned;
   }
@@ -556,6 +623,8 @@ export class SubagentManager {
     this.deferredAsyncCompletions.clear();
     this.outputToolToTaskToolUseId.clear();
     this.asyncDomStates.clear();
+    this.completionAnchoredAsyncTaskIds.clear();
+    this.clearAsyncPreviews();
   }
 
   // ============================================
@@ -652,7 +721,9 @@ export class SubagentManager {
     taskInput: Record<string, unknown>,
     parentEl: HTMLElement
   ): HandleTaskResult {
-    const subagentState = createSubagentBlock(parentEl, taskToolId, taskInput);
+    const subagentState = createSubagentBlock(parentEl, taskToolId, taskInput, {
+      onOpenFile: this.onOpenFile,
+    });
     this.syncSubagents.set(taskToolId, subagentState);
     return { action: 'created_sync', subagentState };
   }
@@ -660,7 +731,8 @@ export class SubagentManager {
   private createAsyncTask(
     taskToolId: string,
     taskInput: Record<string, unknown>,
-    parentEl: HTMLElement
+    parentEl: HTMLElement,
+    existingPreview?: AsyncSubagentState | null
   ): HandleTaskResult {
     const description = (taskInput.description as string) || 'Background task';
     const prompt = (taskInput.prompt as string) || '';
@@ -679,7 +751,16 @@ export class SubagentManager {
     const record: AsyncSubagentRecord = { info };
     this.asyncSubagents.set(taskToolId, record);
 
-    const domState = createAsyncSubagentBlock(parentEl, taskToolId, taskInput);
+    const domState = existingPreview
+      ?? createAsyncSubagentBlock(parentEl, taskToolId, taskInput, {
+        onOpenFile: this.onOpenFile,
+      });
+    if (existingPreview) {
+      // Promote the pending preview card in place: adopt its DOM as the
+      // canonical card instead of rendering a second one, and sync the
+      // label/prompt text to the now-complete merged input.
+      this.updateSubagentLabel(domState.wrapperEl, domState.info, taskInput);
+    }
     this.asyncDomStates.set(taskToolId, domState);
 
     const deferred = this.takeDeferredAsyncCompletion(taskToolId);
@@ -688,6 +769,63 @@ export class SubagentManager {
     }
 
     return { action: 'created_async', info, domState };
+  }
+
+  // ============================================
+  // Private: Pending Async Preview Cards
+  // ============================================
+
+  /**
+   * Renders an async pending preview card while a spawn input is still being
+   * streamed in (run_in_background arrives as the last JSON field, after the
+   * description and a possibly long prompt). Only created once the spawn
+   * description is known and a parent element exists, so the card appears as
+   * early as possible instead of only after the whole input has streamed.
+   */
+  private ensureAsyncPreview(
+    taskToolId: string,
+    taskInput: Record<string, unknown>,
+    parentEl: HTMLElement | null
+  ): void {
+    if (!parentEl || this.asyncPreviews.has(taskToolId)) return;
+    const description = (taskInput?.description as string) || '';
+    if (!description) return;
+    const domState = createAsyncSubagentBlock(parentEl, taskToolId, taskInput, {
+      onOpenFile: this.onOpenFile,
+    });
+    this.asyncPreviews.set(taskToolId, domState);
+  }
+
+  /** Keeps the preview card's label/prompt in sync with the merged input. */
+  private updatePreviewLabel(
+    taskToolId: string,
+    taskInput: Record<string, unknown>
+  ): void {
+    const preview = this.asyncPreviews.get(taskToolId);
+    if (!preview) return;
+    this.updateSubagentLabel(preview.wrapperEl, preview.info, taskInput);
+  }
+
+  /** Removes and returns the preview card, or undefined when none exists. */
+  private takeAsyncPreview(taskToolId: string): AsyncSubagentState | undefined {
+    const preview = this.asyncPreviews.get(taskToolId);
+    this.asyncPreviews.delete(taskToolId);
+    return preview;
+  }
+
+  /** Removes the preview card from the DOM (if any) and forgets it. */
+  private discardAsyncPreview(taskToolId: string): void {
+    const preview = this.asyncPreviews.get(taskToolId);
+    if (!preview) return;
+    preview.wrapperEl?.remove?.();
+    this.asyncPreviews.delete(taskToolId);
+  }
+
+  private clearAsyncPreviews(): void {
+    for (const preview of this.asyncPreviews.values()) {
+      preview.wrapperEl?.remove?.();
+    }
+    this.asyncPreviews.clear();
   }
 
   // ============================================

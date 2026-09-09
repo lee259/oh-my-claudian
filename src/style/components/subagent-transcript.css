@@ -1,0 +1,136 @@
+/* Subagent transcript overlay: read-only full-conversation view for an async
+ * subagent, shown above the live main conversation while it keeps streaming. */
+
+.claudian-subagent-transcript {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.claudian-subagent-transcript-backbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  position: relative;
+  z-index: 1;
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-muted);
+  border: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.claudian-subagent-transcript-backbar:hover,
+.claudian-subagent-transcript-backbar:focus-visible {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  box-shadow: none;
+  outline: none;
+}
+
+.claudian-subagent-transcript-back {
+  display: flex;
+  align-items: center;
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+}
+
+.claudian-subagent-transcript-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-subagent-transcript-heading {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.claudian-subagent-transcript-title {
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-subagent-transcript-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.claudian-subagent-transcript-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.claudian-subagent-transcript-status-icon {
+  display: flex;
+  align-items: center;
+  color: var(--interactive-accent);
+}
+
+.claudian-subagent-transcript-status-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Only the running state animates; terminal icons stay static. */
+.claudian-subagent-transcript-status-icon.status-running svg {
+  animation: claudian-spin 0.9s linear infinite;
+}
+
+.claudian-subagent-transcript-status-icon.status-error svg,
+.claudian-subagent-transcript-status-icon.status-orphaned svg {
+  color: var(--color-red);
+}
+
+.claudian-subagent-transcript-status-icon.status-completed svg {
+  color: var(--color-green);
+}
+
+.claudian-subagent-transcript-messages {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.claudian-subagent-transcript-empty,
+.claudian-subagent-transcript-unavailable {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.claudian-subagent-transcript-entry-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.claudian-subagent-transcript-tool {
+  margin-top: 6px;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+}

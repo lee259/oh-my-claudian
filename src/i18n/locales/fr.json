@@ -68,6 +68,18 @@
       "expandOutput": "Développer la sortie de la commande",
       "running": "Exécution...",
       "copyFailed": "Échec de la copie dans le presse-papiers"
+    },
+    "subagentTranscript": {
+      "runningLabel": "Exécution en arrière-plan",
+      "completedLabel": "Terminé",
+      "errorLabel": "Erreur",
+      "orphanedLabel": "Orphelin",
+      "pendingLabel": "Initialisation en cours",
+      "title": "Conversation du sous-agent",
+      "subtitle": "Transcription en lecture seule",
+      "backAriaLabel": "Retour à la conversation",
+      "empty": "Aucune conversation enregistrée pour ce sous-agent.",
+      "unavailable": "Conversation complète non disponible pour ce sous-agent."
     }
   },
   "settings": {
@@ -279,6 +291,10 @@
     "systemPrompt": {
       "name": "Prompt système personnalisé",
       "desc": "Instructions supplémentaires ajoutées au prompt système par défaut"
+    },
+    "useClaudianSystemPrompt": {
+      "name": "Utiliser le prompt système Oh My Claudian",
+      "desc": "Applique les instructions de coffre, d'opérations de fichiers et de sécurité. Désactivé, seul votre prompt personnalisé est envoyé."
     },
     "autoTitle": {
       "name": "Générer automatiquement les titres de conversation",

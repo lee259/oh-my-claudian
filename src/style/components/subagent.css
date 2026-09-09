@@ -27,6 +27,22 @@
   overflow: hidden;
 }
 
+/* Async cards keep the collapse toggle and the transcript entry as sibling
+ * interactive controls (buttons inside buttons are invalid ARIA). The header
+ * row is a plain flex container; the toggle button fills the row and the
+ * transcript button sits at the far right. */
+.claudian-subagent-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claudian-subagent-header-row > .claudian-subagent-header {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline-end: 0;
+}
+
 .claudian-subagent-icon {
   display: flex;
   align-items: center;
@@ -40,11 +56,27 @@
 }
 
 .claudian-subagent-label {
-  flex: 1;
+  flex: 0 1 auto;
+  max-width: 48%;
+  min-width: 0;
   font-family: var(--font-monospace);
   font-size: 13px;
   font-weight: 400;
   color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-subagent-result-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .claudian-subagent-status {
@@ -215,12 +247,62 @@
   font-size: 11px;
   font-family: var(--font-monospace);
   color: var(--text-muted);
-  margin-inline-start: auto;
-  padding-inline-start: 8px;
+  flex-shrink: 0;
+}
+
+.claudian-subagent-list.done .claudian-subagent-result-summary {
+  color: var(--text-muted);
+}
+
+.claudian-subagent-list.error .claudian-subagent-result-summary {
+  color: var(--text-error);
 }
 
 .claudian-subagent-list.async .claudian-subagent-icon {
   color: var(--interactive-accent);
+}
+
+/* Animated running indicator on async subagent cards */
+.claudian-subagent-list.async .claudian-subagent-status.status-running svg {
+  color: var(--interactive-accent);
+  animation: claudian-spin 0.9s linear infinite;
+}
+
+/* Open full-conversation entry on async subagent cards */
+.claudian-subagent-open-transcript {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.claudian-subagent-open-transcript svg {
+  width: 13px;
+  height: 13px;
+  color: inherit;
+}
+
+.claudian-subagent-open-transcript:hover,
+.claudian-subagent-open-transcript:focus-visible {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Only providers with a replayable native transcript expose the detail view.
+ * The marker class is toggled by the conversation controller on the messages
+ * list; it must stay free of visual styles so it never restyles the list. */
+.claudian-no-subagent-transcript .claudian-subagent-open-transcript {
+  display: none;
 }
 
 .claudian-subagent-list.async.pending .claudian-subagent-status-text {
@@ -246,3 +328,4 @@
 .claudian-subagent-list.async.orphaned .claudian-subagent-status-text {
   color: var(--color-orange);
 }
+
