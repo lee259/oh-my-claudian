@@ -657,6 +657,7 @@ export class StreamController {
         onOpenFile: (filePath) => { void openVaultFile(this.deps.plugin.app, filePath); },
       });
     }
+    this.deps.renderer.startCompletedWork?.(parentEl, state.responseStartTime);
     state.pendingTools.delete(toolId);
   }
 
@@ -1243,6 +1244,7 @@ export class StreamController {
         },
       });
       state.currentThinkingState = thinkingState;
+      this.deps.renderer.startCompletedWork?.(state.currentContentEl, state.responseStartTime);
       this.syncThinkingRenderAvailability();
     }
 

@@ -25,13 +25,14 @@ function createHandler(
   port: jest.Mocked<ProviderInteractionPort>,
   onToolBlocked: jest.Mock = jest.fn(),
   workspaceRoot?: string,
+  permissionMode: 'normal' | 'yolo' = 'normal',
 ): CanUseTool {
   return createClaudeExecutionCanUseTool({
     interactionPort: port,
     sessionInstanceId: 'session-local',
     getTurnId: () => 'turn-local',
     isToolAllowed: () => true,
-    getPermissionMode: () => 'normal',
+    getPermissionMode: () => permissionMode,
     resolveSdkPermissionMode: () => 'default',
     onToolBlocked,
     workspaceRoot,
@@ -108,6 +109,19 @@ describe('createClaudeExecutionCanUseTool', () => {
       });
   });
 
+  it('does not open an approval flow for Bash in YOLO mode', async () => {
+    const port = createPort();
+    const handler = createHandler(port, jest.fn(), undefined, 'yolo');
+
+    await expect(handler('Bash', { command: 'git status' }, nativeOptions))
+      .resolves.toEqual({
+        behavior: 'allow',
+        updatedInput: { command: 'git status' },
+      });
+
+    expect(port.requestApproval).not.toHaveBeenCalled();
+  });
+
   it('does not persist provider suggestions for an allow-once decision', async () => {
     const port = createPort();
     port.requestApproval.mockResolvedValue({
@@ -151,6 +165,22 @@ describe('createClaudeExecutionCanUseTool', () => {
         toolName: 'Edit',
         input: { file_path: '/Users/lee/Downloads/report.md' },
       }),
+      nativeOptions.signal,
+    );
+  });
+
+  it('keeps external writes behind the local-file boundary in YOLO mode', async () => {
+    const port = createPort();
+    const handler = createHandler(port, jest.fn(), '/vault', 'yolo');
+
+    await handler(
+      'Edit',
+      { file_path: '/Users/lee/Downloads/report.md' },
+      nativeOptions,
+    );
+
+    expect(port.requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: 'Edit' }),
       nativeOptions.signal,
     );
   });

@@ -80,6 +80,12 @@
       "backAriaLabel": "Retour à la conversation",
       "empty": "Aucune conversation enregistrée pour ce sous-agent.",
       "unavailable": "Conversation complète non disponible pour ce sous-agent."
+    },
+    "completedWork": {
+      "inProgress": "En cours · {seconds} s",
+      "label": "Terminé",
+      "seconds": "Durée : {seconds} s",
+      "minutes": "Durée : {minutes} min {seconds} s"
     }
   },
   "settings": {

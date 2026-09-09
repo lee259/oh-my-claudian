@@ -632,6 +632,7 @@ export class InputController {
           }
 
           await this.finalizeRenderedTurn(finalAssistantMsg);
+          renderer.finalizeCompletedWork?.(finalAssistantMsg);
 
           // approve-new-session: the tool_result chunk is dropped because cancelRequested
           // was set before the stream loop could process it — manually set the result so

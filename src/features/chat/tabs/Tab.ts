@@ -103,6 +103,7 @@ type TabProviderSettings = Record<string, unknown> & {
 
 interface BackgroundTurnRenderState {
   assistantMsg: ChatMessage;
+  responseStartTime: number;
   hasVisibleContent: boolean;
   hiddenToolIds: Set<string>;
   contentEl: HTMLElement | null;
@@ -2307,6 +2308,7 @@ function createBackgroundTurnRenderState(): BackgroundTurnRenderState {
       toolCalls: [],
       contentBlocks: [],
     },
+    responseStartTime: performance.now(),
     hasVisibleContent: false,
     hiddenToolIds: new Set(),
     contentEl: null,
@@ -2328,12 +2330,14 @@ async function withBackgroundTurnRenderContext<T>(
     textContent: tab.state.currentTextContent,
     thinkingState: tab.state.currentThinkingState,
     toolCallElements: new Map(tab.state.toolCallElements),
+    responseStartTime: tab.state.responseStartTime,
   };
 
   tab.state.currentContentEl = turn.contentEl;
   tab.state.currentTextEl = turn.textEl;
   tab.state.currentTextContent = turn.textContent;
   tab.state.currentThinkingState = turn.thinkingState;
+  tab.state.responseStartTime = turn.responseStartTime;
   tab.state.toolCallElements.clear();
   for (const [toolId, toolEl] of turn.toolCallElements) {
     tab.state.toolCallElements.set(toolId, toolEl);
@@ -2347,11 +2351,13 @@ async function withBackgroundTurnRenderContext<T>(
     turn.textContent = tab.state.currentTextContent;
     turn.thinkingState = tab.state.currentThinkingState;
     turn.toolCallElements = new Map(tab.state.toolCallElements);
+    turn.responseStartTime = tab.state.responseStartTime ?? turn.responseStartTime;
 
     tab.state.currentContentEl = foreground.contentEl;
     tab.state.currentTextEl = foreground.textEl;
     tab.state.currentTextContent = foreground.textContent;
     tab.state.currentThinkingState = foreground.thinkingState;
+    tab.state.responseStartTime = foreground.responseStartTime;
     tab.state.toolCallElements.clear();
     for (const [toolId, toolEl] of foreground.toolCallElements) {
       tab.state.toolCallElements.set(toolId, toolEl);
@@ -2423,6 +2429,11 @@ async function finalizeBackgroundTurn(
       await tab.controllers.streamController?.finalizeCurrentTextBlock(assistantMsg);
     });
     if (!isCurrent()) return false;
+    assistantMsg.durationSeconds = Math.max(
+      0,
+      Math.floor((performance.now() - turn.responseStartTime) / 1_000),
+    );
+    tab.renderer?.finalizeCompletedWork?.(assistantMsg);
     return true;
   } finally {
     tab.controllers.streamController?.hideThinkingIndicator();

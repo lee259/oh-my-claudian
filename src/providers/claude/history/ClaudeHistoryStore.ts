@@ -172,6 +172,11 @@ async function assembleSDKChatMessages(
   const pathContext = options?.pathContext;
 
   const filteredEntries = filterActiveBranch(entries, resumeAtMessageId);
+  const realUserMessageIds = new Set(
+    filteredEntries
+      .filter(isRealUserInput)
+      .flatMap((entry) => entry.uuid ? [entry.uuid] : []),
+  );
 
   const toolResults = collectToolResults(filteredEntries);
   const toolUseResults = collectStructuredPatchResults(filteredEntries);
@@ -282,8 +287,49 @@ async function assembleSDKChatMessages(
   }
 
   chatMessages.sort((a, b) => a.timestamp - b.timestamp);
+  applyTranscriptDurationFallback(chatMessages, realUserMessageIds);
 
   return chatMessages;
+}
+
+function isRealUserInput(entry: SDKNativeMessage): boolean {
+  return entry.type === 'user'
+    && !entry.isMeta
+    && !('toolUseResult' in entry)
+    && !('sourceToolUseID' in entry);
+}
+
+function applyTranscriptDurationFallback(
+  messages: ChatMessage[],
+  realUserMessageIds: ReadonlySet<string>,
+): void {
+  let turnStartTimestamp: number | null = null;
+  let finalAssistantMessage: ChatMessage | null = null;
+
+  const applyFallback = () => {
+    if (
+      !finalAssistantMessage
+      || finalAssistantMessage.durationSeconds !== undefined
+      || turnStartTimestamp === null
+    ) return;
+    const durationSeconds = Math.floor(
+      (finalAssistantMessage.timestamp - turnStartTimestamp) / 1_000,
+    );
+    if (durationSeconds > 0) {
+      finalAssistantMessage.durationSeconds = durationSeconds;
+    }
+  };
+
+  for (const message of messages) {
+    if (message.role === 'user' && realUserMessageIds.has(message.id)) {
+      applyFallback();
+      turnStartTimestamp = message.timestamp;
+      finalAssistantMessage = null;
+    } else if (message.role === 'assistant' && turnStartTimestamp !== null) {
+      finalAssistantMessage = message;
+    }
+  }
+  applyFallback();
 }
 
 /**
@@ -332,18 +378,21 @@ function collectNativeTurnDurations(
   }
 
   for (const entry of entries) {
+    const durationMs = typeof entry.durationMs === 'number'
+      ? entry.durationMs
+      : entry.duration_ms;
     if (
       entry.type !== 'system'
       || entry.subtype !== 'turn_duration'
       || typeof entry.parentUuid !== 'string'
-      || typeof entry.durationMs !== 'number'
-      || !Number.isFinite(entry.durationMs)
-      || entry.durationMs < 0
+      || typeof durationMs !== 'number'
+      || !Number.isFinite(durationMs)
+      || durationMs < 0
     ) continue;
 
     const assistantUuid = resolveTurnDurationAssistantUuid(entry.parentUuid, entriesByUuid);
     if (assistantUuid) {
-      durations.set(assistantUuid, Math.floor(entry.durationMs / 1_000));
+      durations.set(assistantUuid, Math.floor(durationMs / 1_000));
     }
   }
   return durations;

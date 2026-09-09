@@ -101,6 +101,78 @@ describe('MessageRenderer', () => {
     (Menu as typeof Menu & { instances: unknown[] }).instances.length = 0;
   });
 
+  describe('completed work', () => {
+    it('collapses completed work while keeping the final answer visible', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-1' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const thinkingEl = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      const answerEl = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Final answer' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-1') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-1', role: 'assistant', content: 'Final answer', timestamp: Date.now(), durationSeconds: 24,
+        contentBlocks: [
+          { type: 'thinking', content: 'Thinking' },
+          { type: 'text', content: 'Final answer' },
+        ],
+      } as ChatMessage);
+
+      const workEl = contentEl.querySelector('.claudian-completed-work');
+      expect(workEl).toBeTruthy();
+      expect(workEl?.querySelector('.claudian-completed-work-header')?.children[0].textContent)
+        .toContain('Took 24s');
+      expect(workEl?.querySelector('.claudian-completed-work-indicator')).toBeTruthy();
+      expect(workEl?.querySelector('.claudian-completed-work-header')?.children[1])
+        .toBe(workEl?.querySelector('.claudian-completed-work-indicator'));
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(thinkingEl)).toBe(true);
+      expect(contentEl.contains(answerEl)).toBe(true);
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+    });
+
+    it('shows elapsed work without collapsing streaming content', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const thinkingEl = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+
+      renderer.startCompletedWork(contentEl);
+
+      const status = contentEl.querySelector('.claudian-completed-work-status');
+      expect(status?.querySelector('.claudian-completed-work-label')?.textContent).toContain('Working');
+      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+      expect(contentEl.contains(thinkingEl)).toBe(true);
+    });
+
+    it('keeps compacted turns expanded', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-compact' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      contentEl.createDiv({ cls: 'claudian-tool-call' });
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Final answer' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-compact') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-compact', role: 'assistant', content: 'Final answer', timestamp: Date.now(),
+        contentBlocks: [{ type: 'context_compacted' }, { type: 'text', content: 'Final answer' }],
+      } as ChatMessage);
+
+      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+    });
+
+  });
+
   // ============================================
   // renderMessages
   // ============================================

@@ -80,6 +80,12 @@
       "backAriaLabel": "Вернуться к разговору",
       "empty": "Для этого субагента разговор не записан.",
       "unavailable": "Полный разговор для этого субагента недоступен."
+    },
+    "completedWork": {
+      "inProgress": "В процессе · {seconds} с",
+      "label": "Завершено",
+      "seconds": "Заняло {seconds} с",
+      "minutes": "Заняло {minutes} мин {seconds} с"
     }
   },
   "settings": {

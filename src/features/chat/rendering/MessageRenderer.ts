@@ -74,6 +74,11 @@ function runRendererAction(action: () => Promise<void>): void {
 }
 
 export class MessageRenderer {
+  private static nextCompletedWorkId = 0;
+  private readonly completedWorkStatusTimers = new Map<HTMLElement, {
+    timerId: number;
+    timerWindow: Window;
+  }>();
   private app: App;
   private plugin: FeatureHost;
   private component: Component;
@@ -386,6 +391,181 @@ export class MessageRenderer {
     if (shouldRenderTimestamp) {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
+    if (msg.role === 'assistant') {
+      this.finalizeCompletedWork(msg);
+    }
+  }
+
+  /**
+   * Collapses the completed reasoning/tool portion of one assistant turn while
+   * leaving the final answer visible. This changes presentation only: the
+   * message model, provider history, and rendered child nodes remain intact.
+   */
+  finalizeCompletedWork(msg: ChatMessage): void {
+    if (msg.role !== 'assistant') return;
+
+    const msgEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
+    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
+    if (!contentEl) return;
+    const activeStatuses = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status');
+    this.removeCompletedWorkStatuses(activeStatuses);
+    const existingWork = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work');
+    if (msg.isInterrupt || msg.contentBlocks?.some(block => block.type === 'context_compacted')) return;
+    if (existingWork.length > 0) {
+      this.unwrapCompletedWork(contentEl, existingWork);
+    }
+
+    const children = Array.from(contentEl.children) as HTMLElement[];
+    const answerStart = this.findFinalAnswerStart(children);
+    if (answerStart <= 0) return;
+
+    this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+  }
+
+  /**
+   * Shows the elapsed work time without changing the streaming content's
+   * hierarchy. The completed disclosure is created only once the turn ends.
+   */
+  startCompletedWork(
+    contentEl: HTMLElement,
+    responseStartTime?: number | null,
+  ): void {
+    if (
+      contentEl.querySelector('.claudian-completed-work-status')
+      || contentEl.querySelector('.claudian-completed-work')
+    ) return;
+    const firstChild = contentEl.firstElementChild ?? contentEl.firstChild;
+    if (!firstChild) return;
+
+    const statusEl = contentEl.createDiv({
+      cls: 'claudian-completed-work-status',
+      attr: { 'aria-live': 'polite' },
+    });
+    contentEl.insertBefore(statusEl, firstChild);
+    const labelEl = statusEl.createSpan({ cls: 'claudian-completed-work-label' });
+    const updateLabel = () => {
+      if (statusEl.isConnected === false) {
+        this.stopCompletedWorkStatusTimer(statusEl);
+        return;
+      }
+      const seconds = responseStartTime === null || responseStartTime === undefined
+        ? 0
+        : Math.max(0, Math.floor((performance.now() - responseStartTime) / 1_000));
+      labelEl.setText(this.getCompletedWorkLabel(seconds, true));
+    };
+    updateLabel();
+    if (responseStartTime === null || responseStartTime === undefined) return;
+    const timerWindow = contentEl.ownerDocument.defaultView;
+    if (!timerWindow) return;
+    this.completedWorkStatusTimers.set(statusEl, {
+      timerId: timerWindow.setInterval(updateLabel, 1_000),
+      timerWindow,
+    });
+  }
+
+  private createCompletedWork(
+    contentEl: HTMLElement,
+    workEls: HTMLElement[],
+    durationSeconds?: number,
+  ): HTMLElement | null {
+    if (!workEls.length) return null;
+
+    const workId = `claudian-completed-work-${MessageRenderer.nextCompletedWorkId++}`;
+    const workEl = contentEl.createDiv({ cls: 'claudian-completed-work' });
+    contentEl.insertBefore(workEl, workEls[0]);
+    const headerEl = workEl.createEl('button', {
+      cls: 'claudian-completed-work-header',
+      attr: {
+        type: 'button',
+        'aria-controls': workId,
+        'aria-expanded': 'false',
+      },
+    });
+    headerEl.createSpan({
+      cls: 'claudian-completed-work-label',
+      text: this.getCompletedWorkLabel(durationSeconds),
+    });
+    const indicatorEl = headerEl.createSpan({ cls: 'claudian-completed-work-indicator' });
+    indicatorEl.setAttribute('aria-hidden', 'true');
+    setIcon(indicatorEl, 'chevron-right');
+    const historyEl = workEl.createDiv({
+      cls: 'claudian-completed-work-history',
+      attr: { id: workId },
+    });
+    historyEl.hidden = true;
+    for (const child of workEls) historyEl.appendChild(child);
+    headerEl.addEventListener('click', () => {
+      historyEl.hidden = !historyEl.hidden;
+      headerEl.setAttribute('aria-expanded', String(!historyEl.hidden));
+      setIcon(indicatorEl, historyEl.hidden ? 'chevron-right' : 'chevron-down');
+    });
+    return workEl;
+  }
+
+  private unwrapCompletedWork(
+    contentEl: HTMLElement,
+    workEls: NodeListOf<HTMLElement>,
+  ): void {
+    for (const workEl of Array.from(workEls)) {
+      const historyEl = workEl.querySelector<HTMLElement>('.claudian-completed-work-history');
+      if (historyEl) {
+        for (const child of Array.from(historyEl.children)) {
+          contentEl.insertBefore(child, workEl);
+        }
+      }
+      workEl.remove();
+    }
+  }
+
+  private removeCompletedWorkStatuses(statuses: Iterable<HTMLElement>): void {
+    for (const statusEl of statuses) {
+      this.stopCompletedWorkStatusTimer(statusEl);
+      statusEl.remove();
+    }
+  }
+
+  private stopCompletedWorkStatusTimer(statusEl: HTMLElement): void {
+    const timer = this.completedWorkStatusTimers.get(statusEl);
+    if (!timer) return;
+    timer.timerWindow.clearInterval(timer.timerId);
+    this.completedWorkStatusTimers.delete(statusEl);
+  }
+
+  private findFinalAnswerStart(children: HTMLElement[]): number {
+    let index = children.length;
+    while (index > 0) {
+      const child = children[index - 1];
+      if (
+        child.hasClass('claudian-text-block')
+        || child.hasClass('claudian-citations')
+        || child.hasClass('claudian-response-footer')
+      ) {
+        index--;
+        continue;
+      }
+      break;
+    }
+    return index;
+  }
+
+  private getCompletedWorkLabel(
+    durationSeconds: number | undefined,
+    isInProgress = false,
+  ): string {
+    if (isInProgress) {
+      return t('chat.completedWork.inProgress', {
+        seconds: Math.max(0, Math.floor(durationSeconds ?? 0)),
+      });
+    }
+    if (!Number.isFinite(durationSeconds) || durationSeconds === undefined || durationSeconds <= 0) {
+      return t('chat.completedWork.label');
+    }
+    const totalSeconds = Math.floor(durationSeconds);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0
+      ? t('chat.completedWork.minutes', { minutes, seconds })
+      : t('chat.completedWork.seconds', { seconds });
   }
 
   private shouldRenderMessageTimestamp(msg: ChatMessage): boolean {
