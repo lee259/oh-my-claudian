@@ -149,7 +149,7 @@ describe('MessageRenderer', () => {
       expect(contentEl.contains(thinkingEl)).toBe(true);
     });
 
-    it('keeps compacted turns expanded', () => {
+    it('collapses compacted work while keeping its boundary in history', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -158,6 +158,7 @@ describe('MessageRenderer', () => {
       });
       const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
       contentEl.createDiv({ cls: 'claudian-tool-call' });
+      contentEl.createDiv({ cls: 'claudian-compact-boundary' });
       contentEl.createDiv({ cls: 'claudian-text-block', text: 'Final answer' });
       const querySelector = messagesEl.querySelector.bind(messagesEl);
       messagesEl.querySelector = jest.fn((selector: string) =>
@@ -168,7 +169,10 @@ describe('MessageRenderer', () => {
         contentBlocks: [{ type: 'context_compacted' }, { type: 'text', content: 'Final answer' }],
       } as ChatMessage);
 
-      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+      const workEl = contentEl.querySelector('.claudian-completed-work');
+      expect(workEl).toBeTruthy();
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.children)
+        .toContainEqual(expect.objectContaining({ className: 'claudian-compact-boundary' }));
     });
 
   });

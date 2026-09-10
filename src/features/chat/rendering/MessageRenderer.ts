@@ -410,7 +410,7 @@ export class MessageRenderer {
     const activeStatuses = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status');
     this.removeCompletedWorkStatuses(activeStatuses);
     const existingWork = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work');
-    if (msg.isInterrupt || msg.contentBlocks?.some(block => block.type === 'context_compacted')) return;
+    if (msg.isInterrupt) return;
     if (existingWork.length > 0) {
       this.unwrapCompletedWork(contentEl, existingWork);
     }

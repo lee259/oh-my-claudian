@@ -1142,6 +1142,32 @@ describe('sdkSession', () => {
       });
     });
 
+    it('keeps one assistant turn intact when compaction occurs before its final answer', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockFsPromises.readFile.mockResolvedValue([
+        '{"type":"user","uuid":"u1","timestamp":"2024-01-15T10:00:00Z","message":{"content":"Review the resume"}}',
+        '{"type":"assistant","uuid":"a1","timestamp":"2024-01-15T10:00:01Z","message":{"content":[{"type":"thinking","thinking":"I will inspect the experience."}]}}',
+        '{"type":"system","subtype":"compact_boundary","uuid":"c1","timestamp":"2024-01-15T10:00:02Z"}',
+        '{"type":"assistant","uuid":"a2","timestamp":"2024-01-15T10:00:05Z","message":{"content":[{"type":"text","text":"Candidate should proceed."}]}}',
+        '{"type":"system","subtype":"turn_duration","uuid":"duration-1","parentUuid":"a2","timestamp":"2024-01-15T10:00:05.100Z","durationMs":5000}',
+      ].join('\n'));
+
+      const result = await loadSDKSessionMessages('/Users/test/vault', 'session-compact-turn');
+
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[1]).toMatchObject({
+        role: 'assistant',
+        content: 'Candidate should proceed.',
+        durationSeconds: 5,
+        assistantMessageId: 'a2',
+      });
+      expect(result.messages[1].contentBlocks?.map(block => block.type)).toEqual([
+        'thinking',
+        'context_compacted',
+        'text',
+      ]);
+    });
+
     it('sorts messages by timestamp ascending', async () => {
       mockExistsSync.mockReturnValue(true);
       mockFsPromises.readFile.mockResolvedValue([

@@ -172,6 +172,7 @@ async function assembleSDKChatMessages(
   const pathContext = options?.pathContext;
 
   const filteredEntries = filterActiveBranch(entries, resumeAtMessageId);
+  const manualCompactBoundaryIds = collectManualCompactBoundaryIds(filteredEntries);
   const realUserMessageIds = new Set(
     filteredEntries
       .filter(isRealUserInput)
@@ -212,9 +213,14 @@ async function assembleSDKChatMessages(
     normalizeTaskToolCalls(chatMsg, taskToolNormalizer, toolUseResults);
 
     if (chatMsg.role === 'assistant') {
-      // context_compacted must not merge with previous assistant (it's a standalone separator)
+      // A compact boundary can arrive between tool/thinking output and the final
+      // answer of the same user turn. Keep it as an ordered content block rather
+      // than flushing the turn into separate assistant messages.
       const isCompactBoundary = chatMsg.contentBlocks?.some(b => b.type === 'context_compacted');
-      if (isCompactBoundary) {
+      const isManualCompactBoundary = isCompactBoundary
+        && !!sdkMsg.uuid
+        && manualCompactBoundaryIds.has(sdkMsg.uuid);
+      if (isCompactBoundary && (isManualCompactBoundary || !pendingAssistant)) {
         flushPendingAssistant(true);
         chatMessages.push(chatMsg);
       } else if (pendingAssistant) {
@@ -290,6 +296,52 @@ async function assembleSDKChatMessages(
   applyTranscriptDurationFallback(chatMessages, realUserMessageIds);
 
   return chatMessages;
+}
+
+/**
+ * Manual `/compact` records its boundary after the command by timestamp, but
+ * the JSONL append order can be the reverse. Preserve that explicit command
+ * boundary as its own message; automatic compaction stays inside its turn.
+ */
+function collectManualCompactBoundaryIds(entries: SDKNativeMessage[]): Set<string> {
+  const orderedEntries = entries
+    .map((entry, index) => ({ entry, index, timestamp: parseSDKTimestamp(entry.timestamp) }))
+    .sort((left, right) => left.timestamp - right.timestamp || left.index - right.index);
+  const boundaryIds = new Set<string>();
+  let awaitingManualCompactBoundary = false;
+
+  for (const { entry } of orderedEntries) {
+    if (entry.type === 'user' && !isSystemInjectedMessage(entry)) {
+      awaitingManualCompactBoundary = isManualCompactCommand(entry);
+      continue;
+    }
+    if (entry.type === 'system' && entry.subtype === 'compact_boundary') {
+      if (awaitingManualCompactBoundary && entry.uuid) {
+        boundaryIds.add(entry.uuid);
+      }
+      awaitingManualCompactBoundary = false;
+    }
+  }
+
+  return boundaryIds;
+}
+
+function isManualCompactCommand(entry: SDKNativeMessage): boolean {
+  const content = entry.message?.content;
+  const text = typeof content === 'string'
+    ? content
+    : content
+      ?.filter((block): block is { type: 'text'; text: string } => (
+        block.type === 'text' && typeof block.text === 'string'
+      ))
+      .map(block => block.text)
+      .join('\n') ?? '';
+  return /<command-name>\s*\/compact\s*<\/command-name>/i.test(text);
+}
+
+function parseSDKTimestamp(value: string | undefined): number {
+  const timestamp = value ? new Date(value).getTime() : Number.NaN;
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
 }
 
 function isRealUserInput(entry: SDKNativeMessage): boolean {
