@@ -1095,8 +1095,12 @@ export class MessageRenderer {
         }
       }
 
-      // Process vault links only when the source can contain wikilinks or @mentions.
-      if (processedMarkdown.includes('[[') || processedMarkdown.includes('@')) {
+      // Process vault links only when the source can contain file references.
+      if (
+        processedMarkdown.includes('[[')
+        || processedMarkdown.includes('@')
+        || processedMarkdown.includes(':codex-file-citation')
+      ) {
         processFileLinks(this.app, el);
       }
     } catch {
