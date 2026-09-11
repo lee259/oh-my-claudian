@@ -542,6 +542,21 @@ export class InputController {
       ));
       didEnqueueToSdk = result.accepted;
       planCompleted = result.planCompleted;
+      if (isCompact && result.status === 'completed') {
+        const compactMessage = this.activeStreamingAssistantMessage ?? assistantMsg;
+        const hasCompactBoundary = compactMessage.contentBlocks?.some(
+          block => block.type === 'context_compacted',
+        ) === true;
+        const hasCompactOutput = compactMessage.content.trim().length > 0
+          || this.deps.state.currentTextContent.trim().length > 0
+          || (compactMessage.toolCalls?.length ?? 0) > 0;
+        if (!hasCompactBoundary && !hasCompactOutput) {
+          hadExecutionError = true;
+          await streamController.appendText(
+            '\n\n**Error:** Compaction finished without a confirmation. Please try again.',
+          );
+        }
+      }
       shouldReportReviewableSettlement = result.status === 'completed'
         || (result.status === 'error' && result.accepted);
       if (shouldReportReviewableSettlement) {
