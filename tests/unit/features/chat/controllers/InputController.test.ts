@@ -274,6 +274,55 @@ describe('InputController coordinator execution', () => {
     expect(fixture.deps.conversationController.save).toHaveBeenCalledTimes(2);
   });
 
+  it('reports a completed compact turn that has no compaction confirmation', async () => {
+    const fixture = createFixture();
+    fixture.input.value = '/compact';
+
+    await fixture.controller.sendMessage();
+
+    expect(fixture.deps.streamController.appendText).toHaveBeenCalledWith(
+      '\n\n**Error:** Compaction finished without a confirmation. Please try again.',
+    );
+  });
+
+  it('does not report an error when compact emits its confirmation block', async () => {
+    const fixture = createFixture();
+    fixture.coordinator.execute.mockImplementationOnce(async (submission: ChatTurnSubmission) => {
+      submission.messages?.assistant.contentBlocks?.push({ type: 'context_compacted' });
+      return {
+        accepted: true,
+        planCompleted: false,
+        status: 'completed',
+      };
+    });
+    fixture.input.value = '/compact';
+
+    await fixture.controller.sendMessage();
+
+    expect(fixture.deps.streamController.appendText).not.toHaveBeenCalledWith(
+      '\n\n**Error:** Compaction finished without a confirmation. Please try again.',
+    );
+  });
+
+  it('does not report an error when compact has streamed assistant output', async () => {
+    const fixture = createFixture();
+    fixture.coordinator.execute.mockImplementationOnce(async () => {
+      fixture.state.currentTextContent = 'Provider summary';
+      return {
+        accepted: true,
+        planCompleted: false,
+        status: 'completed',
+      };
+    });
+    fixture.input.value = '/compact';
+
+    await fixture.controller.sendMessage();
+
+    expect(fixture.deps.streamController.appendText).not.toHaveBeenCalledWith(
+      '\n\n**Error:** Compaction finished without a confirmation. Please try again.',
+    );
+  });
+
   it('notifies composer observers after clearing a sent message', async () => {
     const fixture = createFixture();
     fixture.input.value = '@notes/plan.md review this';
