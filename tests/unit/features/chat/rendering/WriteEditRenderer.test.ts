@@ -285,6 +285,41 @@ describe('WriteEditRenderer', () => {
       expect(block.hasClass('error')).toBe(true);
     });
 
+    it('defers completed diff content until the card is expanded', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        status: 'completed',
+        diffData: createDiffData(),
+      });
+
+      const block = renderStoredWriteEdit(parentEl, toolCall);
+      const content = block.querySelector('.claudian-write-edit-content');
+      const header = block.querySelector('.claudian-write-edit-header') as HTMLElement;
+
+      expect(content?.children).toHaveLength(0);
+      header.click();
+      expect(content?.querySelector('.claudian-diff-text')).toBeDefined();
+    });
+
+    it('renders stored diff content immediately when requested expanded', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        status: 'completed',
+        diffData: createDiffData(),
+      });
+
+      const block = renderStoredWriteEdit(parentEl, toolCall, { initiallyExpanded: true });
+      expect(block.querySelector('.claudian-diff-text')).toBeDefined();
+    });
+
+    it('keeps running stored edit content eager', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({ status: 'running' });
+
+      const block = renderStoredWriteEdit(parentEl, toolCall);
+      expect(block.querySelector('.claudian-write-edit-content')?.children).toHaveLength(1);
+    });
+
     it('should render diff stats from stored diffData', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
