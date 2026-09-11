@@ -1603,6 +1603,19 @@ describe('MessageRenderer', () => {
     expect(processFileLinks).not.toHaveBeenCalled();
   });
 
+  it('renderContent post-processes Codex file citations', async () => {
+    const { processFileLinks } = await import('@/utils/fileLink');
+    const { renderer } = createRenderer();
+    const el = createMockEl();
+
+    await renderer.renderContent(
+      el,
+      'Source :codex-file-citation{path="notes/Chapter-2.pdf" purpose="source"}'
+    );
+
+    expect(processFileLinks).toHaveBeenCalledWith(expect.anything(), el);
+  });
+
   it('renderContent escapes math delimiters only when requested for streaming', async () => {
     const { MarkdownRenderer } = await import('obsidian');
     const { renderer } = createRenderer();

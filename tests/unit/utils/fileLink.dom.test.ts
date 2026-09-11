@@ -3,7 +3,7 @@
  */
 import { processFileLinks } from '@/utils/fileLink';
 
-function createMockApp(existingFiles: string[]) {
+function createMockApp(existingFiles: string[], basePath?: string) {
   const fileSet = new Set(existingFiles.map(f => f.toLowerCase()));
 
   return {
@@ -20,11 +20,48 @@ function createMockApp(existingFiles: string[]) {
         }
         return null;
       }),
+      ...(basePath ? { adapter: { basePath } } : {}),
     },
   } as any;
 }
 
 describe('processFileLinks', () => {
+  it('converts Codex file citations into vault links with PDF page anchors', () => {
+    const app = createMockApp(['notes/Chapter-2.pdf'], '/vault');
+    const container = document.createElement('div');
+    container.textContent = 'See :codex-file-citation{path="/vault/notes/Chapter-2.pdf" page_number="4" purpose="source"}.';
+
+    processFileLinks(app, container);
+
+    const link = container.querySelector('a.claudian-file-link');
+    expect(link?.textContent).toBe('notes/Chapter-2.pdf');
+    expect(link?.getAttribute('data-href')).toBe('notes/Chapter-2.pdf#page=4');
+    expect(container.textContent).toBe('See notes/Chapter-2.pdf.');
+  });
+
+  it('supports the legacy bracketed Codex citation syntax', () => {
+    const app = createMockApp(['notes/Chapter-2.pdf']);
+    const container = document.createElement('div');
+    container.textContent = 'Source :codex-file-citation[codex-file-citation]{path=notes/Chapter-2.pdf page_number=2}.';
+
+    processFileLinks(app, container);
+
+    expect(container.querySelector('a.claudian-file-link')?.getAttribute('data-href'))
+      .toBe('notes/Chapter-2.pdf#page=2');
+    expect(container.textContent).toBe('Source notes/Chapter-2.pdf.');
+  });
+
+  it('removes unresolved Codex citations instead of leaking the directive', () => {
+    const app = createMockApp([], '/vault');
+    const container = document.createElement('div');
+    container.textContent = 'Source :codex-file-citation{path="/other/missing.pdf" purpose="source"}.';
+
+    processFileLinks(app, container);
+
+    expect(container.querySelector('a.claudian-file-link')).toBeNull();
+    expect(container.textContent).toBe('Source .');
+  });
+
   it('converts existing @ file mentions into Obsidian internal links', () => {
     const app = createMockApp(['notes/plan.md']);
     const container = document.createElement('div');

@@ -8,6 +8,7 @@
 import type { App, Component } from 'obsidian';
 
 import { getVaultFileByPath } from './obsidianCompat';
+import { getVaultPath, normalizePathForVault } from './path';
 export { stripFileLineRange } from './FileReference';
 
 /**
@@ -31,6 +32,121 @@ function createWikilinkPattern(): RegExp {
 
 function createAtMentionPattern(): RegExp {
   return new RegExp(AT_MENTION_PATTERN_SOURCE, 'g');
+}
+
+const CODEX_FILE_CITATION_PATTERN = /:codex-file-citation(?:\[[^\]]*\])?\{((?:[^{}"']|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*)\}/gu;
+const CODEX_FILE_CITATION_ATTRIBUTE_PATTERN = /([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([^\s]+))/gu;
+
+interface CodexFileCitation {
+  fullMatch: string;
+  index: number;
+  path: string;
+  pageNumber?: number;
+}
+
+function decodeCitationAttribute(value: string): string {
+  return value.replace(/\\([\\"'])/g, '$1');
+}
+
+function parseCodexFileCitation(
+  fullMatch: string,
+  attributesText: string,
+  index: number,
+): CodexFileCitation | null {
+  const attributes = new Map<string, string>();
+  CODEX_FILE_CITATION_ATTRIBUTE_PATTERN.lastIndex = 0;
+  let attributeMatch: RegExpExecArray | null;
+  while ((attributeMatch = CODEX_FILE_CITATION_ATTRIBUTE_PATTERN.exec(attributesText)) !== null) {
+    const key = attributeMatch[1];
+    const rawValue = attributeMatch[2] ?? attributeMatch[3] ?? attributeMatch[4];
+    if (key && rawValue !== undefined) {
+      attributes.set(key, decodeCitationAttribute(rawValue));
+    }
+  }
+
+  const path = attributes.get('path')?.trim();
+  if (!path) return null;
+
+  const rawPageNumber = attributes.get('page_number');
+  const pageNumber = rawPageNumber && /^[1-9][0-9]*$/u.test(rawPageNumber)
+    ? Number(rawPageNumber)
+    : undefined;
+
+  return {
+    fullMatch,
+    index,
+    path,
+    ...(pageNumber !== undefined && Number.isSafeInteger(pageNumber) ? { pageNumber } : {}),
+  };
+}
+
+function findCodexFileCitations(text: string): CodexFileCitation[] {
+  const matches: CodexFileCitation[] = [];
+  CODEX_FILE_CITATION_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = CODEX_FILE_CITATION_PATTERN.exec(text)) !== null) {
+    const citation = parseCodexFileCitation(match[0], match[1] ?? '', match.index);
+    matches.push(citation ?? {
+      fullMatch: match[0],
+      index: match.index,
+      path: '',
+    });
+  }
+  return matches;
+}
+
+function isVaultRelativePath(value: string): boolean {
+  return value !== '..'
+    && !value.startsWith('../')
+    && !value.startsWith('/')
+    && !/^[A-Za-z]:\//u.test(value);
+}
+
+function resolveCodexFileCitation(app: App, citation: CodexFileCitation): {
+  linkTarget: string;
+  displayText: string;
+} | null {
+  if (!citation.path) return null;
+
+  const normalizedPath = normalizePathForVault(citation.path, getVaultPath(app));
+  if (!normalizedPath || !isVaultRelativePath(normalizedPath)) return null;
+  if (!fileExistsInVault(app, normalizedPath)) return null;
+
+  const linkTarget = normalizedPath.toLowerCase().endsWith('.pdf') && citation.pageNumber !== undefined
+    ? `${normalizedPath}#page=${citation.pageNumber}`
+    : normalizedPath;
+  return { linkTarget, displayText: normalizedPath };
+}
+
+function processCodexCitationTextNode(app: App, node: Text): boolean {
+  const text = node.textContent;
+  if (!text || !text.includes(':codex-file-citation')) return false;
+
+  const matches = findCodexFileCitations(text);
+  if (matches.length === 0) return false;
+
+  const parent = node.parentElement;
+  if (!parent) return false;
+
+  const fragment = parent.ownerDocument.defaultView?.createFragment() ?? createFragment();
+  let currentIndex = 0;
+  for (const citation of matches) {
+    if (citation.index > currentIndex) {
+      fragment.appendChild(parent.ownerDocument.createTextNode(text.slice(currentIndex, citation.index)));
+    }
+
+    const resolved = resolveCodexFileCitation(app, citation);
+    if (resolved) {
+      fragment.appendChild(createWikilink(parent, resolved.linkTarget, resolved.displayText));
+    }
+    currentIndex = citation.index + citation.fullMatch.length;
+  }
+
+  if (currentIndex < text.length) {
+    fragment.appendChild(parent.ownerDocument.createTextNode(text.slice(currentIndex)));
+  }
+  node.parentNode?.replaceChild(fragment, node);
+  return true;
 }
 
 interface WikilinkMatch {
@@ -251,6 +367,33 @@ function processTextNode(app: App, node: Text): boolean {
  */
 export function processFileLinks(app: App, container: HTMLElement): void {
   if (!app || !container) return;
+
+  const citationWalker = container.ownerDocument.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        const tagName = parent.tagName.toUpperCase();
+        if (tagName === 'PRE' || tagName === 'CODE' || tagName === 'A') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (parent.closest('pre, code, a, .claudian-file-link, .internal-link')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    }
+  );
+  const citationTextNodes: Text[] = [];
+  let citationNode: Node | null;
+  while ((citationNode = citationWalker.nextNode())) {
+    citationTextNodes.push(citationNode as Text);
+  }
+  for (const textNode of citationTextNodes) {
+    processCodexCitationTextNode(app, textNode);
+  }
 
   // Repair resolved internal links that rendered as empty anchors.
   container.querySelectorAll('a.internal-link').forEach((linkEl) => {
