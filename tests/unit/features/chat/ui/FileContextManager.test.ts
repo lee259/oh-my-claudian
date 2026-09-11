@@ -754,6 +754,23 @@ describe('FileContextManager', () => {
   });
 
   describe('metadata-driven current note refresh', () => {
+    it.each(['pdf', 'canvas', 'base', 'png'])('auto-attaches a %s active file when metadata is unavailable', (extension) => {
+        const filePath = `slides/lecture.${extension}`;
+        const app = createMockApp({
+          files: [filePath],
+          activeFilePath: filePath,
+        });
+        const manager = new FileContextManager(
+          app, containerEl as any, inputEl,
+          createMockCallbacks({ excludedTags: ['private'] })
+        );
+
+        manager.autoAttachActiveFile();
+
+        expect(manager.getCurrentNotePath()).toBe(filePath);
+        manager.destroy();
+      });
+
     it('delays auto-attach until the active note metadata resolves', () => {
       const fileCacheByPath = new Map<string, any>();
       const app = createMockApp({

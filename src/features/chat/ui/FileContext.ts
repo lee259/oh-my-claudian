@@ -541,7 +541,11 @@ export class FileContextManager {
     if (excludedTags.length === 0) return 'not-excluded';
 
     const cache = this.app.metadataCache.getFileCache(file);
-    if (!cache) return 'unknown';
+    // Non-Markdown vault files do not carry note tags when Obsidian has no
+    // metadata cache entry for them. Keep Markdown fail-closed until its cache
+    // resolves, but allow PDFs, canvases, bases, and images to follow the
+    // active editor even when their cache is unavailable.
+    if (!cache) return file.extension.toLocaleLowerCase() === 'md' ? 'unknown' : 'not-excluded';
 
     const fileTags: string[] = [];
 
