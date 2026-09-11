@@ -204,12 +204,66 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const lines = toolEl.querySelectorAll('.claudian-tool-line');
 
       expect(lines).toHaveLength(3);
       for (const line of lines) {
         expect(line.hasClass('claudian-tool-line-wrap')).toBe(true);
       }
+    });
+
+    it('defers completed tool content until the card is expanded', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        status: 'completed',
+        result: 'stored output',
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall);
+      const content = toolEl.querySelector('.claudian-tool-content');
+      const header = toolEl.querySelector('.claudian-tool-header') as HTMLElement;
+
+      expect(content?.children).toHaveLength(0);
+      header.click();
+      expect(content?.querySelector('.claudian-tool-line')?.textContent).toBe('stored output');
+    });
+
+    it('renders stored content immediately when requested expanded', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        status: 'completed',
+        result: 'stored output',
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall, { initiallyExpanded: true });
+      expect(toolEl.querySelector('.claudian-tool-content')?.querySelector('.claudian-tool-line')?.textContent)
+        .toBe('stored output');
+    });
+
+    it('keeps running stored tool content eager', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        status: 'running',
+        result: 'partial output',
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall);
+      expect(toolEl.querySelector('.claudian-tool-content')?.querySelector('.claudian-tool-line')?.textContent)
+        .toBe('partial output');
+    });
+
+    it('keeps interactive question content eager after restore', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        name: 'AskUserQuestion',
+        status: 'completed',
+        input: { questions: [{ question: 'Color?' }] },
+        result: '"Color?"="Blue"',
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall);
+      expect(toolEl.querySelector('.claudian-ask-review-a-text')?.textContent).toBe('Blue');
     });
 
     it('should show error status icon', () => {
@@ -647,6 +701,7 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const lines = Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent);
 
       expect(lines).toContain('Query: obsidian plugin API');
@@ -667,6 +722,7 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const links = toolEl.querySelectorAll('.claudian-tool-link');
       const lines = Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent);
 
@@ -697,6 +753,7 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const headers = Array.from(toolEl.querySelectorAll('.claudian-tool-patch-header')).map(el => el.textContent);
       const statusEl = toolEl.querySelector('.claudian-tool-status');
       const diffTexts = Array.from(toolEl.querySelectorAll('.claudian-diff-text')).map(el => el.textContent);
@@ -783,6 +840,7 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const headers = Array.from(toolEl.querySelectorAll('.claudian-tool-patch-header')).map(el => el.textContent);
       const statusEl = toolEl.querySelector('.claudian-tool-status');
       const diffTexts = Array.from(toolEl.querySelectorAll('.claudian-diff-text')).map(el => el.textContent);
@@ -901,6 +959,7 @@ describe('ToolCallRenderer', () => {
       });
 
       const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
       const lines = Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(el => el.textContent);
 
       expect(lines).toContain('src/main.ts');
