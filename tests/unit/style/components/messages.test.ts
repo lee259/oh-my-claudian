@@ -10,11 +10,11 @@ describe('Message styles', () => {
     );
   });
 
-  it('uses an Oh My Claudian-owned brand variable for user bubbles', () => {
+  it('applies the Oh My Claudian brand surface to user message content only', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     expect(css).toMatch(
-      /\.oh-my-claudian-root \.claudian-message-user\s*\{[\s\S]*?background:\s*rgba\(var\(--oh-my-claudian-brand-rgb\), 0\.16\);/,
+      /\.oh-my-claudian-root \.claudian-message-user > \.claudian-message-content\s*\{[\s\S]*?background:\s*rgba\(var\(--oh-my-claudian-brand-rgb\), 0\.16\);/,
     );
   });
 
@@ -38,5 +38,19 @@ describe('Message styles', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     expect(css).toMatch(/body\.mod-windows \.claudian-message-assistant\s*{[^}]*content-visibility:\s*visible;[^}]*contain-intrinsic-size:\s*none;/);
+  });
+
+  it('keeps user action rows out of bubble sizing and reveals them on hover', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding:\s*0;/);
+    expect(css).toMatch(/\.claudian-message-user > \.claudian-message-content\s*{[^}]*padding:\s*10px 14px;/);
+    expect(css).toMatch(/\.claudian-user-msg-actions\s*{[^}]*display:\s*flex;[^}]*margin-top:\s*8px;/);
+    expect(css).toMatch(/\.claudian-message-user > \.claudian-message-actions\s*{[^}]*position:\s*absolute;[^}]*inset-inline-end:\s*0;/);
+    expect(css).toMatch(/\.claudian-message-user::after\s*{[^}]*height:\s*8px;/);
+    expect(css).toMatch(/\.claudian-message-actions\s*{[^}]*pointer-events:\s*none;/);
+    expect(css).toMatch(
+      /\.claudian-message:hover > \.claudian-message-actions,[\s\S]*?\.claudian-message:focus-within > \.claudian-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/,
+    );
   });
 });

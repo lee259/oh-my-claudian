@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "Konversation verzweigen",
+      "confirmMessage": "Diese Konversation ab hier verzweigen? Dadurch wird eine neue Konversation erstellt.",
+      "confirmAction": "Konversation verzweigen",
       "chooseTarget": "Konversation verzweigen",
       "targetNewTab": "Neuer Tab",
       "targetCurrentTab": "Aktueller Tab",
