@@ -376,7 +376,7 @@ button.claudian-completed-work-header:focus-visible {
 }
 
 /* Message actions share one hover-revealed row below the content bubble. */
-.claudian-user-msg-actions {
+.claudian-message-action-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -385,7 +385,7 @@ button.claudian-completed-work-header:focus-visible {
   transition: opacity 0.15s;
 }
 
-.claudian-message-user > .claudian-user-msg-actions {
+.claudian-message-user > .claudian-message-action-row {
   justify-content: flex-end;
 }
 
@@ -432,7 +432,7 @@ button.claudian-completed-work-header:focus-visible {
   z-index: auto;
 }
 
-.claudian-user-msg-actions button {
+.claudian-message-action-row button {
   appearance: none;
   width: auto;
   min-width: 0;
@@ -451,14 +451,14 @@ button.claudian-completed-work-header:focus-visible {
   transition: color 0.15s;
 }
 
-.claudian-user-msg-actions button svg {
+.claudian-message-action-row button svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-user-msg-actions button:hover,
-.claudian-user-msg-actions button:focus-visible,
-.claudian-user-msg-actions button:active {
+.claudian-message-action-row button:hover,
+.claudian-message-action-row button:focus-visible,
+.claudian-message-action-row button:active {
   padding: 0;
   border: 0;
   background: transparent;
@@ -466,12 +466,12 @@ button.claudian-completed-work-header:focus-visible {
   color: var(--text-normal);
 }
 
-.claudian-user-msg-actions button:focus-visible {
+.claudian-message-action-row button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
-.claudian-user-msg-actions button:disabled {
+.claudian-message-action-row button:disabled {
   padding: 0;
   border: 0;
   background: transparent;
@@ -480,7 +480,7 @@ button.claudian-completed-work-header:focus-visible {
   cursor: default;
 }
 
-.claudian-user-msg-actions button.copied {
+.claudian-message-action-row button.copied {
   color: var(--text-accent);
   font-size: 11px;
   font-family: var(--font-monospace);
