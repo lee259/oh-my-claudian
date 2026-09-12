@@ -306,7 +306,11 @@ export class MessageRenderer {
   renderMessagesInto(
     containerEl: HTMLElement,
     messages: ChatMessage[],
-    options?: { suppressConversationActions?: boolean },
+    options?: {
+      suppressConversationActions?: boolean;
+      /** Keep transcript steps visible instead of wrapping every turn in a completed disclosure. */
+      collapseCompletedWork?: boolean;
+    },
   ): void {
     const mainMessagesEl = this.messagesEl;
     const previousSuppress = this.suppressConversationActions;
@@ -315,7 +319,9 @@ export class MessageRenderer {
     try {
       containerEl.empty();
       for (let index = 0; index < messages.length; index++) {
-        this.renderStoredMessage(messages[index], messages, index);
+        this.renderStoredMessage(messages[index], messages, index, {
+          collapseCompletedWork: options?.collapseCompletedWork ?? true,
+        });
       }
     } finally {
       this.messagesEl = mainMessagesEl;
@@ -323,7 +329,12 @@ export class MessageRenderer {
     }
   }
 
-  renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
+  renderStoredMessage(
+    msg: ChatMessage,
+    allMessages?: ChatMessage[],
+    index?: number,
+    options?: { collapseCompletedWork?: boolean },
+  ): void {
     // Bare interrupt marker: user-role interrupts (Claude bracket markers) always render
     // as a standalone indicator. Assistant-role interrupts (Codex partial responses)
     // only use the bare marker when there's no content to preserve.
@@ -392,7 +403,7 @@ export class MessageRenderer {
     if (shouldRenderTimestamp) {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
-    if (msg.role === 'assistant') {
+    if (msg.role === 'assistant' && options?.collapseCompletedWork !== false) {
       this.finalizeCompletedWork(msg);
     }
   }
