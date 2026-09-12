@@ -45,7 +45,7 @@ describe('Message styles', () => {
 
     expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding:\s*0;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-content\s*{[^}]*padding:\s*10px 14px;/);
-    expect(css).toMatch(/\.claudian-user-msg-actions\s*{[^}]*display:\s*flex;[^}]*margin-top:\s*8px;/);
+    expect(css).toMatch(/\.claudian-message-action-row\s*{[^}]*display:\s*flex;[^}]*margin-top:\s*8px;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-actions\s*{[^}]*position:\s*absolute;[^}]*inset-inline-end:\s*0;/);
     expect(css).toMatch(/\.claudian-message-user::after\s*{[^}]*height:\s*8px;/);
     expect(css).toMatch(/\.claudian-message-actions\s*{[^}]*pointer-events:\s*none;/);
