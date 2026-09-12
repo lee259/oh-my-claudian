@@ -46,6 +46,7 @@ import {
   restoreDisplayOnlyCodeFences,
 } from './DisplayOnlyCodeFences';
 import { renderMermaidDiagram } from './MermaidRenderer';
+import { getOrCreateMessageActionRow } from './MessageActionRow';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
 import {
   renderStoredAsyncSubagent,
@@ -241,7 +242,7 @@ export class MessageRenderer {
       msgEl.removeAttribute('data-toc-title');
     }
 
-    const toolbar = msgEl.querySelector<HTMLElement>('.claudian-user-msg-actions');
+    const toolbar = msgEl.querySelector<HTMLElement>('.claudian-message-action-row');
     if (toolbar) {
       toolbar.querySelectorAll('.claudian-user-msg-copy-btn').forEach((el) => el.remove());
     }
@@ -1242,9 +1243,7 @@ export class MessageRenderer {
   }
 
   private getOrCreateActionsToolbar(msgEl: HTMLElement): HTMLElement {
-    const existing = msgEl.querySelector<HTMLElement>('.claudian-user-msg-actions');
-    if (existing) return existing;
-    return msgEl.createDiv({ cls: 'claudian-user-msg-actions claudian-message-actions' });
+    return getOrCreateMessageActionRow(msgEl);
   }
 
   private addUserCopyButton(msgEl: HTMLElement, content: string): void {
