@@ -53,17 +53,26 @@
 
 .claudian-message-user {
   position: relative;
-  background: rgba(var(--claudian-brand-rgb), 0.16);
-  border: 1px solid rgba(var(--claudian-brand-rgb), 0.22);
+  padding: 0;
+  border: 0;
+  background: transparent;
   align-self: flex-end;
-  margin-block-end: 16px;
+  margin-block-end: 36px;
   max-width: min(80%, 48ch);
-  border-end-end-radius: 6px;
 }
 
-.oh-my-claudian-root .claudian-message-user {
-  background: rgba(var(--oh-my-claudian-brand-rgb), 0.16);
+.claudian-message-user > .claudian-message-content {
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--claudian-brand-rgb), 0.22);
+  background: rgba(var(--claudian-brand-rgb), 0.16);
+  border-radius: 8px;
+  border-end-end-radius: 4px;
+}
+
+.oh-my-claudian-root .claudian-message-user > .claudian-message-content {
   border-color: rgba(var(--oh-my-claudian-brand-rgb), 0.22);
+  background: rgba(var(--oh-my-claudian-brand-rgb), 0.16);
 }
 
 .claudian-message-user ol > li::marker {
@@ -102,26 +111,17 @@ body.mod-windows .claudian-message-assistant {
 }
 
 .claudian-message-timestamp {
-  position: absolute;
+  margin-top: 6px;
   color: var(--text-faint);
   font-size: 11px;
-  line-height: 1;
-  opacity: 0.85;
-  pointer-events: none;
+  line-height: 1.2;
   user-select: none;
+  -webkit-user-select: none;
   white-space: nowrap;
 }
 
 .claudian-message-user .claudian-message-timestamp {
-  inset-block-end: -16px;
-  inset-inline-end: 0;
-}
-
-.claudian-message-assistant .claudian-message-timestamp {
-  position: static;
-  display: block;
-  margin-top: 10px;
-  text-align: start;
+  text-align: end;
 }
 
 .claudian-interrupted {
@@ -375,21 +375,61 @@ button.claudian-completed-work-header:focus-visible {
   font-style: italic;
 }
 
-/* Action buttons toolbar below user messages */
+/* Message actions share one hover-revealed row below the content bubble. */
 .claudian-user-msg-actions {
-  position: absolute;
-  bottom: -20px;
-  right: 0;
   display: flex;
+  align-items: center;
   gap: 12px;
+  margin-top: 8px;
   opacity: 0;
   transition: opacity 0.15s;
-  z-index: 1;
 }
 
-.claudian-message-user:hover .claudian-user-msg-actions,
-.claudian-user-msg-actions:focus-within {
+.claudian-message-user > .claudian-user-msg-actions {
+  justify-content: flex-end;
+}
+
+.claudian-message-user > .claudian-message-actions {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-end: 0;
+  width: max-content;
+  margin: 0;
+}
+
+/* Bridge the visual gap so moving from a user bubble to its actions does not
+ * clear :hover before the pointer reaches the toolbar. */
+.claudian-message-user::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline: 0;
+  height: 8px;
+}
+
+.claudian-message-actions {
+  pointer-events: none;
+}
+
+.claudian-message:hover > .claudian-message-actions,
+.claudian-message:focus-within > .claudian-message-actions {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.claudian-message-assistant > .claudian-message-actions {
+  width: fit-content;
+}
+
+.claudian-message-actions .claudian-message-timestamp {
+  margin-top: 0;
+  margin-inline-start: auto;
+}
+
+.claudian-message-actions button.claudian-text-copy-btn {
+  position: static;
+  opacity: 1;
+  z-index: auto;
 }
 
 .claudian-user-msg-actions button {
@@ -444,6 +484,10 @@ button.claudian-completed-work-header:focus-visible {
   color: var(--text-accent);
   font-size: 11px;
   font-family: var(--font-monospace);
+}
+
+.claudian-message-actions:empty {
+  display: none;
 }
 
 /* Compact boundary indicator */

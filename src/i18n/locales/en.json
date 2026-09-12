@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "Fork conversation",
+      "confirmMessage": "Fork this conversation from here? This creates a new conversation.",
+      "confirmAction": "Fork conversation",
       "chooseTarget": "Fork conversation",
       "targetNewTab": "New tab",
       "targetCurrentTab": "Current tab",

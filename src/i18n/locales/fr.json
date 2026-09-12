@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "Bifurquer la conversation",
+      "confirmMessage": "Bifurquer cette conversation à partir d’ici ? Une nouvelle conversation sera créée.",
+      "confirmAction": "Bifurquer la conversation",
       "chooseTarget": "Bifurquer la conversation",
       "targetNewTab": "Nouvel onglet",
       "targetCurrentTab": "Onglet actuel",

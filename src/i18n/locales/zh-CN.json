@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "分叉对话",
+      "confirmMessage": "要从此消息分叉对话吗？这会创建一个新的对话。",
+      "confirmAction": "分叉对话",
       "chooseTarget": "分叉对话",
       "targetNewTab": "新标签页",
       "targetCurrentTab": "当前标签页",

@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "会話を分岐",
+      "confirmMessage": "ここから会話を分岐しますか？新しい会話が作成されます。",
+      "confirmAction": "会話を分岐",
       "chooseTarget": "会話を分岐",
       "targetNewTab": "新しいタブ",
       "targetCurrentTab": "現在のタブ",

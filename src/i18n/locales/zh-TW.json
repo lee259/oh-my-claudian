@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "分叉對話",
+      "confirmMessage": "要從此訊息分叉對話嗎？這會建立一個新的對話。",
+      "confirmAction": "分叉對話",
       "chooseTarget": "分叉對話",
       "targetNewTab": "新分頁",
       "targetCurrentTab": "目前分頁",

@@ -21,6 +21,7 @@ import type {
   ToolCallInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -406,9 +407,11 @@ export class MessageRenderer {
 
     const msgEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
     const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
-    if (!contentEl) return;
+    if (!msgEl || !contentEl) return;
     const activeStatuses = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status');
     this.removeCompletedWorkStatuses(activeStatuses);
+    contentEl.querySelector<HTMLElement>('.claudian-response-footer')?.remove();
+    contentEl.querySelectorAll('.claudian-response-footer').forEach((footer) => footer.remove());
     const existingWork = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work');
     if (msg.isInterrupt) return;
     if (existingWork.length > 0) {
@@ -417,9 +420,48 @@ export class MessageRenderer {
 
     const children = Array.from(contentEl.children) as HTMLElement[];
     const answerStart = this.findFinalAnswerStart(children);
-    if (answerStart <= 0) return;
+    if (answerStart > 0) {
+      this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+    }
+    this.syncAssistantMessageActions(msg, msgEl, contentEl);
+  }
 
-    this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+  /**
+   * Completed assistant messages expose one stable action row. This avoids
+   * repeating a copy affordance for every rendered text block in a long turn.
+   */
+  private syncAssistantMessageActions(
+    msg: ChatMessage,
+    msgEl: HTMLElement,
+    contentEl: HTMLElement,
+  ): void {
+    const copyContent = this.getAssistantCopyContent(msg);
+    if (!copyContent) return;
+
+    contentEl.querySelectorAll('.claudian-text-copy-btn').forEach((button) => button.remove());
+    const toolbar = this.getOrCreateActionsToolbar(msgEl);
+    toolbar.querySelector('.claudian-text-copy-btn')?.remove();
+    this.addTextCopyButton(toolbar, copyContent);
+
+    if (this.forkCallback && msg.assistantMessageId && !toolbar.querySelector('.claudian-message-fork-btn')) {
+      this.addForkButton(msgEl, msg.id);
+    }
+
+    const copyButton = toolbar.querySelector('.claudian-text-copy-btn');
+    const forkButton = toolbar.querySelector('.claudian-message-fork-btn');
+    const timestamp = toolbar.querySelector('.claudian-message-timestamp');
+    for (const action of [copyButton, forkButton, timestamp]) {
+      if (action) toolbar.appendChild(action);
+    }
+  }
+
+  private getAssistantCopyContent(msg: ChatMessage): string {
+    const textBlocks = msg.contentBlocks
+      ?.filter((block): block is Extract<typeof block, { type: 'text' }> => block.type === 'text')
+      .map((block) => stripLegacyInterruptIndicator(block.content).content.trim())
+      .filter(Boolean);
+    if (textBlocks?.length) return textBlocks.join('\n\n');
+    return stripLegacyInterruptIndicator(msg.content).content.trim();
   }
 
   /**
@@ -582,7 +624,9 @@ export class MessageRenderer {
       return;
     }
 
-    msgEl.createSpan({
+    const toolbar = this.getOrCreateActionsToolbar(msgEl);
+    toolbar.querySelector('.claudian-message-timestamp')?.remove();
+    toolbar.createSpan({
       cls: 'claudian-message-timestamp',
       text: new Date(timestamp).toLocaleTimeString([], {
         hour: '2-digit',
@@ -1200,7 +1244,7 @@ export class MessageRenderer {
   private getOrCreateActionsToolbar(msgEl: HTMLElement): HTMLElement {
     const existing = msgEl.querySelector<HTMLElement>('.claudian-user-msg-actions');
     if (existing) return existing;
-    return msgEl.createDiv({ cls: 'claudian-user-msg-actions' });
+    return msgEl.createDiv({ cls: 'claudian-user-msg-actions claudian-message-actions' });
   }
 
   private addUserCopyButton(msgEl: HTMLElement, content: string): void {
@@ -1305,6 +1349,12 @@ export class MessageRenderer {
       e.stopPropagation();
       runRendererAction(async () => {
         try {
+          const confirmed = await confirm(
+            this.app,
+            t('chat.fork.confirmMessage'),
+            t('chat.fork.confirmAction'),
+          );
+          if (!confirmed) return;
           await this.forkCallback?.(messageId);
         } catch (err) {
           new Notice(t('chat.fork.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));
