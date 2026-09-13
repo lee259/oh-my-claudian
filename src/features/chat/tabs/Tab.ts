@@ -74,6 +74,7 @@ import { ScopePreview } from '../ui/ScopePreview';
 import { StatusPanel } from '../ui/StatusPanel';
 import { installTextareaSizing } from '../ui/textareaSizing';
 import { recalculateUsageForModel } from '../utils/usageInfo';
+import { InputHistoryController } from './InputHistoryController';
 import { getTabProviderId } from './providerResolution';
 import { initializeTabPresentationControllers } from './TabControllerFactory';
 import { createTabConversationController } from './TabConversationControllerFactory';
@@ -1953,6 +1954,10 @@ export const initializeTabControllers = initializeTabRuntimeControllers;
  */
 export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   const { dom, ui, state, controllers } = tab;
+  const inputHistoryController = new InputHistoryController({
+    getMessages: () => state.messages,
+    getConversationId: () => state.currentConversationId,
+  });
 
   let wasBangBashActive = ui.bangBashModeManager?.isActive() ?? false;
   const syncBangBashSuppression = (): void => {
@@ -2002,6 +2007,10 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       return;
     }
 
+    if (inputHistoryController.handleKeydown(e, dom.inputEl)) {
+      return;
+    }
+
     // Check !e.isComposing for IME support (Chinese, Japanese, Korean, etc.)
     if (e.key === 'Escape' && !e.isComposing && state.isStreaming) {
       e.preventDefault();
@@ -2027,6 +2036,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   dom.eventCleanups.push(() => dom.inputEl.removeEventListener('keydown', keydownHandler));
 
   const inputHandler = () => {
+    inputHistoryController.handleInput();
     commitProvisionalTab(tab);
     if (!ui.bangBashModeManager?.isActive()) {
       ui.fileContextManager?.handleInputChange();
