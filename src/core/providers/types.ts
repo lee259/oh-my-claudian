@@ -207,6 +207,8 @@ export interface ProviderUIOption {
   value: string;
   label: string;
   description?: string;
+  /** Provider that owns this option when options from multiple providers are mixed. */
+  providerId?: ProviderId;
   /** Optional group label for visual separators in dropdowns. */
   group?: string;
   /** Per-option icon override (e.g. when mixing providers in a single dropdown). */

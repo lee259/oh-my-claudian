@@ -88,6 +88,10 @@
       "label": "Завершено",
       "seconds": "Заняло {seconds} с",
       "minutes": "Заняло {minutes} мин {seconds} с"
+    },
+    "welcome": {
+      "availableCapabilities": "Доступно: {capabilities}",
+      "unavailableCapabilities": "Недоступно: {capabilities}"
     }
   },
   "settings": {

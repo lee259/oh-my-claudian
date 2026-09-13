@@ -364,7 +364,7 @@ describe('Tab provider execution ownership', () => {
     ));
     getEnabledProviderIds.mockReturnValue(['claude', 'codex']);
     resolveProviderForModel.mockImplementation((model: string) => (
-      model.startsWith('codex-') ? 'codex' : 'claude'
+      model.startsWith('codex-') ? 'pi' : 'claude'
     ));
     let rejectCodexSwitch!: (error: Error) => void;
     const codexSwitch = new Promise<void>((_resolve, reject) => {
@@ -374,6 +374,8 @@ describe('Tab provider execution ownership', () => {
     try {
       const plugin = createPlugin();
       const tab = createTab({ plugin, containerEl: createMockEl() as any });
+      const initializeWelcome = jest.fn();
+      tab.controllers.conversationController = { initializeWelcome } as any;
       initializeTabUI(tab, plugin, {
         onProviderChanged: () => codexSwitch,
       });
@@ -393,6 +395,7 @@ describe('Tab provider execution ownership', () => {
 
       expect(tab.providerId).toBe('codex');
       expect(tab.draftModel).toBe('codex-latest');
+      expect(initializeWelcome).toHaveBeenCalledTimes(1);
 
       rejectCodexSwitch(new Error('Codex initialization failed'));
       await new Promise<void>(resolve => setImmediate(resolve));

@@ -88,6 +88,10 @@
       "label": "Terminé",
       "seconds": "Durée : {seconds} s",
       "minutes": "Durée : {minutes} min {seconds} s"
+    },
+    "welcome": {
+      "availableCapabilities": "Disponible : {capabilities}",
+      "unavailableCapabilities": "Indisponible : {capabilities}"
     }
   },
   "settings": {

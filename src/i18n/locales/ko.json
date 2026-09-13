@@ -88,6 +88,10 @@
       "label": "완료됨",
       "seconds": "{seconds}초 소요",
       "minutes": "{minutes}분 {seconds}초 소요"
+    },
+    "welcome": {
+      "availableCapabilities": "사용 가능: {capabilities}",
+      "unavailableCapabilities": "사용할 수 없음: {capabilities}"
     }
   },
   "settings": {

@@ -2,6 +2,7 @@ import type { App, Component } from 'obsidian';
 import { MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
 import type { ChatRewindMode } from '../../../core/execution';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
   type ProviderCapabilities,
@@ -54,7 +55,7 @@ import {
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
-import { createWelcomeElement } from './WelcomeRenderer';
+import { createWelcomeElement, type WelcomeProviderSummary } from './WelcomeRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
@@ -141,6 +142,14 @@ export class MessageRenderer {
 
   private getSubagentAdapter(toolName?: string) {
     return resolveSubagentAdapter(this.getCapabilities().providerId, toolName);
+  }
+
+  private getWelcomeProviderSummary(): WelcomeProviderSummary {
+    const capabilities = this.getCapabilities();
+    return {
+      displayName: ProviderRegistry.getProviderDisplayName(capabilities.providerId),
+      capabilities,
+    };
   }
 
   private shouldExpandFileEditsByDefault(): boolean {
@@ -287,7 +296,11 @@ export class MessageRenderer {
     this.liveMessageEls.clear();
 
     // Recreate welcome element after clearing
-    const newWelcomeEl = createWelcomeElement(this.messagesEl, getGreeting());
+    const newWelcomeEl = createWelcomeElement(
+      this.messagesEl,
+      getGreeting(),
+      this.getWelcomeProviderSummary(),
+    );
 
     for (let i = 0; i < messages.length; i++) {
       this.renderStoredMessage(messages[i], messages, i);
