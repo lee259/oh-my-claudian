@@ -4719,6 +4719,7 @@ describe('ConversationController rich transcript rendering', () => {
     expect(renderMessagesInto).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ content: '**bold** result' })]),
+      { collapseCompletedWork: false },
     );
     const root = messagesEl.querySelector('.claudian-subagent-transcript');
     expect(root).toBeTruthy();

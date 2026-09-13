@@ -332,7 +332,12 @@ export class ConversationController {
     if (typeof renderer.renderMessagesInto !== 'function') return;
 
     panel.setMessageRenderer((containerEl, messages) => {
-      renderer.renderMessagesInto(containerEl, messages);
+      renderer.renderMessagesInto(containerEl, messages, {
+        // A subagent transcript often contains many short tool-only turns.
+        // Collapsing each one produces a wall of indistinguishable
+        // "Completed" disclosures instead of the actual running history.
+        collapseCompletedWork: false,
+      });
     });
   }
 

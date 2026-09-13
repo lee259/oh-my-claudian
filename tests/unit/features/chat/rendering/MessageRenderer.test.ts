@@ -2600,5 +2600,41 @@ describe('MessageRenderer', () => {
       renderer.renderStoredMessage(eligibleMessages()[0], eligibleMessages(), 0);
       expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
     });
+
+    it('keeps completed work expanded when rendering a subagent transcript', () => {
+      const messagesEl = createMockEl();
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        messagesEl,
+        jest.fn(),
+        jest.fn(),
+        mockCapabilities(),
+      );
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      const finalizeCompletedWork = jest.spyOn(renderer, 'finalizeCompletedWork');
+
+      const container = createMockEl();
+      renderer.renderMessagesInto(container, [{
+        id: 'subagent-turn-1',
+        role: 'assistant',
+        content: 'The search is complete.',
+        timestamp: 1,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'tool-1' },
+          { type: 'text', content: 'The search is complete.' },
+        ],
+        toolCalls: [{
+          id: 'tool-1',
+          name: 'Bash',
+          input: { command: 'rg --files' },
+          status: 'completed',
+          result: 'note.md',
+          isExpanded: false,
+        }],
+      }] as ChatMessage[], { collapseCompletedWork: false });
+
+      expect(finalizeCompletedWork).not.toHaveBeenCalled();
+    });
   });
 });
