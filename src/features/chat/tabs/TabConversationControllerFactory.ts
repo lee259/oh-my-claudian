@@ -83,6 +83,13 @@ export function createTabConversationController(
       getExecutionCoordinator: () => tab.executionCoordinator,
       ensureExecutionInitialized: options.ensureExecutionInitialized,
       getProviderId: options.getProviderId,
+      getWelcomeProviderSummary: () => {
+        const providerId = getTabProviderId(tab, plugin);
+        return {
+          displayName: ProviderRegistry.getProviderDisplayName(providerId),
+          capabilities: ProviderRegistry.getCapabilities(providerId),
+        };
+      },
       getSelectedModel: options.getSelectedModel,
       getInitialUsage: (providerId: ProviderId, model: string) => ProviderRegistry
         .getChatUIConfig(providerId)

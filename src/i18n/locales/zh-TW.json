@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "分叉對話",
+      "confirmMessage": "要從此訊息分叉對話嗎？這會建立一個新的對話。",
+      "confirmAction": "分叉對話",
       "chooseTarget": "分叉對話",
       "targetNewTab": "新分頁",
       "targetCurrentTab": "目前分頁",
@@ -86,6 +88,10 @@
       "label": "已完成",
       "seconds": "耗時 {seconds} 秒",
       "minutes": "耗時 {minutes} 分 {seconds} 秒"
+    },
+    "welcome": {
+      "availableCapabilities": "可用：{capabilities}",
+      "unavailableCapabilities": "暫不可用：{capabilities}"
     }
   },
   "settings": {

@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "Bifurcar conversación",
+      "confirmMessage": "¿Bifurcar esta conversación desde aquí? Se creará una conversación nueva.",
+      "confirmAction": "Bifurcar conversación",
       "chooseTarget": "Bifurcar conversación",
       "targetNewTab": "Nueva pestaña",
       "targetCurrentTab": "Pestaña actual",
@@ -86,6 +88,10 @@
       "label": "Completado",
       "seconds": "Duró {seconds} s",
       "minutes": "Duró {minutes} min {seconds} s"
+    },
+    "welcome": {
+      "availableCapabilities": "Disponible: {capabilities}",
+      "unavailableCapabilities": "No disponible: {capabilities}"
     }
   },
   "settings": {

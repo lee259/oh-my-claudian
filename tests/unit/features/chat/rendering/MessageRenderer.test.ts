@@ -18,6 +18,7 @@ import { renderStoredAsyncSubagent, renderStoredSubagent } from '@/features/chat
 import { renderStoredThinkingBlock } from '@/features/chat/rendering/ThinkingBlockRenderer';
 import { renderStoredToolCall } from '@/features/chat/rendering/ToolCallRenderer';
 import { renderStoredWriteEdit } from '@/features/chat/rendering/WriteEditRenderer';
+import { confirm } from '@/shared/modals/ConfirmModal';
 
 jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
   renderStoredAsyncSubagent: jest.fn().mockReturnValue({ wrapperEl: {}, cleanup: jest.fn() }),
@@ -37,6 +38,9 @@ jest.mock('@/features/chat/rendering/WriteEditRenderer', () => ({
 }));
 jest.mock('@/features/chat/rendering/MermaidRenderer', () => ({
   renderMermaidDiagram: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('@/shared/modals/ConfirmModal', () => ({
+  confirm: jest.fn(),
 }));
 jest.mock('@/utils/imageEmbed', () => ({
   replaceImageEmbedsWithHtml: jest.fn().mockImplementation((md: string) => md),
@@ -75,6 +79,7 @@ function createRenderer(
   messagesEl?: any,
   providerId: 'claude' | 'codex' | 'grok' = 'claude',
   settings: Record<string, unknown> = {},
+  forkCallback?: (messageId: string) => Promise<void>,
 ) {
   const el = messagesEl ?? createMockEl();
   const comp = createMockComponent();
@@ -88,7 +93,7 @@ function createRenderer(
       comp as any,
       el,
       undefined,
-      undefined,
+      forkCallback,
       mockCapabilities(providerId),
     ),
     messagesEl: el,
@@ -104,7 +109,7 @@ describe('MessageRenderer', () => {
   describe('completed work', () => {
     it('collapses completed work while keeping the final answer visible', () => {
       const messagesEl = createMockEl();
-      const { renderer } = createRenderer(messagesEl);
+      const { renderer } = createRenderer(messagesEl, 'claude', {}, jest.fn());
       const messageEl = messagesEl.createDiv({
         cls: 'claudian-message claudian-message-assistant',
         attr: { 'data-message-id': 'assistant-1' },
@@ -118,6 +123,7 @@ describe('MessageRenderer', () => {
 
       renderer.finalizeCompletedWork({
         id: 'assistant-1', role: 'assistant', content: 'Final answer', timestamp: Date.now(), durationSeconds: 24,
+        assistantMessageId: 'provider-assistant-1',
         contentBlocks: [
           { type: 'thinking', content: 'Thinking' },
           { type: 'text', content: 'Final answer' },
@@ -134,6 +140,10 @@ describe('MessageRenderer', () => {
       expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(thinkingEl)).toBe(true);
       expect(contentEl.contains(answerEl)).toBe(true);
       expect(workEl?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+      const actions = messageEl.querySelector('.claudian-message-actions');
+      expect(actions?.querySelector('.claudian-text-copy-btn')).toBeTruthy();
+      expect(actions?.querySelector('.claudian-message-fork-btn')).toBeTruthy();
+      expect(contentEl.querySelector('.claudian-text-copy-btn')).toBeNull();
     });
 
     it('shows elapsed work without collapsing streaming content', () => {
@@ -712,6 +722,39 @@ describe('MessageRenderer', () => {
 
     expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
     expect(messagesEl.querySelector('.claudian-message-fork-btn')).toBeNull();
+  });
+
+  it('requires confirmation before forking a conversation', async () => {
+    const messagesEl = createMockEl();
+    const forkCallback = jest.fn().mockResolvedValue(undefined);
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      forkCallback,
+      mockCapabilities(),
+    );
+    const confirmMock = confirm as jest.Mock;
+    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    (renderer as any).addForkButton(messagesEl, 'message-1');
+    const button = messagesEl.querySelector('.claudian-message-fork-btn');
+    button!.dispatchEvent({ stopPropagation: jest.fn(), type: 'click' });
+    await Promise.resolve();
+
+    expect(confirmMock).toHaveBeenCalledWith(
+      {},
+      'Fork this conversation from here? This creates a new conversation.',
+      'Fork conversation',
+    );
+    expect(forkCallback).not.toHaveBeenCalled();
+
+    button!.dispatchEvent({ stopPropagation: jest.fn(), type: 'click' });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(forkCallback).toHaveBeenCalledWith('message-1');
   });
 
   // ============================================
@@ -2556,6 +2599,42 @@ describe('MessageRenderer', () => {
       renderer.renderMessagesInto(container, eligibleMessages());
       renderer.renderStoredMessage(eligibleMessages()[0], eligibleMessages(), 0);
       expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
+    });
+
+    it('keeps completed work expanded when rendering a subagent transcript', () => {
+      const messagesEl = createMockEl();
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        messagesEl,
+        jest.fn(),
+        jest.fn(),
+        mockCapabilities(),
+      );
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      const finalizeCompletedWork = jest.spyOn(renderer, 'finalizeCompletedWork');
+
+      const container = createMockEl();
+      renderer.renderMessagesInto(container, [{
+        id: 'subagent-turn-1',
+        role: 'assistant',
+        content: 'The search is complete.',
+        timestamp: 1,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'tool-1' },
+          { type: 'text', content: 'The search is complete.' },
+        ],
+        toolCalls: [{
+          id: 'tool-1',
+          name: 'Bash',
+          input: { command: 'rg --files' },
+          status: 'completed',
+          result: 'note.md',
+          isExpanded: false,
+        }],
+      }] as ChatMessage[], { collapseCompletedWork: false });
+
+      expect(finalizeCompletedWork).not.toHaveBeenCalled();
     });
   });
 });

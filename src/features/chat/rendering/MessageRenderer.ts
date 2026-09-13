@@ -2,6 +2,7 @@ import type { App, Component } from 'obsidian';
 import { MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
 import type { ChatRewindMode } from '../../../core/execution';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
   type ProviderCapabilities,
@@ -21,6 +22,7 @@ import type {
   ToolCallInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -45,6 +47,7 @@ import {
   restoreDisplayOnlyCodeFences,
 } from './DisplayOnlyCodeFences';
 import { renderMermaidDiagram } from './MermaidRenderer';
+import { getOrCreateMessageActionRow } from './MessageActionRow';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
 import {
   renderStoredAsyncSubagent,
@@ -52,7 +55,7 @@ import {
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
-import { createWelcomeElement } from './WelcomeRenderer';
+import { createWelcomeElement, type WelcomeProviderSummary } from './WelcomeRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
@@ -139,6 +142,14 @@ export class MessageRenderer {
 
   private getSubagentAdapter(toolName?: string) {
     return resolveSubagentAdapter(this.getCapabilities().providerId, toolName);
+  }
+
+  private getWelcomeProviderSummary(): WelcomeProviderSummary {
+    const capabilities = this.getCapabilities();
+    return {
+      displayName: ProviderRegistry.getProviderDisplayName(capabilities.providerId),
+      capabilities,
+    };
   }
 
   private shouldExpandFileEditsByDefault(): boolean {
@@ -240,7 +251,7 @@ export class MessageRenderer {
       msgEl.removeAttribute('data-toc-title');
     }
 
-    const toolbar = msgEl.querySelector<HTMLElement>('.claudian-user-msg-actions');
+    const toolbar = msgEl.querySelector<HTMLElement>('.claudian-message-action-row');
     if (toolbar) {
       toolbar.querySelectorAll('.claudian-user-msg-copy-btn').forEach((el) => el.remove());
     }
@@ -285,7 +296,11 @@ export class MessageRenderer {
     this.liveMessageEls.clear();
 
     // Recreate welcome element after clearing
-    const newWelcomeEl = createWelcomeElement(this.messagesEl, getGreeting());
+    const newWelcomeEl = createWelcomeElement(
+      this.messagesEl,
+      getGreeting(),
+      this.getWelcomeProviderSummary(),
+    );
 
     for (let i = 0; i < messages.length; i++) {
       this.renderStoredMessage(messages[i], messages, i);
@@ -305,7 +320,11 @@ export class MessageRenderer {
   renderMessagesInto(
     containerEl: HTMLElement,
     messages: ChatMessage[],
-    options?: { suppressConversationActions?: boolean },
+    options?: {
+      suppressConversationActions?: boolean;
+      /** Keep transcript steps visible instead of wrapping every turn in a completed disclosure. */
+      collapseCompletedWork?: boolean;
+    },
   ): void {
     const mainMessagesEl = this.messagesEl;
     const previousSuppress = this.suppressConversationActions;
@@ -314,7 +333,9 @@ export class MessageRenderer {
     try {
       containerEl.empty();
       for (let index = 0; index < messages.length; index++) {
-        this.renderStoredMessage(messages[index], messages, index);
+        this.renderStoredMessage(messages[index], messages, index, {
+          collapseCompletedWork: options?.collapseCompletedWork ?? true,
+        });
       }
     } finally {
       this.messagesEl = mainMessagesEl;
@@ -322,7 +343,12 @@ export class MessageRenderer {
     }
   }
 
-  renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
+  renderStoredMessage(
+    msg: ChatMessage,
+    allMessages?: ChatMessage[],
+    index?: number,
+    options?: { collapseCompletedWork?: boolean },
+  ): void {
     // Bare interrupt marker: user-role interrupts (Claude bracket markers) always render
     // as a standalone indicator. Assistant-role interrupts (Codex partial responses)
     // only use the bare marker when there's no content to preserve.
@@ -391,7 +417,7 @@ export class MessageRenderer {
     if (shouldRenderTimestamp) {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
-    if (msg.role === 'assistant') {
+    if (msg.role === 'assistant' && options?.collapseCompletedWork !== false) {
       this.finalizeCompletedWork(msg);
     }
   }
@@ -406,9 +432,11 @@ export class MessageRenderer {
 
     const msgEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
     const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
-    if (!contentEl) return;
+    if (!msgEl || !contentEl) return;
     const activeStatuses = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status');
     this.removeCompletedWorkStatuses(activeStatuses);
+    contentEl.querySelector<HTMLElement>('.claudian-response-footer')?.remove();
+    contentEl.querySelectorAll('.claudian-response-footer').forEach((footer) => footer.remove());
     const existingWork = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work');
     if (msg.isInterrupt) return;
     if (existingWork.length > 0) {
@@ -417,9 +445,48 @@ export class MessageRenderer {
 
     const children = Array.from(contentEl.children) as HTMLElement[];
     const answerStart = this.findFinalAnswerStart(children);
-    if (answerStart <= 0) return;
+    if (answerStart > 0) {
+      this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+    }
+    this.syncAssistantMessageActions(msg, msgEl, contentEl);
+  }
 
-    this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+  /**
+   * Completed assistant messages expose one stable action row. This avoids
+   * repeating a copy affordance for every rendered text block in a long turn.
+   */
+  private syncAssistantMessageActions(
+    msg: ChatMessage,
+    msgEl: HTMLElement,
+    contentEl: HTMLElement,
+  ): void {
+    const copyContent = this.getAssistantCopyContent(msg);
+    if (!copyContent) return;
+
+    contentEl.querySelectorAll('.claudian-text-copy-btn').forEach((button) => button.remove());
+    const toolbar = this.getOrCreateActionsToolbar(msgEl);
+    toolbar.querySelector('.claudian-text-copy-btn')?.remove();
+    this.addTextCopyButton(toolbar, copyContent);
+
+    if (this.forkCallback && msg.assistantMessageId && !toolbar.querySelector('.claudian-message-fork-btn')) {
+      this.addForkButton(msgEl, msg.id);
+    }
+
+    const copyButton = toolbar.querySelector('.claudian-text-copy-btn');
+    const forkButton = toolbar.querySelector('.claudian-message-fork-btn');
+    const timestamp = toolbar.querySelector('.claudian-message-timestamp');
+    for (const action of [copyButton, forkButton, timestamp]) {
+      if (action) toolbar.appendChild(action);
+    }
+  }
+
+  private getAssistantCopyContent(msg: ChatMessage): string {
+    const textBlocks = msg.contentBlocks
+      ?.filter((block): block is Extract<typeof block, { type: 'text' }> => block.type === 'text')
+      .map((block) => stripLegacyInterruptIndicator(block.content).content.trim())
+      .filter(Boolean);
+    if (textBlocks?.length) return textBlocks.join('\n\n');
+    return stripLegacyInterruptIndicator(msg.content).content.trim();
   }
 
   /**
@@ -582,7 +649,9 @@ export class MessageRenderer {
       return;
     }
 
-    msgEl.createSpan({
+    const toolbar = this.getOrCreateActionsToolbar(msgEl);
+    toolbar.querySelector('.claudian-message-timestamp')?.remove();
+    toolbar.createSpan({
       cls: 'claudian-message-timestamp',
       text: new Date(timestamp).toLocaleTimeString([], {
         hour: '2-digit',
@@ -1198,9 +1267,7 @@ export class MessageRenderer {
   }
 
   private getOrCreateActionsToolbar(msgEl: HTMLElement): HTMLElement {
-    const existing = msgEl.querySelector<HTMLElement>('.claudian-user-msg-actions');
-    if (existing) return existing;
-    return msgEl.createDiv({ cls: 'claudian-user-msg-actions' });
+    return getOrCreateMessageActionRow(msgEl);
   }
 
   private addUserCopyButton(msgEl: HTMLElement, content: string): void {
@@ -1305,6 +1372,12 @@ export class MessageRenderer {
       e.stopPropagation();
       runRendererAction(async () => {
         try {
+          const confirmed = await confirm(
+            this.app,
+            t('chat.fork.confirmMessage'),
+            t('chat.fork.confirmAction'),
+          );
+          if (!confirmed) return;
           await this.forkCallback?.(messageId);
         } catch (err) {
           new Notice(t('chat.fork.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));

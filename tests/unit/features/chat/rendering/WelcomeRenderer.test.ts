@@ -5,6 +5,23 @@ import {
   renderWelcomeContent,
 } from '@/features/chat/rendering/WelcomeRenderer';
 
+const PROVIDER_SUMMARY = {
+  displayName: 'Codex',
+  capabilities: {
+    providerId: 'codex' as const,
+    supportsNativeHistory: false,
+    supportsPlanMode: true,
+    supportsRewind: false,
+    supportsFork: true,
+    supportsProviderCommands: false,
+    supportsImageAttachments: true,
+    supportsInstructionMode: false,
+    supportsMcpTools: false,
+    supportsTurnSteer: false,
+    reasoningControl: 'none' as const,
+  },
+};
+
 describe('Welcome', () => {
   it('renders Oh My Claudian branding before the dynamic greeting', () => {
     const parentEl = createMockEl();
@@ -40,5 +57,17 @@ describe('Welcome', () => {
 
     expect(welcomeEl.children).toHaveLength(1);
     expect(welcomeEl.children[0].textContent).toBe('Oh My Claudian');
+  });
+
+  it('explains the current provider capabilities on an empty conversation', () => {
+    const parentEl = createMockEl();
+
+    const welcomeEl = createWelcomeElement(parentEl, undefined, PROVIDER_SUMMARY);
+
+    expect(welcomeEl.querySelector('.claudian-welcome-provider-name')?.textContent).toBe('Codex');
+    expect(welcomeEl.querySelector('.claudian-welcome-capability-line--supported')?.textContent)
+      .toContain('Plan mode · Fork · Image attachments');
+    expect(welcomeEl.querySelector('.claudian-welcome-capability-line--unsupported')?.textContent)
+      .toContain('Rewind · Provider commands · MCP tools · Turn steering');
   });
 });

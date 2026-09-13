@@ -42,6 +42,8 @@
     },
     "fork": {
       "ariaLabel": "会話を分岐",
+      "confirmMessage": "ここから会話を分岐しますか？新しい会話が作成されます。",
+      "confirmAction": "会話を分岐",
       "chooseTarget": "会話を分岐",
       "targetNewTab": "新しいタブ",
       "targetCurrentTab": "現在のタブ",
@@ -86,6 +88,10 @@
       "label": "完了",
       "seconds": "所要時間 {seconds} 秒",
       "minutes": "所要時間 {minutes} 分 {seconds} 秒"
+    },
+    "welcome": {
+      "availableCapabilities": "利用可能: {capabilities}",
+      "unavailableCapabilities": "利用不可: {capabilities}"
     }
   },
   "settings": {
