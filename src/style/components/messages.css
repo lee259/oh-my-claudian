@@ -43,6 +43,40 @@
   letter-spacing: -0.01em;
 }
 
+.claudian-welcome-capability-summary {
+  box-sizing: border-box;
+  display: grid;
+  gap: 3px;
+  width: fit-content;
+  max-width: min(100%, 34rem);
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  text-align: left;
+}
+
+.claudian-welcome-provider-name {
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+  font-size: var(--font-ui-medium);
+  letter-spacing: 0.01em;
+}
+
+.claudian-welcome-capability-line--supported {
+  color: var(--text-muted);
+}
+
+.claudian-welcome-capability-line--unsupported {
+  padding-top: 3px;
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-faint);
+}
+
 .claudian-message {
   position: relative;
   padding: 10px 14px;

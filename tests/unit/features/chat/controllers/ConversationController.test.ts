@@ -351,6 +351,34 @@ describe('ConversationController', () => {
       controller.initializeWelcome();
       expect(createDivSpy).toHaveBeenCalledTimes(initialCallCount);
     });
+
+    it('refreshes an existing summary after the blank tab changes provider', () => {
+      let providerName = 'Pi';
+      const capabilities = {
+        providerId: 'pi' as const,
+        supportsNativeHistory: false,
+        supportsPlanMode: false,
+        supportsRewind: false,
+        supportsFork: false,
+        supportsProviderCommands: false,
+        supportsImageAttachments: false,
+        supportsInstructionMode: false,
+        supportsMcpTools: false,
+        supportsTurnSteer: false,
+        reasoningControl: 'none' as const,
+      };
+      deps = createMockDeps({
+        getWelcomeProviderSummary: () => ({ displayName: providerName, capabilities }),
+      });
+      controller = new ConversationController(deps);
+
+      controller.initializeWelcome();
+      providerName = 'OMP';
+      controller.initializeWelcome();
+
+      expect(deps.getWelcomeEl()?.querySelector('.claudian-welcome-provider-name')?.textContent)
+        .toBe('OMP');
+    });
   });
 
   describe('formatDate', () => {

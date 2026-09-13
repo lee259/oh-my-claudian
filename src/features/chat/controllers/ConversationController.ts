@@ -28,7 +28,11 @@ import {
 } from '../OpenSubagentTranscriptEvent';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
-import { createWelcomeElement, renderWelcomeContent } from '../rendering/WelcomeRenderer';
+import {
+  createWelcomeElement,
+  renderWelcomeContent,
+  type WelcomeProviderSummary,
+} from '../rendering/WelcomeRenderer';
 import { findRewindContext } from '../rewind';
 import type { SubagentManager } from '../services/SubagentManager';
 import { projectHistory } from '../session-manager/HistoryProjection';
@@ -102,6 +106,7 @@ export interface ConversationControllerDeps {
   getExecutionCoordinator: () => ChatExecutionCoordinator | null;
   ensureExecutionInitialized?: () => Promise<boolean>;
   getProviderId?: () => ProviderId;
+  getWelcomeProviderSummary?: () => WelcomeProviderSummary;
   getSelectedModel?: () => string | null;
   getInitialUsage?: (providerId: ProviderId, model: string) => UsageInfo | null;
   ensureExecutionForConversation?: (conversation: Conversation | null) => Promise<void>;
@@ -507,7 +512,11 @@ export class ConversationController {
       messagesEl.empty();
 
       // Recreate welcome element first (before StatusPanel for consistent ordering)
-      const welcomeEl = createWelcomeElement(messagesEl, this.getGreeting());
+      const welcomeEl = createWelcomeElement(
+        messagesEl,
+        this.getGreeting(),
+        this.deps.getWelcomeProviderSummary?.(),
+      );
       this.deps.setWelcomeEl(welcomeEl);
 
       // Remount StatusPanel to restore state for new conversation
@@ -2383,9 +2392,11 @@ export class ConversationController {
     fileCtx?.resetForNewConversation();
     fileCtx?.autoAttachActiveFile();
 
-    // Only add greeting if not already present
-    if (!welcomeEl.querySelector('.claudian-welcome-greeting')) {
-      renderWelcomeContent(welcomeEl, this.getGreeting());
+    const providerSummary = this.deps.getWelcomeProviderSummary?.();
+    // A blank tab can change providers without replacing its DOM. In that case
+    // the existing summary is stale and must be replaced, not merely detected.
+    if (!welcomeEl.querySelector('.claudian-welcome-greeting') || providerSummary) {
+      renderWelcomeContent(welcomeEl, this.getGreeting(), providerSummary);
     }
 
     this.updateWelcomeVisibility();

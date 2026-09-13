@@ -88,6 +88,10 @@
       "label": "完了",
       "seconds": "所要時間 {seconds} 秒",
       "minutes": "所要時間 {minutes} 分 {seconds} 秒"
+    },
+    "welcome": {
+      "availableCapabilities": "利用可能: {capabilities}",
+      "unavailableCapabilities": "利用不可: {capabilities}"
     }
   },
   "settings": {

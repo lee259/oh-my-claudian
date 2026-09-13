@@ -88,6 +88,10 @@
       "label": "Completed",
       "seconds": "Took {seconds}s",
       "minutes": "Took {minutes}m {seconds}s"
+    },
+    "welcome": {
+      "availableCapabilities": "Available: {capabilities}",
+      "unavailableCapabilities": "Not available: {capabilities}"
     }
   },
   "settings": {

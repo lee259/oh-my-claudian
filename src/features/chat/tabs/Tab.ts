@@ -17,7 +17,9 @@ import {
   resolveNewConversationModel,
 } from '../../../core/providers/conversationModel';
 import { getEnabledProviderForModel, getProviderForModel } from '../../../core/providers/modelRouting';
-import { resolveProviderCustomContextLimit } from '../../../core/providers/modelSelection';
+import {
+  resolveProviderCustomContextLimit,
+} from '../../../core/providers/modelSelection';
 import {
   createProviderDiagnosticError,
   createProviderDiagnosticReport,
@@ -132,7 +134,12 @@ export function getBlankTabModelOptions(
     const group = ProviderRegistry.getProviderDisplayName(providerId);
 
     return uiConfig.getModelOptions(settings)
-      .map(model => ({ ...model, group, providerIcon }));
+      .map(model => ({
+        ...model,
+        group,
+        providerIcon,
+        providerId,
+      }));
   });
 }
 
@@ -1246,6 +1253,7 @@ function initializeInputToolbar(
       tab.providerId = providerId;
       syncTabProviderServices(tab, plugin);
       tab.ui.slashCommandDropdown?.clearProviderCatalog?.();
+      tab.controllers.conversationController?.initializeWelcome();
     },
     restoreDraft: ({ providerId, model }) => {
       tab.draftModel = model;
@@ -1270,15 +1278,12 @@ function initializeInputToolbar(
     getCapabilities: () => getTabCapabilities(tab, plugin),
     getSettings: () => getTabSettingsSnapshot(tab, plugin),
     getEnvironmentVariables: () => plugin.getActiveEnvironmentVariables(),
-    onModelChange: async (model: string) => {
+    onModelChange: async (model: string, selectedProviderId?: ProviderId) => {
       // For blank tabs, update draft model and derive provider
       if (tab.conversationId === null) {
         const selectionIntent = plugin.chatModelSelection.beginIntent();
         const request = modelSelection.beginRequest();
-        const newProvider = getEnabledProviderForModel(
-          model,
-          plugin.settings,
-        );
+        const newProvider = selectedProviderId ?? getEnabledProviderForModel(model, plugin.settings);
         const result = await modelSelection.selectBlank(request, {
           providerId: newProvider,
           model,
