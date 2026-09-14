@@ -386,6 +386,19 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       );
 
     new Setting(container)
+      .setName(t('settings.promptSuggestions.name'))
+      .setDesc(t('settings.promptSuggestions.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(claudeSettings.promptSuggestions)
+          .onChange(async (value) => {
+            await context.plugin.mutateSettings((settings) => {
+              updateClaudeProviderSettings(settings, { promptSuggestions: value });
+            });
+          })
+      );
+
+    new Setting(container)
       .setName(t('settings.enableBangBash.name'))
       .setDesc(t('settings.enableBangBash.desc'))
       .addToggle((toggle) =>

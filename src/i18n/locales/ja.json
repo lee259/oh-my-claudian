@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "利用可能: {capabilities}",
       "unavailableCapabilities": "利用不可: {capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "次の提案：{suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "Chrome拡張機能を有効化",
       "desc": "claude-in-chrome拡張機能を通じてClaudeがChromeと連携できるようにします。拡張機能のインストールが必要です。セッションの再起動が必要です。"
+    },
+    "promptSuggestions": {
+      "name": "プロンプト候補を有効化",
+      "desc": "Claude の応答後に次のプロンプト候補を表示します。セッションの再起動が必要です。"
     },
     "enableBangBash": {
       "name": "bash モード (!) を有効化",

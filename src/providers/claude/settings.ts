@@ -23,6 +23,7 @@ export interface ClaudeProviderSettings {
   loadUserSettings: boolean;
   enableChrome: boolean;
   enableBangBash: boolean;
+  promptSuggestions: boolean;
   customModels: string;
   defaultModel: string;
   lastModel: string;
@@ -40,6 +41,7 @@ export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> 
   loadUserSettings: true,
   enableChrome: false,
   enableBangBash: false,
+  promptSuggestions: false,
   customModels: '',
   defaultModel: 'opus',
   lastModel: 'haiku',
@@ -112,6 +114,10 @@ export function getClaudeProviderSettings(
     enableBangBash: readStoredBoolean(
       config.enableBangBash,
       readStoredBoolean(settings.enableBangBash, DEFAULT_CLAUDE_PROVIDER_SETTINGS.enableBangBash),
+    ),
+    promptSuggestions: readStoredBoolean(
+      config.promptSuggestions,
+      DEFAULT_CLAUDE_PROVIDER_SETTINGS.promptSuggestions,
     ),
     customModels: readStoredString(
       config.customModels,

@@ -119,6 +119,7 @@ export function createTabRuntime(
       contextUsageMeter: null,
       statusPanel: null,
       navigationSidebar: null,
+      promptSuggestion: null,
     },
     dom,
     renderer: null,

@@ -35,6 +35,7 @@ import type {
 } from '../ui/InputToolbar';
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
 import type { NavigationSidebar } from '../ui/NavigationSidebar';
+import type { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
 import type { TabSession } from './TabSession';
@@ -150,6 +151,7 @@ export interface TabUIComponents {
   contextUsageMeter: ContextUsageMeter | null;
   statusPanel: StatusPanel | null;
   navigationSidebar: NavigationSidebar | null;
+  promptSuggestion: PromptSuggestionController | null;
 }
 
 /**

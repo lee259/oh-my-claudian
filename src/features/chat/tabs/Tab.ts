@@ -71,6 +71,7 @@ import { createInputToolbar } from '../ui/InputToolbar';
 import { InstructionModeManager as InstructionModeManagerClass } from '../ui/InstructionModeManager';
 import { MentionTextHighlighter } from '../ui/MentionTextHighlighter';
 import { NavigationSidebar } from '../ui/NavigationSidebar';
+import { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
 import { ScopePreview } from '../ui/ScopePreview';
 import { StatusPanel } from '../ui/StatusPanel';
@@ -852,6 +853,10 @@ async function handleTabSessionEvent(
   isCurrent: () => boolean,
 ): Promise<void> {
   if (!isCurrent()) return;
+  if (event.type === 'prompt_suggestion') {
+    tab.ui.promptSuggestion?.setSuggestion(event.suggestion);
+    return;
+  }
   if (event.type === 'mode_changed') {
     await updatePlanModeUI(tab, plugin, normalizeProviderMode(event.mode));
     if (!isCurrent()) return;
@@ -1536,6 +1541,7 @@ export function initializeTabUI(
   }
 
   initializeInstructionAndTodo(tab, plugin);
+  tab.ui.promptSuggestion = new PromptSuggestionController(dom.inputComposerEl, dom.inputEl);
   initializeInputToolbar(
     tab,
     plugin,
@@ -1873,6 +1879,7 @@ export function initializeTabRuntimeControllers(
     getProviderId: () => getTabProviderId(tab, plugin),
     getSelectedModel: () => getTabSelectedModel(tab, plugin),
     onConversationBindingChanged: async (conversation) => {
+      tab.ui.promptSuggestion?.clear();
       const nextProviderId = getTabProviderId(tab, plugin, conversation);
       const providerChanged = tab.providerId !== nextProviderId;
       tab.providerId = nextProviderId;
@@ -1896,6 +1903,7 @@ export function initializeTabRuntimeControllers(
       applyProviderUIGating(tab, plugin);
     },
     onNewConversation: () => {
+      tab.ui.promptSuggestion?.clear();
       const previousProviderId = tab.providerId;
       const nextModel = resolveNewConversationModel(plugin.settings);
       void tab.executionCoordinator?.bindConversation(null);
@@ -1911,6 +1919,7 @@ export function initializeTabRuntimeControllers(
       syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
     },
     onConversationActivated: () => {
+      tab.ui.promptSuggestion?.clear();
       invalidateTabProviderCommands(tab, getProviderCatalogConfig);
       tab.controllers.inputController?.onConversationActivated();
     },
@@ -1983,6 +1992,10 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       return;
     }
 
+    if (ui.promptSuggestion?.handleKeydown(e)) {
+      return;
+    }
+
     if (getTabCapabilities(tab, plugin).supportsInstructionMode && ui.instructionModeManager?.handleTriggerKey(e)) {
       return;
     }
@@ -2042,6 +2055,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
 
   const inputHandler = () => {
     inputHistoryController.handleInput();
+    ui.promptSuggestion?.clear();
     commitProvisionalTab(tab);
     if (!ui.bangBashModeManager?.isActive()) {
       ui.fileContextManager?.handleInputChange();
@@ -2190,6 +2204,10 @@ export async function destroyTab(tab: TabData): Promise<void> {
   cleanup.register('tab status panel', () => {
     tab.ui.statusPanel?.destroy();
     tab.ui.statusPanel = null;
+  });
+  cleanup.register('tab prompt suggestion', () => {
+    tab.ui.promptSuggestion?.destroy();
+    tab.ui.promptSuggestion = null;
   });
   cleanup.register('tab title generation', () => {
     tab.services.titleGenerationService?.cancel();

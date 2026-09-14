@@ -77,6 +77,7 @@ function createMockPersistentQueryConfig(
     claudeCliPath: '/mock/claude',
     enableChrome: false,
     enableAutoMode: false,
+    promptSuggestions: false,
     ...overrides,
   };
 }
@@ -100,6 +101,12 @@ describe('QueryOptionsBuilder', () => {
     it('returns true when currentConfig is null', () => {
       const newConfig = createMockPersistentQueryConfig();
       expect(QueryOptionsBuilder.needsRestart(null, newConfig)).toBe(true);
+    });
+
+    it('returns true when prompt suggestions change', () => {
+      const currentConfig = createMockPersistentQueryConfig();
+      const newConfig = { ...currentConfig, promptSuggestions: true };
+      expect(QueryOptionsBuilder.needsRestart(currentConfig, newConfig)).toBe(true);
     });
 
     it('returns false when configs are identical', () => {
@@ -204,6 +211,7 @@ describe('QueryOptionsBuilder', () => {
       expect(config.sdkPermissionMode).toBe('bypassPermissions');
       expect(config.settingSources).toBe('project,local');
       expect(config.claudeCliPath).toBe('/mock/claude');
+      expect(config.promptSuggestions).toBe(false);
     });
 
     it('tracks resolved sdkPermissionMode for normal mode', () => {
@@ -303,6 +311,21 @@ describe('QueryOptionsBuilder', () => {
   });
 
   describe('buildPersistentQueryOptions', () => {
+    it('passes the Claude prompt suggestion preference to the SDK', () => {
+      const ctx = createMockContext({
+        settings: createMockSettings({
+          providerConfigs: {
+            claude: { promptSuggestions: true },
+          },
+        }),
+      });
+      const options = QueryOptionsBuilder.buildPersistentQueryOptions({
+        ...ctx,
+      });
+
+      expect(options.promptSuggestions).toBe(true);
+    });
+
     it('sets yolo mode options correctly', () => {
       const ctx = {
         ...createMockContext(),

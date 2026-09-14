@@ -9,6 +9,18 @@ import {
 const msg = buildSDKMessage;
 
 describe('transformSDKMessage', () => {
+  it('normalizes a native prompt suggestion without treating it as assistant text', () => {
+    const message = {
+      type: 'prompt_suggestion',
+      suggestion: '  Show me the relevant tests  ',
+    } as any;
+
+    expect([...transformSDKMessage(message)]).toEqual([{
+      type: 'prompt_suggestion',
+      suggestion: 'Show me the relevant tests',
+    }]);
+  });
+
   describe('system messages', () => {
     it('yields session_init event for init subtype with session_id', () => {
       const message = msg({
