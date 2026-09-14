@@ -1,4 +1,5 @@
 import { mapWithConcurrency } from '../../utils/concurrency';
+import { decodePromptXmlAttribute } from '../../utils/promptXml';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
   type SessionMetadataListOptions,
@@ -284,6 +285,7 @@ export class SessionStorage implements SessionMetadataReader {
       selectedModel: rawSelectedModel,
       modelRecoverySource: rawModelRecoverySource,
       task: rawTask,
+      currentNote: rawCurrentNote,
       ...metadataFields
     } = rawMetadata;
     const selectedModel = typeof rawSelectedModel === 'string'
@@ -291,11 +293,15 @@ export class SessionStorage implements SessionMetadataReader {
       : undefined;
     const modelRecoverySource = this.parseModelRecoverySource(rawModelRecoverySource);
     const task = this.parseConversationTask(rawTask);
+    const currentNote = typeof rawCurrentNote === 'string'
+      ? decodePromptXmlAttribute(rawCurrentNote)
+      : undefined;
     const metadata = {
       ...metadataFields,
       ...(selectedModel !== undefined ? { selectedModel } : {}),
       ...(modelRecoverySource ? { modelRecoverySource } : {}),
       ...(task ? { task } : {}),
+      ...(currentNote !== undefined ? { currentNote } : {}),
       lastActivityAt,
     } as unknown as SessionMetadata;
     const needsMigration = !Number.isFinite(rawMetadata.lastActivityAt)
@@ -303,7 +309,8 @@ export class SessionStorage implements SessionMetadataReader {
       || 'lastResponseAt' in rawMetadata
       || (rawSelectedModel !== undefined && selectedModel === undefined)
       || (rawModelRecoverySource !== undefined && modelRecoverySource === undefined)
-      || (rawTask !== undefined && task === undefined);
+      || (rawTask !== undefined && task === undefined)
+      || (rawCurrentNote !== undefined && currentNote !== rawCurrentNote);
     return { metadata, needsMigration, source };
   }
 

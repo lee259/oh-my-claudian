@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { decodePromptXmlAttribute } from '../../utils/promptXml';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type {
   ExecutionInputContextSnapshot,
@@ -111,7 +112,7 @@ export class ConversationInputLedgerStorage
     if (!isConversationInputLedger(parsed, conversationId)) {
       return { status: 'unavailable', reason: 'malformed' };
     }
-    return { status: 'loaded', ledger: parsed };
+    return { status: 'loaded', ledger: normalizePersistedPaths(parsed) };
   }
 
   async save(
@@ -128,6 +129,45 @@ export class ConversationInputLedgerStorage
   async delete(conversationId: string): Promise<void> {
     await this.adapter.delete(this.getPath(conversationId));
   }
+}
+
+function normalizePersistedPaths(
+  ledger: ConversationInputLedger,
+): ConversationInputLedger {
+  let changed = false;
+  const records = ledger.records.map((record) => {
+    if (!record.context) return record;
+    const context = normalizeContextPaths(record.context);
+    if (context === record.context) return record;
+    changed = true;
+    return { ...record, context };
+  });
+  return changed ? { ...ledger, records } : ledger;
+}
+
+function normalizeContextPaths(
+  context: ExecutionInputContextSnapshot,
+): ExecutionInputContextSnapshot {
+  let changed = false;
+  const normalize = (value: string): string => {
+    const decoded = decodePromptXmlAttribute(value);
+    if (decoded !== value) changed = true;
+    return decoded;
+  };
+
+  const currentNote = context.currentNote
+    ? { ...context.currentNote, path: normalize(context.currentNote.path) }
+    : context.currentNote;
+  const editorSelection = context.editorSelection
+    ? { ...context.editorSelection, notePath: normalize(context.editorSelection.notePath) }
+    : context.editorSelection;
+  const canvasSelection = context.canvasSelection
+    ? { ...context.canvasSelection, canvasPath: normalize(context.canvasSelection.canvasPath) }
+    : context.canvasSelection;
+
+  return changed
+    ? { ...context, currentNote, editorSelection, canvasSelection }
+    : context;
 }
 
 function isConversationInputLedger(
