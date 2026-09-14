@@ -2202,9 +2202,10 @@ describe('CodexExecutionBackend', () => {
     expect(() => session.execute(createRequest())).toThrow(/disposed/i);
   });
 
-  it('routes approvals and questions with stable local identities', async () => {
-    const interactionPort = createInteractionPort();
-    mockTransportRequest.mockImplementation(async (method: string) => {
+    it('routes approvals and questions with stable local identities', async () => {
+      const interactionPort = createInteractionPort();
+      let elicitationResponse: unknown;
+      mockTransportRequest.mockImplementation(async (method: string) => {
       if (method === 'initialize') {
         return {
           userAgent: 'test',
@@ -2242,6 +2243,17 @@ describe('CodexExecutionBackend', () => {
               }],
             },
           );
+          elicitationResponse = await serverRequestHandlers.get('mcpServer/elicitation/request')!(
+            'elicitation-native',
+            {
+              threadId: 'thread-interaction',
+              turnId: 'turn-interaction',
+              serverName: 'computer-use',
+              message: 'Allow access to the active window?',
+              mode: 'form',
+              requestedSchema: { type: 'object', properties: {} },
+            },
+          );
           completeTurn('thread-interaction', 'turn-interaction');
         });
         return createTurnResult('turn-interaction');
@@ -2256,6 +2268,7 @@ describe('CodexExecutionBackend', () => {
 
     const approvalRequest = (interactionPort.requestApproval as jest.Mock).mock.calls[0][0];
     const questionRequest = (interactionPort.askUserQuestion as jest.Mock).mock.calls[0][0];
+    const elicitationRequest = (interactionPort.requestApproval as jest.Mock).mock.calls[1][0];
     expect(approvalRequest).toEqual(expect.objectContaining({
       interactionId: expect.any(String),
       sessionInstanceId: session.sessionInstanceId,
@@ -2269,6 +2282,13 @@ describe('CodexExecutionBackend', () => {
       nativeContext: expect.objectContaining({ requestId: 'question-native' }),
     }));
     expect(questionRequest.interactionId).not.toBe(approvalRequest.interactionId);
+    expect(elicitationRequest).toEqual(expect.objectContaining({
+      kind: 'approval',
+      toolName: 'mcp-elicitation',
+      description: 'Allow access to the active window?',
+      nativeContext: expect.objectContaining({ requestId: 'elicitation-native' }),
+    }));
+    expect(elicitationResponse).toEqual({ action: 'accept', content: {} });
 
     await session.dispose();
   });
