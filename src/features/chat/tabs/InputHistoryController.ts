@@ -60,12 +60,18 @@ export class InputHistoryController {
   handleKeydown(event: KeyboardEvent, input: HTMLTextAreaElement): boolean {
     if (!isHistoryNavigationKey(event)) return false;
 
-    const direction = event.key === 'ArrowUp' ? 'up' : 'down';
-    if (!isAtInputBoundary(input, direction)) return false;
-
     if (this.inputHistoryConversationId !== this.deps.getConversationId()) {
       this.reset();
     }
+
+    // Do not replace an active composer draft when starting history navigation.
+    // Once navigation has started, the controller owns the historical values
+    // and must continue handling the arrow keys even though those values are
+    // no longer empty.
+    if (this.inputHistoryIndex === null && input.value.length > 0) return false;
+
+    const direction = event.key === 'ArrowUp' ? 'up' : 'down';
+    if (!isAtInputBoundary(input, direction)) return false;
 
     const history = getInputHistory(this.deps.getMessages());
     if (history.length === 0) return false;
