@@ -3,6 +3,8 @@ import type { App } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
 
+import { decodePromptXmlAttribute } from './promptXml';
+
 export function getVaultPath(app: App): string | null {
   const basePath = (app.vault.adapter as { basePath?: unknown } | undefined)?.basePath;
   return typeof basePath === 'string' ? basePath : null;
@@ -369,9 +371,11 @@ export function normalizePathForVault(
   rawPath: string | undefined | null,
   vaultPath: string | null | undefined
 ): string | null {
-  if (!rawPath) return null;
+  if (typeof rawPath !== 'string' || !rawPath) return null;
 
-  const normalizedRaw = normalizePathForFilesystem(rawPath);
+  const normalizedRaw = normalizePathForFilesystem(
+    decodePromptXmlAttribute(rawPath),
+  );
   if (!normalizedRaw) return null;
 
   if (vaultPath && isPathWithinVault(normalizedRaw, vaultPath)) {
