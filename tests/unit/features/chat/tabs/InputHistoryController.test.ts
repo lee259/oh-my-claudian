@@ -45,7 +45,7 @@ function createMessage(
 }
 
 describe('InputHistoryController', () => {
-  it('navigates sent user messages and restores the composer draft', () => {
+  it('navigates sent user messages and returns to the empty composer', () => {
     const input = createInput();
     const messages = [
       createMessage('user-1', 'first request'),
@@ -56,7 +56,7 @@ describe('InputHistoryController', () => {
       getConversationId: () => 'conversation-1',
       getMessages: () => messages,
     });
-    input.value = 'unsent draft';
+    input.value = '';
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
 
@@ -78,7 +78,27 @@ describe('InputHistoryController', () => {
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
     controller.handleKeydown(createKeyEvent('ArrowDown'), input);
-    expect(input.value).toBe('unsent draft');
+    expect(input.value).toBe('');
+  });
+
+  it('does not start history navigation when the composer already has content', () => {
+    const input = createInput();
+    const messages = [createMessage('user-1', 'previous request')];
+    const controller = new InputHistoryController({
+      getConversationId: () => 'conversation-1',
+      getMessages: () => messages,
+    });
+    input.value = 'current draft';
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+
+    const up = createKeyEvent('ArrowUp');
+    const down = createKeyEvent('ArrowDown');
+    expect(controller.handleKeydown(up, input)).toBe(false);
+    expect(controller.handleKeydown(down, input)).toBe(false);
+    expect(input.value).toBe('current draft');
+    expect(up.preventDefault).not.toHaveBeenCalled();
+    expect(down.preventDefault).not.toHaveBeenCalled();
   });
 
   it('resets navigation after manual input and ignores non-boundary or modified keys', () => {
@@ -103,7 +123,11 @@ describe('InputHistoryController', () => {
     controller.handleInput();
     input.selectionStart = 0;
     input.selectionEnd = 0;
-    controller.handleKeydown(createKeyEvent('ArrowUp'), input);
+    expect(controller.handleKeydown(createKeyEvent('ArrowUp'), input)).toBe(false);
+    input.value = '';
+    input.selectionStart = 0;
+    input.selectionEnd = 0;
+    expect(controller.handleKeydown(createKeyEvent('ArrowUp'), input)).toBe(true);
     expect(input.value).toBe('previous request');
   });
 

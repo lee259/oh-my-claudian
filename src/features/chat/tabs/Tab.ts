@@ -696,7 +696,13 @@ function createTabExecutionCoordinator(
     interactionPort,
     vaultWorkingDirectory: getVaultPath(plugin.app) ?? '.',
     createId: generateMessageId,
-    onRequestedEvent: event => tab.controllers.inputController?.handleExecutionEvent(event),
+    onRequestedEvent: async event => {
+      if (event.type === 'mode_changed') {
+        await updatePlanModeUI(tab, plugin, normalizeProviderMode(event.mode));
+        return;
+      }
+      await tab.controllers.inputController?.handleExecutionEvent(event);
+    },
     onSessionEvent: (event, context) => enqueueTabSessionEvent(
       tab,
       plugin,
