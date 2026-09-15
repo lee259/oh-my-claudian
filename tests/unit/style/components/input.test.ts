@@ -16,6 +16,12 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
+  it('keeps an inactive prompt suggestion from occupying composer space', () => {
+    expect(css).toMatch(
+      /\.claudian-prompt-suggestion\[hidden\]\s*\{[^}]*display:\s*none;/,
+    );
+  });
+
   it('scopes the composer override for coexistence with upstream Claudian', () => {
     expect(css).toMatch(
       /\.oh-my-claudian-root \.claudian-input-send-button\s*\{[\s\S]*?position:\s*static;[\s\S]*?margin-inline-start:\s*8px;/,

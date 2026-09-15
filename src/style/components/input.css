@@ -24,6 +24,10 @@
   cursor: pointer;
 }
 
+.claudian-prompt-suggestion[hidden] {
+  display: none;
+}
+
 .claudian-prompt-suggestion:hover,
 .claudian-prompt-suggestion:focus-visible {
   border-color: var(--interactive-accent);
