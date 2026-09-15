@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "可用：{capabilities}",
       "unavailableCapabilities": "暂不可用：{capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "建议继续：{suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "启用 Chrome 扩展",
       "desc": "允许 Claude 通过 claude-in-chrome 扩展与 Chrome 交互。需要安装该扩展。需要重启会话。"
+    },
+    "promptSuggestions": {
+      "name": "启用提示建议",
+      "desc": "在 Claude 回复后显示建议的后续提示。需要重启会话。"
     },
     "enableBangBash": {
       "name": "启用命令模式 (!)",

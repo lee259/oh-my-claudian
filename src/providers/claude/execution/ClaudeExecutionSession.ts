@@ -515,6 +515,14 @@ ClaudeExecutionStrategySink {
         });
         continue;
       }
+      if (normalized.type === 'prompt_suggestion') {
+        this.emitSession({
+          type: 'prompt_suggestion',
+          suggestion: normalized.event.suggestion,
+          providerPayload: normalized.event,
+        });
+        continue;
+      }
       if (normalized.type === 'output') {
         if (
           normalized.event.type === 'usage_updated'

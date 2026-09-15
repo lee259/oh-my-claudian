@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "可用：{capabilities}",
       "unavailableCapabilities": "暫不可用：{capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "建議繼續：{suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "啟用 Chrome 擴充功能",
       "desc": "允許 Claude 透過 claude-in-chrome 擴充功能與 Chrome 互動。需要安裝該擴充功能。需要重新啟動工作階段。"
+    },
+    "promptSuggestions": {
+      "name": "啟用提示建議",
+      "desc": "在 Claude 回覆後顯示建議的後續提示。需要重新啟動會話。"
     },
     "enableBangBash": {
       "name": "啟用 bash 模式 (!)",

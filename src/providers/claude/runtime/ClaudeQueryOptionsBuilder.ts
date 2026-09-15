@@ -82,6 +82,7 @@ export class QueryOptionsBuilder {
 
     if (currentConfig.enableChrome !== newConfig.enableChrome) return true;
     if (currentConfig.enableAutoMode !== newConfig.enableAutoMode) return true;
+    if (currentConfig.promptSuggestions !== newConfig.promptSuggestions) return true;
 
     // External context paths require restart (additionalDirectories can't be updated dynamically)
     if (QueryOptionsBuilder.pathsChanged(currentConfig.externalContextPaths, newConfig.externalContextPaths)) {
@@ -128,6 +129,7 @@ export class QueryOptionsBuilder {
       claudeCliPath: ctx.cliPath,
       enableChrome: claudeSettings.enableChrome,
       enableAutoMode: claudeSettings.safeMode === 'auto',
+      promptSuggestions: claudeSettings.promptSuggestions,
     };
   }
 
@@ -285,6 +287,7 @@ export class QueryOptionsBuilder {
         PATH: ctx.enhancedPath,
       },
       includePartialMessages: true,
+      promptSuggestions: claudeSettings.promptSuggestions,
       settings: {
         autoCompactEnabled: true,
       },

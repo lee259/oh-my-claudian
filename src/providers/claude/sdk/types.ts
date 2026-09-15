@@ -21,8 +21,14 @@ export interface ContextWindowEvent {
   contextWindow: number;
 }
 
+export interface ClaudePromptSuggestionEvent {
+  type: 'prompt_suggestion';
+  suggestion: string;
+}
+
 export type TransformEvent =
   | StreamChunk
   | SessionInitEvent
   | ContextWindowEvent
-  | ClaudeAsyncSubagentCompletionEvent;
+  | ClaudeAsyncSubagentCompletionEvent
+  | ClaudePromptSuggestionEvent;

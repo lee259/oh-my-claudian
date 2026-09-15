@@ -4,6 +4,37 @@
   padding: 12px 0 0;
 }
 
+.claudian-prompt-suggestion {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.claudian-prompt-suggestion:hover,
+.claudian-prompt-suggestion:focus-visible {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+.claudian-prompt-suggestion:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+  outline-offset: 1px;
+}
+
 .claudian-input-footer {
   position: relative;
   flex-shrink: 0;

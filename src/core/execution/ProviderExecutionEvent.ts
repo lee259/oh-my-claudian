@@ -181,6 +181,14 @@ export type ProviderNoticeEvent = ProviderEventBase<
     readonly level?: 'info' | 'warning';
   };
 
+export type ProviderPromptSuggestionEvent = ProviderEventBase<
+  'prompt_suggestion',
+  ProviderSessionEventScope
+> &
+  ProviderOpaqueEventPayload & {
+    readonly suggestion: string;
+  };
+
 export type ProviderSessionStateChangedEvent = ProviderEventBase<
   'session_state_changed',
   ProviderExecutionEventScope
@@ -329,6 +337,7 @@ export type ProviderSessionEvent =
   | ProviderAsyncSubagentCompletedEvent
   | (ProviderSessionStateChangedEvent & { readonly scope: ProviderSessionEventScope })
   | (ProviderModeChangedEvent & { readonly scope: ProviderSessionEventScope })
-  | ProviderSessionErrorEvent;
+  | ProviderSessionErrorEvent
+  | ProviderPromptSuggestionEvent;
 
 export type ProviderExecutionEvent = ProviderRequestedExecutionEvent;

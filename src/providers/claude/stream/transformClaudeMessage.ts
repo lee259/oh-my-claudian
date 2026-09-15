@@ -697,6 +697,14 @@ export function* transformSDKMessage(
       }
       break;
 
+    case 'prompt_suggestion': {
+      const suggestion = message.suggestion.trim();
+      if (suggestion) {
+        yield { type: 'prompt_suggestion', suggestion };
+      }
+      break;
+    }
+
     default:
       break;
   }

@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "Доступно: {capabilities}",
       "unavailableCapabilities": "Недоступно: {capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "Предложение продолжения: {suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "Включить расширение Chrome",
       "desc": "Разрешить Claude взаимодействовать с Chrome через расширение claude-in-chrome. Требуется установка расширения. Требуется перезапуск сессии."
+    },
+    "promptSuggestions": {
+      "name": "Включить подсказки промптов",
+      "desc": "Показывать предлагаемые следующие промпты после ответа Claude. Требуется перезапуск сеанса."
     },
     "enableBangBash": {
       "name": "Включить режим bash (!)",

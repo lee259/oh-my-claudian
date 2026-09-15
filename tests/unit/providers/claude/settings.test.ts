@@ -8,6 +8,16 @@ jest.mock('@/utils/env', () => ({
 import { getClaudeProviderSettings } from '@/providers/claude/settings';
 
 describe('Claude settings normalization', () => {
+  it('keeps prompt suggestions disabled by default and decodes stored values', () => {
+    expect(getClaudeProviderSettings({}).promptSuggestions).toBe(false);
+    expect(getClaudeProviderSettings({
+      providerConfigs: { claude: { promptSuggestions: true } },
+    }).promptSuggestions).toBe(true);
+    expect(getClaudeProviderSettings({
+      providerConfigs: { claude: { promptSuggestions: 'yes' } },
+    }).promptSuggestions).toBe(false);
+  });
+
   it('normalizes mixed CLI maps without interpreting host-shaped keys', () => {
     expect(getClaudeProviderSettings({
       providerConfigs: {

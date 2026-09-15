@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "Disponible: {capabilities}",
       "unavailableCapabilities": "No disponible: {capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "Sugerencia para continuar: {suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "Habilitar extensión de Chrome",
       "desc": "Permitir que Claude interactúe con Chrome a través de la extensión claude-in-chrome. Requiere que la extensión esté instalada. Requiere reinicio de sesión."
+    },
+    "promptSuggestions": {
+      "name": "Habilitar sugerencias de prompts",
+      "desc": "Mostrar prompts de seguimiento sugeridos después de una respuesta de Claude. Requiere reiniciar la sesión."
     },
     "enableBangBash": {
       "name": "Habilitar modo bash (!)",

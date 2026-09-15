@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "사용 가능: {capabilities}",
       "unavailableCapabilities": "사용할 수 없음: {capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "추천 후속 작업: {suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "Chrome 확장 프로그램 활성화",
       "desc": "claude-in-chrome 확장 프로그램을 통해 Claude가 Chrome과 상호작용할 수 있도록 합니다. 확장 프로그램이 설치되어 있어야 합니다. 세션 재시작이 필요합니다."
+    },
+    "promptSuggestions": {
+      "name": "프롬프트 제안 활성화",
+      "desc": "Claude 응답 후 추천 후속 프롬프트를 표시합니다. 세션을 다시 시작해야 합니다."
     },
     "enableBangBash": {
       "name": "bash 모드 (!) 활성화",

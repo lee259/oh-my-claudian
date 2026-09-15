@@ -24,6 +24,7 @@ import {
 } from '../sdk/typeGuards';
 import type {
   ClaudeAsyncSubagentCompletionEvent,
+  ClaudePromptSuggestionEvent,
   SessionInitEvent,
 } from '../sdk/types';
 import {
@@ -57,6 +58,10 @@ export type ClaudeNormalizedExecutionEvent =
   | {
     readonly type: 'async_subagent_completion';
     readonly event: ClaudeAsyncSubagentCompletionEvent;
+  }
+  | {
+    readonly type: 'prompt_suggestion';
+    readonly event: ClaudePromptSuggestionEvent;
   }
   | {
     readonly type: 'output';
@@ -142,6 +147,13 @@ export class ClaudeExecutionEventNormalizer {
       if (isAsyncSubagentCompletion(event)) {
         normalized.push({
           type: 'async_subagent_completion',
+          event,
+        });
+        continue;
+      }
+      if (event.type === 'prompt_suggestion') {
+        normalized.push({
+          type: 'prompt_suggestion',
           event,
         });
         continue;

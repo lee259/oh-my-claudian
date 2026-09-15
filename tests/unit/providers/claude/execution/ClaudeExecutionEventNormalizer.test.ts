@@ -6,6 +6,21 @@ import { ClaudeExecutionEventNormalizer } from '@/providers/claude/execution/Cla
 const msg = buildSDKMessage;
 
 describe('ClaudeExecutionEventNormalizer task tools', () => {
+  it('normalizes prompt suggestions as a separate provider event', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize({
+      type: 'prompt_suggestion',
+      suggestion: 'Show me the relevant tests',
+    } as any, 'requested');
+
+    expect(events).toEqual([{
+      type: 'prompt_suggestion',
+      event: {
+        type: 'prompt_suggestion',
+        suggestion: 'Show me the relevant tests',
+      },
+    }]);
+  });
+
   it('preserves a blocked decision for the matching native tool result', () => {
     const normalizer = new ClaudeExecutionEventNormalizer();
     normalizer.markToolBlocked('tool-1', 'requested');

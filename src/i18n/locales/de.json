@@ -92,6 +92,9 @@
     "welcome": {
       "availableCapabilities": "Verfügbar: {capabilities}",
       "unavailableCapabilities": "Nicht verfügbar: {capabilities}"
+    },
+    "promptSuggestion": {
+      "label": "Vorgeschlagener nächster Schritt: {suggestion}"
     }
   },
   "settings": {
@@ -478,6 +481,10 @@
     "enableChrome": {
       "name": "Chrome-Erweiterung aktivieren",
       "desc": "Erlaubt Claude die Interaktion mit Chrome über die claude-in-chrome-Erweiterung. Die Erweiterung muss installiert sein. Erfordert Neustart der Sitzung."
+    },
+    "promptSuggestions": {
+      "name": "Eingabevorschläge aktivieren",
+      "desc": "Vorgeschlagene Folgeprompts nach einer Claude-Antwort anzeigen. Sitzung muss neu gestartet werden."
     },
     "enableBangBash": {
       "name": "Bash-Modus (!) aktivieren",
