@@ -24,6 +24,27 @@ export function escapePromptXmlAttribute(value: string): string {
     .replace(/\r/g, '&#13;');
 }
 
+/**
+ * Decodes the entity set emitted by escapePromptXmlAttribute.
+ *
+ * Matching entities in one pass deliberately avoids turning `&amp;amp;` into
+ * `&` when a path has been escaped more than once.
+ */
+export function decodePromptXmlAttribute(value: string): string {
+  return value.replace(/&(?:amp|quot|lt|gt);|&#(?:9|10|13);/g, (entity) => {
+    switch (entity) {
+      case '&amp;': return '&';
+      case '&quot;': return '"';
+      case '&lt;': return '<';
+      case '&gt;': return '>';
+      case '&#9;': return '\t';
+      case '&#10;': return '\n';
+      case '&#13;': return '\r';
+      default: return entity;
+    }
+  });
+}
+
 export function formatPromptXmlCdata(value: string): string {
   const normalized = normalizePromptXmlCharacters(value);
   return `<![CDATA[${normalized.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;

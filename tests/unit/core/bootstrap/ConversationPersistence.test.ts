@@ -84,6 +84,26 @@ describe('SessionStorage read boundary', () => {
     expect(adapter.delete).not.toHaveBeenCalled();
   });
 
+  it('decodes XML-escaped current-note paths and requests a metadata migration', async () => {
+    const adapter = createAdapter();
+    const storage = new SessionStorage(adapter);
+    const metadata = {
+      ...createMetadata('escaped'),
+      currentNote: 'Notes/People &amp; Teams/Plan.md',
+    };
+    adapter.exists.mockImplementation(async (path) => path.endsWith('.meta.json'));
+    adapter.read.mockResolvedValue(JSON.stringify(metadata));
+
+    await expect(storage.load('escaped')).resolves.toEqual({
+      metadata: {
+        ...metadata,
+        currentNote: 'Notes/People & Teams/Plan.md',
+      },
+      needsMigration: true,
+      source: 'current',
+    });
+  });
+
   it('scans current and legacy metadata read-only while preferring current duplicates', async () => {
     const adapter = createAdapter();
     const storage = new SessionStorage(adapter);
@@ -230,6 +250,47 @@ describe('ConversationInputLedgerStorage', () => {
     await expect(storage.load('conversation-1')).resolves.toEqual({
       status: 'unavailable',
       reason: 'unsupported-version',
+    });
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  it('decodes XML-escaped paths in input context snapshots', async () => {
+    const adapter = createAdapter();
+    const storage = new ConversationInputLedgerStorage(adapter);
+    const ledger = createLedger();
+    ledger.records[0].context = {
+      currentNote: { path: 'Notes/People &amp; Teams/Plan.md' },
+      editorSelection: {
+        notePath: 'Notes/People &amp; Teams/Plan.md',
+        mode: 'none',
+      },
+      canvasSelection: {
+        canvasPath: 'Canvas/&quot;Roadmap&quot;.canvas',
+        nodeIds: [],
+      },
+    };
+    adapter.exists.mockResolvedValue(true);
+    adapter.read.mockResolvedValue(JSON.stringify(ledger));
+
+    await expect(storage.load(ledger.conversationId)).resolves.toEqual({
+      status: 'loaded',
+      ledger: {
+        ...ledger,
+        records: [{
+          ...ledger.records[0],
+          context: {
+            currentNote: { path: 'Notes/People & Teams/Plan.md' },
+            editorSelection: {
+              notePath: 'Notes/People & Teams/Plan.md',
+              mode: 'none',
+            },
+            canvasSelection: {
+              canvasPath: 'Canvas/"Roadmap".canvas',
+              nodeIds: [],
+            },
+          },
+        }],
+      },
     });
     expect(adapter.write).not.toHaveBeenCalled();
   });

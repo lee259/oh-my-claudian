@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import {
+  decodePromptXmlAttribute,
   escapePromptXmlAttribute,
   formatPromptXmlCdata,
 } from '../../../src/utils/promptXml';
@@ -9,6 +10,15 @@ describe('prompt XML utilities', () => {
   it('escapes attribute delimiters and normalizes control whitespace', () => {
     expect(escapePromptXmlAttribute('a "quote" & <tag>\nnext')).toBe(
       'a &quot;quote&quot; &amp; &lt;tag&gt;&#10;next',
+    );
+  });
+
+  it('decodes the escaped attribute entities in one pass', () => {
+    expect(decodePromptXmlAttribute(
+      'notes/People &amp; Teams/&quot;Plan&quot; &lt;draft&gt;.md',
+    )).toBe('notes/People & Teams/"Plan" <draft>.md');
+    expect(decodePromptXmlAttribute('&amp;amp; &#10; &#13; &#9;')).toBe(
+      '&amp; \n \r \t',
     );
   });
 

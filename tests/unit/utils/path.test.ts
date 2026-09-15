@@ -404,6 +404,13 @@ describe('normalizePathForVault', () => {
     const result = normalizePathForVault('/some/path.md', null);
     expect(result).toContain('path.md');
   });
+
+  it('decodes XML-escaped vault paths before normalization', () => {
+    expect(normalizePathForVault(
+      'Notes/People &amp; Teams/Plan.md',
+      vaultPath,
+    )).toBe('Notes/People & Teams/Plan.md');
+  });
 });
 
 describe('findClaudeCLIPath', () => {
