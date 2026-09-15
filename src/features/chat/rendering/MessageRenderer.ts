@@ -444,9 +444,9 @@ export class MessageRenderer {
     }
 
     const children = Array.from(contentEl.children) as HTMLElement[];
-    const answerStart = this.findFinalAnswerStart(children);
-    if (answerStart > 0) {
-      this.createCompletedWork(contentEl, children.slice(0, answerStart), msg.durationSeconds);
+    const workEls = this.findCompletedWorkElements(children);
+    if (workEls.length > 0) {
+      this.createCompletedWork(contentEl, workEls, msg.durationSeconds);
     }
     this.syncAssistantMessageActions(msg, msgEl, contentEl);
   }
@@ -598,21 +598,12 @@ export class MessageRenderer {
     this.completedWorkStatusTimers.delete(statusEl);
   }
 
-  private findFinalAnswerStart(children: HTMLElement[]): number {
-    let index = children.length;
-    while (index > 0) {
-      const child = children[index - 1];
-      if (
-        child.hasClass('claudian-text-block')
-        || child.hasClass('claudian-citations')
-        || child.hasClass('claudian-response-footer')
-      ) {
-        index--;
-        continue;
-      }
-      break;
-    }
-    return index;
+  private findCompletedWorkElements(children: HTMLElement[]): HTMLElement[] {
+    return children.filter((child) => (
+      !child.hasClass('claudian-text-block')
+      && !child.hasClass('claudian-citations')
+      && !child.hasClass('claudian-response-footer')
+    ));
   }
 
   private getCompletedWorkLabel(

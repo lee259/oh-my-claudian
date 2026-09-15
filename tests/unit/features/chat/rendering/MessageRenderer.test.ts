@@ -146,6 +146,37 @@ describe('MessageRenderer', () => {
       expect(contentEl.querySelector('.claudian-text-copy-btn')).toBeNull();
     });
 
+    it('keeps assistant text before a tool call visible', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-interleaved' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const preambleEl = contentEl.createDiv({ cls: 'claudian-text-block', text: 'I will inspect the file first.' });
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      const answerEl = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The file is valid.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-interleaved') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-interleaved',
+        role: 'assistant',
+        content: 'I will inspect the file first. The file is valid.',
+        timestamp: Date.now(),
+        durationSeconds: 4,
+      } as ChatMessage);
+
+      const workEl = contentEl.querySelector('.claudian-completed-work');
+      expect(workEl).toBeTruthy();
+      expect(contentEl.contains(preambleEl)).toBe(true);
+      expect(contentEl.contains(answerEl)).toBe(true);
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(toolEl)).toBe(true);
+      expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(preambleEl)).toBe(false);
+    });
+
     it('shows elapsed work without collapsing streaming content', () => {
       const { renderer } = createRenderer();
       const contentEl = createMockEl();
