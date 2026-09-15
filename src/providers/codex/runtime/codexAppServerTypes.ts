@@ -806,3 +806,18 @@ export interface UserInputRequest {
 export interface UserInputResponse {
   answers: Record<string, { answers: string[] }>;
 }
+
+// -- MCP elicitation requests -----------------------------------------------
+
+export interface McpElicitationRequest {
+  threadId: string;
+  turnId: string;
+  serverName: string;
+  message: string;
+  mode?: 'form' | 'url' | string;
+  requestedSchema?: Record<string, unknown> | null;
+}
+
+export type McpElicitationResponse =
+  | { action: 'accept'; content: Record<string, unknown> }
+  | { action: 'decline' | 'cancel' };

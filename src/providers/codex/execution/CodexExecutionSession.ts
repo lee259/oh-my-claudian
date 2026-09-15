@@ -715,6 +715,7 @@ export class CodexExecutionSession
       'item/permissions/requestApproval',
       'item/tool/requestUserInput',
       'item/tool/call',
+      'mcpServer/elicitation/request',
     ];
     for (const method of serverRequestMethods) {
       transport.onServerRequest(
