@@ -747,6 +747,32 @@ describe('Tab provider execution ownership', () => {
     expect(handleExecutionEvent).toHaveBeenCalledWith(event);
   });
 
+  it('applies requested plan-mode changes to the tab UI', async () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    const handleExecutionEvent = jest.fn();
+    tab.controllers.inputController = { handleExecutionEvent } as any;
+
+    await coordinatorDeps[0].onRequestedEvent?.({
+      mode: 'plan',
+      scope: {
+        executionId: 'execution-1',
+        kind: 'requested',
+        sequence: 1,
+        sessionInstanceId: 'session-instance-1',
+        turnId: 'turn-1',
+      },
+      snapshot: {
+        permissionMode: 'plan',
+      },
+      type: 'mode_changed',
+    } as any, {} as any);
+
+    expect(plugin.settings.permissionMode).toBe('plan');
+    expect(tab.dom.inputWrapper.hasClass('claudian-input-plan-mode')).toBe(true);
+    expect(handleExecutionEvent).not.toHaveBeenCalled();
+  });
+
   it('routes provider interactions through the current input controller', async () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });
