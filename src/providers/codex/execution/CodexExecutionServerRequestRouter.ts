@@ -15,6 +15,8 @@ import type {
   FileChangeApprovalDecision,
   FileChangeApprovalRequest,
   FileChangeApprovalResponse,
+  McpElicitationRequest,
+  McpElicitationResponse,
   PermissionsApprovalRequest,
   PermissionsApprovalResponse,
   RequestId,
@@ -84,6 +86,11 @@ export class CodexExecutionServerRequestRouter {
         return this.handleUserInputRequest(
           requestId,
           params as UserInputRequest,
+        );
+      case 'mcpServer/elicitation/request':
+        return this.handleMcpElicitationRequest(
+          requestId,
+          params as McpElicitationRequest,
         );
       case 'item/tool/call':
         return this.handleDynamicToolCall(params as DynamicToolCallParams);
@@ -304,6 +311,65 @@ export class CodexExecutionServerRequestRouter {
     }
   }
 
+  private async handleMcpElicitationRequest(
+    requestId: RequestId,
+    params: McpElicitationRequest,
+  ): Promise<McpElicitationResponse> {
+    if (!isConfirmationElicitation(params)) {
+      return { action: 'decline' };
+    }
+
+    const turn = this.getActiveTurn(params.threadId, params.turnId);
+    if (!turn || !shouldRouteApproval(turn.toolPolicy)) {
+      return { action: 'cancel' };
+    }
+
+    const pending = this.createPending(requestId, params.threadId);
+    try {
+      const response = await this.interactionPort.requestApproval({
+        interactionId: pending.interactionId,
+        sessionInstanceId: this.sessionInstanceId,
+        turnId: turn.localTurnId,
+        kind: 'approval',
+        toolName: 'mcp-elicitation',
+        input: {
+          serverName: params.serverName,
+          message: params.message,
+        },
+        description: params.message,
+        decisionOptions: [
+          { label: 'Allow once', value: 'allow', decision: 'allow' },
+          { label: 'Decline', value: 'decline', decision: 'deny' },
+          { label: 'Cancel', value: 'cancel', decision: 'cancel' },
+        ],
+        nativeContext: {
+          requestId,
+          threadId: params.threadId,
+          nativeTurnId: params.turnId,
+          serverName: params.serverName,
+        },
+      }, pending.controller.signal);
+
+      if (response.interactionId !== pending.interactionId) {
+        return { action: 'cancel' };
+      }
+      if (response.decision === 'allow') {
+        return { action: 'accept', content: {} };
+      }
+      return { action: response.decision === 'cancel' ? 'cancel' : 'decline' };
+    } finally {
+      this.removePending(pending);
+    }
+  }
+
+  private getActiveTurn(threadId: string, nativeTurnId: string): ActiveInteractionTurn | null {
+    try {
+      return this.requireActiveTurn(threadId, nativeTurnId);
+    } catch {
+      return null;
+    }
+  }
+
   private requireActiveTurn(
     threadId: string,
     nativeTurnId: string,
@@ -365,6 +431,20 @@ function qualifiedToolName(params: DynamicToolCallParams): string {
 
 function shouldRouteApproval(policy: ProviderToolPolicy): boolean {
   return policy.kind === 'provider-default' || policy.kind === 'unrestricted';
+}
+
+function isConfirmationElicitation(params: McpElicitationRequest): boolean {
+  if (params.mode === 'url') return false;
+  if (params.mode !== undefined && params.mode !== 'form') return false;
+  const schema = params.requestedSchema;
+  if (schema === null || schema === undefined) return true;
+  if (typeof schema !== 'object' || Array.isArray(schema)) return false;
+  const properties = schema.properties;
+  return properties === undefined
+    || (typeof properties === 'object'
+      && properties !== null
+      && !Array.isArray(properties)
+      && Object.keys(properties).length === 0);
 }
 
 function isDynamicToolAllowed(
