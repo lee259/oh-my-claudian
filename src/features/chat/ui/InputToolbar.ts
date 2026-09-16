@@ -272,11 +272,29 @@ export class ThinkingBudgetSelector {
   private budgetEl: HTMLElement | null = null;
   private budgetGearsEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
+  private readonly handleDocumentClick = (event: MouseEvent): void => {
+    if (!this.container.contains(event.target as Node)) {
+      this.closeOpenGears();
+    }
+  };
+  private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape') return;
+    this.closeOpenGears();
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
     this.container = parentEl.createDiv({ cls: 'claudian-thinking-selector' });
+    this.container.ownerDocument.addEventListener('click', this.handleDocumentClick, true);
+    this.container.ownerDocument.addEventListener('keydown', this.handleDocumentKeydown, true);
     this.render();
+  }
+
+  destroy(): void {
+    this.container.ownerDocument.removeEventListener('click', this.handleDocumentClick, true);
+    this.container.ownerDocument.removeEventListener('keydown', this.handleDocumentKeydown, true);
   }
 
   private render() {
@@ -317,12 +335,7 @@ export class ThinkingBudgetSelector {
     currentEl.setAttribute('aria-haspopup', 'listbox');
     currentEl.addEventListener('click', (event) => {
       event.stopPropagation();
-      const isOpen = !this.effortGearsEl?.hasClass('is-open');
-      this.effortGearsEl?.toggleClass('is-open', isOpen);
-      currentEl.setAttribute(
-        'aria-expanded',
-        isOpen ? 'true' : 'false',
-      );
+      this.toggleGears(this.effortGearsEl, currentEl);
     });
 
     const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-options' });
@@ -340,6 +353,7 @@ export class ThinkingBudgetSelector {
 
       gearEl.addEventListener('click', (e) => {
         e.stopPropagation();
+        this.closeOpenGears();
         runToolbarAction(async () => {
           await this.callbacks.onEffortLevelChange(effort.value);
           this.updateDisplay();
@@ -359,8 +373,17 @@ export class ThinkingBudgetSelector {
     const options: ProviderReasoningOption[] = uiConfig.getReasoningOptions(model, settings);
     const currentBudgetInfo = options.find(b => b.value === currentBudget);
 
-    const currentEl = this.budgetGearsEl.createDiv({ cls: 'claudian-thinking-current' });
+    const currentEl = this.budgetGearsEl.createEl('button', {
+      cls: 'claudian-thinking-current',
+      type: 'button',
+    });
     currentEl.setText(currentBudgetInfo?.label || options[0]?.label || 'Off');
+    currentEl.setAttribute('aria-expanded', 'false');
+    currentEl.setAttribute('aria-haspopup', 'listbox');
+    currentEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.toggleGears(this.budgetGearsEl, currentEl);
+    });
 
     const optionsEl = this.budgetGearsEl.createDiv({ cls: 'claudian-thinking-options' });
 
@@ -376,6 +399,7 @@ export class ThinkingBudgetSelector {
 
       gearEl.addEventListener('click', (e) => {
         e.stopPropagation();
+        this.closeOpenGears();
         runToolbarAction(async () => {
           await this.callbacks.onThinkingBudgetChange(budget.value);
           this.updateDisplay();
@@ -385,6 +409,7 @@ export class ThinkingBudgetSelector {
   }
 
   updateDisplay() {
+    this.closeOpenGears();
     const capabilities = this.callbacks.getCapabilities();
     if (capabilities.reasoningControl === 'none') {
       this.effortEl?.addClass('claudian-hidden');
@@ -419,6 +444,23 @@ export class ThinkingBudgetSelector {
       this.renderEffortGears();
     } else {
       this.renderBudgetGears();
+    }
+  }
+
+  private toggleGears(gearsEl: HTMLElement | null, currentEl: HTMLElement): void {
+    if (!gearsEl) return;
+    const isOpen = !gearsEl.hasClass('is-open');
+    this.closeOpenGears();
+    gearsEl.toggleClass('is-open', isOpen);
+    currentEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
+
+  private closeOpenGears(): void {
+    for (const gearsEl of [this.effortGearsEl, this.budgetGearsEl]) {
+      gearsEl?.removeClass('is-open');
+    }
+    for (const currentEl of Array.from(this.container.querySelectorAll('.claudian-thinking-current'))) {
+      currentEl.setAttribute('aria-expanded', 'false');
     }
   }
 }

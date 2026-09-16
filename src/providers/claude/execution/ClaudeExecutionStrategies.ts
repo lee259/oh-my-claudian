@@ -11,6 +11,9 @@ import { MessageChannel } from '../runtime/ClaudeMessageChannel';
 import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
 import type { ClaudeEncodedExecutionRequest } from './ClaudeExecutionRequestEncoder';
 
+const PLAN_MODE_CONTINUATION_PROMPT =
+  'Continue the current user request in plan mode. Continue exploring the task and prepare the implementation plan. Do not wait for another user message.';
+
 export interface ClaudeExecutionStrategySink {
   readonly sessionInstanceId: string;
   getProviderSessionId(): string | null;
@@ -25,6 +28,7 @@ export interface ClaudeExecutionStrategySink {
   releaseNativeTurnFence(queryToken: number): void;
   handleNativeQueryOpened(query: Query): void;
   handleNativeQueryClosed(query: Query): void;
+  shouldContinueAfterPlanMode(queryToken: number): boolean;
   handleAuthoritativeContextWindow(
     query: Query,
     model: string,
@@ -279,8 +283,15 @@ implements ClaudeExecutionStrategy {
           this.messageChannel?.setSessionId(message.session_id);
         }
         if (message.type === 'result') {
-          this.messageChannel?.onTurnComplete();
+          const nativeTurnToken = nativeTurn?.queryToken ?? queryToken;
+          const shouldContinue = this.sink.shouldContinueAfterPlanMode(
+            nativeTurnToken,
+          );
           this.finishNativeTurn(query, { type: 'completed' });
+          if (shouldContinue) {
+            this.enqueuePlanModeContinuation(query, nativeTurnToken);
+          }
+          this.messageChannel?.onTurnComplete();
         }
       }
       if (this.query === query && !this.disposed) {
@@ -330,6 +341,25 @@ implements ClaudeExecutionStrategy {
     if (!nativeTurn) return;
     this.activeNativeTurn = null;
     nativeTurn.settle(outcome);
+  }
+
+  private enqueuePlanModeContinuation(
+    query: Query,
+    queryToken: number,
+  ): void {
+    if (!this.messageChannel || this.query !== query || this.disposed) return;
+
+    const message = buildClaudeSDKUserMessage(
+      PLAN_MODE_CONTINUATION_PROMPT,
+      this.sink.getProviderSessionId() ?? '',
+    );
+    this.activeNativeTurn = createPersistentNativeTurn(query, queryToken);
+    try {
+      this.messageChannel.enqueueFront(message);
+    } catch (error) {
+      this.finishNativeTurn(query, { type: 'failed', error });
+      this.sink.handleNativeFailure(error, queryToken);
+    }
   }
 
   private detachCurrentQuery(query: Query): void {

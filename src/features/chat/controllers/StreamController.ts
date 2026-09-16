@@ -611,7 +611,7 @@ export class StreamController {
    * Flushes all pending tool calls by rendering them.
    * Called when a different content type arrives or stream ends.
    */
-  private flushPendingTools(): void {
+  flushPendingTools(): void {
     const { state } = this.deps;
 
     if (state.pendingTools.size === 0) {
