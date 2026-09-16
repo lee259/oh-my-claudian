@@ -772,6 +772,7 @@ export class InputController {
   private async finalizeRenderedTurn(message: ChatMessage): Promise<void> {
     const { renderer, state, streamController } = this.deps;
     const messageEl = state.currentContentEl?.closest<HTMLElement>('.claudian-message') ?? null;
+    streamController.flushPendingTools();
     state.currentContentEl = null;
     await streamController.finalizeCurrentThinkingBlock(message);
     await streamController.finalizeCurrentTextBlock(message);

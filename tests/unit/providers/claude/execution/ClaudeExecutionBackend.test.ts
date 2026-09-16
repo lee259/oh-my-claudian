@@ -548,6 +548,71 @@ describe('ClaudeExecutionBackend', () => {
     }));
   });
 
+  it('continues the requested turn after native plan-mode entry', async () => {
+    const prompts: string[] = [];
+    const queryFactory = jest.fn((request: {
+      prompt: AsyncIterable<sdkModule.SDKUserMessage>;
+    }) => createPromptDrivenPersistentQuery(request.prompt, (prompt) => {
+      prompts.push(prompt);
+      if (prompts.length === 1) {
+        return [
+          { type: 'system', subtype: 'init', session_id: 'session-1' },
+          {
+            type: 'assistant',
+            message: {
+              content: [{
+                type: 'tool_use',
+                id: 'plan-1',
+                name: 'EnterPlanMode',
+                input: {},
+              }],
+            },
+          },
+          { type: 'result', subtype: 'success' },
+        ];
+      }
+      return [
+        {
+          type: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Plan continuation' }],
+          },
+        },
+        { type: 'result', subtype: 'success' },
+      ];
+    }));
+    jest.spyOn(
+      await import('@/providers/claude/loadClaudeAgentSdk'),
+      'loadClaudeAgentQuery',
+    ).mockResolvedValueOnce(queryFactory as never);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    const events = await collectEvents(session.execute(createRequest({
+      input: [{ type: 'text', text: 'Plan this change' }],
+    })).events);
+
+    expect(prompts).toEqual([
+      'Plan this change',
+      expect.stringContaining('Continue the current user request in plan mode.'),
+    ]);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'tool_started',
+      toolCallId: 'plan-1',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'mode_changed',
+      mode: 'plan',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      text: 'Plan continuation',
+    }));
+    expect(events.filter(({ type }) => type === 'turn_completed')).toHaveLength(1);
+    await session.dispose();
+  });
+
   it.skip('uses the post-turn context snapshot instead of assistant request usage', async () => {
     const getContextUsage = jest.fn()
       .mockResolvedValue({

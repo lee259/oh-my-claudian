@@ -698,7 +698,7 @@ function createTabExecutionCoordinator(
     createId: generateMessageId,
     onRequestedEvent: async event => {
       if (event.type === 'mode_changed') {
-        await updatePlanModeUI(tab, plugin, normalizeProviderMode(event.mode));
+        await applyProviderModeChange(tab, plugin, normalizeProviderMode(event.mode));
         return;
       }
       await tab.controllers.inputController?.handleExecutionEvent(event);
@@ -851,6 +851,18 @@ async function restorePrePlanMode(tab: TabData, plugin: FeatureHost): Promise<vo
   }
 }
 
+async function applyProviderModeChange(
+  tab: TabData,
+  plugin: FeatureHost,
+  mode: string,
+): Promise<void> {
+  const previousMode = getTabPermissionMode(tab, plugin);
+  if (mode === 'plan' && previousMode !== 'plan') {
+    tab.state.prePlanPermissionMode ??= previousMode;
+  }
+  await updatePlanModeUI(tab, plugin, mode);
+}
+
 async function handleTabSessionEvent(
   tab: TabData,
   plugin: FeatureHost,
@@ -864,7 +876,7 @@ async function handleTabSessionEvent(
     return;
   }
   if (event.type === 'mode_changed') {
-    await updatePlanModeUI(tab, plugin, normalizeProviderMode(event.mode));
+    await applyProviderModeChange(tab, plugin, normalizeProviderMode(event.mode));
     if (!isCurrent()) return;
     return;
   }
@@ -1438,6 +1450,7 @@ function initializeInputToolbar(
   inputToolbar.appendChild(dom.sendButtonEl);
 
   dom.eventCleanups.push(() => toolbarComponents.layoutController.destroy());
+  dom.eventCleanups.push(() => toolbarComponents.thinkingBudgetSelector.destroy());
 
   tab.ui.modelSelector = toolbarComponents.modelSelector;
   tab.ui.modeSelector = toolbarComponents.modeSelector;

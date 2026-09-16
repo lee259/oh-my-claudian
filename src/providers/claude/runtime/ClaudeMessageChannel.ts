@@ -121,6 +121,26 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
     }
   }
 
+  /** Enqueue a provider-owned continuation ahead of user-submitted messages. */
+  enqueueFront(message: SDKUserMessage): void {
+    if (this.closed) {
+      throw new Error('MessageChannel is closed');
+    }
+
+    if (!this.turnActive) {
+      this.enqueue(message);
+      return;
+    }
+
+    if (this.queue.length >= MESSAGE_CHANNEL_CONFIG.MAX_QUEUED_MESSAGES) {
+      this.queue.pop();
+      this.onWarning(
+        `[MessageChannel] Queue full (${MESSAGE_CHANNEL_CONFIG.MAX_QUEUED_MESSAGES}), dropped the newest queued message for a continuation`,
+      );
+    }
+    this.queue.unshift(this.toPendingMessage(message));
+  }
+
   onTurnComplete(): void {
     this.turnActive = false;
 
@@ -205,5 +225,11 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
       parent_tool_use_id: null,
       session_id: this.currentSessionId || '',
     };
+  }
+
+  private toPendingMessage(message: SDKUserMessage): PendingMessage {
+    return this.messageHasAttachments(message)
+      ? { type: 'attachment', message }
+      : { type: 'text', content: this.extractTextContent(message) };
   }
 }
