@@ -10,6 +10,8 @@ import {
   type ProviderSessionEvent,
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
 } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { ChatMessage } from '@/core/types';
@@ -20,6 +22,10 @@ import {
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 
+import {
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
+} from '../../../utils/session';
 import type { OpencodeCommandCatalog } from '../commands/OpencodeCommandCatalog';
 import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection';
 import { decodeOpencodeModelId } from '../models';
@@ -332,11 +338,13 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
 
       this.getRunNormalizer(run).reset();
       run.acceptingLiveOutput = true;
+      const prompt = buildPromptBlocks(
+        request,
+        !this.nativeConversationContextEstablished,
+      );
+      reportResolvedTurnPrompt(request, getPromptCharacters(prompt));
       const response = await kernel.prompt({
-        prompt: buildPromptBlocks(
-          request,
-          !this.nativeConversationContextEstablished,
-        ),
+        prompt,
         sessionId: native.sessionId,
       });
       this.markNativeConversationContextEstablished(run);
@@ -861,6 +869,15 @@ function buildPromptBlocks(
       block.type === 'image'
     ))
     .map(({ image }) => image);
+  const conversationHistory = bootstrapHistory
+    ? [...(request.conversationHistory ?? [])] as ChatMessage[]
+    : [];
+  const compiledHistory = conversationHistory.length > 0
+    ? compileHistoryContext(conversationHistory, DEFAULT_HISTORY_REPLAY_BUDGET)
+    : null;
+  if (compiledHistory) {
+    reportHistoryReplay(request, compiledHistory.stats);
+  }
   const currentNote = request.context?.currentNote;
   return buildOpencodePromptBlocks({
     browserSelection: request.context?.browserSelection,
@@ -871,9 +888,16 @@ function buildPromptBlocks(
     contextFiles: request.context?.contextFiles ? [...request.context.contextFiles] : undefined,
     images,
     text,
-  }, bootstrapHistory
-    ? [...(request.conversationHistory ?? [])] as ChatMessage[]
-    : []);
+  }, conversationHistory, compiledHistory?.text);
+}
+
+function getPromptCharacters(
+  prompt: ReturnType<typeof buildPromptBlocks>,
+): number {
+  return prompt.reduce(
+    (total, block) => total + (block.type === 'text' ? block.text.length : 0),
+    0,
+  );
 }
 
 function formatError(error: unknown): string {

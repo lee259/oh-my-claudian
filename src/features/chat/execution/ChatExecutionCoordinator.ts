@@ -9,6 +9,7 @@ import type {
   ChatRewindResult,
   ProviderExecutionBackend,
   ProviderExecutionConfiguration,
+  ProviderExecutionDiagnostics,
   ProviderExecutionEvent,
   ProviderExecutionInvalidationReason,
   ProviderExecutionLifecycleRegistry,
@@ -70,6 +71,7 @@ export interface ChatTurnSubmission {
   readonly conversationHistory?: readonly ChatMessage[];
   readonly configuration: ProviderExecutionConfiguration;
   readonly toolPolicy: ProviderToolPolicy;
+  readonly diagnostics?: ProviderExecutionDiagnostics;
   readonly messages?: ChatTurnMessageBinding;
 }
 
@@ -1351,6 +1353,7 @@ function createExecutionRequest(
     conversationHistory: submission.conversationHistory,
     configuration: submission.configuration,
     toolPolicy: submission.toolPolicy,
+    diagnostics: submission.diagnostics,
     signal,
   };
 }

@@ -16,6 +16,8 @@ import {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
   type ProviderToolPolicy,
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
   resolveProviderSystemInstructions,
   type SteerableExecutionSession,
 } from '../../../core/execution';
@@ -38,8 +40,9 @@ import {
 import { appendEditorContext } from '../../../utils/editor';
 import { parseEnvironmentVariables } from '../../../utils/env';
 import {
-  buildContextFromHistory,
   buildPromptWithHistoryContext,
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import type { PiWorkspaceServices } from '../app/PiWorkspaceServices';
 import {
@@ -531,6 +534,7 @@ implements ProviderExecutionSession, SteerableExecutionSession {
       request,
       !hasNativeSession && !hasAcceptedCompatibleLiveContext,
     );
+    reportResolvedTurnPrompt(request, prompt.text.length);
     return {
       images: prompt.images,
       launchSpec,
@@ -1573,16 +1577,20 @@ function encodePrompt(
   }
   if (replayConversationHistory && request.conversationHistory?.length) {
     const history = [...request.conversationHistory] as ChatMessage[];
-    const historyContext = buildContextFromHistory(history);
+    const compiledHistory = compileHistoryContext(
+      history,
+      DEFAULT_HISTORY_REPLAY_BUDGET,
+    );
+    reportHistoryReplay(request, compiledHistory.stats);
     const recoveredPrompt = buildPromptWithHistoryContext(
-      historyContext,
+      compiledHistory.text,
       text,
       text,
       history,
     );
     text = encodePiRecoveryPrompt(
-      historyContext,
-      recoveredPrompt === historyContext ? null : text,
+      compiledHistory.text,
+      recoveredPrompt === compiledHistory.text ? null : text,
     );
   }
   return {

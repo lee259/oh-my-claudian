@@ -323,6 +323,17 @@ describe('extractUserQuery', () => {
 });
 
 describe('appendContextFiles', () => {
+  it('deduplicates repeated context paths while preserving their order', () => {
+    const result = appendContextFiles('Query', ['one.md', 'one.md', 'two.md']);
+
+    expect(result).toBe(
+      'Query\n\n<context_files>\n'
+      + '<context_file path="one.md" />\n'
+      + '<context_file path="two.md" />\n'
+      + '</context_files>',
+    );
+  });
+
   it('appends context files in XML format', () => {
     const result = appendContextFiles('Query', ['file1.md', 'file2.md']);
     expect(result).toBe(

@@ -64,5 +64,8 @@ export function createTabStreamController(
         await tab.controllers.conversationController?.save(false);
       }
     },
+    updateToolActivity: (activity) => tab.ui.statusPanel?.updateToolActivity(activity),
+    removeToolActivity: (id) => tab.ui.statusPanel?.removeToolActivity(id),
+    clearToolActivities: () => tab.ui.statusPanel?.clearToolActivities(),
   });
 }

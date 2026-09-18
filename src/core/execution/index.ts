@@ -6,6 +6,10 @@ export {
   type ProviderSessionLifecycle,
 } from './ProviderExecutionBackend';
 export {
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
+} from './ProviderExecutionDiagnostics';
+export {
   type ProviderAssistantMessageStartedEvent,
   type ProviderAsyncSubagentCompletedEvent,
   type ProviderBackgroundEventScope,
@@ -62,8 +66,12 @@ export {
   type ProviderCurrentNoteContext,
   type ProviderExecutionConfiguration,
   type ProviderExecutionContext,
+  type ProviderExecutionDiagnostics,
   type ProviderExecutionInputBlock,
   type ProviderExecutionRequest,
+  type ProviderResolvedHistoryDiagnostics,
+  type ProviderResolvedPromptDiagnostics,
+  type ProviderResolvedToolDiagnostics,
   type ProviderSystemInstructions,
   type ProviderToolPolicy,
   resolveProviderSystemInstructions,

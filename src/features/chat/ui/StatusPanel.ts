@@ -3,7 +3,9 @@ import { Notice, setIcon } from 'obsidian';
 import type { TodoItem } from '../../../core/tools/todo';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_TODO_WRITE } from '../../../core/tools/toolNames';
+import type { ToolActivityInfo } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import type { OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
 import { renderTodoItems } from '../rendering/todoUtils';
 
 export interface PanelBashOutput {
@@ -16,12 +18,28 @@ export interface PanelBashOutput {
 
 const MAX_BASH_OUTPUTS = 50;
 
+function toTranscriptStatus(
+  status: NonNullable<NonNullable<ToolActivityInfo['subagent']>['status']> | undefined,
+): OpenSubagentTranscriptDetail['status'] {
+  switch (status) {
+    case 'completed': return 'completed';
+    case 'error': return 'error';
+    case 'orphaned': return 'orphaned';
+    default: return 'running';
+  }
+}
+
 /**
  * StatusPanel - persistent bottom panel for todos and command output.
  */
 export class StatusPanel {
   private containerEl: HTMLElement | null = null;
   private panelEl: HTMLElement | null = null;
+
+  // Live tool activity
+  private toolActivityContainerEl: HTMLElement | null = null;
+  private currentToolActivities: Map<string, ToolActivityInfo> = new Map();
+  private openSubagentTranscriptHandler: ((detail: OpenSubagentTranscriptDetail) => void) | null = null;
 
   // Bash output section
   private bashOutputContainerEl: HTMLElement | null = null;
@@ -51,6 +69,13 @@ export class StatusPanel {
   mount(containerEl: HTMLElement): void {
     this.containerEl = containerEl;
     this.createPanel();
+  }
+
+  /** Connects the live subagent activity row to the owning conversation view. */
+  setSubagentTranscriptHandler(
+    handler: ((detail: OpenSubagentTranscriptDetail) => void) | null,
+  ): void {
+    this.openSubagentTranscriptHandler = handler;
   }
 
   /**
@@ -92,6 +117,7 @@ export class StatusPanel {
 
     // Clear references and recreate
     this.panelEl = null;
+    this.toolActivityContainerEl = null;
     this.bashOutputContainerEl = null;
     this.bashHeaderEl = null;
     this.bashContentEl = null;
@@ -101,6 +127,7 @@ export class StatusPanel {
     this.createPanel();
 
     // Re-render current state
+    this.renderToolActivity();
     this.renderBashOutputs();
     if (this.currentTodos && this.currentTodos.length > 0) {
       this.updateTodos(this.currentTodos);
@@ -117,6 +144,11 @@ export class StatusPanel {
 
     // Create panel element (no border/background - seamless)
     this.panelEl = this.containerEl.createDiv({ cls: 'claudian-status-panel' });
+
+    this.toolActivityContainerEl = this.panelEl.createDiv({
+      cls: 'claudian-status-panel-activity claudian-hidden',
+      attr: { role: 'status', 'aria-live': 'polite' },
+    });
 
     // Bash output container - hidden by default
     this.bashOutputContainerEl = this.panelEl.createDiv({ cls: 'claudian-status-panel-bash claudian-hidden' });
@@ -169,7 +201,113 @@ export class StatusPanel {
 
     const hasTodos = (this.currentTodos?.length ?? 0) > 0;
     const hasBashOutputs = this.currentBashOutputs.size > 0;
-    this.panelEl.toggleClass('claudian-status-panel--visible', hasTodos || hasBashOutputs);
+    const hasToolActivities = this.currentToolActivities.size > 0;
+    this.panelEl.toggleClass(
+      'claudian-status-panel--visible',
+      hasTodos || hasBashOutputs || hasToolActivities,
+    );
+  }
+
+  /** Show or update one currently executing tool or background agent. */
+  updateToolActivity(info: ToolActivityInfo): void {
+    if (!this.toolActivityContainerEl) return;
+    this.currentToolActivities.set(info.id, info);
+    this.renderToolActivity();
+  }
+
+  /** Remove a completed tool or background agent from the live activity row. */
+  removeToolActivity(id: string): void {
+    if (!this.currentToolActivities.delete(id)) return;
+    this.renderToolActivity();
+  }
+
+  clearToolActivities(): void {
+    if (this.currentToolActivities.size === 0) return;
+    this.currentToolActivities.clear();
+    this.renderToolActivity();
+  }
+
+  private renderToolActivity(): void {
+    if (!this.toolActivityContainerEl) return;
+
+    if (this.currentToolActivities.size === 0) {
+      this.toolActivityContainerEl.addClass('claudian-hidden');
+      this.toolActivityContainerEl.empty();
+      this.syncPanelVisibility();
+      return;
+    }
+
+    this.toolActivityContainerEl.removeClass('claudian-hidden');
+    this.toolActivityContainerEl.empty();
+
+    const latest = Array.from(this.currentToolActivities.values()).at(-1);
+    if (!latest) return;
+
+    const rowEl = this.toolActivityContainerEl.createDiv({
+      cls: 'claudian-status-panel-activity-row',
+    });
+    const iconEl = rowEl.createSpan({
+      cls: 'claudian-status-panel-activity-icon',
+      attr: { 'aria-hidden': 'true' },
+    });
+    setIcon(iconEl, 'loader-2');
+
+    const count = this.currentToolActivities.size;
+    rowEl.createSpan({
+      cls: 'claudian-status-panel-activity-label',
+      text: count > 1
+        ? `${t('chat.bangBash.running')} (${count})`
+        : t('chat.bangBash.running'),
+    });
+    rowEl.createSpan({
+      cls: 'claudian-status-panel-activity-tool',
+      text: [latest.name, latest.summary].filter(Boolean).join(' · '),
+    });
+
+    const subagent = latest.kind === 'agent' ? latest.subagent : undefined;
+    const canOpenSubagent = Boolean(
+      this.openSubagentTranscriptHandler
+      && subagent?.agentId
+      && subagent.taskToolId
+      && subagent.description,
+    );
+    const activityLabel = [t('chat.bangBash.running'), latest.name, latest.summary]
+      .filter(Boolean)
+      .join(' · ');
+
+    rowEl.setAttribute('aria-label', canOpenSubagent
+      ? `${activityLabel} · Open full conversation`
+      : activityLabel);
+
+    if (canOpenSubagent && subagent?.agentId) {
+      rowEl.addClass('claudian-status-panel-activity-row--openable');
+      rowEl.setAttribute('role', 'button');
+      rowEl.setAttribute('tabindex', '0');
+
+      const openIconEl = rowEl.createSpan({
+        cls: 'claudian-status-panel-activity-open',
+        attr: { 'aria-hidden': 'true' },
+      });
+      setIcon(openIconEl, 'external-link');
+
+      const openTranscript = (): void => {
+        this.openSubagentTranscriptHandler?.({
+          taskToolId: subagent.taskToolId,
+          agentId: subagent.agentId,
+          description: subagent.description,
+          status: toTranscriptStatus(subagent.status),
+        });
+      };
+      rowEl.addEventListener('click', openTranscript);
+      rowEl.addEventListener('keydown', (event: KeyboardEvent) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openTranscript();
+      });
+    }
+
+    this.syncPanelVisibility();
+    this.scrollToBottom();
   }
 
   /**
@@ -547,6 +685,7 @@ export class StatusPanel {
 
     // Clear bash output tracking
     this.currentBashOutputs.clear();
+    this.currentToolActivities.clear();
 
     if (this.panelEl) {
       this.panelEl.remove();
@@ -555,6 +694,7 @@ export class StatusPanel {
     this.bashOutputContainerEl = null;
     this.bashHeaderEl = null;
     this.bashContentEl = null;
+    this.toolActivityContainerEl = null;
     this.todoContainerEl = null;
     this.todoHeaderEl = null;
     this.todoContentEl = null;

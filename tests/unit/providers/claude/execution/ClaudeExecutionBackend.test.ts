@@ -346,6 +346,46 @@ describe('ClaudeExecutionBackend', () => {
     expect(sdkMock.getLastOptions()?.systemPrompt).toBeUndefined();
   });
 
+  it('reports resolved prompt sections and tool filtering through the diagnostics port', async () => {
+    sdkMock.setMockMessages([
+      {
+        type: 'system',
+        subtype: 'init',
+        session_id: 'native-session',
+      },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const onResolved = jest.fn();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    await collectEvents(session.execute(createRequest({
+      diagnostics: { onResolved },
+    })).events);
+
+    expect(onResolved).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.objectContaining({
+        source: 'provider',
+        characters: expect.any(Number),
+        sections: expect.arrayContaining([
+          expect.objectContaining({ name: 'time-context' }),
+          expect.objectContaining({ name: 'vault-context' }),
+        ]),
+      }),
+      turnPrompt: expect.objectContaining({
+        source: 'provider',
+        characters: expect.any(Number),
+        sections: [{ name: 'turn-prompt', characters: expect.any(Number) }],
+      }),
+      tools: expect.objectContaining({
+        source: 'provider',
+        disallowedNames: expect.any(Array),
+        enabledMcpServers: [],
+      }),
+    }));
+  });
+
   it('uses resumable ephemeral turns and honors passive non-persistent policy', async () => {
     const { services } = createServices();
     const backend = new ClaudeExecutionBackend(createHost(), services);

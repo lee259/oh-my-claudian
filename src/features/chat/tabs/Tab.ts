@@ -1944,6 +1944,10 @@ export function initializeTabRuntimeControllers(
     },
   });
 
+  tab.ui.statusPanel?.setSubagentTranscriptHandler((detail) => {
+    void tab.controllers.conversationController?.openSubagentTranscript(detail);
+  });
+
   tab.controllers.inputController = createTabInputController(tab, plugin, {
     ensureExecutionInitialized,
     generateId: generateMessageId,

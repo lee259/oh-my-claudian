@@ -17,6 +17,10 @@ import type {
   RewindableExecutionSession,
   SteerableExecutionSession,
 } from '../../../core/execution';
+import {
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
+} from '../../../core/execution';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { ChatMessage } from '../../../core/types';
 import { appendBrowserContext } from '../../../utils/browser';
@@ -24,8 +28,9 @@ import { appendCanvasContext } from '../../../utils/canvas';
 import { appendContextFiles, appendCurrentNote } from '../../../utils/context';
 import { appendEditorContext } from '../../../utils/editor';
 import {
-  buildContextFromHistory,
   buildPromptWithHistoryContext,
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import {
   type AcpContentBlock,
@@ -410,11 +415,13 @@ RewindableExecutionSession {
       if (this.isCancellationRequested(active)) return;
       active.normalizer.reset();
       active.acceptingLiveOutput = true;
+      const prompt = buildPromptBlocks(
+        active.request,
+        !this.nativeConversationContextEstablished,
+      );
+      reportResolvedTurnPrompt(active.request, getPromptCharacters(prompt));
       const response = await native.prompt({
-        prompt: buildPromptBlocks(
-          active.request,
-          !this.nativeConversationContextEstablished,
-        ),
+        prompt,
         sessionId,
       });
       if (this.isCancellationRequested(active)) return;
@@ -1241,8 +1248,13 @@ function buildPromptBlocks(
   if (context?.contextFiles?.length) text = appendContextFiles(text, [...context.contextFiles]);
   if (replayConversationHistory && request.conversationHistory?.length) {
     const history = [...request.conversationHistory] as ChatMessage[];
+    const compiledHistory = compileHistoryContext(
+      history,
+      DEFAULT_HISTORY_REPLAY_BUDGET,
+    );
+    reportHistoryReplay(request, compiledHistory.stats);
     text = buildPromptWithHistoryContext(
-      buildContextFromHistory(history),
+      compiledHistory.text,
       text,
       text,
       history,
@@ -1259,6 +1271,12 @@ function buildPromptBlocks(
     }
   }
   return blocks;
+}
+
+function getPromptCharacters(prompt: readonly AcpContentBlock[]): number {
+  return prompt
+    .filter((block): block is Extract<AcpContentBlock, { type: 'text' }> => block.type === 'text')
+    .reduce((total, block) => total + block.text.length, 0);
 }
 
 function buildSessionMeta(

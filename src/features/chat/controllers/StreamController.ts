@@ -34,6 +34,7 @@ import type {
   ChatMessage,
   StreamChunk,
   SubagentInfo,
+  ToolActivityInfo,
   ToolCallInfo,
   UsageInfo,
 } from '../../../core/types';
@@ -103,6 +104,9 @@ export interface StreamControllerDeps {
   ) => Promise<string | null | undefined>;
   enqueueBackgroundWork?: (work: () => Promise<void>) => Promise<void> | null;
   persistConversation?: () => Promise<void>;
+  updateToolActivity?: (activity: ToolActivityInfo) => void;
+  removeToolActivity?: (id: string) => void;
+  clearToolActivities?: () => void;
 }
 
 export interface SubagentHistoryRecoveryRequest {
@@ -195,6 +199,44 @@ export class StreamController {
 
   private getSubagentAdapter(toolName?: string): ProviderSubagentAdapter | null {
     return resolveSubagentAdapter(this.getActiveProviderId(), toolName);
+  }
+
+  private reportToolActivity(
+    toolCall: Pick<ToolCallInfo, 'id' | 'name' | 'input'>,
+    kind: ToolActivityInfo['kind'] = 'tool',
+    summaryOverride?: string,
+  ): void {
+    this.deps.updateToolActivity?.({
+      id: toolCall.id,
+      name: getToolName(toolCall.name, toolCall.input),
+      summary: summaryOverride ?? getToolSummary(toolCall.name, toolCall.input),
+      ...(kind ? { kind } : {}),
+    });
+  }
+
+  private reportSubagentActivity(subagent: SubagentInfo): void {
+    const status = subagent.asyncStatus ?? 'running';
+    if (status === 'completed' || status === 'error' || status === 'orphaned') {
+      this.removeToolActivity(`agent:${subagent.id}`);
+      return;
+    }
+
+    this.deps.updateToolActivity?.({
+      id: `agent:${subagent.id}`,
+      name: 'Agent',
+      summary: subagent.description,
+      kind: 'agent',
+      subagent: {
+        taskToolId: subagent.id,
+        agentId: subagent.agentId,
+        description: subagent.description,
+        status,
+      },
+    });
+  }
+
+  private removeToolActivity(id: string): void {
+    this.deps.removeToolActivity?.(id);
   }
 
   private normalizeToolResultContent(content: unknown): string {
@@ -443,6 +485,7 @@ export class StreamController {
         }
         // If still pending, the updated input is already in the toolCall object
       }
+      this.reportToolActivity(existingToolCall);
       this.ensureRegularToolCallVisibility(existingToolCall, msg);
       return;
     }
@@ -459,6 +502,7 @@ export class StreamController {
     };
     msg.toolCalls = msg.toolCalls || [];
     msg.toolCalls.push(toolCall);
+    this.reportToolActivity(toolCall);
 
     // Add to contentBlocks for ordering
     msg.contentBlocks = msg.contentBlocks || [];
@@ -699,6 +743,12 @@ export class StreamController {
       existingToolCall.subagent = subagentInfo;
       this.ensureProviderSubagentState(chunk.id, subagentInfo);
       this.bindProviderSubagentId(chunk.id, subagentInfo.agentId, msg, adapter);
+      this.reportToolActivity(existingToolCall);
+      if (subagentInfo.mode === 'async') {
+        this.reportSubagentActivity(subagentInfo);
+      } else {
+        this.removeToolActivity(`agent:${chunk.id}`);
+      }
       return;
     }
 
@@ -720,6 +770,12 @@ export class StreamController {
     toolCall.subagent = subagentInfo;
     this.ensureProviderSubagentState(chunk.id, subagentInfo);
     this.bindProviderSubagentId(chunk.id, subagentInfo.agentId, msg, adapter);
+    this.reportToolActivity(toolCall);
+    if (subagentInfo.mode === 'async') {
+      this.reportSubagentActivity(subagentInfo);
+    } else {
+      this.removeToolActivity(`agent:${chunk.id}`);
+    }
   }
 
   private ensureProviderSubagentState(
@@ -1004,6 +1060,7 @@ export class StreamController {
   ): void {
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (!state) return;
+    this.removeToolActivity(`agent:${spawnId}`);
     if (isAsyncSubagentState(state)) {
       finalizeAsyncSubagent(state, result, isError);
       return;
@@ -1023,6 +1080,7 @@ export class StreamController {
     msg: ChatMessage
   ): Promise<void> {
     const { state, subagentManager } = this.deps;
+    this.removeToolActivity(chunk.id);
     const normalizedContent = this.normalizeToolResultContent(chunk.content);
 
     const lifecycleToolCall = msg.toolCalls?.find(toolCall => toolCall.id === chunk.id);
@@ -1306,6 +1364,7 @@ export class StreamController {
   ): void {
     const { state, subagentManager } = this.deps;
     this.ensureTaskToolCall(msg, chunk.id, chunk.input, chunk.providerPayload);
+    this.reportToolActivity({ id: chunk.id, name: chunk.name, input: chunk.input });
 
     const result = subagentManager.handleTaskToolUse(chunk.id, chunk.input, state.currentContentEl);
 
@@ -1316,6 +1375,7 @@ export class StreamController {
         break;
       case 'created_async':
         this.recordSubagentInMessage(msg, result.info, chunk.id, 'async');
+        this.reportSubagentActivity(result.info);
         this.showThinkingIndicator();
         break;
       case 'buffered':
@@ -1506,9 +1566,11 @@ export class StreamController {
     }
 
     subagentManager.handleTaskToolResult(chunk.id, chunk.content, chunk.isError, chunk.toolUseResult);
-    await this.hydrateAsyncSubagentHistory(
-      subagentManager.getByTaskId(chunk.id),
-    );
+    const subagent = subagentManager.getByTaskId(chunk.id);
+    if (subagent && subagent.status !== 'running') {
+      this.removeToolActivity(`agent:${subagent.id}`);
+    }
+    await this.hydrateAsyncSubagentHistory(subagent);
     return true;
   }
 
@@ -1525,6 +1587,10 @@ export class StreamController {
       chunk.isError || false,
       chunk.toolUseResult
     );
+
+    if (handled && handled.status !== 'running') {
+      this.removeToolActivity(`agent:${handled.id}`);
+    }
 
     await this.hydrateAsyncSubagentHistory(handled);
 
@@ -1549,7 +1615,10 @@ export class StreamController {
   public applyAsyncSubagentCompletion(
     completion: AsyncSubagentCompletion,
   ): SubagentInfo | undefined {
-    return this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
+    const subagent = this.deps.subagentManager.handleAsyncSubagentCompletion(completion);
+    this.removeToolActivity(`agent:${completion.taskId}`);
+    if (subagent) this.removeToolActivity(`agent:${subagent.id}`);
+    return subagent;
   }
 
   /**
@@ -1754,6 +1823,9 @@ export class StreamController {
 
   /** Callback from SubagentManager when async state changes. Updates messages only (DOM handled by manager). */
   onAsyncSubagentStateChange(subagent: SubagentInfo): void {
+    if (subagent.mode === 'async') {
+      this.reportSubagentActivity(subagent);
+    }
     const message = this.updateSubagentInMessages(subagent);
     if (
       message
@@ -2122,6 +2194,7 @@ export class StreamController {
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.hideThinkingIndicator();
+    this.deps.clearToolActivities?.();
     state.currentContentEl = null;
     state.currentTextEl = null;
     state.currentTextContent = '';
@@ -2140,6 +2213,7 @@ export class StreamController {
     this.thinkingRenderCoordinator.dispose();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
+    this.deps.clearToolActivities?.();
   }
 }
 
