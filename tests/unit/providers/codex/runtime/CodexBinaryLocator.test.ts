@@ -11,7 +11,9 @@ const describeOnMac = process.platform === 'darwin' ? describe : describe.skip;
 
 describe('CodexBinaryLocator', () => {
   let tempDir: string;
+  const originalCodexInstallDir = process.env.CODEX_INSTALL_DIR;
   const originalHome = process.env.HOME;
+  const originalLocalAppData = process.env.LOCALAPPDATA;
   const originalPath = process.env.PATH;
 
   beforeEach(() => {
@@ -29,6 +31,16 @@ describe('CodexBinaryLocator', () => {
       delete process.env.PATH;
     } else {
       process.env.PATH = originalPath;
+    }
+    if (originalCodexInstallDir === undefined) {
+      delete process.env.CODEX_INSTALL_DIR;
+    } else {
+      process.env.CODEX_INSTALL_DIR = originalCodexInstallDir;
+    }
+    if (originalLocalAppData === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = originalLocalAppData;
     }
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
@@ -49,6 +61,40 @@ describe('CodexBinaryLocator', () => {
     fs.writeFileSync(pathBinary, '');
 
     expect(findCodexBinaryPath(pathDir, 'win32')).toBe(pathBinary);
+  });
+
+  it('finds the default standalone Codex install on Windows', () => {
+    process.env.LOCALAPPDATA = tempDir;
+    delete process.env.CODEX_INSTALL_DIR;
+    const installDir = path.join(tempDir, 'Programs', 'OpenAI', 'Codex', 'bin');
+    const cliPath = path.join(installDir, 'codex.exe');
+    fs.mkdirSync(installDir, { recursive: true });
+    fs.writeFileSync(cliPath, '');
+    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '');
+
+    expect(findCodexBinaryPath('', 'win32')).toBe(cliPath);
+  });
+
+  it('finds the newest complete Codex desktop runtime on Windows', () => {
+    process.env.LOCALAPPDATA = tempDir;
+    delete process.env.CODEX_INSTALL_DIR;
+    const runtimeRoot = path.join(tempDir, 'OpenAI', 'Codex', 'bin');
+    const createRuntime = (name: string, complete: boolean): string => {
+      const dir = path.join(runtimeRoot, name);
+      const cliPath = path.join(dir, 'codex.exe');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(cliPath, '');
+      if (complete) fs.writeFileSync(path.join(dir, 'codex-code-mode-host.exe'), '');
+      return cliPath;
+    };
+    const older = createRuntime('older-complete', true);
+    const newer = createRuntime('newer-complete', true);
+    const incomplete = createRuntime('newest-incomplete', false);
+    fs.utimesSync(older, new Date('2026-01-01'), new Date('2026-01-01'));
+    fs.utimesSync(newer, new Date('2027-01-01'), new Date('2027-01-01'));
+    fs.utimesSync(incomplete, new Date('2028-01-01'), new Date('2028-01-01'));
+
+    expect(findCodexBinaryPath('', 'win32')).toBe(newer);
   });
 
   describeOnMac('macOS app bundle discovery', () => {

@@ -578,6 +578,7 @@ describe('CodexExecutionBackend', () => {
         expect.any(Number),
       );
       expect((await eventsPromise).at(-1)).toMatchObject({
+        nativeAssistantId: turnId,
         nativeCheckpointId: turnId,
         type: 'turn_completed',
       });
