@@ -127,6 +127,16 @@
         "turnSteer": "Turn steering"
       }
     },
+    "obsidianCli": {
+      "title": "Obsidian CLI",
+      "desc": "Puente opcional para los comandos nativos de Obsidian. La API de la bóveda sigue disponible aunque la CLI no esté registrada.",
+      "checking": "Comprobando Obsidian CLI…",
+      "available": "Disponible mediante {path}{version}.",
+      "notAvailable": "Obsidian CLI no está registrada. Actualiza Obsidian a la versión 1.12.7 o posterior, activa la interfaz de línea de comandos en Ajustes → General y regístrala.",
+      "openGuide": "Abrir la guía oficial",
+      "checkAgain": "Comprobar de nuevo",
+      "failed": "No se pudo comprobar Obsidian CLI."
+    },
     "tabs": {
       "general": "General",
       "claude": "Claude",

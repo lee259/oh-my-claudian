@@ -53,6 +53,11 @@ import {
   DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import { toClaudeRuntimeModelId } from '../modelSelection';
+import {
+  CLAUDE_OBSIDIAN_MCP_SERVER_NAME,
+  CLAUDE_OBSIDIAN_MCP_TOOL_NAME,
+  createClaudeObsidianWorkspaceMcpServer,
+} from '../runtime/ClaudeObsidianWorkspaceMcpServer';
 import { createCustomSpawnFunction } from '../runtime/customSpawn';
 import {
   DISABLED_BUILTIN_SUBAGENTS,
@@ -154,8 +159,19 @@ export class ClaudeExecutionRequestEncoder {
       ...mcpMentions,
       ...(request.configuration.enabledMcpServers ?? []),
     ]);
-    const mcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
     const policy = resolveToolPolicy(request);
+    const externalMcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
+    const obsidianWorkspaceToolEnabled = shouldExposeObsidianWorkspaceTool(request);
+    const mcpServers = {
+      ...externalMcpServers,
+      ...(obsidianWorkspaceToolEnabled
+        ? {
+            [CLAUDE_OBSIDIAN_MCP_SERVER_NAME]: createClaudeObsidianWorkspaceMcpServer(
+              this.deps.host.obsidianWorkspace,
+            ),
+          }
+        : {}),
+    };
     const disallowedTools = uniqueStrings([
       ...this.deps.mcpManager.getDisallowedMcpTools(enabledMcpServers),
       ...UNSUPPORTED_SDK_TOOLS,
@@ -289,7 +305,7 @@ export class ClaudeExecutionRequestEncoder {
         enableAutoMode: claudeSettings.safeMode === 'auto',
         persistSession: options.persistSession,
       }),
-      mcpServersKey: JSON.stringify(mcpServers),
+      mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-workspace:${obsidianWorkspaceToolEnabled ? 'enabled' : 'disabled'}`,
       allowedTools: policy.allowedTools,
     };
   }
@@ -406,6 +422,20 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
       return {
         allowedTools: null,
       };
+  }
+}
+
+function shouldExposeObsidianWorkspaceTool(request: ProviderExecutionRequest): boolean {
+  switch (request.toolPolicy.kind) {
+    case 'provider-default':
+    case 'unrestricted':
+      return true;
+    case 'allow-list':
+      return request.toolPolicy.names.includes(CLAUDE_OBSIDIAN_MCP_TOOL_NAME)
+        || request.toolPolicy.names.includes('obsidian.workspace');
+    case 'passive':
+    case 'read-only':
+      return false;
   }
 }
 

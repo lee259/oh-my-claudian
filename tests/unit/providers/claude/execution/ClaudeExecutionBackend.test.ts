@@ -1118,9 +1118,12 @@ describe('ClaudeExecutionBackend', () => {
     expect(sdkMock.getQueryCallCount()).toBe(1);
     expect(query?.setModel).toHaveBeenCalledWith('claude-opus-4-6');
     expect(query?.setPermissionMode).toHaveBeenCalledWith('plan');
-    expect(query?.setMcpServers).toHaveBeenCalledWith({
+    expect(query?.setMcpServers).toHaveBeenCalledWith(expect.objectContaining({
       selected: { command: 'server' },
-    });
+      claudian_obsidian: expect.objectContaining({
+        name: 'claudian_obsidian',
+      }),
+    }));
   });
 
   it('replays canonical history only while bootstrapping a native session', async () => {

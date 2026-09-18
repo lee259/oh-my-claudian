@@ -108,6 +108,28 @@ export type PermissionResult =
   | { behavior: 'allow'; updatedInput?: Record<string, unknown>; updatedPermissions?: PermissionUpdate[]; toolUseID?: string }
   | { behavior: 'deny'; message: string; interrupt?: boolean; toolUseID?: string };
 
+export function tool(
+  name: string,
+  description: string,
+  inputSchema: unknown,
+  handler: (...args: unknown[]) => Promise<unknown>,
+) {
+  return { name, description, inputSchema, handler };
+}
+
+export function createSdkMcpServer(options: {
+  name: string;
+  version?: string;
+  tools?: unknown[];
+}) {
+  return {
+    name: options.name,
+    version: options.version,
+    tools: options.tools ?? [],
+    instance: {},
+  };
+}
+
 // Default mock messages for testing
 const mockMessages = [
   { type: 'system', subtype: 'init', session_id: 'test-session-123' },

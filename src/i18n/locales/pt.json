@@ -127,6 +127,16 @@
         "turnSteer": "Turn steering"
       }
     },
+    "obsidianCli": {
+      "title": "Obsidian CLI",
+      "desc": "Ponte opcional para comandos nativos do Obsidian. A API do cofre continua disponível mesmo sem o CLI registado.",
+      "checking": "A verificar o Obsidian CLI…",
+      "available": "Disponível através de {path}{version}.",
+      "notAvailable": "O Obsidian CLI não está registado. Atualize o Obsidian para a versão 1.12.7 ou posterior, ative a interface de linha de comandos em Definições → Geral e registe-o.",
+      "openGuide": "Abrir guia oficial de configuração",
+      "checkAgain": "Verificar novamente",
+      "failed": "Não foi possível verificar o Obsidian CLI."
+    },
     "tabs": {
       "general": "Geral",
       "claude": "Claude",

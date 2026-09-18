@@ -127,6 +127,16 @@
         "turnSteer": "Turn steering"
       }
     },
+    "obsidianCli": {
+      "title": "Obsidian CLI",
+      "desc": "Необязательный мост для нативных команд Obsidian. API хранилища доступен даже без регистрации CLI.",
+      "checking": "Проверка Obsidian CLI…",
+      "available": "Доступен через {path}{version}.",
+      "notAvailable": "Obsidian CLI не зарегистрирован. Обновите Obsidian до версии 1.12.7 или новее, включите интерфейс командной строки в настройках → Общие и зарегистрируйте его.",
+      "openGuide": "Открыть официальное руководство",
+      "checkAgain": "Проверить снова",
+      "failed": "Не удалось проверить Obsidian CLI."
+    },
     "tabs": {
       "general": "Общие",
       "claude": "Claude",

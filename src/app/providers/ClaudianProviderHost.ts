@@ -5,6 +5,7 @@ import type {
   ProviderExecutionLifecycleRegistry,
   ProviderExecutionTransitionScope,
 } from '../../core/execution';
+import type { ObsidianWorkspaceAdapter } from '../../core/obsidian/ObsidianWorkspaceAdapter';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type {
   ProviderCliResolutionContext,
@@ -15,6 +16,7 @@ import type { EnvironmentScope } from '../../core/types/settings';
 
 interface ClaudianProviderHostDependencies {
   readonly app: App;
+  readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
   readonly executionLifecycleRegistry: ProviderExecutionLifecycleRegistry;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
@@ -59,6 +61,10 @@ export class ClaudianProviderHost implements ProviderHost {
 
   get app() {
     return this.plugin.app;
+  }
+
+  get obsidianWorkspace(): ObsidianWorkspaceAdapter {
+    return this.plugin.obsidianWorkspace;
   }
 
   get executionLifecycleRegistry() {
