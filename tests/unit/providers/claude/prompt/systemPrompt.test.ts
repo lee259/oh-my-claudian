@@ -92,6 +92,15 @@ describe('systemPrompt', () => {
       expect(prompt).not.toContain('A leading slash or absolute path will FAIL');
     });
 
+    it('keeps vault and external path guidance consistent', () => {
+      const prompt = buildSystemPrompt();
+
+      expect(prompt).toContain(
+        'Use vault-relative paths by default; use absolute paths only for explicitly provided external contexts.',
+      );
+      expect(prompt).not.toContain('You always use relative paths.');
+    });
+
     it('guides link-aware vault moves through the running Obsidian app', () => {
       const prompt = buildSystemPrompt();
 
@@ -110,6 +119,15 @@ describe('systemPrompt', () => {
       expect(prompt).toContain('<context_file path="/external/project" />');
       expect(prompt).toContain('Legacy messages may');
       expect(prompt).toContain('path-only note reference');
+    });
+
+    it('does not repeat the full selection XML examples in the selection guidance', () => {
+      const prompt = buildSystemPrompt();
+
+      expect(prompt).not.toContain(
+        'User messages may include an `<editor_selection>` tag showing text the user selected:',
+      );
+      expect(prompt).toMatch(/When present, treat the selected content as user-provided\s+context and use it/);
     });
 
     it('should omit Claude-specific tool guidance from the shared prompt', () => {

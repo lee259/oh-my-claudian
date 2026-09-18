@@ -80,7 +80,44 @@ export type ProviderToolPolicy =
   | {
       readonly kind: 'allow-list';
       readonly names: readonly string[];
-    };
+  };
+
+export interface ProviderResolvedPromptDiagnostics {
+  readonly source: 'configured' | 'provider';
+  readonly characters: number;
+  readonly sections: readonly {
+    readonly name: string;
+    readonly characters: number;
+  }[];
+}
+
+export interface ProviderResolvedToolDiagnostics {
+  readonly source: 'configured' | 'provider';
+  readonly allowedNames?: readonly string[];
+  readonly disallowedNames?: readonly string[];
+  readonly enabledMcpServers?: readonly string[];
+}
+
+export interface ProviderResolvedHistoryDiagnostics {
+  readonly budgetCharacters: number;
+  readonly originalCharacters: number;
+  readonly finalCharacters: number;
+  readonly totalTurns: number;
+  readonly includedTurns: number;
+  readonly omittedTurns: number;
+  readonly truncatedMessages: number;
+  readonly wasCompacted: boolean;
+}
+
+/** Optional content-free diagnostics emitted after a provider resolves a request. */
+export interface ProviderExecutionDiagnostics {
+  readonly onResolved?: (diagnostics: {
+    readonly prompt?: ProviderResolvedPromptDiagnostics;
+    readonly turnPrompt?: ProviderResolvedPromptDiagnostics;
+    readonly tools?: ProviderResolvedToolDiagnostics;
+    readonly historyReplay?: ProviderResolvedHistoryDiagnostics;
+  }) => void;
+}
 
 /**
  * Canonical provider-neutral input for one requested execution.
@@ -96,5 +133,6 @@ export interface ProviderExecutionRequest {
   readonly conversationHistory?: readonly ChatMessage[];
   readonly configuration: ProviderExecutionConfiguration;
   readonly toolPolicy: ProviderToolPolicy;
+  readonly diagnostics?: ProviderExecutionDiagnostics;
   readonly signal: AbortSignal;
 }

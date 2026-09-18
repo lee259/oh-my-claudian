@@ -137,5 +137,5 @@ function formatContextFilesLine(files: string[]): string {
 }
 
 export function appendContextFiles(prompt: string, files: string[]): string {
-  return `${prompt}\n\n${formatContextFilesLine(files)}`;
+  return `${prompt}\n\n${formatContextFilesLine([...new Set(files)])}`;
 }

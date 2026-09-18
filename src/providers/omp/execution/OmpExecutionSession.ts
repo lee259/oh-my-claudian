@@ -11,6 +11,7 @@ import type {
   ProviderSessionSnapshot,
   ProviderSessionStatus,
 } from '@/core/execution';
+import { reportResolvedTurnPrompt } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { UsageInfo } from '@/core/types';
 import {
@@ -215,8 +216,10 @@ export class OmpExecutionSession implements ProviderExecutionSession {
           usage: initialUsage,
         });
       }
+      const prompt = buildOmpPrompt(request);
+      reportResolvedTurnPrompt(request, getTextCharacters(prompt));
       const response = await this.kernel.prompt({
-        prompt: buildOmpPrompt(request),
+        prompt,
         sessionId: native.sessionId,
       });
       if (run.terminal) return;
@@ -323,6 +326,12 @@ export function buildOmpPrompt(request: ProviderExecutionRequest): AcpContentBlo
     }
   }
   return blocks;
+}
+
+function getTextCharacters(prompt: readonly AcpContentBlock[]): number {
+  return prompt
+    .filter((block): block is Extract<AcpContentBlock, { type: 'text' }> => block.type === 'text')
+    .reduce((total, block) => total + block.text.length, 0);
 }
 
 export function buildOmpUsageInfo(usage: AcpUsageUpdate, model?: string) {

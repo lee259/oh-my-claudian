@@ -34,6 +34,7 @@ export interface OpencodePromptRequest {
 export function buildOpencodePromptText(
   request: OpencodePromptRequest,
   conversationHistory: ChatMessage[] = [],
+  historyContextOverride?: string,
 ): string {
   let prompt = request.text;
 
@@ -63,7 +64,7 @@ export function buildOpencodePromptText(
   }
 
   if (conversationHistory.length > 0) {
-    const historyContext = buildContextFromHistory(conversationHistory);
+    const historyContext = historyContextOverride ?? buildContextFromHistory(conversationHistory);
     prompt = buildPromptWithHistoryContext(
       historyContext,
       prompt,
@@ -78,9 +79,13 @@ export function buildOpencodePromptText(
 export function buildOpencodePromptBlocks(
   request: OpencodePromptRequest,
   conversationHistory: ChatMessage[] = [],
+  historyContextOverride?: string,
 ): AcpContentBlock[] {
   const blocks: AcpContentBlock[] = [
-    { type: 'text', text: buildOpencodePromptText(request, conversationHistory) },
+    {
+      type: 'text',
+      text: buildOpencodePromptText(request, conversationHistory, historyContextOverride),
+    },
   ];
 
   for (const image of request.images ?? []) {

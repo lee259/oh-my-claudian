@@ -103,6 +103,15 @@ export class TurnSubmissionBuilder {
       ? this.deps.plugin.settings.systemPrompt.trim()
       : '';
     const existingUserTurns = this.deps.state.messages.filter(isCanonicalUserMessage).length;
+    const systemInstructions = this.deps.plugin.settings.useClaudianSystemPrompt === true
+      ? { kind: 'provider-default' as const }
+      : systemPrompt
+        ? { kind: 'explicit' as const, instructions: systemPrompt }
+        : { kind: 'none' as const };
+    const conversationHistory = user && assistant
+      ? this.deps.state.messages.slice(0, -2)
+      : [...this.deps.state.messages];
+    const toolPolicy = { kind: 'provider-default' as const };
 
     return {
       canonicalText: request.text,
@@ -114,11 +123,7 @@ export class TurnSubmissionBuilder {
         ...(mode ? { mode } : {}),
         ...(reasoning ? { reasoning } : {}),
         ...(serviceTier ? { serviceTier } : {}),
-        systemInstructions: this.deps.plugin.settings.useClaudianSystemPrompt === true
-          ? { kind: 'provider-default' }
-          : systemPrompt
-            ? { kind: 'explicit', instructions: systemPrompt }
-            : { kind: 'none' },
+        systemInstructions,
       },
       context: {
         ...(request.browserSelection ? { browserSelection: request.browserSelection } : {}),
@@ -128,16 +133,14 @@ export class TurnSubmissionBuilder {
         ...(request.externalContextPaths ? { externalContextPaths: [...request.externalContextPaths] } : {}),
         ...(request.contextFiles ? { contextFiles: [...request.contextFiles] } : {}),
       },
-      conversationHistory: user && assistant
-        ? this.deps.state.messages.slice(0, -2)
-        : [...this.deps.state.messages],
+      conversationHistory,
       images: [...(request.images ?? [])],
       inputRecordId: this.deps.generateId(),
       ...(user ? { localMessageId: user.id } : {}),
       ...(user && assistant ? { messages: { assistant, user } } : {}),
       rawDisplayText: displayContent,
       timestamp: user?.timestamp ?? Date.now(),
-      toolPolicy: { kind: 'provider-default' },
+      toolPolicy,
       userTurnOrdinal: user ? existingUserTurns : existingUserTurns + 1,
     };
   }

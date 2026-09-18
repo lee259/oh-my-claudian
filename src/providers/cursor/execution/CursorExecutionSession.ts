@@ -11,6 +11,7 @@ import type {
   ProviderSessionSnapshot,
   ProviderSessionStatus,
 } from '@/core/execution';
+import { reportResolvedTurnPrompt } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { UsageInfo } from '@/core/types';
 import {
@@ -210,8 +211,10 @@ export class CursorExecutionSession implements ProviderExecutionSession {
           usage: initialUsage,
         });
       }
+      const prompt = buildCursorPrompt(request);
+      reportResolvedTurnPrompt(request, getTextCharacters(prompt));
       const response = await this.kernel.prompt({
-        prompt: buildCursorPrompt(request),
+        prompt,
         sessionId: native.sessionId,
       });
       if (run.terminal) return;
@@ -322,6 +325,12 @@ export function buildCursorPrompt(request: ProviderExecutionRequest): AcpContent
     }
   }
   return blocks;
+}
+
+function getTextCharacters(prompt: readonly AcpContentBlock[]): number {
+  return prompt
+    .filter((block): block is Extract<AcpContentBlock, { type: 'text' }> => block.type === 'text')
+    .reduce((total, block) => total + block.text.length, 0);
 }
 
 export function buildCursorUsageInfo(usage: AcpUsageUpdate, model?: string) {

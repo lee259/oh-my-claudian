@@ -763,6 +763,34 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Tool handling', () => {
+    it('should report active tool activity and remove it on completion', async () => {
+      const msg = createTestMessage();
+      const updateToolActivity = jest.fn();
+      const removeToolActivity = jest.fn();
+      deps.updateToolActivity = updateToolActivity;
+      deps.removeToolActivity = removeToolActivity;
+      deps.state.currentContentEl = createMockEl();
+
+      await controller.handleStreamChunk(
+        { type: 'tool_use', id: 'tool-activity-1', name: 'Read', input: { file_path: 'notes/test.md' } },
+        msg,
+      );
+
+      expect(updateToolActivity).toHaveBeenCalledWith({
+        id: 'tool-activity-1',
+        name: 'Read',
+        summary: 'file.md',
+        kind: 'tool',
+      });
+
+      await controller.handleStreamChunk(
+        { type: 'tool_result', id: 'tool-activity-1', content: 'ok' },
+        msg,
+      );
+
+      expect(removeToolActivity).toHaveBeenCalledWith('tool-activity-1');
+    });
+
     it('should record tool_use and add to content blocks', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
@@ -1785,6 +1813,35 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('onAsyncSubagentStateChange', () => {
+    it('should publish the agent id for the bottom activity link', () => {
+      const updateToolActivity = jest.fn();
+      deps.updateToolActivity = updateToolActivity;
+
+      controller.onAsyncSubagentStateChange({
+        id: 'task-1',
+        description: 'Find recent notes',
+        mode: 'async',
+        isExpanded: false,
+        status: 'running',
+        asyncStatus: 'running',
+        agentId: 'agent-1',
+        toolCalls: [],
+      });
+
+      expect(updateToolActivity).toHaveBeenCalledWith({
+        id: 'agent:task-1',
+        name: 'Agent',
+        summary: 'Find recent notes',
+        kind: 'agent',
+        subagent: {
+          taskToolId: 'task-1',
+          agentId: 'agent-1',
+          description: 'Find recent notes',
+          status: 'running',
+        },
+      });
+    });
+
     it('should update subagent in messages', () => {
       const subagent = { id: 'task-1', description: 'test', status: 'completed', result: 'done', toolCalls: [] } as any;
       deps.state.messages = [{
