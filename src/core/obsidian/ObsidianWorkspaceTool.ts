@@ -7,8 +7,7 @@ import type {
 export const OBSIDIAN_VAULT_TOOL_NAMESPACE = 'obsidian';
 export const OBSIDIAN_VAULT_TOOL_NAME = 'vault';
 
-const MAX_READ_OUTPUT_CHARS = 20_000;
-const MAX_SEARCH_OUTPUT_CHARS = 16_000;
+const MAX_OUTPUT_CHARS = 16_000;
 
 export interface ObsidianWorkspaceToolResult {
   readonly success: boolean;
@@ -19,9 +18,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isOperation(value: unknown): value is ObsidianWorkspaceOperation {
-  return value === 'read'
-    || value === 'search'
-    || value === 'set-property'
+  return value === 'set-property'
     || value === 'move'
     || value === 'trash'
     || value === 'backlinks';
@@ -43,31 +40,13 @@ function requiredString(input: Record<string, unknown>, name: string): string {
   return value.trim();
 }
 
-function optionalString(input: Record<string, unknown>, name: string): string | undefined {
-  const value = input[name];
-  if (value === undefined) return undefined;
-  if (typeof value !== 'string') {
-    throw new Error(`Obsidian vault tool ${name} must be a string.`);
-  }
-  return value.trim();
-}
-
 function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return `${text.slice(0, maxChars)}\n\n[Output truncated at ${maxChars} characters.]`;
 }
 
-function formatJson(value: unknown, maxChars: number): string {
-  return truncate(JSON.stringify(value, null, 2), maxChars);
-}
-
-function parseLimit(input: Record<string, unknown>): number | undefined {
-  const value = input.limit;
-  if (value === undefined) return undefined;
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 100) {
-    throw new Error('Obsidian vault tool limit must be an integer from 1 to 100.');
-  }
-  return value;
+function formatJson(value: unknown): string {
+  return truncate(JSON.stringify(value, null, 2), MAX_OUTPUT_CHARS);
 }
 
 async function execute(
@@ -80,16 +59,6 @@ async function execute(
   }
 
   switch (operation) {
-    case 'read': {
-      const path = requiredString(input, 'path');
-      return truncate(await adapter.read(path), MAX_READ_OUTPUT_CHARS);
-    }
-    case 'search': {
-      const query = requiredString(input, 'query');
-      const path = optionalString(input, 'path');
-      const limit = parseLimit(input);
-      return formatJson(await adapter.search(query, { ...(path ? { path } : {}), ...(limit ? { limit } : {}) }), MAX_SEARCH_OUTPUT_CHARS);
-    }
     case 'set-property': {
       const path = requiredString(input, 'path');
       const name = requiredString(input, 'name');
@@ -112,7 +81,7 @@ async function execute(
     }
     case 'backlinks': {
       const path = requiredString(input, 'path');
-      return formatJson(await adapter.backlinks(path), MAX_SEARCH_OUTPUT_CHARS);
+      return formatJson(await adapter.backlinks(path));
     }
   }
 }

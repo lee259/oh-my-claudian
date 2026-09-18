@@ -6,8 +6,6 @@ import {
 
 function createAdapter(): jest.Mocked<ObsidianWorkspaceAdapter> {
   return {
-    read: jest.fn().mockResolvedValue('# Plan'),
-    search: jest.fn(),
     setProperty: jest.fn(),
     move: jest.fn(),
     trash: jest.fn(),

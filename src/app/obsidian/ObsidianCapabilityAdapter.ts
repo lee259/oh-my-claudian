@@ -2,7 +2,6 @@ import { type App, TFile } from 'obsidian';
 
 import type {
   ObsidianPropertyValue,
-  ObsidianSearchResult,
   ObsidianWorkspaceAdapter,
 } from '../../core/obsidian/ObsidianWorkspaceAdapter';
 
@@ -25,35 +24,6 @@ function assertVaultPath(path: string): string {
  */
 export class ObsidianCapabilityAdapter implements ObsidianWorkspaceAdapter {
   constructor(private readonly app: App) {}
-
-  async read(path: string): Promise<string> {
-    const file = this.getFile(path);
-    return this.app.vault.read(file);
-  }
-
-  async search(query: string, options: { path?: string; limit?: number } = {}): Promise<ObsidianSearchResult[]> {
-    const normalizedQuery = query.trim();
-    if (!normalizedQuery) return [];
-
-    const folder = options.path ? assertVaultPath(options.path).replace(/\/$/, '') : null;
-    const limit = Math.max(1, Math.min(options.limit ?? 50, 500));
-    const results: ObsidianSearchResult[] = [];
-
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if (folder && file.path !== folder && !file.path.startsWith(`${folder}/`)) continue;
-      const content = await this.app.vault.read(file);
-      const matches = content
-        .split(/\r?\n/)
-        .map((text, index) => ({ line: index + 1, text }))
-        .filter(match => match.text.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase()));
-      if (matches.length > 0) {
-        results.push({ path: file.path, matches });
-        if (results.length >= limit) break;
-      }
-    }
-
-    return results;
-  }
 
   async setProperty(path: string, name: string, value: ObsidianPropertyValue): Promise<void> {
     const file = this.getFile(path);
