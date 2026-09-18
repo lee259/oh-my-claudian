@@ -11,9 +11,8 @@ export const CLAUDE_OBSIDIAN_MCP_SERVER_NAME = 'claudian_obsidian';
 export const CLAUDE_OBSIDIAN_MCP_TOOL_NAME = `mcp__${CLAUDE_OBSIDIAN_MCP_SERVER_NAME}__vault`;
 
 const inputSchema = {
-  operation: z.enum(['read', 'search', 'set-property', 'move', 'trash', 'backlinks']),
+  operation: z.enum(['set-property', 'move', 'trash', 'backlinks']),
   path: z.string().optional(),
-  query: z.string().optional(),
   name: z.string().optional(),
   value: z.union([
     z.string(),
@@ -23,7 +22,6 @@ const inputSchema = {
     z.null(),
   ]).optional(),
   destination: z.string().optional(),
-  limit: z.number().int().min(1).max(100).optional(),
 };
 
 export function createClaudeObsidianWorkspaceMcpServer(
@@ -35,7 +33,7 @@ export function createClaudeObsidianWorkspaceMcpServer(
     tools: [
       tool(
         'vault',
-        'Read, search, inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.',
+        'Inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.',
         inputSchema,
         async (input) => {
           const result = await executeObsidianWorkspaceTool(adapter, input);

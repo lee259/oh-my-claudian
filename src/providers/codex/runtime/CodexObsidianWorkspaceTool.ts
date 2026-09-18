@@ -18,21 +18,17 @@ export function createCodexObsidianWorkspaceTool(
     tool: {
       type: 'function',
       name: OBSIDIAN_VAULT_TOOL_NAME,
-      description: 'Read, search, inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.',
+      description: 'Inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.',
       inputSchema: {
         type: 'object',
         properties: {
           operation: {
             type: 'string',
-            enum: ['read', 'search', 'set-property', 'move', 'trash', 'backlinks'],
+            enum: ['set-property', 'move', 'trash', 'backlinks'],
           },
           path: {
             type: 'string',
-            description: 'Vault-relative file path. Omit only when searching the whole vault.',
-          },
-          query: {
-            type: 'string',
-            description: 'Text to search for; required for search.',
+            description: 'Vault-relative file path; required for all operations.',
           },
           name: {
             type: 'string',
@@ -45,11 +41,6 @@ export function createCodexObsidianWorkspaceTool(
           destination: {
             type: 'string',
             description: 'Vault-relative destination path; required for move.',
-          },
-          limit: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 100,
           },
         },
         required: ['operation'],
