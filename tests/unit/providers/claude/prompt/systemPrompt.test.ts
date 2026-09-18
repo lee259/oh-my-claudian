@@ -108,6 +108,7 @@ describe('systemPrompt', () => {
       expect(prompt).toContain('Move or rename Vault notes, attachments, and folders through the running Obsidian app');
       expect(prompt).toContain('Do not use shell `mv`');
       expect(prompt).toContain('property:set');
+      expect(prompt).toContain('Never invoke the Obsidian CLI without arguments');
     });
 
     it('should document live context shapes and legacy compatibility', () => {

@@ -666,6 +666,63 @@ describe('PiExecutionBackend', () => {
     });
   });
 
+  it('advances the checkpoint to the native branch appended after the saved leaf', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-pi-branch-'));
+    const sessionFile = path.join(tempDir, 'session.jsonl');
+    await fs.writeFile(sessionFile, [
+      { id: 'user-old', type: 'message', message: { role: 'user', content: 'Old' } },
+      {
+        id: 'assistant-old',
+        parentId: 'user-old',
+        type: 'message',
+        message: { role: 'assistant', content: 'Old answer' },
+      },
+      {
+        id: 'user-new',
+        parentId: 'assistant-old',
+        type: 'message',
+        message: { role: 'user', content: 'Continue' },
+      },
+      {
+        id: 'assistant-new',
+        parentId: 'user-new',
+        type: 'message',
+        message: { role: 'assistant', content: 'New answer' },
+      },
+    ].map(record => JSON.stringify(record)).join('\n'));
+
+    try {
+      const harness = createHarness(createConfig({
+        resumeSeed: {
+          providerSessionId: 'pi-session-1',
+          providerState: {
+            leafEntryId: 'assistant-old',
+            sessionFile,
+            sessionId: 'pi-session-1',
+          },
+        },
+      }));
+      harness.responses.set('get_state', {
+        leafEntryId: 'assistant-old',
+        sessionFile,
+        sessionId: 'pi-session-1',
+      });
+      const run = harness.session.execute(createRequest());
+      const eventsPromise = collect(run.events);
+      await waitFor(() => harness.kernels.length === 1);
+      completeTurn(harness.kernels[0]);
+
+      const events = await eventsPromise;
+      expect(events.at(-1)).toMatchObject({
+        nativeAssistantId: 'assistant-new',
+        nativeCheckpointId: 'assistant-new',
+        type: 'turn_completed',
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('surfaces a native Pi terminal error after a non-retrying agent end', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest());

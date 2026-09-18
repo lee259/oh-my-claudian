@@ -13,17 +13,9 @@ function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || '';
 }
 
-// Linux excluded: Obsidian registers the CLI through stable symlinks (/usr/local/bin,
-// ~/.local/bin), while process.execPath may point to a transient AppImage mount.
+// Windows ships Obsidian.com beside the app. Unix uses registered CLI locations;
+// adding the macOS app directory can select the GUI executable as `obsidian`.
 function getAppProvidedCliPaths(): string[] {
-  if (process.platform === 'darwin') {
-    const appBundleMatch = process.execPath.match(/^(.+?\.app)\//);
-    if (appBundleMatch) {
-      return [path.join(appBundleMatch[1], 'Contents', 'MacOS')];
-    }
-    return [path.dirname(process.execPath)];
-  }
-
   if (process.platform === 'win32') {
     return [path.dirname(process.execPath)];
   }

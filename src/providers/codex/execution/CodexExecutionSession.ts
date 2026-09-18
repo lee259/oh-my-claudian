@@ -1379,7 +1379,12 @@ export class CodexExecutionSession
       type: 'turn_completed',
       scope: run.createScope(),
       reason: 'completed',
-      ...(nativeCheckpointId ? { nativeCheckpointId } : {}),
+      ...(nativeCheckpointId
+        ? {
+            nativeAssistantId: nativeCheckpointId,
+            nativeCheckpointId,
+          }
+        : {}),
     });
     this.releaseRun(run);
   }

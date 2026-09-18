@@ -41,6 +41,9 @@ export class GrokExecutionNativeConnectionImpl
 implements GrokExecutionNativeConnection {
   private readonly connection: AcpClientConnection;
   private readonly listeners = new Set<Parameters<GrokExecutionNativeConnection['onNotification']>[0]>();
+  private readonly interjectionListeners = new Set<
+    Parameters<NonNullable<GrokExecutionNativeConnection['onInterjection']>>[0]
+  >();
   private readonly modeListeners = new Set<(mode: 'normal' | 'yolo') => void>();
   private readonly modelListeners = new Set<
     Parameters<NonNullable<GrokExecutionNativeConnection['onModelsChanged']>>[0]
@@ -78,6 +81,18 @@ implements GrokExecutionNativeConnection {
       this.unsubscribers.push(this.transport.onNotification(method, params => {
         const notification = parseGrokSessionNotification(method, params);
         if (notification) this.notify(notification, 'extension');
+      }));
+    }
+    for (const method of ['x.ai/session/interjection', '_x.ai/session/interjection']) {
+      this.unsubscribers.push(this.transport.onNotification(method, params => {
+        if (!isRecord(params) || typeof params.sessionId !== 'string') return;
+        const notification = {
+          sessionId: params.sessionId,
+          ...(typeof params.interjectionId === 'string'
+            ? { interjectionId: params.interjectionId }
+            : {}),
+        };
+        for (const listener of this.interjectionListeners) listener(notification);
       }));
     }
     for (const method of GROK_EXTENSION_REQUEST_METHODS) {
@@ -122,6 +137,10 @@ implements GrokExecutionNativeConnection {
     return this.process.isAlive();
   }
 
+  onClose(listener: (error?: Error) => void): () => void {
+    return this.process.onClose(listener);
+  }
+
   interject(
     request: Parameters<typeof requestGrokInterjection>[1],
     signal?: AbortSignal,
@@ -159,6 +178,13 @@ implements GrokExecutionNativeConnection {
     return () => this.listeners.delete(listener);
   }
 
+  onInterjection(
+    listener: Parameters<NonNullable<GrokExecutionNativeConnection['onInterjection']>>[0],
+  ): () => void {
+    this.interjectionListeners.add(listener);
+    return () => { this.interjectionListeners.delete(listener); };
+  }
+
   onModeChanged(listener: (mode: 'normal' | 'yolo') => void): () => void {
     this.modeListeners.add(listener);
     return () => this.modeListeners.delete(listener);
@@ -190,6 +216,7 @@ implements GrokExecutionNativeConnection {
   async shutdown(): Promise<void> {
     while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.();
     this.listeners.clear();
+    this.interjectionListeners.clear();
     this.modeListeners.clear();
     this.modelListeners.clear();
     this.connection.dispose();
