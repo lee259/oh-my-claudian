@@ -579,6 +579,32 @@ describe('ConversationRepository input ledger', () => {
     expect(ledger?.records.map(({ id }) => id)).toEqual([record.id]);
   });
 
+  it('attaches an accepted input without native IDs to its local user message', async () => {
+    const conversation = createConversation();
+    conversation.messages = [
+      { id: 'older-local', role: 'user', content: 'Older', timestamp: 1 },
+      { id: 'current-local', role: 'user', content: 'Current', timestamp: 2 },
+    ];
+    const { repository } = createRepository(conversation);
+    const record = createInputRecord({
+      localMessageId: 'current-local',
+      rawDisplayText: '/current',
+      canonicalText: 'Current canonical input',
+    });
+
+    await repository.stageConversationInput(conversation.id, record);
+    await repository.acceptConversationInput(conversation.id, record.id);
+
+    expect(conversation.messages[0].executionInput).toBeUndefined();
+    expect(conversation.messages[1]).toMatchObject({
+      displayContent: '/current',
+      executionInput: {
+        schemaVersion: 1,
+        canonicalText: 'Current canonical input',
+      },
+    });
+  });
+
   it('removes an accepted image input that has no assistant checkpoint', async () => {
     const conversation = createConversation();
     const incompleteImage = createInputRecord({
