@@ -60,6 +60,28 @@ describe('systemPrompt', () => {
       expect(prompt).not.toContain('```bash');
     });
 
+    it('should add concise Obsidian workspace guidance only when the tool is available', () => {
+      const prompt = buildSystemPrompt(
+        {},
+        {
+          capabilities: { obsidianVaultTool: true },
+          toolGuidanceProfile: 'provider-native',
+        },
+      );
+
+      expect(prompt).toContain('## Obsidian Vault');
+      expect(prompt).toContain('obsidian.vault');
+      expect(prompt).toContain('Use vault-relative paths.');
+      expect(prompt.slice(prompt.indexOf('## Obsidian Vault'))).not.toContain('http');
+    });
+
+    it('should not mention the Obsidian workspace tool when it is unavailable', () => {
+      const prompt = buildSystemPrompt({}, { toolGuidanceProfile: 'provider-native' });
+
+      expect(prompt).not.toContain('## Obsidian Vault');
+      expect(prompt).not.toContain('obsidian.vault');
+    });
+
     it('should append custom prompt section when provided', () => {
       const prompt = buildSystemPrompt({ customPrompt: 'Always be concise.' });
       expect(prompt).toContain('# Custom Instructions');
@@ -107,8 +129,8 @@ describe('systemPrompt', () => {
       expect(prompt).toContain('## File Operations');
       expect(prompt).toContain('Move or rename Vault notes, attachments, and folders through the running Obsidian app');
       expect(prompt).toContain('Do not use shell `mv`');
-      expect(prompt).toContain('property:set');
-      expect(prompt).toContain('Never invoke the Obsidian CLI without arguments');
+      expect(prompt).toContain('targeted frontmatter property updates');
+      expect(prompt).not.toContain('property:set');
     });
 
     it('should document live context shapes and legacy compatibility', () => {
@@ -251,6 +273,19 @@ describe('systemPrompt', () => {
 
       expect(defaultKey).toBe(claudianKey);
       expect(providerNativeKey).not.toBe(claudianKey);
+    });
+
+    it('includes capability changes in the prompt key', () => {
+      const settings = { vaultPath: '/vault' };
+      const withoutWorkspaceTool = computeSystemPromptKey(settings, {
+        toolGuidanceProfile: 'provider-native',
+      });
+      const withWorkspaceTool = computeSystemPromptKey(settings, {
+        capabilities: { obsidianVaultTool: true },
+        toolGuidanceProfile: 'provider-native',
+      });
+
+      expect(withWorkspaceTool).not.toBe(withoutWorkspaceTool);
     });
 
     it('computes key from all settings', () => {

@@ -1,8 +1,8 @@
 import type { ObsidianWorkspaceAdapter } from '../../../core/obsidian/ObsidianWorkspaceAdapter';
 import {
   executeObsidianWorkspaceTool,
-  OBSIDIAN_WORKSPACE_TOOL_NAME,
-  OBSIDIAN_WORKSPACE_TOOL_NAMESPACE,
+  OBSIDIAN_VAULT_TOOL_NAME,
+  OBSIDIAN_VAULT_TOOL_NAMESPACE,
 } from '../../../core/obsidian/ObsidianWorkspaceTool';
 import type { CodexDynamicToolRegistration } from './CodexDynamicToolRegistry';
 
@@ -12,12 +12,12 @@ export function createCodexObsidianWorkspaceTool(
   return {
     includeInThreadStart: true,
     namespace: {
-      name: OBSIDIAN_WORKSPACE_TOOL_NAMESPACE,
+      name: OBSIDIAN_VAULT_TOOL_NAMESPACE,
       description: 'Tools for interacting with the currently open Obsidian vault.',
     },
     tool: {
       type: 'function',
-      name: OBSIDIAN_WORKSPACE_TOOL_NAME,
+      name: OBSIDIAN_VAULT_TOOL_NAME,
       description: 'Read, search, inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.',
       inputSchema: {
         type: 'object',

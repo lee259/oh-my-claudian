@@ -6,7 +6,6 @@ import { executeObsidianWorkspaceTool } from '@/core/obsidian/ObsidianWorkspaceT
 
 function createAdapter(): jest.Mocked<ObsidianWorkspaceAdapter> {
   return {
-    probe: jest.fn(),
     read: jest.fn().mockResolvedValue('# Plan'),
     search: jest.fn().mockResolvedValue([
       { path: 'Notes/Plan.md', matches: [{ line: 1, text: '# Plan' }] },
@@ -71,7 +70,7 @@ describe('executeObsidianWorkspaceTool', () => {
       path: 'Notes/Plan.md',
     })).resolves.toEqual({
       success: false,
-      text: 'Obsidian workspace tool requires a non-empty destination.',
+      text: 'Obsidian vault tool requires a non-empty destination.',
     });
     await expect(executeObsidianWorkspaceTool(adapter, {
       operation: 'set-property',

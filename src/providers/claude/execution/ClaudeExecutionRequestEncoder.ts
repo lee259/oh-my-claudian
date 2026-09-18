@@ -161,10 +161,10 @@ export class ClaudeExecutionRequestEncoder {
     ]);
     const policy = resolveToolPolicy(request);
     const externalMcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
-    const obsidianWorkspaceToolEnabled = shouldExposeObsidianWorkspaceTool(request);
+    const obsidianVaultToolEnabled = shouldExposeObsidianVaultTool(request);
     const mcpServers = {
       ...externalMcpServers,
-      ...(obsidianWorkspaceToolEnabled
+      ...(obsidianVaultToolEnabled
         ? {
             [CLAUDE_OBSIDIAN_MCP_SERVER_NAME]: createClaudeObsidianWorkspaceMcpServer(
               this.deps.host.obsidianWorkspace,
@@ -187,7 +187,9 @@ export class ClaudeExecutionRequestEncoder {
       vaultPath: sessionConfig.vaultWorkingDirectory,
       userName: settings.userName,
     };
-    const defaultPromptSections = buildSystemPromptSections(systemPromptSettings);
+    const defaultPromptSections = buildSystemPromptSections(systemPromptSettings, {
+      capabilities: { obsidianVaultTool: obsidianVaultToolEnabled },
+    });
     const resolvedSystemPrompt = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
       () => defaultPromptSections.map(section => section.text).join('\n\n'),
@@ -305,7 +307,7 @@ export class ClaudeExecutionRequestEncoder {
         enableAutoMode: claudeSettings.safeMode === 'auto',
         persistSession: options.persistSession,
       }),
-      mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-workspace:${obsidianWorkspaceToolEnabled ? 'enabled' : 'disabled'}`,
+      mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-vault:${obsidianVaultToolEnabled ? 'enabled' : 'disabled'}`,
       allowedTools: policy.allowedTools,
     };
   }
@@ -425,14 +427,14 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
   }
 }
 
-function shouldExposeObsidianWorkspaceTool(request: ProviderExecutionRequest): boolean {
+function shouldExposeObsidianVaultTool(request: ProviderExecutionRequest): boolean {
   switch (request.toolPolicy.kind) {
     case 'provider-default':
     case 'unrestricted':
       return true;
     case 'allow-list':
       return request.toolPolicy.names.includes(CLAUDE_OBSIDIAN_MCP_TOOL_NAME)
-        || request.toolPolicy.names.includes('obsidian.workspace');
+        || request.toolPolicy.names.includes('obsidian.vault');
     case 'passive':
     case 'read-only':
       return false;

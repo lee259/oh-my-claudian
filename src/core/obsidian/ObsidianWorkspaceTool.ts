@@ -4,8 +4,8 @@ import type {
   ObsidianWorkspaceOperation,
 } from './ObsidianWorkspaceAdapter';
 
-export const OBSIDIAN_WORKSPACE_TOOL_NAMESPACE = 'obsidian';
-export const OBSIDIAN_WORKSPACE_TOOL_NAME = 'workspace';
+export const OBSIDIAN_VAULT_TOOL_NAMESPACE = 'obsidian';
+export const OBSIDIAN_VAULT_TOOL_NAME = 'vault';
 
 const MAX_READ_OUTPUT_CHARS = 20_000;
 const MAX_SEARCH_OUTPUT_CHARS = 16_000;
@@ -38,7 +38,7 @@ function isPropertyValue(value: unknown): value is ObsidianPropertyValue {
 function requiredString(input: Record<string, unknown>, name: string): string {
   const value = input[name];
   if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`Obsidian workspace tool requires a non-empty ${name}.`);
+    throw new Error(`Obsidian vault tool requires a non-empty ${name}.`);
   }
   return value.trim();
 }
@@ -47,7 +47,7 @@ function optionalString(input: Record<string, unknown>, name: string): string | 
   const value = input[name];
   if (value === undefined) return undefined;
   if (typeof value !== 'string') {
-    throw new Error(`Obsidian workspace tool ${name} must be a string.`);
+    throw new Error(`Obsidian vault tool ${name} must be a string.`);
   }
   return value.trim();
 }
@@ -65,7 +65,7 @@ function parseLimit(input: Record<string, unknown>): number | undefined {
   const value = input.limit;
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 100) {
-    throw new Error('Obsidian workspace tool limit must be an integer from 1 to 100.');
+    throw new Error('Obsidian vault tool limit must be an integer from 1 to 100.');
   }
   return value;
 }
@@ -76,7 +76,7 @@ async function execute(
 ): Promise<string> {
   const operation = input.operation;
   if (!isOperation(operation)) {
-    throw new Error('Obsidian workspace tool operation is invalid.');
+    throw new Error('Obsidian vault tool operation is invalid.');
   }
 
   switch (operation) {
@@ -94,7 +94,7 @@ async function execute(
       const path = requiredString(input, 'path');
       const name = requiredString(input, 'name');
       if (!Object.prototype.hasOwnProperty.call(input, 'value') || !isPropertyValue(input.value)) {
-        throw new Error('Obsidian workspace tool set-property requires a supported value, including null to delete a property.');
+        throw new Error('Obsidian vault tool set-property requires a supported value, including null to delete a property.');
       }
       await adapter.setProperty(path, name, input.value);
       return `Updated property ${name} in ${path}.`;
@@ -123,7 +123,7 @@ export async function executeObsidianWorkspaceTool(
 ): Promise<ObsidianWorkspaceToolResult> {
   try {
     if (!isRecord(rawInput)) {
-      throw new Error('Obsidian workspace tool arguments must be an object.');
+      throw new Error('Obsidian vault tool arguments must be an object.');
     }
     return {
       success: true,

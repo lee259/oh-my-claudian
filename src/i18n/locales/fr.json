@@ -127,16 +127,6 @@
         "turnSteer": "Turn steering"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "Pont facultatif vers les commandes natives d’Obsidian. L’API du coffre reste disponible même si la CLI n’est pas enregistrée.",
-      "checking": "Vérification d’Obsidian CLI…",
-      "available": "Disponible via {path}{version}.",
-      "notAvailable": "Obsidian CLI n’est pas enregistrée. Mettez Obsidian à jour vers la version 1.12.7 ou ultérieure, activez l’interface en ligne de commande dans Réglages → Général, puis enregistrez-la.",
-      "openGuide": "Ouvrir le guide officiel",
-      "checkAgain": "Vérifier à nouveau",
-      "failed": "Impossible de vérifier Obsidian CLI."
-    },
     "tabs": {
       "general": "Général",
       "claude": "Claude",

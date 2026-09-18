@@ -127,16 +127,6 @@
         "turnSteer": "Turn steering"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "Obsidian ネイティブコマンド用のオプションブリッジです。CLI が登録されていなくても Obsidian API は利用できます。",
-      "checking": "Obsidian CLI を確認中…",
-      "available": "{path} 経由で利用可能{version}。",
-      "notAvailable": "Obsidian CLI が登録されていません。Obsidian を 1.12.7 以降に更新し、設定 → 一般でコマンドラインインターフェースを有効にして登録してください。",
-      "openGuide": "公式セットアップガイドを開く",
-      "checkAgain": "再確認",
-      "failed": "Obsidian CLI を確認できませんでした。"
-    },
     "tabs": {
       "general": "一般",
       "claude": "Claude",

@@ -127,16 +127,6 @@
         "turnSteer": "Turn steering"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "Obsidian 네이티브 명령을 위한 선택적 브리지입니다. CLI가 등록되지 않아도 Obsidian API를 사용할 수 있습니다.",
-      "checking": "Obsidian CLI 확인 중…",
-      "available": "{path}을(를) 통해 사용 가능{version}.",
-      "notAvailable": "Obsidian CLI가 등록되지 않았습니다. Obsidian을 1.12.7 이상으로 업데이트하고 설정 → 일반에서 명령줄 인터페이스를 활성화한 뒤 등록하세요.",
-      "openGuide": "공식 설정 가이드 열기",
-      "checkAgain": "다시 확인",
-      "failed": "Obsidian CLI를 확인할 수 없습니다."
-    },
     "tabs": {
       "general": "일반",
       "claude": "Claude",

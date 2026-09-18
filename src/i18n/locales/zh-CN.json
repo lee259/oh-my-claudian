@@ -127,16 +127,6 @@
         "turnSteer": "回合控制"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "可选的 Obsidian 原生命令桥接。即使 CLI 没有注册，仍可使用 Obsidian API。",
-      "checking": "正在检测 Obsidian CLI…",
-      "available": "已通过 {path} 可用{version}。",
-      "notAvailable": "尚未注册 Obsidian CLI。请升级 Obsidian 至 1.12.7 以上，在设置 → 通用中启用命令行界面，然后完成注册。",
-      "openGuide": "打开官方配置指南",
-      "checkAgain": "重新检测",
-      "failed": "无法检测 Obsidian CLI。"
-    },
     "tabs": {
       "general": "通用",
       "claude": "Claude",

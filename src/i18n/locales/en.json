@@ -127,16 +127,6 @@
         "turnSteer": "Turn steering"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "Optional bridge for Obsidian-native commands. The vault API remains available even when the CLI is not registered.",
-      "checking": "Checking Obsidian CLI…",
-      "available": "Available{version} via {path}.",
-      "notAvailable": "Obsidian CLI is not registered. Update Obsidian to 1.12.7+, enable Command line interface in Settings → General, and register it.",
-      "openGuide": "Open official setup guide",
-      "checkAgain": "Check again",
-      "failed": "Could not check Obsidian CLI."
-    },
     "tabs": {
       "general": "General",
       "claude": "Claude",

@@ -1,30 +1,10 @@
-import { type App,TFile } from 'obsidian';
+import { type App, TFile } from 'obsidian';
 
 import type {
-  ObsidianCapabilitySnapshot,
-  ObsidianCliStatus,
   ObsidianPropertyValue,
   ObsidianSearchResult,
   ObsidianWorkspaceAdapter,
 } from '../../core/obsidian/ObsidianWorkspaceAdapter';
-import type { ManagedCommandResult } from '../../core/process/ManagedCommandRunner';
-import { ManagedCommandRunner } from '../../core/process/ManagedCommandRunner';
-import { findCliBinaryPath } from '../../utils/cliBinaryLocator';
-import { getVaultPath } from '../../utils/path';
-import { buildShellCommand, shellQuote } from '../../utils/shell';
-
-const OBSIDIAN_CLI_BINARY = 'obsidian';
-const CLI_TIMEOUT_MS = 15_000;
-const CLI_OUTPUT_LIMIT_BYTES = 16_384;
-
-const API_OPERATIONS = {
-  read: true,
-  search: true,
-  'set-property': true,
-  move: true,
-  trash: true,
-  backlinks: true,
-} as const;
 
 function assertVaultPath(path: string): string {
   const normalized = path.trim().replaceAll('\\', '/');
@@ -40,37 +20,11 @@ function assertVaultPath(path: string): string {
 
 /**
  * Application-owned adapter. The first implementation deliberately uses the
- * live Obsidian API for vault mutations; the CLI is treated as an optional
- * capability probe until a provider asks for a CLI-only operation.
+ * live Obsidian API for vault operations. The adapter intentionally stays
+ * inside the active Obsidian app and does not spawn an external process.
  */
 export class ObsidianCapabilityAdapter implements ObsidianWorkspaceAdapter {
-  private readonly runner: ManagedCommandRunner;
-
-  constructor(
-    private readonly app: App,
-    runner?: ManagedCommandRunner,
-  ) {
-    this.runner = runner ?? new ManagedCommandRunner();
-  }
-
-  async probe(): Promise<ObsidianCapabilitySnapshot> {
-    const cli = await this.probeCli();
-    const apiAvailable = Boolean(this.app.vault && this.app.fileManager);
-    return {
-      apiAvailable,
-      cli,
-      operations: apiAvailable
-        ? API_OPERATIONS
-        : {
-          read: false,
-          search: false,
-          'set-property': false,
-          move: false,
-          trash: false,
-          backlinks: false,
-        },
-    };
-  }
+  constructor(private readonly app: App) {}
 
   async read(path: string): Promise<string> {
     const file = this.getFile(path);
@@ -138,63 +92,4 @@ export class ObsidianCapabilityAdapter implements ObsidianWorkspaceAdapter {
     return file;
   }
 
-  private async probeCli(): Promise<ObsidianCliStatus> {
-    const env = { ...process.env } as Record<string, string>;
-    const resolvedPath = findCliBinaryPath(OBSIDIAN_CLI_BINARY, env.PATH);
-    const attempts: Array<{ command: string; args: string[] }> = [];
-    if (resolvedPath) attempts.push({ command: resolvedPath, args: ['version'] });
-    attempts.push({ command: OBSIDIAN_CLI_BINARY, args: ['version'] });
-
-    for (const attempt of attempts) {
-      const result = await this.runCli(attempt.command, attempt.args, env);
-      if (result?.exitCode === 0) {
-        return {
-          available: true,
-          path: resolvedPath ?? OBSIDIAN_CLI_BINARY,
-          version: result.stdout.trim() || result.stderr?.trim() || null,
-          error: null,
-        };
-      }
-    }
-
-    return {
-      available: false,
-      path: resolvedPath,
-      version: null,
-      error: resolvedPath ? 'Obsidian CLI is installed but unavailable.' : 'Obsidian CLI is not registered on PATH.',
-    };
-  }
-
-  private async runCli(
-    command: string,
-    args: string[],
-    env: Record<string, string>,
-  ): Promise<ManagedCommandResult | null> {
-    const result = await this.runner.run({
-      command,
-      args,
-      cwd: getVaultPath(this.app) ?? process.cwd(),
-      env,
-      timeoutMs: CLI_TIMEOUT_MS,
-      stdoutLimitBytes: CLI_OUTPUT_LIMIT_BYTES,
-      captureStderr: true,
-    });
-    if (result.termination !== 'error') return result;
-
-    const shellCommand = buildShellCommand(
-      `${shellQuote(OBSIDIAN_CLI_BINARY)} ${args.map(shellQuote).join(' ')}`,
-    );
-    if (!shellCommand) return null;
-
-    const shellResult = await this.runner.run({
-      command: shellCommand.command,
-      args: shellCommand.args,
-      cwd: getVaultPath(this.app) ?? process.cwd(),
-      env,
-      timeoutMs: CLI_TIMEOUT_MS,
-      stdoutLimitBytes: CLI_OUTPUT_LIMIT_BYTES,
-      captureStderr: true,
-    });
-    return shellResult.termination === 'error' ? null : shellResult;
-  }
 }

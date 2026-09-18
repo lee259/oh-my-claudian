@@ -1,8 +1,6 @@
 import { type App,TFile } from 'obsidian';
 
 import { ObsidianCapabilityAdapter } from '@/app/obsidian/ObsidianCapabilityAdapter';
-import type { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
-
 function createApp() {
   const file = Object.assign(new TFile(), { path: 'Notes/Plan.md', extension: 'md' });
   const otherFile = Object.assign(new TFile(), { path: 'Notes/Other.md', extension: 'md' });
@@ -35,44 +33,10 @@ function createApp() {
   return { app, file, processFrontMatter };
 }
 
-function createRunner(exitCode: number, stdout = ''): ManagedCommandRunner {
-  return {
-    run: jest.fn(async () => ({ exitCode, stdout, stderr: '' })),
-  } as unknown as ManagedCommandRunner;
-}
-
 describe('ObsidianCapabilityAdapter', () => {
-  it('probes the optional CLI while keeping API operations available', async () => {
-    const { app } = createApp();
-    const adapter = new ObsidianCapabilityAdapter(app, createRunner(0, '1.12.7'));
-
-    await expect(adapter.probe()).resolves.toMatchObject({
-      apiAvailable: true,
-      cli: {
-        available: true,
-        version: '1.12.7',
-      },
-      operations: {
-        read: true,
-        'set-property': true,
-      },
-    });
-  });
-
-  it('reports a missing CLI without disabling the API adapter', async () => {
-    const { app } = createApp();
-    const adapter = new ObsidianCapabilityAdapter(app, createRunner(1));
-
-    await expect(adapter.probe()).resolves.toMatchObject({
-      apiAvailable: true,
-      cli: { available: false },
-      operations: { read: true, search: true, backlinks: true },
-    });
-  });
-
   it('reads and searches vault-relative markdown files', async () => {
     const { app } = createApp();
-    const adapter = new ObsidianCapabilityAdapter(app, createRunner(1));
+    const adapter = new ObsidianCapabilityAdapter(app);
 
     await expect(adapter.read('Notes/Plan.md')).resolves.toBe('# plan\nship it');
     await expect(adapter.search('plan')).resolves.toEqual([
@@ -89,7 +53,7 @@ describe('ObsidianCapabilityAdapter', () => {
 
   it('delegates mutations to Obsidian file APIs', async () => {
     const { app, file, processFrontMatter } = createApp();
-    const adapter = new ObsidianCapabilityAdapter(app, createRunner(1));
+    const adapter = new ObsidianCapabilityAdapter(app);
 
     await adapter.setProperty('Notes/Plan.md', 'status', 'active');
     await adapter.move('Notes/Plan.md', 'Archive/Plan.md');
@@ -103,7 +67,7 @@ describe('ObsidianCapabilityAdapter', () => {
 
   it('rejects absolute and parent-traversal paths', async () => {
     const { app } = createApp();
-    const adapter = new ObsidianCapabilityAdapter(app, createRunner(1));
+    const adapter = new ObsidianCapabilityAdapter(app);
 
     await expect(adapter.read('/outside.md')).rejects.toThrow('vault-relative');
     await expect(adapter.move('Notes/Plan.md', '../outside.md')).rejects.toThrow('vault-relative');

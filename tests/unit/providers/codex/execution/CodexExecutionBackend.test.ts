@@ -458,7 +458,7 @@ describe('CodexExecutionBackend', () => {
           }),
           expect.objectContaining({
             namespace: 'obsidian',
-            name: 'workspace',
+            name: 'vault',
           }),
         ],
       }),

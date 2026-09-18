@@ -127,16 +127,6 @@
         "turnSteer": "Turn steering"
       }
     },
-    "obsidianCli": {
-      "title": "Obsidian CLI",
-      "desc": "Optionale Brücke für native Obsidian-Befehle. Die Vault-API bleibt verfügbar, auch wenn die CLI nicht registriert ist.",
-      "checking": "Obsidian CLI wird geprüft…",
-      "available": "Über {path} verfügbar{version}.",
-      "notAvailable": "Obsidian CLI ist nicht registriert. Aktualisiere Obsidian auf 1.12.7 oder höher, aktiviere die Befehlszeilenschnittstelle unter Einstellungen → Allgemein und registriere sie.",
-      "openGuide": "Offizielle Einrichtungsanleitung öffnen",
-      "checkAgain": "Erneut prüfen",
-      "failed": "Obsidian CLI konnte nicht geprüft werden."
-    },
     "tabs": {
       "general": "Allgemein",
       "claude": "Claude",

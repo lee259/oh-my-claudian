@@ -21,7 +21,6 @@ import {
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
-import { renderObsidianCliSettings } from '../../shared/settings/ObsidianCliSettings';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
 import {
@@ -345,8 +344,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
        });
 
     this.renderProviderCapabilityMatrix(container);
-
-    renderObsidianCliSettings(container, this.plugin.obsidianWorkspace);
 
     // --- Workspace and layout ---
 

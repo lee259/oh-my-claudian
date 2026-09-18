@@ -1754,7 +1754,12 @@ export class CodexExecutionSession
   private resolveBaseInstructions(request: ProviderExecutionRequest): string {
     const base = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
-      () => buildSystemPrompt(this.getSystemPromptSettings()),
+      () => buildSystemPrompt(this.getSystemPromptSettings(), {
+        capabilities: {
+          obsidianVaultTool: shouldExposeDynamicTools(request.toolPolicy)
+            && isThreadStartToolAllowed(request.toolPolicy, 'obsidian', 'vault'),
+        },
+      }),
     ) ?? '';
     return [
       base,
