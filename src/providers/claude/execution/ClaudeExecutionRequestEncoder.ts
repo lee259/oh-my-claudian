@@ -53,6 +53,11 @@ import {
   DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import { toClaudeRuntimeModelId } from '../modelSelection';
+import {
+  CLAUDE_OBSIDIAN_MCP_SERVER_NAME,
+  CLAUDE_OBSIDIAN_MCP_TOOL_NAME,
+  createClaudeObsidianWorkspaceMcpServer,
+} from '../runtime/ClaudeObsidianWorkspaceMcpServer';
 import { createCustomSpawnFunction } from '../runtime/customSpawn';
 import {
   DISABLED_BUILTIN_SUBAGENTS,
@@ -154,8 +159,19 @@ export class ClaudeExecutionRequestEncoder {
       ...mcpMentions,
       ...(request.configuration.enabledMcpServers ?? []),
     ]);
-    const mcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
     const policy = resolveToolPolicy(request);
+    const externalMcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
+    const obsidianVaultToolEnabled = shouldExposeObsidianVaultTool(request);
+    const mcpServers = {
+      ...externalMcpServers,
+      ...(obsidianVaultToolEnabled
+        ? {
+            [CLAUDE_OBSIDIAN_MCP_SERVER_NAME]: createClaudeObsidianWorkspaceMcpServer(
+              this.deps.host.obsidianWorkspace,
+            ),
+          }
+        : {}),
+    };
     const disallowedTools = uniqueStrings([
       ...this.deps.mcpManager.getDisallowedMcpTools(enabledMcpServers),
       ...UNSUPPORTED_SDK_TOOLS,
@@ -171,7 +187,9 @@ export class ClaudeExecutionRequestEncoder {
       vaultPath: sessionConfig.vaultWorkingDirectory,
       userName: settings.userName,
     };
-    const defaultPromptSections = buildSystemPromptSections(systemPromptSettings);
+    const defaultPromptSections = buildSystemPromptSections(systemPromptSettings, {
+      capabilities: { obsidianVaultTool: obsidianVaultToolEnabled },
+    });
     const resolvedSystemPrompt = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
       () => defaultPromptSections.map(section => section.text).join('\n\n'),
@@ -289,7 +307,7 @@ export class ClaudeExecutionRequestEncoder {
         enableAutoMode: claudeSettings.safeMode === 'auto',
         persistSession: options.persistSession,
       }),
-      mcpServersKey: JSON.stringify(mcpServers),
+      mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-vault:${obsidianVaultToolEnabled ? 'enabled' : 'disabled'}`,
       allowedTools: policy.allowedTools,
     };
   }
@@ -406,6 +424,20 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
       return {
         allowedTools: null,
       };
+  }
+}
+
+function shouldExposeObsidianVaultTool(request: ProviderExecutionRequest): boolean {
+  switch (request.toolPolicy.kind) {
+    case 'provider-default':
+    case 'unrestricted':
+      return true;
+    case 'allow-list':
+      return request.toolPolicy.names.includes(CLAUDE_OBSIDIAN_MCP_TOOL_NAME)
+        || request.toolPolicy.names.includes('obsidian.vault');
+    case 'passive':
+    case 'read-only':
+      return false;
   }
 }
 

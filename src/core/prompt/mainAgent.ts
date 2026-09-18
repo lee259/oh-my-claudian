@@ -5,8 +5,13 @@ export interface SystemPromptSettings {
   userName?: string;
 }
 
+export interface SystemPromptCapabilities {
+  obsidianVaultTool?: boolean;
+}
+
 export interface SystemPromptBuildOptions {
   appendices?: string[];
+  capabilities?: SystemPromptCapabilities;
   toolGuidanceProfile?: 'claudian' | 'provider-native';
 }
 
@@ -35,13 +40,19 @@ function getPathRules(vaultPath?: string): string {
 function getFileOperations(): string {
   return `## File Operations
 
-- Use built-in filesystem tools for ordinary reads, edits, file creation, directory creation, listing, and text search.
-- Use Obsidian-native operations for resolved links and backlinks, indexed tags and tasks, and live app state that filesystem tools cannot reliably provide.
-- For targeted frontmatter property updates, prefer Obsidian-native property operations (for example, the Obsidian CLI's \`property:set\` and \`property:remove\`) so Obsidian handles YAML serialization.
+- Use provider-native filesystem tools for ordinary reads, edits, file creation, directory creation, listing, and text search.
+- Use Obsidian-native operations when a request depends on resolved links, backlinks, indexed metadata, or live app state.
+- For targeted frontmatter property updates, prefer Obsidian-native property operations so Obsidian handles YAML serialization.
 - Move or rename Vault notes, attachments, and folders through the running Obsidian app so it can update links according to the user's link-update settings. Do not use shell \`mv\`, filesystem rename APIs, or copy-and-delete followed by manual link replacements.
-- When an Obsidian CLI is available, use its vault-relative move or rename operation and explicitly target the current Vault. For folder moves, resolve the source through the running app's vault API, confirm the source is a folder, check that the destination does not already exist, and rename through the app's file manager.
-- For unfamiliar Obsidian CLI syntax, use \`obsidian help <command>\`. Never invoke the Obsidian CLI without arguments because the GUI executable may be selected instead of the registered CLI.
 - For requested deletions, prefer Obsidian's trash behavior. Permanent deletion must be explicitly requested.`;
+}
+
+function getObsidianVaultGuidance(): string {
+    return `## Obsidian Vault
+
+- Use \`obsidian.vault\` for vault-aware search, backlinks, frontmatter properties, moves, and trash operations.
+- Use vault-relative paths. Preserve Obsidian's link and trash semantics.
+- Ask for confirmation before destructive operations unless the user explicitly requested them.`;
 }
 
 function getUserContext(userName?: string): string {
@@ -156,13 +167,18 @@ function getBaseSystemPromptSections(
   vaultPath: string | undefined,
   userName: string | undefined,
   toolGuidanceProfile: 'claudian' | 'provider-native',
+  capabilities: SystemPromptCapabilities | undefined,
 ): SystemPromptSection[] {
-  return [
+  const sections = [
     { name: 'user-context', text: getUserContext(userName) },
     { name: 'time-context', text: getTimeContext(toolGuidanceProfile) },
     { name: 'vault-context', text: getVaultContext(vaultPath) },
     { name: 'file-operations', text: getFileOperations() },
-  ].filter(section => Boolean(section.text));
+  ];
+  if (capabilities?.obsidianVaultTool) {
+    sections.push({ name: 'obsidian-vault', text: getObsidianVaultGuidance() });
+  }
+  return sections.filter(section => Boolean(section.text));
 }
 
 function getImageInstructions(mediaFolder: string): string {
@@ -216,6 +232,7 @@ export function buildSystemPromptSections(
     settings.vaultPath,
     settings.userName,
     toolGuidanceProfile,
+    options.capabilities,
   );
 
   if (toolGuidanceProfile === 'claudian') {
@@ -264,6 +281,9 @@ export function computeSystemPromptKey(
 
   if (options.toolGuidanceProfile === 'provider-native') {
     parts.push(options.toolGuidanceProfile);
+  }
+  if (options.capabilities?.obsidianVaultTool) {
+    parts.push('obsidian-vault-tool');
   }
 
   return parts.join('::');

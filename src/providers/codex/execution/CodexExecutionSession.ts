@@ -76,6 +76,7 @@ import type {
 import { CodexDynamicToolRegistry } from '../runtime/CodexDynamicToolRegistry';
 import type { CodexLaunchSpec } from '../runtime/codexLaunchTypes';
 import { CodexNotificationRouter } from '../runtime/CodexNotificationRouter';
+import { createCodexObsidianWorkspaceTool } from '../runtime/CodexObsidianWorkspaceTool';
 import {
   CodexRpcResponseError,
   CodexRpcTransport,
@@ -660,6 +661,9 @@ export class CodexExecutionSession
       this.dynamicToolRegistry = new CodexDynamicToolRegistry();
       this.dynamicToolRegistry.register(
         createCodexWorkspaceDependencyTool(this.runtimeContext),
+      );
+      this.dynamicToolRegistry.register(
+        createCodexObsidianWorkspaceTool(this.plugin.obsidianWorkspace),
       );
       this.serverRequestRouter.setDynamicToolRegistry(this.dynamicToolRegistry);
       this.wireTransportHandlers(transport, generation);
@@ -1750,7 +1754,12 @@ export class CodexExecutionSession
   private resolveBaseInstructions(request: ProviderExecutionRequest): string {
     const base = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
-      () => buildSystemPrompt(this.getSystemPromptSettings()),
+      () => buildSystemPrompt(this.getSystemPromptSettings(), {
+        capabilities: {
+          obsidianVaultTool: shouldExposeDynamicTools(request.toolPolicy)
+            && isThreadStartToolAllowed(request.toolPolicy, 'obsidian', 'vault'),
+        },
+      }),
     ) ?? '';
     return [
       base,
