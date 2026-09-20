@@ -1,4 +1,4 @@
-import { createMockEl } from '@test/helpers/MockElement';
+/** @jest-environment jsdom */
 
 import { SelectableDropdown, type SelectableDropdownRenderOptions } from '@/shared/components/SelectableDropdown';
 
@@ -17,7 +17,8 @@ describe('SelectableDropdown', () => {
   let dropdown: SelectableDropdown<string>;
 
   beforeEach(() => {
-    containerEl = createMockEl();
+    containerEl = document.createElement('div');
+    HTMLElement.prototype.scrollIntoView ??= jest.fn();
     dropdown = new SelectableDropdown(containerEl, {
       listClassName: 'dropdown-list',
       itemClassName: 'dropdown-item',
@@ -56,7 +57,7 @@ describe('SelectableDropdown', () => {
       dropdown.render(createRenderOptions({
         items: ['alpha', 'beta'],
         selectedIndex: 0,
-        renderItem: (item, el) => el.setText(item),
+        renderItem: (item, el) => { el.textContent = item; },
       }));
 
       const el = dropdown.getElement();
@@ -103,7 +104,7 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
+      const items = el.querySelectorAll('.dropdown-item');
       expect(items.length).toBe(1);
     });
   });
@@ -117,7 +118,7 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const emptyEl = el.querySelector('dropdown-empty');
+      const emptyEl = el.querySelector('.dropdown-empty');
       expect(emptyEl).not.toBeNull();
       expect(emptyEl!.textContent).toBe('Nothing here');
     });
@@ -132,7 +133,7 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
+      const items = el.querySelectorAll('.dropdown-item');
       expect(items[0].hasClass('extra-class')).toBe(true);
     });
 
@@ -144,7 +145,7 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
+      const items = el.querySelectorAll('.dropdown-item');
       expect(items[0].hasClass('cls-a')).toBe(true);
       expect(items[0].hasClass('cls-b')).toBe(true);
     });
@@ -157,7 +158,7 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
+      const items = el.querySelectorAll('.dropdown-item');
       expect(items.length).toBe(1);
     });
   });
@@ -172,8 +173,8 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
-      items[1].dispatchEvent({ type: 'click', target: items[1] } as any);
+      const items = el.querySelectorAll('.dropdown-item');
+      items[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
       expect(onItemClick).toHaveBeenCalledWith('b', 1, expect.anything());
     });
@@ -186,8 +187,8 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
-      items[2].dispatchEvent({ type: 'click', target: items[2] } as any);
+      const items = el.querySelectorAll('.dropdown-item');
+      items[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
       expect(dropdown.getSelectedIndex()).toBe(2);
     });
@@ -203,8 +204,8 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
-      items[0].dispatchEvent({ type: 'mouseenter' } as any);
+      const items = el.querySelectorAll('.dropdown-item');
+      items[0].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
 
       expect(onItemHover).toHaveBeenCalledWith('a', 0);
     });
@@ -217,8 +218,8 @@ describe('SelectableDropdown', () => {
       }));
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
-      items[1].dispatchEvent({ type: 'mouseenter' } as any);
+      const items = el.querySelectorAll('.dropdown-item');
+      items[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
 
       expect(dropdown.getSelectedIndex()).toBe(1);
     });
@@ -281,7 +282,7 @@ describe('SelectableDropdown', () => {
       dropdown.moveSelection(2);
 
       const el = dropdown.getElement()!;
-      const items = el.querySelectorAll('dropdown-item');
+      const items = el.querySelectorAll('.dropdown-item');
       expect(items[0].hasClass('selected')).toBe(false);
       expect(items[1].hasClass('selected')).toBe(false);
       expect(items[2].hasClass('selected')).toBe(true);
@@ -357,6 +358,25 @@ describe('SelectableDropdown', () => {
       }));
 
       expect(dropdown.getItems()).toEqual(['x']);
+    });
+
+    it('does not duplicate imperative item content after re-render', () => {
+      const renderItem = (item: string, itemEl: HTMLElement): void => {
+        itemEl.createSpan({ text: item });
+      };
+
+      dropdown.render(createRenderOptions({
+        items: ['a'],
+        renderItem,
+      }));
+      dropdown.render(createRenderOptions({
+        items: ['a'],
+        renderItem,
+      }));
+
+      const item = dropdown.getElement()!.querySelector('.dropdown-item');
+      expect(item?.children).toHaveLength(1);
+      expect(item?.textContent).toBe('a');
     });
   });
 

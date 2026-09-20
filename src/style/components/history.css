@@ -108,23 +108,6 @@
   outline-offset: 2px;
 }
 
-.claudian-session-sidebar .claudian-sidebar-dual-pane-toggle-btn {
-  margin-inline-start: auto;
-  width: 28px;
-  padding: 4px;
-}
-
-.claudian-session-sidebar .claudian-sidebar-dual-pane-toggle-btn.is-active {
-  color: var(--text-normal);
-  border-color: var(--background-modifier-border);
-  background: transparent;
-}
-
-.claudian-session-sidebar .claudian-sidebar-dual-pane-toggle-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
 .claudian-session-new-control,
 .claudian-session-search-control,
 .claudian-session-archive-control {
@@ -560,6 +543,115 @@
   display: block;
 }
 
+/* The popup is a quick history picker, so keep rows compact and text-first. */
+.claudian-history-menu > .claudian-history-header {
+  display: none;
+}
+
+.claudian-history-menu .claudian-history-item {
+  min-height: 30px;
+  gap: 0;
+  padding: 4px 8px;
+  border-bottom-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+  border-radius: 3px;
+}
+
+.claudian-history-menu .claudian-history-item-icon {
+  display: none;
+}
+
+.claudian-history-menu .claudian-history-item.active,
+.claudian-history-menu .claudian-history-item.open {
+  border-inline-start: 0;
+  padding-inline-start: 8px;
+}
+
+.claudian-history-menu .claudian-history-item.active,
+.claudian-history-menu .claudian-history-item.open,
+.claudian-history-menu .claudian-history-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-history-menu .claudian-history-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.claudian-history-menu .claudian-history-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.claudian-history-menu .claudian-history-item-date {
+  flex: 0 0 auto;
+  margin-top: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.claudian-history-menu .claudian-history-item-actions {
+  flex: 0 0 auto;
+  margin-inline-start: 4px;
+}
+
+.claudian-history-menu .claudian-history-item.active .claudian-history-item-actions,
+.claudian-history-menu .claudian-history-item.open .claudian-history-item-actions,
+.claudian-history-menu .claudian-history-item:hover .claudian-history-item-actions,
+.claudian-history-menu .claudian-history-item:focus-within .claudian-history-item-actions {
+  opacity: 1;
+}
+
+.claudian-home-history-search {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-home-history-search-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.claudian-home-history-search-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.claudian-home-history-search-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 13px;
+}
+
+.claudian-home-history-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.claudian-home-history-list-host {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.claudian-home-history-list-host .claudian-history-header {
+  display: none;
+}
+
 .claudian-history-header {
   padding: 8px 12px;
   font-size: 12px;
@@ -728,10 +820,6 @@
 
 .claudian-delete-btn:hover {
   color: var(--color-red);
-}
-
-.claudian-open-new-tab-btn:hover {
-  color: var(--interactive-accent);
 }
 
 .claudian-history-menu .claudian-history-item-actions .claudian-action-btn {

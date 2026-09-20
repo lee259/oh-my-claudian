@@ -6,6 +6,7 @@ import type { ProviderCommandEntry } from '../../../core/providers/commands/Prov
 import type { InstructionRefineService, ProviderId, TitleGenerationService } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
 import type { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
+import type { PreactRoot } from '../../../shared/ui/PreactRoot';
 import type { FeatureHost } from '../../FeatureHost';
 import type { BrowserSelectionController } from '../controllers/BrowserSelectionController';
 import type { CanvasSelectionController } from '../controllers/CanvasSelectionController';
@@ -16,6 +17,7 @@ import type { SelectionController } from '../controllers/SelectionController';
 import type { StreamController } from '../controllers/StreamController';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
+import type { WelcomeHomeOptions } from '../rendering/WelcomeRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { TabAttention, TabReviewOutcome } from '../state/types';
@@ -60,6 +62,9 @@ export interface TabManagerViewHost extends Component {
 
   /** Starts approved plan content in a layout-owned new conversation when required. */
   handleNewSessionPlan?(planContent: string): Promise<boolean>;
+
+  /** Provides the presentation-only home surface actions and recent conversations. */
+  getWelcomeHomeOptions?(): WelcomeHomeOptions;
 }
 
 /**
@@ -92,6 +97,7 @@ export interface TabCreateOptions {
   tabId?: TabId;
   /** Initial draft model for an unbound tab. */
   draftModel?: string | null;
+  getWelcomeHomeOptions?: () => WelcomeHomeOptions;
   lifecycleState?: Extract<TabData['lifecycleState'], 'provisional' | 'cold'>;
   onStreamingChanged?: (isStreaming: boolean) => void;
   onWorkChanged?: () => void;
@@ -162,6 +168,10 @@ export interface TabDOMElements {
   messagesEl: HTMLElement;
   welcomeEl: HTMLElement | null;
 
+  /** Preact-owned header for bound conversations. */
+  conversationHeaderRoot: PreactRoot;
+  updateConversationHeader: (title: string) => void;
+
   /** Container for status panel (fixed between messages and input). */
   statusPanelContainerEl: HTMLElement;
 
@@ -180,8 +190,6 @@ export interface TabDOMElements {
 
   /** Composer-owned context tray container inside the input wrapper. */
   contextRowEl: HTMLElement;
-  /** Read-only context scope summary shown above the composer input. */
-  scopePreviewEl: HTMLElement;
 
   /** Cleanup functions for event listeners (prevents memory leaks). */
   eventCleanups: Array<() => void>;

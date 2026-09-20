@@ -104,19 +104,18 @@ jest.mock('obsidian', () => {
 
 import { DEFAULT_CLAUDIAN_SETTINGS } from '@/app/settings/defaultSettings';
 import { ClaudianSettingTab } from '@/features/settings/ClaudianSettings';
-import { t } from '@/i18n/i18n';
 
-function createTab(enableDualPane: boolean, enableFilePane = true): {
+function createTab(): {
   tab: ClaudianSettingTab;
   plugin: Record<string, any>;
 } {
-  const settings = { ...DEFAULT_CLAUDIAN_SETTINGS, enableDualPane, enableFilePane };
+  const settings = { ...DEFAULT_CLAUDIAN_SETTINGS };
   const plugin = {
     settings,
     mutateSettings: jest.fn(async (mutation: (value: typeof settings) => void) => {
       mutation(settings);
     }),
-    getAllViews: jest.fn(() => [{ refreshDualPaneLayout: jest.fn() }]),
+    getAllViews: jest.fn(() => []),
     notifyAgentSkillsChanged: jest.fn(),
     storage: {
       getAdapter: jest.fn(() => ({})),
@@ -158,47 +157,12 @@ describe('ClaudianSettingTab display settings', () => {
     mockToggleChanges.clear();
   });
 
-  it('renders the dual-pane position only while dual-pane mode is enabled', () => {
-    const enabled = createTab(true);
-    (enabled.tab as any).renderGeneralTab(createContainer());
-
-    expect(mockRenderedSettingNames.indexOf(t('settings.setup')))
-      .toBeLessThan(mockRenderedSettingNames.indexOf(t('settings.chatViewPlacement.name')));
-    expect(mockRenderedSettingNames.indexOf(t('settings.display')))
-      .toBeGreaterThan(mockRenderedSettingNames.indexOf(t('settings.enableFilePane.name')));
-    expect(mockRenderedSettingNames).toContain(t('settings.dualPaneSide.name'));
-    expect(mockRenderedSettingNames).toContain(t('settings.enableFilePane.name'));
-    expect(mockRenderedSettingNames.indexOf(t('settings.dualPaneSide.name')))
-      .toBeLessThan(mockRenderedSettingNames.indexOf(t('settings.enableFilePane.name')));
-
-    mockRenderedSettingNames.length = 0;
-    const disabled = createTab(false);
-    (disabled.tab as any).renderGeneralTab(createContainer());
-
-    expect(mockRenderedSettingNames).not.toContain(t('settings.dualPaneSide.name'));
-    expect(mockRenderedSettingNames).not.toContain(t('settings.enableFilePane.name'));
-  });
-
-  it('updates the file pane setting and refreshes open dual-pane views', async () => {
-    const { tab, plugin } = createTab(true);
-    const refreshDualPaneLayout = jest.fn();
-    plugin.getAllViews.mockReturnValue([{ refreshDualPaneLayout }]);
+  it('does not render dual-pane settings', () => {
+    const { tab } = createTab();
     (tab as any).renderGeneralTab(createContainer());
 
-    await mockToggleChanges.get(t('settings.enableFilePane.name'))?.(false);
-
-    expect(plugin.settings.enableFilePane).toBe(false);
-    expect(refreshDualPaneLayout).toHaveBeenCalledTimes(1);
-  });
-
-  it('rerenders display settings after dual-pane mode changes', async () => {
-    const { tab, plugin } = createTab(true);
-    const display = jest.spyOn(tab, 'display').mockImplementation();
-    (tab as any).renderGeneralTab(createContainer());
-
-    await mockToggleChanges.get(t('settings.enableDualPane.name'))?.(false);
-
-    expect(plugin.settings.enableDualPane).toBe(false);
-    expect(display).toHaveBeenCalledTimes(1);
+    expect(mockRenderedSettingNames).not.toContain('Enable dual-pane mode');
+    expect(mockRenderedSettingNames).not.toContain('Dual-pane side');
+    expect(mockRenderedSettingNames).not.toContain('Enable file pane');
   });
 });

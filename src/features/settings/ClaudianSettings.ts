@@ -10,7 +10,7 @@ import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettin
 import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspaceRegistry';
 import type { ProviderCapabilities, ProviderId } from '../../core/providers/types';
 import { AgentSkillRepository } from '../../core/skills/AgentSkillRepository';
-import type { ChatViewPlacement, DualPaneSide } from '../../core/types/settings';
+import type { ChatViewPlacement } from '../../core/types/settings';
 import {
   getAvailableLocales,
   getLocaleDisplayName,
@@ -364,54 +364,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
             });
           });
       });
-
-    new Setting(container)
-      .setName(t('settings.enableDualPane.name'))
-      .setDesc(t('settings.enableDualPane.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableDualPane ?? true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.enableDualPane = value;
-            });
-            this.plugin.setDualPaneModeEnabled?.(value);
-            this.refreshDualPaneLayouts();
-            this.display();
-          })
-      );
-
-    if (this.plugin.settings.enableDualPane ?? true) {
-      new Setting(container)
-        .setName(t('settings.dualPaneSide.name'))
-        .setDesc(t('settings.dualPaneSide.desc'))
-        .addDropdown((dropdown) => {
-          dropdown
-            .addOption('left', t('settings.dualPaneSide.left'))
-            .addOption('right', t('settings.dualPaneSide.right'))
-            .setValue(this.plugin.settings.dualPaneSide ?? 'right')
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.dualPaneSide = value as DualPaneSide;
-              });
-              this.refreshDualPaneLayouts();
-            });
-        });
-
-      new Setting(container)
-        .setName(t('settings.enableFilePane.name'))
-        .setDesc(t('settings.enableFilePane.desc'))
-        .addToggle((toggle) =>
-          toggle
-            .setValue(this.plugin.settings.enableFilePane ?? true)
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.enableFilePane = value;
-              });
-              this.refreshDualPaneLayouts();
-            })
-      );
-    }
 
     // --- Chat display ---
 
@@ -770,12 +722,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
         this.notifyProviderModelOptionsChanged(pendingProviderId);
       }
     }, 150);
-  }
-
-  private refreshDualPaneLayouts(): void {
-    for (const view of this.plugin.getAllViews()) {
-      view.refreshDualPaneLayout();
-    }
   }
 
   private renderProviderCapabilityMatrix(container: HTMLElement): void {

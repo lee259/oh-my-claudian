@@ -1,3 +1,8 @@
+import { type FunctionComponent, h } from 'preact';
+
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { SelectableDropdownView, type SelectableDropdownViewProps } from './SelectableDropdownView';
+
 export interface SelectableDropdownOptions {
   listClassName: string;
   itemClassName: string;
@@ -23,6 +28,7 @@ export class SelectableDropdown<T> {
   private items: T[] = [];
   private itemEls: HTMLElement[] = [];
   private selectedIndex = 0;
+  private root: PreactRoot | null = null;
 
   constructor(containerEl: HTMLElement, options: SelectableDropdownOptions) {
     this.containerEl = containerEl;
@@ -56,6 +62,8 @@ export class SelectableDropdown<T> {
   }
 
   destroy(): void {
+    this.root?.unmount();
+    this.root = null;
     if (this.dropdownEl) {
       this.dropdownEl.remove();
       this.dropdownEl = null;
@@ -70,47 +78,80 @@ export class SelectableDropdown<T> {
       this.dropdownEl = this.createDropdownElement();
     }
 
-    this.dropdownEl.empty();
     this.itemEls = [];
 
-    if (options.items.length === 0) {
-      const emptyEl = this.dropdownEl.createDiv({ cls: this.options.emptyClassName });
-      emptyEl.setText(options.emptyText);
-    } else {
-      for (let i = 0; i < options.items.length; i++) {
-        const item = options.items[i];
-        const itemEl = this.dropdownEl.createDiv({ cls: this.options.itemClassName });
-
-        const extraClass = options.getItemClass?.(item);
-        if (Array.isArray(extraClass)) {
-          extraClass.forEach(cls => itemEl.addClass(cls));
-        } else if (extraClass) {
-          itemEl.addClass(extraClass);
-        }
-
-        if (i === this.selectedIndex) {
-          itemEl.addClass('selected');
-        }
-
-        options.renderItem(item, itemEl);
-
-        itemEl.addEventListener('click', (e) => {
-          this.selectedIndex = i;
-          this.updateSelection();
-          options.onItemClick?.(item, i, e);
-        });
-
-        itemEl.addEventListener('mouseenter', () => {
-          this.selectedIndex = i;
-          this.updateSelection();
-          options.onItemHover?.(item, i);
-        });
-
-        this.itemEls.push(itemEl);
-      }
+    if (!this.canMountPreact()) {
+      this.renderLegacy(options);
+      this.dropdownEl.addClass('visible');
+      return;
     }
 
+    this.root ??= createPreactRoot(this.dropdownEl);
+
+    const view = SelectableDropdownView as FunctionComponent<SelectableDropdownViewProps<T>>;
+    this.root?.render(
+      h(view, {
+        items: options.items,
+        selectedIndex: this.selectedIndex,
+        itemClassName: this.options.itemClassName,
+        emptyClassName: this.options.emptyClassName,
+        emptyText: options.emptyText,
+        renderItem: options.renderItem,
+        getItemClass: options.getItemClass,
+        onItemClick: (item, index, e) => {
+          this.selectedIndex = index;
+          this.updateSelection();
+          options.onItemClick?.(item, index, e);
+        },
+        onItemHover: (item, index) => {
+          this.selectedIndex = index;
+          this.updateSelection();
+          options.onItemHover?.(item, index);
+        },
+        itemEls: this.itemEls,
+      }),
+    );
+
     this.dropdownEl.addClass('visible');
+  }
+
+  private renderLegacy(options: SelectableDropdownRenderOptions<T>): void {
+    this.dropdownEl?.empty();
+
+    if (options.items.length === 0) {
+      const emptyEl = this.dropdownEl?.createDiv({ cls: this.options.emptyClassName });
+      emptyEl?.setText(options.emptyText);
+      return;
+    }
+
+    for (let i = 0; i < options.items.length; i++) {
+      const item = options.items[i];
+      const itemEl = this.dropdownEl!.createDiv({ cls: this.options.itemClassName });
+      const extraClass = options.getItemClass?.(item);
+
+      if (Array.isArray(extraClass)) {
+        extraClass.forEach(cls => itemEl.addClass(cls));
+      } else if (extraClass) {
+        itemEl.addClass(extraClass);
+      }
+
+      if (i === this.selectedIndex) {
+        itemEl.addClass('selected');
+      }
+
+      options.renderItem(item, itemEl);
+      itemEl.addEventListener('click', (e) => {
+        this.selectedIndex = i;
+        this.updateSelection();
+        options.onItemClick?.(item, i, e);
+      });
+      itemEl.addEventListener('mouseenter', () => {
+        this.selectedIndex = i;
+        this.updateSelection();
+        options.onItemHover?.(item, i);
+      });
+      this.itemEls.push(itemEl);
+    }
   }
 
   updateSelection(): void {
@@ -136,5 +177,10 @@ export class SelectableDropdown<T> {
       : this.options.listClassName;
 
     return this.containerEl.createDiv({ cls: className });
+  }
+
+  private canMountPreact(): boolean {
+    return this.containerEl.nodeType === 1
+      && typeof this.containerEl.ownerDocument?.createElement === 'function';
   }
 }

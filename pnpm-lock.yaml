@@ -33,6 +33,9 @@ importers:
       cross-spawn:
         specifier: 7.0.6
         version: 7.0.6
+      preact:
+        specifier: ^10.29.8
+        version: 10.29.8(preact-render-to-string@6.6.5)
       smol-toml:
         specifier: ^1.6.1
         version: 1.7.1
@@ -2614,6 +2617,14 @@ packages:
     resolution: {integrity: sha512-O6MHzYNIKYaiSX3bOw0gGZfEbOmlIDtDfWwN1JJdc/T3ihzRT6tGGSEWE088dWrEDGa1u7101q+6fzQnO9XCPA==}
     peerDependencies:
       preact: '>=10 || >= 11.0.0-0'
+
+  preact@10.29.8:
+    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
+    peerDependencies:
+      preact-render-to-string: '>=5'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
 
   preact@11.0.0-beta.0:
     resolution: {integrity: sha512-IcODoASASYwJ9kxz7+MJeiJhvLriwSb4y4mHIyxdgaRZp6kPUud7xytrk/6GZw8U3y6EFJaRb5wi9SrEK+8+lg==}
@@ -6247,9 +6258,18 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
+  preact-render-to-string@6.6.5(preact@10.29.8):
+    dependencies:
+      preact: 10.29.8(preact-render-to-string@6.6.5)
+    optional: true
+
   preact-render-to-string@6.6.5(preact@11.0.0-beta.0):
     dependencies:
       preact: 11.0.0-beta.0
+
+  preact@10.29.8(preact-render-to-string@6.6.5):
+    optionalDependencies:
+      preact-render-to-string: 6.6.5(preact@10.29.8)
 
   preact@11.0.0-beta.0: {}
 

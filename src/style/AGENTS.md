@@ -63,5 +63,4 @@ Every Claudian-owned instance of an element listed below must use its required b
 
 - Obsidian uses `body.theme-dark` and `body.theme-light` for theme detection.
 - Modal z-index must be greater than `1000` to overlay Obsidian UI.
-- Keep persistent session-manager layout rules scoped under `.claudian-session-sidebar` or `.claudian-wide-session-layout`. The single-panel history menu shares item primitives but must retain its own sizing, tab-state labels, and actions.
-- Session-manager pinned and session lists are independent scroll owners. Preserve `min-height: 0` through their flex ancestors so sticky headers and bounded sections do not clip or overlap content.
+- The single-panel history menu shares item primitives with chat content but must retain its own sizing, tab-state labels, and actions.

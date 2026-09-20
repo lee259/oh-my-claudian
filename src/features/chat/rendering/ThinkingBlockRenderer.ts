@@ -1,3 +1,4 @@
+import { t } from '../../../i18n/i18n';
 import { collapseElement, setupCollapsible } from './collapsible';
 
 export type RenderContentFn = (el: HTMLElement, markdown: string) => Promise<void>;
@@ -27,17 +28,17 @@ export function createThinkingBlock(
   header.setAttribute('tabindex', '0');
   header.setAttribute('role', 'button');
   header.setAttribute('aria-expanded', 'false');
-  header.setAttribute('aria-label', 'Extended thinking - click to expand');
+  header.setAttribute('aria-label', t('chat.rendering.thinkingAria'));
 
   // Label with timer
   const labelEl = header.createSpan({ cls: 'claudian-thinking-label' });
   const startTime = Date.now();
-  labelEl.setText('Thinking 0s...');
+  labelEl.setText(t('chat.rendering.thinking', { seconds: 0 }));
 
   // Start timer interval to update label every second
   const timerInterval = window.setInterval(() => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    labelEl.setText(`Thinking ${elapsed}s...`);
+    labelEl.setText(t('chat.rendering.thinking', { seconds: elapsed }));
   }, 1000);
 
   // Collapsible content (collapsed by default)

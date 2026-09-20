@@ -197,6 +197,20 @@ describe('TabManager provider execution orchestration', () => {
     expect(options).not.toHaveProperty('defaultProviderId');
   });
 
+  it('notifies the view when the active tab becomes a new draft conversation', async () => {
+    const onTabConversationChanged = jest.fn();
+    const { manager } = createManager(createPlugin(), { onTabConversationChanged });
+    const activeTab = await manager.createTab();
+    const createNew = jest.fn().mockResolvedValue(undefined);
+    activeTab!.controllers.conversationController!.createNew = createNew;
+    activeTab!.state.currentConversationId = null;
+
+    await manager.createNewConversation();
+
+    expect(createNew).toHaveBeenCalledTimes(1);
+    expect(onTabConversationChanged).toHaveBeenCalledWith(activeTab!.id, null);
+  });
+
   it('does not inherit the active tab provider when creating another blank tab', async () => {
     const { manager } = createManager();
     const active = await manager.createTab();

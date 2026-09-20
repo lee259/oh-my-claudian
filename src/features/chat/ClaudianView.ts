@@ -1,5 +1,6 @@
 import type { EventRef, TFile, WorkspaceLeaf } from 'obsidian';
 import { ItemView, Menu, Notice, Scope, setIcon } from 'obsidian';
+import { h } from 'preact';
 
 import { StartupProfiler } from '../../core/performance/StartupProfiler';
 import { getHiddenProviderCommandSet } from '../../core/providers/commands/hiddenCommands';
@@ -16,6 +17,8 @@ import {
   OH_MY_CLAUDIAN_ROOT_CLASS,
   VIEW_TYPE_CLAUDIAN,
 } from '../../core/types';
+import { t } from '../../i18n/i18n';
+import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
@@ -35,9 +38,9 @@ import {
   sendTabInputMessageFromExplicitEnterShortcut,
   updatePlanModeUI,
 } from './tabs/Tab';
-import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
 import type { TabData, TabId } from './tabs/types';
+import { HistorySearchView } from './ui/HistorySearchView';
 import { HorizontalWheelGesture } from './ui/HorizontalWheelGesture';
 import { VaultFileTree } from './ui/vault-file-tree/VaultFileTree';
 import { recalculateUsageForModel } from './utils/usageInfo';
@@ -68,8 +71,6 @@ export class ClaudianView extends ItemView {
   // Tab management
   private tabManager: TabManager | null = null;
   private mentionCacheCoordinator: MentionCacheCoordinator | null = null;
-  private tabBar: TabBar | null = null;
-  private tabBarContainerEl: HTMLElement | null = null;
   private chatPanelEl: HTMLElement | null = null;
   private tabContentEl: HTMLElement | null = null;
   private navRowContent: HTMLElement | null = null;
@@ -81,7 +82,6 @@ export class ClaudianView extends ItemView {
   // DOM Elements
   private viewContainerEl: HTMLElement | null = null;
   private newTabButtonEl: HTMLElement | null = null;
-  private dualPaneToggleButtonEl: HTMLElement | null = null;
   private sessionNewButtonEl: HTMLElement | null = null;
   private sessionSearchFieldEl: HTMLElement | null = null;
   private sessionSearchInputEl: HTMLInputElement | null = null;
@@ -91,10 +91,12 @@ export class ClaudianView extends ItemView {
 
   // History elements
   private historyDropdown: HTMLElement | null = null;
+  private historyListHostEl: HTMLElement | null = null;
+  private historySearchRoot: PreactRoot | null = null;
+  private historySearchQuery = '';
   private historyRenderAbortController: AbortController | null = null;
   private sessionSidebarEl: HTMLElement | null = null;
   private sidebarSurfaceSwitcherEl: HTMLElement | null = null;
-  private sidebarDualPaneToggleButtonEl: HTMLButtonElement | null = null;
   private sessionsSurfaceButtonEl: HTMLButtonElement | null = null;
   private filesSurfaceButtonEl: HTMLButtonElement | null = null;
   private sessionSurfaceEl: HTMLElement | null = null;
@@ -104,7 +106,6 @@ export class ClaudianView extends ItemView {
   private vaultFileTree: VaultFileTree | null = null;
   private sessionSidebarResizerEl: HTMLElement | null = null;
   private sessionSidebarRenderAbortController: AbortController | null = null;
-  private sessionSidebarResizeObserver: ResizeObserver | null = null;
   private sessionSidebarResizeCleanup: (() => void) | null = null;
   private sessionSidebarWidth: number | null = null;
   private isWideSessionLayout = false;
@@ -124,8 +125,6 @@ export class ClaudianView extends ItemView {
   // Event refs for cleanup
   private eventRefs: EventRef[] = [];
 
-  // Debouncing for tab bar updates
-  private pendingTabBarUpdate: ScheduledAnimationFrame | null = null;
   private tabStatePersistence: TabStatePersistenceCoordinator;
 
   constructor(leaf: WorkspaceLeaf, plugin: FeatureHost) {
@@ -292,7 +291,6 @@ export class ClaudianView extends ItemView {
       this.tabContentEl,
       this,
       {
-        shouldForkToNewTab: () => this.isWideSessionLayout,
         onTabCreated: () => {
           this.updateTabBar();
           this.notifyConversationNavigationChanged();
@@ -327,7 +325,10 @@ export class ClaudianView extends ItemView {
           this.notifyConversationListChanged();
         },
         onTabRewindingChanged: () => this.updateTabBar(),
-        onTabTitleChanged: () => this.updateTabBar(),
+        onTabTitleChanged: () => {
+          this.updateTabBar();
+          this.updateConversationHeaders();
+        },
         onTabAttentionChanged: () => {
           this.updateTabBar();
           this.notifyConversationNavigationChanged();
@@ -336,6 +337,7 @@ export class ClaudianView extends ItemView {
           this.updateTabBar();
           this.notifyConversationNavigationChanged();
           this.syncProviderBrandColor();
+          this.updateHomeSurfaceState();
           this.persistCurrentTabState();
         },
         onTabProviderChanged: () => {
@@ -356,15 +358,14 @@ export class ClaudianView extends ItemView {
     this.attachNavRowContentToInputFooter();
     this.updateInputLocation();
     this.updateTabBarVisibility();
-    this.startSessionSidebarLayoutObserver();
   }
 
   async onClose() {
     this.sessionLayoutRequestRevision += 1;
     this.clearSessionSearchDismissHandlers();
     this.cancelHistoryRendering();
+    this.destroyHistorySurface();
     this.cancelSessionSidebarRendering();
-    this.disconnectSessionSidebarLayoutObserver();
     this.stopSessionSidebarResize();
     this.vaultFileTree?.destroy();
     this.vaultFileTree = null;
@@ -372,11 +373,6 @@ export class ClaudianView extends ItemView {
       cancelScheduledAnimationFrame(this.pendingHistorySurfaceUpdate);
       this.pendingHistorySurfaceUpdate = null;
     }
-    if (this.pendingTabBarUpdate !== null) {
-      cancelScheduledAnimationFrame(this.pendingTabBarUpdate);
-      this.pendingTabBarUpdate = null;
-    }
-
     for (const ref of this.eventRefs) {
       this.plugin.app.vault.offref(ref);
     }
@@ -395,8 +391,6 @@ export class ClaudianView extends ItemView {
         this.tabManager = null;
         this.mentionCacheCoordinator = null;
 
-        this.tabBar?.destroy();
-        this.tabBar = null;
         this.scope = null;
       }
     }
@@ -412,63 +406,36 @@ export class ClaudianView extends ItemView {
     this.chatPanelEl = this.viewContainerEl.createDiv({ cls: 'claudian-chat-panel' });
     this.tabContentEl = this.chatPanelEl.createDiv({ cls: 'claudian-tab-content-container' });
     this.buildInputFooter();
+  }
 
-    this.sessionSidebarResizerEl = this.viewContainerEl.createDiv({
-      cls: 'claudian-session-resizer',
-    });
-    this.sessionSidebarResizerEl.setAttribute('role', 'separator');
-    this.sessionSidebarResizerEl.setAttribute('aria-label', 'Resize conversation sessions');
-    this.sessionSidebarResizerEl.setAttribute('aria-orientation', 'vertical');
-    this.sessionSidebarResizerEl.setAttribute('tabindex', '0');
-    this.sessionSidebarResizerEl.addEventListener('pointerdown', (event) => {
-      this.startSessionSidebarResize(event);
-    });
-    this.sessionSidebarResizerEl.addEventListener('keydown', (event) => {
-      this.handleSessionSidebarResizeKeydown(event);
-    });
+  /** Presentation-only data and actions for the empty chat home surface. */
+  getWelcomeHomeOptions() {
+    return {
+      getConversations: () => this.plugin.getConversationList(),
+      onBack: () => {
+        void this.activateOrCreateDraftTab().catch(() => new Notice(t('chat.errors.returnHome')));
+      },
+      onOpenConversation: (conversationId: string) => {
+        void this.openHistoryConversation(conversationId).catch(() => {
+          new Notice(t('chat.errors.openConversation'));
+        });
+      },
+      onOpenHistory: () => this.toggleHistoryDropdown(),
+      onOpenSettings: () => {
+        const app = this.plugin.app as typeof this.plugin.app & {
+          setting?: {
+            open: () => void;
+            openTabById: (id: string) => void;
+          };
+        };
+        const setting = app.setting;
+        if (!setting) return;
 
-    this.sessionSidebarEl = this.viewContainerEl.createDiv({ cls: 'claudian-session-sidebar' });
-    this.sessionSidebarEl.addEventListener('wheel', (event) => {
-      this.handleSidebarSurfaceWheel(event);
-    }, { passive: false });
-    this.sessionSurfaceEl = this.sessionSidebarEl.createDiv({ cls: 'claudian-session-surface' });
-    this.filesSurfaceEl = this.sessionSidebarEl.createDiv({ cls: 'claudian-files-surface' });
-    this.sidebarSurfaceSwitcherEl = this.sessionSidebarEl.createDiv({
-      cls: 'claudian-sidebar-surface-switcher',
-    });
-    this.sessionSidebarEl.insertBefore(
-      this.sidebarSurfaceSwitcherEl,
-      this.sessionSidebarEl.firstChild,
-    );
-    this.sidebarSurfaceSwitcherEl.setAttribute('role', 'group');
-    this.sidebarSurfaceSwitcherEl.setAttribute('aria-label', 'Sidebar view');
-    this.sessionsSurfaceButtonEl = this.sidebarSurfaceSwitcherEl.createEl('button', {
-      cls: 'claudian-sidebar-surface-button claudian-sidebar-surface-button--sessions',
-      attr: { 'aria-label': 'Sessions', type: 'button' },
-    });
-    setIcon(this.sessionsSurfaceButtonEl, 'messages-square');
-    this.sessionsSurfaceButtonEl.createSpan({ text: 'Sessions' });
-    this.sessionsSurfaceButtonEl.addEventListener('click', () => this.showSessions());
-    this.filesSurfaceButtonEl = this.sidebarSurfaceSwitcherEl.createEl('button', {
-      cls: 'claudian-sidebar-surface-button claudian-sidebar-surface-button--files',
-      attr: { 'aria-label': 'Files', type: 'button' },
-    });
-    setIcon(this.filesSurfaceButtonEl, 'folder-tree');
-    this.filesSurfaceButtonEl.createSpan({ text: 'Files' });
-    this.filesSurfaceButtonEl.addEventListener('click', () => this.showVaultFiles());
-    this.sidebarDualPaneToggleButtonEl = this.sidebarSurfaceSwitcherEl.createEl('button', {
-      cls: 'claudian-sidebar-surface-button claudian-sidebar-dual-pane-toggle-btn',
-      attr: { type: 'button' },
-    });
-    setIcon(this.sidebarDualPaneToggleButtonEl, 'columns-2');
-    this.sidebarDualPaneToggleButtonEl.addEventListener('click', () => {
-      void this.toggleDualPaneMode();
-    });
-    this.updateDualPaneToggleButton();
-    if (this.activeSidebarSurface !== 'files') {
-      this.activeSidebarSurface = 'sessions';
-    }
-    this.updateSidebarSurfaceVisibility();
+        setting.open();
+        setting.openTabById('oh-my-claudian');
+      },
+      onNewConversation: () => this.requestNewConversation(),
+    };
   }
 
   /**
@@ -478,17 +445,6 @@ export class ClaudianView extends ItemView {
   private buildNavRowContent(): HTMLElement {
     const wrapper = this.containerEl.createDiv({ cls: 'claudian-input-nav-content' });
 
-    this.tabBarContainerEl = wrapper.createDiv({ cls: 'claudian-tab-bar-container' });
-    this.tabBar = new TabBar(this.tabBarContainerEl, {
-      onTabClick: (tabId) => this.handleTabClick(tabId),
-      onTabClose: (tabId) => {
-        void this.handleTabClose(tabId);
-      },
-      onNewTab: () => this.requestNewTab(),
-    }, {
-      showTitlesByDefault: this.plugin.settings.showTabTitlesByDefault,
-    });
-
     const navActionsEl = wrapper.createDiv({ cls: 'claudian-input-nav-actions' });
 
     this.newTabButtonEl = navActionsEl.createEl('button', {
@@ -496,7 +452,7 @@ export class ClaudianView extends ItemView {
       attr: { type: 'button' },
     });
     setIcon(this.newTabButtonEl, 'square-plus');
-    this.newTabButtonEl.setAttribute('aria-label', 'New tab');
+    this.newTabButtonEl.setAttribute('aria-label', t('chat.history.newTab'));
     this.newTabButtonEl.addEventListener('click', () => this.requestNewTab());
 
     const newBtn = navActionsEl.createEl('button', {
@@ -504,21 +460,8 @@ export class ClaudianView extends ItemView {
       attr: { type: 'button' },
     });
     setIcon(newBtn, 'square-pen');
-    newBtn.setAttribute('aria-label', 'New conversation');
+    newBtn.setAttribute('aria-label', t('chat.home.newConversation'));
     newBtn.addEventListener('click', () => this.requestNewConversation());
-
-    this.dualPaneToggleButtonEl = navActionsEl.createEl('button', {
-      cls: 'claudian-input-nav-btn claudian-dual-pane-toggle-btn',
-      attr: { type: 'button' },
-    });
-    setIcon(this.dualPaneToggleButtonEl, 'columns-2');
-    const toggleDualPane = (): void => {
-      void this.plugin.toggleDualPaneMode().catch(() => {
-        new Notice('Failed to toggle dual-pane mode');
-      });
-    };
-    this.dualPaneToggleButtonEl.addEventListener('click', toggleDualPane);
-    this.updateDualPaneToggleButton();
 
     // History dropdown
     const historyContainer = navActionsEl.createDiv({ cls: 'claudian-history-container' });
@@ -527,7 +470,7 @@ export class ClaudianView extends ItemView {
       attr: { type: 'button' },
     });
     setIcon(historyBtn, 'history');
-    historyBtn.setAttribute('aria-label', 'Chat history');
+    historyBtn.setAttribute('aria-label', t('chat.home.history'));
 
     this.historyDropdown = historyContainer.createDiv({ cls: 'claudian-history-menu' });
 
@@ -540,19 +483,19 @@ export class ClaudianView extends ItemView {
   }
 
   private requestNewTab(): void {
-    void this.createNewTab().catch(() => new Notice('Failed to create tab'));
+    void this.createNewTab().catch(() => new Notice(t('chat.errors.createTab')));
   }
 
   private requestNewConversation(): void {
     void (async () => {
       await this.tabManager?.createNewConversation();
       this.updateHistoryDropdown();
-    })().catch(() => new Notice('Failed to create conversation'));
+    })().catch(() => new Notice(t('chat.errors.createConversation')));
   }
 
   private requestDualNew(): void {
     void this.activateOrCreateDraftTab()
-      .catch(() => new Notice('Failed to start a new conversation'));
+      .catch(() => new Notice(t('chat.errors.startConversation')));
   }
 
   private async activateOrCreateDraftTab(): Promise<void> {
@@ -573,73 +516,20 @@ export class ClaudianView extends ItemView {
   }
 
   async handleNewConversationCommand(): Promise<boolean> {
-    if (!this.isWideSessionLayout) return false;
     await this.activateOrCreateDraftTab();
     return true;
   }
 
   async handleNewSessionPlan(planContent: string): Promise<boolean> {
-    if (!this.isWideSessionLayout) return false;
-
     await this.createNewTab();
     const inputController = this.tabManager?.getActiveTab()?.controllers.inputController;
     if (!inputController) {
       throw new Error('New conversation input is unavailable');
     }
     void inputController.sendMessage({ content: planContent }).catch(() => {
-      new Notice('Failed to start the approved plan in a new conversation');
+      new Notice(t('chat.errors.approvedPlan'));
     });
     return true;
-  }
-
-  isDualPaneMode(): boolean {
-    return this.isWideSessionLayout;
-  }
-
-  refreshDualPaneLayout(): void {
-    if (!this.viewContainerEl) return;
-    this.updateDualPaneToggleButton();
-    this.updateSidebarSurfaceVisibility();
-    this.updateSessionSidebarLayout(this.viewContainerEl.getBoundingClientRect().width);
-  }
-
-  private updateDualPaneToggleButton(): void {
-    const enabled = this.plugin?.settings?.enableDualPane ?? true;
-    this.dualPaneToggleButtonEl?.toggleClass('is-active', enabled);
-    const configured = this.plugin?.settings?.enableDualPane ?? true;
-    this.dualPaneToggleButtonEl?.toggleClass('claudian-hidden', !configured);
-    this.dualPaneToggleButtonEl?.setAttribute('aria-pressed', String(enabled));
-    this.dualPaneToggleButtonEl?.setAttribute(
-      'aria-label',
-      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
-    );
-    this.dualPaneToggleButtonEl?.setAttribute(
-      'title',
-      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
-    );
-    this.dualPaneToggleButtonEl?.setAttribute(
-      'data-tooltip-position',
-      'bottom',
-    );
-    this.sidebarDualPaneToggleButtonEl?.toggleClass('is-active', enabled);
-    this.sidebarDualPaneToggleButtonEl?.toggleClass('claudian-hidden', !configured);
-    this.sidebarDualPaneToggleButtonEl?.setAttribute('aria-pressed', String(enabled));
-    this.sidebarDualPaneToggleButtonEl?.setAttribute(
-      'aria-label',
-      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
-    );
-    this.sidebarDualPaneToggleButtonEl?.setAttribute(
-      'title',
-      enabled ? 'Disable dual-pane mode' : 'Enable dual-pane mode',
-    );
-    this.sidebarDualPaneToggleButtonEl?.setAttribute(
-      'data-tooltip-position',
-      'bottom',
-    );
-  }
-
-  private toggleDualPaneMode(): Promise<void> {
-    return this.plugin.toggleDualPaneMode();
   }
 
   private findMostRecentUnboundTab(): TabData | null {
@@ -665,13 +555,12 @@ export class ClaudianView extends ItemView {
   private attachNavRowContentToInputFooter(): void {
     if (!this.inputNavRowHostEl || !this.navRowContent) return;
 
-    this.tabBar?.captureScrollPosition();
     this.inputNavRowHostEl.appendChild(this.navRowContent);
-    this.tabBar?.restoreScrollPosition();
   }
 
   private updateInputLocation(): void {
     const activeTab = this.tabManager?.getActiveTab();
+    this.updateHomeSurfaceState(activeTab);
     if (!this.activeInputSlotEl) return;
 
     if (!activeTab) {
@@ -699,6 +588,40 @@ export class ClaudianView extends ItemView {
     this.activeInputTabId = activeTab.id;
   }
 
+  private updateHomeSurfaceState(activeTab = this.tabManager?.getActiveTab()): void {
+    const isHome = !!activeTab
+      && activeTab.conversationId === null
+      && activeTab.state?.messages?.length === 0;
+    this.viewContainerEl?.toggleClass('claudian-home-state', isHome);
+    this.viewContainerEl?.toggleClass('claudian-conversation-state', !!activeTab && !isHome);
+
+    // The input footer sits outside individual tab content. Mirror the state
+    // there so its navigation row cannot depend on the outer view wrapper.
+    this.inputFooterEl?.toggleClass('claudian-home-state', isHome);
+    this.inputFooterEl?.toggleClass('claudian-conversation-state', !!activeTab && !isHome);
+
+    for (const tab of this.tabManager?.getAllTabs?.() ?? []) {
+      const isActive = tab.id === activeTab?.id;
+      tab.dom.contentEl.toggleClass('claudian-home-state', isActive && isHome);
+      tab.dom.contentEl.toggleClass(
+        'claudian-conversation-state',
+        isActive && !!activeTab && !isHome,
+      );
+    }
+
+    this.updateConversationHeaders();
+  }
+
+  private updateConversationHeaders(): void {
+    for (const tab of this.tabManager?.getAllTabs?.() ?? []) {
+      if (typeof tab.dom?.updateConversationHeader !== 'function') continue;
+      const title = tab.conversationId
+        ? this.plugin.getConversationSync?.(tab.conversationId)?.title
+        : null;
+      tab.dom.updateConversationHeader(title?.trim() || t('chat.home.title'));
+    }
+  }
+
   private restoreActiveInputToTabContent(): void {
     if (!this.activeInputTabId) return;
 
@@ -712,67 +635,26 @@ export class ClaudianView extends ItemView {
 
   /** Refreshes tab controls after settings that affect tab availability change. */
   refreshTabControls(): void {
-    this.updateTabBar();
-    this.updateTabBarVisibility();
+    this.updateNewTabButtonVisibility();
   }
 
   // ============================================
   // Tab Management
   // ============================================
 
-  private handleTabClick(tabId: TabId): void {
-    const switched = this.tabManager?.switchToTab(tabId);
-    if (switched) {
-      void switched.catch(() => new Notice('Failed to switch tab'));
-    }
-  }
-
-  private async handleTabClose(tabId: TabId): Promise<void> {
-    try {
-      const tab = this.tabManager?.getTab(tabId);
-      // If streaming, treat close like user interrupt (force close cancels the stream)
-      const force = tab?.state.isStreaming ?? false;
-      await this.tabManager?.closeTab(tabId, force);
-      this.updateTabBarVisibility();
-    } catch {
-      new Notice('Failed to close tab');
-    }
-  }
-
   async createNewTab(): Promise<void> {
     const tab = await this.tabManager?.createTab();
     if (!tab) return;
-    this.updateTabBarVisibility();
     tab.dom.inputEl.focus();
   }
 
   private updateTabBar(): void {
-    if (!this.tabManager || !this.tabBar) return;
-
-    // Debounce tab bar updates using requestAnimationFrame
-    if (this.pendingTabBarUpdate !== null) {
-      cancelScheduledAnimationFrame(this.pendingTabBarUpdate);
-    }
-
-    this.pendingTabBarUpdate = scheduleAnimationFrame(() => {
-      this.pendingTabBarUpdate = null;
-      if (!this.tabManager || !this.tabBar) return;
-
-      const items = this.tabManager.getTabBarItems();
-      this.tabBar.update(items);
-      this.updateTabBarVisibility();
-    }, this.containerEl.ownerDocument.defaultView ?? null);
+    // Internal tab state remains available to the runtime, but numbered tab
+    // navigation is no longer rendered in the composer.
   }
 
   private updateTabBarVisibility(): void {
-    if (!this.tabBarContainerEl || !this.tabManager) return;
-
-    const tabCount = this.tabManager.getTabCount();
-    const showTabBar = tabCount >= 2;
-
-    this.tabBarContainerEl.toggleClass('claudian-hidden', !showTabBar);
-
-    this.updateNewTabButtonVisibility();
+    // Kept as a lifecycle hook for callers that also refresh other controls.
   }
 
   private updateNewTabButtonVisibility(): void {
@@ -819,6 +701,8 @@ export class ClaudianView extends ItemView {
     if (isVisible) {
       this.historyDropdown.removeClass('visible');
       this.cancelHistoryRendering();
+      this.destroyHistorySurface();
+      this.historySearchQuery = '';
     } else {
       this.historyDropdown.addClass('visible');
       this.renderHistoryDropdown();
@@ -867,13 +751,92 @@ export class ClaudianView extends ItemView {
     this.historySurfaceRendered = true;
 
     try {
-      this.renderHistorySurface(this.historyDropdown, abortController.signal);
+      if (this.viewContainerEl?.hasClass('claudian-home-state')) {
+        this.renderHomeHistorySurface(abortController.signal);
+      } else {
+        this.renderHistorySurfaceWithSearch(abortController.signal);
+      }
       this.historyDropdownDirty = false;
     } finally {
       if (span) {
         StartupProfiler.finish(span);
       }
     }
+  }
+
+  private renderHomeHistorySurface(signal: AbortSignal): void {
+    if (!this.historyDropdown) return;
+
+    if (
+      !this.historyListHostEl
+      || this.historyListHostEl.parentElement !== this.historyDropdown
+      || !this.historyListHostEl.classList.contains('claudian-home-history-list-host')
+    ) {
+      this.createHistorySearchSurface('claudian-home-history-list-host');
+    }
+
+    const historyListHostEl = this.historyListHostEl;
+    if (!historyListHostEl) return;
+
+    this.renderHistorySurface(
+      historyListHostEl,
+      signal,
+      'history',
+      {
+        showOpenStateActions: false,
+        showOpenStateIndicators: false,
+        showOpenStateLabels: false,
+        searchQuery: this.historySearchQuery,
+      },
+    );
+  }
+
+  private renderHistorySurfaceWithSearch(signal: AbortSignal): void {
+    if (!this.historyDropdown) return;
+
+    if (
+      !this.historyListHostEl
+      || this.historyListHostEl.parentElement !== this.historyDropdown
+      || !this.historyListHostEl.classList.contains('claudian-history-list-host')
+    ) {
+      this.createHistorySearchSurface('claudian-history-list-host');
+    }
+
+    const historyListHostEl = this.historyListHostEl;
+    if (!historyListHostEl) return;
+
+    this.renderHistorySurface(
+      historyListHostEl,
+      signal,
+      'history',
+      { searchQuery: this.historySearchQuery },
+    );
+  }
+
+  private createHistorySearchSurface(listHostClass: string): void {
+    if (!this.historyDropdown) return;
+
+    this.historySearchRoot?.unmount();
+    this.historyDropdown.empty();
+    const searchHost = this.historyDropdown.createDiv({
+      cls: 'claudian-home-history-search-host',
+    });
+    this.historySearchRoot = createPreactRoot(searchHost);
+    this.historySearchRoot.render(h(HistorySearchView, {
+      initialQuery: this.historySearchQuery,
+      onQueryChange: (query) => {
+        this.historySearchQuery = query;
+        this.historyDropdownDirty = true;
+        this.renderHistoryDropdown();
+      },
+    }));
+    this.historyListHostEl = this.historyDropdown.createDiv({ cls: listHostClass });
+  }
+
+  private destroyHistorySurface(): void {
+    this.historySearchRoot?.unmount();
+    this.historySearchRoot = null;
+    this.historyListHostEl = null;
   }
 
 
@@ -920,6 +883,14 @@ export class ClaudianView extends ItemView {
     container: HTMLElement,
     signal: AbortSignal,
     navigationMode: 'history' | 'sessions' = 'history',
+    overrides: {
+      historyHeaderLabel?: string;
+      searchQuery?: string;
+      showHistoryHeader?: boolean;
+      showOpenStateActions?: boolean;
+      showOpenStateIndicators?: boolean;
+      showOpenStateLabels?: boolean;
+    } = {},
   ): void {
     const activeTab = this.tabManager?.getActiveTab();
     const conversationController = activeTab?.controllers.conversationController;
@@ -933,16 +904,14 @@ export class ClaudianView extends ItemView {
       onSelectConversation: (id) => navigationMode === 'sessions'
         ? this.openSessionConversation(id)
         : this.openHistoryConversation(id),
-      ...(navigationMode === 'history' && !isArchiveView
-        ? {
-            onOpenConversationInNewTab: (id: string, activate?: boolean) =>
-              this.openHistoryConversationInNewTab(id, activate),
-          }
-        : {}),
       getConversationStatus: (id) => this.getHistoryConversationStatus(id),
       onRerender: () => this.updateHistoryDropdown(),
-      showOpenStateLabels: navigationMode === 'history',
-      showOpenStateActions: navigationMode === 'history' && !isArchiveView,
+      showOpenStateLabels: overrides.showOpenStateLabels ?? false,
+      showOpenStateIndicators: overrides.showOpenStateIndicators
+        ?? (navigationMode !== 'history'),
+      showHistoryHeader: overrides.showHistoryHeader ?? (navigationMode !== 'history'),
+      showOpenStateActions: overrides.showOpenStateActions
+        ?? (navigationMode === 'history' && !isArchiveView),
       preserveListState: true,
       showInlinePinAction: navigationMode === 'sessions',
       onRequestInlineRename: ({ beginRename, conversationId }) => {
@@ -971,7 +940,14 @@ export class ClaudianView extends ItemView {
       },
       sessionScope: isArchiveView ? 'archived' : 'active',
       sessionActionMode: isArchiveView ? 'archived' : 'active',
-      historyHeaderLabel: isArchiveView ? 'Archived' : 'Sessions',
+      historyHeaderLabel: overrides.historyHeaderLabel ?? (
+        isArchiveView ? t('chat.history.archived') : t('chat.history.sessions')
+      ),
+      searchQuery: overrides.searchQuery ?? (
+        navigationMode === 'sessions' && this.isSessionSearchActive
+          ? this.sessionSearchQuery
+          : undefined
+      ),
       allowConversationSelection: !isArchiveView,
       onSetConversationPinned: (id: string, isPinned: boolean) => (
         this.setConversationPinned(id, isPinned)
@@ -992,7 +968,6 @@ export class ClaudianView extends ItemView {
             sort: this.getSessionManagerSort(),
             language: getObsidianLanguage(this.plugin.settings.locale),
             noteExists: (notePath: string) => this.noteExists(notePath),
-            searchQuery: this.isSessionSearchActive ? this.sessionSearchQuery : undefined,
             showMetadataPopover: true,
             showOpenStateActions: false,
             showAttentionState: !isArchiveView,
@@ -1049,10 +1024,10 @@ export class ClaudianView extends ItemView {
     const newControl = container.createDiv({ cls: 'claudian-session-new-control' });
     newControl.setAttribute('role', 'button');
     newControl.setAttribute('tabindex', '0');
-    newControl.setAttribute('aria-label', 'New');
+    newControl.setAttribute('aria-label', t('chat.history.new'));
     const newIcon = newControl.createSpan({ cls: 'claudian-session-new-icon' });
     setIcon(newIcon, 'square-pen');
-    newControl.createSpan({ cls: 'claudian-session-new-label', text: 'New' });
+    newControl.createSpan({ cls: 'claudian-session-new-label', text: t('chat.history.new') });
     newControl.addEventListener('click', () => this.requestSessionNew());
     newControl.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1072,11 +1047,11 @@ export class ClaudianView extends ItemView {
           type: 'search',
           autocomplete: 'off',
           placeholder: this.isArchiveSessionView
-            ? 'Search archived sessions'
-            : 'Search sessions',
+            ? t('chat.history.searchArchived')
+            : t('chat.history.searchSessions'),
           'aria-label': this.isArchiveSessionView
-            ? 'Search archived sessions'
-            : 'Search sessions',
+            ? t('chat.history.searchArchived')
+            : t('chat.history.searchSessions'),
         },
       });
       searchInput.value = this.sessionSearchQuery;
@@ -1121,10 +1096,10 @@ export class ClaudianView extends ItemView {
       const searchControl = container.createDiv({ cls: 'claudian-session-search-control' });
       searchControl.setAttribute('role', 'button');
       searchControl.setAttribute('tabindex', '0');
-      searchControl.setAttribute('aria-label', 'Search');
+      searchControl.setAttribute('aria-label', t('chat.history.search'));
       const searchIcon = searchControl.createSpan({ cls: 'claudian-session-nav-icon' });
       setIcon(searchIcon, 'search');
-      searchControl.createSpan({ cls: 'claudian-session-nav-label', text: 'Search' });
+      searchControl.createSpan({ cls: 'claudian-session-nav-label', text: t('chat.history.search') });
       const activateSearch = (): void => this.activateSessionSearch();
       searchControl.addEventListener('click', activateSearch);
       searchControl.addEventListener('keydown', (event) => {
@@ -1138,7 +1113,9 @@ export class ClaudianView extends ItemView {
     const archiveControl = container.createDiv({ cls: 'claudian-session-archive-control' });
     archiveControl.setAttribute('role', 'button');
     archiveControl.setAttribute('tabindex', '0');
-    const archiveLabel = this.isArchiveSessionView ? 'Sessions' : 'Archive';
+    const archiveLabel = this.isArchiveSessionView
+      ? t('chat.history.sessions')
+      : t('chat.history.archive');
     archiveControl.setAttribute('aria-label', archiveLabel);
     const archiveIcon = archiveControl.createSpan({ cls: 'claudian-session-nav-icon' });
     setIcon(archiveIcon, this.isArchiveSessionView ? 'arrow-left' : 'archive');
@@ -1174,14 +1151,14 @@ export class ClaudianView extends ItemView {
           icon,
           allCollapsed ? 'expand' : 'collapse',
         ),
-        allCollapsed ? 'Expand all groups' : 'Collapse all groups',
+        allCollapsed ? t('chat.history.expandGroups') : t('chat.history.collapseGroups'),
         () => this.toggleAllSessionGroups(),
       );
     }
     const optionsButton = this.createSessionHeaderAction(
       actions,
       'ellipsis',
-      'Session options',
+      t('chat.history.options'),
       (event) => this.showSessionOptionsMenu(optionsButton, event),
     );
 
@@ -1507,7 +1484,9 @@ export class ClaudianView extends ItemView {
     const list = container.querySelector<HTMLElement>('.claudian-history-list');
     if (!list) return;
 
-    const label = this.isArchiveSessionView ? 'Sessions' : 'Archive';
+    const label = this.isArchiveSessionView
+      ? t('chat.history.sessions')
+      : t('chat.history.archive');
     const control = list.createDiv({ cls: 'claudian-history-archive-control' });
     control.setAttribute('role', 'button');
     control.setAttribute('tabindex', '0');
@@ -1580,7 +1559,7 @@ export class ClaudianView extends ItemView {
 
     const openTabs = this.getOpenConversationTabs(conversationId);
     if (openTabs.some(({ tab }) => tab.state.isStreaming)) {
-      new Notice('Running sessions cannot be archived');
+      new Notice(t('chat.errors.runningArchive'));
       return;
     }
 
@@ -1697,7 +1676,7 @@ export class ClaudianView extends ItemView {
       && [...sessionGroupKeys].every(groupKey => collapsedGroupKeys.has(groupKey));
     button.setAttribute(
       'aria-label',
-      allCollapsed ? 'Expand all groups' : 'Collapse all groups',
+      allCollapsed ? t('chat.history.expandGroups') : t('chat.history.collapseGroups'),
     );
     const icon = button.querySelector<HTMLElement>('.claudian-session-header-icon');
     if (icon) {
@@ -1738,26 +1717,26 @@ export class ClaudianView extends ItemView {
     const sort = this.getSessionManagerSort();
 
     menu.addItem(item => item
-      .setTitle('Organize sessions')
+      .setTitle(t('chat.history.organize'))
       .setIsLabel(true));
     menu.addItem(item => item
-      .setTitle('In one list')
+      .setTitle(t('chat.history.oneList'))
       .setChecked(organization === 'list')
       .onClick(() => this.setSessionManagerOrganization('list')));
     menu.addItem(item => item
-      .setTitle('By linked note')
+      .setTitle(t('chat.history.byLinkedNote'))
       .setChecked(organization === 'linked-note')
       .onClick(() => this.setSessionManagerOrganization('linked-note')));
     menu.addSeparator();
     menu.addItem(item => item
-      .setTitle('Sort sessions by')
+      .setTitle(t('chat.history.sortBy'))
       .setIsLabel(true));
     menu.addItem(item => item
-      .setTitle('Last activity')
+      .setTitle(t('chat.history.lastActivity'))
       .setChecked(sort === 'last-updated')
       .onClick(() => this.setSessionManagerSort('last-updated')));
     menu.addItem(item => item
-      .setTitle('Created')
+      .setTitle(t('chat.history.created'))
       .setChecked(sort === 'created')
       .onClick(() => this.setSessionManagerSort('created')));
 
@@ -1775,14 +1754,14 @@ export class ClaudianView extends ItemView {
     void this.plugin.mutateSettings((settings) => {
       settings.sessionManagerOrganization = organization;
     }).then(() => this.refreshSessionManagerPresentation())
-      .catch(() => new Notice('Failed to update session organization'));
+      .catch(() => new Notice(t('chat.errors.updateOrganization')));
   }
 
   private setSessionManagerSort(sort: 'last-updated' | 'created'): void {
     void this.plugin.mutateSettings((settings) => {
       settings.sessionManagerSort = sort;
     }).then(() => this.refreshSessionManagerPresentation())
-      .catch(() => new Notice('Failed to update session sorting'));
+      .catch(() => new Notice(t('chat.errors.updateSorting')));
   }
 
   private refreshSessionManagerPresentation(): void {
@@ -1793,28 +1772,6 @@ export class ClaudianView extends ItemView {
         view.notifyConversationListChanged();
       }
     }
-  }
-
-  private startSessionSidebarLayoutObserver(): void {
-    if (!this.viewContainerEl) return;
-
-    const viewContainerEl = this.viewContainerEl;
-    const ResizeObserverConstructor = viewContainerEl.ownerDocument.defaultView?.ResizeObserver;
-    if (typeof ResizeObserverConstructor === 'function') {
-      this.sessionSidebarResizeObserver = new ResizeObserverConstructor((entries) => {
-        const entry = entries.at(-1);
-        const width = entry?.contentRect.width ?? viewContainerEl.getBoundingClientRect().width;
-        this.updateSessionSidebarLayout(width);
-      });
-      this.sessionSidebarResizeObserver.observe(viewContainerEl);
-    }
-
-    this.updateSessionSidebarLayout(viewContainerEl.getBoundingClientRect().width);
-  }
-
-  private disconnectSessionSidebarLayoutObserver(): void {
-    this.sessionSidebarResizeObserver?.disconnect();
-    this.sessionSidebarResizeObserver = null;
   }
 
   private startSessionSidebarResize(event: PointerEvent): void {
@@ -1896,8 +1853,7 @@ export class ClaudianView extends ItemView {
     const isLeft = this.plugin?.settings?.dualPaneSide === 'left';
     this.viewContainerEl.toggleClass('claudian-session-sidebar-left', isLeft);
 
-    const isDualPaneEnabled = (this.plugin?.settings?.enableDualPane ?? true)
-      && (this.plugin?.isDualPaneModeEnabled?.() ?? true);
+    const isDualPaneEnabled = this.plugin?.settings?.enableDualPane ?? true;
     const shouldUseWideLayout = isDualPaneEnabled && width >= WIDE_SESSION_LAYOUT_MIN_WIDTH;
     if (!shouldUseWideLayout) {
       this.sidebarSurfaceWheelGesture?.reset();
@@ -1956,7 +1912,7 @@ export class ClaudianView extends ItemView {
 
     const cleanup = (this.tabManager?.discardProvisionalTabs() ?? Promise.resolve())
       .catch(() => {
-        new Notice('Failed to close the provisional session preview');
+        new Notice(t('chat.errors.closePreview'));
       });
     this.pendingProvisionalTabCleanup = cleanup;
     void cleanup.finally(() => {
@@ -1985,18 +1941,6 @@ export class ClaudianView extends ItemView {
 
   private async openHistoryConversation(conversationId: string): Promise<void> {
     await this.tabManager?.openConversation(conversationId);
-    this.historyDropdown?.removeClass('visible');
-    this.cancelHistoryRendering();
-  }
-
-  private async openHistoryConversationInNewTab(
-    conversationId: string,
-    activate = true,
-  ): Promise<void> {
-    await this.tabManager?.openConversation(conversationId, {
-      preferNewTab: true,
-      activate,
-    });
     this.historyDropdown?.removeClass('visible');
     this.cancelHistoryRendering();
   }
@@ -2105,7 +2049,10 @@ export class ClaudianView extends ItemView {
     const activeDocument = this.containerEl.ownerDocument;
 
     // Document-level click to close dropdowns
-    this.registerDomEvent(activeDocument, 'click', () => {
+    this.registerDomEvent(activeDocument, 'click', (event: MouseEvent) => {
+      if (event.target && this.historyDropdown?.contains(event.target as Node)) {
+        return;
+      }
       this.historyDropdown?.removeClass('visible');
     });
 
@@ -2312,6 +2259,9 @@ export class ClaudianView extends ItemView {
   }
 
   notifyConversationListChanged(): void {
+    // Title generation can finish while the first response is still streaming.
+    // Keep the detail header in sync even when history rendering is deferred.
+    this.updateConversationHeaders();
     this.historyDropdownDirty = true;
     this.sessionSidebarDirty = true;
     if (this.hasActiveStreamingOrBackgroundWork()) {

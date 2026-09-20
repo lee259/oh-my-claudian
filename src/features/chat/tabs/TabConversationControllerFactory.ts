@@ -3,6 +3,7 @@ import type { Conversation, ProviderId } from '../../../core/types';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { ConversationController } from '../controllers/ConversationController';
+import type { WelcomeHomeOptions } from '../rendering/WelcomeRenderer';
 import { getTabProviderId } from './providerResolution';
 import type { TabData } from './types';
 
@@ -13,6 +14,7 @@ export interface TabConversationControllerOptions {
   onConversationBindingChanged: (conversation: Conversation | null) => Promise<void>;
   onNewConversation: () => void;
   onConversationActivated: () => void;
+  getWelcomeHomeOptions?: () => WelcomeHomeOptions | undefined;
 }
 
 /**
@@ -90,6 +92,7 @@ export function createTabConversationController(
           capabilities: ProviderRegistry.getCapabilities(providerId),
         };
       },
+      getWelcomeHomeOptions: options.getWelcomeHomeOptions,
       getSelectedModel: options.getSelectedModel,
       getInitialUsage: (providerId: ProviderId, model: string) => ProviderRegistry
         .getChatUIConfig(providerId)

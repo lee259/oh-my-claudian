@@ -40,6 +40,7 @@ export function initializeTabPresentationControllers(
       ? options.onForkRequest
       : undefined,
     options.getCapabilities,
+    () => viewHost.getWelcomeHomeOptions?.(),
   );
 
   tab.controllers.selectionController = new SelectionController(

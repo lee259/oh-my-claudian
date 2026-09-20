@@ -35,6 +35,167 @@
   min-height: 200px;
 }
 
+/* Empty chat home surface. Conversation rendering keeps the original welcome
+ * surface when no home options are supplied, which makes this migration safe
+ * for read-only and embedded renderers. */
+.claudian-welcome--home {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  min-height: 100%;
+  padding: 0;
+  text-align: start;
+}
+
+.claudian-home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 0 14px;
+}
+
+.claudian-home-title {
+  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.claudian-home-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.claudian-home-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-home-action:hover,
+.claudian-home-action:focus-visible {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-home-action svg {
+  width: 20px;
+  height: 20px;
+}
+
+.claudian-home-recent {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claudian-home-conversation,
+.claudian-home-all-conversations {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.claudian-home-conversation:hover,
+.claudian-home-conversation:focus-visible,
+.claudian-home-all-conversations:hover,
+.claudian-home-all-conversations:focus-visible {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-home-conversation:focus-visible,
+.claudian-home-all-conversations:focus-visible,
+.claudian-home-action:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.claudian-home-conversation-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-home-conversation-time {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-start: 14px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.claudian-home-conversation-loading {
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: 6px;
+  color: var(--interactive-accent);
+}
+
+.claudian-home-conversation-loading svg {
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+  stroke-width: 2.5;
+}
+
+.claudian-home-all-conversations {
+  width: fit-content;
+  margin-top: 8px;
+  color: var(--text-faint);
+  font-size: 15px;
+}
+
+.claudian-home-all-conversations:hover,
+.claudian-home-all-conversations:focus-visible {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.claudian-home-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 180px;
+  padding: 20px;
+}
+
+.claudian-home-greeting {
+  color: var(--text-muted);
+  font-family: 'Copernicus', 'Tiempos Headline', 'Tiempos', Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
 .claudian-welcome-text {
   font-family: 'Copernicus', 'Tiempos Headline', 'Tiempos', Georgia, 'Times New Roman', serif;
   font-size: 28px;
@@ -124,9 +285,9 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 23.5rem;
   background: transparent;
-  align-self: stretch;
-  width: min(100%, 72ch);
-  max-width: 72ch;
+  align-self: center;
+  width: min(100%, 960px);
+  max-width: 100%;
   padding-inline: 0;
   border-end-start-radius: 4px;
   text-align: start;

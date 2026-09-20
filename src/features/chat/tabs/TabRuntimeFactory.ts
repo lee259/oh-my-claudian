@@ -1,13 +1,17 @@
 import { setIcon } from 'obsidian';
+import { h } from 'preact';
 
 import {
   resolveNewConversationModel,
 } from '../../../core/providers/conversationModel';
 import { getEnabledProviderForModel } from '../../../core/providers/modelRouting';
 import { DEFAULT_CHAT_PROVIDER_ID } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
+import { createPreactRoot } from '../../../shared/ui/PreactRoot';
 import { createWelcomeElement } from '../rendering/WelcomeRenderer';
 import { SubagentManager } from '../services/SubagentManager';
 import { ChatState } from '../state/ChatState';
+import { ConversationHeaderView } from '../ui/ConversationHeaderView';
 import { TabSession } from './TabSession';
 import type { TabCreateOptions, TabData, TabDOMElements } from './types';
 import { generateTabId } from './types';
@@ -45,7 +49,11 @@ export function createTabRuntime(
     onConversationChanged: onConversationIdChanged,
   });
   const subagentManager = new SubagentManager(() => {});
-  const dom = buildTabDOM(contentEl);
+  const dom = buildTabDOM(
+    contentEl,
+    options.getWelcomeHomeOptions,
+    conversation?.title ?? '聊天',
+  );
   state.queueIndicatorEl = dom.queueIndicatorEl;
 
   const isBound = !!conversation?.id;
@@ -135,10 +143,30 @@ export function createTabRuntime(
   return tab;
 }
 
-function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
+function buildTabDOM(
+  contentEl: HTMLElement,
+  getWelcomeHomeOptions?: TabCreateOptions['getWelcomeHomeOptions'],
+  conversationTitle = t('chat.home.title'),
+): TabDOMElements {
+  const homeOptions = getWelcomeHomeOptions?.();
+  const conversationHeaderHostEl = contentEl.createDiv({
+    cls: 'claudian-conversation-header-host',
+  });
+  const conversationHeaderRoot = createPreactRoot(conversationHeaderHostEl);
+  const updateConversationHeader = (title: string): void => {
+    conversationHeaderRoot.render(h(ConversationHeaderView, {
+      title,
+      onBack: homeOptions?.onBack,
+      onOpenHistory: homeOptions?.onOpenHistory,
+      onOpenSettings: homeOptions?.onOpenSettings,
+      onNewConversation: homeOptions?.onNewConversation,
+    }));
+  };
+  updateConversationHeader(conversationTitle);
+
   const messagesWrapperEl = contentEl.createDiv({ cls: 'claudian-messages-wrapper' });
   const messagesEl = messagesWrapperEl.createDiv({ cls: 'claudian-messages' });
-  const welcomeEl = createWelcomeElement(messagesEl);
+  const welcomeEl = createWelcomeElement(messagesEl, undefined, undefined, homeOptions);
   const statusPanelContainerEl = contentEl.createDiv({ cls: 'claudian-status-panel-container' });
   const inputComposerEl = contentEl.createDiv({ cls: 'claudian-input-composer' });
   const inputContainerEl = inputComposerEl.createDiv({ cls: 'claudian-input-container' });
@@ -146,7 +174,6 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
   const navRowEl = inputContainerEl.createDiv({ cls: 'claudian-input-nav-row' });
   const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-input-wrapper' });
   const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-context-row' });
-  const scopePreviewEl = inputWrapper.createDiv({ cls: 'claudian-scope-preview' });
   const inputEditorEl = inputWrapper.createDiv({ cls: 'claudian-input-editor' });
   const inputMentionHighlightsEl = inputEditorEl.createDiv({
     cls: 'claudian-input-mention-highlights claudian-input-mention-highlights--empty',
@@ -174,6 +201,8 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     contentEl,
     messagesEl,
     welcomeEl,
+    conversationHeaderRoot,
+    updateConversationHeader,
     statusPanelContainerEl,
     inputComposerEl,
     inputContainerEl,
@@ -184,7 +213,6 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     sendButtonEl,
     navRowEl,
     contextRowEl,
-    scopePreviewEl,
     eventCleanups: [],
   };
 }

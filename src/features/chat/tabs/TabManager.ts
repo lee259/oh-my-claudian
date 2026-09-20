@@ -19,6 +19,7 @@ import { scheduleAnimationFrame } from '../../../utils/animationFrame';
 import { revealWorkspaceLeaf } from '../../../utils/obsidianCompat';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
+import { unmountWelcomeContent } from '../rendering/WelcomeRenderer';
 import { ConversationNavigationQueue } from './ConversationNavigationQueue';
 import { getTabProviderId } from './providerResolution';
 import { ProvisionalTabCleanupCoordinator } from './ProvisionalTabCleanupCoordinator';
@@ -194,6 +195,9 @@ export class TabManager implements TabManagerInterface {
       tabId,
       ...(typeof draftModel === 'string' ? { draftModel } : {}),
       lifecycleState,
+      getWelcomeHomeOptions: () => this.view.getWelcomeHomeOptions?.() ?? {
+        getConversations: () => this.plugin.getConversationList(),
+      },
       onStreamingChanged: (isStreaming) => {
         this.callbacks.onTabStreamingChanged?.(tab.id, isStreaming);
         if (!isStreaming) tab.executionCoordinator?.notifyMayCool();
@@ -426,24 +430,25 @@ export class TabManager implements TabManagerInterface {
 
   private renderTabHydrationState(tab: TabData, error?: unknown): void {
     const messagesEl = tab.dom.messagesEl;
+    unmountWelcomeContent(messagesEl);
     messagesEl.empty();
 
     const statusEl = messagesEl.createDiv({ cls: 'claudian-tab-hydration' });
     if (!error) {
       statusEl.createDiv({
         cls: 'claudian-tab-hydration-loading',
-        text: 'Loading conversation…',
+        text: t('chat.status.loadingConversation'),
       });
       return;
     }
 
     statusEl.createDiv({
       cls: 'claudian-tab-hydration-error',
-      text: error instanceof Error ? error.message : 'Failed to load conversation',
+      text: error instanceof Error ? error.message : t('chat.status.loadFailed'),
     });
     const retryButton = statusEl.createEl('button', {
       cls: 'mod-cta claudian-tab-hydration-retry',
-      text: 'Retry',
+      text: t('chat.status.retry'),
     });
     retryButton.addEventListener('click', () => {
       if (!this.isTabAlive(tab)) return;
@@ -680,6 +685,7 @@ export class TabManager implements TabManagerInterface {
       await activeTab.controllers.conversationController?.createNew();
       // Sync tab.conversationId with the newly created conversation
       activeTab.conversationId = activeTab.state.currentConversationId;
+      this.callbacks.onTabConversationChanged?.(activeTab.id, activeTab.conversationId);
     }
   }
 

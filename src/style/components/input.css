@@ -49,6 +49,42 @@
   padding-top: 0;
 }
 
+/* Bound conversations move navigation into the Preact-owned conversation
+ * header. The blank home keeps the composer navigation row. */
+.claudian-conversation-state .claudian-view-input-nav-row {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  visibility: hidden;
+}
+
+.claudian-conversation-state .claudian-history-menu.visible {
+  visibility: visible;
+}
+
+/* The header owns the primary conversation actions. Keep tab badges
+ * available, but remove duplicate controls from the composer in every state. */
+.claudian-input-nav-actions {
+  width: 0;
+  height: 0;
+  gap: 0;
+  overflow: visible;
+}
+
+.claudian-input-nav-actions > .claudian-input-nav-btn,
+.claudian-input-nav-actions .claudian-history-container > .claudian-input-nav-btn {
+  display: none;
+}
+
+.claudian-home-state .claudian-history-menu.visible {
+  visibility: visible;
+}
+
+.claudian-home-state .claudian-input-footer {
+  padding: 0 4px 6px;
+}
+
 /* Input wrapper (border container) - flex column so textarea expands when no chips */
 .claudian-input-wrapper {
   --claudian-input-wrapper-border-color: color-mix(in srgb, var(--background-modifier-border) 85%, var(--text-normal));
@@ -76,6 +112,11 @@
   justify-content: space-between;
   padding: 0 2px 6px;
   min-height: 0;
+}
+
+/* Numbered internal-tab navigation is no longer part of the composer. */
+.claudian-view-input-nav-row {
+  padding: 0;
 }
 
 .claudian-input-nav-row:empty {
@@ -127,11 +168,6 @@
   outline-offset: 1px;
 }
 
-.claudian-dual-pane-toggle-btn.is-active {
-  color: var(--text-faint);
-  background: transparent;
-}
-
 .claudian-input-nav-btn svg {
   width: 16px;
   height: 16px;
@@ -163,7 +199,7 @@
   border: none;
   border-radius: 15px;
   background: transparent;
-  color: transparent;
+  color: var(--text-normal);
   caret-color: var(--text-normal);
   font-family: inherit;
   font-size: 14px;
@@ -185,13 +221,29 @@
   color: var(--text-muted);
 }
 
+.claudian-home-state .claudian-input-wrapper {
+  min-height: 152px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary));
+}
+
+.claudian-home-state .claudian-input-wrapper textarea.claudian-input {
+  min-height: 88px;
+  padding: 22px 22px 12px;
+  font-size: 15px;
+}
+
+.claudian-home-state .claudian-input-toolbar {
+  padding: 4px 10px 10px;
+}
+
 .claudian-input-mention-highlights {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 2;
-  color: var(--text-normal);
+  color: transparent;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
@@ -207,6 +259,7 @@
   padding: 13px 15px 48px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
+  unicode-bidi: plaintext;
   will-change: transform;
 }
 

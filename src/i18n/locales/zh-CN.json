@@ -93,6 +93,94 @@
       "availableCapabilities": "可用：{capabilities}",
       "unavailableCapabilities": "暂不可用：{capabilities}"
     },
+    "home": {
+      "title": "聊天",
+      "history": "聊天记录",
+      "settings": "设置",
+      "newConversation": "新建对话",
+      "viewAll": "查看全部（{count}）"
+    },
+    "header": {
+      "back": "返回",
+      "history": "聊天记录",
+      "settings": "设置",
+      "newConversation": "新建对话"
+    },
+    "history": {
+      "newTab": "新标签页",
+      "new": "新建",
+      "search": "搜索",
+      "searchSessions": "搜索会话",
+      "searchArchived": "搜索已归档会话",
+      "sessions": "会话",
+      "archived": "已归档",
+      "archive": "归档",
+      "pinned": "已置顶",
+      "missing": "缺失",
+      "running": "运行中",
+      "generatingTitle": "正在生成标题...",
+      "regenerateTitle": "重新生成标题",
+      "restore": "恢复",
+      "rename": "重命名",
+      "delete": "删除",
+      "archiveAll": "归档所有会话",
+      "switchOpen": "切换到打开的会话",
+      "organize": "整理会话",
+      "oneList": "合并为一个列表",
+      "byLinkedNote": "按关联笔记",
+      "sortBy": "会话排序方式",
+      "lastActivity": "最近活动",
+      "created": "创建时间",
+      "expandGroups": "展开所有分组",
+      "collapseGroups": "收起所有分组",
+      "options": "会话选项",
+      "searchRecent": "搜索最近聊天",
+      "searchAria": "搜索最近聊天",
+      "noMatches": "没有匹配的会话",
+      "noConversations": "暂无对话",
+      "loadMore": "加载更多（剩余 {count} 个）",
+      "createdAt": "创建时间",
+      "lastActive": "最近活动",
+      "unpin": "取消置顶",
+      "pin": "置顶",
+      "pinLinkedNote": "置顶关联笔记",
+      "unpinLinkedNote": "取消置顶关联笔记",
+      "newForNote": "为 {note} 新建聊天",
+      "cannotArchiveRunning": "运行中的会话无法归档"
+    },
+    "status": {
+      "loadingConversation": "正在加载对话…",
+      "loadFailed": "加载对话失败",
+      "retry": "重试"
+    },
+    "errors": {
+      "returnHome": "返回首页失败",
+      "openConversation": "打开对话失败",
+      "createTab": "创建标签页失败",
+      "createConversation": "创建对话失败",
+      "startConversation": "新建对话失败",
+      "approvedPlan": "无法在新对话中启动已批准的计划",
+      "runningArchive": "运行中的会话无法归档",
+      "updateOrganization": "更新会话组织方式失败",
+      "updateSorting": "更新会话排序失败",
+      "closePreview": "关闭临时会话预览失败",
+      "renameConversation": "重命名对话失败",
+      "regenerateTitle": "重新生成标题失败",
+      "deleteConversation": "删除对话失败",
+      "archiveSession": "归档会话失败"
+    },
+    "rendering": {
+      "noChanges": "没有变化",
+      "copied": "已复制！",
+      "planComplete": "计划完成",
+      "requestedPermissions": "请求的权限：",
+      "writing": "正在写入...",
+      "done": "完成",
+      "thinking": "思考中 {seconds} 秒...",
+      "thinkingAria": "扩展思考 - 点击展开",
+      "hints": "使用方向键导航 · Enter 选择 · Esc 取消",
+      "running": "运行中..."
+    },
     "promptSuggestion": {
       "label": "建议继续：{suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "最大并发运行会话数",
       "desc": "同时保持就绪的代理会话最大数量（5-10）。较早的空闲会话会自动暂停，并在使用时恢复。"
-    },
-    "enableDualPane": {
-      "name": "启用双栏模式",
-      "desc": "当视图宽度至少为 600 像素时，自动在聊天旁显示会话管理器。"
-    },
-    "enableFilePane": {
-      "name": "启用文件面板",
-      "desc": "在双栏模式的会话管理器中显示“文件”标签页。"
-    },
-    "dualPaneSide": {
-      "name": "双栏位置",
-      "desc": "选择会话管理器显示在聊天的哪一侧。",
-      "left": "左侧",
-      "right": "右侧"
     },
     "enableAutoScroll": {
       "name": "流式传输时自动滚动",

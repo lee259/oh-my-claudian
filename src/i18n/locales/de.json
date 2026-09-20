@@ -93,6 +93,94 @@
       "availableCapabilities": "Verfügbar: {capabilities}",
       "unavailableCapabilities": "Nicht verfügbar: {capabilities}"
     },
+    "home": {
+      "title": "Chat",
+      "history": "Chatverlauf",
+      "settings": "Einstellungen",
+      "newConversation": "Neue Unterhaltung",
+      "viewAll": "Alle anzeigen ({count})"
+    },
+    "header": {
+      "back": "Zurück",
+      "history": "Chatverlauf",
+      "settings": "Einstellungen",
+      "newConversation": "Neue Unterhaltung"
+    },
+    "history": {
+      "newTab": "Neuer Tab",
+      "new": "Neu",
+      "search": "Suchen",
+      "searchSessions": "Sitzungen suchen",
+      "searchArchived": "Archivierte Sitzungen suchen",
+      "sessions": "Sitzungen",
+      "archived": "Archiviert",
+      "archive": "Archivieren",
+      "pinned": "Angeheftet",
+      "missing": "Fehlend",
+      "running": "Läuft",
+      "generatingTitle": "Titel wird generiert...",
+      "regenerateTitle": "Titel neu generieren",
+      "restore": "Wiederherstellen",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "archiveAll": "Alle Sitzungen archivieren",
+      "switchOpen": "Zur geöffneten Sitzung wechseln",
+      "organize": "Sitzungen organisieren",
+      "oneList": "In einer Liste",
+      "byLinkedNote": "Nach verknüpfter Notiz",
+      "sortBy": "Sitzungen sortieren nach",
+      "lastActivity": "Letzte Aktivität",
+      "created": "Erstellt",
+      "expandGroups": "Alle Gruppen erweitern",
+      "collapseGroups": "Alle Gruppen reduzieren",
+      "options": "Sitzungsoptionen",
+      "searchRecent": "Letzte Chats durchsuchen",
+      "searchAria": "Letzte Chats durchsuchen",
+      "noMatches": "Keine passenden Sitzungen",
+      "noConversations": "Keine Unterhaltungen",
+      "loadMore": "Mehr laden (noch {count})",
+      "createdAt": "Erstellt",
+      "lastActive": "Zuletzt aktiv",
+      "unpin": "Nicht mehr anheften",
+      "pin": "Anheften",
+      "pinLinkedNote": "Verknüpfte Notiz anheften",
+      "unpinLinkedNote": "Verknüpfte Notiz nicht mehr anheften",
+      "newForNote": "Neuer Chat für {note}",
+      "cannotArchiveRunning": "Eine laufende Sitzung kann nicht archiviert werden"
+    },
+    "status": {
+      "loadingConversation": "Unterhaltung wird geladen…",
+      "loadFailed": "Unterhaltung konnte nicht geladen werden",
+      "retry": "Erneut versuchen"
+    },
+    "errors": {
+      "returnHome": "Zur Startseite konnte nicht zurückgekehrt werden",
+      "openConversation": "Unterhaltung konnte nicht geöffnet werden",
+      "createTab": "Tab konnte nicht erstellt werden",
+      "createConversation": "Unterhaltung konnte nicht erstellt werden",
+      "startConversation": "Neue Unterhaltung konnte nicht gestartet werden",
+      "approvedPlan": "Der genehmigte Plan konnte nicht in einer neuen Unterhaltung gestartet werden",
+      "runningArchive": "Laufende Sitzungen können nicht archiviert werden",
+      "updateOrganization": "Sitzungsorganisation konnte nicht aktualisiert werden",
+      "updateSorting": "Sitzungssortierung konnte nicht aktualisiert werden",
+      "closePreview": "Die vorläufige Sitzungsansicht konnte nicht geschlossen werden",
+      "renameConversation": "Unterhaltung konnte nicht umbenannt werden",
+      "regenerateTitle": "Titel konnte nicht neu generiert werden",
+      "deleteConversation": "Unterhaltung konnte nicht gelöscht werden",
+      "archiveSession": "Sitzung konnte nicht archiviert werden"
+    },
+    "rendering": {
+      "noChanges": "Keine Änderungen",
+      "copied": "Kopiert!",
+      "planComplete": "Plan abgeschlossen",
+      "requestedPermissions": "Angeforderte Berechtigungen:",
+      "writing": "Wird geschrieben...",
+      "done": "FERTIG",
+      "thinking": "Denke nach {seconds}s...",
+      "thinkingAria": "Erweitertes Denken – zum Aufklappen klicken",
+      "hints": "Pfeiltasten zum Navigieren · Eingabetaste zum Auswählen · Esc zum Abbrechen",
+      "running": "Läuft..."
+    },
     "promptSuggestion": {
       "label": "Vorgeschlagener nächster Schritt: {suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "Maximale gleichzeitig laufende Sitzungen",
       "desc": "Maximale Anzahl gleichzeitig bereiter Agent-Sitzungen (5-10). Ältere inaktive Sitzungen pausieren automatisch und werden bei Nutzung fortgesetzt."
-    },
-    "enableDualPane": {
-      "name": "Zwei-Spalten-Modus aktivieren",
-      "desc": "Den Sitzungsmanager automatisch neben dem Chat anzeigen, wenn die Ansicht mindestens 600 px breit ist."
-    },
-    "enableFilePane": {
-      "name": "Dateibereich aktivieren",
-      "desc": "Im Sitzungsmanager des Zwei-Spalten-Modus einen Tab „Dateien“ anzeigen."
-    },
-    "dualPaneSide": {
-      "name": "Seite der zweiten Spalte",
-      "desc": "Auswählen, auf welcher Seite des Chats der Sitzungsmanager angezeigt wird.",
-      "left": "Links",
-      "right": "Rechts"
     },
     "enableAutoScroll": {
       "name": "Automatisches Scrollen während Streaming",

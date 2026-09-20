@@ -382,27 +382,25 @@ describe('ConversationController', () => {
   });
 
   describe('formatDate', () => {
-    it('should return time format for today', () => {
-      const now = new Date();
-      const result = controller.formatDate(now.getTime());
+    it('should return a compact recent-activity label', () => {
+      const result = controller.formatDate(Date.now() - 2 * 60_000);
 
-      expect(result).toMatch(/^\d{2}:\d{2}$/);
-    });
-
-    it('should return month/day format for a past date', () => {
-      const pastDate = new Date(2023, 0, 15).getTime();
-      const result = controller.formatDate(pastDate);
-
-      expect(result).toContain('15');
+      expect(result).not.toMatch(/^\d{2}:\d{2}$/);
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it('should return month/day format for yesterday', () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const result = controller.formatDate(yesterday.getTime());
+    it('should return a compact day label for older activity', () => {
+      const pastDate = new Date(2023, 0, 15).getTime();
+      const result = controller.formatDate(pastDate);
 
       expect(result).not.toMatch(/^\d{2}:\d{2}$/);
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should never render zero days for recent activity', () => {
+      const result = controller.formatDate(Date.now() - 20_000);
+
+      expect(result).not.toContain('0 天');
     });
   });
 
@@ -1774,8 +1772,14 @@ describe('ConversationController', () => {
         const loadMore = list.querySelector('.claudian-history-load-more');
         expect(loadMore).not.toBeNull();
 
-        loadMore!.click();
+        const stopPropagation = jest.fn();
+        loadMore!.dispatchEvent({
+          type: 'click',
+          target: loadMore,
+          stopPropagation,
+        });
         list = container.children[1];
+        expect(stopPropagation).toHaveBeenCalledTimes(1);
         expect(list.querySelectorAll('.claudian-history-item')).toHaveLength(50);
         expect(list.querySelector('.claudian-history-load-more')).not.toBeNull();
       });
@@ -2103,6 +2107,32 @@ describe('ConversationController', () => {
         expect(openItemDate?.textContent).toBe('Open in tab');
       });
 
+      it('can render the lightweight history menu without tab highlights', () => {
+        const container = createMockEl();
+
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
+          { id: 'conv-2', title: 'Open elsewhere', createdAt: 2000, lastActivityAt: 1000 },
+        ]);
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          getConversationStatus: (id) => id === 'conv-1'
+          ? { openState: 'current', isRunning: false, tabIndex: 1 }
+          : { openState: 'open', isRunning: false, tabIndex: 2 },
+          showHistoryHeader: false,
+          showOpenStateIndicators: false,
+          showOpenStateLabels: false,
+        });
+
+        const items = container.querySelectorAll('.claudian-history-item');
+        expect(items).toHaveLength(2);
+        expect(container.querySelector('.claudian-history-header')).toBeNull();
+        expect(items.every((item: HTMLElement) => (
+          !item.hasClass('active') && !item.hasClass('open')
+        ))).toBe(true);
+      });
+
       it('should display the current tab number when available', () => {
         const container = createMockEl();
 
@@ -2395,159 +2425,6 @@ describe('ConversationController', () => {
         expect(openOtherPaneDate?.textContent).toBe('Open in another pane');
       });
 
-      it('should render a new-tab button for closed conversations', async () => {
-        const container = createMockEl();
-        const onSelectConversation = jest.fn();
-        const onOpenConversationInNewTab = jest.fn().mockResolvedValue(undefined);
-
-        deps.state.currentConversationId = 'conv-1';
-        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
-          { id: 'conv-2', title: 'Closed', createdAt: 2000, lastActivityAt: 1000 },
-        ]);
-
-        controller.renderHistoryDropdown(container, {
-          onSelectConversation,
-          onOpenConversationInNewTab,
-          getConversationOpenState: (id) => id === 'conv-2' ? 'closed' : 'current',
-        });
-
-        const list = container.children[1];
-        const closedItem = list.children[1];
-        const openInNewTabBtn = closedItem.querySelector('.claudian-open-new-tab-btn');
-        const clickHandlers = openInNewTabBtn?._eventListeners?.get('click');
-
-        expect(openInNewTabBtn).toBeTruthy();
-        expect(clickHandlers).toBeDefined();
-
-        await clickHandlers![0]({ stopPropagation: jest.fn() });
-
-        expect(onOpenConversationInNewTab).toHaveBeenCalledWith('conv-2', true);
-        expect(onSelectConversation).not.toHaveBeenCalled();
-      });
-
-      it('should not render a new-tab button for already-open conversations', () => {
-        const container = createMockEl();
-
-        deps.state.currentConversationId = 'conv-1';
-        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
-          { id: 'conv-2', title: 'Open elsewhere', createdAt: 2000, lastActivityAt: 1000 },
-        ]);
-
-        controller.renderHistoryDropdown(container, {
-          onSelectConversation: jest.fn(),
-          onOpenConversationInNewTab: jest.fn().mockResolvedValue(undefined),
-          getConversationOpenState: (id) => id === 'conv-2' ? 'open' : 'current',
-        });
-
-        const list = container.children[1];
-        const openItem = list.children[1];
-
-        expect(openItem.querySelector('.claudian-open-new-tab-btn')).toBeNull();
-      });
-
-      it('should open a conversation in a new tab on modifier click when supported', async () => {
-        const container = createMockEl();
-        const onSelectConversation = jest.fn();
-        const onOpenConversationInNewTab = jest.fn().mockResolvedValue(undefined);
-
-        deps.state.currentConversationId = 'conv-1';
-        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
-          { id: 'conv-2', title: 'Other', createdAt: 2000, lastActivityAt: 1000 },
-        ]);
-
-        controller.renderHistoryDropdown(container, {
-          onSelectConversation,
-          onOpenConversationInNewTab,
-          getConversationOpenState: () => 'closed',
-        });
-
-        const list = container.children[1];
-        const otherItem = list.children[1];
-        const content = otherItem.querySelector('.claudian-history-item-content');
-        const clickHandlers = content?._eventListeners?.get('click');
-        expect(clickHandlers).toBeDefined();
-
-        await clickHandlers![0]({
-          stopPropagation: jest.fn(),
-          preventDefault: jest.fn(),
-          metaKey: true,
-          ctrlKey: false,
-          shiftKey: false,
-          altKey: false,
-        });
-
-        expect(onOpenConversationInNewTab).toHaveBeenCalledWith('conv-2', true);
-        expect(onSelectConversation).not.toHaveBeenCalled();
-      });
-
-      it('should open a conversation in a new tab on middle click when supported', async () => {
-        const container = createMockEl();
-        const onSelectConversation = jest.fn();
-        const onOpenConversationInNewTab = jest.fn().mockResolvedValue(undefined);
-
-        deps.state.currentConversationId = 'conv-1';
-        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
-          { id: 'conv-2', title: 'Other', createdAt: 2000, lastActivityAt: 1000 },
-        ]);
-
-        controller.renderHistoryDropdown(container, {
-          onSelectConversation,
-          onOpenConversationInNewTab,
-          getConversationOpenState: () => 'closed',
-        });
-
-        const list = container.children[1];
-        const otherItem = list.children[1];
-        const content = otherItem.querySelector('.claudian-history-item-content');
-        const auxClickHandlers = content?._eventListeners?.get('auxclick');
-        expect(auxClickHandlers).toBeDefined();
-
-        await auxClickHandlers![0]({
-          button: 1,
-          stopPropagation: jest.fn(),
-          preventDefault: jest.fn(),
-        });
-
-        expect(onOpenConversationInNewTab).toHaveBeenCalledWith('conv-2', true);
-        expect(onSelectConversation).not.toHaveBeenCalled();
-      });
-
-      it('should show new-tab actions in the context menu for closed conversations', () => {
-        const container = createMockEl();
-
-        deps.state.currentConversationId = 'conv-1';
-        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-          { id: 'conv-1', title: 'Current', createdAt: 1000, lastActivityAt: 2000 },
-          { id: 'conv-2', title: 'Other', createdAt: 2000, lastActivityAt: 1000 },
-        ]);
-
-        controller.renderHistoryDropdown(container, {
-          onSelectConversation: jest.fn(),
-          onOpenConversationInNewTab: jest.fn().mockResolvedValue(undefined),
-          getConversationOpenState: () => 'closed',
-        });
-
-        const list = container.children[1];
-        const otherItem = list.children[1];
-        otherItem.dispatchEvent({
-          type: 'contextmenu',
-          stopPropagation: jest.fn(),
-          preventDefault: jest.fn(),
-        });
-
-        const menu = (Menu as typeof Menu & { instances: Array<{ items: Array<{ title: string }> }> }).instances[0];
-        expect(menu.items.map(item => item.title)).toEqual([
-          'Open in new tab',
-          'Open in background tab',
-          'Rename',
-          'Delete',
-        ]);
-      });
-
       it('should show switch action in the context menu for already-open conversations', () => {
         const container = createMockEl();
 
@@ -2559,7 +2436,6 @@ describe('ConversationController', () => {
 
         controller.renderHistoryDropdown(container, {
           onSelectConversation: jest.fn(),
-          onOpenConversationInNewTab: jest.fn().mockResolvedValue(undefined),
           getConversationOpenState: () => 'open',
         });
 
@@ -2590,7 +2466,6 @@ describe('ConversationController', () => {
 
         controller.renderHistoryDropdown(container, {
           onSelectConversation: jest.fn(),
-          onOpenConversationInNewTab: jest.fn().mockResolvedValue(undefined),
           getConversationStatus: (id) => id === 'conv-2'
             ? { openState: 'open', isRunning: false, location: 'current-view', tabIndex: 2 }
             : { openState: 'current', isRunning: false, location: 'current-view', tabIndex: 1 },

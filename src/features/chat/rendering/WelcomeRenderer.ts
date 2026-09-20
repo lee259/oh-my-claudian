@@ -1,101 +1,78 @@
-import type { ProviderCapabilities } from '../../../core/providers/types';
-import { t } from '../../../i18n/i18n';
+import { h } from 'preact';
 
-const WELCOME_BRAND_NAME = 'Oh My Claudian';
+import { createPreactRoot, type PreactRoot } from '../../../shared/ui/PreactRoot';
+import {
+  type WelcomeHomeOptions,
+  type WelcomeProviderSummary,
+  WelcomeView,
+} from '../ui/WelcomeView';
+import { renderLegacyWelcomeContent } from './WelcomeLegacyRenderer';
 
-type WelcomeCapabilityKey = keyof Pick<
-  ProviderCapabilities,
-  | 'supportsPlanMode'
-  | 'supportsRewind'
-  | 'supportsFork'
-  | 'supportsProviderCommands'
-  | 'supportsImageAttachments'
-  | 'supportsMcpTools'
-  | 'supportsTurnSteer'
->;
+export type { WelcomeHomeOptions, WelcomeProviderSummary } from '../ui/WelcomeView';
 
-const WELCOME_CAPABILITIES: ReadonlyArray<{
-  key: WelcomeCapabilityKey;
-  label: 'settings.capabilityMatrix.rows.planMode'
-    | 'settings.capabilityMatrix.rows.rewind'
-    | 'settings.capabilityMatrix.rows.fork'
-    | 'settings.capabilityMatrix.rows.providerCommands'
-    | 'settings.capabilityMatrix.rows.imageAttachments'
-    | 'settings.capabilityMatrix.rows.mcpTools'
-    | 'settings.capabilityMatrix.rows.turnSteer';
-}> = [
-  { key: 'supportsPlanMode', label: 'settings.capabilityMatrix.rows.planMode' },
-  { key: 'supportsRewind', label: 'settings.capabilityMatrix.rows.rewind' },
-  { key: 'supportsFork', label: 'settings.capabilityMatrix.rows.fork' },
-  { key: 'supportsProviderCommands', label: 'settings.capabilityMatrix.rows.providerCommands' },
-  { key: 'supportsImageAttachments', label: 'settings.capabilityMatrix.rows.imageAttachments' },
-  { key: 'supportsMcpTools', label: 'settings.capabilityMatrix.rows.mcpTools' },
-  { key: 'supportsTurnSteer', label: 'settings.capabilityMatrix.rows.turnSteer' },
-];
+const welcomeRoots = new WeakMap<HTMLElement, PreactRoot>();
 
-export interface WelcomeProviderSummary {
-  displayName: string;
-  capabilities: ProviderCapabilities;
-}
-
-function renderCapabilitySummary(
+function renderWelcomeView(
   welcomeEl: HTMLElement,
-  providerSummary: WelcomeProviderSummary,
+  greeting?: string,
+  providerSummary?: WelcomeProviderSummary,
+  homeOptions?: WelcomeHomeOptions,
 ): void {
-  const supported = WELCOME_CAPABILITIES
-    .filter(({ key }) => providerSummary.capabilities[key])
-    .map(({ label }) => t(label));
-  const unsupported = WELCOME_CAPABILITIES
-    .filter(({ key }) => !providerSummary.capabilities[key])
-    .map(({ label }) => t(label));
-
-  const summaryEl = welcomeEl.createDiv({ cls: 'claudian-welcome-capability-summary' });
-  summaryEl.createDiv({
-    cls: 'claudian-welcome-provider-name',
-    text: providerSummary.displayName,
-  });
-  summaryEl.createDiv({
-    cls: 'claudian-welcome-capability-line claudian-welcome-capability-line--supported',
-    text: t('chat.welcome.availableCapabilities', { capabilities: supported.join(' · ') }),
-  });
-
-  if (unsupported.length > 0) {
-    summaryEl.createDiv({
-      cls: 'claudian-welcome-capability-line claudian-welcome-capability-line--unsupported',
-      text: t('chat.welcome.unavailableCapabilities', { capabilities: unsupported.join(' · ') }),
-    });
+  if (!canMountPreact(welcomeEl)) {
+    renderLegacyWelcomeContent(welcomeEl, greeting, providerSummary, homeOptions);
+    return;
   }
+
+  welcomeEl.classList.toggle('claudian-welcome--home', Boolean(homeOptions));
+
+  let root = welcomeRoots.get(welcomeEl);
+  if (!root) {
+    root = createPreactRoot(welcomeEl);
+    welcomeRoots.set(welcomeEl, root);
+  }
+
+  root.render(h(WelcomeView, {
+    greeting,
+    providerSummary,
+    homeOptions,
+  }));
 }
 
+function canMountPreact(welcomeEl: HTMLElement): boolean {
+  return welcomeEl.nodeType === 1
+    && typeof welcomeEl.ownerDocument?.createElement === 'function';
+}
+
+/** Renders or updates the Preact-owned welcome subtree in an existing host. */
 export function renderWelcomeContent(
   welcomeEl: HTMLElement,
   greeting?: string,
   providerSummary?: WelcomeProviderSummary,
+  homeOptions?: WelcomeHomeOptions,
 ): void {
-  welcomeEl.empty();
-  welcomeEl.createDiv({
-    cls: 'claudian-welcome-brand claudian-welcome-text',
-    text: WELCOME_BRAND_NAME,
-  });
+  renderWelcomeView(welcomeEl, greeting, providerSummary, homeOptions);
+}
 
-  if (greeting) {
-    welcomeEl.createDiv({
-      cls: 'claudian-welcome-greeting claudian-welcome-text',
-      text: greeting,
-    });
-  }
+/** Releases Preact event handlers before a welcome host is removed or emptied. */
+export function unmountWelcomeElement(welcomeEl: HTMLElement | null): void {
+  if (!welcomeEl) return;
+  welcomeRoots.get(welcomeEl)?.unmount();
+  welcomeRoots.delete(welcomeEl);
+}
 
-  if (providerSummary) {
-    renderCapabilitySummary(welcomeEl, providerSummary);
-  }
+/** Releases the current welcome subtree owned by a messages container. */
+export function unmountWelcomeContent(parentEl: HTMLElement): void {
+  const welcomeEl = parentEl.querySelector<HTMLElement>('.claudian-welcome');
+  unmountWelcomeElement(welcomeEl);
 }
 
 export function createWelcomeElement(
   parentEl: HTMLElement,
   greeting?: string,
   providerSummary?: WelcomeProviderSummary,
+  homeOptions?: WelcomeHomeOptions,
 ): HTMLElement {
   const welcomeEl = parentEl.createDiv({ cls: 'claudian-welcome' });
-  renderWelcomeContent(welcomeEl, greeting, providerSummary);
+  renderWelcomeView(welcomeEl, greeting, providerSummary, homeOptions);
   return welcomeEl;
 }

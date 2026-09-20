@@ -61,6 +61,7 @@ import {
   type ChatExecutionEventContext,
 } from '../execution/ChatExecutionCoordinator';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
+import { unmountWelcomeElement } from '../rendering/WelcomeRenderer';
 import { findRewindContext } from '../rewind';
 import { BangBashService } from '../services/BangBashService';
 import { BangBashModeManager as BangBashModeManagerClass } from '../ui/BangBashModeManager';
@@ -73,7 +74,6 @@ import { MentionTextHighlighter } from '../ui/MentionTextHighlighter';
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
-import { ScopePreview } from '../ui/ScopePreview';
 import { StatusPanel } from '../ui/StatusPanel';
 import { installTextareaSizing } from '../ui/textareaSizing';
 import { recalculateUsageForModel } from '../utils/usageInfo';
@@ -1536,7 +1536,6 @@ export function initializeTabUI(
     plugin.app,
   );
   dom.eventCleanups.push(() => mentionTextHighlighter.destroy());
-  tab.ui.scopePreview = new ScopePreview(dom.scopePreviewEl);
   initializeContextManagers(tab, plugin, onUserModified);
 
   const catalogInfo = options.getProviderCatalogConfig?.() ?? null;
@@ -1942,6 +1941,7 @@ export function initializeTabRuntimeControllers(
       invalidateTabProviderCommands(tab, getProviderCatalogConfig);
       tab.controllers.inputController?.onConversationActivated();
     },
+    getWelcomeHomeOptions: () => viewHost.getWelcomeHomeOptions?.(),
   });
 
   tab.ui.statusPanel?.setSubagentTranscriptHandler((detail) => {
@@ -2211,6 +2211,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
   await cleanupTabExecution(tab);
 
   const cleanup = new TabRuntimeCleanup();
+  cleanup.register('tab welcome view', () => unmountWelcomeElement(tab.dom.welcomeEl));
+  cleanup.register('tab conversation header', () => tab.dom.conversationHeaderRoot.unmount());
   cleanup.register('tab DOM root', () => tab.dom.contentEl.remove());
   cleanup.register('tab DOM event handlers', () => {
     for (const eventCleanup of tab.dom.eventCleanups) {

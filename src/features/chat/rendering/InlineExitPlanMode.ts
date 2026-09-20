@@ -5,9 +5,9 @@ import type {
   ExitPlanModeDecision,
   ExitPlanModePresentationOptions,
 } from '../../../core/types/tools';
+import { t } from '../../../i18n/i18n';
 import type { RenderContentFn } from './MessageRenderer';
 
-const HINTS_TEXT = 'Arrow keys to navigate \u00B7 Enter to select \u00B7 Esc to cancel';
 type ExitPlanModeAction = 'abandon' | 'approve' | 'approve-new-session' | 'feedback';
 
 export class InlineExitPlanMode {
@@ -54,7 +54,7 @@ export class InlineExitPlanMode {
     this.rootEl = this.containerEl.createDiv({ cls: 'claudian-plan-approval-inline' });
 
     const titleEl = this.rootEl.createDiv({ cls: 'claudian-plan-inline-title' });
-    titleEl.setText('Plan complete');
+    titleEl.setText(t('chat.rendering.planComplete'));
 
     this.planContent = this.readPlanContent();
     if (this.planContent) {
@@ -74,7 +74,7 @@ export class InlineExitPlanMode {
     const allowedPrompts = this.input.allowedPrompts as Array<{ tool: string; prompt: string }> | undefined;
     if (allowedPrompts && Array.isArray(allowedPrompts) && allowedPrompts.length > 0) {
       const permEl = this.rootEl.createDiv({ cls: 'claudian-plan-permissions' });
-      permEl.createDiv({ text: 'Requested permissions:', cls: 'claudian-plan-permissions-label' });
+      permEl.createDiv({ text: t('chat.rendering.requestedPermissions'), cls: 'claudian-plan-permissions-label' });
       const listEl = permEl.createEl('ul', { cls: 'claudian-plan-permissions-list' });
       for (const perm of allowedPrompts) {
         listEl.createEl('li', { text: perm.prompt });
@@ -161,7 +161,7 @@ export class InlineExitPlanMode {
     this.rootEl.createDiv({
       text: this.presentation.dismissOnEscape === false
         ? 'Arrow keys to navigate \u00B7 Enter to select \u00B7 Shift+Tab to abandon'
-        : HINTS_TEXT,
+        : t('chat.rendering.hints'),
       cls: 'claudian-ask-hints',
     });
 

@@ -130,7 +130,7 @@ function renderSubagentToolContent(contentEl: HTMLElement, toolCall: ToolCallInf
 
   if (!toolCall.result && toolCall.status === 'running') {
     const emptyEl = contentEl.createDiv({ cls: 'claudian-subagent-tool-empty' });
-    emptyEl.setText('Running...');
+    emptyEl.setText(t('chat.rendering.running'));
     return;
   }
 
@@ -290,7 +290,7 @@ export function createSubagentBlock(
   });
 
   const statusTextEl = headerEl.createDiv({ cls: 'claudian-subagent-status-text' });
-  statusTextEl.setText('Running');
+  statusTextEl.setText(t('chat.history.running'));
 
   const statusEl = headerEl.createDiv({ cls: 'claudian-subagent-status status-running' });
   statusEl.setAttribute('aria-label', 'Status: running');
