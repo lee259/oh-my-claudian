@@ -18,6 +18,7 @@ function createService() {
       requestPlanDecision: jest.fn(),
     },
     lifecycleRegistry,
+    nativePersistence: 'disabled-if-supported',
     vaultWorkingDirectory: '/vault',
   });
   return { backend, lifecycleRegistry, service };
@@ -49,7 +50,7 @@ describe('InstructionRefineService', () => {
     expect(backend.sessions).toHaveLength(1);
     expect(backend.configs[0]).toMatchObject({
       lifecycle: 'ephemeral',
-      nativePersistence: 'provider-default',
+      nativePersistence: 'disabled-if-supported',
     });
     expect(backend.sessions[0].requests[0]).toMatchObject({
       configuration: {
@@ -86,8 +87,8 @@ describe('InstructionRefineService', () => {
     await waitFor(() => backend.sessions.length === 2);
     expect(backend.sessions).toHaveLength(2);
     expect(backend.configs).toEqual([
-      expect.objectContaining({ nativePersistence: 'provider-default' }),
-      expect.objectContaining({ nativePersistence: 'provider-default' }),
+      expect.objectContaining({ nativePersistence: 'disabled-if-supported' }),
+      expect.objectContaining({ nativePersistence: 'disabled-if-supported' }),
     ]);
     backend.sessions[1].emitText('<instruction>Use Rust</instruction>');
     backend.sessions[1].complete();

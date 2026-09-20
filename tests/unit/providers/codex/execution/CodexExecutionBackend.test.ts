@@ -1271,7 +1271,7 @@ describe('CodexExecutionBackend', () => {
     const session = new CodexExecutionBackend(createPlugin()).createSession(
       createSessionConfig({
         lifecycle: 'ephemeral',
-        nativePersistence: 'disabled-if-supported',
+        nativePersistence: 'provider-default',
       }),
     );
 
@@ -1290,6 +1290,13 @@ describe('CodexExecutionBackend', () => {
     expect(
       mockTransportRequest.mock.calls.filter(call => call[0] === 'thread/start'),
     ).toHaveLength(1);
+    expect(mockTransportRequest).toHaveBeenCalledWith(
+      'thread/start',
+      expect.objectContaining({
+        ephemeral: true,
+        persistExtendedHistory: false,
+      }),
+    );
     expect(
       mockTransportRequest.mock.calls.filter(call => call[0] === 'turn/start'),
     ).toHaveLength(2);
@@ -1905,6 +1912,7 @@ describe('CodexExecutionBackend', () => {
       expect(mockTransportRequest).toHaveBeenCalledWith(
         'thread/start',
         expect.objectContaining({
+          ephemeral: true,
           persistExtendedHistory: false,
           approvalPolicy: 'never',
           sandbox: 'read-only',

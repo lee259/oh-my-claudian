@@ -32,6 +32,8 @@ export type { ProviderId } from '../types/provider';
 export interface ProviderCapabilities {
   providerId: ProviderId;
   supportsNativeHistory: boolean;
+  /** Can execute auxiliary work without saving native conversation history. */
+  supportsEphemeralSessions?: boolean;
   supportsPlanMode: boolean;
   supportsRewind: boolean;
   supportsFork: boolean;

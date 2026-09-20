@@ -1,4 +1,5 @@
 import { getVaultPath } from '../../utils/path';
+import type { AuxiliaryExecutionContext } from '../auxiliary/AuxiliaryExecutionContext';
 import { InlineEditService as SharedInlineEditService } from '../auxiliary/InlineEditService';
 import { InstructionRefineService as SharedInstructionRefineService } from '../auxiliary/InstructionRefineService';
 import { TitleGenerationService as SharedTitleGenerationService } from '../auxiliary/TitleGenerationService';
@@ -119,11 +120,14 @@ export class ProviderRegistry {
   private static createAuxiliaryExecutionContext(
     plugin: ProviderHost,
     providerId: ProviderId,
-  ) {
+  ): AuxiliaryExecutionContext {
     return {
       backend: this.createExecutionBackend(plugin, providerId),
       interactionPort: PASSIVE_AUXILIARY_INTERACTION_PORT,
       lifecycleRegistry: plugin.executionLifecycleRegistry,
+      nativePersistence: this.getCapabilities(providerId).supportsEphemeralSessions
+        ? 'disabled-if-supported'
+        : 'provider-default',
       vaultWorkingDirectory: getVaultPath(plugin.app) ?? '.',
     };
   }

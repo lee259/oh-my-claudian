@@ -1128,6 +1128,9 @@ export class CodexExecutionSession
         ),
         baseInstructions,
         experimentalRawEvents: true,
+        ...(persistExtendedHistory === false
+          ? { ephemeral: true }
+          : {}),
         ...(persistExtendedHistory !== undefined
           ? { persistExtendedHistory }
           : {}),

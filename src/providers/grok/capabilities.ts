@@ -3,6 +3,7 @@ import type { ProviderCapabilities } from '../../core/providers/types';
 export const GROK_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Object.freeze({
   providerId: 'grok',
   reasoningControl: 'effort',
+  supportsEphemeralSessions: false,
   supportsFork: true,
   supportsImageAttachments: true,
   supportsInstructionMode: true,

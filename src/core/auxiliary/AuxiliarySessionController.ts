@@ -2,7 +2,6 @@ import type {
   ProviderExecutionRequest,
   ProviderExecutionRun,
   ProviderExecutionSessionLease,
-  ProviderNativePersistence,
   ProviderToolPolicy,
 } from '../execution';
 import type { AuxiliaryExecutionContext } from './AuxiliaryExecutionContext';
@@ -16,15 +15,6 @@ export interface AuxiliaryRequest {
 }
 
 type AuxiliaryExecutionOwner = 'title' | 'instruction' | 'inline-edit';
-
-const NATIVE_PERSISTENCE_BY_OWNER = {
-  title: 'disabled-if-supported',
-  instruction: 'provider-default',
-  'inline-edit': 'provider-default',
-} as const satisfies Record<
-  AuxiliaryExecutionOwner,
-  ProviderNativePersistence
->;
 
 export class AuxiliarySessionController {
   private abortController: AbortController | null = null;
@@ -64,7 +54,7 @@ export class AuxiliarySessionController {
       {
         interactionPort: this.context.interactionPort,
         lifecycle: 'ephemeral',
-        nativePersistence: NATIVE_PERSISTENCE_BY_OWNER[this.owner],
+        nativePersistence: this.context.nativePersistence,
         vaultWorkingDirectory: this.context.vaultWorkingDirectory,
       },
       this.owner,

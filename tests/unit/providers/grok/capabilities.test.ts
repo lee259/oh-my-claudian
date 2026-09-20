@@ -5,6 +5,7 @@ describe('GROK_PROVIDER_CAPABILITIES', () => {
     expect(GROK_PROVIDER_CAPABILITIES).toEqual({
       providerId: 'grok',
       reasoningControl: 'effort',
+      supportsEphemeralSessions: false,
       supportsFork: true,
       supportsImageAttachments: true,
       supportsInstructionMode: true,

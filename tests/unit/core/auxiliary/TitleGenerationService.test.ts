@@ -18,6 +18,7 @@ function createService() {
       requestPlanDecision: jest.fn(),
     },
     lifecycleRegistry,
+    nativePersistence: 'disabled-if-supported',
     resolveLocale: () => 'ja',
     resolveModel: () => 'title-model',
     vaultWorkingDirectory: '/vault',
