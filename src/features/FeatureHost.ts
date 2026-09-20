@@ -28,7 +28,6 @@ export interface FeatureViewHost extends TabManagerViewHost {
   notifyConversationListChanged(): void;
   refreshModelSelector(providerId?: ProviderId): void;
   refreshTabControls(): void;
-  refreshDualPaneLayout(): void;
   updateHiddenProviderCommands(): void;
   invalidateProviderResources(providerIds: ProviderId[], generation: number): void;
 }
@@ -54,9 +53,6 @@ export interface FeatureHost {
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void>;
-  toggleDualPaneMode(): Promise<void>;
-  isDualPaneModeEnabled(): boolean;
-  setDualPaneModeEnabled(enabled: boolean): void;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
   getAgentSkillResourceGeneration(): number;
   notifyAgentSkillsChanged(): Promise<void>;

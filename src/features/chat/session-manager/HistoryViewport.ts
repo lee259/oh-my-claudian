@@ -1,8 +1,11 @@
+import { t } from '../../../i18n/i18n';
+
 export interface HistoryViewportOptions {
   showSessionSections: boolean;
   showArchivedSection: boolean;
   hasPinnedSection?: boolean;
   historyHeaderLabel?: string;
+  showHistoryHeader?: boolean;
 }
 
 export interface HistoryViewportLayout {
@@ -112,7 +115,7 @@ export class HistoryViewport {
           cls: 'claudian-history-header claudian-session-section-header',
         }).createSpan({
           cls: 'claudian-history-section-label',
-          text: 'Pinned',
+          text: t('chat.history.pinned'),
         });
         pinnedList = pinnedSection.createDiv({
           cls: 'claudian-history-section-items',
@@ -130,15 +133,17 @@ export class HistoryViewport {
       sessionsSection.createDiv({
         cls: 'claudian-history-header claudian-session-section-header claudian-session-list-header',
       }).createSpan({
-        cls: 'claudian-history-section-label',
-        text: options.showArchivedSection ? 'Archived' : 'Sessions',
+          cls: 'claudian-history-section-label',
+          text: options.showArchivedSection ? t('chat.history.archived') : t('chat.history.sessions'),
       });
       sessionList = sessionsSection.createDiv({
         cls: 'claudian-history-section-items claudian-session-list-items',
       });
     } else {
-      const dropdownHeader = container.createDiv({ cls: 'claudian-history-header' });
-      dropdownHeader.createSpan({ text: options.historyHeaderLabel ?? 'Sessions' });
+      if (options.showHistoryHeader !== false) {
+        const dropdownHeader = container.createDiv({ cls: 'claudian-history-header' });
+        dropdownHeader.createSpan({ text: options.historyHeaderLabel ?? t('chat.history.sessions') });
+      }
       list = container.createDiv({ cls: 'claudian-history-list' });
       sessionList = list;
     }

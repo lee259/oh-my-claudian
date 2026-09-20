@@ -1,4 +1,4 @@
-import { type App,Modal, Setting } from 'obsidian';
+import { type App, Modal, Setting } from 'obsidian';
 
 import { t } from '../../i18n/i18n';
 

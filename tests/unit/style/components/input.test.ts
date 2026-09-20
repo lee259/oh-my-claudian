@@ -63,6 +63,12 @@ describe('Chat input toolbar styles', () => {
     expect(css).toMatch(
       /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
+    expect(css).toMatch(
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlights\s*\{[\s\S]*?color:\s*transparent;/,
+    );
   });
 
   it('keeps the editor tall enough for text when context rows consume composer space', () => {

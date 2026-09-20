@@ -93,6 +93,94 @@
       "availableCapabilities": "Disponível: {capabilities}",
       "unavailableCapabilities": "Indisponível: {capabilities}"
     },
+    "home": {
+      "title": "Chat",
+      "history": "Histórico de chats",
+      "settings": "Configurações",
+      "newConversation": "Nova conversa",
+      "viewAll": "Ver tudo ({count})"
+    },
+    "header": {
+      "back": "Voltar",
+      "history": "Histórico de chats",
+      "settings": "Configurações",
+      "newConversation": "Nova conversa"
+    },
+    "history": {
+      "newTab": "Nova aba",
+      "new": "Novo",
+      "search": "Pesquisar",
+      "searchSessions": "Pesquisar sessões",
+      "searchArchived": "Pesquisar sessões arquivadas",
+      "sessions": "Sessões",
+      "archived": "Arquivadas",
+      "archive": "Arquivar",
+      "pinned": "Fixadas",
+      "missing": "Ausentes",
+      "running": "Em execução",
+      "generatingTitle": "Gerando título...",
+      "regenerateTitle": "Regenerar título",
+      "restore": "Restaurar",
+      "rename": "Renomear",
+      "delete": "Excluir",
+      "archiveAll": "Arquivar todas as sessões",
+      "switchOpen": "Alternar para a sessão aberta",
+      "organize": "Organizar sessões",
+      "oneList": "Em uma lista",
+      "byLinkedNote": "Por nota vinculada",
+      "sortBy": "Ordenar sessões por",
+      "lastActivity": "Última atividade",
+      "created": "Criada",
+      "expandGroups": "Expandir todos os grupos",
+      "collapseGroups": "Recolher todos os grupos",
+      "options": "Opções da sessão",
+      "searchRecent": "Pesquisar chats recentes",
+      "searchAria": "Pesquisar chats recentes",
+      "noMatches": "Nenhuma sessão correspondente",
+      "noConversations": "Nenhuma conversa",
+      "loadMore": "Carregar mais ({count} restantes)",
+      "createdAt": "Criada",
+      "lastActive": "Última atividade",
+      "unpin": "Desafixar",
+      "pin": "Fixar",
+      "pinLinkedNote": "Fixar nota vinculada",
+      "unpinLinkedNote": "Desafixar nota vinculada",
+      "newForNote": "Novo chat para {note}",
+      "cannotArchiveRunning": "Não é possível arquivar uma sessão em execução"
+    },
+    "status": {
+      "loadingConversation": "Carregando conversa…",
+      "loadFailed": "Falha ao carregar a conversa",
+      "retry": "Tentar novamente"
+    },
+    "errors": {
+      "returnHome": "Falha ao voltar para o início",
+      "openConversation": "Falha ao abrir a conversa",
+      "createTab": "Falha ao criar a aba",
+      "createConversation": "Falha ao criar a conversa",
+      "startConversation": "Falha ao iniciar uma nova conversa",
+      "approvedPlan": "Falha ao iniciar o plano aprovado em uma nova conversa",
+      "runningArchive": "Sessões em execução não podem ser arquivadas",
+      "updateOrganization": "Falha ao atualizar a organização da sessão",
+      "updateSorting": "Falha ao atualizar a ordenação das sessões",
+      "closePreview": "Falha ao fechar a visualização provisória da sessão",
+      "renameConversation": "Falha ao renomear a conversa",
+      "regenerateTitle": "Falha ao regenerar o título",
+      "deleteConversation": "Falha ao excluir a conversa",
+      "archiveSession": "Falha ao arquivar a sessão"
+    },
+    "rendering": {
+      "noChanges": "Sem alterações",
+      "copied": "Copiado!",
+      "planComplete": "Plano concluído",
+      "requestedPermissions": "Permissões solicitadas:",
+      "writing": "Escrevendo...",
+      "done": "CONCLUÍDO",
+      "thinking": "Pensando {seconds}s...",
+      "thinkingAria": "Pensamento estendido - clique para expandir",
+      "hints": "Use as setas para navegar · Enter para selecionar · Esc para cancelar",
+      "running": "Em execução..."
+    },
     "promptSuggestion": {
       "label": "Sugestão para continuar: {suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "Máximo de sessões em execução simultâneas",
       "desc": "Número máximo de sessões de agente mantidas prontas ao mesmo tempo (5-10). Sessões ociosas mais antigas pausam automaticamente e retomam quando usadas."
-    },
-    "enableDualPane": {
-      "name": "Ativar modo de painel duplo",
-      "desc": "Mostrar automaticamente o gerenciador de sessões ao lado do chat quando a visualização tiver pelo menos 600 px de largura."
-    },
-    "enableFilePane": {
-      "name": "Ativar painel de arquivos",
-      "desc": "Mostrar uma aba Arquivos no gerenciador de sessões do modo de painel duplo."
-    },
-    "dualPaneSide": {
-      "name": "Lado do painel duplo",
-      "desc": "Escolher em qual lado do chat o gerenciador de sessões aparece.",
-      "left": "Esquerda",
-      "right": "Direita"
     },
     "enableAutoScroll": {
       "name": "Rolagem automática durante streaming",

@@ -74,17 +74,14 @@ provisional | cold | warm | closing
 
 Tab activation and conversation hydration do not themselves authorize creation of a provider execution session. A selected history session stays provisional or cold until interaction requires execution. `ProviderTabWarmupPolicy` may request isolated command discovery; the reserved `execution` mode is currently a no-op and must not create a chat session. Command-only discovery must stay isolated and must not create a real chat session for a history-backed conversation.
 
-## Layout Modes
+## Layout
 
-- Single-panel mode keeps the tab bar and tab-aware history navigation. New Conversation and `/clear` replace the active tab's conversation, and fork prompts for the target tab.
-- Dual-pane mode hides the tab bar, exposes the persistent session manager, treats history navigation as provisional preview selection, and always forks into a new retained runtime tab.
-- Layout changes navigation only. They must not rewrite conversation grouping, provider state, or durable session metadata.
+- The chat view uses one panel. New Conversation and `/clear` replace the active tab's conversation, and fork prompts for the target tab.
 
 ## Invariants
 
 - Runtime tab creation is unlimited. The configured `maxWarmAgentProcesses` limit applies only to warm execution owners and is normalized to the supported 5-10 range.
 - Cooling an idle tab must preserve its runtime tab, conversation binding, hydrated UI state, and resumable provider snapshot.
-- Returning to single-panel mode must keep dual-pane controls in place until provisional-tab cleanup completes; compact controls must never target a tab already being closed.
 - Switching the active tab must not cancel, dispose, or transfer another tab's active execution.
 - Closing a tab disposes its runtime resources but never deletes its conversation; conversation deletion is a separate application operation.
 - Layout and presentation changes must not alter conversation binding or execution lifecycle.

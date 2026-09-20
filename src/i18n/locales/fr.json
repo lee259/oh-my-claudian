@@ -93,6 +93,94 @@
       "availableCapabilities": "Disponible : {capabilities}",
       "unavailableCapabilities": "Indisponible : {capabilities}"
     },
+    "home": {
+      "title": "Chat",
+      "history": "Historique des conversations",
+      "settings": "Paramètres",
+      "newConversation": "Nouvelle conversation",
+      "viewAll": "Tout afficher ({count})"
+    },
+    "header": {
+      "back": "Retour",
+      "history": "Historique des conversations",
+      "settings": "Paramètres",
+      "newConversation": "Nouvelle conversation"
+    },
+    "history": {
+      "newTab": "Nouvel onglet",
+      "new": "Nouveau",
+      "search": "Rechercher",
+      "searchSessions": "Rechercher des sessions",
+      "searchArchived": "Rechercher les sessions archivées",
+      "sessions": "Sessions",
+      "archived": "Archivées",
+      "archive": "Archiver",
+      "pinned": "Épinglées",
+      "missing": "Introuvables",
+      "running": "En cours",
+      "generatingTitle": "Génération du titre...",
+      "regenerateTitle": "Régénérer le titre",
+      "restore": "Restaurer",
+      "rename": "Renommer",
+      "delete": "Supprimer",
+      "archiveAll": "Archiver toutes les sessions",
+      "switchOpen": "Basculer vers la session ouverte",
+      "organize": "Organiser les sessions",
+      "oneList": "Dans une seule liste",
+      "byLinkedNote": "Par note liée",
+      "sortBy": "Trier les sessions par",
+      "lastActivity": "Dernière activité",
+      "created": "Créée",
+      "expandGroups": "Développer tous les groupes",
+      "collapseGroups": "Réduire tous les groupes",
+      "options": "Options de session",
+      "searchRecent": "Rechercher dans les conversations récentes",
+      "searchAria": "Rechercher dans les conversations récentes",
+      "noMatches": "Aucune session correspondante",
+      "noConversations": "Aucune conversation",
+      "loadMore": "Charger plus ({count} restantes)",
+      "createdAt": "Créée",
+      "lastActive": "Dernière activité",
+      "unpin": "Désépingler",
+      "pin": "Épingler",
+      "pinLinkedNote": "Épingler la note liée",
+      "unpinLinkedNote": "Désépingler la note liée",
+      "newForNote": "Nouvelle conversation pour {note}",
+      "cannotArchiveRunning": "Impossible d’archiver une session en cours"
+    },
+    "status": {
+      "loadingConversation": "Chargement de la conversation…",
+      "loadFailed": "Échec du chargement de la conversation",
+      "retry": "Réessayer"
+    },
+    "errors": {
+      "returnHome": "Échec du retour à l’accueil",
+      "openConversation": "Échec de l’ouverture de la conversation",
+      "createTab": "Échec de la création de l’onglet",
+      "createConversation": "Échec de la création de la conversation",
+      "startConversation": "Échec du démarrage d’une nouvelle conversation",
+      "approvedPlan": "Échec du démarrage du plan approuvé dans une nouvelle conversation",
+      "runningArchive": "Les sessions en cours ne peuvent pas être archivées",
+      "updateOrganization": "Échec de la mise à jour de l’organisation de la session",
+      "updateSorting": "Échec de la mise à jour du tri des sessions",
+      "closePreview": "Échec de la fermeture de l’aperçu de session provisoire",
+      "renameConversation": "Échec du renommage de la conversation",
+      "regenerateTitle": "Échec de la régénération du titre",
+      "deleteConversation": "Échec de la suppression de la conversation",
+      "archiveSession": "Échec de l’archivage de la session"
+    },
+    "rendering": {
+      "noChanges": "Aucune modification",
+      "copied": "Copié !",
+      "planComplete": "Plan terminé",
+      "requestedPermissions": "Autorisations demandées :",
+      "writing": "Écriture en cours...",
+      "done": "TERMINÉ",
+      "thinking": "Réflexion {seconds}s...",
+      "thinkingAria": "Réflexion étendue – cliquer pour développer",
+      "hints": "Utilisez les flèches pour naviguer · Entrée pour sélectionner · Échap pour annuler",
+      "running": "En cours..."
+    },
     "promptSuggestion": {
       "label": "Suggestion de suivi : {suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "Maximum de sessions exécutées simultanément",
       "desc": "Nombre maximal de sessions d'agent gardées prêtes à la fois (5-10). Les anciennes sessions inactives se mettent automatiquement en pause et reprennent à l'utilisation."
-    },
-    "enableDualPane": {
-      "name": "Activer le mode double volet",
-      "desc": "Afficher automatiquement le gestionnaire de sessions à côté du chat lorsque la vue mesure au moins 600 px de large."
-    },
-    "enableFilePane": {
-      "name": "Activer le volet des fichiers",
-      "desc": "Afficher un onglet Fichiers dans le gestionnaire de sessions du mode double volet."
-    },
-    "dualPaneSide": {
-      "name": "Côté du double volet",
-      "desc": "Choisir de quel côté du chat le gestionnaire de sessions apparaît.",
-      "left": "Gauche",
-      "right": "Droite"
     },
     "enableAutoScroll": {
       "name": "Défilement automatique pendant le streaming",

@@ -93,6 +93,94 @@
       "availableCapabilities": "Available: {capabilities}",
       "unavailableCapabilities": "Not available: {capabilities}"
     },
+    "home": {
+      "title": "Chat",
+      "history": "Chat history",
+      "settings": "Settings",
+      "newConversation": "New conversation",
+      "viewAll": "View all ({count})"
+    },
+    "header": {
+      "back": "Back",
+      "history": "Chat history",
+      "settings": "Settings",
+      "newConversation": "New conversation"
+    },
+    "history": {
+      "newTab": "New tab",
+      "new": "New",
+      "search": "Search",
+      "searchSessions": "Search sessions",
+      "searchArchived": "Search archived sessions",
+      "sessions": "Sessions",
+      "archived": "Archived",
+      "archive": "Archive",
+      "pinned": "Pinned",
+      "missing": "Missing",
+      "running": "Running",
+      "generatingTitle": "Generating title...",
+      "regenerateTitle": "Regenerate title",
+      "restore": "Restore",
+      "rename": "Rename",
+      "delete": "Delete",
+      "archiveAll": "Archive all sessions",
+      "switchOpen": "Switch to open session",
+      "organize": "Organize sessions",
+      "oneList": "In one list",
+      "byLinkedNote": "By linked note",
+      "sortBy": "Sort sessions by",
+      "lastActivity": "Last activity",
+      "created": "Created",
+      "expandGroups": "Expand all groups",
+      "collapseGroups": "Collapse all groups",
+      "options": "Session options",
+      "searchRecent": "Search recent chats",
+      "searchAria": "Search recent chats",
+      "noMatches": "No matching sessions",
+      "noConversations": "No conversations",
+      "loadMore": "Load more ({count} remaining)",
+      "createdAt": "Created",
+      "lastActive": "Last active",
+      "unpin": "Unpin",
+      "pin": "Pin",
+      "pinLinkedNote": "Pin linked note",
+      "unpinLinkedNote": "Unpin linked note",
+      "newForNote": "New chat for {note}",
+      "cannotArchiveRunning": "Cannot archive a running session"
+    },
+    "status": {
+      "loadingConversation": "Loading conversation…",
+      "loadFailed": "Failed to load conversation",
+      "retry": "Retry"
+    },
+    "errors": {
+      "returnHome": "Failed to return home",
+      "openConversation": "Failed to open conversation",
+      "createTab": "Failed to create tab",
+      "createConversation": "Failed to create conversation",
+      "startConversation": "Failed to start a new conversation",
+      "approvedPlan": "Failed to start the approved plan in a new conversation",
+      "runningArchive": "Running sessions cannot be archived",
+      "updateOrganization": "Failed to update session organization",
+      "updateSorting": "Failed to update session sorting",
+      "closePreview": "Failed to close the provisional session preview",
+      "renameConversation": "Failed to rename conversation",
+      "regenerateTitle": "Failed to regenerate title",
+      "deleteConversation": "Failed to delete conversation",
+      "archiveSession": "Failed to archive session"
+    },
+    "rendering": {
+      "noChanges": "No changes",
+      "copied": "Copied!",
+      "planComplete": "Plan complete",
+      "requestedPermissions": "Requested permissions:",
+      "writing": "Writing...",
+      "done": "DONE",
+      "thinking": "Thinking {seconds}s...",
+      "thinkingAria": "Extended thinking - click to expand",
+      "hints": "Arrow keys to navigate · Enter to select · Esc to cancel",
+      "running": "Running..."
+    },
     "promptSuggestion": {
       "label": "Suggested follow-up: {suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "Maximum concurrent running sessions",
       "desc": "Maximum number of agent sessions kept ready at once (5-10). Older idle sessions pause automatically and resume when used."
-    },
-    "enableDualPane": {
-      "name": "Enable dual-pane mode",
-      "desc": "Automatically show the session manager beside the chat when the view is at least 600 px wide."
-    },
-    "enableFilePane": {
-      "name": "Enable file pane",
-      "desc": "Show a Files tab in the dual-pane session manager."
-    },
-    "dualPaneSide": {
-      "name": "Dual-pane side",
-      "desc": "Choose which side of the chat the session manager appears on.",
-      "left": "Left",
-      "right": "Right"
     },
     "enableAutoScroll": {
       "name": "Auto-scroll during streaming",

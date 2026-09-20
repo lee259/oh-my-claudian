@@ -55,7 +55,12 @@ import {
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
-import { createWelcomeElement, type WelcomeProviderSummary } from './WelcomeRenderer';
+import {
+  createWelcomeElement,
+  unmountWelcomeContent,
+  type WelcomeHomeOptions,
+  type WelcomeProviderSummary,
+} from './WelcomeRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
@@ -88,6 +93,7 @@ export class MessageRenderer {
   private messagesEl: HTMLElement;
   private rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>;
   private getCapabilities: () => ProviderCapabilities;
+  private getWelcomeHomeOptions?: () => WelcomeHomeOptions | undefined;
   private forkCallback?: (messageId: string) => Promise<void>;
   private liveMessageEls = new Map<string, HTMLElement>();
   private readonly imagePreviewModal = new ImagePreviewModal();
@@ -102,6 +108,7 @@ export class MessageRenderer {
     rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>,
     forkCallback?: (messageId: string) => Promise<void>,
     getCapabilities?: () => ProviderCapabilities,
+    getWelcomeHomeOptions?: () => WelcomeHomeOptions | undefined,
   ) {
     this.app = plugin.app;
     this.plugin = plugin;
@@ -122,6 +129,7 @@ export class MessageRenderer {
       supportsTurnSteer: false,
       reasoningControl: 'none' as const,
     }));
+    this.getWelcomeHomeOptions = getWelcomeHomeOptions;
 
     // Register delegated click handler for file links
     registerFileLinkHandler(this.app, this.messagesEl, this.component);
@@ -292,6 +300,7 @@ export class MessageRenderer {
     messages: ChatMessage[],
     getGreeting: () => string
   ): HTMLElement {
+    unmountWelcomeContent(this.messagesEl);
     this.messagesEl.empty();
     this.liveMessageEls.clear();
 
@@ -300,6 +309,7 @@ export class MessageRenderer {
       this.messagesEl,
       getGreeting(),
       this.getWelcomeProviderSummary(),
+      this.getWelcomeHomeOptions?.(),
     );
 
     for (let i = 0; i < messages.length; i++) {
@@ -1121,7 +1131,7 @@ export class MessageRenderer {
 
                 try {
                   await navigator.clipboard.writeText(code.textContent || '');
-                  label.setText('Copied!');
+                  label.setText(t('chat.rendering.copied'));
                   window.setTimeout(() => label.setText(originalLabel), 1500);
                 } catch {
                   // Clipboard API may fail in non-secure contexts
@@ -1211,7 +1221,7 @@ export class MessageRenderer {
 
         // Show "copied!" feedback
         copyBtn.empty();
-        copyBtn.setText('Copied!');
+        copyBtn.setText(t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
 
         feedbackTimeout = window.setTimeout(() => {
@@ -1282,7 +1292,7 @@ export class MessageRenderer {
         }
         if (feedbackTimeout) window.clearTimeout(feedbackTimeout);
         copyBtn.empty();
-        copyBtn.setText('Copied!');
+        copyBtn.setText(t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
         feedbackTimeout = window.setTimeout(() => {
           copyBtn.empty();

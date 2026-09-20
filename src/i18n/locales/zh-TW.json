@@ -93,6 +93,94 @@
       "availableCapabilities": "可用：{capabilities}",
       "unavailableCapabilities": "暫不可用：{capabilities}"
     },
+    "home": {
+      "title": "聊天",
+      "history": "聊天記錄",
+      "settings": "設定",
+      "newConversation": "新增對話",
+      "viewAll": "查看全部（{count}）"
+    },
+    "header": {
+      "back": "返回",
+      "history": "聊天記錄",
+      "settings": "設定",
+      "newConversation": "新增對話"
+    },
+    "history": {
+      "newTab": "新分頁",
+      "new": "新增",
+      "search": "搜尋",
+      "searchSessions": "搜尋工作階段",
+      "searchArchived": "搜尋已封存工作階段",
+      "sessions": "工作階段",
+      "archived": "已封存",
+      "archive": "封存",
+      "pinned": "已釘選",
+      "missing": "遺失",
+      "running": "執行中",
+      "generatingTitle": "正在產生標題...",
+      "regenerateTitle": "重新產生標題",
+      "restore": "還原",
+      "rename": "重新命名",
+      "delete": "刪除",
+      "archiveAll": "封存所有工作階段",
+      "switchOpen": "切換至開啟的工作階段",
+      "organize": "整理工作階段",
+      "oneList": "顯示於單一清單",
+      "byLinkedNote": "依連結筆記",
+      "sortBy": "工作階段排序方式",
+      "lastActivity": "最近活動",
+      "created": "建立時間",
+      "expandGroups": "展開所有群組",
+      "collapseGroups": "收合所有群組",
+      "options": "工作階段選項",
+      "searchRecent": "搜尋最近聊天",
+      "searchAria": "搜尋最近聊天",
+      "noMatches": "沒有符合的工作階段",
+      "noConversations": "沒有對話",
+      "loadMore": "載入更多（剩餘 {count} 個）",
+      "createdAt": "建立時間",
+      "lastActive": "最近活動",
+      "unpin": "取消釘選",
+      "pin": "釘選",
+      "pinLinkedNote": "釘選連結筆記",
+      "unpinLinkedNote": "取消釘選連結筆記",
+      "newForNote": "為 {note} 新增聊天",
+      "cannotArchiveRunning": "執行中的工作階段無法封存"
+    },
+    "status": {
+      "loadingConversation": "正在載入對話…",
+      "loadFailed": "載入對話失敗",
+      "retry": "重試"
+    },
+    "errors": {
+      "returnHome": "返回首頁失敗",
+      "openConversation": "開啟對話失敗",
+      "createTab": "建立分頁失敗",
+      "createConversation": "建立對話失敗",
+      "startConversation": "新增對話失敗",
+      "approvedPlan": "無法在新對話中啟動已核准的計畫",
+      "runningArchive": "執行中的工作階段無法封存",
+      "updateOrganization": "更新工作階段組織方式失敗",
+      "updateSorting": "更新工作階段排序失敗",
+      "closePreview": "關閉暫存工作階段預覽失敗",
+      "renameConversation": "重新命名對話失敗",
+      "regenerateTitle": "重新產生標題失敗",
+      "deleteConversation": "刪除對話失敗",
+      "archiveSession": "封存工作階段失敗"
+    },
+    "rendering": {
+      "noChanges": "沒有變更",
+      "copied": "已複製！",
+      "planComplete": "計畫完成",
+      "requestedPermissions": "要求的權限：",
+      "writing": "寫入中...",
+      "done": "完成",
+      "thinking": "思考中 {seconds} 秒...",
+      "thinkingAria": "延伸思考 - 點擊展開",
+      "hints": "使用方向鍵瀏覽 · Enter 選取 · Esc 取消",
+      "running": "執行中..."
+    },
     "promptSuggestion": {
       "label": "建議繼續：{suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "最大並行執行工作階段數",
       "desc": "同時保持就緒的代理工作階段最大數量（5-10）。較早的閒置工作階段會自動暫停，並在使用時恢復。"
-    },
-    "enableDualPane": {
-      "name": "啟用雙欄模式",
-      "desc": "當檢視寬度至少為 600 像素時，自動在聊天旁顯示工作階段管理器。"
-    },
-    "enableFilePane": {
-      "name": "啟用檔案面板",
-      "desc": "在雙欄模式的工作階段管理器中顯示「檔案」分頁。"
-    },
-    "dualPaneSide": {
-      "name": "雙欄位置",
-      "desc": "選擇工作階段管理器顯示在聊天的哪一側。",
-      "left": "左側",
-      "right": "右側"
     },
     "enableAutoScroll": {
       "name": "串流傳輸時自動捲動",

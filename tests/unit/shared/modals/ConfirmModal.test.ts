@@ -108,4 +108,3 @@ describe('ConfirmModal', () => {
     await expect(p).resolves.toBe(true);
   });
 });
-

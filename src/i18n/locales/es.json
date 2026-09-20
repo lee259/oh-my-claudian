@@ -93,6 +93,94 @@
       "availableCapabilities": "Disponible: {capabilities}",
       "unavailableCapabilities": "No disponible: {capabilities}"
     },
+    "home": {
+      "title": "Chat",
+      "history": "Historial de chats",
+      "settings": "Configuración",
+      "newConversation": "Nueva conversación",
+      "viewAll": "Ver todo ({count})"
+    },
+    "header": {
+      "back": "Atrás",
+      "history": "Historial de chats",
+      "settings": "Configuración",
+      "newConversation": "Nueva conversación"
+    },
+    "history": {
+      "newTab": "Nueva pestaña",
+      "new": "Nuevo",
+      "search": "Buscar",
+      "searchSessions": "Buscar sesiones",
+      "searchArchived": "Buscar sesiones archivadas",
+      "sessions": "Sesiones",
+      "archived": "Archivadas",
+      "archive": "Archivar",
+      "pinned": "Fijadas",
+      "missing": "Faltan",
+      "running": "En ejecución",
+      "generatingTitle": "Generando título...",
+      "regenerateTitle": "Regenerar título",
+      "restore": "Restaurar",
+      "rename": "Cambiar nombre",
+      "delete": "Eliminar",
+      "archiveAll": "Archivar todas las sesiones",
+      "switchOpen": "Cambiar a la sesión abierta",
+      "organize": "Organizar sesiones",
+      "oneList": "En una lista",
+      "byLinkedNote": "Por nota vinculada",
+      "sortBy": "Ordenar sesiones por",
+      "lastActivity": "Última actividad",
+      "created": "Creada",
+      "expandGroups": "Expandir todos los grupos",
+      "collapseGroups": "Contraer todos los grupos",
+      "options": "Opciones de sesión",
+      "searchRecent": "Buscar chats recientes",
+      "searchAria": "Buscar chats recientes",
+      "noMatches": "No hay sesiones coincidentes",
+      "noConversations": "No hay conversaciones",
+      "loadMore": "Cargar más ({count} restantes)",
+      "createdAt": "Creada",
+      "lastActive": "Última actividad",
+      "unpin": "Desfijar",
+      "pin": "Fijar",
+      "pinLinkedNote": "Fijar nota vinculada",
+      "unpinLinkedNote": "Desfijar nota vinculada",
+      "newForNote": "Nuevo chat para {note}",
+      "cannotArchiveRunning": "No se puede archivar una sesión en ejecución"
+    },
+    "status": {
+      "loadingConversation": "Cargando conversación…",
+      "loadFailed": "No se pudo cargar la conversación",
+      "retry": "Reintentar"
+    },
+    "errors": {
+      "returnHome": "No se pudo volver al inicio",
+      "openConversation": "No se pudo abrir la conversación",
+      "createTab": "No se pudo crear la pestaña",
+      "createConversation": "No se pudo crear la conversación",
+      "startConversation": "No se pudo iniciar una nueva conversación",
+      "approvedPlan": "No se pudo iniciar el plan aprobado en una nueva conversación",
+      "runningArchive": "No se pueden archivar las sesiones en ejecución",
+      "updateOrganization": "No se pudo actualizar la organización de la sesión",
+      "updateSorting": "No se pudo actualizar el orden de las sesiones",
+      "closePreview": "No se pudo cerrar la vista previa provisional de la sesión",
+      "renameConversation": "No se pudo cambiar el nombre de la conversación",
+      "regenerateTitle": "No se pudo regenerar el título",
+      "deleteConversation": "No se pudo eliminar la conversación",
+      "archiveSession": "No se pudo archivar la sesión"
+    },
+    "rendering": {
+      "noChanges": "Sin cambios",
+      "copied": "¡Copiado!",
+      "planComplete": "Plan completado",
+      "requestedPermissions": "Permisos solicitados:",
+      "writing": "Escribiendo...",
+      "done": "HECHO",
+      "thinking": "Pensando {seconds}s...",
+      "thinkingAria": "Pensamiento extendido: haz clic para expandir",
+      "hints": "Usa las flechas para navegar · Intro para seleccionar · Esc para cancelar",
+      "running": "En ejecución..."
+    },
     "promptSuggestion": {
       "label": "Sugerencia para continuar: {suggestion}"
     }
@@ -496,20 +584,6 @@
     "maxWarmAgentProcesses": {
       "name": "Máximo de sesiones en ejecución simultáneas",
       "desc": "Número máximo de sesiones de agente listas a la vez (5-10). Las sesiones inactivas más antiguas se pausan automáticamente y se reanudan al usarlas."
-    },
-    "enableDualPane": {
-      "name": "Activar modo de panel doble",
-      "desc": "Mostrar automáticamente el gestor de sesiones junto al chat cuando la vista tenga al menos 600 px de ancho."
-    },
-    "enableFilePane": {
-      "name": "Activar panel de archivos",
-      "desc": "Mostrar una pestaña Archivos en el gestor de sesiones del modo de panel doble."
-    },
-    "dualPaneSide": {
-      "name": "Lado del panel doble",
-      "desc": "Elegir en qué lado del chat aparece el gestor de sesiones.",
-      "left": "Izquierda",
-      "right": "Derecha"
     },
     "enableAutoScroll": {
       "name": "Desplazamiento automático durante streaming",

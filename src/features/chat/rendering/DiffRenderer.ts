@@ -1,4 +1,5 @@
 import type { DiffLine, DiffStats } from '../../../core/types/diff';
+import { t } from '../../../i18n/i18n';
 
 export interface DiffHunk {
   lines: DiffLine[];
@@ -104,7 +105,7 @@ export function renderDiffContent(
   if (hunks.length === 0) {
     // No changes
     const noChanges = containerEl.createDiv({ cls: 'claudian-diff-no-changes' });
-    noChanges.setText('No changes');
+    noChanges.setText(t('chat.rendering.noChanges'));
     return;
   }
 

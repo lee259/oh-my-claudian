@@ -34,6 +34,16 @@ describe('Message styles', () => {
     expect(assistantRule).toContain('contain-intrinsic-size: auto 23.5rem;');
   });
 
+  it('uses a responsive centered assistant column on wide views', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const assistantRule = css.match(/\.claudian-message-assistant\s*{[^}]*}/)?.[0];
+
+    expect(assistantRule).toContain('width: min(100%, 960px);');
+    expect(assistantRule).toContain('max-width: 100%;');
+    expect(assistantRule).toContain('align-self: center;');
+    expect(assistantRule).not.toContain('max-width: 72ch;');
+  });
+
   it('disables assistant layout isolation on Windows only', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
