@@ -17,6 +17,7 @@ import {
   createConversationMetadataShell,
   SessionMetadataCoordinator,
 } from './app/conversations/SessionMetadataCoordinator';
+import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdapter';
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
 import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
@@ -99,6 +100,7 @@ function ensureProviderModulesLoaded(): Promise<void> {
 export default class ClaudianPlugin extends Plugin {
   settings!: ClaudianSettings;
   storage!: SharedAppStorage;
+  readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
   readonly executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
   readonly providerHost = new ClaudianProviderHost(this);
   readonly warmExecutionPool = new WarmExecutionPool(

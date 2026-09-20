@@ -60,9 +60,7 @@
   transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-/* Expand on hover */
-.claudian-thinking-gears:hover .claudian-thinking-options,
-.claudian-thinking-gears:focus-within .claudian-thinking-options,
+/* Expand only while explicitly opened; hover must not make the menu impossible to close. */
 .claudian-thinking-gears.is-open .claudian-thinking-options {
   opacity: 1;
   visibility: visible;

@@ -10,16 +10,23 @@ import {
   type ProviderSessionEvent,
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
 } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { ChatMessage } from '@/core/types';
 import {
   AcpExecutionEventNormalizer,
   type AcpSessionNotification,
+  type AcpUsageUpdate,
   buildAcpUsageInfo,
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 
+import {
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
+} from '../../../utils/session';
 import type { OpencodeCommandCatalog } from '../commands/OpencodeCommandCatalog';
 import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection';
 import { decodeOpencodeModelId } from '../models';
@@ -99,6 +106,7 @@ class OpencodeExecutionRun implements ProviderExecutionRun {
   terminal = false;
   accepted = false;
   acceptingLiveOutput = false;
+  contextUsage: AcpUsageUpdate | null = null;
   cancellationRequested = false;
   lastSequence = 0;
   abortCleanup: (() => void) | null = null;
@@ -332,16 +340,26 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
 
       this.getRunNormalizer(run).reset();
       run.acceptingLiveOutput = true;
+      const prompt = buildPromptBlocks(
+        request,
+        !this.nativeConversationContextEstablished,
+      );
+      reportResolvedTurnPrompt(request, getPromptCharacters(prompt));
       const response = await kernel.prompt({
-        prompt: buildPromptBlocks(
-          request,
-          !this.nativeConversationContextEstablished,
-        ),
+        prompt,
         sessionId: native.sessionId,
       });
       this.markNativeConversationContextEstablished(run);
       if (!this.isRunCurrent(run, generation)) return;
       run.accept(response.userMessageId ?? undefined);
+      if (response.usage) {
+        const usage = buildAcpUsageInfo({
+          contextWindow: run.contextUsage,
+          model: this.resolveSelectedRawModelId(request.configuration.model) ?? undefined,
+          promptUsage: response.usage,
+        });
+        if (usage) run.emit({ type: 'usage_updated', scope: run.scope(), usage });
+      }
       this.snapshot = this.createSnapshot('idle');
       run.emit({
         scope: run.scope(),
@@ -458,11 +476,13 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
     let normalizer = this.runNormalizers.get(run);
     if (!normalizer) {
       normalizer = new AcpExecutionEventNormalizer({
-        mapUsage: (usage) => buildAcpUsageInfo({
-          contextWindow: usage,
-          model: this.resolveSelectedRawModelId(undefined) ?? undefined,
-          promptUsage: null,
-        }),
+        mapUsage: (usage) => {
+          if (run.acceptingLiveOutput) run.contextUsage = usage;
+          return buildAcpUsageInfo({
+            contextWindow: usage,
+            model: this.resolveSelectedRawModelId(undefined) ?? undefined,
+          });
+        },
         isToolBlocked: toolCallId => this.blockedToolCallIds.has(toolCallId),
         scope: {
           executionId: run.executionId,
@@ -861,6 +881,15 @@ function buildPromptBlocks(
       block.type === 'image'
     ))
     .map(({ image }) => image);
+  const conversationHistory = bootstrapHistory
+    ? [...(request.conversationHistory ?? [])] as ChatMessage[]
+    : [];
+  const compiledHistory = conversationHistory.length > 0
+    ? compileHistoryContext(conversationHistory, DEFAULT_HISTORY_REPLAY_BUDGET)
+    : null;
+  if (compiledHistory) {
+    reportHistoryReplay(request, compiledHistory.stats);
+  }
   const currentNote = request.context?.currentNote;
   return buildOpencodePromptBlocks({
     browserSelection: request.context?.browserSelection,
@@ -871,9 +900,16 @@ function buildPromptBlocks(
     contextFiles: request.context?.contextFiles ? [...request.context.contextFiles] : undefined,
     images,
     text,
-  }, bootstrapHistory
-    ? [...(request.conversationHistory ?? [])] as ChatMessage[]
-    : []);
+  }, conversationHistory, compiledHistory?.text);
+}
+
+function getPromptCharacters(
+  prompt: ReturnType<typeof buildPromptBlocks>,
+): number {
+  return prompt.reduce(
+    (total, block) => total + (block.type === 'text' ? block.text.length : 0),
+    0,
+  );
 }
 
 function formatError(error: unknown): string {

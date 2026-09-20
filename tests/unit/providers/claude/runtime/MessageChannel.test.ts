@@ -252,6 +252,27 @@ describe('MessageChannel', () => {
       expect(result.value.message.content).toBe('turn-2');
       expect(channel.isTurnActive()).toBe(true);
     });
+
+    it('delivers a priority continuation before queued user messages', async () => {
+      const iterator = channel[Symbol.asyncIterator]();
+
+      const firstPromise = iterator.next();
+      channel.enqueue(createTextUserMessage('turn-1'));
+      await firstPromise;
+
+      channel.enqueue(createTextUserMessage('queued user turn'));
+      channel.enqueueFront(createTextUserMessage('plan continuation'));
+
+      const secondPromise = iterator.next();
+      channel.onTurnComplete();
+
+      const second = await secondPromise;
+      expect(second.value.message.content).toBe('plan continuation');
+
+      channel.onTurnComplete();
+      const third = await iterator.next();
+      expect(third.value.message.content).toBe('queued user turn');
+    });
   });
 
   describe('text extraction from content blocks', () => {

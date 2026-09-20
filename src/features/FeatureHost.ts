@@ -1,6 +1,7 @@
 import type { App } from 'obsidian';
 
 import type { SharedAppStorage } from '../core/bootstrap/storage';
+import type { ObsidianWorkspaceAdapter } from '../core/obsidian/ObsidianWorkspaceAdapter';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { ProviderId } from '../core/providers/types';
 import type {
@@ -46,6 +47,7 @@ export interface FeatureHost {
   readonly chatModelSelection: ChatModelSelectionPort;
   readonly executionPersistence: ChatExecutionPersistence;
   readonly providerHost: ProviderHost;
+  readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
   readonly warmExecutionPool: WarmExecutionPool;

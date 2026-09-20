@@ -2,6 +2,7 @@ import type { ChatMessage, ToolCallInfo } from '@/core/types';
 import {
   buildContextFromHistory,
   buildPromptWithHistoryContext,
+  compileHistoryContext,
   formatContextLine,
   formatToolCallForContext,
   getLastUserMessage,
@@ -565,6 +566,64 @@ describe('session utilities', () => {
     });
   });
 
+  describe('compileHistoryContext', () => {
+    it('keeps the latest turn and omits older turns when the replay budget is exceeded', () => {
+      const messages: ChatMessage[] = [
+        { id: 'user-1', role: 'user', content: 'Old request one', timestamp: 1000 },
+        { id: 'assistant-1', role: 'assistant', content: 'Old response one', timestamp: 2000 },
+        { id: 'user-2', role: 'user', content: 'Old request two', timestamp: 3000 },
+        { id: 'assistant-2', role: 'assistant', content: 'Old response two', timestamp: 4000 },
+        { id: 'user-3', role: 'user', content: 'Latest request', timestamp: 5000 },
+        { id: 'assistant-3', role: 'assistant', content: 'Latest response', timestamp: 6000 },
+      ];
+
+      const result = compileHistoryContext(messages, {
+        maxCharacters: 80,
+      });
+
+      expect(result.text).toContain('User: Latest request');
+      expect(result.text).toContain('Assistant: Latest response');
+      expect(result.text).not.toContain('Old request one');
+      expect(result.text).not.toContain('Old request two');
+      expect(result.stats.omittedTurns).toBe(2);
+      expect(result.stats.budgetCharacters).toBe(80);
+      expect(result.stats.wasCompacted).toBe(true);
+    });
+
+    it('preserves the existing rendering when the history fits the budget', () => {
+      const messages: ChatMessage[] = [
+        { id: 'user-1', role: 'user', content: 'Hello', timestamp: 1000 },
+        { id: 'assistant-1', role: 'assistant', content: 'Hi there!', timestamp: 2000 },
+      ];
+
+      const result = compileHistoryContext(messages, {
+        maxCharacters: 1000,
+      });
+
+      expect(result.text).toBe(buildContextFromHistory(messages));
+      expect(result.stats.wasCompacted).toBe(false);
+      expect(result.stats.omittedTurns).toBe(0);
+      expect(result.stats.truncatedMessages).toBe(0);
+    });
+
+    it('keeps the latest user request intact when the assistant response is too large', () => {
+      const messages: ChatMessage[] = [
+        { id: 'user-1', role: 'user', content: 'Keep this request intact', timestamp: 1000 },
+        { id: 'assistant-1', role: 'assistant', content: 'x'.repeat(200), timestamp: 2000 },
+      ];
+
+      const result = compileHistoryContext(messages, {
+        maxCharacters: 80,
+        maxAssistantCharacters: 30,
+      });
+
+      expect(result.text).toContain('User: Keep this request intact');
+      expect(result.text).toContain('[assistant content truncated]');
+      expect(result.stats.truncatedMessages).toBe(1);
+      expect(result.stats.finalCharacters).toBeLessThan(120);
+    });
+  });
+
   describe('getLastUserMessage', () => {
     it('returns last user message from history', () => {
       const messages: ChatMessage[] = [
@@ -814,6 +873,31 @@ describe('session utilities', () => {
         const result = buildPromptWithHistoryContext(historyContext, prompt, prompt, messages);
 
         expect(result).toBe(historyContext);
+      });
+
+      it('keeps changed context when the user repeats the same query', () => {
+        const oldPrompt = 'Explain this\n\n<linked_note>\nold.md\n</linked_note>';
+        const newPrompt = 'Explain this\n\n<linked_note>\nnew.md\n</linked_note>';
+        const messages: ChatMessage[] = [
+          {
+            id: 'msg-1',
+            role: 'user',
+            content: oldPrompt,
+            displayContent: 'Explain this',
+            timestamp: 1000,
+          },
+        ];
+        const historyContext = 'User: Explain this';
+
+        const result = buildPromptWithHistoryContext(
+          historyContext,
+          newPrompt,
+          newPrompt,
+          messages,
+        );
+
+        expect(result).toContain(historyContext);
+        expect(result).toContain('new.md');
       });
 
       it('falls back to extractUserQuery when displayContent is not available', () => {

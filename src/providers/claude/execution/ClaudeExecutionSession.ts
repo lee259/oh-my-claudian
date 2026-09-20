@@ -61,6 +61,8 @@ interface ActiveRequestedRun {
   historyReplayGeneration: number | null;
   nativeUserMessageId?: string;
   nativeAssistantId?: string;
+  planModeEntered: boolean;
+  planModeContinuationRequested: boolean;
   planCompleted: boolean;
   terminal: boolean;
 }
@@ -208,6 +210,8 @@ ClaudeExecutionStrategySink {
       nativeFork: false,
       nativeHandedOff: false,
       historyReplayGeneration: null,
+      planModeEntered: false,
+      planModeContinuationRequested: false,
       planCompleted: false,
       terminal: false,
     };
@@ -539,6 +543,9 @@ ClaudeExecutionStrategySink {
       }
       if (normalized.type === 'mode_entered') {
         this.currentPermissionMode = normalized.mode;
+        if (this.activeRun?.queryToken === queryToken) {
+          this.activeRun.planModeEntered = true;
+        }
         this.bumpRevision();
         const target = this.getOutputTarget();
         if (target) {
@@ -593,6 +600,9 @@ ClaudeExecutionStrategySink {
       }
       if (normalized.type === 'result') {
         if (this.activeRun) {
+          if (this.shouldDeferPlanModeCompletion(this.activeRun, queryToken)) {
+            continue;
+          }
           this.finishCompleted(this.activeRun, 'completed');
         } else if (this.backgroundTurn) {
           this.finishBackgroundTurn('completed');
@@ -705,6 +715,26 @@ ClaudeExecutionStrategySink {
 
   releaseNativeTurnFence(queryToken: number): void {
     this.suppressedEphemeralQueryTokens.delete(queryToken);
+  }
+
+  shouldContinueAfterPlanMode(queryToken: number): boolean {
+    const active = this.activeRun;
+    if (!active || active.queryToken !== queryToken) return false;
+    if (active.planCompleted || !active.planModeEntered) return false;
+    if (active.planModeContinuationRequested) return false;
+    active.planModeContinuationRequested = true;
+    return true;
+  }
+
+  private shouldDeferPlanModeCompletion(
+    active: ActiveRequestedRun,
+    queryToken: number,
+  ): boolean {
+    return this.config.lifecycle === 'persistent'
+      && active.queryToken === queryToken
+      && active.planModeEntered
+      && !active.planCompleted
+      && !active.planModeContinuationRequested;
   }
 
   handleNativeQueryOpened(query: Query): void {

@@ -591,6 +591,20 @@ describe('ThinkingBudgetSelector', () => {
       expect(current?.textContent).toBe('Off');
     });
 
+    it('should toggle the budget options when the current value is clicked', () => {
+      const budget = parentEl.querySelector('.claudian-thinking-budget');
+      const current = budget?.querySelector('.claudian-thinking-current');
+      const gears = budget?.querySelector('.claudian-thinking-gears');
+      expect(current).not.toBeNull();
+      expect(gears).not.toBeNull();
+
+      current?.dispatchEvent('click', { stopPropagation: () => {} });
+      expect(gears?.hasClass('is-open')).toBe(true);
+
+      current?.dispatchEvent('click', { stopPropagation: () => {} });
+      expect(gears?.hasClass('is-open')).toBe(false);
+    });
+
     it('should render budget options in reverse order', () => {
       const options = parentEl.querySelector('.claudian-thinking-options');
       expect(options).not.toBeNull();

@@ -8,9 +8,15 @@ import type {
   ProviderExecutionRequest,
   ProviderSessionConfig,
 } from '../../../core/execution';
-import { resolveProviderSystemInstructions } from '../../../core/execution';
+import {
+  reportHistoryReplay,
+  resolveProviderSystemInstructions,
+} from '../../../core/execution';
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
-import { buildSystemPrompt } from '../../../core/prompt/mainAgent';
+import {
+  buildSystemPromptSections,
+  type SystemPromptSection,
+} from '../../../core/prompt/mainAgent';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { AppPluginManager } from '../../../core/providers/types';
@@ -42,10 +48,16 @@ import {
   parseEnvironmentVariables,
 } from '../../../utils/env';
 import {
-  buildContextFromHistory,
   buildPromptWithHistoryContext,
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import { toClaudeRuntimeModelId } from '../modelSelection';
+import {
+  CLAUDE_OBSIDIAN_MCP_SERVER_NAME,
+  CLAUDE_OBSIDIAN_MCP_TOOL_NAME,
+  createClaudeObsidianWorkspaceMcpServer,
+} from '../runtime/ClaudeObsidianWorkspaceMcpServer';
 import { createCustomSpawnFunction } from '../runtime/customSpawn';
 import {
   DISABLED_BUILTIN_SUBAGENTS,
@@ -147,20 +159,40 @@ export class ClaudeExecutionRequestEncoder {
       ...mcpMentions,
       ...(request.configuration.enabledMcpServers ?? []),
     ]);
-    const mcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
     const policy = resolveToolPolicy(request);
+    const externalMcpServers = this.deps.mcpManager.getActiveServers(enabledMcpServers);
+    const obsidianVaultToolEnabled = shouldExposeObsidianVaultTool(request);
+    const mcpServers = {
+      ...externalMcpServers,
+      ...(obsidianVaultToolEnabled
+        ? {
+            [CLAUDE_OBSIDIAN_MCP_SERVER_NAME]: createClaudeObsidianWorkspaceMcpServer(
+              this.deps.host.obsidianWorkspace,
+            ),
+          }
+        : {}),
+    };
+    const disallowedTools = uniqueStrings([
+      ...this.deps.mcpManager.getDisallowedMcpTools(enabledMcpServers),
+      ...UNSUPPORTED_SDK_TOOLS,
+      ...DISABLED_BUILTIN_SUBAGENTS,
+    ]);
     const hooks: HookCallbackMatcher[] = [
       createVaultBoundaryHook(sessionConfig.vaultWorkingDirectory),
       ...(policy.hooks?.PreToolUse ?? []),
     ];
+    const systemPromptSettings = {
+      mediaFolder: settings.mediaFolder,
+      customPrompt: settings.systemPrompt,
+      vaultPath: sessionConfig.vaultWorkingDirectory,
+      userName: settings.userName,
+    };
+    const defaultPromptSections = buildSystemPromptSections(systemPromptSettings, {
+      capabilities: { obsidianVaultTool: obsidianVaultToolEnabled },
+    });
     const resolvedSystemPrompt = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
-      () => buildSystemPrompt({
-        mediaFolder: settings.mediaFolder,
-        customPrompt: settings.systemPrompt,
-        vaultPath: sessionConfig.vaultWorkingDirectory,
-        userName: settings.userName,
-      }),
+      () => defaultPromptSections.map(section => section.text).join('\n\n'),
     );
     const systemPrompt = resolvedSystemPrompt === undefined
       ? undefined
@@ -170,6 +202,30 @@ export class ClaudeExecutionRequestEncoder {
           EXPLICIT_PROTOCOL_INSTRUCTIONS,
         ].filter(Boolean).join('\n\n')
         : resolvedSystemPrompt;
+    request.diagnostics?.onResolved?.({
+      prompt: {
+        source: request.configuration.systemInstructions.kind === 'provider-default'
+          ? 'provider'
+          : 'configured',
+        characters: systemPrompt?.length ?? 0,
+        sections: getResolvedPromptSections(
+          request.configuration.systemInstructions.kind,
+          defaultPromptSections,
+          resolvedSystemPrompt,
+        ),
+      },
+      turnPrompt: {
+        source: 'provider',
+        characters: prompt.length,
+        sections: [{ name: 'turn-prompt', characters: prompt.length }],
+      },
+      tools: {
+        source: request.toolPolicy.kind === 'provider-default' ? 'provider' : 'configured',
+        ...(policy.tools ? { allowedNames: policy.tools } : {}),
+        disallowedNames: disallowedTools,
+        enabledMcpServers: [...enabledMcpServers].sort(),
+      },
+    });
     const externalPaths = uniqueStrings([
       ...(request.context?.externalContextPaths ?? []),
       ...(request.configuration.externalWorkspaceRoots ?? []),
@@ -196,11 +252,7 @@ export class ClaudeExecutionRequestEncoder {
       includePartialMessages: true,
       enableFileCheckpointing: true,
       canUseTool,
-      disallowedTools: [
-        ...this.deps.mcpManager.getDisallowedMcpTools(enabledMcpServers),
-        ...UNSUPPORTED_SDK_TOOLS,
-        ...DISABLED_BUILTIN_SUBAGENTS,
-      ],
+      disallowedTools,
       ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
       ...(externalPaths.length > 0
         ? { additionalDirectories: externalPaths }
@@ -255,7 +307,7 @@ export class ClaudeExecutionRequestEncoder {
         enableAutoMode: claudeSettings.safeMode === 'auto',
         persistSession: options.persistSession,
       }),
-      mcpServersKey: JSON.stringify(mcpServers),
+      mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-vault:${obsidianVaultToolEnabled ? 'enabled' : 'disabled'}`,
       allowedTools: policy.allowedTools,
     };
   }
@@ -325,8 +377,13 @@ export class ClaudeExecutionRequestEncoder {
     if (!history || history.length === 0) {
       return prompt;
     }
+    const compiledHistory = compileHistoryContext(
+      [...history],
+      DEFAULT_HISTORY_REPLAY_BUDGET,
+    );
+    reportHistoryReplay(request, compiledHistory.stats);
     return buildPromptWithHistoryContext(
-      buildContextFromHistory([...history]),
+      compiledHistory.text,
       prompt,
       prompt,
       [...history],
@@ -368,6 +425,39 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
         allowedTools: null,
       };
   }
+}
+
+function shouldExposeObsidianVaultTool(request: ProviderExecutionRequest): boolean {
+  switch (request.toolPolicy.kind) {
+    case 'provider-default':
+    case 'unrestricted':
+      return true;
+    case 'allow-list':
+      return request.toolPolicy.names.includes(CLAUDE_OBSIDIAN_MCP_TOOL_NAME)
+        || request.toolPolicy.names.includes('obsidian.vault');
+    case 'passive':
+    case 'read-only':
+      return false;
+  }
+}
+
+function getResolvedPromptSections(
+  kind: ProviderExecutionRequest['configuration']['systemInstructions']['kind'],
+  defaultSections: readonly SystemPromptSection[],
+  resolvedSystemPrompt: string | undefined,
+): Array<{ name: string; characters: number }> {
+  if (kind === 'provider-default') {
+    return defaultSections.map(section => ({
+      name: section.name,
+      characters: section.text.length,
+    }));
+  }
+  if (kind !== 'explicit' || !resolvedSystemPrompt) return [];
+
+  return [
+    { name: 'custom-instructions', characters: resolvedSystemPrompt.trim().length },
+    { name: 'protocol-instructions', characters: EXPLICIT_PROTOCOL_INSTRUCTIONS.length },
+  ];
 }
 
 function createReadOnlyHook(): HookCallbackMatcher {

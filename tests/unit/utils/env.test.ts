@@ -1201,7 +1201,7 @@ describe('Obsidian CLI path integration', () => {
     return require('../../../src/utils/env');
   }
 
-  it('uses the top-level app bundle binary dir on macOS helper processes', () => {
+  it('does not add the macOS Obsidian GUI binary dir to PATH', () => {
     const helperExecPath = '/Applications/Obsidian.app/Contents/Frameworks/Obsidian Helper (Renderer).app/Contents/MacOS/Obsidian Helper (Renderer)';
     process.env.PATH = '';
 
@@ -1209,7 +1209,7 @@ describe('Obsidian CLI path integration', () => {
     const result = mod.getEnhancedPath();
     const segments = result.split(':');
 
-    expect(segments).toContain('/Applications/Obsidian.app/Contents/MacOS');
+    expect(segments).not.toContain('/Applications/Obsidian.app/Contents/MacOS');
     expect(segments).not.toContain('/Applications/Obsidian.app/Contents/Frameworks/Obsidian Helper (Renderer).app/Contents/MacOS');
   });
 

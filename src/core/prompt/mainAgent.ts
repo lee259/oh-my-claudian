@@ -5,9 +5,19 @@ export interface SystemPromptSettings {
   userName?: string;
 }
 
+export interface SystemPromptCapabilities {
+  obsidianVaultTool?: boolean;
+}
+
 export interface SystemPromptBuildOptions {
   appendices?: string[];
+  capabilities?: SystemPromptCapabilities;
   toolGuidanceProfile?: 'claudian' | 'provider-native';
+}
+
+export interface SystemPromptSection {
+  name: string;
+  text: string;
 }
 
 function getPathRules(vaultPath?: string): string {
@@ -30,12 +40,19 @@ function getPathRules(vaultPath?: string): string {
 function getFileOperations(): string {
   return `## File Operations
 
-- Use built-in filesystem tools for ordinary reads, edits, file creation, directory creation, listing, and text search.
-- Use Obsidian-native operations for resolved links and backlinks, indexed tags and tasks, and live app state that filesystem tools cannot reliably provide.
-- For targeted frontmatter property updates, prefer Obsidian-native property operations (for example, the Obsidian CLI's \`property:set\` and \`property:remove\`) so Obsidian handles YAML serialization.
+- Use provider-native filesystem tools for ordinary reads, edits, file creation, directory creation, listing, and text search.
+- Use Obsidian-native operations when a request depends on resolved links, backlinks, indexed metadata, or live app state.
+- For targeted frontmatter property updates, prefer Obsidian-native property operations so Obsidian handles YAML serialization.
 - Move or rename Vault notes, attachments, and folders through the running Obsidian app so it can update links according to the user's link-update settings. Do not use shell \`mv\`, filesystem rename APIs, or copy-and-delete followed by manual link replacements.
-- When an Obsidian CLI is available, use its vault-relative move or rename operation and explicitly target the current Vault. For folder moves, resolve the source through the running app's vault API, confirm the source is a folder, check that the destination does not already exist, and rename through the app's file manager.
 - For requested deletions, prefer Obsidian's trash behavior. Permanent deletion must be explicitly requested.`;
+}
+
+function getObsidianVaultGuidance(): string {
+    return `## Obsidian Vault
+
+- Use \`obsidian.vault\` for backlinks, frontmatter properties, moves, and trash operations.
+- Use vault-relative paths. Preserve Obsidian's link and trash semantics.
+- Ask for confirmation before destructive operations unless the user explicitly requested them.`;
 }
 
 function getUserContext(userName?: string): string {
@@ -67,7 +84,7 @@ You are **Oh My Claudian**, an expert AI assistant specialized in Obsidian vault
 
 **Core Principles:**
 1.  **Obsidian Native**: You understand Markdown, YAML frontmatter, Wiki-links, and the "second brain" philosophy.
-2.  **Safety First**: You never overwrite data without understanding context. You always use relative paths.
+2.  **Safety First**: You never overwrite data without understanding context. Use vault-relative paths by default; use absolute paths only for explicitly provided external contexts.
 3.  **Proactive Thinking**: You do not just execute; you *plan* and *verify*. You anticipate potential issues (like broken links or missing files).
 4.  **Clarity**: Your changes are precise, minimizing "noise" in the user's notes or code.
 
@@ -141,37 +158,27 @@ Examples:
 
 ## Selection Context
 
-User messages may include an \`<editor_selection>\` tag showing text the user selected:
-
-\`\`\`xml
-<editor_selection path="path/to/file.md" lines="line numbers">
-<![CDATA[selected text here
-possibly multiple lines]]>
-</editor_selection>
-\`\`\`
-
-User messages may also include a \`<browser_selection>\` tag when selection comes from an Obsidian browser view:
-
-\`\`\`xml
-<browser_selection source="browser:https://leetcode.com/problems/two-sum" title="LeetCode" url="https://leetcode.com/problems/two-sum">
-<![CDATA[selected webpage content]]>
-</browser_selection>
-\`\`\`
-
-**When present:** The user selected this text before sending their message. Use this context to understand what they're referring to.`;
+The XML context tags described in **User Message Format** may contain text selected from
+the editor, browser, or canvas. When present, treat the selected content as user-provided
+context and use it to understand what the user is referring to.`;
 }
 
-function getBaseSystemPrompt(
+function getBaseSystemPromptSections(
   vaultPath: string | undefined,
   userName: string | undefined,
   toolGuidanceProfile: 'claudian' | 'provider-native',
-): string {
-  return [
-    getUserContext(userName),
-    getTimeContext(toolGuidanceProfile),
-    getVaultContext(vaultPath),
-    getFileOperations(),
-  ].filter(Boolean).join('\n\n');
+  capabilities: SystemPromptCapabilities | undefined,
+): SystemPromptSection[] {
+  const sections = [
+    { name: 'user-context', text: getUserContext(userName) },
+    { name: 'time-context', text: getTimeContext(toolGuidanceProfile) },
+    { name: 'vault-context', text: getVaultContext(vaultPath) },
+    { name: 'file-operations', text: getFileOperations() },
+  ];
+  if (capabilities?.obsidianVaultTool) {
+    sections.push({ name: 'obsidian-vault', text: getObsidianVaultGuidance() });
+  }
+  return sections.filter(section => Boolean(section.text));
 }
 
 function getImageInstructions(mediaFolder: string): string {
@@ -206,43 +213,50 @@ Then read with \`Read file_path="${examplePath}$img_name"\`, and replace the mar
 **Benefits**: Image becomes a permanent vault asset, works offline, and uses Obsidian's native embed syntax.`;
 }
 
-function getAppendixSections(appendices?: string[]): string {
-  if (!appendices || appendices.length === 0) {
-    return '';
-  }
-
-  const sections = appendices
-    .map((appendix) => appendix.trim())
-    .filter(Boolean);
-
-  if (sections.length === 0) {
-    return '';
-  }
-
-  return `\n\n${sections.join('\n\n')}`;
-}
-
 export function buildSystemPrompt(
   settings: SystemPromptSettings = {},
   options: SystemPromptBuildOptions = {},
 ): string {
+  return buildSystemPromptSections(settings, options)
+    .map(section => section.text)
+    .join('\n\n');
+}
+
+/** Builds the same prompt as buildSystemPrompt, retaining safe section boundaries for diagnostics. */
+export function buildSystemPromptSections(
+  settings: SystemPromptSettings = {},
+  options: SystemPromptBuildOptions = {},
+): SystemPromptSection[] {
   const toolGuidanceProfile = options.toolGuidanceProfile ?? 'claudian';
-  let prompt = getBaseSystemPrompt(
+  const sections = getBaseSystemPromptSections(
     settings.vaultPath,
     settings.userName,
     toolGuidanceProfile,
+    options.capabilities,
   );
 
   if (toolGuidanceProfile === 'claudian') {
-    prompt += getImageInstructions(settings.mediaFolder || '');
+    sections.push({
+      name: 'image-instructions',
+      text: getImageInstructions(settings.mediaFolder || '').trim(),
+    });
   }
-  prompt += getAppendixSections(options.appendices);
+
+  const appendices = (options.appendices || [])
+    .map(appendix => appendix.trim())
+    .filter(Boolean);
+  appendices.forEach((appendix, index) => {
+    sections.push({ name: `appendix-${index + 1}`, text: appendix });
+  });
 
   if (settings.customPrompt?.trim()) {
-    prompt += `\n\n## Custom Instructions\n\n${settings.customPrompt.trim()}`;
+    sections.push({
+      name: 'custom-instructions',
+      text: `## Custom Instructions\n\n${settings.customPrompt.trim()}`,
+    });
   }
 
-  return prompt;
+  return sections;
 }
 
 export function computeSystemPromptKey(
@@ -267,6 +281,9 @@ export function computeSystemPromptKey(
 
   if (options.toolGuidanceProfile === 'provider-native') {
     parts.push(options.toolGuidanceProfile);
+  }
+  if (options.capabilities?.obsidianVaultTool) {
+    parts.push('obsidian-vault-tool');
   }
 
   return parts.join('::');

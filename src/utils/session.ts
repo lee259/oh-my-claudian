@@ -216,6 +216,163 @@ export function buildContextFromHistory(messages: ChatMessage[]): string {
   return parts.join('\n\n');
 }
 
+export interface HistoryContextBudget {
+  readonly maxCharacters: number;
+  readonly maxAssistantCharacters?: number;
+}
+
+export const DEFAULT_HISTORY_REPLAY_BUDGET: Readonly<HistoryContextBudget> = Object.freeze({
+  maxCharacters: 32_000,
+  maxAssistantCharacters: 6_000,
+});
+
+export interface HistoryContextStats {
+  readonly budgetCharacters: number;
+  readonly originalCharacters: number;
+  readonly finalCharacters: number;
+  readonly totalTurns: number;
+  readonly includedTurns: number;
+  readonly omittedTurns: number;
+  readonly truncatedMessages: number;
+  readonly wasCompacted: boolean;
+}
+
+export interface HistoryContextCompilation {
+  readonly text: string;
+  readonly stats: HistoryContextStats;
+}
+
+const HISTORY_CONTEXT_OMISSION_MARKER = '[Earlier conversation omitted due to context budget.]';
+const HISTORY_CONTEXT_TRUNCATION_MARKER = '[assistant content truncated]';
+
+/**
+ * Compiles history for provider session recovery without changing the stored transcript.
+ * The newest turns are preferred, while the latest user message remains intact.
+ */
+export function compileHistoryContext(
+  messages: ChatMessage[],
+  budget: HistoryContextBudget,
+): HistoryContextCompilation {
+  const turns = groupHistoryTurns(messages);
+  const originalText = buildContextFromHistory(messages);
+  const maxCharacters = Math.max(0, budget.maxCharacters);
+  const maxAssistantCharacters = budget.maxAssistantCharacters ?? Infinity;
+  const includedTexts: string[] = [];
+  let remainingCharacters = maxCharacters;
+  let omittedTurns = 0;
+  let truncatedMessages = 0;
+
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const isLatestTurn = index === turns.length - 1;
+    const rendered = renderHistoryTurn(
+      turns[index],
+      isLatestTurn ? remainingCharacters : Math.min(remainingCharacters, maxCharacters),
+      maxAssistantCharacters,
+      isLatestTurn,
+    );
+
+    if (!rendered.text) {
+      omittedTurns += 1;
+      continue;
+    }
+
+    if (!isLatestTurn && rendered.text.length > remainingCharacters) {
+      omittedTurns += 1;
+      continue;
+    }
+
+    includedTexts.unshift(rendered.text);
+    remainingCharacters = Math.max(0, remainingCharacters - rendered.text.length);
+    truncatedMessages += rendered.truncatedMessages;
+  }
+
+  const omittedPrefix = omittedTurns > 0 ? HISTORY_CONTEXT_OMISSION_MARKER : '';
+  const text = [omittedPrefix, ...includedTexts].filter(Boolean).join('\n\n');
+  const stats: HistoryContextStats = {
+    budgetCharacters: maxCharacters,
+    originalCharacters: originalText.length,
+    finalCharacters: text.length,
+    totalTurns: turns.length,
+    includedTurns: includedTexts.length,
+    omittedTurns,
+    truncatedMessages,
+    wasCompacted: omittedTurns > 0 || truncatedMessages > 0,
+  };
+
+  return { text, stats };
+}
+
+function groupHistoryTurns(messages: ChatMessage[]): ChatMessage[][] {
+  const turns: ChatMessage[][] = [];
+  let currentTurn: ChatMessage[] = [];
+
+  for (const message of messages) {
+    if (
+      (message.role !== 'user' && message.role !== 'assistant')
+      || (message.role === 'user' && message.isInterrupt)
+    ) {
+      continue;
+    }
+    if (message.role === 'user' && currentTurn.length > 0) {
+      turns.push(currentTurn);
+      currentTurn = [];
+    }
+    currentTurn.push(message);
+  }
+
+  if (currentTurn.length > 0) turns.push(currentTurn);
+  return turns;
+}
+
+function renderHistoryTurn(
+  messages: ChatMessage[],
+  availableCharacters: number,
+  maxAssistantCharacters: number,
+  preserveLatestUser: boolean,
+): { text: string; truncatedMessages: number } {
+  const fullText = buildContextFromHistory(messages);
+  if (!fullText) return { text: '', truncatedMessages: 0 };
+  if (fullText.length <= availableCharacters && maxAssistantCharacters === Infinity) {
+    return { text: fullText, truncatedMessages: 0 };
+  }
+
+  const userMessages = messages.filter(message => message.role === 'user');
+  const assistantMessages = messages.filter(message => message.role === 'assistant');
+  if (userMessages.length === 0 || !preserveLatestUser && fullText.length <= availableCharacters) {
+    const limit = Math.min(availableCharacters, maxAssistantCharacters);
+    return truncateHistoryText(fullText, limit);
+  }
+
+  const userText = buildContextFromHistory(userMessages);
+  const assistantText = buildContextFromHistory(assistantMessages);
+  if (!assistantText) return { text: userText, truncatedMessages: 0 };
+
+  const assistantLimit = Math.min(
+    Math.max(0, availableCharacters - userText.length - 2),
+    maxAssistantCharacters,
+  );
+  const truncatedAssistant = truncateHistoryText(
+    assistantText,
+    assistantLimit,
+  );
+  return {
+    text: `${userText}\n\n${truncatedAssistant.text}`,
+    truncatedMessages: truncatedAssistant.truncatedMessages,
+  };
+}
+
+function truncateHistoryText(
+  text: string,
+  maxCharacters: number,
+): { text: string; truncatedMessages: number } {
+  if (text.length <= maxCharacters) return { text, truncatedMessages: 0 };
+  const safeLimit = Math.max(0, maxCharacters - HISTORY_CONTEXT_TRUNCATION_MARKER.length - 1);
+  return {
+    text: `${text.slice(0, safeLimit)}…${HISTORY_CONTEXT_TRUNCATION_MARKER}`,
+    truncatedMessages: 1,
+  };
+}
+
 export function getLastUserMessage(messages: ChatMessage[]): ChatMessage | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {
@@ -243,9 +400,15 @@ export function buildPromptWithHistoryContext(
   const lastUserQuery = lastUserMessage?.displayContent
     ?? extractUserQuery(lastUserMessage?.content ?? '');
   const currentUserQuery = extractUserQuery(actualPrompt);
+  const lastUserContent = lastUserMessage?.content?.trim() ?? '';
+  const currentPrompt = actualPrompt.trim();
+  const currentContextIsAlreadyInHistory = !currentPrompt
+    || lastUserContent === currentPrompt
+    || lastUserContent.includes(currentPrompt);
 
   const shouldAppendPrompt = !lastUserMessage ||
-    lastUserQuery.trim() !== currentUserQuery.trim();
+    lastUserQuery.trim() !== currentUserQuery.trim()
+    || !currentContextIsAlreadyInHistory;
 
   return shouldAppendPrompt
     ? `${historyContext}\n\nUser: ${prompt}`

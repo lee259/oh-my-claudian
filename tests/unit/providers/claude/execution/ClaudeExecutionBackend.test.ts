@@ -346,6 +346,46 @@ describe('ClaudeExecutionBackend', () => {
     expect(sdkMock.getLastOptions()?.systemPrompt).toBeUndefined();
   });
 
+  it('reports resolved prompt sections and tool filtering through the diagnostics port', async () => {
+    sdkMock.setMockMessages([
+      {
+        type: 'system',
+        subtype: 'init',
+        session_id: 'native-session',
+      },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const onResolved = jest.fn();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    await collectEvents(session.execute(createRequest({
+      diagnostics: { onResolved },
+    })).events);
+
+    expect(onResolved).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.objectContaining({
+        source: 'provider',
+        characters: expect.any(Number),
+        sections: expect.arrayContaining([
+          expect.objectContaining({ name: 'time-context' }),
+          expect.objectContaining({ name: 'vault-context' }),
+        ]),
+      }),
+      turnPrompt: expect.objectContaining({
+        source: 'provider',
+        characters: expect.any(Number),
+        sections: [{ name: 'turn-prompt', characters: expect.any(Number) }],
+      }),
+      tools: expect.objectContaining({
+        source: 'provider',
+        disallowedNames: expect.any(Array),
+        enabledMcpServers: [],
+      }),
+    }));
+  });
+
   it('uses resumable ephemeral turns and honors passive non-persistent policy', async () => {
     const { services } = createServices();
     const backend = new ClaudeExecutionBackend(createHost(), services);
@@ -546,6 +586,71 @@ describe('ClaudeExecutionBackend', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'context_compacted',
     }));
+  });
+
+  it('continues the requested turn after native plan-mode entry', async () => {
+    const prompts: string[] = [];
+    const queryFactory = jest.fn((request: {
+      prompt: AsyncIterable<sdkModule.SDKUserMessage>;
+    }) => createPromptDrivenPersistentQuery(request.prompt, (prompt) => {
+      prompts.push(prompt);
+      if (prompts.length === 1) {
+        return [
+          { type: 'system', subtype: 'init', session_id: 'session-1' },
+          {
+            type: 'assistant',
+            message: {
+              content: [{
+                type: 'tool_use',
+                id: 'plan-1',
+                name: 'EnterPlanMode',
+                input: {},
+              }],
+            },
+          },
+          { type: 'result', subtype: 'success' },
+        ];
+      }
+      return [
+        {
+          type: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Plan continuation' }],
+          },
+        },
+        { type: 'result', subtype: 'success' },
+      ];
+    }));
+    jest.spyOn(
+      await import('@/providers/claude/loadClaudeAgentSdk'),
+      'loadClaudeAgentQuery',
+    ).mockResolvedValueOnce(queryFactory as never);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    const events = await collectEvents(session.execute(createRequest({
+      input: [{ type: 'text', text: 'Plan this change' }],
+    })).events);
+
+    expect(prompts).toEqual([
+      'Plan this change',
+      expect.stringContaining('Continue the current user request in plan mode.'),
+    ]);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'tool_started',
+      toolCallId: 'plan-1',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'mode_changed',
+      mode: 'plan',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      text: 'Plan continuation',
+    }));
+    expect(events.filter(({ type }) => type === 'turn_completed')).toHaveLength(1);
+    await session.dispose();
   });
 
   it.skip('uses the post-turn context snapshot instead of assistant request usage', async () => {
@@ -1013,9 +1118,12 @@ describe('ClaudeExecutionBackend', () => {
     expect(sdkMock.getQueryCallCount()).toBe(1);
     expect(query?.setModel).toHaveBeenCalledWith('claude-opus-4-6');
     expect(query?.setPermissionMode).toHaveBeenCalledWith('plan');
-    expect(query?.setMcpServers).toHaveBeenCalledWith({
+    expect(query?.setMcpServers).toHaveBeenCalledWith(expect.objectContaining({
       selected: { command: 'server' },
-    });
+      claudian_obsidian: expect.objectContaining({
+        name: 'claudian_obsidian',
+      }),
+    }));
   });
 
   it('replays canonical history only while bootstrapping a native session', async () => {

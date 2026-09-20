@@ -456,6 +456,10 @@ describe('CodexExecutionBackend', () => {
             namespace: 'codex_app',
             name: 'load_workspace_dependencies',
           }),
+          expect.objectContaining({
+            namespace: 'obsidian',
+            name: 'vault',
+          }),
         ],
       }),
     );
@@ -578,6 +582,7 @@ describe('CodexExecutionBackend', () => {
         expect.any(Number),
       );
       expect((await eventsPromise).at(-1)).toMatchObject({
+        nativeAssistantId: turnId,
         nativeCheckpointId: turnId,
         type: 'turn_completed',
       });

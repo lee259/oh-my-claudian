@@ -49,6 +49,22 @@ export interface ToolCallInfo {
   subagent?: SubagentInfo;
 }
 
+/** Provider-neutral summary of work that is currently executing. */
+export interface ToolActivitySubagentInfo {
+  taskToolId: string;
+  agentId?: string;
+  description: string;
+  status?: AsyncSubagentStatus;
+}
+
+export interface ToolActivityInfo {
+  id: string;
+  name: string;
+  summary?: string;
+  kind?: 'tool' | 'agent';
+  subagent?: ToolActivitySubagentInfo;
+}
+
 export type ExitPlanModeDecision =
   | { type: 'approve' }
   | { type: 'approve-new-session'; planContent: string }

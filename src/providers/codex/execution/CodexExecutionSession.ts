@@ -16,6 +16,8 @@ import {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
   type ProviderToolPolicy,
+  reportHistoryReplay,
+  reportResolvedTurnPrompt,
   resolveProviderSystemInstructions,
   type SteerableExecutionSession,
 } from '../../../core/execution';
@@ -34,8 +36,9 @@ import {
 } from '../../../utils/context';
 import { appendEditorContext } from '../../../utils/editor';
 import {
-  buildContextFromHistory,
   buildPromptWithHistoryContext,
+  compileHistoryContext,
+  DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import {
   deriveCodexMemoriesDirFromSessionsRoot,
@@ -73,6 +76,7 @@ import type {
 import { CodexDynamicToolRegistry } from '../runtime/CodexDynamicToolRegistry';
 import type { CodexLaunchSpec } from '../runtime/codexLaunchTypes';
 import { CodexNotificationRouter } from '../runtime/CodexNotificationRouter';
+import { createCodexObsidianWorkspaceTool } from '../runtime/CodexObsidianWorkspaceTool';
 import {
   CodexRpcResponseError,
   CodexRpcTransport,
@@ -569,6 +573,7 @@ export class CodexExecutionSession
         thread.forkCheckpoint,
         replayConversationHistory,
       );
+      reportResolvedTurnPrompt(request, turnInput.length);
       const bundle = this.buildInputBundle(request, turnInput);
       this.activeInputBundles.add(bundle);
       const serviceTier = resolveCodexServiceTier(
@@ -656,6 +661,9 @@ export class CodexExecutionSession
       this.dynamicToolRegistry = new CodexDynamicToolRegistry();
       this.dynamicToolRegistry.register(
         createCodexWorkspaceDependencyTool(this.runtimeContext),
+      );
+      this.dynamicToolRegistry.register(
+        createCodexObsidianWorkspaceTool(this.plugin.obsidianWorkspace),
       );
       this.serverRequestRouter.setDynamicToolRegistry(this.dynamicToolRegistry);
       this.wireTransportHandlers(transport, generation);
@@ -1371,7 +1379,12 @@ export class CodexExecutionSession
       type: 'turn_completed',
       scope: run.createScope(),
       reason: 'completed',
-      ...(nativeCheckpointId ? { nativeCheckpointId } : {}),
+      ...(nativeCheckpointId
+        ? {
+            nativeAssistantId: nativeCheckpointId,
+            nativeCheckpointId,
+          }
+        : {}),
     });
     this.releaseRun(run);
   }
@@ -1741,7 +1754,12 @@ export class CodexExecutionSession
   private resolveBaseInstructions(request: ProviderExecutionRequest): string {
     const base = resolveProviderSystemInstructions(
       request.configuration.systemInstructions,
-      () => buildSystemPrompt(this.getSystemPromptSettings()),
+      () => buildSystemPrompt(this.getSystemPromptSettings(), {
+        capabilities: {
+          obsidianVaultTool: shouldExposeDynamicTools(request.toolPolicy)
+            && isThreadStartToolAllowed(request.toolPolicy, 'obsidian', 'vault'),
+        },
+      }),
     ) ?? '';
     return [
       base,
@@ -1881,17 +1899,23 @@ export class CodexExecutionSession
         message => message.assistantMessageId === forkCheckpoint,
       );
       if (checkpointIndex >= 0 && checkpointIndex < history.length - 1) {
-        const suffix = buildContextFromHistory(
+        const compiledSuffix = compileHistoryContext(
           history.slice(checkpointIndex + 1),
+          DEFAULT_HISTORY_REPLAY_BUDGET,
         );
-        if (suffix.trim()) return `${suffix}\n\nUser: ${prompt}`;
+        reportHistoryReplay(request, compiledSuffix.stats);
+        if (compiledSuffix.text.trim()) return `${compiledSuffix.text}\n\nUser: ${prompt}`;
       }
       return prompt;
     }
     if (replayConversationHistory) {
-      const historyContext = buildContextFromHistory(history as ChatMessage[]);
+      const compiledHistory = compileHistoryContext(
+        history as ChatMessage[],
+        DEFAULT_HISTORY_REPLAY_BUDGET,
+      );
+      reportHistoryReplay(request, compiledHistory.stats);
       return buildPromptWithHistoryContext(
-        historyContext || null,
+        compiledHistory.text || null,
         prompt,
         prompt,
         history as ChatMessage[],

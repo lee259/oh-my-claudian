@@ -544,6 +544,86 @@ describe('StatusPanel', () => {
     });
   });
 
+  describe('tool activity', () => {
+    beforeEach(() => {
+      panel.mount(containerEl as unknown as HTMLElement);
+    });
+
+    it('should show the active tool and hide it after removal', () => {
+      panel.updateToolActivity({
+        id: 'tool-1',
+        name: 'Read',
+        summary: 'notes/test.md',
+      });
+
+      const activity = containerEl.querySelector('.claudian-status-panel-activity');
+      expect(activity).not.toBeNull();
+      expect(containerEl.querySelector('.claudian-status-panel-activity-tool')?.textContent)
+        .toBe('Read · notes/test.md');
+      expect(containerEl.querySelector('.claudian-status-panel')
+        ?.hasClass('claudian-status-panel--visible')).toBe(true);
+
+      panel.removeToolActivity('tool-1');
+
+      expect(activity?.style.display).toBe('none');
+      expect(containerEl.querySelector('.claudian-status-panel')
+        ?.hasClass('claudian-status-panel--visible')).toBe(false);
+    });
+
+    it('should open an async subagent transcript from the activity row', () => {
+      const onOpenSubagentTranscript = jest.fn();
+      panel.setSubagentTranscriptHandler(onOpenSubagentTranscript);
+      panel.updateToolActivity({
+        id: 'agent:task-1',
+        name: 'Agent',
+        summary: 'Find recent notes',
+        kind: 'agent',
+        subagent: {
+          taskToolId: 'task-1',
+          agentId: 'agent-1',
+          description: 'Find recent notes',
+          status: 'running',
+        },
+      });
+
+      const row = containerEl.querySelector('.claudian-status-panel-activity-row');
+      expect(row?.getAttribute('role')).toBe('button');
+      expect(row?.getAttribute('tabindex')).toBe('0');
+
+      row!.click();
+
+      expect(onOpenSubagentTranscript).toHaveBeenCalledWith({
+        taskToolId: 'task-1',
+        agentId: 'agent-1',
+        description: 'Find recent notes',
+        status: 'running',
+      });
+    });
+
+    it('should keep a pending async subagent activity non-clickable until it has an agent id', () => {
+      const onOpenSubagentTranscript = jest.fn();
+      panel.setSubagentTranscriptHandler(onOpenSubagentTranscript);
+      panel.updateToolActivity({
+        id: 'agent:task-1',
+        name: 'Agent',
+        summary: 'Find recent notes',
+        kind: 'agent',
+        subagent: {
+          taskToolId: 'task-1',
+          description: 'Find recent notes',
+          status: 'pending',
+        },
+      });
+
+      const row = containerEl.querySelector('.claudian-status-panel-activity-row');
+      expect(row?.getAttribute('role')).toBeNull();
+
+      row!.click();
+
+      expect(onOpenSubagentTranscript).not.toHaveBeenCalled();
+    });
+  });
+
   describe('accessibility', () => {
     beforeEach(() => {
       panel.mount(containerEl as unknown as HTMLElement);

@@ -144,6 +144,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
       appendText: jest.fn(),
       finalizeCurrentTextBlock: jest.fn(),
       finalizeCurrentThinkingBlock: jest.fn(),
+      flushPendingTools: jest.fn(),
       handleStreamChunk: jest.fn(),
       hideThinkingIndicator: jest.fn(),
       showThinkingIndicator: jest.fn(),
@@ -635,6 +636,31 @@ describe('InputController coordinator execution', () => {
       { content: 'world', type: 'text' },
       expect.objectContaining({ role: 'assistant' }),
     );
+  });
+
+  it('flushes buffered tools before finalizing a requested turn', async () => {
+    const fixture = createFixture();
+    fixture.coordinator.execute.mockImplementationOnce(async () => {
+      await fixture.controller.handleExecutionEvent({
+        scope: {
+          executionId: 'execution-1',
+          kind: 'requested',
+          sequence: 1,
+          sessionInstanceId: 'session-1',
+          turnId: 'turn-1',
+        },
+        toolCallId: 'plan-1',
+        toolScope: { kind: 'main' },
+        name: 'EnterPlanMode',
+        input: {},
+        type: 'tool_started',
+      } as ProviderExecutionEvent);
+      return { accepted: true, planCompleted: false, status: 'completed' };
+    });
+
+    await fixture.controller.sendMessage({ content: 'make a plan' });
+
+    expect(fixture.deps.streamController.flushPendingTools).toHaveBeenCalledTimes(1);
   });
 
   it('routes usage updates after the assistant stream has finished', async () => {

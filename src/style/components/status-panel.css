@@ -13,6 +13,74 @@
   padding-top: 12px;
 }
 
+/* Live activity stays compact while a provider tool or background agent runs. */
+.claudian-status-panel-activity {
+  margin-bottom: 4px;
+}
+
+.claudian-status-panel-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.claudian-status-panel-activity-row--openable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.claudian-status-panel-activity-row--openable:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-status-panel-activity-row--openable:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-status-panel-activity-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--interactive-accent);
+}
+
+.claudian-status-panel-activity-icon svg {
+  width: 15px;
+  height: 15px;
+  animation: claudian-spin 0.9s linear infinite;
+}
+
+.claudian-status-panel-activity-label {
+  flex-shrink: 0;
+}
+
+.claudian-status-panel-activity-tool {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-status-panel-activity-open {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.claudian-status-panel-activity-open svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* Todo Section */
 
 .claudian-status-panel-todos {
