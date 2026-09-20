@@ -35,6 +35,7 @@ describe('ProviderRegistry', () => {
     expect(caps.providerId).toBe('claude');
     expect(caps).toHaveProperty('supportsPlanMode');
     expect(caps).toHaveProperty('supportsFork');
+    expect(caps).toHaveProperty('supportsEphemeralSessions');
   });
 
   it('returns boundary services for the default provider', () => {
@@ -82,6 +83,7 @@ describe('ProviderRegistry', () => {
     expect(caps.supportsPlanMode).toBe(true);
     expect(caps.supportsFork).toBe(true);
     expect(caps.supportsInstructionMode).toBe(true);
+    expect(caps.supportsEphemeralSessions).toBe(true);
     expect(caps.supportsRewind).toBe(false);
     expect(caps.reasoningControl).toBe('effort');
   });

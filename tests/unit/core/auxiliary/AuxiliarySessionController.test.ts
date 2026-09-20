@@ -43,6 +43,7 @@ function createController() {
         requestPlanDecision: jest.fn(),
       },
       lifecycleRegistry: new ProviderExecutionLifecycleRegistry(),
+      nativePersistence: 'disabled-if-supported',
       vaultWorkingDirectory: '/vault',
     },
     'instruction',

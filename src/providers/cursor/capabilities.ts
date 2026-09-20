@@ -3,6 +3,7 @@ import type { ProviderCapabilities } from '../../core/providers/types';
 export const CURSOR_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Object.freeze({
   providerId: 'cursor',
   supportsNativeHistory: false,
+  supportsEphemeralSessions: false,
   supportsPlanMode: true,
   supportsRewind: false,
   supportsFork: false,

@@ -50,7 +50,7 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
-  it('does not let inline mention highlighting change textarea text metrics', () => {
+  it('uses the mirrored layer as the visible text when mentions are highlighted', () => {
     expect(css).toMatch(
       /\.claudian-input-wrapper textarea\.claudian-input\s*\{[^}]*box-sizing:\s*border-box;/,
     );
@@ -64,10 +64,25 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?color:\s*transparent\s*!important;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlights\s*\{[\s\S]*?color:\s*transparent;/,
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?-webkit-text-fill-color:\s*transparent\s*!important;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?caret-color:\s*var\(--text-normal\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlights\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
+    );
+  });
+
+  it('matches the home composer padding and font size in the mention layer', () => {
+    expect(css).toMatch(
+      /\.claudian-home-state \.claudian-input-mention-highlights-content\s*\{[\s\S]*?padding:\s*22px 22px 48px;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-home-state \.claudian-input-mention-highlights\s*\{[\s\S]*?font-size:\s*15px;/,
     );
   });
 
