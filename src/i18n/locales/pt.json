@@ -217,6 +217,7 @@
     },
     "tabs": {
       "general": "Geral",
+      "providers": "Provedores",
       "claude": "Claude",
       "codex": "Codex"
     },

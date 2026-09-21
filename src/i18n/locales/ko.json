@@ -217,6 +217,7 @@
     },
     "tabs": {
       "general": "일반",
+      "providers": "제공자",
       "claude": "Claude",
       "codex": "Codex"
     },

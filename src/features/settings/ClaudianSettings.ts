@@ -32,7 +32,7 @@ import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
 
-type SettingsTabId = string;
+type SettingsTabId = 'general' | 'providers';
 type CapabilityMatrixKey = keyof Pick<
   ProviderCapabilities,
   | 'supportsPlanMode'
@@ -151,6 +151,7 @@ function addHotkeySettingRow(
 export class ClaudianSettingTab extends PluginSettingTab {
   plugin: FeatureHost;
   private activeTab: SettingsTabId = 'general';
+  private activeProviderTab: ProviderId | null = null;
   private refreshTitleModelOptions: (() => void) | null = null;
   private displayGeneration = 0;
   private customContextLimitRefreshTimer: number | null = null;
@@ -186,7 +187,13 @@ export class ClaudianSettingTab extends PluginSettingTab {
     setLocale(resolveLocale(this.plugin.settings.locale, getObsidianLanguage()));
 
     const providerTabs = ProviderRegistry.getRegisteredProviderIds();
-    const tabIds: SettingsTabId[] = ['general', ...providerTabs];
+    const tabIds: SettingsTabId[] = ['general', 'providers'];
+    const preferredProvider = providerTabs.includes(this.plugin.settings.settingsProvider)
+      ? this.plugin.settings.settingsProvider
+      : providerTabs[0] ?? null;
+    if (!this.activeProviderTab || !providerTabs.includes(this.activeProviderTab)) {
+      this.activeProviderTab = preferredProvider;
+    }
     if (!tabIds.includes(this.activeTab)) {
       this.activeTab = 'general';
     }
@@ -202,7 +209,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       }
       renderedProviderTabs.add(providerId);
 
-      const content = tabContents.get(providerId);
+      const content = providerContents.get(providerId);
       if (!content) {
         return;
       }
@@ -261,10 +268,17 @@ export class ClaudianSettingTab extends PluginSettingTab {
       }
     };
 
+    const providersContent = containerEl.createDiv({
+      cls: `claudian-settings-tab-content claudian-settings-providers${this.activeTab === 'providers' ? ' claudian-settings-tab-content--active' : ''}`,
+    });
+    tabContents.set('providers', providersContent);
+    const providerTabBar = providersContent.createDiv({ cls: 'claudian-settings-provider-tabs' });
+    const providerContentHost = providersContent.createDiv({ cls: 'claudian-settings-provider-content-host' });
+    const providerButtons = new Map<ProviderId, HTMLButtonElement>();
+    const providerContents = new Map<ProviderId, HTMLDivElement>();
+
     for (const id of tabIds) {
-      const label = id === 'general'
-        ? t('settings.tabs.general')
-        : ProviderRegistry.getProviderDisplayName(id);
+      const label = t(`settings.tabs.${id}` as TranslationKey);
       const button = tabBar.createEl('button', {
         cls: `claudian-settings-tab${id === this.activeTab ? ' claudian-settings-tab--active' : ''}`,
         text: label,
@@ -275,29 +289,54 @@ export class ClaudianSettingTab extends PluginSettingTab {
           tabButtons.get(tabId)?.toggleClass('claudian-settings-tab--active', tabId === id);
           tabContents.get(tabId)?.toggleClass('claudian-settings-tab-content--active', tabId === id);
         }
-        if (id !== 'general') {
-          void renderProviderTab(id);
+        if (id === 'providers' && this.activeProviderTab) {
+          void renderProviderTab(this.activeProviderTab);
         }
       });
       tabButtons.set(id, button);
     }
 
-    for (const id of tabIds) {
+    const generalContent = containerEl.createDiv({
+      cls: `claudian-settings-tab-content claudian-settings-general${this.activeTab === 'general' ? ' claudian-settings-tab-content--active' : ''}`,
+    });
+    tabContents.set('general', generalContent);
+
+    for (const providerId of providerTabs) {
       const content = containerEl.createDiv({
         cls: [
-          'claudian-settings-tab-content',
-          id === 'general' ? 'claudian-settings-general' : 'claudian-settings-provider-content',
-          id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
+          'claudian-settings-provider-content',
+          providerId === this.activeProviderTab ? 'claudian-settings-provider-content--active' : '',
         ].filter(Boolean).join(' '),
       });
-      tabContents.set(id, content);
+      providerContentHost.appendChild(content);
+      providerContents.set(providerId, content);
+
+      const button = providerTabBar.createEl('button', {
+        cls: `claudian-settings-provider-tab${providerId === this.activeProviderTab ? ' claudian-settings-provider-tab--active' : ''}`,
+        text: ProviderRegistry.getProviderDisplayName(providerId),
+      });
+      button.addEventListener('click', () => {
+        this.activeProviderTab = providerId;
+        for (const candidate of providerTabs) {
+          providerButtons.get(candidate)?.toggleClass(
+            'claudian-settings-provider-tab--active',
+            candidate === providerId,
+          );
+          providerContents.get(candidate)?.toggleClass(
+            'claudian-settings-provider-content--active',
+            candidate === providerId,
+          );
+        }
+        void renderProviderTab(providerId);
+      });
+      providerButtons.set(providerId, button);
     }
 
-    this.renderGeneralTab(tabContents.get('general')!);
-    frameSettingsGroups(tabContents.get('general')!);
+    this.renderGeneralTab(generalContent);
+    frameSettingsGroups(generalContent);
 
-    if (this.activeTab !== 'general') {
-      void renderProviderTab(this.activeTab);
+    if (this.activeTab === 'providers' && this.activeProviderTab) {
+      void renderProviderTab(this.activeProviderTab);
     }
   }
 

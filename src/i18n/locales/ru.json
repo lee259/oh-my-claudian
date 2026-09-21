@@ -217,6 +217,7 @@
     },
     "tabs": {
       "general": "Общие",
+      "providers": "Провайдеры",
       "claude": "Claude",
       "codex": "Codex"
     },

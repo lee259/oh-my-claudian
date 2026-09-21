@@ -217,6 +217,7 @@
     },
     "tabs": {
       "general": "通用",
+      "providers": "提供商",
       "claude": "Claude",
       "codex": "Codex"
     },
