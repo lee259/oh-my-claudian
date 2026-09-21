@@ -1193,6 +1193,18 @@ describe('ClaudianView tab controls', () => {
     expect(viewContainerEl.children[0].children).toContain(view.inputFooterEl);
   });
 
+  it('mounts the history overlay in the chat panel instead of the input footer', () => {
+    const viewContainerEl = createMockEl();
+    const view = Object.create(ClaudianView.prototype) as any;
+    view.viewContainerEl = viewContainerEl;
+
+    view.buildViewLayout();
+
+    expect(view.chatPanelEl?.children).toContain(view.historyDropdown);
+    expect(view.historyDropdown?.hasClass('claudian-history-menu')).toBe(true);
+    expect(view.inputFooterEl?.contains(view.historyDropdown)).toBe(false);
+  });
+
   it('does not add a dual-pane toggle to the chat navigation actions', () => {
     const view = Object.create(ClaudianView.prototype) as any;
     const viewContainerEl = createMockEl();
