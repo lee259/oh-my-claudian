@@ -2,6 +2,7 @@
 
 import {
   createWelcomeElement,
+  refreshWelcomeContent,
   renderWelcomeContent,
 } from '@/features/chat/rendering/WelcomeRenderer';
 
@@ -75,30 +76,38 @@ describe('Welcome', () => {
     const parentEl = document.createElement('div');
     const onOpenConversation = jest.fn();
     const now = Date.now();
+    const conversations = [
+      {
+        id: 'older',
+        providerId: 'codex' as const,
+        title: 'Older conversation',
+        createdAt: 1,
+        lastActivityAt: 1,
+        messageCount: 1,
+        preview: '',
+        isArchived: false,
+      },
+      {
+        id: 'recent',
+        providerId: 'codex' as const,
+        title: 'Recent conversation',
+        createdAt: 2,
+        lastActivityAt: now,
+        messageCount: 1,
+        preview: '',
+        isArchived: false,
+        titleGenerationStatus: 'pending' as const,
+      },
+    ];
+    const onArchiveConversation = jest.fn((conversationId: string) => {
+      const conversation = conversations.find(item => item.id === conversationId);
+      if (conversation) conversation.isArchived = true;
+    });
 
     const welcomeEl = createWelcomeElement(parentEl, 'Good morning', undefined, {
-      getConversations: () => [
-        {
-          id: 'older',
-          providerId: 'codex',
-          title: 'Older conversation',
-          createdAt: 1,
-          lastActivityAt: 1,
-          messageCount: 1,
-          preview: '',
-        },
-        {
-          id: 'recent',
-          providerId: 'codex',
-          title: 'Recent conversation',
-          createdAt: 2,
-          lastActivityAt: now,
-          messageCount: 1,
-          preview: '',
-          titleGenerationStatus: 'pending',
-        },
-      ],
+      getConversations: () => conversations,
       onOpenConversation,
+      onArchiveConversation,
     });
 
     expect(welcomeEl.hasClass('claudian-welcome--home')).toBe(true);
@@ -114,8 +123,17 @@ describe('Welcome', () => {
     expect(recent?.querySelector('.claudian-home-conversation-loading')?.getAttribute('aria-label'))
       .toBe('Generating title...');
 
-    (recent as HTMLElement | null)?.click();
+    (recent?.querySelector('.claudian-home-conversation-open') as HTMLElement | null)?.click();
     expect(onOpenConversation).toHaveBeenCalledWith('recent');
+
+    const archiveButton = recent?.querySelector<HTMLElement>('.claudian-home-conversation-archive');
+    expect(archiveButton?.getAttribute('aria-label')).toBe('Archive');
+    archiveButton?.click();
+    expect(onArchiveConversation).toHaveBeenCalledWith('recent');
+    expect(onOpenConversation).toHaveBeenCalledTimes(1);
+    refreshWelcomeContent(welcomeEl);
+    expect(welcomeEl.querySelector('.claudian-home-conversation-title')?.textContent)
+      .toBe('Older conversation');
   });
 
   it('formats recent activity with minute and hour granularity', () => {
