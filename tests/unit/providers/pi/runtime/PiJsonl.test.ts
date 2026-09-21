@@ -30,6 +30,20 @@ describe('PiJsonl', () => {
     expect(lines).toEqual(['{"a":1}']);
   });
 
+  it('preserves UTF-8 characters split across stream chunks', () => {
+    const stream = new PassThrough();
+    const lines: string[] = [];
+    subscribePiJsonlLines(stream, line => lines.push(line));
+    const record = '{"text":"你好"}\n';
+    const bytes = Buffer.from(record, 'utf8');
+    const splitAt = Buffer.byteLength('{"text":"') + 1;
+
+    stream.write(bytes.subarray(0, splitAt));
+    stream.write(bytes.subarray(splitAt));
+
+    expect(lines).toEqual(['{"text":"你好"}']);
+  });
+
   it('writes JSONL records', () => {
     const output = new PassThrough();
     const chunks: string[] = [];
