@@ -11,7 +11,12 @@ Do not assume provider parity. Check each provider's `capabilities.ts`, `registr
 - Before editing a scoped area, read its nearest scoped guide:
   - `src/app/AGENTS.md`
   - `src/core/AGENTS.md`
+  - `src/features/AGENTS.md`
   - `src/features/chat/AGENTS.md`
+  - `src/features/chat/execution/AGENTS.md`
+  - `src/features/chat/tabs/AGENTS.md`
+  - `src/providers/AGENTS.md`
+  - `src/providers/acp/AGENTS.md`
   - `src/providers/claude/AGENTS.md`
   - `src/providers/codex/AGENTS.md`
   - `src/providers/cursor/AGENTS.md`
@@ -131,18 +136,10 @@ Provider-specific session fields belong behind typed helpers in the owning provi
 
 ## Provider Rules
 
-- Prefer provider-native behavior over local reimplementation. Adapt provider output at the boundary instead of shadowing provider features.
-- Keep live streaming and history replay responsibilities separate. Live output should come from the provider runtime protocol when available; provider transcript files are the replay source.
-- New provider behavior must be expressed through registries and capabilities: `ProviderRegistry`, `ProviderWorkspaceRegistry`, `ProviderChatUIConfig`, provider capabilities, and provider-owned settings reconciliation.
-- The built-in provider list is composed in `src/providers/index.ts`. Adding or changing a provider requires checking its registration, `ProviderId` usage, capabilities, settings storage/reconciliation, workspace services, UI configuration, history, and the nearest provider guide; do not update a shared provider switch without checking every registered provider.
-- ACP providers share transport and session primitives from `src/providers/acp/`, but each ACP provider owns its launch policy, tool normalization, model discovery, history, and provider state. Do not assume Cursor and OMP behave like each other or like OpenCode.
+- Provider-neutral provider-layer rules live in `src/providers/AGENTS.md`; ACP transport rules live in `src/providers/acp/AGENTS.md`.
+- The built-in provider list is composed in `src/providers/index.ts`. Adding or changing a provider requires checking every registered provider's `ProviderId` usage, capabilities, settings, workspace services, UI configuration, history, and nearest provider guide.
 - Model, permission, plan-mode, command, MCP, skill, and subagent behavior is provider-specific unless the core contract explicitly makes it shared.
-- Treat persisted provider configuration as untrusted runtime input. Provider settings readers and storage normalization must decode every field; invalid permission, tool, and sandbox modes must fail closed.
-- When provider behavior is uncertain, inspect real runtime output first. Put throwaway scripts, traces, and handoff notes in `.context/`.
-- Treat provider-native history and transcripts as read-only. Never mutate or delete provider session data when a Claudian conversation changes.
-- Only explicitly enabled models belong in the chat selector: no synthetic provider entries, no hidden session models, and no provider-default fallback when none are enabled.
-- Runtime-discovered commands are read-only in Claudian; providers own their editing and deletion.
-- Auxiliary query runners own their own process and session, independent from the chat runtime.
+- Only explicitly enabled models belong in the chat selector: no synthetic provider entries, hidden session models, or provider-default fallback when none are enabled.
 
 ## Review Checks
 
