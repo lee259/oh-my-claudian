@@ -126,6 +126,24 @@
   display: none;
 }
 
+.claudian-settings .claudian-cli-installation-management {
+  display: grid;
+  gap: var(--size-4-2);
+  padding: var(--size-4-4);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-settings .claudian-cli-installation-management > .setting-item {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.claudian-settings .claudian-cli-installation-management > .setting-item::before {
+  content: none;
+}
+
 .claudian-settings .claudian-cli-installation-body > .setting-item-heading {
   margin: 0;
   padding: var(--size-4-4);

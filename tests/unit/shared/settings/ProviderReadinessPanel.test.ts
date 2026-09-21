@@ -30,8 +30,11 @@ describe('renderProviderReadinessPanel', () => {
     const card = container.querySelector<HTMLElement>('.claudian-cli-installation');
     const header = card?.querySelector<HTMLButtonElement>('.claudian-cli-installation-header');
     const body = card?.querySelector<HTMLElement>('.claudian-cli-installation-body');
+    const management = card?.querySelector<HTMLElement>('.claudian-cli-installation-management');
 
     expect(controller.root).toBe(card);
+    expect(controller.management).toBe(management);
+    expect(management).not.toBeNull();
     expect(header?.textContent).toContain('Test');
     expect(header?.getAttribute('aria-expanded')).toBe('true');
     expect(body?.hidden).toBe(false);

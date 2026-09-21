@@ -364,11 +364,14 @@ describe('ClaudeSettingsTab', () => {
     coordinator.canApplyProviderEnablement.mockImplementationOnce(() => false);
 
     claudeSettingsTabRenderer.render(container, context);
-    const warningCallIndex = container.createDiv.mock.calls.findIndex(
+    const card = container.createDiv.mock.results[0]?.value;
+    const body = card.createDiv.mock.results[1]?.value;
+    const management = body.createDiv.mock.results[0]?.value;
+    const warningCallIndex = management.createDiv.mock.calls.findIndex(
       ([options]: [{ text?: string }?]) => options?.text
         === 'settings.providerEnablement.lastProviderWarning',
     );
-    const warningEl = container.createDiv.mock.results[warningCallIndex]?.value;
+    const warningEl = management.createDiv.mock.results[warningCallIndex]?.value;
     const toggle = findSetting('settings.providerEnablement.name').toggleComponents[0];
 
     await toggle.onChangeCallback?.(false);

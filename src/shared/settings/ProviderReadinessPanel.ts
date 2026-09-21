@@ -23,6 +23,8 @@ export interface ProviderReadinessPanelController {
   refresh(refreshCatalog?: boolean): Promise<void>;
   /** Root container element, for appending related content (e.g. CLI lifecycle). */
   root: HTMLElement;
+  /** Stable container for provider enablement and CLI path controls. */
+  management: HTMLElement;
   /** Stable container for CLI lifecycle content, rendered below the checks.
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
@@ -40,6 +42,7 @@ export function renderProviderReadinessPanel(
   });
   const root = installationCard.card;
   root.addClass?.('claudian-provider-readiness');
+  const management = installationCard.body.createDiv({ cls: 'claudian-cli-installation-management' });
   new Setting(installationCard.body)
     .setName(t('settings.providerReadiness.title'))
     .setDesc(t('settings.providerReadiness.desc', { provider: options.providerName }))
@@ -76,7 +79,7 @@ export function renderProviderReadinessPanel(
   };
 
   void refresh();
-  return { refresh, root, cliDetail };
+  return { refresh, root, management, cliDetail };
 }
 
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {

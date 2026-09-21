@@ -54,9 +54,9 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('cursor');
       },
     });
-    new Setting(container).setName(t('settings.cursor.setup')).setHeading();
+    const management = readinessPanel.management;
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.cursor.enableDesc'),
       getValue: () => getCursorProviderSettings(settings).enabled,
       name: t('settings.cursor.enable'),
@@ -69,7 +69,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: t('settings.cursor.cliPathDesc'),
       getValue: () => getCursorProviderSettings(settings).cliPathsByHost[hostnameKey] || '',
       name: t('settings.cursor.cliPath'),
