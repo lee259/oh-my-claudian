@@ -1742,11 +1742,14 @@ export class CodexExecutionSession
   ): string {
     const codexSettings = getCodexProviderSettings(settings);
     const modelMetadata = findCodexModel(codexSettings.discoveredModels, model);
+    const requestedEffort = request.configuration.reasoning === null
+      ? null
+      : normalizeString(request.configuration.reasoning)
+        ?? normalizeString(settings.effortLevel);
     const effort = resolveCodexReasoningEffort(
       modelMetadata,
       codexSettings.enableUltraEffort,
-      normalizeString(request.configuration.reasoning)
-        ?? normalizeString(settings.effortLevel),
+      requestedEffort,
     );
     if (!effort) {
       throw new Error(`Codex model "${model}" has no enabled reasoning efforts.`);

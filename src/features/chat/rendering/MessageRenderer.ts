@@ -612,8 +612,30 @@ export class MessageRenderer {
     return children.filter((child) => (
       !child.hasClass('claudian-text-block')
       && !child.hasClass('claudian-citations')
+      && !child.hasClass('claudian-task-notification')
       && !child.hasClass('claudian-response-footer')
     ));
+  }
+
+  renderTaskNotification(contentEl: HTMLElement, content: string): void {
+    const wrapper = contentEl.createDiv({ cls: 'claudian-task-notification' });
+    const historyId = `claudian-task-notification-${MessageRenderer.nextCompletedWorkId++}`;
+    const header = wrapper.createEl('button', {
+      cls: 'claudian-work-header',
+      text: 'Task notification',
+      attr: { type: 'button', 'aria-expanded': 'false', 'aria-controls': historyId },
+    });
+    const history = wrapper.createDiv({
+      cls: 'claudian-work-history',
+      attr: { id: historyId },
+    });
+    history.hidden = true;
+    const contentBlock = history.createDiv();
+    void this.renderContent(contentBlock, content);
+    header.addEventListener('click', () => {
+      history.hidden = !history.hidden;
+      header.setAttribute('aria-expanded', String(!history.hidden));
+    });
   }
 
   private getCompletedWorkLabel(
@@ -668,6 +690,7 @@ export class MessageRenderer {
         if (block.type === 'thinking' && block.content.trim().length > 0) return true;
         if (block.type === 'text' && block.content.trim().length > 0) return true;
         if (block.type === 'citations' && block.citations.entries.length > 0) return true;
+        if (block.type === 'task_notification') return true;
         if (block.type === 'context_compacted') return true;
         if (block.type === 'subagent') return true;
         if (block.type === 'tool_use') {
@@ -736,6 +759,8 @@ export class MessageRenderer {
           this.addTextCopyButton(textEl, normalized.content);
         } else if (block.type === 'citations') {
           this.renderCitationGroup(contentEl, block.citations);
+        } else if (block.type === 'task_notification') {
+          this.renderTaskNotification(contentEl, block.content);
         } else if (block.type === 'tool_use') {
           const toolCall = msg.toolCalls?.find(tc => tc.id === block.toolId);
           if (toolCall) {

@@ -107,6 +107,30 @@ describe('MessageRenderer', () => {
   });
 
   describe('completed work', () => {
+    it('renders task notifications as collapsed disclosures', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+
+      renderer.renderStoredMessage({
+        id: 'task-notification',
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'task_notification', content: 'Background task completed.' },
+        ],
+      });
+
+      const notification = messagesEl.querySelector('.claudian-task-notification');
+      expect(notification).toBeTruthy();
+      expect(notification?.querySelector('.claudian-work-header')?.textContent)
+        .toBe('Task notification');
+      expect(notification?.querySelector('.claudian-work-history')?.hidden).toBe(true);
+      const header = notification?.querySelector('.claudian-work-header');
+      header?.click();
+      expect(notification?.querySelector('.claudian-work-history')?.hidden).toBe(false);
+    });
+
     it('collapses completed work while keeping the final answer visible', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl, 'claude', {}, jest.fn());

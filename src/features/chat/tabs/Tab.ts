@@ -2329,6 +2329,7 @@ function isVisibleAutoTurnChunk(chunk: StreamChunk, hiddenToolIds: Set<string>):
     case 'notice':
     case 'error':
     case 'tool_output':
+    case 'task_notification':
     case 'context_compacted':
     case 'subagent_tool_use':
     case 'subagent_tool_result':
@@ -2355,6 +2356,7 @@ function createBackgroundTurnRenderState(): BackgroundTurnRenderState {
     assistantMsg: {
       id: generateMessageId(),
       role: 'assistant',
+      isAutomaticResponse: true,
       content: '',
       timestamp: Date.now(),
       toolCalls: [],

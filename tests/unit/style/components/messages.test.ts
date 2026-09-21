@@ -6,6 +6,9 @@ describe('Message styles', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     expect(css).toMatch(
+      /\.claudian-message-user ol\s*{[^}]*list-style-position:\s*inside;/,
+    );
+    expect(css).toMatch(
       /\.claudian-message-user ol > li::marker\s*{\s*color:\s*inherit;\s*}/,
     );
   });
@@ -60,7 +63,7 @@ describe('Message styles', () => {
     expect(css).toMatch(/\.claudian-message-user::after\s*{[^}]*height:\s*8px;/);
     expect(css).toMatch(/\.claudian-message-actions\s*{[^}]*pointer-events:\s*none;/);
     expect(css).toMatch(
-      /\.claudian-message:hover > \.claudian-message-actions,[\s\S]*?\.claudian-message:focus-within > \.claudian-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/,
+      /\.claudian-message:hover > \.claudian-message-actions,[\s\S]*?\.claudian-message-actions:focus-within\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/,
     );
   });
 

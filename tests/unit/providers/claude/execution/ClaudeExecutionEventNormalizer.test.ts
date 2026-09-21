@@ -191,3 +191,35 @@ describe('ClaudeExecutionEventNormalizer API errors', () => {
     }));
   });
 });
+
+describe('Claude task notification presentation', () => {
+  it('exposes completed task notification content as output', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize({
+      type: 'system',
+      subtype: 'task_notification',
+      task_id: 'task-1',
+      status: 'completed',
+      summary: 'Background work finished.',
+      session_id: 'session-1',
+    } as any, 'background');
+
+    expect(events).toContainEqual({
+      type: 'output',
+      event: { type: 'task_notification', content: 'Background work finished.' },
+    });
+  });
+
+  it('does not expose notifications excluded from the transcript', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize({
+      type: 'system',
+      subtype: 'task_notification',
+      task_id: 'watcher',
+      status: 'completed',
+      summary: 'Watcher update.',
+      session_id: 'session-1',
+      skip_transcript: true,
+    } as any, 'background');
+
+    expect(events.filter(event => event.type === 'output')).toEqual([]);
+  });
+});

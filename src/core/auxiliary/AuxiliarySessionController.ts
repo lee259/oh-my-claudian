@@ -9,6 +9,7 @@ import { TextResponseCollector } from './TextResponseCollector';
 
 export interface AuxiliaryRequest {
   readonly model?: string;
+  readonly reasoning?: string | null;
   readonly onProgress?: (text: string) => void;
   readonly prompt: string;
   readonly systemPrompt: string;
@@ -86,6 +87,7 @@ export class AuxiliarySessionController {
     const abortController = new AbortController();
     const executionRequest: ProviderExecutionRequest = {
       configuration: {
+        ...(request.reasoning !== undefined ? { reasoning: request.reasoning } : {}),
         ...(request.model ? { model: request.model } : {}),
         systemInstructions: {
           instructions: request.systemPrompt,

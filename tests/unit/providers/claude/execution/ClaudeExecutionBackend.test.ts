@@ -432,6 +432,7 @@ describe('ClaudeExecutionBackend', () => {
           kind: 'explicit',
           instructions: 'Generate a title.',
         },
+        reasoning: null,
       },
       toolPolicy: { kind: 'passive' },
     })).events);
@@ -442,6 +443,35 @@ describe('ClaudeExecutionBackend', () => {
     }));
     expect(sdkMock.getLastOptions()?.thinking).toBeUndefined();
     expect(oneShot.getSnapshot().providerSessionId).toBeUndefined();
+  });
+
+  it('keeps a non-persistent auxiliary query alive across turns', async () => {
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig({
+        lifecycle: 'ephemeral',
+        nativePersistence: 'disabled-if-supported',
+      }));
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'auxiliary-session' },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+
+    await collectEvents(session.execute(createRequest({
+      toolPolicy: { kind: 'passive' },
+    })).events);
+    await collectEvents(session.execute(createRequest({
+      input: [{ type: 'text', text: 'Continue' }],
+      toolPolicy: { kind: 'passive' },
+    })).events);
+
+    expect(sdkMock.getQueryCallCount()).toBe(1);
+    expect(sdkMock.getLastOptions()).toEqual(expect.objectContaining({
+      persistSession: false,
+      tools: [],
+    }));
+    expect(session.getSnapshot().providerSessionId).toBeUndefined();
+    await session.dispose();
   });
 
   it('maps images, structured context, MCP mentions, and explicit allow lists', async () => {
@@ -1124,6 +1154,28 @@ describe('ClaudeExecutionBackend', () => {
         name: 'claudian_obsidian',
       }),
     }));
+  });
+
+  it('switches Claude safe mode on the same persistent query', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const host = createHost();
+    host.settings.providerConfigs = { claude: { safeMode: 'default' } };
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(host, services)
+      .createSession(createConfig());
+
+    await collectEvents(session.execute(createRequest()).events);
+    const query = sdkMock.getLastResponse();
+    host.settings.providerConfigs = { claude: { safeMode: 'auto' } };
+    await collectEvents(session.execute(createRequest()).events);
+
+    expect(sdkMock.getQueryCallCount()).toBe(1);
+    expect(sdkMock.getLastOptions()?.extraArgs).toEqual({ 'enable-auto-mode': null });
+    expect(query?.setPermissionMode).toHaveBeenLastCalledWith('auto');
+    await session.dispose();
   });
 
   it('replays canonical history only while bootstrapping a native session', async () => {

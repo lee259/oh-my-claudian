@@ -172,6 +172,13 @@ export type ProviderContextCompactedEvent = ProviderEventBase<
 > &
   ProviderOpaqueEventPayload;
 
+export type ProviderTaskNotificationEvent = ProviderEventBase<
+  'task_notification',
+  ProviderTurnEventScope
+> & {
+  readonly content: string;
+};
+
 export type ProviderNoticeEvent = ProviderEventBase<
   'notice',
   ProviderTurnEventScope
@@ -263,6 +270,7 @@ export type ProviderRequestedExecutionEvent =
   | (ProviderToolCompletedEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderUsageUpdatedEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderContextCompactedEvent & { readonly scope: ProviderRequestedEventScope })
+  | (ProviderTaskNotificationEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderNoticeEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderSessionStateChangedEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderModeChangedEvent & { readonly scope: ProviderRequestedEventScope })
@@ -326,6 +334,7 @@ export type ProviderBackgroundOutputEvent =
   | (ProviderToolCompletedEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderUsageUpdatedEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderContextCompactedEvent & { readonly scope: ProviderBackgroundEventScope })
+  | (ProviderTaskNotificationEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderNoticeEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderSessionStateChangedEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderModeChangedEvent & { readonly scope: ProviderBackgroundEventScope });

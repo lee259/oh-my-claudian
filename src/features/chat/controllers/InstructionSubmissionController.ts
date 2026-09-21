@@ -39,6 +39,7 @@ export class InstructionSubmissionController {
     try {
       modal = new InstructionModal(plugin.app, rawInstruction, {
         onAccept: (finalInstruction) => {
+          instructionRefineService.cancel();
           void (async (): Promise<void> => {
             await plugin.mutateSettings((settings) => {
               settings.systemPrompt = appendMarkdownSnippet(
@@ -59,7 +60,13 @@ export class InstructionSubmissionController {
           this.syncModelOverride(instructionRefineService);
           const result = await instructionRefineService.continueConversation(response);
           if (wasCancelled) return;
-          this.presentResult(result, modal, instructionModeManager, 'Failed to process response');
+          this.presentResult(
+            result,
+            modal,
+            instructionModeManager,
+            instructionRefineService,
+            'Failed to process response',
+          );
         },
       });
       modal.open();
@@ -68,8 +75,15 @@ export class InstructionSubmissionController {
       instructionRefineService.resetConversation();
       const result = await instructionRefineService.refineInstruction(rawInstruction, existingPrompt);
       if (wasCancelled) return;
-      this.presentResult(result, modal, instructionModeManager, 'Failed to refine instruction');
+      this.presentResult(
+        result,
+        modal,
+        instructionModeManager,
+        instructionRefineService,
+        'Failed to refine instruction',
+      );
     } catch (error) {
+      instructionRefineService.cancel();
       const errorMessage = stringifyDiagnosticError(error);
       new Notice(`Error: ${errorMessage}`);
       modal?.showError(errorMessage);
@@ -85,10 +99,12 @@ export class InstructionSubmissionController {
     result: Awaited<ReturnType<InstructionRefineService['refineInstruction']>>,
     modal: InstructionModal | null,
     instructionModeManager: InstructionModeManager | null,
+    instructionRefineService: InstructionRefineService,
     fallbackError: string,
   ): void {
     if (!result.success) {
       if (result.error === 'Cancelled') return;
+      instructionRefineService.cancel();
       const errorMessage = result.error || fallbackError;
       new Notice(errorMessage);
       modal?.showError(errorMessage);
@@ -100,6 +116,7 @@ export class InstructionSubmissionController {
     } else if (result.refinedInstruction) {
       modal?.showConfirmation(result.refinedInstruction);
     } else {
+      instructionRefineService.cancel();
       new Notice('No instruction received');
       modal?.showError('No instruction received');
       instructionModeManager?.clear();
