@@ -12,6 +12,10 @@ import {
   resolveClaudeSettingSources,
 } from '../settings';
 
+// Claude emits system/init only after MCP servers connect; cap that wait so
+// one slow server cannot stall command discovery.
+const PROBE_MCP_TIMEOUT_MS = '5000';
+
 function mapSdkCommands(sdkCommands: SDKSlashCommand[]): SlashCommand[] {
   return sdkCommands.map((cmd) => ({
     id: `sdk:${cmd.name}`,
@@ -64,7 +68,6 @@ export async function probeRuntimeCommands(
   const abortController = new AbortController();
   const onAbort = (): void => abortController.abort();
   signal?.addEventListener('abort', onAbort, { once: true });
-  let commands: SlashCommand[] = [];
 
   try {
     const vaultPath = getVaultPath(plugin.app);
@@ -94,7 +97,12 @@ export async function probeRuntimeCommands(
         cwd: vaultPath,
         abortController,
         pathToClaudeCodeExecutable: cliPath,
-        env: { ...process.env, ...customEnv, PATH: enhancedPath },
+        env: {
+          MCP_TIMEOUT: PROBE_MCP_TIMEOUT_MS,
+          ...process.env,
+          ...customEnv,
+          PATH: enhancedPath,
+        },
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
         settingSources: resolveClaudeSettingSources(claudeSettings.loadUserSettings),
@@ -107,29 +115,22 @@ export async function probeRuntimeCommands(
     while (true) {
       const next = await awaitWithAbort(conversation.next(), signal);
       if (next.done) {
-        break;
+        throw new Error('Claude command discovery ended before initialization');
       }
       const event = next.value;
       if (event.type === 'system' && event.subtype === 'init') {
-        try {
-          const sdkCommands: SDKSlashCommand[] = await awaitWithAbort(
-            conversation.supportedCommands(),
-            signal,
-          );
-          commands = mapSdkCommands(sdkCommands);
-        } catch {
-          throwIfAborted(signal, 'Claude command discovery aborted');
-        }
-        break;
+        const sdkCommands: SDKSlashCommand[] = await awaitWithAbort(
+          conversation.supportedCommands(),
+          signal,
+        );
+        return mapSdkCommands(sdkCommands);
       }
     }
-  } catch {
+  } catch (error) {
     throwIfAborted(signal, 'Claude command discovery aborted');
-    // Probe failures are best-effort; caller cancellation remains observable.
+    throw error;
   } finally {
     signal?.removeEventListener('abort', onAbort);
     abortController.abort();
   }
-
-  return commands;
 }

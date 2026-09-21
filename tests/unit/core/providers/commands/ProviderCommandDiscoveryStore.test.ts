@@ -152,6 +152,30 @@ describe('ProviderCommandDiscoveryStore', () => {
     }
   });
 
+  it('resolves the discovery timeout when each load starts', async () => {
+    jest.useFakeTimers();
+    try {
+      let timeoutMs: number | null = 100;
+      const store = new ProviderCommandDiscoveryStore<string>(
+        () => new Promise(() => undefined),
+        { resolveTimeoutMs: () => timeoutMs },
+      );
+
+      const first = store.load();
+      await jest.advanceTimersByTimeAsync(100);
+      await first;
+      expect(store.getSnapshot()).toMatchObject({ status: 'error' });
+
+      timeoutMs = null;
+      void store.retry();
+      await jest.advanceTimersByTimeAsync(8_000);
+      expect(store.getSnapshot()).toEqual({ status: 'loading' });
+      store.invalidate();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('allows callers to wait for slow provider initialization without a timeout', async () => {
     jest.useFakeTimers();
     try {

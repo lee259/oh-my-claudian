@@ -81,6 +81,7 @@ describe('probeRuntimeCommands', () => {
     const options = sdkMock.getLastOptions();
     expect(options?.settingSources).toEqual(['user', 'project', 'local']);
     expect(options?.extraArgs).toEqual({ chrome: null });
+    expect(options?.env).toEqual(expect.objectContaining({ MCP_TIMEOUT: '5000' }));
   });
 
   it('passes auto mode opt-in when Claude safe mode is auto', async () => {
@@ -98,6 +99,25 @@ describe('probeRuntimeCommands', () => {
     }));
 
     expect(sdkMock.getLastOptions()?.extraArgs).toEqual({ 'enable-auto-mode': null });
+  });
+
+  it('surfaces SDK command discovery failures', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'probe-session' },
+    ], { appendResult: false });
+    sdkMock.setMockSupportedCommandsImplementation(
+      () => Promise.reject(new Error('supportedCommands failed')),
+    );
+
+    await expect(probeRuntimeCommands(createMockPlugin()))
+      .rejects.toThrow('supportedCommands failed');
+  });
+
+  it('fails when the SDK conversation ends before initialization', async () => {
+    sdkMock.setMockMessages([], { appendResult: false });
+
+    await expect(probeRuntimeCommands(createMockPlugin()))
+      .rejects.toThrow('ended before initialization');
   });
 
   it('aborts an in-flight SDK probe when its caller is cancelled', async () => {
