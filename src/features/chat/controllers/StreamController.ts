@@ -337,6 +337,19 @@ export class StreamController {
         await this.appendText(`\n\n⚠️ **${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
         break;
 
+      case 'task_notification':
+        this.flushPendingTools();
+        if (state.currentThinkingState) {
+          await this.finalizeCurrentThinkingBlock(msg);
+        }
+        await this.finalizeCurrentTextBlock(msg);
+        msg.contentBlocks = msg.contentBlocks || [];
+        msg.contentBlocks.push({ type: 'task_notification', content: chunk.content });
+        if (state.currentContentEl) {
+          this.deps.renderer.renderTaskNotification(state.currentContentEl, chunk.content);
+        }
+        break;
+
       case 'error':
         // Flush pending tools before rendering error message
         this.flushPendingTools();
@@ -2268,6 +2281,8 @@ export function providerOutputEventToStreamChunk(
       return { type: 'usage', usage: event.usage };
     case 'context_compacted':
       return { type: 'context_compacted' };
+    case 'task_notification':
+      return { type: 'task_notification', content: event.content };
     case 'notice':
       return {
         content: event.message,

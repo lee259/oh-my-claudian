@@ -221,7 +221,7 @@ const external = [
   '@lezer/highlight',
   '@lezer/lr',
   ...builtinModules,
-  ...builtinModules.map(m => `node:${m}`),
+  'node:*',
 ];
 
 const mainContext = await esbuild.context({

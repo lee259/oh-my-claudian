@@ -353,6 +353,10 @@
   background: rgba(var(--oh-my-claudian-brand-rgb), 0.16);
 }
 
+.claudian-message-user ol {
+  list-style-position: inside;
+}
+
 .claudian-message-user ol > li::marker {
   color: inherit;
 }
@@ -557,6 +561,40 @@ button.claudian-text-copy-btn.copied {
   margin-bottom: 10px;
 }
 
+.claudian-task-notification {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+button.claudian-work-header {
+  display: block;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: start;
+}
+
+button.claudian-work-header:hover,
+button.claudian-work-header:focus-visible {
+  color: var(--text-normal);
+}
+
+.claudian-work-history {
+  box-sizing: border-box;
+  margin-top: 10px;
+  padding: 12px;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
 .claudian-completed-work-status {
   display: flex;
   align-items: center;
@@ -690,7 +728,7 @@ button.claudian-completed-work-header:focus-visible {
 }
 
 .claudian-message:hover > .claudian-message-actions,
-.claudian-message:focus-within > .claudian-message-actions {
+.claudian-message-actions:focus-within {
   opacity: 1;
   pointer-events: auto;
 }

@@ -144,6 +144,7 @@ function createMockDeps(): MockStreamControllerDeps {
       renderContent: jest.fn(),
       addTextCopyButton: jest.fn(),
       renderCitationGroup: jest.fn(),
+      renderTaskNotification: jest.fn(),
     } as any,
     subagentManager: {
       isAsyncTask: jest.fn().mockReturnValue(false),
@@ -544,6 +545,25 @@ describe('StreamController - Text Content', () => {
       );
 
       expect(deps.state.currentTextContent).toContain('Blocked');
+    });
+
+    it('records and renders task notification chunks', async () => {
+      const msg = createTestMessage();
+      deps.state.currentContentEl = createMockEl();
+
+      await controller.handleStreamChunk({
+        type: 'task_notification',
+        content: 'Background task completed.',
+      }, msg);
+
+      expect(msg.contentBlocks).toContainEqual({
+        type: 'task_notification',
+        content: 'Background task completed.',
+      });
+      expect(deps.renderer.renderTaskNotification).toHaveBeenCalledWith(
+        deps.state.currentContentEl,
+        'Background task completed.',
+      );
     });
   });
 

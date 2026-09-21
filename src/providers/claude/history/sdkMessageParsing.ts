@@ -359,11 +359,19 @@ export function isSystemInjectedMessage(sdkMsg: SDKNativeMessage): boolean {
   if (text.includes('<local-command-stdout>') || text.includes('<local-command-stderr>')) {
     return true;
   }
-  if (text.includes('<task-notification>')) {
-    return true;
-  }
-
   return false;
+}
+
+export function parseTaskNotification(sdkMsg: SDKNativeMessage): string | null {
+  if (sdkMsg.type !== 'user') return null;
+  const text = extractTextContent(sdkMsg.message?.content);
+  if (!text.trimStart().startsWith('<task-notification>')) return null;
+  if (!extractXmlTag(text, 'task-id')) return null;
+  const status = extractXmlTag(text, 'status');
+  if (!status) return null;
+  return extractXmlTag(text, 'result')
+    ?? extractXmlTag(text, 'summary')
+    ?? `Background task ${status}.`;
 }
 
 export function mergeAssistantMessage(target: ChatMessage, source: ChatMessage): void {

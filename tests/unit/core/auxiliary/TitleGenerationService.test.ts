@@ -41,6 +41,7 @@ describe('TitleGenerationService', () => {
       expect(session.requests[0]).toMatchObject({
         configuration: {
           model: 'title-model',
+          reasoning: null,
           systemInstructions: {
             instructions: expect.stringContaining('Write the title in Japanese'),
             kind: 'explicit',

@@ -17,6 +17,7 @@ export interface SelectionHighlighter {
 function createSelectionHighlighter(): SelectionHighlighter {
   const showHighlight = StateEffect.define<{ from: number; to: number }>();
   const hideHighlight = StateEffect.define<null>();
+  const fallbackInstalledEditors = new WeakSet<EditorView>();
 
   const selectionHighlightField = StateField.define<DecorationSet>({
     create: () => Decoration.none,
@@ -37,26 +38,29 @@ function createSelectionHighlighter(): SelectionHighlighter {
     provide: (f) => EditorView.decorations.from(f),
   });
 
-  const installedEditors = new WeakSet<EditorView>();
-
-  function ensureHighlightField(editorView: EditorView): void {
-    if (!installedEditors.has(editorView)) {
-      editorView.dispatch({
-        effects: StateEffect.appendConfig.of(selectionHighlightField),
-      });
-      installedEditors.add(editorView);
+  function isFieldInstalled(editorView: EditorView): boolean {
+    if (typeof editorView.state.field !== 'function') {
+      return fallbackInstalledEditors.has(editorView);
     }
+    return editorView.state.field(selectionHighlightField, false) !== undefined;
   }
 
   function show(editorView: EditorView, from: number, to: number): void {
-    ensureHighlightField(editorView);
+    if (!isFieldInstalled(editorView)) {
+      editorView.dispatch({
+        effects: StateEffect.appendConfig.of(selectionHighlightField),
+      });
+      if (typeof editorView.state.field !== 'function') {
+        fallbackInstalledEditors.add(editorView);
+      }
+    }
     editorView.dispatch({
       effects: showHighlight.of({ from, to }),
     });
   }
 
   function hide(editorView: EditorView): void {
-    if (installedEditors.has(editorView)) {
+    if (isFieldInstalled(editorView)) {
       editorView.dispatch({
         effects: hideHighlight.of(null),
       });

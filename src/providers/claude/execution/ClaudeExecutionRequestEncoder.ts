@@ -249,6 +249,11 @@ export class ClaudeExecutionRequestEncoder {
         claudeSettings.loadUserSettings,
       ),
       spawnClaudeCodeProcess: createCustomSpawnFunction(enhancedPath),
+      // Auto mode stays available so safe-mode changes can remain live setters.
+      extraArgs: {
+        'enable-auto-mode': null,
+        ...(claudeSettings.enableChrome ? { chrome: null } : {}),
+      },
       includePartialMessages: true,
       enableFileCheckpointing: true,
       canUseTool,
@@ -264,26 +269,14 @@ export class ClaudeExecutionRequestEncoder {
       ...(resume.fork ? { forkSession: true } : {}),
     };
 
-    if (claudeSettings.safeMode === 'auto') {
-      options.extraArgs = {
-        ...options.extraArgs,
-        'enable-auto-mode': null,
-      };
-    }
-    if (claudeSettings.enableChrome) {
-      options.extraArgs = {
-        ...options.extraArgs,
-        chrome: null,
-      };
-    }
     if (sessionConfig.nativePersistence === 'disabled-if-supported') {
       options.persistSession = false;
-      if (request.toolPolicy.kind === 'passive') {
-        delete options.thinking;
-        delete options.effort;
-      }
     } else if (sessionConfig.nativePersistence === 'enabled') {
       options.persistSession = true;
+    }
+    if (request.configuration.reasoning === null) {
+      delete options.thinking;
+      delete options.effort;
     }
 
     return {
@@ -304,7 +297,6 @@ export class ClaudeExecutionRequestEncoder {
         cliPath,
         settingSources: options.settingSources,
         enableChrome: claudeSettings.enableChrome,
-        enableAutoMode: claudeSettings.safeMode === 'auto',
         persistSession: options.persistSession,
       }),
       mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-vault:${obsidianVaultToolEnabled ? 'enabled' : 'disabled'}`,

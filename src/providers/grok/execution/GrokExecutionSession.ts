@@ -762,7 +762,7 @@ RewindableExecutionSession {
 
   private resolveReasoningEffort(
     rawModelId: string,
-    requestedReasoning: string | undefined,
+    requestedReasoning: string | null | undefined,
   ): string | null {
     const settings = getGrokProviderSettings(this.plugin.settings);
     const model = findGrokModel(settings.currentCatalog?.models ?? [], rawModelId);
