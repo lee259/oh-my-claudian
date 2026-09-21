@@ -1,6 +1,5 @@
-import { setIcon } from 'obsidian';
-
 import { t } from '../../../i18n/i18n';
+import { IconButton } from '../../../shared/ui/IconButton';
 
 export interface ConversationHeaderViewProps {
   title: string;
@@ -8,38 +7,6 @@ export interface ConversationHeaderViewProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onNewConversation?: () => void;
-}
-
-interface HeaderIconButtonProps {
-  icon: string;
-  label: string;
-  onClick?: () => void;
-}
-
-function HeaderIconButton({
-  icon,
-  label,
-  onClick,
-}: HeaderIconButtonProps) {
-  return (
-    <button
-      className="claudian-conversation-header-action"
-      type="button"
-      aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick?.();
-      }}
-    >
-      <span
-        className="claudian-conversation-header-icon"
-        aria-hidden="true"
-        ref={(element) => {
-          if (element) setIcon(element, icon);
-        }}
-      />
-    </button>
-  );
 }
 
 export function ConversationHeaderView({
@@ -52,8 +19,10 @@ export function ConversationHeaderView({
   return (
     <header className="claudian-conversation-header">
       <div className="claudian-conversation-header-leading">
-        <HeaderIconButton
+        <IconButton
+          className="claudian-conversation-header-action"
           icon="arrow-left"
+          iconClassName="claudian-conversation-header-icon"
           label={t('chat.header.back')}
           onClick={onBack}
         />
@@ -62,18 +31,24 @@ export function ConversationHeaderView({
         </div>
       </div>
       <div className="claudian-conversation-header-actions">
-        <HeaderIconButton
+        <IconButton
+          className="claudian-conversation-header-action"
           icon="history"
+          iconClassName="claudian-conversation-header-icon"
           label={t('chat.header.history')}
           onClick={onOpenHistory}
         />
-        <HeaderIconButton
+        <IconButton
+          className="claudian-conversation-header-action"
           icon="settings"
+          iconClassName="claudian-conversation-header-icon"
           label={t('chat.header.settings')}
           onClick={onOpenSettings}
         />
-        <HeaderIconButton
+        <IconButton
+          className="claudian-conversation-header-action"
           icon="square-pen"
+          iconClassName="claudian-conversation-header-icon"
           label={t('chat.header.newConversation')}
           onClick={onNewConversation}
         />

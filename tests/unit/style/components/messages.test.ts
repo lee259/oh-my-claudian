@@ -63,4 +63,18 @@ describe('Message styles', () => {
       /\.claudian-message:hover > \.claudian-message-actions,[\s\S]*?\.claudian-message:focus-within > \.claudian-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/,
     );
   });
+
+  it('replaces a recent-conversation timestamp with its archive action in place', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-home-conversation-archive\s*{[^}]*position:\s*absolute;[^}]*inset-inline-end:\s*8px;[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-home-conversation:hover \.claudian-home-conversation-archive,[\s\S]*?\.claudian-home-conversation:focus-within \.claudian-home-conversation-archive\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-home-conversation:hover \.claudian-home-conversation-time,[\s\S]*?\.claudian-home-conversation:focus-within \.claudian-home-conversation-time\s*{[^}]*opacity:\s*0;/,
+    );
+  });
 });

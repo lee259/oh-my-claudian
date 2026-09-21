@@ -22,6 +22,8 @@ export interface ProviderCommandDiscoveryStoreOptions {
   onBeforeRetry?: () => void;
   /** Set to 0 or a negative value when the upstream provider owns cancellation. */
   timeoutMs?: number;
+  /** Resolve a provider-specific deadline when a load starts; null disables it. */
+  resolveTimeoutMs?: () => number | null | undefined;
 }
 
 const DEFAULT_DISCOVERY_TIMEOUT_MS = 8_000;
@@ -48,6 +50,7 @@ implements ProviderCommandDiscoveryController<T> {
   private readonly listeners = new Set<() => void>();
   private readonly onBeforeRetry: (() => void) | undefined;
   private readonly timeoutMs: number;
+  private readonly resolveTimeoutMs: (() => number | null | undefined) | undefined;
 
   constructor(
     private readonly loader: (
@@ -57,6 +60,7 @@ implements ProviderCommandDiscoveryController<T> {
   ) {
     this.onBeforeRetry = options.onBeforeRetry;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_DISCOVERY_TIMEOUT_MS;
+    this.resolveTimeoutMs = options.resolveTimeoutMs;
   }
 
   getSnapshot(): ProviderCommandDiscoverySnapshot<T> {
@@ -134,7 +138,11 @@ implements ProviderCommandDiscoveryController<T> {
   private async loadWithTimeout(
     abortController: AbortController,
   ): Promise<ProviderCommandDiscoveryResult<T>> {
-    if (this.timeoutMs <= 0) {
+    const resolvedTimeoutMs = this.resolveTimeoutMs?.();
+    const timeoutMs = resolvedTimeoutMs === null
+      ? 0
+      : resolvedTimeoutMs ?? this.timeoutMs;
+    if (timeoutMs <= 0) {
       return await this.loader(abortController.signal);
     }
 
@@ -147,7 +155,7 @@ implements ProviderCommandDiscoveryController<T> {
           retryable: true,
         });
         abortController.abort();
-      }, this.timeoutMs);
+      }, timeoutMs);
     });
 
     try {

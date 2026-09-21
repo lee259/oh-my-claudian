@@ -3,6 +3,7 @@ import { setIcon } from 'obsidian';
 import type { ProviderCapabilities } from '../../../core/providers/types';
 import type { ConversationMeta } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { IconButton } from '../../../shared/ui/IconButton';
 import { formatActivity } from '../utils/formatActivity';
 
 const WELCOME_BRAND_NAME = 'Oh My Claudian';
@@ -44,38 +45,12 @@ export interface WelcomeProviderSummary {
 
 export interface WelcomeHomeOptions {
   getConversations: () => readonly ConversationMeta[];
+  onArchiveConversation?: (conversationId: string) => void;
   onBack?: () => void;
   onOpenConversation?: (conversationId: string) => void;
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onNewConversation?: () => void;
-}
-
-interface HomeActionProps {
-  icon: string;
-  label: string;
-  onClick?: () => void;
-}
-
-function HomeAction({ icon, label, onClick }: HomeActionProps) {
-  return (
-    <button
-      className="claudian-home-action"
-      type="button"
-      aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick?.();
-      }}
-    >
-      <span
-        aria-hidden="true"
-        ref={(element) => {
-          if (element) setIcon(element, icon);
-        }}
-      />
-    </button>
-  );
 }
 
 function HomeConversationLoadingIndicator() {
@@ -86,6 +61,23 @@ function HomeConversationLoadingIndicator() {
       ref={(element) => {
         if (element) setIcon(element, 'loader-2');
       }}
+    />
+  );
+}
+
+function HomeConversationArchiveAction({
+  conversationId,
+  onArchive,
+}: {
+  conversationId: string;
+  onArchive?: (conversationId: string) => void;
+}) {
+  return (
+    <IconButton
+      className="claudian-home-conversation-archive"
+      icon="archive"
+      label={t('chat.history.archive')}
+      onClick={() => onArchive?.(conversationId)}
     />
   );
 }
@@ -123,9 +115,20 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
       <div className="claudian-home-header">
         <div className="claudian-home-title">{t('chat.home.title')}</div>
         <div className="claudian-home-actions">
-          <HomeAction icon="history" label={t('chat.home.history')} onClick={options.onOpenHistory} />
-          <HomeAction icon="settings" label={t('chat.home.settings')} onClick={options.onOpenSettings} />
-          <HomeAction
+          <IconButton
+            className="claudian-home-action"
+            icon="history"
+            label={t('chat.home.history')}
+            onClick={options.onOpenHistory}
+          />
+          <IconButton
+            className="claudian-home-action"
+            icon="settings"
+            label={t('chat.home.settings')}
+            onClick={options.onOpenSettings}
+          />
+          <IconButton
+            className="claudian-home-action"
             icon="square-pen"
             label={t('chat.home.newConversation')}
             onClick={options.onNewConversation}
@@ -134,23 +137,34 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
       </div>
       <div className="claudian-home-recent">
         {conversations.slice(0, 3).map((conversation) => (
-          <button
+          <div
+            key={conversation.id}
             className="claudian-home-conversation"
-            type="button"
-            aria-label={conversation.title}
-            onClick={(event) => {
-              event.stopPropagation();
-              options.onOpenConversation?.(conversation.id);
-            }}
           >
-            <span className="claudian-home-conversation-title">{conversation.title}</span>
-            <span className="claudian-home-conversation-time">
-              {formatActivity(conversation.lastActivityAt)}
-            </span>
-            {conversation.titleGenerationStatus === 'pending' && (
-              <HomeConversationLoadingIndicator />
+            <button
+              className="claudian-home-conversation-open"
+              type="button"
+              aria-label={conversation.title}
+              onClick={(event) => {
+                event.stopPropagation();
+                options.onOpenConversation?.(conversation.id);
+              }}
+            >
+              <span className="claudian-home-conversation-title">{conversation.title}</span>
+              <span className="claudian-home-conversation-time">
+                {formatActivity(conversation.lastActivityAt)}
+              </span>
+              {conversation.titleGenerationStatus === 'pending' && (
+                <HomeConversationLoadingIndicator />
+              )}
+            </button>
+            {options.onArchiveConversation && (
+              <HomeConversationArchiveAction
+                conversationId={conversation.id}
+                onArchive={options.onArchiveConversation}
+              />
             )}
-          </button>
+          </div>
         ))}
         <button
           className="claudian-home-all-conversations"

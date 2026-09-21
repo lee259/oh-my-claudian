@@ -220,17 +220,18 @@
 
 .claudian-input-wrapper textarea.claudian-input::placeholder {
   color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted) !important;
 }
 
 .claudian-home-state .claudian-input-wrapper {
-  min-height: 152px;
+  min-height: 104px;
   border-radius: 28px;
   background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary));
 }
 
 .claudian-home-state .claudian-input-wrapper textarea.claudian-input {
-  min-height: 88px;
-  padding: 22px 22px 12px;
+  min-height: 52px;
+  padding: 14px 18px 6px;
   font-size: 15px;
 }
 
@@ -239,7 +240,7 @@
 }
 
 .claudian-home-state .claudian-input-mention-highlights-content {
-  padding: 22px 22px 48px;
+  padding: 14px 18px 42px;
 }
 
 .claudian-home-state .claudian-input-toolbar {
