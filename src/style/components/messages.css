@@ -102,9 +102,23 @@
 
 .claudian-home-conversation,
 .claudian-home-all-conversations {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  text-align: start;
+}
+
+.claudian-home-conversation-open,
+.claudian-home-all-conversations {
+  display: flex;
+  align-items: center;
   min-width: 0;
   padding: 7px 8px;
   border: 0;
@@ -117,15 +131,29 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.claudian-home-conversation-open {
+  flex: 1 1 auto;
+  width: auto;
+  box-shadow: none;
+}
+
+.claudian-home-conversation-open:hover,
+.claudian-home-conversation-open:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
 .claudian-home-conversation:hover,
-.claudian-home-conversation:focus-visible,
+.claudian-home-conversation:focus-within,
 .claudian-home-all-conversations:hover,
 .claudian-home-all-conversations:focus-visible {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.claudian-home-conversation:focus-visible,
+.claudian-home-conversation:focus-within,
 .claudian-home-all-conversations:focus-visible,
 .claudian-home-action:focus-visible {
   outline: 2px solid var(--interactive-accent);
@@ -147,6 +175,7 @@
   padding-inline-start: 14px;
   color: var(--text-muted);
   font-size: 15px;
+  transition: opacity 0.15s ease;
 }
 
 .claudian-home-conversation-loading {
@@ -163,6 +192,60 @@
   height: 14px;
   animation: spin 1s linear infinite;
   stroke-width: 2.5;
+}
+
+.claudian-home-conversation-archive {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.claudian-home-conversation:hover .claudian-home-conversation-archive,
+.claudian-home-conversation:focus-within .claudian-home-conversation-archive {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.claudian-home-conversation:hover .claudian-home-conversation-time,
+.claudian-home-conversation:focus-within .claudian-home-conversation-time {
+  opacity: 0;
+}
+
+.claudian-home-conversation-archive:hover,
+.claudian-home-conversation-archive:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.claudian-home-conversation-archive:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.claudian-home-conversation-archive svg {
+  width: 15px;
+  height: 15px;
 }
 
 .claudian-home-all-conversations {

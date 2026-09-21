@@ -28,6 +28,7 @@ import {
 import { getVaultFileByPath, revealWorkspaceLeaf } from '../../utils/obsidianCompat';
 import type { FeatureHost, FeatureTabManagerHost } from '../FeatureHost';
 import type { HistoryConversationStatus } from './controllers/ConversationController';
+import { refreshWelcomeContent } from './rendering/WelcomeRenderer';
 import { MentionCacheCoordinator } from './services/MentionCacheCoordinator';
 import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCoordinator';
 import { getObsidianLanguage } from './session-manager/ProvisionalNoteNames';
@@ -419,6 +420,11 @@ export class ClaudianView extends ItemView {
       onOpenConversation: (conversationId: string) => {
         void this.openHistoryConversation(conversationId).catch(() => {
           new Notice(t('chat.errors.openConversation'));
+        });
+      },
+      onArchiveConversation: (conversationId: string) => {
+        void this.setConversationArchived(conversationId, true).catch(() => {
+          new Notice(t('chat.errors.archiveSession'));
         });
       },
       onOpenHistory: () => this.toggleHistoryDropdown(),
@@ -2261,6 +2267,7 @@ export class ClaudianView extends ItemView {
     // Title generation can finish while the first response is still streaming.
     // Keep the detail header in sync even when history rendering is deferred.
     this.updateConversationHeaders();
+    this.refreshWelcomeHomeSurface();
     this.historyDropdownDirty = true;
     this.sessionSidebarDirty = true;
     if (this.hasActiveStreamingOrBackgroundWork()) {
@@ -2271,6 +2278,13 @@ export class ClaudianView extends ItemView {
       return;
     }
     this.scheduleHistorySurfaceUpdate();
+  }
+
+  /** Refreshes the active home list, whose conversations are supplied lazily. */
+  private refreshWelcomeHomeSurface(): void {
+    const activeTab = this.tabManager?.getActiveTab?.();
+    if (!activeTab || activeTab.state.messages?.length !== 0) return;
+    refreshWelcomeContent(activeTab.dom.welcomeEl);
   }
 
   private notifyConversationNavigationChanged(): void {
