@@ -10,7 +10,14 @@ import { renderLegacyWelcomeContent } from './WelcomeLegacyRenderer';
 
 export type { WelcomeHomeOptions, WelcomeProviderSummary } from '../ui/WelcomeView';
 
-const welcomeRoots = new WeakMap<HTMLElement, PreactRoot>();
+type WelcomeRenderState = {
+  root: PreactRoot | null;
+  greeting?: string;
+  providerSummary?: WelcomeProviderSummary;
+  homeOptions?: WelcomeHomeOptions;
+};
+
+const welcomeRoots = new WeakMap<HTMLElement, WelcomeRenderState>();
 
 function renderWelcomeView(
   welcomeEl: HTMLElement,
@@ -18,20 +25,24 @@ function renderWelcomeView(
   providerSummary?: WelcomeProviderSummary,
   homeOptions?: WelcomeHomeOptions,
 ): void {
+  welcomeEl.classList.toggle('claudian-welcome--home', Boolean(homeOptions));
+
+  let state = welcomeRoots.get(welcomeEl);
+  if (!state) {
+    state = { root: null };
+    welcomeRoots.set(welcomeEl, state);
+  }
+
+  state.greeting = greeting;
+  state.providerSummary = providerSummary;
+  state.homeOptions = homeOptions;
   if (!canMountPreact(welcomeEl)) {
     renderLegacyWelcomeContent(welcomeEl, greeting, providerSummary, homeOptions);
     return;
   }
 
-  welcomeEl.classList.toggle('claudian-welcome--home', Boolean(homeOptions));
-
-  let root = welcomeRoots.get(welcomeEl);
-  if (!root) {
-    root = createPreactRoot(welcomeEl);
-    welcomeRoots.set(welcomeEl, root);
-  }
-
-  root.render(h(WelcomeView, {
+  state.root ??= createPreactRoot(welcomeEl);
+  state.root.render(h(WelcomeView, {
     greeting,
     providerSummary,
     homeOptions,
@@ -53,10 +64,23 @@ export function renderWelcomeContent(
   renderWelcomeView(welcomeEl, greeting, providerSummary, homeOptions);
 }
 
+/** Re-renders a mounted welcome surface after its lazy presentation data changes. */
+export function refreshWelcomeContent(welcomeEl: HTMLElement | null): void {
+  if (!welcomeEl) return;
+  const state = welcomeRoots.get(welcomeEl);
+  if (!state) return;
+  renderWelcomeView(
+    welcomeEl,
+    state.greeting,
+    state.providerSummary,
+    state.homeOptions,
+  );
+}
+
 /** Releases Preact event handlers before a welcome host is removed or emptied. */
 export function unmountWelcomeElement(welcomeEl: HTMLElement | null): void {
   if (!welcomeEl) return;
-  welcomeRoots.get(welcomeEl)?.unmount();
+  welcomeRoots.get(welcomeEl)?.root?.unmount();
   welcomeRoots.delete(welcomeEl);
 }
 
