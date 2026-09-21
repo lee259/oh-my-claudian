@@ -1,6 +1,7 @@
 import { Notice } from 'obsidian';
 
 import { StartupProfiler } from '../../../core/performance/StartupProfiler';
+import { resolveCommandDiscoveryTimeoutMs } from '../../../core/providers/commands/catalogCommandDiscovery';
 import type { ProviderCommandDiscoveryResult } from '../../../core/providers/commands/ProviderCommandDiscoveryResult';
 import { normalizeProviderCommandDiscoveryItems } from '../../../core/providers/commands/ProviderCommandDiscoveryResult';
 import { ProviderCommandDiscoveryStore } from '../../../core/providers/commands/ProviderCommandDiscoveryStore';
@@ -1266,7 +1267,15 @@ export class TabManager implements TabManagerInterface {
       signal => this.getProviderCommandDiscovery(tabId, signal),
       {
         onBeforeRetry: () => this.advanceTabCommandContextRevision(tabId),
-        timeoutMs: 0,
+        resolveTimeoutMs: () => {
+          const tab = this.tabs.get(tabId);
+          if (!tab) return undefined;
+          const providerId = getTabProviderId(tab, this.plugin);
+          const catalog = ProviderWorkspaceRegistry.getCommandCatalog(providerId);
+          return catalog
+            ? resolveCommandDiscoveryTimeoutMs(catalog.getDropdownConfig())
+            : undefined;
+        },
       },
     );
     this.providerCommandDiscoveryStores.set(tabId, discovery);

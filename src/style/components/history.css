@@ -500,47 +500,56 @@
 .claudian-history-archive-control {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  box-sizing: border-box;
+  width: 100%;
+  gap: 3px;
+  padding: 7px 10px 5px;
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  background: var(--background-secondary);
-  border-bottom: 1px solid var(--background-modifier-border);
+  isolation: isolate;
+  background: var(--background-primary);
+  border-bottom: 0;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .claudian-history-archive-control:hover,
 .claudian-history-archive-control:focus-visible {
-  background: var(--background-modifier-hover);
+  background: color-mix(in srgb, var(--background-primary) 92%, var(--text-normal));
   color: var(--text-normal);
 }
 
-/* History dropup menu (opens upward since it's at bottom of view) */
+/* History overlay sits below the chat header, matching the home surface. */
 .claudian-history-menu {
   display: none;
   position: absolute;
-  bottom: 100%;
-  margin-bottom: 4px;
+  top: 42px;
+  bottom: auto;
   background: var(--background-secondary);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   z-index: 1000;
-  max-height: 400px;
+  max-height: min(400px, calc(100% - 54px));
   overflow: hidden;
   inset-inline-start: 0;
   inset-inline-end: 0;
 }
 
+.claudian-home-state .claudian-history-menu {
+  top: 46px;
+  bottom: auto;
+}
+
 .claudian-history-menu.visible {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 /* The popup is a quick history picker, so keep rows compact and text-first. */
@@ -549,11 +558,12 @@
 }
 
 .claudian-history-menu .claudian-history-item {
+  position: relative;
   min-height: 30px;
   gap: 0;
   padding: 4px 8px;
-  border-bottom-color: var(--background-modifier-border-hover, var(--background-modifier-border));
-  border-radius: 3px;
+  border-bottom: 0;
+  border-radius: 8px;
 }
 
 .claudian-history-menu .claudian-history-item-icon {
@@ -592,18 +602,28 @@
   color: var(--text-muted);
   font-size: 11px;
   white-space: nowrap;
+  transition: opacity 0.15s ease;
 }
 
 .claudian-history-menu .claudian-history-item-actions {
-  flex: 0 0 auto;
-  margin-inline-start: 4px;
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  z-index: 2;
+  margin: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
-.claudian-history-menu .claudian-history-item.active .claudian-history-item-actions,
-.claudian-history-menu .claudian-history-item.open .claudian-history-item-actions,
 .claudian-history-menu .claudian-history-item:hover .claudian-history-item-actions,
 .claudian-history-menu .claudian-history-item:focus-within .claudian-history-item-actions {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.claudian-history-menu .claudian-history-item:hover .claudian-history-item-date,
+.claudian-history-menu .claudian-history-item:focus-within .claudian-history-item-date {
+  opacity: 0;
 }
 
 .claudian-home-history-search {

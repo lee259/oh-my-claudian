@@ -6,9 +6,8 @@ import type {
   ProviderInteractionPort,
   ProviderSessionEvent,
 } from '../../../core/execution';
+import { createCatalogCommandDiscoveryStore } from '../../../core/providers/commands/catalogCommandDiscovery';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
-import { normalizeProviderCommandDiscoveryItems } from '../../../core/providers/commands/ProviderCommandDiscoveryResult';
-import { ProviderCommandDiscoveryStore } from '../../../core/providers/commands/ProviderCommandDiscoveryStore';
 import {
   findProviderModelOption,
   getProviderSettingsSnapshotWithModel,
@@ -325,12 +324,7 @@ function getRegistryProviderCatalogInfo(providerId: ProviderId): ProviderCatalog
 
   return {
     config: catalog.getDropdownConfig(),
-    discovery: new ProviderCommandDiscoveryStore(async signal =>
-      normalizeProviderCommandDiscoveryItems(
-        await catalog.listDropdownEntries({ includeBuiltIns: false, signal }),
-      ),
-      { timeoutMs: 0 },
-    ),
+    discovery: createCatalogCommandDiscoveryStore(catalog),
   };
 }
 

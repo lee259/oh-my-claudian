@@ -8,6 +8,8 @@ export interface ProviderCommandDropdownConfig {
   builtInPrefix: string;
   skillPrefix: string;
   commandPrefix: string;
+  /** Provider discovery deadline; 'provider-owned' disables the shared deadline. */
+  discoveryTimeoutMs?: number | 'provider-owned';
 }
 
 export interface ProviderCommandListContext {

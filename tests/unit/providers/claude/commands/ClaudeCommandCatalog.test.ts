@@ -87,7 +87,31 @@ describe('ClaudeCommandCatalog', () => {
       expect(entries[0].scope).toBe('runtime');
     });
 
-    it('falls back to vault commands and skills when SDK discovery is empty', async () => {
+    it('surfaces probe failures and retries instead of caching an empty result', async () => {
+      const adapter = createMockAdapter({});
+      const commands = new SlashCommandStorage(adapter);
+      const skills = new SkillStorage(adapter);
+      const probe = jest.fn()
+        .mockRejectedValueOnce(new Error('Claude initialization failed'))
+        .mockResolvedValueOnce([
+          {
+            id: 'sdk:commit',
+            name: 'commit',
+            description: 'Create git commit',
+            content: '',
+            source: 'sdk',
+          },
+        ]);
+      const catalog = new ClaudeCommandCatalog(commands, skills, probe);
+
+      await expect(catalog.listDropdownEntries({ includeBuiltIns: false }))
+        .rejects.toThrow('Claude initialization failed');
+      await expect(catalog.listDropdownEntries({ includeBuiltIns: false }))
+        .resolves.toEqual([expect.objectContaining({ name: 'commit' })]);
+      expect(probe).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not synthesize vault entries when provider-native discovery is empty', async () => {
       const adapter = createMockAdapter({
         '.claude/commands/review.md': `---
 description: Review code
@@ -106,9 +130,7 @@ Deploy the app`,
       const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
 
       expect(probe).toHaveBeenCalledTimes(1);
-      expect(entries).toHaveLength(2);
-      expect(entries.map(entry => entry.name).sort()).toEqual(['deploy', 'review']);
-      expect(entries.every(entry => entry.scope === 'vault')).toBe(true);
+      expect(entries).toEqual([]);
     });
 
     it('does not probe when runtime commands are cached', async () => {
@@ -524,6 +546,7 @@ Deploy`,
       expect(config.builtInPrefix).toBe('/');
       expect(config.skillPrefix).toBe('/');
       expect(config.commandPrefix).toBe('/');
+      expect(config.discoveryTimeoutMs).toBe(30_000);
     });
   });
 });
