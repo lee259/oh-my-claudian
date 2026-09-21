@@ -5,6 +5,12 @@ import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCoordinator';
 import { ClaudianView } from '@/features/chat/ClaudianView';
 
+const mockRefreshWelcomeContent = jest.fn();
+
+jest.mock('@/features/chat/rendering/WelcomeRenderer', () => ({
+  refreshWelcomeContent: (...args: unknown[]) => mockRefreshWelcomeContent(...args),
+}));
+
 const mockTabManagerConstructor = jest.fn();
 jest.mock('@/features/chat/tabs/TabManager', () => ({
   TabManager: jest.fn().mockImplementation((...args: unknown[]) =>
@@ -1187,6 +1193,18 @@ describe('ClaudianView tab controls', () => {
     expect(viewContainerEl.children[0].children).toContain(view.inputFooterEl);
   });
 
+  it('mounts the history overlay in the chat panel instead of the input footer', () => {
+    const viewContainerEl = createMockEl();
+    const view = Object.create(ClaudianView.prototype) as any;
+    view.viewContainerEl = viewContainerEl;
+
+    view.buildViewLayout();
+
+    expect(view.chatPanelEl?.children).toContain(view.historyDropdown);
+    expect(view.historyDropdown?.hasClass('claudian-history-menu')).toBe(true);
+    expect(view.inputFooterEl?.contains(view.historyDropdown)).toBe(false);
+  });
+
   it('does not add a dual-pane toggle to the chat navigation actions', () => {
     const view = Object.create(ClaudianView.prototype) as any;
     const viewContainerEl = createMockEl();
@@ -1910,6 +1928,25 @@ describe('ClaudianView tab controls', () => {
 
     expect(view.updateHistoryDropdown).toHaveBeenCalledTimes(1);
     expect(view.pendingHistorySurfaceUpdate).toBeNull();
+  });
+
+  it('refreshes the active home conversation list immediately', () => {
+    const welcomeEl = {} as HTMLElement;
+    const activeTab = {
+      state: { messages: [] },
+      dom: { welcomeEl },
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      tabManager: { getActiveTab: jest.fn().mockReturnValue(activeTab) },
+      updateConversationHeaders: jest.fn(),
+      hasActiveStreamingOrBackgroundWork: jest.fn().mockReturnValue(false),
+      scheduleHistorySurfaceUpdate: jest.fn(),
+    });
+
+    view.notifyConversationListChanged();
+
+    expect(mockRefreshWelcomeContent).toHaveBeenCalledWith(welcomeEl);
   });
 
   it('defers history-surface rendering while a tab has active stream work', () => {
