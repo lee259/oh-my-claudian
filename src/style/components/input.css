@@ -462,14 +462,14 @@
 
 /* Light blue border when instruction mode is active */
 .claudian-input-wrapper.claudian-input-instruction-mode {
-  --claudian-input-wrapper-border-color: #60a5fa;
-  --claudian-input-wrapper-box-shadow: 0 0 0 1px #60a5fa;
+  --claudian-input-wrapper-border-color: var(--color-blue, var(--interactive-accent));
+  --claudian-input-wrapper-box-shadow: 0 0 0 1px var(--color-blue, var(--interactive-accent));
 }
 
 /* Pink border when bash mode is active */
 .claudian-input-wrapper.claudian-input-bang-bash-mode {
-  --claudian-input-wrapper-border-color: #f472b6;
-  --claudian-input-wrapper-box-shadow: 0 0 0 1px #f472b6;
+  --claudian-input-wrapper-border-color: var(--color-pink, var(--interactive-accent));
+  --claudian-input-wrapper-box-shadow: 0 0 0 1px var(--color-pink, var(--interactive-accent));
 }
 
 /* Monospace input while in bash mode */

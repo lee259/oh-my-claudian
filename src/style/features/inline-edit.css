@@ -218,22 +218,22 @@
 }
 
 .claudian-diff-del:not(.claudian-diff-block) {
-  background: rgba(255, 80, 80, 0.2);
+  background: color-mix(in srgb, var(--color-red) 20%, var(--background-primary));
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
 .claudian-diff-ins:not(.claudian-diff-block) {
-  background: rgba(80, 200, 80, 0.2);
+  background: color-mix(in srgb, var(--color-green) 20%, var(--background-primary));
 }
 
 .claudian-diff-block.claudian-diff-del {
-  background: rgba(255, 80, 80, 0.14);
+  background: color-mix(in srgb, var(--color-red) 14%, var(--background-primary));
   color: var(--text-muted);
 }
 
 .claudian-diff-block.claudian-diff-ins {
-  background: rgba(80, 200, 80, 0.14);
+  background: color-mix(in srgb, var(--color-green) 14%, var(--background-primary));
 }
 
 .claudian-inline-preview-actions {

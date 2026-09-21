@@ -7,17 +7,11 @@
 /* Code blocks in chat messages */
 .claudian-code-wrapper pre,
 .claudian-message-content pre {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--code-background, var(--background-secondary));
   padding: 8px 12px;
   border-radius: 6px;
   overflow-x: auto;
   margin: 0;
-}
-
-/* Light mode: use a lighter background so hljs comment colors stay readable */
-body.theme-light .claudian-code-wrapper pre,
-body.theme-light .claudian-message-content pre {
-  background: rgba(0, 0, 0, 0.08);
 }
 
 /* Rendered mermaid diagrams are graphics, not code surfaces */

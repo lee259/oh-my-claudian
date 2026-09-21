@@ -66,11 +66,11 @@
   transition: color 0.3s ease;
 }
 
-/* Warning state (> 80%) - pale red */
+/* Warning state (> 80%) */
 .claudian-context-meter.warning .claudian-meter-fill {
-  stroke: #E57373;
+  stroke: var(--color-orange);
 }
 
 .claudian-context-meter.warning .claudian-context-meter-percent {
-  color: #E57373;
+  color: var(--color-orange);
 }

@@ -37,6 +37,9 @@ Choose a folder by UI ownership, not by the screen where a selector happens to a
 - Prefer BEM-lite names: `.claudian-{block}`, `.claudian-{block}-{element}`, `.claudian-{block}--{modifier}`.
 - Use Obsidian CSS variables such as `--background-*`, `--text-*`, and `--interactive-*`.
 - Use `var(--font-monospace)` for code blocks.
+- Theme adaptation is the default for visual state colors: use Obsidian semantic variables such as `--interactive-accent`, `--text-error`, `--color-blue`, `--color-cyan`, `--color-pink`, `--color-red`, `--color-green`, and `--color-orange`, or derive a tint with `color-mix()`.
+- Do not add literal foreground or background colors for plan, permission, mode, warning, error, selection, code, or diff states. Provider brand colors may remain literal behind the `--claudian-brand-*` tokens because they identify providers; verify their light/dark contrast when changing them.
+- Fixed black/white values are limited to intentional overlays and depth effects. Component surfaces and popovers must use `--background-*` variables directly instead of light/dark hex fallbacks.
 
 ## Specific Element Rules
 

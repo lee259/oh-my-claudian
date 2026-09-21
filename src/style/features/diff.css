@@ -171,7 +171,7 @@
 }
 
 .claudian-diff-delete {
-  background: rgba(255, 80, 80, 0.25);
+  background: color-mix(in srgb, var(--color-red) 25%, var(--background-primary));
   color: var(--text-normal);
 }
 
@@ -180,7 +180,7 @@
 }
 
 .claudian-diff-insert {
-  background: rgba(80, 200, 80, 0.25);
+  background: color-mix(in srgb, var(--color-green) 25%, var(--background-primary));
   color: var(--text-normal);
 }
 

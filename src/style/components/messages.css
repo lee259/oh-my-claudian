@@ -363,8 +363,8 @@
 
 /* Text selection in user messages - visible highlight */
 .claudian-message-user ::selection {
-  background: rgba(255, 255, 255, 0.35);
-  color: inherit;
+  background: var(--text-selection);
+  color: var(--text-normal);
 }
 
 .claudian-message-assistant {
@@ -407,7 +407,7 @@ body.mod-windows .claudian-message-assistant {
 }
 
 .claudian-interrupted {
-  color: #d45d5d;
+  color: var(--text-error);
 }
 
 .claudian-interrupted-hint {

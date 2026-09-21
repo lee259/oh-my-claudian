@@ -62,13 +62,8 @@
     border: 1px solid var(--background-modifier-border);
     border-radius: 8px;
     overflow: hidden;
-    background-color: #ffffff;
-    background-image: linear-gradient(var(--background-primary), var(--background-primary));
+    background: var(--background-primary);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-
-body.theme-dark .claudian-nav-toc-popover {
-    background-color: #1e1e1e;
 }
 
 .claudian-nav-toc-title {
