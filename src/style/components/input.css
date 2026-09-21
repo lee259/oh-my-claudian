@@ -81,10 +81,6 @@
   visibility: visible;
 }
 
-.claudian-home-state .claudian-input-footer {
-  padding: 0 4px 6px;
-}
-
 /* Input wrapper (border container) - flex column so textarea expands when no chips */
 .claudian-input-wrapper {
   --claudian-input-wrapper-border-color: color-mix(in srgb, var(--background-modifier-border) 85%, var(--text-normal));
@@ -221,30 +217,6 @@
 .claudian-input-wrapper textarea.claudian-input::placeholder {
   color: var(--text-muted);
   -webkit-text-fill-color: var(--text-muted) !important;
-}
-
-.claudian-home-state .claudian-input-wrapper {
-  min-height: 104px;
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary));
-}
-
-.claudian-home-state .claudian-input-wrapper textarea.claudian-input {
-  min-height: 52px;
-  padding: 14px 18px 6px;
-  font-size: 15px;
-}
-
-.claudian-home-state .claudian-input-mention-highlights {
-  font-size: 15px;
-}
-
-.claudian-home-state .claudian-input-mention-highlights-content {
-  padding: 14px 18px 42px;
-}
-
-.claudian-home-state .claudian-input-toolbar {
-  padding: 4px 10px 10px;
 }
 
 .claudian-input-mention-highlights {

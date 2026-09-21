@@ -2700,6 +2700,19 @@ describe('ClaudianView Escape handling', () => {
     expect(result).toBe(false);
   });
 
+  it('closes the history menu from the scoped Escape handler', () => {
+    const { cancelStreaming, view } = createEscapeHarness({ isStreaming: true });
+    view.historyDropdown.addClass('visible');
+
+    view.wireEventHandlers();
+    const escapeHandler = view.scope.handlers.find((handler: any) => handler.key === 'Escape');
+    const result = escapeHandler.func({ key: 'Escape', isComposing: false } as KeyboardEvent);
+
+    expect(view.historyDropdown.hasClass('visible')).toBe(false);
+    expect(cancelStreaming).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+  });
+
   it('consumes scoped Escape without cancelling when not streaming', () => {
     const { cancelStreaming, view } = createEscapeHarness({ isStreaming: false });
 

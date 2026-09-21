@@ -2121,6 +2121,10 @@ export class ClaudianView extends ItemView {
         this.closeSessionSearch();
         return false;
       }
+      if (this.historyDropdown?.hasClass('visible')) {
+        this.toggleHistoryDropdown();
+        return false;
+      }
       if (!e.defaultPrevented) {
         if (activeTab?.state.isStreaming) {
           activeTab.controllers.inputController?.cancelStreaming();
