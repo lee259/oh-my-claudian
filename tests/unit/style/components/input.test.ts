@@ -83,19 +83,17 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
-  it('matches the home composer padding and font size in the mention layer', () => {
-    expect(css).toMatch(
-      /\.claudian-home-state \.claudian-input-wrapper\s*\{[^}]*min-height:\s*104px;/,
+  it('uses the same composer styling on home and conversation surfaces', () => {
+    expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-footer\s*\{/);
+    expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-wrapper\s*\{/);
+    expect(css).not.toMatch(
+      /\.claudian-home-state \.claudian-input-wrapper textarea\.claudian-input\s*\{/,
     );
-    expect(css).toMatch(
-      /\.claudian-home-state \.claudian-input-wrapper textarea\.claudian-input\s*\{[^}]*min-height:\s*52px;[^}]*padding:\s*14px 18px 6px;/,
+    expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-mention-highlights\s*\{/);
+    expect(css).not.toMatch(
+      /\.claudian-home-state \.claudian-input-mention-highlights-content\s*\{/,
     );
-    expect(css).toMatch(
-      /\.claudian-home-state \.claudian-input-mention-highlights-content\s*\{[\s\S]*?padding:\s*14px 18px 42px;/,
-    );
-    expect(css).toMatch(
-      /\.claudian-home-state \.claudian-input-mention-highlights\s*\{[\s\S]*?font-size:\s*15px;/,
-    );
+    expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-toolbar\s*\{/);
   });
 
   it('keeps the editor tall enough for text when context rows consume composer space', () => {
