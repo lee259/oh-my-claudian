@@ -8,6 +8,7 @@
 import { setIcon } from 'obsidian';
 
 import type { ConversationMeta } from '../../core/types';
+import { SelectableDropdown } from './SelectableDropdown';
 
 export interface ResumeSessionDropdownCallbacks {
   onSelect: (conversationId: string) => void;
@@ -27,6 +28,7 @@ export class ResumeSessionDropdown {
   private containerEl: HTMLElement;
   private inputEl: HTMLTextAreaElement;
   private dropdownEl: HTMLElement;
+  private sessionDropdown: SelectableDropdown<ConversationMeta>;
   private callbacks: ResumeSessionDropdownCallbacks;
   private conversations: ConversationMeta[];
   private currentConversationId: string | null;
@@ -56,6 +58,12 @@ export class ResumeSessionDropdown {
     );
 
     this.dropdownEl = this.containerEl.createDiv({ cls: 'claudian-resume-dropdown' });
+    this.dropdownEl.createDiv({ cls: 'claudian-resume-header', text: 'Resume conversation' });
+    this.sessionDropdown = new SelectableDropdown(this.dropdownEl, {
+      listClassName: 'claudian-resume-list',
+      itemClassName: 'claudian-resume-item',
+      emptyClassName: 'claudian-resume-empty',
+    });
     this.configureInputAccessibility();
     this.render();
     this.dropdownEl.addClass('visible');
@@ -100,6 +108,7 @@ export class ResumeSessionDropdown {
   destroy(): void {
     this.inputEl.removeEventListener('input', this.onInput);
     this.restoreInputAccessibility();
+    this.sessionDropdown.destroy();
     this.dropdownEl?.remove();
   }
 
@@ -130,7 +139,7 @@ export class ResumeSessionDropdown {
   }
 
   private updateSelection(scrollSelectedIntoView = true): void {
-    const items = this.dropdownEl.querySelectorAll('.claudian-resume-item');
+    const items = this.sessionDropdown.getElement()?.querySelectorAll('.claudian-resume-item') ?? [];
     let activeOptionId: string | null = null;
     items?.forEach((item, index) => {
       if (index === this.selectedIndex) {
@@ -160,55 +169,51 @@ export class ResumeSessionDropdown {
   }
 
   private render(): void {
-    this.dropdownEl.empty();
+    this.sessionDropdown.render({
+      items: this.conversations,
+      selectedIndex: this.selectedIndex,
+      emptyText: 'No conversations',
+      getItemClass: (conversation) => (
+        conversation.id === this.currentConversationId ? 'current' : undefined
+      ),
+      renderItem: (conversation, item) => {
+        const isCurrent = conversation.id === this.currentConversationId;
+        const iconEl = item.createDiv({ cls: 'claudian-resume-item-icon' });
+        setIcon(iconEl, isCurrent ? 'message-square-dot' : 'message-square');
 
-    const header = this.dropdownEl.createDiv({ cls: 'claudian-resume-header' });
-    header.createSpan({ text: 'Resume conversation' });
+        const content = item.createDiv({ cls: 'claudian-resume-item-content' });
+        const titleEl = content.createDiv({ cls: 'claudian-resume-item-title', text: conversation.title });
+        titleEl.setAttribute('title', conversation.title);
+        content.createDiv({
+          cls: 'claudian-resume-item-date',
+          text: isCurrent ? 'Current session' : this.formatDate(conversation.lastActivityAt),
+        });
+      },
+      onItemClick: (_conversation, index) => {
+        this.selectedIndex = index;
+        this.selectItem();
+      },
+      onItemHover: (_conversation, index) => {
+        this.selectedIndex = index;
+        this.updateSelection();
+      },
+    });
 
-    const list = this.dropdownEl.createDiv({ cls: 'claudian-resume-list' });
+    const list = this.sessionDropdown.getElement();
+    if (!list) return;
     list.setAttribute('id', this.listboxId);
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', 'Resume conversation');
 
+    const items = list.querySelectorAll('.claudian-resume-item');
+    items.forEach((item, index) => {
+      item.setAttribute('id', `${this.listboxId}-option-${index}`);
+      item.setAttribute('role', 'option');
+    });
+
     if (this.conversations.length === 0) {
-      list.createDiv({ cls: 'claudian-resume-empty', text: 'No conversations' });
       this.inputEl.removeAttribute('aria-activedescendant');
       return;
-    }
-
-    for (let i = 0; i < this.conversations.length; i++) {
-      const conv = this.conversations[i];
-      const isCurrent = conv.id === this.currentConversationId;
-
-      const item = list.createDiv({ cls: 'claudian-resume-item' });
-      item.setAttribute('id', `${this.listboxId}-option-${i}`);
-      item.setAttribute('role', 'option');
-      if (isCurrent) item.addClass('current');
-      if (i === this.selectedIndex) item.addClass('selected');
-
-      const iconEl = item.createDiv({ cls: 'claudian-resume-item-icon' });
-      setIcon(iconEl, isCurrent ? 'message-square-dot' : 'message-square');
-
-      const content = item.createDiv({ cls: 'claudian-resume-item-content' });
-      const titleEl = content.createDiv({ cls: 'claudian-resume-item-title', text: conv.title });
-      titleEl.setAttribute('title', conv.title);
-      content.createDiv({
-        cls: 'claudian-resume-item-date',
-        text: isCurrent ? 'Current session' : this.formatDate(conv.lastActivityAt),
-      });
-
-      item.addEventListener('click', () => {
-        if (isCurrent) {
-          this.dismiss();
-          return;
-        }
-        this.callbacks.onSelect(conv.id);
-      });
-
-      item.addEventListener('mouseenter', () => {
-        this.selectedIndex = i;
-        this.updateSelection();
-      });
     }
 
     this.updateSelection(false);

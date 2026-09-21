@@ -8,6 +8,7 @@ import type { ProviderCommandEntry } from '../../core/providers/commands/Provide
 import type { ProviderId } from '../../core/providers/types';
 import type { SlashCommand } from '../../core/types';
 import { normalizeArgumentHint } from '../../utils/slashCommand';
+import { SelectableDropdown } from './SelectableDropdown';
 
 interface DropdownItem {
   name: string;
@@ -46,6 +47,8 @@ type ProviderDiscoveryViewState = Exclude<
 export class SlashCommandDropdown {
   private containerEl: HTMLElement;
   private dropdownEl: HTMLElement | null = null;
+  private commandList: SelectableDropdown<DropdownItem> | null = null;
+  private providerStateEl: HTMLElement | null = null;
   private inputEl: HTMLTextAreaElement | HTMLInputElement;
   private callbacks: SlashCommandDropdownCallbacks;
   private enabled = true;
@@ -206,10 +209,11 @@ export class SlashCommandDropdown {
     this.providerDiscoveryUnsubscribe = null;
     this.providerDiscovery = null;
     this.inputEl.removeEventListener('input', this.onInput);
-    if (this.dropdownEl) {
-      this.dropdownEl.remove();
-      this.dropdownEl = null;
-    }
+    this.commandList?.destroy();
+    this.commandList = null;
+    this.providerStateEl = null;
+    this.dropdownEl?.remove();
+    this.dropdownEl = null;
   }
 
   private resetProviderViewState(): void {
@@ -232,6 +236,9 @@ export class SlashCommandDropdown {
   private clearProviderView(): void {
     this.filteredItems = [];
     this.hide();
+    this.commandList?.destroy();
+    this.commandList = null;
+    this.providerStateEl = null;
     this.dropdownEl?.empty();
   }
 
@@ -385,43 +392,41 @@ export class SlashCommandDropdown {
       this.dropdownEl = this.createDropdownElement();
     }
 
-    this.dropdownEl.empty();
+    if (this.filteredItems.length > 0 || !this.providerDiscoveryState) {
+      this.commandList ??= new SelectableDropdown(this.dropdownEl, {
+        listClassName: 'claudian-slash-list',
+        itemClassName: 'claudian-slash-item',
+        emptyClassName: 'claudian-slash-empty',
+      });
+      this.commandList.render({
+        items: this.filteredItems,
+        selectedIndex: this.selectedIndex,
+        emptyText: 'No matching commands',
+        renderItem: (item, itemEl) => {
+          const nameEl = itemEl.createSpan({ cls: 'claudian-slash-name' });
+          nameEl.setText(`${item.displayPrefix}${item.name}`);
 
-    if (this.filteredItems.length === 0 && !this.providerDiscoveryState) {
-      const emptyEl = this.dropdownEl.createDiv({ cls: 'claudian-slash-empty' });
-      emptyEl.setText('No matching commands');
-    } else {
-      for (let i = 0; i < this.filteredItems.length; i++) {
-        const item = this.filteredItems[i];
-        const itemEl = this.dropdownEl.createDiv({ cls: 'claudian-slash-item' });
+          if (item.argumentHint) {
+            const hintEl = itemEl.createSpan({ cls: 'claudian-slash-hint' });
+            hintEl.setText(normalizeArgumentHint(item.argumentHint));
+          }
 
-        if (i === this.selectedIndex) {
-          itemEl.addClass('selected');
-        }
-
-        const nameEl = itemEl.createSpan({ cls: 'claudian-slash-name' });
-        nameEl.setText(`${item.displayPrefix}${item.name}`);
-
-        if (item.argumentHint) {
-          const hintEl = itemEl.createSpan({ cls: 'claudian-slash-hint' });
-          hintEl.setText(normalizeArgumentHint(item.argumentHint));
-        }
-
-        if (item.description) {
-          const descEl = itemEl.createDiv({ cls: 'claudian-slash-desc' });
-          descEl.setText(item.description);
-        }
-
-        itemEl.addEventListener('click', () => {
-          this.selectedIndex = i;
+          if (item.description) {
+            const descEl = itemEl.createDiv({ cls: 'claudian-slash-desc' });
+            descEl.setText(item.description);
+          }
+        },
+        onItemClick: (_item, index) => {
+          this.selectedIndex = index;
           this.selectItem();
-        });
-
-        itemEl.addEventListener('mouseenter', () => {
-          this.selectedIndex = i;
-          this.updateSelection();
-        });
-      }
+        },
+        onItemHover: (_item, index) => {
+          this.selectedIndex = index;
+        },
+      });
+    } else {
+      this.commandList?.destroy();
+      this.commandList = null;
     }
 
     this.renderProviderDiscoveryState();
@@ -434,14 +439,25 @@ export class SlashCommandDropdown {
   }
 
   private renderProviderDiscoveryState(): void {
-    if (!this.dropdownEl || !this.providerDiscoveryState) return;
+    if (!this.dropdownEl) return;
 
     const state = this.providerDiscoveryState;
-    if (state.status === 'ready') return;
+    if (!state || state.status === 'ready') {
+      if (this.providerStateEl) {
+        // Remove the state marker before detaching so DOM adapters that retain
+        // removed children cannot expose stale provider status to selectors.
+        this.providerStateEl.className = '';
+        this.providerStateEl.empty();
+        this.providerStateEl.remove();
+        this.providerStateEl = null;
+      }
+      return;
+    }
 
-    const stateEl = this.dropdownEl.createDiv({
-      cls: `claudian-slash-provider-state is-${state.status}`,
-    });
+    const stateEl = this.providerStateEl ?? this.dropdownEl.createDiv();
+    this.providerStateEl = stateEl;
+    stateEl.className = `claudian-slash-provider-state is-${state.status}`;
+    stateEl.empty();
     const messageEl = stateEl.createSpan({ cls: 'claudian-slash-provider-state-message' });
 
     switch (state.status) {
@@ -491,21 +507,8 @@ export class SlashCommandDropdown {
   }
 
   private navigate(direction: number): void {
-    const maxIndex = this.filteredItems.length - 1;
-    this.selectedIndex = Math.max(0, Math.min(maxIndex, this.selectedIndex + direction));
-    this.updateSelection();
-  }
-
-  private updateSelection(): void {
-    const items = this.dropdownEl?.querySelectorAll('.claudian-slash-item');
-    items?.forEach((item, index) => {
-      if (index === this.selectedIndex) {
-        item.addClass('selected');
-        (item as HTMLElement).scrollIntoView({ block: 'nearest' });
-      } else {
-        item.removeClass('selected');
-      }
-    });
+    this.commandList?.moveSelection(direction);
+    this.selectedIndex = this.commandList?.getSelectedIndex() ?? this.selectedIndex;
   }
 
   private selectItem(): void {
