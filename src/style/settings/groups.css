@@ -160,9 +160,21 @@
   margin-inline-end: 0;
 }
 
-.claudian-settings button.claudian-settings-tab {
+.claudian-settings button.claudian-settings-tab,
+.claudian-settings button.claudian-settings-tab:hover,
+.claudian-settings button.claudian-settings-tab:focus,
+.claudian-settings button.claudian-settings-tab:focus-visible,
+.claudian-settings button.claudian-settings-tab:active {
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
   border-radius: 0;
+  background: transparent;
   box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  outline: none;
 }
 
 .claudian-settings button.claudian-settings-tab--active,

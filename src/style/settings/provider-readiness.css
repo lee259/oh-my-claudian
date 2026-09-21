@@ -1,26 +1,3 @@
-.claudian-settings .claudian-provider-readiness {
-  min-width: 0;
-  margin: 0 0 var(--size-4-5);
-  overflow: hidden;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: transparent;
-}
-
-.claudian-settings .claudian-provider-readiness > .setting-item-heading {
-  margin: 0;
-  padding: var(--size-4-4);
-  border: 0;
-  border-bottom: 1px solid var(--background-modifier-border);
-  background: transparent;
-}
-
-.claudian-settings .claudian-provider-readiness > .setting-item-heading .setting-item-name {
-  margin: 0;
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
-}
-
 .claudian-provider-readiness-summary { margin: 4px 12px 10px; color: var(--text-muted); font-size: var(--font-ui-small); font-weight: var(--font-medium); }
 .claudian-settings .claudian-provider-readiness-summary { margin: var(--size-4-4) var(--size-4-4) var(--size-4-2); }
 .claudian-provider-readiness-summary[data-status="ready"] { color: var(--text-success); }

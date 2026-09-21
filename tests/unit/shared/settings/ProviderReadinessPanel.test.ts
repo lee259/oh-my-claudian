@@ -18,6 +18,30 @@ Object.defineProperty(HTMLElement.prototype, 'setText', {
 });
 
 describe('renderProviderReadinessPanel', () => {
+  it('renders the readiness content inside a collapsible CLI installation card', () => {
+    const container = document.createElement('div');
+
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+
+    const card = container.querySelector<HTMLElement>('.claudian-cli-installation');
+    const header = card?.querySelector<HTMLButtonElement>('.claudian-cli-installation-header');
+    const body = card?.querySelector<HTMLElement>('.claudian-cli-installation-body');
+
+    expect(controller.root).toBe(card);
+    expect(header?.textContent).toContain('Test');
+    expect(header?.getAttribute('aria-expanded')).toBe('true');
+    expect(body?.hidden).toBe(false);
+
+    header?.click();
+
+    expect(header?.getAttribute('aria-expanded')).toBe('false');
+    expect(body?.hidden).toBe(true);
+  });
+
   it('shows an actionable hint for each blocked or attention check', async () => {
     const container = document.createElement('div');
 
