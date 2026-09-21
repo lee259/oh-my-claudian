@@ -15,7 +15,7 @@
 }
 
 .claudian-permission-label.plan-active {
-  color: rgb(92, 148, 140);
+  color: var(--color-cyan, var(--interactive-accent));
   font-weight: 600;
 }
 

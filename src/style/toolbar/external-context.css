@@ -166,8 +166,8 @@
 }
 
 .claudian-external-context-remove:hover {
-  background: rgba(var(--claudian-error-rgb), 0.15);
-  color: var(--claudian-error);
+  background: color-mix(in srgb, var(--text-error) 15%, transparent);
+  color: var(--text-error);
   opacity: 1;
 }
 

@@ -21,7 +21,8 @@ describe('Session history styles', () => {
     expect(css).toContain('.claudian-history-container');
     expect(css).not.toContain('.claudian-session-metadata-popover');
     expect(metadataCss).toContain('.claudian-session-metadata-popover');
-    expect(metadataCss).toContain('body.theme-dark .claudian-session-metadata-popover');
+    expect(metadataCss).toContain('background: var(--background-primary);');
+    expect(metadataCss).not.toContain('body.theme-dark .claudian-session-metadata-popover');
   });
 });
 

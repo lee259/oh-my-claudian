@@ -41,7 +41,7 @@
 }
 
 .claudian-ask-tab.is-active {
-  background: hsla(55, 30%, 50%, 0.18);
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
