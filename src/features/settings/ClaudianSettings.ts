@@ -21,6 +21,7 @@ import {
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
+import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
 import {
@@ -245,6 +246,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             this.renderCustomContextLimits(target, targetProviderId)
           ),
         });
+        frameSettingsGroups(content);
       } catch (error) {
         if (displayGeneration !== this.displayGeneration) {
           return;
@@ -282,12 +284,17 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     for (const id of tabIds) {
       const content = containerEl.createDiv({
-        cls: `claudian-settings-tab-content${id === this.activeTab ? ' claudian-settings-tab-content--active' : ''}`,
+        cls: [
+          'claudian-settings-tab-content',
+          id === 'general' ? 'claudian-settings-general' : 'claudian-settings-provider-content',
+          id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
+        ].filter(Boolean).join(' '),
       });
       tabContents.set(id, content);
     }
 
     this.renderGeneralTab(tabContents.get('general')!);
+    frameSettingsGroups(tabContents.get('general')!);
 
     if (this.activeTab !== 'general') {
       void renderProviderTab(this.activeTab);
