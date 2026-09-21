@@ -37,38 +37,6 @@
   display: block;
 }
 
-.claudian-settings-provider-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 16px;
-}
-
-.claudian-settings-provider-tab {
-  padding: 5px 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-  cursor: pointer;
-}
-
-.claudian-settings-provider-tab:hover,
-.claudian-settings-provider-tab:focus,
-.claudian-settings-provider-tab:active,
-.claudian-settings-provider-tab--active {
-  background: transparent;
-  color: var(--text-normal);
-}
-
-.claudian-settings-provider-content {
-  display: none;
-}
-
-.claudian-settings-provider-content--active {
-  display: block;
-}
-
 /* Codex placeholder */
 .claudian-settings-codex-placeholder {
   padding: 40px 20px;
