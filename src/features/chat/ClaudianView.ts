@@ -405,6 +405,7 @@ export class ClaudianView extends ItemView {
 
     this.chatPanelEl = this.viewContainerEl.createDiv({ cls: 'claudian-chat-panel' });
     this.tabContentEl = this.chatPanelEl.createDiv({ cls: 'claudian-tab-content-container' });
+    this.historyDropdown = this.chatPanelEl.createDiv({ cls: 'claudian-history-menu' });
     this.buildInputFooter();
   }
 
@@ -471,8 +472,6 @@ export class ClaudianView extends ItemView {
     });
     setIcon(historyBtn, 'history');
     historyBtn.setAttribute('aria-label', t('chat.home.history'));
-
-    this.historyDropdown = historyContainer.createDiv({ cls: 'claudian-history-menu' });
 
     historyBtn.addEventListener('click', (e) => {
       e.stopPropagation();

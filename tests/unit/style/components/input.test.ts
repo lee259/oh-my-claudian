@@ -77,9 +77,21 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
+  it('keeps the placeholder visible when the textarea text is rendered by the mention layer', () => {
+    expect(css).toMatch(
+      /\.claudian-input-wrapper textarea\.claudian-input::placeholder\s*\{[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\)\s*!important;/,
+    );
+  });
+
   it('matches the home composer padding and font size in the mention layer', () => {
     expect(css).toMatch(
-      /\.claudian-home-state \.claudian-input-mention-highlights-content\s*\{[\s\S]*?padding:\s*22px 22px 48px;/,
+      /\.claudian-home-state \.claudian-input-wrapper\s*\{[^}]*min-height:\s*104px;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-home-state \.claudian-input-wrapper textarea\.claudian-input\s*\{[^}]*min-height:\s*52px;[^}]*padding:\s*14px 18px 6px;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-home-state \.claudian-input-mention-highlights-content\s*\{[\s\S]*?padding:\s*14px 18px 42px;/,
     );
     expect(css).toMatch(
       /\.claudian-home-state \.claudian-input-mention-highlights\s*\{[\s\S]*?font-size:\s*15px;/,

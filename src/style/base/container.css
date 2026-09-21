@@ -14,6 +14,7 @@
 }
 
 .oh-my-claudian-root .claudian-chat-panel {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
