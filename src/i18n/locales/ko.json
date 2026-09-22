@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "스니펫",
       "addBtn": "스니펫 추가",
+      "insertBtn": "삽입",
+      "editBtn": "편집",
+      "deleteBtn": "삭제",
       "noSnippets": "저장된 환경 변수 스니펫이 없습니다. +를 클릭하여 현재 구성을 저장하세요.",
       "nameRequired": "스니펫 이름을 입력하세요",
       "modal": {

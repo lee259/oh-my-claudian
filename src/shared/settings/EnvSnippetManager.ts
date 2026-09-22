@@ -1,5 +1,6 @@
 import type { App } from 'obsidian';
 import { Modal, Notice, setIcon, Setting } from 'obsidian';
+import { h } from 'preact';
 
 import {
   getEnvironmentScopeUpdates,
@@ -15,6 +16,8 @@ import {
 import { t } from '../../i18n/i18n';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { confirmDelete } from '../modals/ConfirmModal';
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { EnvSnippetListView } from './EnvSnippetListView';
 
 export class EnvSnippetModal extends Modal {
   plugin: ProviderHost;
@@ -215,27 +218,76 @@ export class EnvSnippetModal extends Modal {
   }
 }
 
+export interface EnvSnippetManagerOptions {
+  usePreactView?: boolean;
+}
+
 export class EnvSnippetManager {
   private containerEl: HTMLElement;
   private plugin: ProviderHost;
   private scope: EnvironmentScope;
   private onContextLimitsChange?: () => void;
+  private readonly usePreactView: boolean;
+  private snippetListRoot: PreactRoot | null = null;
 
   constructor(
     containerEl: HTMLElement,
     plugin: ProviderHost,
     scope: EnvironmentScope,
     onContextLimitsChange?: () => void,
+    options: EnvSnippetManagerOptions = {},
   ) {
     this.containerEl = containerEl;
     this.plugin = plugin;
     this.scope = scope;
     this.onContextLimitsChange = onContextLimitsChange;
+    this.usePreactView = options.usePreactView ?? false;
     this.render();
   }
 
   private render() {
+    this.snippetListRoot?.unmount();
+    this.snippetListRoot = null;
     this.containerEl.empty();
+
+    const snippets = this.plugin.settings.envSnippets.filter((snippet) => this.shouldDisplaySnippet(snippet));
+
+    if (this.usePreactView) {
+      this.snippetListRoot = createPreactRoot(this.containerEl);
+      this.snippetListRoot.render(h(EnvSnippetListView, {
+        items: snippets,
+        labels: {
+          name: t('settings.envSnippets.name'),
+          add: t('settings.envSnippets.addBtn'),
+          empty: t('settings.envSnippets.noSnippets'),
+          insert: t('settings.envSnippets.insertBtn'),
+          edit: t('settings.envSnippets.editBtn'),
+          delete: t('settings.envSnippets.deleteBtn'),
+        },
+        onAdd: () => {
+          void this.saveCurrentEnv();
+        },
+        onInsert: (id) => {
+          const snippet = snippets.find(candidate => candidate.id === id);
+          if (snippet) {
+            void this.insertSnippetWithNotice(snippet);
+          }
+        },
+        onEdit: (id) => {
+          const snippet = snippets.find(candidate => candidate.id === id);
+          if (snippet) {
+            this.editSnippet(snippet);
+          }
+        },
+        onDelete: (id) => {
+          const snippet = snippets.find(candidate => candidate.id === id);
+          if (snippet) {
+            void this.deleteSnippetWithNotice(snippet);
+          }
+        },
+      }));
+      return;
+    }
 
     const headerEl = this.containerEl.createDiv({ cls: 'claudian-snippet-header' });
     headerEl.createSpan({ text: t('settings.envSnippets.name'), cls: 'claudian-snippet-label' });
@@ -248,8 +300,6 @@ export class EnvSnippetManager {
     saveBtn.addEventListener('click', () => {
       void this.saveCurrentEnv();
     });
-
-    const snippets = this.plugin.settings.envSnippets.filter((snippet) => this.shouldDisplaySnippet(snippet));
 
     if (snippets.length === 0) {
       const emptyEl = this.containerEl.createDiv({ cls: 'claudian-snippet-empty' });
@@ -276,22 +326,22 @@ export class EnvSnippetManager {
 
       const restoreBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Insert' },
+        attr: { 'aria-label': t('settings.envSnippets.insertBtn') },
       });
       setIcon(restoreBtn, 'clipboard-paste');
       restoreBtn.addEventListener('click', () => {
         void (async (): Promise<void> => {
-        try {
-          await this.insertSnippet(snippet);
-        } catch {
-          new Notice('Failed to insert snippet');
-        }
+          try {
+            await this.insertSnippet(snippet);
+          } catch {
+            new Notice('Failed to insert snippet');
+          }
         })();
       });
 
       const editBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Edit' },
+        attr: { 'aria-label': t('settings.envSnippets.editBtn') },
       });
       setIcon(editBtn, 'pencil');
       editBtn.addEventListener('click', () => {
@@ -300,20 +350,43 @@ export class EnvSnippetManager {
 
       const deleteBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-        attr: { 'aria-label': 'Delete' },
+        attr: { 'aria-label': t('settings.envSnippets.deleteBtn') },
       });
       setIcon(deleteBtn, 'trash-2');
       deleteBtn.addEventListener('click', () => {
         void (async (): Promise<void> => {
-        try {
-          if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
-            await this.deleteSnippet(snippet);
+          try {
+            if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
+              await this.deleteSnippet(snippet);
+            }
+          } catch {
+            new Notice('Failed to delete snippet');
           }
-        } catch {
-          new Notice('Failed to delete snippet');
-        }
         })();
       });
+    }
+  }
+
+  public destroy(): void {
+    this.snippetListRoot?.unmount();
+    this.snippetListRoot = null;
+  }
+
+  private async insertSnippetWithNotice(snippet: EnvSnippet): Promise<void> {
+    try {
+      await this.insertSnippet(snippet);
+    } catch {
+      new Notice('Failed to insert snippet');
+    }
+  }
+
+  private async deleteSnippetWithNotice(snippet: EnvSnippet): Promise<void> {
+    try {
+      if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
+        await this.deleteSnippet(snippet);
+      }
+    } catch {
+      new Notice('Failed to delete snippet');
     }
   }
 

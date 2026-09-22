@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "Snippets",
       "addBtn": "Add snippet",
+      "insertBtn": "Insert",
+      "editBtn": "Edit",
+      "deleteBtn": "Delete",
       "noSnippets": "No saved environment snippets yet. Click + to save your current environment configuration.",
       "nameRequired": "Please enter a name for the snippet",
       "modal": {

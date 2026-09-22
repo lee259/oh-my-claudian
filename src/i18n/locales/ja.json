@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "スニペット",
       "addBtn": "スニペットを追加",
+      "insertBtn": "挿入",
+      "editBtn": "編集",
+      "deleteBtn": "削除",
       "noSnippets": "保存された環境変数スニペットはありません。+をクリックして現在の設定を保存してください。",
       "nameRequired": "スニペットの名前を入力してください",
       "modal": {

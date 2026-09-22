@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "Trechos",
       "addBtn": "Adicionar snippet",
+      "insertBtn": "Inserir",
+      "editBtn": "Editar",
+      "deleteBtn": "Excluir",
       "noSnippets": "Nenhum snippet de ambiente salvo. Clique em + para salvar sua configuração atual.",
       "nameRequired": "Por favor, insira um nome para o snippet",
       "modal": {

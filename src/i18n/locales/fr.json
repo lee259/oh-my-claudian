@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "Extraits",
       "addBtn": "Ajouter un extrait",
+      "insertBtn": "Insérer",
+      "editBtn": "Modifier",
+      "deleteBtn": "Supprimer",
       "noSnippets": "Aucun extrait d'environnement enregistré. Cliquez sur + pour sauvegarder votre configuration actuelle.",
       "nameRequired": "Veuillez entrer un nom pour l'extrait",
       "modal": {

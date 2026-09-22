@@ -22,7 +22,10 @@ import {
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
-import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
+import {
+  type EnvironmentSettingsSectionHandle,
+  renderEnvironmentSettingsSection,
+} from '../../shared/settings/EnvironmentSettingsSection';
 import { GeneralGettingStartedView } from '../../shared/settings/GeneralGettingStartedView';
 import {
   GeneralSettingsLayout,
@@ -159,7 +162,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
-  private generalEnvironmentRoot: PreactRoot | null = null;
+  private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
@@ -190,8 +193,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalCapabilityMatrixRoot = null;
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
-    this.generalEnvironmentRoot?.unmount();
-    this.generalEnvironmentRoot = null;
+    this.generalEnvironmentHandle?.destroy();
+    this.generalEnvironmentHandle = null;
     this.generalNavigationMappingsRoot?.unmount();
     this.generalNavigationMappingsRoot = null;
     this.generalSettingsRoot?.unmount();
@@ -746,7 +749,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Environment ---
 
     const environment = section('environment');
-    this.generalEnvironmentRoot = renderEnvironmentSettingsSection({
+    this.generalEnvironmentHandle = renderEnvironmentSettingsSection({
       container: environment,
       plugin: this.plugin.providerHost,
       scope: 'shared',
@@ -754,6 +757,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       desc: 'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
       usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
     });
 
     // --- Advanced ---

@@ -18,11 +18,16 @@ interface EnvironmentSettingsSectionOptions {
   placeholder: string;
   renderCustomContextLimits?: (container: HTMLElement) => void;
   usePreactEnvironmentField?: boolean;
+  usePreactSnippetList?: boolean;
+}
+
+export interface EnvironmentSettingsSectionHandle {
+  destroy(): void;
 }
 
 export function renderEnvironmentSettingsSection(
   options: EnvironmentSettingsSectionOptions,
-): PreactRoot | null {
+): EnvironmentSettingsSectionHandle {
   const {
     container,
     plugin,
@@ -33,6 +38,7 @@ export function renderEnvironmentSettingsSection(
     placeholder,
     renderCustomContextLimits,
     usePreactEnvironmentField = false,
+    usePreactSnippetList = false,
   } = options;
 
   if (heading) {
@@ -107,9 +113,16 @@ export function renderEnvironmentSettingsSection(
   renderCustomContextLimits?.(contextLimitsContainer);
 
   const envSnippetsContainer = container.createDiv({ cls: 'claudian-env-snippets-container' });
-  new EnvSnippetManager(envSnippetsContainer, plugin, scope, () => {
+  const snippetManager = new EnvSnippetManager(envSnippetsContainer, plugin, scope, () => {
     renderCustomContextLimits?.(contextLimitsContainer);
+  }, {
+    usePreactView: usePreactSnippetList,
   });
 
-  return environmentRoot;
+  return {
+    destroy() {
+      snippetManager.destroy();
+      environmentRoot?.unmount();
+    },
+  };
 }

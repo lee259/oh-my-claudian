@@ -152,6 +152,9 @@
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
+  margin-bottom: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .claudian-snippet-item {
