@@ -6,7 +6,11 @@
   white-space: pre-line;
 }
 
-.claudian-getting-started-action {
+.claudian-settings .claudian-getting-started-action,
+.claudian-settings .claudian-getting-started-action:hover,
+.claudian-settings .claudian-getting-started-action:focus,
+.claudian-settings .claudian-getting-started-action:focus-visible,
+.claudian-settings .claudian-getting-started-action:active {
   min-height: 36px;
   margin: 0;
   padding: 8px 14px;
@@ -17,17 +21,18 @@
   color: var(--text-on-accent);
   cursor: pointer;
   font-weight: var(--font-medium);
+  outline: none;
 }
 
-.claudian-getting-started-action:hover,
-.claudian-getting-started-action:active {
+.claudian-settings .claudian-getting-started-action:hover,
+.claudian-settings .claudian-getting-started-action:active {
   border-color: var(--interactive-accent-hover);
   background: var(--interactive-accent-hover);
   box-shadow: none;
   color: var(--text-on-accent);
 }
 
-.claudian-getting-started-action:focus-visible {
+.claudian-settings .claudian-getting-started-action:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
