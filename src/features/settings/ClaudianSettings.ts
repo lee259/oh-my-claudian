@@ -28,6 +28,7 @@ import {
   GeneralSettingsLayout,
   type GeneralSettingsSection,
 } from '../../shared/settings/GeneralSettingsLayout';
+import { HotkeySettingsView } from '../../shared/settings/HotkeySettingsView';
 import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import {
@@ -144,24 +145,6 @@ function getHotkeyForCommand(app: App, commandId: string): string | null {
   return hotkeys.map(formatHotkey).join(', ');
 }
 
-function addHotkeySettingRow(
-  containerEl: HTMLElement,
-  app: App,
-  commandId: string,
-  translationPrefix: string,
-): void {
-  const hotkey = getHotkeyForCommand(app, commandId);
-  const item = containerEl.createDiv({ cls: 'claudian-hotkey-item' });
-  item.createSpan({
-    cls: 'claudian-hotkey-name',
-    text: t(`${translationPrefix}.name` as TranslationKey),
-  });
-  if (hotkey) {
-    item.createSpan({ cls: 'claudian-hotkey-badge', text: hotkey });
-  }
-  item.addEventListener('click', () => openHotkeySettings(app));
-}
-
 export class ClaudianSettingTab extends PluginSettingTab {
   plugin: FeatureHost;
   private activeTab: SettingsTabId = 'general';
@@ -174,6 +157,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalSettingsRoot: PreactRoot | null = null;
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
+  private generalHotkeysRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -201,6 +185,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalGettingStartedRoot = null;
     this.generalCapabilityMatrixRoot?.unmount();
     this.generalCapabilityMatrixRoot = null;
+    this.generalHotkeysRoot?.unmount();
+    this.generalHotkeysRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -746,13 +732,38 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Hotkeys ---
 
     const hotkeys = section('hotkeys');
-
-    const hotkeyGrid = hotkeys.createDiv({ cls: 'claudian-hotkey-grid' });
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:inline-edit', 'settings.inlineEditHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:open-view', 'settings.openChatHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:new-session', 'settings.newSessionHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:new-tab', 'settings.newTabHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:close-current-tab', 'settings.closeTabHotkey');
+    this.generalHotkeysRoot?.unmount();
+    this.generalHotkeysRoot = createPreactRoot(hotkeys);
+    this.generalHotkeysRoot.render(h(HotkeySettingsView, {
+      items: [
+        {
+          id: 'inline-edit',
+          label: t('settings.inlineEditHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:inline-edit'),
+        },
+        {
+          id: 'open-chat',
+          label: t('settings.openChatHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:open-view'),
+        },
+        {
+          id: 'new-session',
+          label: t('settings.newSessionHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:new-session'),
+        },
+        {
+          id: 'new-tab',
+          label: t('settings.newTabHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:new-tab'),
+        },
+        {
+          id: 'close-tab',
+          label: t('settings.closeTabHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:close-current-tab'),
+        },
+      ],
+      onOpenSettings: () => openHotkeySettings(this.app),
+    }));
 
     // --- Environment ---
 
