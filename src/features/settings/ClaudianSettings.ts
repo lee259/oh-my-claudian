@@ -21,6 +21,7 @@ import {
 } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
+import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import {
@@ -186,6 +187,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   display(): void {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
+    destroyCliInstallationCards(this.containerEl);
     this.settingsTabsRoot?.unmount();
     this.settingsTabsRoot = null;
     const { containerEl } = this;
@@ -247,6 +249,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       if (!content) {
         return;
       }
+      destroyCliInstallationCards(content);
       content.empty();
       content.createDiv({
         cls: 'claudian-settings-provider-loading',
@@ -293,6 +296,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           return;
         }
         renderedProviderTabs.delete(providerId);
+        destroyCliInstallationCards(content);
         content.empty();
         const message = error instanceof Error ? error.message : 'Unknown error';
         content.createDiv({

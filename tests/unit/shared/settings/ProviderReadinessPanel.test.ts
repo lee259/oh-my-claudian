@@ -107,4 +107,32 @@ describe('renderProviderReadinessPanel', () => {
     expect(summary?.textContent).toBe('Ready');
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
+
+  it('preserves provider-owned body content when the card status rerenders', async () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+    const management = controller.management;
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await controller.refresh();
+
+    expect(controller.root.contains(management)).toBe(true);
+  });
+
+  it('destroys the card and its rendering root through the controller', () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+
+    controller.destroy();
+
+    expect(container.childElementCount).toBe(0);
+  });
 });

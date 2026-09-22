@@ -91,6 +91,10 @@ jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
 }));
 
+jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
+  renderProviderReadinessPanel: createMockProviderReadinessPanel,
+}));
+
 jest.mock('@/providers/opencode/ui/OpencodeAgentSettings', () => ({
   OpencodeAgentSettings: class MockOpencodeAgentSettings {
     constructor(
@@ -284,6 +288,16 @@ function createContainer(): any {
       createdDomElements.push(child);
       return child;
     }),
+  };
+}
+
+function createMockProviderReadinessPanel() {
+  return {
+    refresh: jest.fn().mockResolvedValue(undefined),
+    root: createElement(),
+    management: createElement(),
+    cliDetail: createElement(),
+    destroy: jest.fn(),
   };
 }
 
