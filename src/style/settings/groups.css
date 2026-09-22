@@ -8,6 +8,65 @@
   background: transparent;
 }
 
+.claudian-settings .claudian-settings-general-layout {
+  display: grid;
+  min-width: 0;
+  gap: var(--size-4-5);
+}
+
+.claudian-settings .claudian-settings-general-section {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: transparent;
+}
+
+.claudian-settings .claudian-settings-general-section-header {
+  padding: var(--size-4-4);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-settings .claudian-settings-general-section-header h2 {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+
+.claudian-settings .claudian-settings-general-section-description {
+  margin: var(--size-4-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+.claudian-settings .claudian-settings-general-section-body {
+  min-width: 0;
+  padding: var(--size-4-4);
+}
+
+.claudian-settings .claudian-settings-general-section .setting-item {
+  margin: 0;
+  padding: var(--size-4-3) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.claudian-settings .claudian-settings-general-section .setting-item::before {
+  content: none;
+}
+
+.claudian-settings .claudian-settings-general-section-body > .setting-item:first-child {
+  padding-top: 0;
+}
+
+.claudian-settings .claudian-settings-general-section-body > :last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
 .claudian-settings .claudian-settings-group > .setting-item-heading {
   margin: 0;
   padding: var(--size-4-4);

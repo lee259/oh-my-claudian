@@ -1,7 +1,53 @@
 .claudian-getting-started-steps {
-  margin: -4px 12px 18px;
+  margin: 0 0 var(--size-4-4);
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   line-height: 1.6;
   white-space: pre-line;
+}
+
+.claudian-getting-started-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.claudian-settings .claudian-getting-started-action,
+.claudian-settings .claudian-getting-started-action:hover,
+.claudian-settings .claudian-getting-started-action:focus,
+.claudian-settings .claudian-getting-started-action:focus-visible,
+.claudian-settings .claudian-getting-started-action:active {
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--interactive-normal);
+  box-shadow: none;
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-normal);
+  outline: none;
+}
+
+.claudian-settings .claudian-getting-started-action:hover,
+.claudian-settings .claudian-getting-started-action:active {
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.claudian-settings .claudian-getting-started-action:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-getting-started-action-description {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
 }

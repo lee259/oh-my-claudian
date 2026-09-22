@@ -23,6 +23,10 @@ import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
+import {
+  GeneralSettingsLayout,
+  type GeneralSettingsSection,
+} from '../../shared/settings/GeneralSettingsLayout';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import {
   getSettingsTabContentId,
@@ -165,6 +169,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
+  private generalSettingsRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -188,6 +193,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
     destroyCliInstallationCards(this.containerEl);
+    this.generalSettingsRoot?.unmount();
+    this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
     this.settingsTabsRoot = null;
     const { containerEl } = this;
@@ -322,7 +329,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
 
     this.renderGeneralTab(tabContents.get('general')!);
-    frameSettingsGroups(tabContents.get('general')!);
 
     if (this.activeTab !== 'general') {
       void renderProviderTab(this.activeTab);
@@ -351,12 +357,49 @@ export class ClaudianSettingTab extends PluginSettingTab {
           });
       });
 
-    new Setting(container)
-      .setName(t('settings.gettingStarted.title'))
-      .setDesc(t('settings.gettingStarted.desc'))
-      .setHeading();
+    const sections: readonly GeneralSettingsSection[] = [
+      {
+        id: 'getting-started',
+        title: t('settings.gettingStarted.title'),
+        description: t('settings.gettingStarted.desc'),
+      },
+      {
+        id: 'capability-matrix',
+        title: t('settings.capabilityMatrix.title'),
+        description: t('settings.capabilityMatrix.desc'),
+      },
+      { id: 'setup', title: t('settings.setup') },
+      { id: 'display', title: t('settings.display') },
+      { id: 'conversations', title: t('settings.conversations') },
+      { id: 'content', title: t('settings.content') },
+      { id: 'input', title: t('settings.input') },
+      { id: 'hotkeys', title: t('settings.hotkeys') },
+      { id: 'environment', title: t('settings.environment') },
+      { id: 'advanced', title: t('common.advanced') },
+    ];
+    const sectionContainers = new Map<string, HTMLElement>();
+    this.generalSettingsRoot?.unmount();
+    this.generalSettingsRoot = createPreactRoot(container.createDiv({
+      cls: 'claudian-settings-general-layout-host',
+    }));
+    this.generalSettingsRoot.render(h(GeneralSettingsLayout, {
+      sections,
+      onSectionMount: (id, element) => {
+        if (element) {
+          sectionContainers.set(id, element);
+        } else {
+          sectionContainers.delete(id);
+        }
+      },
+    }));
 
-    container.createDiv({
+    if (sections.some(section => !sectionContainers.has(section.id))) {
+      return;
+    }
+
+    const section = (id: string): HTMLElement => sectionContainers.get(id)!;
+    const gettingStarted = section('getting-started');
+    gettingStarted.createDiv({
       cls: 'claudian-getting-started-steps',
       text: [
         t('settings.gettingStarted.stepProvider'),
@@ -364,27 +407,28 @@ export class ClaudianSettingTab extends PluginSettingTab {
         t('settings.gettingStarted.stepChat'),
       ].map((step, index) => `${index + 1}. ${step}`).join('\n'),
     });
+    const actionRow = gettingStarted.createDiv({ cls: 'claudian-getting-started-action-row' });
+    const openChat = actionRow.createEl('button', {
+      cls: 'claudian-getting-started-action',
+      text: t('settings.gettingStarted.openChat.button'),
+      attr: { type: 'button' },
+    });
+    openChat.setAttribute('aria-label', t('settings.gettingStarted.openChat.name'));
+    openChat.addEventListener('click', () => {
+      (this.plugin.app as AppWithCommands).commands
+        ?.executeCommandById('oh-my-claudian:open-view');
+    });
+    actionRow.createDiv({
+      cls: 'claudian-getting-started-action-description',
+      text: t('settings.gettingStarted.openChat.desc'),
+    });
 
-    new Setting(container)
-      .setName(t('settings.gettingStarted.openChat.name'))
-      .setDesc(t('settings.gettingStarted.openChat.desc'))
-      .addButton((button) => {
-        button
-          .setButtonText(t('settings.gettingStarted.openChat.button'))
-          .setCta()
-          .onClick(() => {
-            (this.plugin.app as AppWithCommands).commands
-              ?.executeCommandById('oh-my-claudian:open-view');
-         });
-       });
-
-    this.renderProviderCapabilityMatrix(container);
+    this.renderProviderCapabilityMatrix(section('capability-matrix'));
 
     // --- Workspace and layout ---
 
-    new Setting(container).setName(t('settings.setup')).setHeading();
-
-    new Setting(container)
+    const setup = section('setup');
+    new Setting(setup)
       .setName(t('settings.chatViewPlacement.name'))
       .setDesc(t('settings.chatViewPlacement.desc'))
       .addDropdown((dropdown) => {
@@ -402,9 +446,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Chat display ---
 
-    new Setting(container).setName(t('settings.display')).setHeading();
+    const display = section('display');
 
-    new Setting(container)
+    new Setting(display)
       .setName(t('settings.enableAutoScroll.name'))
       .setDesc(t('settings.enableAutoScroll.desc'))
       .addToggle((toggle) =>
@@ -417,7 +461,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(container)
+    new Setting(display)
       .setName(t('settings.showTabTitlesByDefault.name'))
       .setDesc(t('settings.showTabTitlesByDefault.desc'))
       .addToggle((toggle) =>
@@ -433,7 +477,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(container)
+    new Setting(display)
       .setName(t('settings.deferMathRenderingDuringStreaming.name'))
       .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
       .addToggle((toggle) =>
@@ -446,7 +490,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(container)
+    new Setting(display)
       .setName(t('settings.expandFileEditsByDefault.name'))
       .setDesc(t('settings.expandFileEditsByDefault.desc'))
       .addToggle((toggle) =>
@@ -461,9 +505,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Conversations ---
 
-    new Setting(container).setName(t('settings.conversations')).setHeading();
+    const conversations = section('conversations');
 
-    new Setting(container)
+    new Setting(conversations)
       .setName(t('settings.autoTitle.name'))
       .setDesc(t('settings.autoTitle.desc'))
       .addToggle((toggle) =>
@@ -478,7 +522,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       );
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
-      new Setting(container)
+      new Setting(conversations)
         .setName(t('settings.titleLanguage.name'))
         .setDesc(t('settings.titleLanguage.desc'))
         .addDropdown((dropdown) => {
@@ -495,7 +539,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             });
         });
 
-      new Setting(container)
+      new Setting(conversations)
         .setName(t('settings.titleModel.name'))
         .setDesc(t('settings.titleModel.desc'))
         .addDropdown((dropdown) => {
@@ -522,9 +566,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Content ---
 
-    new Setting(container).setName(t('settings.content')).setHeading();
+    const content = section('content');
 
-    new Setting(container)
+    new Setting(content)
       .setName(t('settings.userName.name'))
       .setDesc(t('settings.userName.desc'))
       .addText((text) => {
@@ -541,7 +585,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         });
       });
 
-    new Setting(container)
+    new Setting(content)
       .setName(t('settings.systemPrompt.name'))
       .setDesc(t('settings.systemPrompt.desc'))
       .addTextArea((text) => {
@@ -560,7 +604,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         });
       });
 
-    new Setting(container)
+    new Setting(content)
       .setName(t('settings.useClaudianSystemPrompt.name'))
       .setDesc(t('settings.useClaudianSystemPrompt.desc'))
       .addToggle((toggle) =>
@@ -574,7 +618,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(container)
+    new Setting(content)
       .setName(t('settings.excludedTags.name'))
       .setDesc(t('settings.excludedTags.desc'))
       .addTextArea((text) => {
@@ -593,7 +637,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         text.inputEl.cols = 30;
       });
 
-    new Setting(container)
+    new Setting(content)
       .setName(t('settings.mediaFolder.name'))
       .setDesc(t('settings.mediaFolder.desc'))
       .addText((text) => {
@@ -613,9 +657,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Input ---
 
-    new Setting(container).setName(t('settings.input')).setHeading();
+    const input = section('input');
 
-    new Setting(container)
+    new Setting(input)
       .setName(t('settings.requireCommandOrControlEnterToSend.name'))
       .setDesc(t('settings.requireCommandOrControlEnterToSend.desc'))
       .addToggle((toggle) => {
@@ -628,7 +672,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           });
       });
 
-    new Setting(container)
+    new Setting(input)
       .setName(t('settings.navMappings.name'))
       .setDesc(t('settings.navMappings.desc'))
       .addTextArea((text) => {
@@ -685,9 +729,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Hotkeys ---
 
-    new Setting(container).setName(t('settings.hotkeys')).setHeading();
+    const hotkeys = section('hotkeys');
 
-    const hotkeyGrid = container.createDiv({ cls: 'claudian-hotkey-grid' });
+    const hotkeyGrid = hotkeys.createDiv({ cls: 'claudian-hotkey-grid' });
     addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:inline-edit', 'settings.inlineEditHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:open-view', 'settings.openChatHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:new-session', 'settings.newSessionHotkey');
@@ -696,11 +740,11 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Environment ---
 
+    const environment = section('environment');
     renderEnvironmentSettingsSection({
-      container,
+      container: environment,
       plugin: this.plugin.providerHost,
       scope: 'shared',
-      heading: t('settings.environment'),
       name: 'Shared environment',
       desc: 'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
@@ -708,9 +752,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Advanced ---
 
-    new Setting(container).setName(t('common.advanced')).setHeading();
+    const advanced = section('advanced');
 
-    new Setting(container)
+    new Setting(advanced)
       .setName(t('settings.maxWarmAgentProcesses.name'))
       .setDesc(t('settings.maxWarmAgentProcesses.desc'))
       .addSlider((slider) => {
@@ -760,11 +804,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
   }
 
   private renderProviderCapabilityMatrix(container: HTMLElement): void {
-    new Setting(container)
-      .setName(t('settings.capabilityMatrix.title'))
-      .setDesc(t('settings.capabilityMatrix.desc'))
-      .setHeading();
-
     const matrix = container.createDiv({ cls: 'claudian-provider-capability-matrix' });
     const table = matrix.createEl('table');
     const headRow = table.createEl('thead').createEl('tr');
