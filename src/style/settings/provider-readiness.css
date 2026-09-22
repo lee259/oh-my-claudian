@@ -4,7 +4,7 @@
 .claudian-provider-readiness-summary[data-status="blocked"] { color: var(--text-error); }
 .claudian-provider-readiness-summary[data-status="attention"] { color: var(--text-warning); }
 .claudian-provider-readiness-checks { display: grid; gap: 6px; margin: 0 12px; }
-.claudian-settings .claudian-provider-readiness-checks { margin: 0 var(--size-4-4) var(--size-4-4); }
+.claudian-settings .claudian-provider-readiness-checks { margin: 0 var(--size-4-4); }
 .claudian-provider-readiness-check { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--font-ui-small); }
 .claudian-provider-readiness-check-icon { width: 18px; color: var(--text-faint); text-align: center; }
 .claudian-provider-readiness-check[data-status="ready"] .claudian-provider-readiness-check-icon { color: var(--text-success); }
@@ -14,6 +14,6 @@
 .claudian-provider-readiness-check-status { color: var(--text-faint); }
 .claudian-provider-readiness-check-hint { margin: -2px 0 2px 26px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .claudian-settings .claudian-provider-readiness-cli-detail {
-  padding: 0 var(--size-4-4) var(--size-4-4);
+  padding: var(--size-4-4);
   border-top: 1px solid var(--background-modifier-border);
 }
