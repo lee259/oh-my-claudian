@@ -79,11 +79,10 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
         await refreshModelCatalog();
       },
     });
-
-    new Setting(container).setName('Setup').setHeading();
+    const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.providerEnablement.desc', { provider: 'Grok' }),
       getValue: () => getGrokProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Grok' }),
@@ -118,9 +117,9 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
 
-    const lastProviderWarning = renderLastEnabledProviderWarning(container);
+    const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
-    const modelWarning = renderProviderModelEnablementWarning(container, context, {
+    const modelWarning = renderProviderModelEnablementWarning(management, context, {
       getHasEnabledModels: () => {
         const current = getGrokProviderSettings(settingsBag);
         return (current.visibleModels ?? current.currentCatalog?.models ?? []).length > 0;
@@ -131,7 +130,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: t('settings.grok.cliPathDesc'),
       getValue: () => {
         const current = getGrokProviderSettings(settingsBag);

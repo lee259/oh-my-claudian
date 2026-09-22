@@ -60,13 +60,10 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
       onRefresh: refreshCodexModelCatalog,
     });
-
-    // --- Setup ---
-
-    new Setting(container).setName(t('settings.setup')).setHeading();
+    const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
       getValue: () => getCodexProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Codex' }),
@@ -100,9 +97,9 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
 
-    const lastProviderWarning = renderLastEnabledProviderWarning(container);
+    const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
-    const modelWarning = renderProviderModelEnablementWarning(container, context, {
+    const modelWarning = renderProviderModelEnablementWarning(management, context, {
       getHasEnabledModels: () => getCodexModelOptions(settingsBag).length > 0,
       getIsEnabled: () => getCodexProviderSettings(settingsBag).enabled,
       providerId: 'codex',
@@ -110,7 +107,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     if (isWindowsHost) {
-      new Setting(container)
+      new Setting(management)
         .setName(t('settings.codex.installationMethod.name'))
         .setDesc(t('settings.codex.installationMethod.desc'))
         .addDropdown((dropdown) => {
@@ -183,7 +180,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let wslDistroInputEl: HTMLInputElement | null = null;
 
     const cliPathControl = renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: getCliPathCopy().desc,
       getValue: () => getCodexProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: t('settings.codex.cliPath.name'),
@@ -223,7 +220,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     };
 
     if (isWindowsHost) {
-      const wslDistroSetting = new Setting(container)
+      const wslDistroSetting = new Setting(management)
         .setName(t('settings.codex.wslDistroOverride.name'))
         .setDesc(t('settings.codex.wslDistroOverride.desc'));
 

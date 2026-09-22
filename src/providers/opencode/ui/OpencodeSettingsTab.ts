@@ -75,11 +75,10 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('opencode');
       },
     });
-
-    new Setting(container).setName('Setup').setHeading();
+    const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.providerEnablement.desc', { provider: 'OpenCode' }),
       getValue: () => getOpencodeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'OpenCode' }),
@@ -113,9 +112,9 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
 
-    const lastProviderWarning = renderLastEnabledProviderWarning(container);
+    const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
-    const modelWarning = renderProviderModelEnablementWarning(container, context, {
+    const modelWarning = renderProviderModelEnablementWarning(management, context, {
       getHasEnabledModels: () => getOpencodeProviderSettings(settingsBag).visibleModels.length > 0,
       getIsEnabled: () => getOpencodeProviderSettings(settingsBag).enabled,
       providerId: 'opencode',
@@ -123,7 +122,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: t('settings.opencode.cliPathDesc'),
       getValue: () => getOpencodeProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: 'CLI path',

@@ -21,6 +21,16 @@ const mockSaveSettings = jest.fn().mockResolvedValue(undefined);
 const mockCodexCliResolverReset = jest.fn();
 const mockRefreshCodexModelPicker = jest.fn();
 const mockRefreshProviderReadiness = jest.fn().mockResolvedValue(undefined);
+let mockProviderManagement: ReturnType<typeof createContainer> | undefined;
+function createMockProviderReadinessPanel() {
+  mockProviderManagement = createContainer();
+  return {
+    refresh: mockRefreshProviderReadiness,
+    root: { createDiv: jest.fn(() => createElement()), createEl: jest.fn(() => createElement()) },
+    management: mockProviderManagement,
+    cliDetail: { createDiv: jest.fn(() => createElement()) },
+  };
+}
 const mockRenderCodexModelPicker = jest.fn((
   _container: unknown,
   _context: { notifyProviderModelOptionsChanged: (providerId: string) => void },
@@ -145,11 +155,7 @@ jest.mock('@/providers/codex/ui/CodexModelPicker', () => ({
 }));
 
 jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
-  renderProviderReadinessPanel: jest.fn(() => ({
-    refresh: mockRefreshProviderReadiness,
-    root: { createDiv: jest.fn(() => createElement()), createEl: jest.fn(() => createElement()) },
-    cliDetail: { createDiv: jest.fn(() => createElement()) },
-  })),
+  renderProviderReadinessPanel: createMockProviderReadinessPanel,
 }));
 
 jest.mock('@/providers/codex/ui/CodexSubagentSettings', () => ({
@@ -533,11 +539,12 @@ describe('CodexSettingsTab', () => {
 
     codexSettingsTabRenderer.render(container, context);
 
-    const warningCallIndex = container.createDiv.mock.calls.findIndex(
+    const management = mockProviderManagement!;
+    const warningCallIndex = management.createDiv.mock.calls.findIndex(
       ([options]: [{ text?: string }?]) => options?.text
         === 'No Codex models are enabled. Go to Models below and enable at least one model.',
     );
-    const warningEl = container.createDiv.mock.results[warningCallIndex]?.value;
+    const warningEl = management.createDiv.mock.results[warningCallIndex]?.value;
     expect(warningCallIndex).toBeGreaterThanOrEqual(0);
     expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
 

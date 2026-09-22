@@ -8,6 +8,7 @@ import type {
 } from '../../core/providers/ProviderReadiness';
 import { t } from '../../i18n/i18n';
 import type { TranslationKey } from '../../i18n/types';
+import { renderCliInstallationCard } from './CliInstallationCard';
 
 export interface ProviderReadinessPanelOptions {
   container: HTMLElement;
@@ -22,6 +23,8 @@ export interface ProviderReadinessPanelController {
   refresh(refreshCatalog?: boolean): Promise<void>;
   /** Root container element, for appending related content (e.g. CLI lifecycle). */
   root: HTMLElement;
+  /** Stable container for provider enablement and CLI path controls. */
+  management: HTMLElement;
   /** Stable container for CLI lifecycle content, rendered below the checks.
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
@@ -33,18 +36,26 @@ const MIN_REFRESH_FEEDBACK_MS = 120;
 export function renderProviderReadinessPanel(
   options: ProviderReadinessPanelOptions,
 ): ProviderReadinessPanelController {
-  const root = options.container.createDiv({ cls: 'claudian-provider-readiness' });
-  new Setting(root)
+  const installationCard = renderCliInstallationCard({
+    container: options.container,
+    label: `${options.providerName} CLI`,
+  });
+  const root = installationCard.card;
+  root.addClass?.('claudian-provider-readiness');
+  const management = installationCard.body.createDiv({ cls: 'claudian-cli-installation-management' });
+  new Setting(installationCard.body)
     .setName(t('settings.providerReadiness.title'))
     .setDesc(t('settings.providerReadiness.desc', { provider: options.providerName }))
     .setHeading();
 
-  const summary = root.createDiv({ cls: 'claudian-provider-readiness-summary' });
-  const checks = root.createDiv({ cls: 'claudian-provider-readiness-checks' });
-  const cliDetail = root.createDiv({ cls: 'claudian-provider-readiness-cli-detail' });
+  const summary = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-summary' });
+  const checks = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-checks' });
+  const cliDetail = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-cli-detail' });
 
   const renderSnapshot = (snapshot: ProviderReadinessSnapshot): void => {
-    summary.setText(t(`settings.providerReadiness.status.${snapshot.status}`));
+    const statusText = t(`settings.providerReadiness.status.${snapshot.status}`);
+    summary.setText(statusText);
+    installationCard.setStatus(snapshot.status, statusText);
     if (summary.dataset) summary.dataset.status = snapshot.status;
     checks.empty?.();
     for (const check of snapshot.checks) {
@@ -53,7 +64,9 @@ export function renderProviderReadinessPanel(
   };
 
   const refresh = async (refreshCatalog = false): Promise<void> => {
-    summary.setText(t('settings.providerReadiness.checking'));
+    const checkingText = t('settings.providerReadiness.checking');
+    summary.setText(checkingText);
+    installationCard.setStatus('checking', checkingText);
     if (refreshCatalog) {
       const startedAt = Date.now();
       await options.onRefresh?.();
@@ -66,7 +79,7 @@ export function renderProviderReadinessPanel(
   };
 
   void refresh();
-  return { refresh, root, cliDetail };
+  return { refresh, root, management, cliDetail };
 }
 
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {

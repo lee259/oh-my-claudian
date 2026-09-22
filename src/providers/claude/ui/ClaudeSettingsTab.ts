@@ -63,6 +63,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('claude');
       },
     });
+    const management = readinessPanel.management;
 
     const reconcileActiveClaudeModelSelection = (settings: Record<string, unknown>): void => {
       const activeProvider = settings.settingsProvider;
@@ -80,12 +81,8 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       claudeChatUIConfig.applyModelDefaults(nextModel, settings);
     };
 
-    // --- Setup ---
-
-    new Setting(container).setName(t('settings.setup')).setHeading();
-
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.providerEnablement.desc', { provider: 'Claude' }),
       getValue: () => getClaudeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Claude' }),
@@ -119,7 +116,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
 
-    const lastProviderWarning = renderLastEnabledProviderWarning(container);
+    const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
     const hostnameKey = getHostnameKey();
     const platformDesc = process.platform === 'win32'
@@ -144,7 +141,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     };
 
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: cliPathDescription,
       getValue: () => getClaudeProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: t('settings.cliPath.name'),

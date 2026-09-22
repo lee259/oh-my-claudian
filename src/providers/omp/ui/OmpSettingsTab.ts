@@ -54,9 +54,9 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('omp');
       },
     });
-    new Setting(container).setName(t('settings.omp.setup')).setHeading();
+    const management = readinessPanel.management;
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.omp.enableDesc'),
       getValue: () => getOmpProviderSettings(settings).enabled,
       name: t('settings.omp.enable'),
@@ -69,7 +69,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: t('settings.omp.cliPathDesc'),
       getValue: () => getOmpProviderSettings(settings).cliPathsByHost[hostnameKey] || '',
       name: t('settings.omp.cliPath'),

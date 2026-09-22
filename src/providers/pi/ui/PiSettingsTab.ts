@@ -73,11 +73,10 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('pi');
       },
     });
-
-    new Setting(container).setName('Setup').setHeading();
+    const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container,
+      container: management,
       description: t('settings.providerEnablement.desc', { provider: 'Pi' }),
       getValue: () => getPiProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Pi' }),
@@ -111,9 +110,9 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
 
-    const lastProviderWarning = renderLastEnabledProviderWarning(container);
+    const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
-    const modelWarning = renderProviderModelEnablementWarning(container, context, {
+    const modelWarning = renderProviderModelEnablementWarning(management, context, {
       getHasEnabledModels: () => getPiProviderSettings(settingsBag).visibleModels.length > 0,
       getIsEnabled: () => getPiProviderSettings(settingsBag).enabled,
       providerId: 'pi',
@@ -121,7 +120,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     renderHostnameCliPathSetting({
-      container,
+      container: management,
       description: t('settings.pi.cliPathDesc'),
       getValue: () => getPiProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
       name: 'CLI path',

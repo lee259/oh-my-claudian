@@ -72,9 +72,6 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
 
   const root = container.createDiv({ cls: 'claudian-cli-lifecycle' });
 
-  const labelDiv = root.createDiv({ cls: 'claudian-cli-lifecycle-label' });
-  labelDiv.createSpan({ text: t('settings.cliLifecycle.label', { cli: metadata.displayName }) });
-
   const statusDiv = root.createDiv({ cls: 'claudian-cli-lifecycle-status' });
   const actionDiv = root.createDiv({ cls: 'claudian-cli-lifecycle-actions' });
 
