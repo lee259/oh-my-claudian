@@ -158,6 +158,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
+  private generalEnvironmentRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -187,6 +188,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalCapabilityMatrixRoot = null;
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
+    this.generalEnvironmentRoot?.unmount();
+    this.generalEnvironmentRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -768,13 +771,14 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Environment ---
 
     const environment = section('environment');
-    renderEnvironmentSettingsSection({
+    this.generalEnvironmentRoot = renderEnvironmentSettingsSection({
       container: environment,
       plugin: this.plugin.providerHost,
       scope: 'shared',
       name: 'Shared environment',
       desc: 'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
+      usePreactEnvironmentField: true,
     });
 
     // --- Advanced ---
