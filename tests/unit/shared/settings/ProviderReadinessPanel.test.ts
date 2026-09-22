@@ -18,7 +18,7 @@ Object.defineProperty(HTMLElement.prototype, 'setText', {
 });
 
 describe('renderProviderReadinessPanel', () => {
-  it('renders the readiness content inside a collapsible CLI installation card', () => {
+  it('renders the readiness content inside a collapsible CLI installation card', async () => {
     const container = document.createElement('div');
 
     const controller = renderProviderReadinessPanel({
@@ -38,6 +38,13 @@ describe('renderProviderReadinessPanel', () => {
     expect(header?.textContent).toContain('Test');
     expect(header?.getAttribute('aria-expanded')).toBe('true');
     expect(body?.hidden).toBe(false);
+    expect(header?.id).toBe(body?.id ? `${body.id}-header` : undefined);
+    expect(body?.getAttribute('role')).toBe('region');
+    expect(body?.getAttribute('aria-labelledby')).toBe(header?.id);
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(card?.dataset.state).toBe('ready');
+    expect(header?.querySelector('[role="status"]')?.getAttribute('aria-live')).toBe('polite');
 
     header?.click();
 
@@ -99,5 +106,33 @@ describe('renderProviderReadinessPanel', () => {
 
     expect(summary?.textContent).toBe('Ready');
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves provider-owned body content when the card status rerenders', async () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+    const management = controller.management;
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await controller.refresh();
+
+    expect(controller.root.contains(management)).toBe(true);
+  });
+
+  it('destroys the card and its rendering root through the controller', () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+
+    controller.destroy();
+
+    expect(container.childElementCount).toBe(0);
   });
 });

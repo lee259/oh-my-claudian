@@ -29,6 +29,8 @@ export interface ProviderReadinessPanelController {
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
   cliDetail: HTMLElement;
+  /** Unmount the Preact card and remove the readiness panel from its host. */
+  destroy(): void;
 }
 
 const MIN_REFRESH_FEEDBACK_MS = 120;
@@ -79,7 +81,13 @@ export function renderProviderReadinessPanel(
   };
 
   void refresh();
-  return { refresh, root, management, cliDetail };
+  return {
+    refresh,
+    root,
+    management,
+    cliDetail,
+    destroy: installationCard.destroy,
+  };
 }
 
 function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {

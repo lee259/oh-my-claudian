@@ -88,6 +88,9 @@ jest.mock('@/core/providers/ProviderWorkspaceRegistry', () => ({
 jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
 }));
+jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
+  renderProviderReadinessPanel: createMockProviderReadinessPanel,
+}));
 jest.mock('@/shared/settings/ProviderModelPicker', () => ({
   renderProviderModelPicker: (...args: unknown[]) => {
     mockRenderProviderModelPicker(...args);
@@ -164,6 +167,16 @@ function createElement(
 
 function createContainer(): HTMLElement {
   return createElement('div') as unknown as HTMLElement;
+}
+
+function createMockProviderReadinessPanel() {
+  return {
+    refresh: jest.fn().mockResolvedValue(undefined),
+    root: createElement(),
+    management: createElement(),
+    cliDetail: createElement(),
+    destroy: jest.fn(),
+  };
 }
 
 function makeCatalog() {

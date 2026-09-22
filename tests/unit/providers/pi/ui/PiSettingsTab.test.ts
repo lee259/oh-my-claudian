@@ -111,6 +111,9 @@ jest.mock('obsidian', () => ({
 jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
 }));
+jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
+  renderProviderReadinessPanel: createMockProviderReadinessPanel,
+}));
 jest.mock('@/providers/pi/app/PiWorkspaceServices', () => ({
   maybeGetPiWorkspaceServices: jest.fn(() => ({
     cliResolver: {
@@ -261,6 +264,16 @@ function createElement(): any {
   };
 
   return element;
+}
+
+function createMockProviderReadinessPanel() {
+  return {
+    refresh: jest.fn().mockResolvedValue(undefined),
+    root: createElement(),
+    management: createElement(),
+    cliDetail: createElement(),
+    destroy: jest.fn(),
+  };
 }
 
 function applyElementAttrs(element: any, attrs?: Record<string, unknown>): void {

@@ -117,6 +117,10 @@ jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
 }));
 
+jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
+  renderProviderReadinessPanel: createMockProviderReadinessPanel,
+}));
+
 jest.mock('@/shared/settings/McpSettingsManager', () => ({
   McpSettingsManager: jest.fn((...args: unknown[]) => mockMcpSettingsManager(...args)),
 }));
@@ -234,6 +238,20 @@ function createContainer(): any {
   return {
     createDiv: jest.fn(() => createElement()),
     createEl: jest.fn(() => createElement()),
+  };
+}
+
+function createMockProviderReadinessPanel(options: { container: any }) {
+  const card = options.container.createDiv({ cls: 'claudian-cli-installation' });
+  card.createDiv({ cls: 'claudian-cli-installation-heading' });
+  const body = card.createDiv({ cls: 'claudian-cli-installation-body' });
+  const management = body.createDiv({ cls: 'claudian-cli-installation-management' });
+  return {
+    refresh: jest.fn().mockResolvedValue(undefined),
+    root: card,
+    management,
+    cliDetail: body.createDiv({ cls: 'claudian-provider-readiness-cli-detail' }),
+    destroy: jest.fn(),
   };
 }
 
