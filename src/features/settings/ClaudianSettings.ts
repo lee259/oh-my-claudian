@@ -28,6 +28,7 @@ import {
   GeneralSettingsLayout,
   type GeneralSettingsSection,
 } from '../../shared/settings/GeneralSettingsLayout';
+import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import {
   getSettingsTabContentId,
@@ -172,6 +173,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private settingsTabsRoot: PreactRoot | null = null;
   private generalSettingsRoot: PreactRoot | null = null;
   private generalGettingStartedRoot: PreactRoot | null = null;
+  private generalCapabilityMatrixRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -197,6 +199,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     destroyCliInstallationCards(this.containerEl);
     this.generalGettingStartedRoot?.unmount();
     this.generalGettingStartedRoot = null;
+    this.generalCapabilityMatrixRoot?.unmount();
+    this.generalCapabilityMatrixRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -419,7 +423,23 @@ export class ClaudianSettingTab extends PluginSettingTab {
       },
     }));
 
-    this.renderProviderCapabilityMatrix(section('capability-matrix'));
+    this.generalCapabilityMatrixRoot?.unmount();
+    this.generalCapabilityMatrixRoot = createPreactRoot(section('capability-matrix'));
+    this.generalCapabilityMatrixRoot.render(h(ProviderCapabilityMatrixView, {
+      providerLabel: t('settings.capabilityMatrix.provider'),
+      supportedLabel: t('settings.capabilityMatrix.supported'),
+      unsupportedLabel: t('settings.capabilityMatrix.unsupported'),
+      rows: PROVIDER_CAPABILITY_ROWS.map(row => ({
+        key: row.key,
+        label: t(row.label),
+      })),
+      providers: ProviderRegistry.getRegisteredProviderIds().map(providerId => ({
+        label: ProviderRegistry.getProviderDisplayName(providerId),
+        supportedKeys: PROVIDER_CAPABILITY_ROWS
+          .filter(row => ProviderRegistry.getCapabilities(providerId)[row.key])
+          .map(row => row.key),
+      })),
+    }));
 
     // --- Workspace and layout ---
 
@@ -797,33 +817,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
         this.notifyProviderModelOptionsChanged(pendingProviderId);
       }
     }, 150);
-  }
-
-  private renderProviderCapabilityMatrix(container: HTMLElement): void {
-    const matrix = container.createDiv({ cls: 'claudian-provider-capability-matrix' });
-    const table = matrix.createEl('table');
-    const headRow = table.createEl('thead').createEl('tr');
-    headRow.createEl('th', { text: t('settings.capabilityMatrix.provider') });
-    for (const row of PROVIDER_CAPABILITY_ROWS) {
-      headRow.createEl('th', { text: t(row.label) });
-    }
-
-    const body = table.createEl('tbody');
-    for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
-      const bodyRow = body.createEl('tr');
-      bodyRow.createEl('th', { text: ProviderRegistry.getProviderDisplayName(providerId) });
-      const capabilities = ProviderRegistry.getCapabilities(providerId);
-      for (const row of PROVIDER_CAPABILITY_ROWS) {
-        bodyRow.createEl('td', {
-          cls: capabilities[row.key]
-            ? 'claudian-capability-supported'
-            : 'claudian-capability-unsupported',
-          text: capabilities[row.key]
-            ? t('settings.capabilityMatrix.supported')
-            : t('settings.capabilityMatrix.unsupported'),
-        });
-      }
-    }
   }
 
   private renderHiddenProviderCommandSetting(
