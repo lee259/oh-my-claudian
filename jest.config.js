@@ -12,6 +12,7 @@ const baseConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@test/(.*)$': '<rootDir>/tests/$1',
     '^preact$': '<rootDir>/node_modules/preact/dist/preact.js',
+    '^preact/hooks$': '<rootDir>/node_modules/preact/hooks/dist/hooks.js',
     '^preact/jsx-runtime$': '<rootDir>/node_modules/preact/jsx-runtime/dist/jsxRuntime.js',
     '^@anthropic-ai/claude-agent-sdk$': '<rootDir>/tests/__mocks__/claude-agent-sdk.ts',
     '^obsidian$': '<rootDir>/tests/__mocks__/obsidian.ts',

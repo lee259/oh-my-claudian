@@ -1,5 +1,6 @@
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
+import { h } from 'preact';
 
 import {
   getHiddenProviderCommands,
@@ -22,6 +23,12 @@ import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
+import {
+  getSettingsTabContentId,
+  SettingsTabBar,
+  type SettingsTabDefinition,
+} from '../../shared/settings/SettingsTabBar';
+import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
 import {
@@ -156,6 +163,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private customContextLimitRefreshTimer: number | null = null;
   private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
+  private settingsTabsRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -178,6 +186,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
   display(): void {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
+    this.settingsTabsRoot?.unmount();
+    this.settingsTabsRoot = null;
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass('claudian-settings');
@@ -192,9 +202,40 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
 
     const tabBar = containerEl.createDiv({ cls: 'claudian-settings-tabs' });
-    const tabButtons = new Map<SettingsTabId, HTMLButtonElement>();
+    tabBar.setAttribute('role', 'tablist');
+    tabBar.setAttribute('aria-label', t('settings.title'));
     const tabContents = new Map<SettingsTabId, HTMLDivElement>();
     const renderedProviderTabs = new Set<ProviderId>();
+
+    const tabDefinitions: SettingsTabDefinition[] = tabIds.map(id => ({
+      id,
+      label: id === 'general'
+        ? t('settings.tabs.general')
+        : ProviderRegistry.getProviderDisplayName(id),
+      contentId: getSettingsTabContentId(id),
+    }));
+
+    const activateTab = (id: SettingsTabId): void => {
+      this.activeTab = id;
+      for (const tabId of tabIds) {
+        const content = tabContents.get(tabId);
+        const isActive = tabId === id;
+        content?.toggleClass('claudian-settings-tab-content--active', isActive);
+        if (content) {
+          content.hidden = !isActive;
+        }
+      }
+      if (id !== 'general') {
+        void renderProviderTab(id);
+      }
+    };
+
+    this.settingsTabsRoot = createPreactRoot(tabBar);
+    this.settingsTabsRoot.render(h(SettingsTabBar, {
+      tabs: tabDefinitions,
+      initialActiveTabId: this.activeTab,
+      onTabChange: activateTab,
+    }));
 
     const renderProviderTab = async (providerId: ProviderId): Promise<void> => {
       if (renderedProviderTabs.has(providerId)) {
@@ -262,27 +303,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
     };
 
     for (const id of tabIds) {
-      const label = id === 'general'
-        ? t('settings.tabs.general')
-        : ProviderRegistry.getProviderDisplayName(id);
-      const button = tabBar.createEl('button', {
-        cls: `claudian-settings-tab${id === this.activeTab ? ' claudian-settings-tab--active' : ''}`,
-        text: label,
-      });
-      button.addEventListener('click', () => {
-        this.activeTab = id;
-        for (const tabId of tabIds) {
-          tabButtons.get(tabId)?.toggleClass('claudian-settings-tab--active', tabId === id);
-          tabContents.get(tabId)?.toggleClass('claudian-settings-tab-content--active', tabId === id);
-        }
-        if (id !== 'general') {
-          void renderProviderTab(id);
-        }
-      });
-      tabButtons.set(id, button);
-    }
-
-    for (const id of tabIds) {
       const content = containerEl.createDiv({
         cls: [
           'claudian-settings-tab-content',
@@ -290,6 +310,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
           id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
         ].filter(Boolean).join(' '),
       });
+      content.id = getSettingsTabContentId(id);
+      content.setAttribute('role', 'tabpanel');
+      content.setAttribute('aria-labelledby', `claudian-settings-tab-${id}`);
+      content.hidden = id !== this.activeTab;
       tabContents.set(id, content);
     }
 

@@ -42,7 +42,7 @@ export function renderCliInstallationCard(
   summary.createSpan({ cls: 'claudian-cli-installation-title', text: options.label });
   const status = summary.createSpan({
     cls: 'claudian-cli-installation-status',
-    attr: { role: 'status' },
+    attr: { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' },
   });
   const chevron = header.createSpan({
     cls: 'claudian-cli-installation-chevron',
@@ -51,7 +51,10 @@ export function renderCliInstallationCard(
   });
   const body = card.createDiv({ cls: 'claudian-cli-installation-body' });
   body.id = `claudian-cli-installation-${++nextCardId}`;
+  header.id = `${body.id}-header`;
   body.hidden = options.expanded === false;
+  body.setAttribute?.('role', 'region');
+  body.setAttribute?.('aria-labelledby', header.id);
   header.setAttribute?.('aria-controls', body.id);
   header.setAttribute?.('aria-describedby', `${body.id}-status`);
   status.id = `${body.id}-status`;
@@ -63,6 +66,7 @@ export function renderCliInstallationCard(
   });
 
   const setStatus = (state: CliInstallationCardState, text: string): void => {
+    card.setAttribute?.('data-state', state);
     dot.setAttribute?.('data-state', state);
     status.setText?.(text);
   };
