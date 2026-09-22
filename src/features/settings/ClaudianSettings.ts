@@ -407,7 +407,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
         t('settings.gettingStarted.stepChat'),
       ].map((step, index) => `${index + 1}. ${step}`).join('\n'),
     });
-    const openChat = gettingStarted.createEl('button', {
+    const actionRow = gettingStarted.createDiv({ cls: 'claudian-getting-started-action-row' });
+    const openChat = actionRow.createEl('button', {
       cls: 'claudian-getting-started-action',
       text: t('settings.gettingStarted.openChat.button'),
       attr: { type: 'button' },
@@ -417,7 +418,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       (this.plugin.app as AppWithCommands).commands
         ?.executeCommandById('oh-my-claudian:open-view');
     });
-    gettingStarted.createDiv({
+    actionRow.createDiv({
       cls: 'claudian-getting-started-action-description',
       text: t('settings.gettingStarted.openChat.desc'),
     });
