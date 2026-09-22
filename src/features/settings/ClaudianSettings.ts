@@ -23,6 +23,7 @@ import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
+import { GeneralGettingStartedView } from '../../shared/settings/GeneralGettingStartedView';
 import {
   GeneralSettingsLayout,
   type GeneralSettingsSection,
@@ -170,6 +171,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
   private generalSettingsRoot: PreactRoot | null = null;
+  private generalGettingStartedRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -193,6 +195,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
     destroyCliInstallationCards(this.containerEl);
+    this.generalGettingStartedRoot?.unmount();
+    this.generalGettingStartedRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -399,29 +403,21 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const section = (id: string): HTMLElement => sectionContainers.get(id)!;
     const gettingStarted = section('getting-started');
-    gettingStarted.createDiv({
-      cls: 'claudian-getting-started-steps',
-      text: [
+    this.generalGettingStartedRoot?.unmount();
+    this.generalGettingStartedRoot = createPreactRoot(gettingStarted);
+    this.generalGettingStartedRoot.render(h(GeneralGettingStartedView, {
+      steps: [
         t('settings.gettingStarted.stepProvider'),
         t('settings.gettingStarted.stepReadiness'),
         t('settings.gettingStarted.stepChat'),
-      ].map((step, index) => `${index + 1}. ${step}`).join('\n'),
-    });
-    const actionRow = gettingStarted.createDiv({ cls: 'claudian-getting-started-action-row' });
-    const openChat = actionRow.createEl('button', {
-      cls: 'claudian-getting-started-action',
-      text: t('settings.gettingStarted.openChat.button'),
-      attr: { type: 'button' },
-    });
-    openChat.setAttribute('aria-label', t('settings.gettingStarted.openChat.name'));
-    openChat.addEventListener('click', () => {
-      (this.plugin.app as AppWithCommands).commands
-        ?.executeCommandById('oh-my-claudian:open-view');
-    });
-    actionRow.createDiv({
-      cls: 'claudian-getting-started-action-description',
-      text: t('settings.gettingStarted.openChat.desc'),
-    });
+      ],
+      actionLabel: t('settings.gettingStarted.openChat.button'),
+      actionDescription: t('settings.gettingStarted.openChat.desc'),
+      onOpenChat: () => {
+        (this.plugin.app as AppWithCommands).commands
+          ?.executeCommandById('oh-my-claudian:open-view');
+      },
+    }));
 
     this.renderProviderCapabilityMatrix(section('capability-matrix'));
 
