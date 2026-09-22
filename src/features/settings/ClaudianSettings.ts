@@ -29,6 +29,7 @@ import {
   type GeneralSettingsSection,
 } from '../../shared/settings/GeneralSettingsLayout';
 import { HotkeySettingsView } from '../../shared/settings/HotkeySettingsView';
+import { NavigationMappingsView } from '../../shared/settings/NavigationMappingsView';
 import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import {
@@ -159,6 +160,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
   private generalEnvironmentRoot: PreactRoot | null = null;
+  private generalNavigationMappingsRoot: PreactRoot | null = null;
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -190,6 +192,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalHotkeysRoot = null;
     this.generalEnvironmentRoot?.unmount();
     this.generalEnvironmentRoot = null;
+    this.generalNavigationMappingsRoot?.unmount();
+    this.generalNavigationMappingsRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -677,60 +681,31 @@ export class ClaudianSettingTab extends PluginSettingTab {
           });
       });
 
-    new Setting(input)
-      .setName(t('settings.navMappings.name'))
-      .setDesc(t('settings.navMappings.desc'))
-      .addTextArea((text) => {
-        let pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-        let saveTimeout: number | null = null;
+    this.generalNavigationMappingsRoot?.unmount();
+    this.generalNavigationMappingsRoot = createPreactRoot(input);
+    this.generalNavigationMappingsRoot.render(h(NavigationMappingsView, {
+      name: t('settings.navMappings.name'),
+      description: t('settings.navMappings.desc'),
+      placeholder: 'Map w scrollup\nmap s scrolldown\nmap i focusinput',
+      initialValue: buildNavMappingText(this.plugin.settings.keyboardNavigation),
+      validate: (value) => parseNavMappings(value).error ?? null,
+      onSave: async (value) => {
+        const result = parseNavMappings(value);
+        if (!result.settings) {
+          return buildNavMappingText(this.plugin.settings.keyboardNavigation);
+        }
 
-        const commitValue = async (showError: boolean): Promise<void> => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-            saveTimeout = null;
-          }
-
-          const result = parseNavMappings(pendingValue);
-          if (!result.settings) {
-            if (showError) {
-              new Notice(`${t('common.error')}: ${result.error}`);
-              pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-              text.setValue(pendingValue);
-            }
-            return;
-          }
-
-          await this.plugin.mutateSettings((settings) => {
-            settings.keyboardNavigation.scrollUpKey = result.settings!.scrollUp;
-            settings.keyboardNavigation.scrollDownKey = result.settings!.scrollDown;
-            settings.keyboardNavigation.focusInputKey = result.settings!.focusInput;
-          });
-          pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-          text.setValue(pendingValue);
-        };
-
-        const scheduleSave = (): void => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-          }
-          saveTimeout = window.setTimeout(() => {
-            void commitValue(false);
-          }, 500);
-        };
-
-        text
-          .setPlaceholder('Map w scrollup\nmap s scrolldown\nmap i focusinput')
-          .setValue(pendingValue)
-          .onChange((value) => {
-            pendingValue = value;
-            scheduleSave();
-          });
-
-        text.inputEl.rows = 3;
-        text.inputEl.addEventListener('blur', () => {
-          void commitValue(true);
+        await this.plugin.mutateSettings((settings) => {
+          settings.keyboardNavigation.scrollUpKey = result.settings!.scrollUp;
+          settings.keyboardNavigation.scrollDownKey = result.settings!.scrollDown;
+          settings.keyboardNavigation.focusInputKey = result.settings!.focusInput;
         });
-      });
+        return buildNavMappingText(this.plugin.settings.keyboardNavigation);
+      },
+      onInvalid: (error) => {
+        new Notice(`${t('common.error')}: ${error}`);
+      },
+    }));
 
     // --- Hotkeys ---
 
