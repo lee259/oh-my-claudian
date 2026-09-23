@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "Fragmentos",
       "addBtn": "Añadir fragmento",
+      "insertBtn": "Insertar",
+      "editBtn": "Editar",
+      "deleteBtn": "Eliminar",
       "noSnippets": "No hay fragmentos de entorno guardados. Haga clic en + para guardar su configuración actual.",
       "nameRequired": "Por favor ingrese un nombre para el fragmento",
       "modal": {

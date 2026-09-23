@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "片段",
       "addBtn": "添加片段",
+      "insertBtn": "插入",
+      "editBtn": "编辑",
+      "deleteBtn": "删除",
       "noSnippets": "尚无保存的环境变量片段。点击 + 保存当前配置。",
       "nameRequired": "请输入片段名称",
       "modal": {

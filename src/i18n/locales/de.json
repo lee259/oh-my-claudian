@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "Snippets",
       "addBtn": "Snippet hinzufügen",
+      "insertBtn": "Einfügen",
+      "editBtn": "Bearbeiten",
+      "deleteBtn": "Löschen",
       "noSnippets": "Keine gespeicherten Umgebungsvariablen-Snippets. Klicken Sie auf +, um Ihre aktuelle Konfiguration zu speichern.",
       "nameRequired": "Bitte geben Sie einen Namen für das Snippet ein",
       "modal": {

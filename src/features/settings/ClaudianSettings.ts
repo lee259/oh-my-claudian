@@ -1,6 +1,6 @@
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
-import { h } from 'preact';
+import { type ComponentChild,h } from 'preact';
 
 import {
   getHiddenProviderCommands,
@@ -22,17 +22,28 @@ import {
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
-import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
+import {
+  type EnvironmentSettingsSectionHandle,
+  renderEnvironmentSettingsSection,
+} from '../../shared/settings/EnvironmentSettingsSection';
+import { GeneralGettingStartedView } from '../../shared/settings/GeneralGettingStartedView';
 import {
   GeneralSettingsLayout,
   type GeneralSettingsSection,
 } from '../../shared/settings/GeneralSettingsLayout';
+import { HotkeySettingsView } from '../../shared/settings/HotkeySettingsView';
+import { NavigationMappingsView } from '../../shared/settings/NavigationMappingsView';
+import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
+import { SettingsSelectListView } from '../../shared/settings/SettingsSelectListView';
+import { SettingsSliderView } from '../../shared/settings/SettingsSliderView';
 import {
   getSettingsTabContentId,
   SettingsTabBar,
   type SettingsTabDefinition,
 } from '../../shared/settings/SettingsTabBar';
+import { SettingsTextFieldsView } from '../../shared/settings/SettingsTextFieldsView';
+import { SettingsToggleListView } from '../../shared/settings/SettingsToggleListView';
 import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
@@ -142,24 +153,6 @@ function getHotkeyForCommand(app: App, commandId: string): string | null {
   return hotkeys.map(formatHotkey).join(', ');
 }
 
-function addHotkeySettingRow(
-  containerEl: HTMLElement,
-  app: App,
-  commandId: string,
-  translationPrefix: string,
-): void {
-  const hotkey = getHotkeyForCommand(app, commandId);
-  const item = containerEl.createDiv({ cls: 'claudian-hotkey-item' });
-  item.createSpan({
-    cls: 'claudian-hotkey-name',
-    text: t(`${translationPrefix}.name` as TranslationKey),
-  });
-  if (hotkey) {
-    item.createSpan({ cls: 'claudian-hotkey-badge', text: hotkey });
-  }
-  item.addEventListener('click', () => openHotkeySettings(app));
-}
-
 export class ClaudianSettingTab extends PluginSettingTab {
   plugin: FeatureHost;
   private activeTab: SettingsTabId = 'general';
@@ -170,6 +163,13 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
   private generalSettingsRoot: PreactRoot | null = null;
+  private generalGettingStartedRoot: PreactRoot | null = null;
+  private generalCapabilityMatrixRoot: PreactRoot | null = null;
+  private generalDisplayRoot: PreactRoot | null = null;
+  private generalHotkeysRoot: PreactRoot | null = null;
+  private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
+  private generalNavigationMappingsRoot: PreactRoot | null = null;
+  private readonly generalControlRoots = new Set<PreactRoot>();
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -193,6 +193,22 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
     destroyCliInstallationCards(this.containerEl);
+    this.generalGettingStartedRoot?.unmount();
+    this.generalGettingStartedRoot = null;
+    this.generalCapabilityMatrixRoot?.unmount();
+    this.generalCapabilityMatrixRoot = null;
+    this.generalDisplayRoot?.unmount();
+    this.generalDisplayRoot = null;
+    for (const root of this.generalControlRoots) {
+      root.unmount();
+    }
+    this.generalControlRoots.clear();
+    this.generalHotkeysRoot?.unmount();
+    this.generalHotkeysRoot = null;
+    this.generalEnvironmentHandle?.destroy();
+    this.generalEnvironmentHandle = null;
+    this.generalNavigationMappingsRoot?.unmount();
+    this.generalNavigationMappingsRoot = null;
     this.generalSettingsRoot?.unmount();
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
@@ -335,27 +351,38 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
   }
 
+  private mountGeneralControl(container: HTMLElement, view: ComponentChild): PreactRoot {
+    const root = createPreactRoot(container);
+    this.generalControlRoots.add(root);
+    root.render(view);
+    return root;
+  }
+
   private renderGeneralTab(container: HTMLElement): void {
-    new Setting(container)
-      .setName(t('settings.language.name'))
-      .setDesc(t('settings.language.desc'))
-      .addDropdown((dropdown) => {
-        const locales = getAvailableLocales();
-        dropdown.addOption('', t('settings.language.followObsidian'));
-        for (const locale of locales) {
-          dropdown.addOption(locale, getLocaleDisplayName(locale));
-        }
-        dropdown
-          .setValue(this.plugin.settings.locale)
-          .onChange(async (value) => {
-            const locale = value as Locale;
-            setLocale(resolveLocale(locale, getObsidianLanguage()));
-            await this.plugin.mutateSettings((settings) => {
-              settings.locale = locale;
-            });
-            this.display();
-          });
-      });
+    this.mountGeneralControl(container.createDiv(), h(SettingsSelectListView, {
+      items: [{
+        id: 'interface-language',
+        name: t('settings.language.name'),
+        description: t('settings.language.desc'),
+        value: this.plugin.settings.locale,
+        options: [
+          { value: '', label: t('settings.language.followObsidian') },
+          ...getAvailableLocales().map(locale => ({
+            value: locale,
+            label: getLocaleDisplayName(locale),
+          })),
+        ],
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'interface-language') return;
+        const locale = value as Locale;
+        setLocale(resolveLocale(locale, getObsidianLanguage()));
+        await this.plugin.mutateSettings((settings) => {
+          settings.locale = locale;
+        });
+        this.display();
+      },
+    }));
 
     const sections: readonly GeneralSettingsSection[] = [
       {
@@ -399,388 +426,410 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const section = (id: string): HTMLElement => sectionContainers.get(id)!;
     const gettingStarted = section('getting-started');
-    gettingStarted.createDiv({
-      cls: 'claudian-getting-started-steps',
-      text: [
+    this.generalGettingStartedRoot?.unmount();
+    this.generalGettingStartedRoot = createPreactRoot(gettingStarted);
+    this.generalGettingStartedRoot.render(h(GeneralGettingStartedView, {
+      steps: [
         t('settings.gettingStarted.stepProvider'),
         t('settings.gettingStarted.stepReadiness'),
         t('settings.gettingStarted.stepChat'),
-      ].map((step, index) => `${index + 1}. ${step}`).join('\n'),
-    });
-    const actionRow = gettingStarted.createDiv({ cls: 'claudian-getting-started-action-row' });
-    const openChat = actionRow.createEl('button', {
-      cls: 'claudian-getting-started-action',
-      text: t('settings.gettingStarted.openChat.button'),
-      attr: { type: 'button' },
-    });
-    openChat.setAttribute('aria-label', t('settings.gettingStarted.openChat.name'));
-    openChat.addEventListener('click', () => {
-      (this.plugin.app as AppWithCommands).commands
-        ?.executeCommandById('oh-my-claudian:open-view');
-    });
-    actionRow.createDiv({
-      cls: 'claudian-getting-started-action-description',
-      text: t('settings.gettingStarted.openChat.desc'),
-    });
+      ],
+      actionLabel: t('settings.gettingStarted.openChat.button'),
+      actionDescription: t('settings.gettingStarted.openChat.desc'),
+      onOpenChat: () => {
+        (this.plugin.app as AppWithCommands).commands
+          ?.executeCommandById('oh-my-claudian:open-view');
+      },
+    }));
 
-    this.renderProviderCapabilityMatrix(section('capability-matrix'));
+    this.generalCapabilityMatrixRoot?.unmount();
+    this.generalCapabilityMatrixRoot = createPreactRoot(section('capability-matrix'));
+    this.generalCapabilityMatrixRoot.render(h(ProviderCapabilityMatrixView, {
+      providerLabel: t('settings.capabilityMatrix.provider'),
+      supportedLabel: t('settings.capabilityMatrix.supported'),
+      unsupportedLabel: t('settings.capabilityMatrix.unsupported'),
+      rows: PROVIDER_CAPABILITY_ROWS.map(row => ({
+        key: row.key,
+        label: t(row.label),
+      })),
+      providers: ProviderRegistry.getRegisteredProviderIds().map(providerId => ({
+        label: ProviderRegistry.getProviderDisplayName(providerId),
+        supportedKeys: PROVIDER_CAPABILITY_ROWS
+          .filter(row => ProviderRegistry.getCapabilities(providerId)[row.key])
+          .map(row => row.key),
+      })),
+    }));
 
     // --- Workspace and layout ---
 
     const setup = section('setup');
-    new Setting(setup)
-      .setName(t('settings.chatViewPlacement.name'))
-      .setDesc(t('settings.chatViewPlacement.desc'))
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption('right-sidebar', t('settings.chatViewPlacement.rightSidebar'))
-          .addOption('left-sidebar', t('settings.chatViewPlacement.leftSidebar'))
-          .addOption('main-tab', t('settings.chatViewPlacement.mainTab'))
-          .setValue(this.plugin.settings.chatViewPlacement)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.chatViewPlacement = value as ChatViewPlacement;
-            });
-          });
-      });
+    this.mountGeneralControl(setup, h(SettingsSelectListView, {
+      items: [{
+        id: 'chat-view-placement',
+        name: t('settings.chatViewPlacement.name'),
+        description: t('settings.chatViewPlacement.desc'),
+        value: this.plugin.settings.chatViewPlacement,
+        options: [
+          { value: 'right-sidebar', label: t('settings.chatViewPlacement.rightSidebar') },
+          { value: 'left-sidebar', label: t('settings.chatViewPlacement.leftSidebar') },
+          { value: 'main-tab', label: t('settings.chatViewPlacement.mainTab') },
+        ],
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'chat-view-placement') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.chatViewPlacement = value as ChatViewPlacement;
+        });
+      },
+    }));
 
     // --- Chat display ---
 
     const display = section('display');
-
-    new Setting(display)
-      .setName(t('settings.enableAutoScroll.name'))
-      .setDesc(t('settings.enableAutoScroll.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableAutoScroll ?? true)
-          .onChange(async (value) => {
+    this.generalDisplayRoot?.unmount();
+    this.generalDisplayRoot = createPreactRoot(display);
+    this.generalDisplayRoot.render(h(SettingsToggleListView, {
+      items: [
+        {
+          id: 'enable-auto-scroll',
+          name: t('settings.enableAutoScroll.name'),
+          description: t('settings.enableAutoScroll.desc'),
+          value: this.plugin.settings.enableAutoScroll ?? true,
+        },
+        {
+          id: 'show-tab-titles-by-default',
+          name: t('settings.showTabTitlesByDefault.name'),
+          description: t('settings.showTabTitlesByDefault.desc'),
+          value: this.plugin.settings.showTabTitlesByDefault ?? false,
+        },
+        {
+          id: 'defer-math-rendering',
+          name: t('settings.deferMathRenderingDuringStreaming.name'),
+          description: t('settings.deferMathRenderingDuringStreaming.desc'),
+          value: this.plugin.settings.deferMathRenderingDuringStreaming ?? true,
+        },
+        {
+          id: 'expand-file-edits-by-default',
+          name: t('settings.expandFileEditsByDefault.name'),
+          description: t('settings.expandFileEditsByDefault.desc'),
+          value: this.plugin.settings.expandFileEditsByDefault ?? false,
+        },
+      ],
+      onChange: async (id, value) => {
+        switch (id) {
+          case 'enable-auto-scroll':
             await this.plugin.mutateSettings((settings) => {
               settings.enableAutoScroll = value;
             });
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.showTabTitlesByDefault.name'))
-      .setDesc(t('settings.showTabTitlesByDefault.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.showTabTitlesByDefault ?? false)
-          .onChange(async (value) => {
+            return;
+          case 'show-tab-titles-by-default':
             await this.plugin.mutateSettings((settings) => {
               settings.showTabTitlesByDefault = value;
             });
             for (const view of this.plugin.getAllViews()) {
               view.refreshTabControls();
             }
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.deferMathRenderingDuringStreaming.name'))
-      .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.deferMathRenderingDuringStreaming ?? true)
-          .onChange(async (value) => {
+            return;
+          case 'defer-math-rendering':
             await this.plugin.mutateSettings((settings) => {
               settings.deferMathRenderingDuringStreaming = value;
             });
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.expandFileEditsByDefault.name'))
-      .setDesc(t('settings.expandFileEditsByDefault.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.expandFileEditsByDefault ?? false)
-          .onChange(async (value) => {
+            return;
+          case 'expand-file-edits-by-default':
             await this.plugin.mutateSettings((settings) => {
               settings.expandFileEditsByDefault = value;
             });
-          })
-      );
+            return;
+        }
+      },
+    }));
 
     // --- Conversations ---
 
     const conversations = section('conversations');
-
-    new Setting(conversations)
-      .setName(t('settings.autoTitle.name'))
-      .setDesc(t('settings.autoTitle.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableAutoTitleGeneration)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.enableAutoTitleGeneration = value;
-            });
-            this.display();
-          })
-      );
+    this.mountGeneralControl(conversations, h(SettingsToggleListView, {
+      items: [{
+        id: 'enable-auto-title-generation',
+        name: t('settings.autoTitle.name'),
+        description: t('settings.autoTitle.desc'),
+        value: this.plugin.settings.enableAutoTitleGeneration,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'enable-auto-title-generation') {
+          return;
+        }
+        await this.plugin.mutateSettings((settings) => {
+          settings.enableAutoTitleGeneration = value;
+        });
+        this.display();
+      },
+    }));
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
-      new Setting(conversations)
-        .setName(t('settings.titleLanguage.name'))
-        .setDesc(t('settings.titleLanguage.desc'))
-        .addDropdown((dropdown) => {
-          dropdown.addOption('', t('settings.titleLanguage.followInterface'));
-          for (const locale of getAvailableLocales()) {
-            dropdown.addOption(locale, getLocaleDisplayName(locale));
+      this.mountGeneralControl(conversations.createDiv(), h(SettingsSelectListView, {
+        items: [{
+          id: 'title-generation-language',
+          name: t('settings.titleLanguage.name'),
+          description: t('settings.titleLanguage.desc'),
+          value: this.plugin.settings.titleGenerationLocale || '',
+          options: [
+            { value: '', label: t('settings.titleLanguage.followInterface') },
+            ...getAvailableLocales().map(locale => ({
+              value: locale,
+              label: getLocaleDisplayName(locale),
+            })),
+          ],
+        }],
+        onChange: async (id, value) => {
+          if (id !== 'title-generation-language') {
+            return;
           }
-          dropdown
-            .setValue(this.plugin.settings.titleGenerationLocale || '')
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.titleGenerationLocale = value;
-              });
-            });
-        });
-
-      new Setting(conversations)
-        .setName(t('settings.titleModel.name'))
-        .setDesc(t('settings.titleModel.desc'))
-        .addDropdown((dropdown) => {
-          const refreshOptions = (): void => {
-            dropdown.selectEl.replaceChildren();
-            dropdown.addOption('', t('settings.titleModel.auto'));
-
-            const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
-            for (const model of ProviderRegistry.getTitleGenerationModelOptions(settingsBag)) {
-              dropdown.addOption(model.value, model.label);
-            }
-            dropdown.setValue(this.plugin.settings.titleGenerationModel || '');
-          };
-
-          this.refreshTitleModelOptions = refreshOptions;
-          refreshOptions();
-          dropdown.onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
-            });
+          await this.plugin.mutateSettings((settings) => {
+            settings.titleGenerationLocale = value;
           });
-        });
+        },
+      }));
+
+      const titleModelRoot = this.mountGeneralControl(
+        conversations.createDiv(),
+        h(SettingsSelectListView, this.getTitleModelSelectProps()),
+      );
+      this.refreshTitleModelOptions = () => {
+        titleModelRoot.render(h(SettingsSelectListView, this.getTitleModelSelectProps()));
+      };
     }
 
     // --- Content ---
 
     const content = section('content');
-
-    new Setting(content)
-      .setName(t('settings.userName.name'))
-      .setDesc(t('settings.userName.desc'))
-      .addText((text) => {
-        text
-          .setPlaceholder(t('settings.userName.name'))
-          .setValue(this.plugin.settings.userName)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+    this.mountGeneralControl(content, h(SettingsTextFieldsView, {
+      items: [
+        {
+          id: 'user-name',
+          name: t('settings.userName.name'),
+          description: t('settings.userName.desc'),
+          value: this.plugin.settings.userName,
+          placeholder: t('settings.userName.name'),
+        },
+        {
+          id: 'system-prompt',
+          name: t('settings.systemPrompt.name'),
+          description: t('settings.systemPrompt.desc'),
+          value: this.plugin.settings.systemPrompt,
+          placeholder: t('settings.systemPrompt.name'),
+          kind: 'textarea',
+          rows: 6,
+          cols: 50,
+        },
+        {
+          id: 'excluded-tags',
+          name: t('settings.excludedTags.name'),
+          description: t('settings.excludedTags.desc'),
+          value: this.plugin.settings.excludedTags.join('\n'),
+          placeholder: 'System\nprivate\ndraft',
+          kind: 'textarea',
+          rows: 4,
+          cols: 30,
+        },
+        {
+          id: 'media-folder',
+          name: t('settings.mediaFolder.name'),
+          description: t('settings.mediaFolder.desc'),
+          value: this.plugin.settings.mediaFolder,
+          placeholder: 'Attachments',
+          className: 'claudian-settings-media-input',
+        },
+      ],
+      onChange: async (id, value) => {
+        await this.plugin.mutateSettings((settings) => {
+          switch (id) {
+            case 'user-name':
               settings.userName = value;
-            });
-          });
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
-        });
-      });
-
-    new Setting(content)
-      .setName(t('settings.systemPrompt.name'))
-      .setDesc(t('settings.systemPrompt.desc'))
-      .addTextArea((text) => {
-        text
-          .setPlaceholder(t('settings.systemPrompt.name'))
-          .setValue(this.plugin.settings.systemPrompt)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+              break;
+            case 'system-prompt':
               settings.systemPrompt = value;
-            });
-          });
-        text.inputEl.rows = 6;
-        text.inputEl.cols = 50;
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
-        });
-      });
-
-    new Setting(content)
-      .setName(t('settings.useClaudianSystemPrompt.name'))
-      .setDesc(t('settings.useClaudianSystemPrompt.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.useClaudianSystemPrompt === true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.useClaudianSystemPrompt = value;
-            });
-            await this.restartServiceForPromptChange();
-          })
-      );
-
-    new Setting(content)
-      .setName(t('settings.excludedTags.name'))
-      .setDesc(t('settings.excludedTags.desc'))
-      .addTextArea((text) => {
-        text
-          .setPlaceholder('System\nprivate\ndraft')
-          .setValue(this.plugin.settings.excludedTags.join('\n'))
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+              break;
+            case 'excluded-tags':
               settings.excludedTags = value
                 .split(/\r?\n/)
-                .map((entry) => entry.trim().replace(/^#/, ''))
-                .filter((entry) => entry.length > 0);
-            });
-          });
-        text.inputEl.rows = 4;
-        text.inputEl.cols = 30;
-      });
-
-    new Setting(content)
-      .setName(t('settings.mediaFolder.name'))
-      .setDesc(t('settings.mediaFolder.desc'))
-      .addText((text) => {
-        text
-          .setPlaceholder('Attachments')
-          .setValue(this.plugin.settings.mediaFolder)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+                .map(entry => entry.trim().replace(/^#/, ''))
+                .filter(entry => entry.length > 0);
+              break;
+            case 'media-folder':
               settings.mediaFolder = value.trim();
-            });
-          });
-        text.inputEl.addClass('claudian-settings-media-input');
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
+              break;
+          }
         });
-      });
+      },
+      onBlur: async (id) => {
+        if (id === 'user-name' || id === 'system-prompt' || id === 'media-folder') {
+          await this.restartServiceForPromptChange();
+        }
+      },
+    }));
+
+    this.mountGeneralControl(content, h(SettingsToggleListView, {
+      items: [{
+        id: 'use-claudian-system-prompt',
+        name: t('settings.useClaudianSystemPrompt.name'),
+        description: t('settings.useClaudianSystemPrompt.desc'),
+        value: this.plugin.settings.useClaudianSystemPrompt === true,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'use-claudian-system-prompt') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.useClaudianSystemPrompt = value;
+        });
+        await this.restartServiceForPromptChange();
+      },
+    }));
 
     // --- Input ---
 
     const input = section('input');
-
-    new Setting(input)
-      .setName(t('settings.requireCommandOrControlEnterToSend.name'))
-      .setDesc(t('settings.requireCommandOrControlEnterToSend.desc'))
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.requireCommandOrControlEnterToSend ?? false)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.requireCommandOrControlEnterToSend = value;
-            });
-          });
-      });
-
-    new Setting(input)
-      .setName(t('settings.navMappings.name'))
-      .setDesc(t('settings.navMappings.desc'))
-      .addTextArea((text) => {
-        let pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-        let saveTimeout: number | null = null;
-
-        const commitValue = async (showError: boolean): Promise<void> => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-            saveTimeout = null;
-          }
-
-          const result = parseNavMappings(pendingValue);
-          if (!result.settings) {
-            if (showError) {
-              new Notice(`${t('common.error')}: ${result.error}`);
-              pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-              text.setValue(pendingValue);
-            }
-            return;
-          }
-
-          await this.plugin.mutateSettings((settings) => {
-            settings.keyboardNavigation.scrollUpKey = result.settings!.scrollUp;
-            settings.keyboardNavigation.scrollDownKey = result.settings!.scrollDown;
-            settings.keyboardNavigation.focusInputKey = result.settings!.focusInput;
-          });
-          pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-          text.setValue(pendingValue);
-        };
-
-        const scheduleSave = (): void => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-          }
-          saveTimeout = window.setTimeout(() => {
-            void commitValue(false);
-          }, 500);
-        };
-
-        text
-          .setPlaceholder('Map w scrollup\nmap s scrolldown\nmap i focusinput')
-          .setValue(pendingValue)
-          .onChange((value) => {
-            pendingValue = value;
-            scheduleSave();
-          });
-
-        text.inputEl.rows = 3;
-        text.inputEl.addEventListener('blur', () => {
-          void commitValue(true);
+    this.mountGeneralControl(input, h(SettingsToggleListView, {
+      items: [{
+        id: 'require-command-or-control-enter',
+        name: t('settings.requireCommandOrControlEnterToSend.name'),
+        description: t('settings.requireCommandOrControlEnterToSend.desc'),
+        value: this.plugin.settings.requireCommandOrControlEnterToSend ?? false,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'require-command-or-control-enter') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.requireCommandOrControlEnterToSend = value;
         });
-      });
+      },
+    }));
+
+    this.generalNavigationMappingsRoot?.unmount();
+    this.generalNavigationMappingsRoot = createPreactRoot(input);
+    this.generalNavigationMappingsRoot.render(h(NavigationMappingsView, {
+      name: t('settings.navMappings.name'),
+      description: t('settings.navMappings.desc'),
+      placeholder: 'Map w scrollup\nmap s scrolldown\nmap i focusinput',
+      initialValue: buildNavMappingText(this.plugin.settings.keyboardNavigation),
+      validate: (value) => parseNavMappings(value).error ?? null,
+      onSave: async (value) => {
+        const result = parseNavMappings(value);
+        if (!result.settings) {
+          return buildNavMappingText(this.plugin.settings.keyboardNavigation);
+        }
+
+        await this.plugin.mutateSettings((settings) => {
+          settings.keyboardNavigation.scrollUpKey = result.settings!.scrollUp;
+          settings.keyboardNavigation.scrollDownKey = result.settings!.scrollDown;
+          settings.keyboardNavigation.focusInputKey = result.settings!.focusInput;
+        });
+        return buildNavMappingText(this.plugin.settings.keyboardNavigation);
+      },
+      onInvalid: (error) => {
+        new Notice(`${t('common.error')}: ${error}`);
+      },
+    }));
 
     // --- Hotkeys ---
 
     const hotkeys = section('hotkeys');
-
-    const hotkeyGrid = hotkeys.createDiv({ cls: 'claudian-hotkey-grid' });
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:inline-edit', 'settings.inlineEditHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:open-view', 'settings.openChatHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:new-session', 'settings.newSessionHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:new-tab', 'settings.newTabHotkey');
-    addHotkeySettingRow(hotkeyGrid, this.app, 'oh-my-claudian:close-current-tab', 'settings.closeTabHotkey');
+    this.generalHotkeysRoot?.unmount();
+    this.generalHotkeysRoot = createPreactRoot(hotkeys);
+    this.generalHotkeysRoot.render(h(HotkeySettingsView, {
+      items: [
+        {
+          id: 'inline-edit',
+          label: t('settings.inlineEditHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:inline-edit'),
+        },
+        {
+          id: 'open-chat',
+          label: t('settings.openChatHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:open-view'),
+        },
+        {
+          id: 'new-session',
+          label: t('settings.newSessionHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:new-session'),
+        },
+        {
+          id: 'new-tab',
+          label: t('settings.newTabHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:new-tab'),
+        },
+        {
+          id: 'close-tab',
+          label: t('settings.closeTabHotkey.name'),
+          hotkey: getHotkeyForCommand(this.app, 'oh-my-claudian:close-current-tab'),
+        },
+      ],
+      onOpenSettings: () => openHotkeySettings(this.app),
+    }));
 
     // --- Environment ---
 
     const environment = section('environment');
-    renderEnvironmentSettingsSection({
+    this.generalEnvironmentHandle = renderEnvironmentSettingsSection({
       container: environment,
       plugin: this.plugin.providerHost,
       scope: 'shared',
       name: 'Shared environment',
       desc: 'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
     });
 
     // --- Advanced ---
 
     const advanced = section('advanced');
+    this.mountGeneralControl(advanced, h(SettingsSliderView, {
+      name: t('settings.maxWarmAgentProcesses.name'),
+      description: t('settings.maxWarmAgentProcesses.desc'),
+      min: MIN_WARM_AGENT_PROCESSES,
+      max: MAX_WARM_AGENT_PROCESSES,
+      step: 1,
+      value: this.plugin.settings.maxWarmAgentProcesses ?? 5,
+      onChange: async (value) => {
+        await this.plugin.mutateSettings((settings) => {
+          settings.maxWarmAgentProcesses = value;
+        });
+        try {
+          const reconciled = await this.plugin.warmExecutionPool.reconcileLimit();
+          if (!reconciled) {
+            new Notice(
+              'The new concurrent running session limit will apply as busy sessions become idle.',
+            );
+          }
+        } catch (error) {
+          new Notice(
+            error instanceof Error
+              ? error.message
+              : 'Failed to release excess warm agent processes.',
+          );
+        }
+      },
+    }));
+  }
 
-    new Setting(advanced)
-      .setName(t('settings.maxWarmAgentProcesses.name'))
-      .setDesc(t('settings.maxWarmAgentProcesses.desc'))
-      .addSlider((slider) => {
-        slider
-          .setLimits(MIN_WARM_AGENT_PROCESSES, MAX_WARM_AGENT_PROCESSES, 1)
-          .setValue(this.plugin.settings.maxWarmAgentProcesses ?? 5)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.maxWarmAgentProcesses = value;
-            });
-            try {
-              const reconciled = await this.plugin.warmExecutionPool.reconcileLimit();
-              if (!reconciled) {
-                new Notice(
-                  'The new concurrent running session limit will apply as busy sessions become idle.',
-                );
-              }
-            } catch (error) {
-              new Notice(
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to release excess warm agent processes.',
-              );
-            }
-          });
-      });
+  private getTitleModelSelectProps() {
+    const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
+    return {
+      items: [{
+        id: 'title-generation-model',
+        name: t('settings.titleModel.name'),
+        description: t('settings.titleModel.desc'),
+        value: this.plugin.settings.titleGenerationModel || '',
+        options: [
+          { value: '', label: t('settings.titleModel.auto') },
+          ...ProviderRegistry.getTitleGenerationModelOptions(settingsBag),
+        ],
+      }],
+      onChange: async (id: string, value: string) => {
+        if (id !== 'title-generation-model') return;
+        await this.plugin.mutateSettings((settings) => {
+          ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
+        });
+      },
+    };
   }
 
   private notifyProviderModelOptionsChanged(providerId: ProviderId): void {
@@ -801,33 +850,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
         this.notifyProviderModelOptionsChanged(pendingProviderId);
       }
     }, 150);
-  }
-
-  private renderProviderCapabilityMatrix(container: HTMLElement): void {
-    const matrix = container.createDiv({ cls: 'claudian-provider-capability-matrix' });
-    const table = matrix.createEl('table');
-    const headRow = table.createEl('thead').createEl('tr');
-    headRow.createEl('th', { text: t('settings.capabilityMatrix.provider') });
-    for (const row of PROVIDER_CAPABILITY_ROWS) {
-      headRow.createEl('th', { text: t(row.label) });
-    }
-
-    const body = table.createEl('tbody');
-    for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
-      const bodyRow = body.createEl('tr');
-      bodyRow.createEl('th', { text: ProviderRegistry.getProviderDisplayName(providerId) });
-      const capabilities = ProviderRegistry.getCapabilities(providerId);
-      for (const row of PROVIDER_CAPABILITY_ROWS) {
-        bodyRow.createEl('td', {
-          cls: capabilities[row.key]
-            ? 'claudian-capability-supported'
-            : 'claudian-capability-unsupported',
-          text: capabilities[row.key]
-            ? t('settings.capabilityMatrix.supported')
-            : t('settings.capabilityMatrix.unsupported'),
-        });
-      }
-    }
   }
 
   private renderHiddenProviderCommandSetting(

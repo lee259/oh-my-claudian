@@ -1,9 +1,13 @@
 .claudian-getting-started-steps {
   margin: 0 0 var(--size-4-4);
+  padding-inline-start: 1.25rem;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   line-height: 1.6;
-  white-space: pre-line;
+}
+
+.claudian-getting-started-steps li + li {
+  margin-top: var(--size-4-1);
 }
 
 .claudian-getting-started-action-row {
@@ -46,6 +50,7 @@
 }
 
 .claudian-getting-started-action-description {
+  margin: 0;
   min-width: 0;
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);

@@ -533,6 +533,9 @@
     "envSnippets": {
       "name": "片段",
       "addBtn": "新增片段",
+      "insertBtn": "插入",
+      "editBtn": "編輯",
+      "deleteBtn": "刪除",
       "noSnippets": "尚無儲存的環境變數片段。點選 + 儲存目前設定。",
       "nameRequired": "請輸入片段名稱",
       "modal": {
