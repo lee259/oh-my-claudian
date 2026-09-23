@@ -163,6 +163,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalDisplayRoot: PreactRoot | null = null;
+  private generalConversationToggleRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
@@ -195,6 +196,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalCapabilityMatrixRoot = null;
     this.generalDisplayRoot?.unmount();
     this.generalDisplayRoot = null;
+    this.generalConversationToggleRoot?.unmount();
+    this.generalConversationToggleRoot = null;
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
     this.generalEnvironmentHandle?.destroy();
@@ -524,20 +527,25 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Conversations ---
 
     const conversations = section('conversations');
-
-    new Setting(conversations)
-      .setName(t('settings.autoTitle.name'))
-      .setDesc(t('settings.autoTitle.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableAutoTitleGeneration)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.enableAutoTitleGeneration = value;
-            });
-            this.display();
-          })
-      );
+    this.generalConversationToggleRoot?.unmount();
+    this.generalConversationToggleRoot = createPreactRoot(conversations);
+    this.generalConversationToggleRoot.render(h(SettingsToggleListView, {
+      items: [{
+        id: 'enable-auto-title-generation',
+        name: t('settings.autoTitle.name'),
+        description: t('settings.autoTitle.desc'),
+        value: this.plugin.settings.enableAutoTitleGeneration,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'enable-auto-title-generation') {
+          return;
+        }
+        await this.plugin.mutateSettings((settings) => {
+          settings.enableAutoTitleGeneration = value;
+        });
+        this.display();
+      },
+    }));
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
       new Setting(conversations)
