@@ -40,6 +40,7 @@ import {
   SettingsTabBar,
   type SettingsTabDefinition,
 } from '../../shared/settings/SettingsTabBar';
+import { SettingsToggleListView } from '../../shared/settings/SettingsToggleListView';
 import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
@@ -161,6 +162,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalSettingsRoot: PreactRoot | null = null;
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
+  private generalDisplayRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
@@ -191,6 +193,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalGettingStartedRoot = null;
     this.generalCapabilityMatrixRoot?.unmount();
     this.generalCapabilityMatrixRoot = null;
+    this.generalDisplayRoot?.unmount();
+    this.generalDisplayRoot = null;
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
     this.generalEnvironmentHandle?.destroy();
@@ -459,61 +463,63 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Chat display ---
 
     const display = section('display');
-
-    new Setting(display)
-      .setName(t('settings.enableAutoScroll.name'))
-      .setDesc(t('settings.enableAutoScroll.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableAutoScroll ?? true)
-          .onChange(async (value) => {
+    this.generalDisplayRoot?.unmount();
+    this.generalDisplayRoot = createPreactRoot(display);
+    this.generalDisplayRoot.render(h(SettingsToggleListView, {
+      items: [
+        {
+          id: 'enable-auto-scroll',
+          name: t('settings.enableAutoScroll.name'),
+          description: t('settings.enableAutoScroll.desc'),
+          value: this.plugin.settings.enableAutoScroll ?? true,
+        },
+        {
+          id: 'show-tab-titles-by-default',
+          name: t('settings.showTabTitlesByDefault.name'),
+          description: t('settings.showTabTitlesByDefault.desc'),
+          value: this.plugin.settings.showTabTitlesByDefault ?? false,
+        },
+        {
+          id: 'defer-math-rendering',
+          name: t('settings.deferMathRenderingDuringStreaming.name'),
+          description: t('settings.deferMathRenderingDuringStreaming.desc'),
+          value: this.plugin.settings.deferMathRenderingDuringStreaming ?? true,
+        },
+        {
+          id: 'expand-file-edits-by-default',
+          name: t('settings.expandFileEditsByDefault.name'),
+          description: t('settings.expandFileEditsByDefault.desc'),
+          value: this.plugin.settings.expandFileEditsByDefault ?? false,
+        },
+      ],
+      onChange: async (id, value) => {
+        switch (id) {
+          case 'enable-auto-scroll':
             await this.plugin.mutateSettings((settings) => {
               settings.enableAutoScroll = value;
             });
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.showTabTitlesByDefault.name'))
-      .setDesc(t('settings.showTabTitlesByDefault.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.showTabTitlesByDefault ?? false)
-          .onChange(async (value) => {
+            return;
+          case 'show-tab-titles-by-default':
             await this.plugin.mutateSettings((settings) => {
               settings.showTabTitlesByDefault = value;
             });
             for (const view of this.plugin.getAllViews()) {
               view.refreshTabControls();
             }
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.deferMathRenderingDuringStreaming.name'))
-      .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.deferMathRenderingDuringStreaming ?? true)
-          .onChange(async (value) => {
+            return;
+          case 'defer-math-rendering':
             await this.plugin.mutateSettings((settings) => {
               settings.deferMathRenderingDuringStreaming = value;
             });
-          })
-      );
-
-    new Setting(display)
-      .setName(t('settings.expandFileEditsByDefault.name'))
-      .setDesc(t('settings.expandFileEditsByDefault.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.expandFileEditsByDefault ?? false)
-          .onChange(async (value) => {
+            return;
+          case 'expand-file-edits-by-default':
             await this.plugin.mutateSettings((settings) => {
               settings.expandFileEditsByDefault = value;
             });
-          })
-      );
+            return;
+        }
+      },
+    }));
 
     // --- Conversations ---
 
