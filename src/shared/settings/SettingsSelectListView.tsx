@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 
 export interface SettingsSelectOption {
   value: string;
@@ -27,6 +27,10 @@ export function SettingsSelectListView({ items, onChange }: SettingsSelectListVi
     () => Object.fromEntries(items.map(item => [item.id, item.value])),
   );
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  useEffect(() => {
+    setValues(Object.fromEntries(items.map(item => [item.id, item.value])));
+  }, [items]);
 
   const handleChange = async (item: SettingsSelectListItem, nextValue: string): Promise<void> => {
     setValues(previous => ({ ...previous, [item.id]: nextValue }));

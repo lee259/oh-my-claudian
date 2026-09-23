@@ -1,6 +1,6 @@
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
-import { h } from 'preact';
+import { type ComponentChild,h } from 'preact';
 
 import {
   getHiddenProviderCommands,
@@ -36,11 +36,13 @@ import { NavigationMappingsView } from '../../shared/settings/NavigationMappings
 import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import { SettingsSelectListView } from '../../shared/settings/SettingsSelectListView';
+import { SettingsSliderView } from '../../shared/settings/SettingsSliderView';
 import {
   getSettingsTabContentId,
   SettingsTabBar,
   type SettingsTabDefinition,
 } from '../../shared/settings/SettingsTabBar';
+import { SettingsTextFieldsView } from '../../shared/settings/SettingsTextFieldsView';
 import { SettingsToggleListView } from '../../shared/settings/SettingsToggleListView';
 import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
@@ -164,11 +166,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalDisplayRoot: PreactRoot | null = null;
-  private generalConversationToggleRoot: PreactRoot | null = null;
-  private generalConversationLanguageRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
+  private readonly generalControlRoots = new Set<PreactRoot>();
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -198,10 +199,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalCapabilityMatrixRoot = null;
     this.generalDisplayRoot?.unmount();
     this.generalDisplayRoot = null;
-    this.generalConversationToggleRoot?.unmount();
-    this.generalConversationToggleRoot = null;
-    this.generalConversationLanguageRoot?.unmount();
-    this.generalConversationLanguageRoot = null;
+    for (const root of this.generalControlRoots) {
+      root.unmount();
+    }
+    this.generalControlRoots.clear();
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
     this.generalEnvironmentHandle?.destroy();
@@ -350,27 +351,38 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
   }
 
+  private mountGeneralControl(container: HTMLElement, view: ComponentChild): PreactRoot {
+    const root = createPreactRoot(container);
+    this.generalControlRoots.add(root);
+    root.render(view);
+    return root;
+  }
+
   private renderGeneralTab(container: HTMLElement): void {
-    new Setting(container)
-      .setName(t('settings.language.name'))
-      .setDesc(t('settings.language.desc'))
-      .addDropdown((dropdown) => {
-        const locales = getAvailableLocales();
-        dropdown.addOption('', t('settings.language.followObsidian'));
-        for (const locale of locales) {
-          dropdown.addOption(locale, getLocaleDisplayName(locale));
-        }
-        dropdown
-          .setValue(this.plugin.settings.locale)
-          .onChange(async (value) => {
-            const locale = value as Locale;
-            setLocale(resolveLocale(locale, getObsidianLanguage()));
-            await this.plugin.mutateSettings((settings) => {
-              settings.locale = locale;
-            });
-            this.display();
-          });
-      });
+    this.mountGeneralControl(container.createDiv(), h(SettingsSelectListView, {
+      items: [{
+        id: 'interface-language',
+        name: t('settings.language.name'),
+        description: t('settings.language.desc'),
+        value: this.plugin.settings.locale,
+        options: [
+          { value: '', label: t('settings.language.followObsidian') },
+          ...getAvailableLocales().map(locale => ({
+            value: locale,
+            label: getLocaleDisplayName(locale),
+          })),
+        ],
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'interface-language') return;
+        const locale = value as Locale;
+        setLocale(resolveLocale(locale, getObsidianLanguage()));
+        await this.plugin.mutateSettings((settings) => {
+          settings.locale = locale;
+        });
+        this.display();
+      },
+    }));
 
     const sections: readonly GeneralSettingsSection[] = [
       {
@@ -451,21 +463,25 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Workspace and layout ---
 
     const setup = section('setup');
-    new Setting(setup)
-      .setName(t('settings.chatViewPlacement.name'))
-      .setDesc(t('settings.chatViewPlacement.desc'))
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption('right-sidebar', t('settings.chatViewPlacement.rightSidebar'))
-          .addOption('left-sidebar', t('settings.chatViewPlacement.leftSidebar'))
-          .addOption('main-tab', t('settings.chatViewPlacement.mainTab'))
-          .setValue(this.plugin.settings.chatViewPlacement)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.chatViewPlacement = value as ChatViewPlacement;
-            });
-          });
-      });
+    this.mountGeneralControl(setup, h(SettingsSelectListView, {
+      items: [{
+        id: 'chat-view-placement',
+        name: t('settings.chatViewPlacement.name'),
+        description: t('settings.chatViewPlacement.desc'),
+        value: this.plugin.settings.chatViewPlacement,
+        options: [
+          { value: 'right-sidebar', label: t('settings.chatViewPlacement.rightSidebar') },
+          { value: 'left-sidebar', label: t('settings.chatViewPlacement.leftSidebar') },
+          { value: 'main-tab', label: t('settings.chatViewPlacement.mainTab') },
+        ],
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'chat-view-placement') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.chatViewPlacement = value as ChatViewPlacement;
+        });
+      },
+    }));
 
     // --- Chat display ---
 
@@ -531,9 +547,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Conversations ---
 
     const conversations = section('conversations');
-    this.generalConversationToggleRoot?.unmount();
-    this.generalConversationToggleRoot = createPreactRoot(conversations);
-    this.generalConversationToggleRoot.render(h(SettingsToggleListView, {
+    this.mountGeneralControl(conversations, h(SettingsToggleListView, {
       items: [{
         id: 'enable-auto-title-generation',
         name: t('settings.autoTitle.name'),
@@ -552,9 +566,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }));
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
-      this.generalConversationLanguageRoot?.unmount();
-      this.generalConversationLanguageRoot = createPreactRoot(conversations.createDiv());
-      this.generalConversationLanguageRoot.render(h(SettingsSelectListView, {
+      this.mountGeneralControl(conversations.createDiv(), h(SettingsSelectListView, {
         items: [{
           id: 'title-generation-language',
           name: t('settings.titleLanguage.name'),
@@ -578,138 +590,117 @@ export class ClaudianSettingTab extends PluginSettingTab {
         },
       }));
 
-      new Setting(conversations)
-        .setName(t('settings.titleModel.name'))
-        .setDesc(t('settings.titleModel.desc'))
-        .addDropdown((dropdown) => {
-          const refreshOptions = (): void => {
-            dropdown.selectEl.replaceChildren();
-            dropdown.addOption('', t('settings.titleModel.auto'));
-
-            const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
-            for (const model of ProviderRegistry.getTitleGenerationModelOptions(settingsBag)) {
-              dropdown.addOption(model.value, model.label);
-            }
-            dropdown.setValue(this.plugin.settings.titleGenerationModel || '');
-          };
-
-          this.refreshTitleModelOptions = refreshOptions;
-          refreshOptions();
-          dropdown.onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
-            });
-          });
-        });
+      const titleModelRoot = this.mountGeneralControl(
+        conversations.createDiv(),
+        h(SettingsSelectListView, this.getTitleModelSelectProps()),
+      );
+      this.refreshTitleModelOptions = () => {
+        titleModelRoot.render(h(SettingsSelectListView, this.getTitleModelSelectProps()));
+      };
     }
 
     // --- Content ---
 
     const content = section('content');
-
-    new Setting(content)
-      .setName(t('settings.userName.name'))
-      .setDesc(t('settings.userName.desc'))
-      .addText((text) => {
-        text
-          .setPlaceholder(t('settings.userName.name'))
-          .setValue(this.plugin.settings.userName)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+    this.mountGeneralControl(content, h(SettingsTextFieldsView, {
+      items: [
+        {
+          id: 'user-name',
+          name: t('settings.userName.name'),
+          description: t('settings.userName.desc'),
+          value: this.plugin.settings.userName,
+          placeholder: t('settings.userName.name'),
+        },
+        {
+          id: 'system-prompt',
+          name: t('settings.systemPrompt.name'),
+          description: t('settings.systemPrompt.desc'),
+          value: this.plugin.settings.systemPrompt,
+          placeholder: t('settings.systemPrompt.name'),
+          kind: 'textarea',
+          rows: 6,
+          cols: 50,
+        },
+        {
+          id: 'excluded-tags',
+          name: t('settings.excludedTags.name'),
+          description: t('settings.excludedTags.desc'),
+          value: this.plugin.settings.excludedTags.join('\n'),
+          placeholder: 'System\nprivate\ndraft',
+          kind: 'textarea',
+          rows: 4,
+          cols: 30,
+        },
+        {
+          id: 'media-folder',
+          name: t('settings.mediaFolder.name'),
+          description: t('settings.mediaFolder.desc'),
+          value: this.plugin.settings.mediaFolder,
+          placeholder: 'Attachments',
+          className: 'claudian-settings-media-input',
+        },
+      ],
+      onChange: async (id, value) => {
+        await this.plugin.mutateSettings((settings) => {
+          switch (id) {
+            case 'user-name':
               settings.userName = value;
-            });
-          });
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
-        });
-      });
-
-    new Setting(content)
-      .setName(t('settings.systemPrompt.name'))
-      .setDesc(t('settings.systemPrompt.desc'))
-      .addTextArea((text) => {
-        text
-          .setPlaceholder(t('settings.systemPrompt.name'))
-          .setValue(this.plugin.settings.systemPrompt)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+              break;
+            case 'system-prompt':
               settings.systemPrompt = value;
-            });
-          });
-        text.inputEl.rows = 6;
-        text.inputEl.cols = 50;
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
-        });
-      });
-
-    new Setting(content)
-      .setName(t('settings.useClaudianSystemPrompt.name'))
-      .setDesc(t('settings.useClaudianSystemPrompt.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.useClaudianSystemPrompt === true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.useClaudianSystemPrompt = value;
-            });
-            await this.restartServiceForPromptChange();
-          })
-      );
-
-    new Setting(content)
-      .setName(t('settings.excludedTags.name'))
-      .setDesc(t('settings.excludedTags.desc'))
-      .addTextArea((text) => {
-        text
-          .setPlaceholder('System\nprivate\ndraft')
-          .setValue(this.plugin.settings.excludedTags.join('\n'))
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+              break;
+            case 'excluded-tags':
               settings.excludedTags = value
                 .split(/\r?\n/)
-                .map((entry) => entry.trim().replace(/^#/, ''))
-                .filter((entry) => entry.length > 0);
-            });
-          });
-        text.inputEl.rows = 4;
-        text.inputEl.cols = 30;
-      });
-
-    new Setting(content)
-      .setName(t('settings.mediaFolder.name'))
-      .setDesc(t('settings.mediaFolder.desc'))
-      .addText((text) => {
-        text
-          .setPlaceholder('Attachments')
-          .setValue(this.plugin.settings.mediaFolder)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
+                .map(entry => entry.trim().replace(/^#/, ''))
+                .filter(entry => entry.length > 0);
+              break;
+            case 'media-folder':
               settings.mediaFolder = value.trim();
-            });
-          });
-        text.inputEl.addClass('claudian-settings-media-input');
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
+              break;
+          }
         });
-      });
+      },
+      onBlur: async (id) => {
+        if (id === 'user-name' || id === 'system-prompt' || id === 'media-folder') {
+          await this.restartServiceForPromptChange();
+        }
+      },
+    }));
+
+    this.mountGeneralControl(content, h(SettingsToggleListView, {
+      items: [{
+        id: 'use-claudian-system-prompt',
+        name: t('settings.useClaudianSystemPrompt.name'),
+        description: t('settings.useClaudianSystemPrompt.desc'),
+        value: this.plugin.settings.useClaudianSystemPrompt === true,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'use-claudian-system-prompt') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.useClaudianSystemPrompt = value;
+        });
+        await this.restartServiceForPromptChange();
+      },
+    }));
 
     // --- Input ---
 
     const input = section('input');
-
-    new Setting(input)
-      .setName(t('settings.requireCommandOrControlEnterToSend.name'))
-      .setDesc(t('settings.requireCommandOrControlEnterToSend.desc'))
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.requireCommandOrControlEnterToSend ?? false)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.requireCommandOrControlEnterToSend = value;
-            });
-          });
-      });
+    this.mountGeneralControl(input, h(SettingsToggleListView, {
+      items: [{
+        id: 'require-command-or-control-enter',
+        name: t('settings.requireCommandOrControlEnterToSend.name'),
+        description: t('settings.requireCommandOrControlEnterToSend.desc'),
+        value: this.plugin.settings.requireCommandOrControlEnterToSend ?? false,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'require-command-or-control-enter') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.requireCommandOrControlEnterToSend = value;
+        });
+      },
+    }));
 
     this.generalNavigationMappingsRoot?.unmount();
     this.generalNavigationMappingsRoot = createPreactRoot(input);
@@ -790,34 +781,55 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Advanced ---
 
     const advanced = section('advanced');
+    this.mountGeneralControl(advanced, h(SettingsSliderView, {
+      name: t('settings.maxWarmAgentProcesses.name'),
+      description: t('settings.maxWarmAgentProcesses.desc'),
+      min: MIN_WARM_AGENT_PROCESSES,
+      max: MAX_WARM_AGENT_PROCESSES,
+      step: 1,
+      value: this.plugin.settings.maxWarmAgentProcesses ?? 5,
+      onChange: async (value) => {
+        await this.plugin.mutateSettings((settings) => {
+          settings.maxWarmAgentProcesses = value;
+        });
+        try {
+          const reconciled = await this.plugin.warmExecutionPool.reconcileLimit();
+          if (!reconciled) {
+            new Notice(
+              'The new concurrent running session limit will apply as busy sessions become idle.',
+            );
+          }
+        } catch (error) {
+          new Notice(
+            error instanceof Error
+              ? error.message
+              : 'Failed to release excess warm agent processes.',
+          );
+        }
+      },
+    }));
+  }
 
-    new Setting(advanced)
-      .setName(t('settings.maxWarmAgentProcesses.name'))
-      .setDesc(t('settings.maxWarmAgentProcesses.desc'))
-      .addSlider((slider) => {
-        slider
-          .setLimits(MIN_WARM_AGENT_PROCESSES, MAX_WARM_AGENT_PROCESSES, 1)
-          .setValue(this.plugin.settings.maxWarmAgentProcesses ?? 5)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.maxWarmAgentProcesses = value;
-            });
-            try {
-              const reconciled = await this.plugin.warmExecutionPool.reconcileLimit();
-              if (!reconciled) {
-                new Notice(
-                  'The new concurrent running session limit will apply as busy sessions become idle.',
-                );
-              }
-            } catch (error) {
-              new Notice(
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to release excess warm agent processes.',
-              );
-            }
-          });
-      });
+  private getTitleModelSelectProps() {
+    const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
+    return {
+      items: [{
+        id: 'title-generation-model',
+        name: t('settings.titleModel.name'),
+        description: t('settings.titleModel.desc'),
+        value: this.plugin.settings.titleGenerationModel || '',
+        options: [
+          { value: '', label: t('settings.titleModel.auto') },
+          ...ProviderRegistry.getTitleGenerationModelOptions(settingsBag),
+        ],
+      }],
+      onChange: async (id: string, value: string) => {
+        if (id !== 'title-generation-model') return;
+        await this.plugin.mutateSettings((settings) => {
+          ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
+        });
+      },
+    };
   }
 
   private notifyProviderModelOptionsChanged(providerId: ProviderId): void {

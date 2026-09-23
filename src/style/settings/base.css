@@ -126,6 +126,25 @@
   color: var(--text-warning);
 }
 
+.claudian-settings-slider-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: min(280px, 45%);
+}
+
+.claudian-settings-slider-control input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.claudian-settings-slider-value {
+  min-width: 2ch;
+  color: var(--text-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .claudian-settings-cli-path-input {
   width: 100%;
 }
