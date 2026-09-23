@@ -21,6 +21,17 @@ interface EnvironmentSettingsSectionOptions {
   usePreactSnippetList?: boolean;
 }
 
+const environmentSectionDestructors = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount provider environment views before their settings host is cleared. */
+export function destroyEnvironmentSettingsSections(container: HTMLElement): void {
+  const mounts = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-environment-field-host'),
+  );
+  if (container.classList.contains('claudian-environment-field-host')) mounts.unshift(container);
+  mounts.forEach(mount => environmentSectionDestructors.get(mount)?.());
+}
+
 export interface EnvironmentSettingsSectionHandle {
   destroy(): void;
 }
@@ -47,9 +58,11 @@ export function renderEnvironmentSettingsSection(
 
   let contextLimitsContainer: HTMLElement | null = null;
   let environmentRoot: PreactRoot | null = null;
+  let environmentHost: HTMLElement | null = null;
+  let destroyed = false;
 
   if (usePreactEnvironmentField) {
-    const environmentHost = container.createDiv({ cls: 'claudian-environment-field-host' });
+    environmentHost = container.createDiv({ cls: 'claudian-environment-field-host' });
     environmentRoot = createPreactRoot(environmentHost);
     environmentRoot.render(h(EnvironmentVariableSettingsView, {
       scope,
@@ -59,7 +72,7 @@ export function renderEnvironmentSettingsSection(
       initialValue: plugin.getEnvironmentVariablesForScope(scope),
       onApply: async (value) => {
         await plugin.applyEnvironmentVariables(scope, value);
-        if (contextLimitsContainer) {
+        if (!destroyed && contextLimitsContainer) {
           renderCustomContextLimits?.(contextLimitsContainer);
         }
       },
@@ -119,10 +132,16 @@ export function renderEnvironmentSettingsSection(
     usePreactView: usePreactSnippetList,
   });
 
+  const destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    if (environmentHost) environmentSectionDestructors.delete(environmentHost);
+    snippetManager.destroy();
+    environmentRoot?.unmount();
+  };
+  if (environmentHost) environmentSectionDestructors.set(environmentHost, destroy);
+
   return {
-    destroy() {
-      snippetManager.destroy();
-      environmentRoot?.unmount();
-    },
+    destroy,
   };
 }

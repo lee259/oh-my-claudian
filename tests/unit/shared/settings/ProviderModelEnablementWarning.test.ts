@@ -1,23 +1,21 @@
+/** @jest-environment jsdom */
+
 import {
   renderLastEnabledProviderWarning,
   renderProviderModelEnablementWarning,
 } from '@/shared/settings/ProviderModelEnablementWarning';
 
 describe('renderProviderModelEnablementWarning', () => {
-  it('shows only while the provider is enabled without an available model', () => {
+  it('tracks provider readiness, refreshes when models change, and unmounts on destroy', () => {
     let enabled = true;
     let hasModels = false;
-    const warningEl = createElement();
+    const container = document.createElement('div');
+    document.body.append(container);
     const notifyProviderModelOptionsChanged = jest.fn();
-    const container = {
-      createDiv: jest.fn(() => warningEl),
-    } as unknown as HTMLElement;
 
     const warning = renderProviderModelEnablementWarning(
       container,
-      {
-        notifyProviderModelOptionsChanged,
-      } as any,
+      { notifyProviderModelOptionsChanged } as any,
       {
         getHasEnabledModels: () => hasModels,
         getIsEnabled: () => enabled,
@@ -26,21 +24,24 @@ describe('renderProviderModelEnablementWarning', () => {
       },
     );
 
-    expect(container.createDiv).toHaveBeenCalledWith({
-      cls: expect.stringContaining('claudian-setting-validation-warning'),
-      text: 'No Codex models are enabled. Go to Models below and enable at least one model.',
-    });
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
+    const notice = container.querySelector<HTMLElement>('.claudian-provider-model-warning');
+    expect(notice?.textContent)
+      .toBe('No Codex models are enabled. Go to Models below and enable at least one model.');
+    expect(notice?.hidden).toBe(false);
 
     hasModels = true;
     warning.context.notifyProviderModelOptionsChanged('codex');
     expect(notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
+    expect(notice?.hidden).toBe(true);
 
     hasModels = false;
     enabled = false;
     warning.refresh();
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
+    expect(notice?.hidden).toBe(true);
+
+    warning.destroy();
+    expect(container.querySelector('.claudian-provider-warning-mount')).toBeNull();
+    container.remove();
   });
 });
 
@@ -53,56 +54,34 @@ describe('renderLastEnabledProviderWarning', () => {
     jest.useRealTimers();
   });
 
-  it('shows accessibly for ten seconds and then hides', () => {
-    const warningEl = createElement();
-    const container = {
-      createDiv: jest.fn(() => warningEl),
-    } as unknown as HTMLElement;
-
+  it('shows accessibly for ten seconds, resets on repeated attempts, hides, and unmounts', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
     const warning = renderLastEnabledProviderWarning(container);
+    const notice = container.querySelector<HTMLElement>('[role="status"]');
 
-    expect(container.createDiv).toHaveBeenCalledWith({
-      attr: {
-        'aria-live': 'polite',
-        role: 'status',
-      },
-      cls: expect.stringContaining('claudian-setting-validation-warning'),
-      text: 'At least one provider must remain enabled for Oh My Claudian to work.',
-    });
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
+    expect(notice?.textContent)
+      .toBe('At least one provider must remain enabled for Oh My Claudian to work.');
+    expect(notice?.getAttribute('aria-live')).toBe('polite');
+    expect(notice?.hidden).toBe(true);
 
     warning.showFor();
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
-
-    jest.advanceTimersByTime(9_999);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
-
-    jest.advanceTimersByTime(1);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
-  });
-
-  it('restarts the timer on repeated attempts and supports immediate hiding', () => {
-    const warningEl = createElement();
-    const container = {
-      createDiv: jest.fn(() => warningEl),
-    } as unknown as HTMLElement;
-    const warning = renderLastEnabledProviderWarning(container);
-
-    warning.showFor();
+    expect(notice?.hidden).toBe(false);
     jest.advanceTimersByTime(9_000);
     warning.showFor();
-    jest.advanceTimersByTime(1_000);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
+    jest.advanceTimersByTime(9_999);
+    expect(notice?.hidden).toBe(false);
+    jest.advanceTimersByTime(1);
+    expect(notice?.hidden).toBe(true);
 
+    warning.showFor();
     warning.hide();
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
+    expect(notice?.hidden).toBe(true);
     jest.advanceTimersByTime(10_000);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
+    expect(notice?.hidden).toBe(true);
+
+    warning.destroy();
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    container.remove();
   });
 });
-
-function createElement(): Pick<HTMLElement, 'toggleClass'> {
-  return {
-    toggleClass: jest.fn(),
-  } as unknown as Pick<HTMLElement, 'toggleClass'>;
-}

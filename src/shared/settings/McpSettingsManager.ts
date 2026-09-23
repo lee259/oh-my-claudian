@@ -1,5 +1,6 @@
 import type { App } from 'obsidian';
-import { Notice, setIcon } from 'obsidian';
+import { Notice } from 'obsidian';
+import { h } from 'preact';
 
 import { tryParseClipboardConfig } from '../../core/mcp/McpConfigParser';
 import type { AppMcpStorage } from '../../core/providers/types';
@@ -8,8 +9,11 @@ import type { ManagedMcpServer, McpServerConfig, McpServerType } from '../../cor
 import { DEFAULT_MCP_SERVER, getMcpServerType } from '../../core/types';
 import { formatCommand } from '../../utils/mcp';
 import { confirmDelete } from '../modals/ConfirmModal';
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import { McpImportModal } from './McpImportModal';
 import { McpServerModal } from './McpServerModal';
+import type { McpSettingsViewServer } from './McpSettingsView';
+import { McpSettingsView } from './McpSettingsView';
 import { McpTestModal } from './McpTestModal';
 
 export interface McpSettingsManagerDeps {
@@ -18,160 +22,138 @@ export interface McpSettingsManagerDeps {
   broadcastMcpReload: () => Promise<void>;
 }
 
+let nextMenuId = 0;
+const managerDestructors = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount MCP settings views before the owning provider tab is cleared. */
+export function destroyMcpSettingsManagers(container: HTMLElement): void {
+  const mounts = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-mcp-settings-mount'),
+  );
+  if (container.classList.contains('claudian-mcp-settings-mount')) {
+    mounts.unshift(container);
+  }
+  mounts.forEach(mount => managerDestructors.get(mount)?.());
+}
+
 export class McpSettingsManager {
   private app: App;
-  private containerEl: HTMLElement;
+  private mountEl: HTMLElement;
+  private root: PreactRoot;
   private mcpStorage: AppMcpStorage;
   private broadcastMcpReload: () => Promise<void>;
   private servers: ManagedMcpServer[] = [];
+  private menuOpen = false;
+  private destroyed = false;
+  private readonly menuId = `claudian-mcp-add-menu-${++nextMenuId}`;
+  private readonly settingsDocument: Document;
+  private readonly handleDocumentClick: (event: MouseEvent) => void;
+  private readonly handleDocumentKeydown: (event: KeyboardEvent) => void;
 
   constructor(containerEl: HTMLElement, deps: McpSettingsManagerDeps) {
     this.app = deps.app;
-    this.containerEl = containerEl;
+    this.mountEl = containerEl.createDiv({ cls: 'claudian-mcp-settings-mount' });
+    this.root = createPreactRoot(this.mountEl);
     this.mcpStorage = deps.mcpStorage;
     this.broadcastMcpReload = deps.broadcastMcpReload;
+
+    this.settingsDocument = containerEl.ownerDocument ?? window.document;
+    this.handleDocumentClick = (event) => {
+      if (!this.mountEl.contains(event.target as Node)) {
+        this.setMenuOpen(false);
+      }
+    };
+    this.handleDocumentKeydown = (event) => {
+      if (event.key === 'Escape' && this.menuOpen) {
+        event.preventDefault();
+        this.setMenuOpen(false);
+        this.mountEl.querySelector<HTMLButtonElement>('.claudian-settings-action-btn')?.focus();
+      }
+    };
+    this.settingsDocument.addEventListener('click', this.handleDocumentClick);
+    this.settingsDocument.addEventListener('keydown', this.handleDocumentKeydown);
+    managerDestructors.set(this.mountEl, () => this.destroy());
     void this.loadAndRender();
   }
 
   private async loadAndRender() {
     this.servers = await this.mcpStorage.load();
+    if (this.destroyed) return;
     this.render();
   }
 
   private render() {
-    this.containerEl.empty();
-
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-mcp-header' });
-    headerEl.createSpan({ text: 'MCP Servers', cls: 'claudian-mcp-label' });
-
-    const addContainer = headerEl.createDiv({ cls: 'claudian-mcp-add-container' });
-    const addBtn = addContainer.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Add' },
+    if (this.destroyed) return;
+    const servers: McpSettingsViewServer[] = this.servers.map(server => {
+      const type = getMcpServerType(server.config);
+      return {
+        name: server.name,
+        type,
+        enabled: server.enabled,
+        contextSaving: server.contextSaving,
+        contextSavingTitle: `Context-saving: mention with @${server.name} to enable`,
+        preview: this.getServerPreview(server, type),
+        description: server.description,
+      };
     });
-    setIcon(addBtn, 'plus');
-
-    const dropdown = addContainer.createDiv({ cls: 'claudian-mcp-add-dropdown' });
-
-    const stdioOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(stdioOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'terminal');
-    stdioOption.createSpan({ text: 'stdio (local command)' });
-    stdioOption.addEventListener('click', () => {
-      dropdown.removeClass('is-visible');
-      this.openModal(null, 'stdio');
-    });
-
-    const httpOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(httpOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'globe');
-    httpOption.createSpan({ text: 'http / sse (remote)' });
-    httpOption.addEventListener('click', () => {
-      dropdown.removeClass('is-visible');
-      this.openModal(null, 'http');
-    });
-
-    const importOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(importOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'clipboard-paste');
-    importOption.createSpan({ text: 'Paste configuration' });
-    importOption.addEventListener('click', () => {
-      dropdown.removeClass('is-visible');
-      this.openImportModal();
-    });
-
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.toggleClass('is-visible', !dropdown.hasClass('is-visible'));
-    });
-
-    (this.containerEl.ownerDocument ?? window.document).addEventListener('click', () => {
-      dropdown.removeClass('is-visible');
-    });
-
-    if (this.servers.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-mcp-empty' });
-      emptyEl.setText('No mcp servers configured. Click "add" to add one.');
-      return;
-    }
-
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-mcp-list' });
-    for (const server of this.servers) {
-      this.renderServerItem(listEl, server);
-    }
+    this.root.render(h(McpSettingsView, {
+      menuId: this.menuId,
+      menuOpen: this.menuOpen,
+      servers,
+      onToggleMenu: () => this.setMenuOpen(!this.menuOpen),
+      onAddStdio: () => {
+        this.setMenuOpen(false);
+        this.openModal(null, 'stdio');
+      },
+      onAddHttp: () => {
+        this.setMenuOpen(false);
+        this.openModal(null, 'http');
+      },
+      onImport: () => {
+        this.setMenuOpen(false);
+        this.openImportModal();
+      },
+      onTest: (name) => {
+        const server = this.servers.find(item => item.name === name);
+        if (server) void this.testServer(server);
+      },
+      onToggleServer: (name) => {
+        const server = this.servers.find(item => item.name === name);
+        if (server) {
+          void this.toggleServer(server).catch((error: unknown) => {
+            this.showMutationError(error, 'Failed to update MCP server');
+          });
+        }
+      },
+      onEdit: (name) => {
+        const server = this.servers.find(item => item.name === name);
+        if (server) this.openModal(server);
+      },
+      onDelete: (name) => {
+        const server = this.servers.find(item => item.name === name);
+        if (server) {
+          void this.deleteServer(server).catch((error: unknown) => {
+            this.showMutationError(error, 'Failed to delete MCP server');
+          });
+        }
+      },
+    }));
   }
 
-  private renderServerItem(listEl: HTMLElement, server: ManagedMcpServer) {
-    const itemEl = listEl.createDiv({ cls: 'claudian-mcp-item' });
-    if (!server.enabled) {
-      itemEl.addClass('claudian-mcp-item-disabled');
-    }
+  private setMenuOpen(open: boolean): void {
+    if (this.destroyed || this.menuOpen === open) return;
+    this.menuOpen = open;
+    this.render();
+  }
 
-    const statusEl = itemEl.createDiv({ cls: 'claudian-mcp-status' });
-    statusEl.addClass(
-      server.enabled ? 'claudian-mcp-status-enabled' : 'claudian-mcp-status-disabled'
-    );
-
-    const infoEl = itemEl.createDiv({ cls: 'claudian-mcp-info' });
-
-    const nameRow = infoEl.createDiv({ cls: 'claudian-mcp-name-row' });
-
-    const nameEl = nameRow.createSpan({ cls: 'claudian-mcp-name' });
-    nameEl.setText(server.name);
-
-    const serverType = getMcpServerType(server.config);
-    const typeEl = nameRow.createSpan({ cls: 'claudian-mcp-type-badge' });
-    typeEl.setText(serverType);
-
-    if (server.contextSaving) {
-      const csEl = nameRow.createSpan({ cls: 'claudian-mcp-context-saving-badge' });
-      csEl.setText('@');
-      csEl.setAttribute('title', 'Context-saving: mention with @' + server.name + ' to enable');
-    }
-
-    const previewEl = infoEl.createDiv({ cls: 'claudian-mcp-preview' });
-    if (server.description) {
-      previewEl.setText(server.description);
-    } else {
-      previewEl.setText(this.getServerPreview(server, serverType));
-    }
-
-    const actionsEl = itemEl.createDiv({ cls: 'claudian-mcp-actions' });
-
-    const testBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': 'Verify (show tools)' },
-    });
-    setIcon(testBtn, 'zap');
-    testBtn.addEventListener('click', () => {
-      void this.testServer(server);
-    });
-
-    const toggleBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': server.enabled ? 'Disable' : 'Enable' },
-    });
-    setIcon(toggleBtn, server.enabled ? 'toggle-right' : 'toggle-left');
-    toggleBtn.addEventListener('click', () => {
-      void this.toggleServer(server).catch((error: unknown) => {
-        this.showMutationError(error, 'Failed to update MCP server');
-      });
-    });
-
-    const editBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': 'Edit' },
-    });
-    setIcon(editBtn, 'pencil');
-    editBtn.addEventListener('click', () => this.openModal(server));
-
-    const deleteBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn claudian-mcp-delete-btn',
-      attr: { 'aria-label': 'Delete' },
-    });
-    setIcon(deleteBtn, 'trash-2');
-    deleteBtn.addEventListener('click', () => {
-      void this.deleteServer(server).catch((error: unknown) => {
-        this.showMutationError(error, 'Failed to delete MCP server');
-      });
-    });
+  public destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    managerDestructors.delete(this.mountEl);
+    this.settingsDocument.removeEventListener('click', this.handleDocumentClick);
+    this.settingsDocument.removeEventListener('keydown', this.handleDocumentKeydown);
+    this.root.unmount();
+    this.mountEl.remove();
   }
 
   private async testServer(server: ManagedMcpServer) {

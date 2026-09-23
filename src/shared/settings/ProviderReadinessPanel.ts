@@ -1,4 +1,5 @@
 import { Setting } from 'obsidian';
+import { h } from 'preact';
 
 import type {
   ProviderReadinessCheck,
@@ -8,7 +9,9 @@ import type {
 } from '../../core/providers/ProviderReadiness';
 import { t } from '../../i18n/i18n';
 import type { TranslationKey } from '../../i18n/types';
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import { renderCliInstallationCard } from './CliInstallationCard';
+import { ProviderReadinessView, type ProviderReadinessViewCheck } from './ProviderReadinessView';
 
 export interface ProviderReadinessPanelOptions {
   container: HTMLElement;
@@ -29,11 +32,21 @@ export interface ProviderReadinessPanelController {
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
   cliDetail: HTMLElement;
-  /** Unmount the Preact card and remove the readiness panel from its host. */
+  /** Unmount both Preact views and remove the readiness panel from its host. */
   destroy(): void;
 }
 
 const MIN_REFRESH_FEEDBACK_MS = 120;
+const readinessDestructors = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount readiness roots before settings hosts clear their provider cards. */
+export function destroyProviderReadinessPanels(container: HTMLElement): void {
+  const mounts = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-provider-readiness-view-mount'),
+  );
+  if (container.classList.contains('claudian-provider-readiness-view-mount')) mounts.unshift(container);
+  mounts.forEach(mount => readinessDestructors.get(mount)?.());
+}
 
 export function renderProviderReadinessPanel(
   options: ProviderReadinessPanelOptions,
@@ -50,97 +63,81 @@ export function renderProviderReadinessPanel(
     .setDesc(t('settings.providerReadiness.desc', { provider: options.providerName }))
     .setHeading();
 
-  const summary = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-summary' });
-  const checks = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-checks' });
+  const mount = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-view-mount' });
+  const viewRoot: PreactRoot = createPreactRoot(mount);
   const cliDetail = installationCard.body.createDiv({ cls: 'claudian-provider-readiness-cli-detail' });
+  let destroyed = false;
+  let currentChecks: ProviderReadinessViewCheck[] = [];
+
+  const renderView = (
+    status: ProviderReadinessStatus | 'checking',
+    summary: string,
+    checks = currentChecks,
+  ): void => {
+    if (destroyed) return;
+    currentChecks = checks;
+    viewRoot.render(h(ProviderReadinessView, { status, summary, checks: currentChecks }));
+  };
+
+  const dispose = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    readinessDestructors.delete(mount);
+    viewRoot.unmount();
+    installationCard.destroy();
+  };
+  readinessDestructors.set(mount, dispose);
 
   const renderSnapshot = (snapshot: ProviderReadinessSnapshot): void => {
     const statusText = t(`settings.providerReadiness.status.${snapshot.status}`);
-    summary.setText(statusText);
+    renderView(snapshot.status, statusText, snapshot.checks.map(toReadinessViewCheck));
     installationCard.setStatus(snapshot.status, statusText);
-    if (summary.dataset) summary.dataset.status = snapshot.status;
-    checks.empty?.();
-    for (const check of snapshot.checks) {
-      renderCheck(checks, check);
-    }
   };
 
   const refresh = async (refreshCatalog = false): Promise<void> => {
+    if (destroyed) return;
     const checkingText = t('settings.providerReadiness.checking');
-    summary.setText(checkingText);
+    renderView('checking', checkingText);
     installationCard.setStatus('checking', checkingText);
     if (refreshCatalog) {
       const startedAt = Date.now();
       await options.onRefresh?.();
+      if (destroyed) return;
       const remaining = MIN_REFRESH_FEEDBACK_MS - (Date.now() - startedAt);
       if (remaining > 0) {
         await new Promise<void>(resolve => window.setTimeout(resolve, remaining));
       }
     }
-    renderSnapshot(await options.getSnapshot());
+    if (destroyed) return;
+    const snapshot = await options.getSnapshot();
+    if (destroyed) return;
+    renderSnapshot(snapshot);
   };
 
+  renderView('checking', t('settings.providerReadiness.checking'), []);
   void refresh();
   return {
     refresh,
     root,
     management,
     cliDetail,
-    destroy: installationCard.destroy,
+    destroy: dispose,
   };
 }
 
-function renderCheck(container: HTMLElement, check: ProviderReadinessCheck): void {
-  const row = container.createDiv({ cls: 'claudian-provider-readiness-check' });
-  if (row.dataset) row.dataset.status = check.status;
-  createReadinessSpan(row, {
-    cls: 'claudian-provider-readiness-check-icon',
-    text: getStatusIcon(check.status),
-  });
-  createReadinessSpan(row, {
-    cls: 'claudian-provider-readiness-check-label',
-    text: t(`settings.providerReadiness.check.${check.id}`),
-  });
-  createReadinessSpan(row, {
-    cls: 'claudian-provider-readiness-check-status',
-    text: t(`settings.providerReadiness.status.${check.status}`),
-  });
-  if (check.remediation) {
-    row.createDiv({
-      cls: 'claudian-provider-readiness-check-hint',
-      text: t(getRemediationTranslationKey(check.remediation)),
-    });
-  }
+function toReadinessViewCheck(check: ProviderReadinessCheck): ProviderReadinessViewCheck {
+  return {
+    id: check.id,
+    status: check.status,
+    icon: getStatusIcon(check.status),
+    label: t(`settings.providerReadiness.check.${check.id}`),
+    statusLabel: t(`settings.providerReadiness.status.${check.status}`),
+    ...(check.remediation ? { hint: t(getRemediationTranslationKey(check.remediation)) } : {}),
+  };
 }
 
 function getRemediationTranslationKey(remediation: ProviderReadinessRemediation): TranslationKey {
   return `settings.providerReadiness.hint.${remediation}`;
-}
-
-interface ReadinessSpanOptions {
-  cls: string;
-  text: string;
-}
-
-interface ObsidianElementHelpers {
-  createSpan?: (options: ReadinessSpanOptions) => HTMLElement;
-  createEl?: (tag: string, options: ReadinessSpanOptions) => HTMLElement;
-}
-
-function createReadinessSpan(
-  row: HTMLElement,
-  options: ReadinessSpanOptions,
-): HTMLElement {
-  const helpers = row as HTMLElement & ObsidianElementHelpers;
-  if (typeof helpers.createSpan === 'function') {
-    return helpers.createSpan(options);
-  }
-
-  if (typeof helpers.createEl === 'function') {
-    return helpers.createEl.call(row, 'span', options);
-  }
-
-  throw new Error('Obsidian element does not support span creation.');
 }
 
 function getStatusIcon(status: ProviderReadinessStatus): string {

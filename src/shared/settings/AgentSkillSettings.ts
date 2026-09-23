@@ -1,6 +1,11 @@
-import { type App, Modal, Notice, setIcon, Setting } from 'obsidian';
+import { type App, Modal, Notice, Setting } from 'obsidian';
+import { h } from 'preact';
 
-import type { AgentSkillDocument, AgentSkillInput } from '../../core/skills/AgentSkill';
+import type {
+  AgentSkillDocument,
+  AgentSkillInput,
+  AgentSkillListResult,
+} from '../../core/skills/AgentSkill';
 import {
   AgentSkillCollisionError,
   AgentSkillRepositoryError,
@@ -19,6 +24,8 @@ import type {
   AgentSkillMutationResult,
 } from '../../features/settings/AgentSkillManagementCoordinator';
 import { t } from '../../i18n/i18n';
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { type AgentSkillSettingsStatus,AgentSkillSettingsView } from './AgentSkillSettingsView';
 
 type AgentSkillSaveHandler = (
   input: AgentSkillInput,
@@ -221,10 +228,28 @@ export class AgentSkillDeleteModal extends Modal {
   }
 }
 
+const agentSkillDisposers = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount embedded Agent Skills views before provider settings are cleared. */
+export function destroyAgentSkillSettings(container: HTMLElement): void {
+  const roots = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-agent-skills-manager'),
+  );
+  if (container.classList.contains('claudian-agent-skills-manager')) {
+    roots.unshift(container);
+  }
+  roots.forEach(root => agentSkillDisposers.get(root)?.());
+}
+
 export class AgentSkillSettings {
   private renderGeneration = 0;
   private readonly rootEl: HTMLDivElement;
+  private readonly root: PreactRoot;
   private readonly unsubscribe: () => void;
+  private disposed = false;
+  private status: AgentSkillSettingsStatus = 'loading';
+  private skills: AgentSkillListResult['skills'] = [];
+  private diagnostics: AgentSkillListResult['diagnostics'] = [];
 
   constructor(
     containerEl: HTMLElement,
@@ -232,12 +257,21 @@ export class AgentSkillSettings {
     private readonly app: App,
   ) {
     this.rootEl = containerEl.createDiv({ cls: 'claudian-agent-skills-manager' });
-    this.unsubscribe = coordinator.subscribe(() => this.render());
+    this.root = createPreactRoot(this.rootEl);
+    this.unsubscribe = coordinator.subscribe(() => {
+      void this.render();
+    });
+    agentSkillDisposers.set(this.rootEl, () => this.dispose());
     void this.render();
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.renderGeneration++;
+    agentSkillDisposers.delete(this.rootEl);
     this.unsubscribe();
+    this.root.unmount();
   }
 
   async refresh(): Promise<void> {
@@ -245,99 +279,39 @@ export class AgentSkillSettings {
   }
 
   async render(): Promise<void> {
+    if (this.disposed) return;
     const generation = ++this.renderGeneration;
-    let result;
+    this.status = 'loading';
+    this.renderView();
+
+    let result: AgentSkillListResult;
     try {
       result = await this.coordinator.list();
     } catch {
-      if (generation !== this.renderGeneration) return;
-      this.rootEl.empty();
-      this.renderHeader();
-      this.rootEl.createDiv({
-        cls: 'claudian-agent-skills-error',
-        text: t('settings.agentSkills.loadFailed'),
-      });
+      if (this.disposed || generation !== this.renderGeneration) return;
+      this.status = 'error';
+      this.renderView();
       return;
     }
-    if (generation !== this.renderGeneration) return;
+    if (this.disposed || generation !== this.renderGeneration) return;
 
-    this.rootEl.empty();
-    this.renderHeader();
-
-    if (result.skills.length === 0) {
-      this.rootEl.createDiv({
-        cls: 'claudian-sp-empty-state',
-        text: t('settings.agentSkills.noSkills'),
-      });
-    } else {
-      const list = this.rootEl.createDiv({ cls: 'claudian-sp-list' });
-      for (const skill of result.skills) {
-        this.renderSkill(list, skill);
-      }
-    }
-
-    if (result.diagnostics.length > 0) {
-      const diagnostics = this.rootEl.createDiv({ cls: 'claudian-agent-skills-diagnostics' });
-      diagnostics.createDiv({
-        cls: 'claudian-agent-skills-diagnostics-title',
-        text: t('settings.agentSkills.diagnosticsTitle'),
-      });
-      for (const diagnostic of result.diagnostics) {
-        const item = diagnostics.createDiv({ cls: 'claudian-agent-skills-diagnostic' });
-        item.createEl('code', { text: diagnostic.directoryPath });
-        item.createSpan({ text: diagnostic.message });
-      }
-    }
+    this.skills = result.skills;
+    this.diagnostics = result.diagnostics;
+    this.status = 'ready';
+    this.renderView();
   }
 
-  private renderHeader(): void {
-    const header = this.rootEl.createDiv({
-      cls: 'claudian-sp-header claudian-agent-skills-header',
-    });
-    const help = header.createDiv({ cls: 'claudian-agent-skills-help' });
-    help.createEl('p', { text: t('settings.agentSkills.sharedExpectation') });
-
-    const actions = header.createDiv({ cls: 'claudian-sp-header-actions' });
-    const refreshButton = actions.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': t('common.refresh') },
-    });
-    setIcon(refreshButton, 'refresh-cw');
-    refreshButton.addEventListener('click', () => {
-      void this.render();
-    });
-    const addButton = actions.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': t('common.add') },
-    });
-    setIcon(addButton, 'plus');
-    addButton.addEventListener('click', () => this.openEditModal(null));
-  }
-
-  private renderSkill(list: HTMLElement, skill: AgentSkillDocument): void {
-    const item = list.createDiv({ cls: 'claudian-sp-item' });
-    const info = item.createDiv({ cls: 'claudian-sp-info' });
-    const itemHeader = info.createDiv({ cls: 'claudian-sp-item-header' });
-    itemHeader.createSpan({ text: skill.name, cls: 'claudian-sp-item-name' });
-    itemHeader.createSpan({
-      text: t('settings.agentSkills.skillBadge'),
-      cls: 'claudian-slash-item-badge',
-    });
-    info.createDiv({ text: skill.description, cls: 'claudian-sp-item-desc' });
-
-    const actions = item.createDiv({ cls: 'claudian-sp-item-actions' });
-    const editButton = actions.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': t('common.edit') },
-    });
-    setIcon(editButton, 'pencil');
-    editButton.addEventListener('click', () => this.openEditModal(skill));
-    const deleteButton = actions.createEl('button', {
-      cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-      attr: { 'aria-label': t('common.delete') },
-    });
-    setIcon(deleteButton, 'trash-2');
-    deleteButton.addEventListener('click', () => this.openDeleteModal(skill));
+  private renderView(): void {
+    if (this.disposed) return;
+    this.root.render(h(AgentSkillSettingsView, {
+      status: this.status,
+      skills: this.skills,
+      diagnostics: this.diagnostics,
+      onRefresh: () => { void this.render(); },
+      onAdd: () => this.openEditModal(null),
+      onEdit: skill => this.openEditModal(skill),
+      onDelete: skill => this.openDeleteModal(skill),
+    }));
   }
 
   private openEditModal(existing: AgentSkillDocument | null): void {

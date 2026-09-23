@@ -12,6 +12,7 @@ import {
   OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES,
 } from '@/providers/opencode/settings';
 import { opencodeSettingsTabRenderer } from '@/providers/opencode/ui/OpencodeSettingsTab';
+import type { ProviderModelPickerOptions } from '@/shared/settings/ProviderModelPicker';
 
 const mockGetHostnameKey = jest.fn(() => 'host-a');
 const mockRenderEnvironmentSettingsSection = jest.fn();
@@ -20,6 +21,19 @@ const mockRefreshAgentMentions = jest.fn().mockResolvedValue(undefined);
 const mockCliResolverReset = jest.fn();
 const mockMetadataLoadCatalog = jest.fn().mockResolvedValue(false);
 const mockMetadataWarmModel = jest.fn().mockResolvedValue(false);
+let mockProviderModelPickerOptions: ProviderModelPickerOptions | null = null;
+const mockProviderEnablementOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (enabled: boolean) => Promise<void> | void;
+}> = [];
+const mockHostnameCliPathOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (value: string) => Promise<void> | void;
+  placeholder: string;
+  validate?: (value: string) => string | null;
+}> = [];
 const mockAgentStorage = {};
 const mockCreatedAgentSettings: Array<{
   app: unknown;
@@ -29,6 +43,24 @@ const mockCreatedAgentSettings: Array<{
 }> = [];
 
 jest.mock('fs');
+jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
+  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
+    mockProviderEnablementOptions.push(options);
+    return { dispose: jest.fn(), setDisabled: jest.fn() };
+  },
+}));
+jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
+  renderHostnameCliPathSetting: (options: typeof mockHostnameCliPathOptions[number]) => {
+    mockHostnameCliPathOptions.push(options);
+    return {
+      dispose: jest.fn(),
+      revalidate: jest.fn(() => true),
+      setDescription: jest.fn(),
+      setDisabled: jest.fn(),
+      setPlaceholder: jest.fn(),
+    };
+  },
+}));
 jest.mock('@/core/providers/ProviderSettingsCoordinator', () => ({
   ProviderSettingsCoordinator: {
     canApplyProviderEnablement: jest.fn(() => true),
@@ -89,6 +121,12 @@ jest.mock('obsidian', () => {
 
 jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
+}));
+jest.mock('@/shared/settings/ProviderModelPicker', () => ({
+  renderProviderModelPicker: (options: ProviderModelPickerOptions) => {
+    mockProviderModelPickerOptions = options;
+    return { dispose: jest.fn(), refresh: jest.fn() };
+  },
 }));
 
 jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
@@ -400,9 +438,12 @@ describe('OpencodeSettingsTab', () => {
   const mockedStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 
   beforeEach(() => {
+    mockHostnameCliPathOptions.length = 0;
+    mockProviderEnablementOptions.length = 0;
     createdSettings.length = 0;
     createdElements.length = 0;
     createdDomElements.length = 0;
+    mockProviderModelPickerOptions = null;
     mockCreatedAgentSettings.length = 0;
     jest.clearAllMocks();
     mockMetadataLoadCatalog.mockResolvedValue(false);
@@ -416,11 +457,11 @@ describe('OpencodeSettingsTab', () => {
     const context = createContext(plugin);
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
-    const enableSetting = findSetting('Enable OpenCode');
-    expect(enableSetting.desc).toBe(
+    const enablement = mockProviderEnablementOptions[0];
+    expect(enablement.description).toBe(
       'Make enabled OpenCode models available for new conversations. Existing sessions are preserved when disabled.',
     );
-    await enableSetting.toggleComponents[0].onChangeCallback?.(false);
+    await enablement.onChange(false);
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('opencode');
   });
@@ -452,11 +493,11 @@ describe('OpencodeSettingsTab', () => {
     const context = createContext(plugin);
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
-    const toggle = findSetting('Enable OpenCode').toggleComponents[0];
+    const enablement = mockProviderEnablementOptions[0];
     await flushPromises();
     mockMetadataLoadCatalog.mockClear();
     mockMetadataWarmModel.mockClear();
-    await toggle.onChangeCallback?.(true);
+    await enablement.onChange(true);
 
     expect(plugin.runProviderExecutionTransition).toHaveBeenCalledWith(
       ['opencode'],
@@ -475,7 +516,7 @@ describe('OpencodeSettingsTab', () => {
     ['before mutation', false],
     ['after mutation', true],
   ] as const)(
-    'resynchronizes the enable toggle when the transition fails %s',
+    'preserves authoritative enablement when the transition fails %s',
     async (_phase, mutateBeforeFailure) => {
       const plugin = createPlugin();
       plugin.runProviderExecutionTransition.mockImplementation(async (
@@ -488,17 +529,14 @@ describe('OpencodeSettingsTab', () => {
       const context = createContext(plugin);
 
       opencodeSettingsTabRenderer.render(createContainer(), context);
-      const toggle = findSetting('Enable OpenCode').toggleComponents[0];
-      toggle.value = false;
-      toggle.setValue.mockClear();
+      const enablement = mockProviderEnablementOptions[0];
 
-      await expect(toggle.onChangeCallback?.(false)).rejects.toThrow(
+      await expect(enablement.onChange(false)).rejects.toThrow(
         'enablement transition failed',
       );
 
       const persistedEnabled = plugin.settings.providerConfigs.opencode.enabled;
       expect(persistedEnabled).toBe(mutateBeforeFailure ? false : true);
-      expect(toggle.setValue).toHaveBeenCalledWith(persistedEnabled);
       expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
     },
   );
@@ -518,7 +556,7 @@ describe('OpencodeSettingsTab', () => {
     });
 
     opencodeSettingsTabRenderer.render(createContainer(), createContext(plugin));
-    await findSetting('CLI path').textComponents[0].onChangeCallback?.('"/my tools/opencode"');
+    await mockHostnameCliPathOptions.at(-1)?.onChange('"/my tools/opencode"');
 
     expect(plugin.settings.providerConfigs.opencode.cliPathsByHost).toEqual({
       'host-a': '"/my tools/opencode"',
@@ -554,8 +592,7 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), createContext(plugin));
 
-    const cliPathSetting = findSetting('CLI path');
-    await cliPathSetting.textComponents[0].onChangeCallback?.('/custom/opencode');
+    await mockHostnameCliPathOptions.at(-1)?.onChange('/custom/opencode');
 
     expect(plugin.settings.providerConfigs.opencode.cliPathsByHost).toEqual({
       'host-a': '/custom/opencode',
@@ -650,6 +687,8 @@ describe('OpencodeSettingsTab', () => {
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       desc: expect.stringContaining(OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES),
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
     }));
   });
 
@@ -680,9 +719,9 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    const catalogEl = findElement('details', 'claudian-provider-model-picker-catalog');
-    catalogEl.open = true;
-    await catalogEl.dispatchMockEvent('toggle');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(false);
     await flushPromises();
 
     expect(mockMetadataLoadCatalog).toHaveBeenCalledTimes(1);
@@ -715,6 +754,10 @@ describe('OpencodeSettingsTab', () => {
     const context = createContext(plugin);
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    expect(pickerOptions.loadCatalogOnRender).toBe(true);
+    await pickerOptions.loadCatalog(false);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -748,6 +791,9 @@ describe('OpencodeSettingsTab', () => {
     const context = createContext(plugin);
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(false);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -779,13 +825,15 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    const checkboxEl = createdDomElements.find((element) => element.type === 'checkbox');
-    if (!checkboxEl) {
-      throw new Error('Expected model checkbox');
-    }
-
-    checkboxEl.checked = true;
-    await checkboxEl.dispatchMockEvent('change');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.onSelectedIdsChange(['deepseek/deepseek-v4-pro']);
+    await pickerOptions.onModelSelected?.({
+      id: 'deepseek/deepseek-v4-pro',
+      name: 'DeepSeek V4 Pro',
+      providerKey: 'deepseek',
+      providerLabel: 'DeepSeek',
+    });
     await flushPromises();
 
     expect(plugin.settings.providerConfigs.opencode.visibleModels).toEqual([
@@ -813,9 +861,9 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    const aliasInput = findElement('input', 'claudian-provider-model-picker-selected-alias');
-    aliasInput.value = 'V4 Pro';
-    await aliasInput.dispatchMockEvent('blur');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.onAliasesChange({ 'deepseek/deepseek-v4-pro': 'V4 Pro' });
     await flushPromises();
 
     expect(getOpencodeProviderSettings(plugin.settings).modelAliases).toEqual({

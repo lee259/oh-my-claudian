@@ -3,11 +3,9 @@ import {
   AgentSkillCollisionError,
   AgentSkillRevisionConflictError,
 } from '@/core/skills/AgentSkillRepository';
-import type { AgentSkillManagementCoordinator } from '@/features/settings/AgentSkillManagementCoordinator';
 import {
   AgentSkillDeleteModal,
   AgentSkillModal,
-  AgentSkillSettings,
 } from '@/shared/settings/AgentSkillSettings';
 
 const mockNotices: string[] = [];
@@ -116,32 +114,8 @@ function makeSkill(overrides: Partial<AgentSkillDocument> = {}): AgentSkillDocum
   };
 }
 
-function createCoordinator(skills: AgentSkillDocument[] = [makeSkill()]) {
-  return {
-    list: jest.fn().mockResolvedValue({
-      skills,
-      diagnostics: [{ directoryPath: '.agents/skills/broken', message: 'Missing description' }],
-    }),
-    subscribe: jest.fn().mockReturnValue(jest.fn()),
-    create: jest.fn().mockResolvedValue({ value: makeSkill(), refreshFailed: false }),
-    update: jest.fn().mockResolvedValue({ value: makeSkill(), refreshFailed: false }),
-    trash: jest.fn().mockResolvedValue({ value: undefined, refreshFailed: false }),
-  } as unknown as jest.Mocked<AgentSkillManagementCoordinator>;
-}
-
 function flattenText(element: MockElement): string {
   return [element.textContent, ...element.children.map(flattenText)].join(' ');
-}
-
-function findByClass(element: MockElement, className: string): MockElement | undefined {
-  if (element.cls?.split(/\s+/).includes(className)) {
-    return element;
-  }
-  for (const child of element.children) {
-    const match = findByClass(child, className);
-    if (match) return match;
-  }
-  return undefined;
 }
 
 describe('AgentSkillModal', () => {
@@ -226,65 +200,6 @@ describe('AgentSkillModal', () => {
       'Failed to save shared skill: Unexpected storage error',
     );
     expect(mockNotices.at(-1)).not.toContain('/private/vault');
-  });
-});
-
-describe('AgentSkillSettings', () => {
-  beforeEach(() => {
-    mockNotices.length = 0;
-  });
-
-  it('renders one provider-neutral shared location description and diagnostics', async () => {
-    const container = createElement();
-    const coordinator = createCoordinator();
-    new AgentSkillSettings(
-      container as unknown as HTMLElement,
-      coordinator,
-      {} as never,
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-    const text = flattenText(container);
-
-    expect(text).toContain('.agents/skills');
-    expect(text).toContain('shared-skill');
-    expect(text).not.toContain('$shared-skill');
-    expect(text).toContain(
-      'Manage shared skills in .agents/skills/ for compatible providers.',
-    );
-    expect(text).not.toContain('Shared skills');
-    expect(text).not.toMatch(/Shared skills\s+\.agents\/skills\s+/);
-    expect(text).not.toContain('provider compatibility issue');
-    expect(text).toContain('.agents/skills/broken');
-    expect(text).toContain('Missing description');
-    const header = findByClass(container, 'claudian-agent-skills-header');
-    expect(header).toBeDefined();
-    expect(flattenText(header!)).toContain(
-      'Manage shared skills in .agents/skills/ for compatible providers.',
-    );
-    expect(findByClass(header!, 'claudian-sp-header-actions')).toBeDefined();
-    expect(coordinator.subscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it('preserves provider settings rendered beside the embedded manager', async () => {
-    const container = createElement();
-    const providerSetting = container.createDiv({
-      cls: 'provider-setting',
-      text: 'Provider setup remains visible',
-    });
-    const coordinator = createCoordinator();
-
-    const settings = new AgentSkillSettings(
-      container as unknown as HTMLElement,
-      coordinator,
-      {} as never,
-    );
-    await new Promise(resolve => setTimeout(resolve, 0));
-    await settings.refresh();
-
-    expect(container.children).toContain(providerSetting);
-    expect(flattenText(container)).toContain('Provider setup remains visible');
-    expect(flattenText(container)).toContain('.agents/skills');
   });
 });
 

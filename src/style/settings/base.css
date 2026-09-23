@@ -156,6 +156,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.claudian-cli-path-input-mount {
+  flex: 1;
+  min-width: 0;
+}
+
 .claudian-settings-cli-path-input {
   width: 100%;
 }

@@ -8,7 +8,10 @@ jest.mock('obsidian', () => ({
   },
 }));
 
-import { renderProviderReadinessPanel } from '@/shared/settings/ProviderReadinessPanel';
+import {
+  destroyProviderReadinessPanels,
+  renderProviderReadinessPanel,
+} from '@/shared/settings/ProviderReadinessPanel';
 
 Object.defineProperty(HTMLElement.prototype, 'setText', {
   configurable: true,
@@ -132,6 +135,42 @@ describe('renderProviderReadinessPanel', () => {
     });
 
     controller.destroy();
+
+    expect(container.childElementCount).toBe(0);
+  });
+
+  it('unmounts readiness roots before the settings host clears its cards', () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: async () => ({
+        status: 'attention',
+        checks: [{ id: 'models', status: 'attention', remediation: 'refreshModels' }],
+      }),
+    });
+    const mount = container.querySelector('.claudian-provider-readiness-view-mount');
+    expect(mount).not.toBeNull();
+
+    destroyProviderReadinessPanels(container);
+
+    expect(container.childElementCount).toBe(0);
+    expect(controller.root.isConnected).toBe(false);
+  });
+
+  it('does not update the CLI card after an in-flight snapshot resolves post-destroy', async () => {
+    const container = document.createElement('div');
+    let resolveSnapshot!: (snapshot: { status: 'ready'; checks: [] }) => void;
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Test',
+      getSnapshot: () => new Promise(resolve => { resolveSnapshot = resolve; }),
+    });
+
+    controller.destroy();
+    resolveSnapshot({ status: 'ready', checks: [] });
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(container.childElementCount).toBe(0);
   });
