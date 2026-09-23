@@ -56,6 +56,37 @@ describe('SettingsToggleListView', () => {
     expect(onChange).toHaveBeenCalledWith('auto-scroll', false);
   });
 
+  it('toggles repeatedly when clicking the switch track outside the input', async () => {
+    const onChange = jest.fn(() => Promise.resolve());
+    const container = document.createElement('div');
+
+    render(h(SettingsToggleListView, {
+      items: [{
+        id: 'auto-scroll',
+        name: 'Enable auto-scroll',
+        description: 'Keep the latest response visible.',
+        value: true,
+      }],
+      saveLabels,
+      onChange,
+    }), container);
+
+    const track = container.querySelector<HTMLElement>('.checkbox-container');
+    if (!track) throw new Error('Expected the switch track');
+
+    track.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(container.querySelector<HTMLInputElement>('input')?.checked).toBe(false);
+    expect(onChange).toHaveBeenLastCalledWith('auto-scroll', false);
+
+    track.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onChange).toHaveBeenLastCalledWith('auto-scroll', true);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
   it('disables a switch while its save is pending', async () => {
     let resolveChange!: () => void;
     const onChange = jest.fn(() => new Promise<void>((resolve) => {
