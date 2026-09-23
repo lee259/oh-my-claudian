@@ -35,6 +35,7 @@ import { HotkeySettingsView } from '../../shared/settings/HotkeySettingsView';
 import { NavigationMappingsView } from '../../shared/settings/NavigationMappingsView';
 import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
+import { SettingsSelectListView } from '../../shared/settings/SettingsSelectListView';
 import {
   getSettingsTabContentId,
   SettingsTabBar,
@@ -164,6 +165,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
   private generalDisplayRoot: PreactRoot | null = null;
   private generalConversationToggleRoot: PreactRoot | null = null;
+  private generalConversationLanguageRoot: PreactRoot | null = null;
   private generalHotkeysRoot: PreactRoot | null = null;
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
@@ -198,6 +200,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalDisplayRoot = null;
     this.generalConversationToggleRoot?.unmount();
     this.generalConversationToggleRoot = null;
+    this.generalConversationLanguageRoot?.unmount();
+    this.generalConversationLanguageRoot = null;
     this.generalHotkeysRoot?.unmount();
     this.generalHotkeysRoot = null;
     this.generalEnvironmentHandle?.destroy();
@@ -548,22 +552,31 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }));
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
-      new Setting(conversations)
-        .setName(t('settings.titleLanguage.name'))
-        .setDesc(t('settings.titleLanguage.desc'))
-        .addDropdown((dropdown) => {
-          dropdown.addOption('', t('settings.titleLanguage.followInterface'));
-          for (const locale of getAvailableLocales()) {
-            dropdown.addOption(locale, getLocaleDisplayName(locale));
+      this.generalConversationLanguageRoot?.unmount();
+      this.generalConversationLanguageRoot = createPreactRoot(conversations.createDiv());
+      this.generalConversationLanguageRoot.render(h(SettingsSelectListView, {
+        items: [{
+          id: 'title-generation-language',
+          name: t('settings.titleLanguage.name'),
+          description: t('settings.titleLanguage.desc'),
+          value: this.plugin.settings.titleGenerationLocale || '',
+          options: [
+            { value: '', label: t('settings.titleLanguage.followInterface') },
+            ...getAvailableLocales().map(locale => ({
+              value: locale,
+              label: getLocaleDisplayName(locale),
+            })),
+          ],
+        }],
+        onChange: async (id, value) => {
+          if (id !== 'title-generation-language') {
+            return;
           }
-          dropdown
-            .setValue(this.plugin.settings.titleGenerationLocale || '')
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.titleGenerationLocale = value;
-              });
-            });
-        });
+          await this.plugin.mutateSettings((settings) => {
+            settings.titleGenerationLocale = value;
+          });
+        },
+      }));
 
       new Setting(conversations)
         .setName(t('settings.titleModel.name'))
