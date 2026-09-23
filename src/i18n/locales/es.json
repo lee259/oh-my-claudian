@@ -187,6 +187,11 @@
   },
   "settings": {
     "title": "Configuración de Oh My Claudian",
+    "saveFeedback": {
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "error": "No se pudo guardar"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

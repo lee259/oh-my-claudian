@@ -1,4 +1,10 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
+
+import {
+  SettingsSaveFeedback,
+  type SettingsSaveLabels,
+  useSettingsSaveState,
+} from './SettingsSaveFeedback';
 
 export interface SettingsSliderViewProps {
   name: string;
@@ -7,6 +13,7 @@ export interface SettingsSliderViewProps {
   max: number;
   step: number;
   value: number;
+  saveLabels: SettingsSaveLabels;
   onChange: (value: number) => Promise<void> | void;
 }
 
@@ -17,16 +24,22 @@ export function SettingsSliderView({
   max,
   step,
   value: initialValue,
+  saveLabels,
   onChange,
 }: SettingsSliderViewProps) {
   const [value, setValue] = useState(initialValue);
+  const committedValueRef = useRef(initialValue);
+  const changeVersionRef = useRef(0);
+  const { states, save } = useSettingsSaveState();
   const descriptionId = 'claudian-settings-slider-description';
+  const saveState = states.value;
 
   return (
     <div className="setting-item">
       <div className="setting-item-info">
         <div className="setting-item-name">{name}</div>
         <div className="setting-item-description" id={descriptionId}>{description}</div>
+        <SettingsSaveFeedback labels={saveLabels} state={saveState} />
       </div>
       <div className="setting-item-control claudian-settings-slider-control">
         <input
@@ -40,8 +53,16 @@ export function SettingsSliderView({
           value={value}
           onInput={(event) => {
             const nextValue = Number(event.currentTarget.value);
+            const changeVersion = ++changeVersionRef.current;
             setValue(nextValue);
-            void onChange(nextValue);
+            void save('value', () => onChange(nextValue)).then((saved) => {
+              if (changeVersion !== changeVersionRef.current) return;
+              if (saved) {
+                committedValueRef.current = nextValue;
+              } else {
+                setValue(committedValueRef.current);
+              }
+            });
           }}
         />
         <span className="claudian-settings-slider-value">{value}</span>

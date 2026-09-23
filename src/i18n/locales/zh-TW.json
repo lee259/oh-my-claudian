@@ -187,6 +187,11 @@
   },
   "settings": {
     "title": "Oh My Claudian 設定",
+    "saveFeedback": {
+      "saving": "儲存中…",
+      "saved": "已儲存",
+      "error": "儲存失敗"
+    },
     "gettingStarted": {
       "title": "開始使用",
       "desc": "依照以下三個步驟傳送第一則由 Provider 驅動的聊天訊息。",

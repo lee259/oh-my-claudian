@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+
+import {
+  SettingsSaveFeedback,
+  type SettingsSaveLabels,
+  useSettingsSaveState,
+} from './SettingsSaveFeedback';
 
 export interface SettingsTextFieldItem {
   id: string;
@@ -14,6 +20,7 @@ export interface SettingsTextFieldItem {
 
 export interface SettingsTextFieldsViewProps {
   items: readonly SettingsTextFieldItem[];
+  saveLabels: SettingsSaveLabels;
   onChange: (id: string, value: string) => Promise<void> | void;
   onBlur?: (id: string) => Promise<void> | void;
 }
@@ -22,7 +29,12 @@ function getDescriptionId(id: string): string {
   return `claudian-settings-text-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}-description`;
 }
 
-export function SettingsTextFieldsView({ items, onChange, onBlur }: SettingsTextFieldsViewProps) {
+export function SettingsTextFieldsView({
+  items,
+  saveLabels,
+  onChange,
+  onBlur,
+}: SettingsTextFieldsViewProps) {
   const [values, setValues] = useState<Record<string, string>>(
     () => Object.fromEntries(items.map(item => [item.id, item.value])),
   );
@@ -30,6 +42,7 @@ export function SettingsTextFieldsView({ items, onChange, onBlur }: SettingsText
   const timersRef = useRef(new Map<string, number>());
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
+  const { states, save } = useSettingsSaveState();
 
   valuesRef.current = values;
   onChangeRef.current = onChange;
@@ -42,15 +55,16 @@ export function SettingsTextFieldsView({ items, onChange, onBlur }: SettingsText
     timersRef.current.delete(id);
   };
 
-  const saveValue = async (id: string): Promise<void> => {
+  const saveValue = async (id: string): Promise<boolean> => {
     clearTimer(id);
-    await onChangeRef.current(id, valuesRef.current[id] ?? '');
+    return save(id, () => onChangeRef.current(id, valuesRef.current[id] ?? ''));
   };
 
-  useEffect(() => () => {
+  useLayoutEffect(() => () => {
     for (const [id, timer] of timersRef.current) {
       window.clearTimeout(timer);
-      void onChangeRef.current(id, valuesRef.current[id] ?? '');
+      void Promise.resolve(onChangeRef.current(id, valuesRef.current[id] ?? ''))
+        .catch(() => undefined);
     }
     timersRef.current.clear();
   }, []);
@@ -76,8 +90,10 @@ export function SettingsTextFieldsView({ items, onChange, onBlur }: SettingsText
             }, 150));
           },
           onBlur: async () => {
-            await saveValue(item.id);
-            await onBlurRef.current?.(item.id);
+            const saved = await saveValue(item.id);
+            if (saved) {
+              await onBlurRef.current?.(item.id);
+            }
           },
         };
 
@@ -88,6 +104,7 @@ export function SettingsTextFieldsView({ items, onChange, onBlur }: SettingsText
               <div className="setting-item-description" id={descriptionId}>
                 {item.description}
               </div>
+              <SettingsSaveFeedback labels={saveLabels} state={states[item.id]} />
             </div>
             <div className="setting-item-control">
               {item.kind === 'textarea' ? (
