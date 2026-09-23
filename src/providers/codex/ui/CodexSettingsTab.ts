@@ -378,6 +378,8 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       name: t('settings.codex.environment.name'),
       desc: t('settings.codex.environment.desc'),
       placeholder: `OPENAI_API_KEY=your-key\nOPENAI_BASE_URL=https://api.openai.com/v1\nOPENAI_MODEL=${environmentModelPlaceholder}\nCODEX_SANDBOX=workspace-write`,
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'codex'),
     });
   },

@@ -1,5 +1,6 @@
 import type { App } from 'obsidian';
 import { Notice } from 'obsidian';
+import { h } from 'preact';
 
 import type { ManagedCommandResult } from '../../core/process/ManagedCommandRunner';
 import { ManagedCommandRunner } from '../../core/process/ManagedCommandRunner';
@@ -16,6 +17,8 @@ import type { TranslationKey } from '../../i18n/types';
 import { findCliBinaryPath } from '../../utils/cliBinaryLocator';
 import { parseEnvironmentVariables } from '../../utils/env';
 import { buildShellCommand, shellQuote } from '../../utils/shell';
+import { createPreactRoot } from '../ui/PreactRoot';
+import { type CliLifecycleAction,CliLifecycleView } from './CliLifecycleView';
 
 /** Map stable probe error strings from CliVersionUtils to i18n keys. */
 const PROBE_ERROR_KEYS: Readonly<Record<string, TranslationKey>> = {
@@ -46,6 +49,19 @@ export interface CliLifecycleSectionOptions {
   onCheckAgain?: () => Promise<void>;
 }
 
+const lifecycleDestructors = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount lifecycle views before their provider settings container is cleared. */
+export function destroyCliLifecycleSections(container: HTMLElement): void {
+  const mounts = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-cli-lifecycle-mount'),
+  );
+  if (container.classList.contains('claudian-cli-lifecycle-mount')) {
+    mounts.unshift(container);
+  }
+  mounts.forEach(mount => lifecycleDestructors.get(mount)?.());
+}
+
 /**
  * Renders a CLI lifecycle section (version display + install/update buttons)
  * inside the readiness panel's CLI detail container.
@@ -70,20 +86,45 @@ export interface CliLifecycleSectionOptions {
 export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): void {
   const { container, metadata, resolveCliPath, getRuntimeEnvText, app } = options;
 
-  const root = container.createDiv({ cls: 'claudian-cli-lifecycle' });
+  const mount = container.createDiv({ cls: 'claudian-cli-lifecycle-mount' });
+  const root = createPreactRoot(mount);
 
-  const statusDiv = root.createDiv({ cls: 'claudian-cli-lifecycle-status' });
-  const actionDiv = root.createDiv({ cls: 'claudian-cli-lifecycle-actions' });
-
+  let destroyed = false;
   let loading = false;
   let currentEnv: Record<string, string> = {};
+  let info: CliVersionInfo | null = null;
+  let statusText = t('settings.cliLifecycle.checking');
+  let pendingAction: CliLifecycleAction = null;
+
+  const render = (): void => {
+    if (destroyed) return;
+    const updateAvailable = Boolean(
+      info?.version
+      && info.latestVersion
+      && isUpdateAvailable(info.version, info.latestVersion),
+    );
+    root.render(h(CliLifecycleView, {
+      statusText,
+      info,
+      errorText: info?.error ? localizeProbeError(info.error) : undefined,
+      canInstall: Boolean(info && !info.installedButBroken && !info.version
+        && resolveCliInstallCommand(metadata)),
+      canUpdate: Boolean(info && !info.installedButBroken && info.version
+        && updateAvailable && resolveCliUpdateCommand(metadata)),
+      isUpdateAvailable: updateAvailable,
+      pendingAction,
+      onInstall: () => { void runAction('install'); },
+      onUpdate: () => { void runAction('update'); },
+      onCheckAgain: options.onCheckAgain ? () => { void handleCheckAgain(); } : undefined,
+    }));
+  };
 
   const refresh = async (): Promise<void> => {
-    if (loading) return;
+    if (destroyed || loading) return;
     loading = true;
-    statusDiv.empty?.();
-    actionDiv.empty?.();
-    statusDiv.setText?.(t('settings.cliLifecycle.checking'));
+    info = null;
+    statusText = t('settings.cliLifecycle.checking');
+    render();
 
     try {
       const cliPath = await resolveCliPath();
@@ -95,19 +136,57 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
         npmPackage: metadata.npmPackage,
       }, undefined, currentEnv);
 
-      renderVersionInfo(statusDiv, cliVersionInfo);
-      renderActionButtons(actionDiv, cliVersionInfo, metadata, app, currentEnv, refresh, options.onCliChanged, reprobeVersion, options.onCheckAgain ? handleCheckAgain : undefined);
+      info = cliVersionInfo;
+      statusText = '';
     } catch {
-      statusDiv.setText?.(t('common.error'));
+      info = null;
+      statusText = t('common.error');
     } finally {
       loading = false;
+      render();
+    }
+  };
+
+  const runAction = async (action: 'install' | 'update'): Promise<void> => {
+    if (!info || pendingAction !== null) return;
+    const command = action === 'install'
+      ? resolveCliInstallCommand(metadata)
+      : resolveCliUpdateCommand(metadata);
+    if (!command) return;
+
+    pendingAction = action;
+    render();
+    try {
+      await runLifecycleAction(
+        app,
+        command,
+        action,
+        metadata.displayName,
+        currentEnv,
+        refresh,
+        options.onCliChanged,
+        reprobeVersion,
+      );
+    } finally {
+      pendingAction = null;
+      render();
     }
   };
 
   /** "Check again" refreshes both the CLI version block and the provider
    *  readiness panel so the two stay consistent. */
   const handleCheckAgain = async (): Promise<void> => {
-    await Promise.all([options.onCheckAgain?.(), refresh()]);
+    if (pendingAction !== null) return;
+    pendingAction = 'check';
+    render();
+    try {
+      await Promise.all([options.onCheckAgain?.(), refresh()]);
+    } catch {
+      // Readiness refresh errors are surfaced by the panel.
+    } finally {
+      pendingAction = null;
+      render();
+    }
   };
 
   /** Re-probe the CLI version after a lifecycle action to verify the result. */
@@ -119,162 +198,17 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
     }, undefined, currentEnv);
   };
 
+  const destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    lifecycleDestructors.delete(mount);
+    root.unmount();
+    mount.remove();
+  };
+
+  lifecycleDestructors.set(mount, destroy);
+  render();
   void refresh();
-}
-
-function renderVersionInfo(
-  container: HTMLElement,
-  info: CliVersionInfo,
-): void {
-  container.empty?.();
-
-  const currentEl = container.createDiv({ cls: 'claudian-cli-lifecycle-version-item' });
-  currentEl.createSpan({ text: t('settings.cliLifecycle.currentVersion') + ': ' });
-
-  if (info.installedButBroken) {
-    const val = currentEl.createSpan({ cls: 'claudian-cli-lifecycle-version-broken' });
-    val.setText(t('settings.cliLifecycle.installedButBroken'));
-    if (info.error) {
-      val.title = info.error;
-    }
-  } else if (info.version) {
-    currentEl.createSpan({ cls: 'claudian-cli-lifecycle-version-value' }).setText(info.version);
-  } else {
-    currentEl.createSpan({ cls: 'claudian-cli-lifecycle-version-not-installed' }).setText(
-      t('settings.cliLifecycle.notInstalled'),
-    );
-  }
-
-  if (info.latestVersion) {
-    const latestEl = container.createDiv({ cls: 'claudian-cli-lifecycle-version-item' });
-    latestEl.createSpan({ text: t('settings.cliLifecycle.latestVersion') + ': ' });
-    latestEl.createSpan({ cls: 'claudian-cli-lifecycle-version-value' }).setText(info.latestVersion);
-
-    if (info.version && isUpdateAvailable(info.version, info.latestVersion)) {
-      const badge = container.createDiv({ cls: 'claudian-cli-lifecycle-update-badge' });
-      badge.setText(t('settings.cliLifecycle.updateAvailable', {
-        version: info.latestVersion,
-      }));
-    }
-  }
-
-  if (info.error && !info.version && !info.installedButBroken) {
-    container.createDiv({
-      cls: 'claudian-cli-lifecycle-error',
-      text: localizeProbeError(info.error),
-    });
-  }
-}
-
-function renderActionButtons(
-  container: HTMLElement,
-  info: CliVersionInfo,
-  metadata: CliProviderMetadata,
-  app: App,
-  env: Record<string, string>,
-  refresh: () => Promise<void>,
-  onCliChanged?: () => Promise<void>,
-  reprobeVersion?: () => Promise<CliVersionInfo>,
-  onCheckAgain?: () => Promise<void>,
-): void {
-  container.empty?.();
-
-  if (info.installedButBroken) {
-    container.createSpan({
-      cls: 'claudian-cli-lifecycle-hint',
-      text: t('settings.cliLifecycle.checkEnv'),
-    });
-  }
-
-  // Action row: install/update (primary) + "Check again" (secondary) side by side.
-  const row = container.createDiv({ cls: 'claudian-cli-lifecycle-action-row' });
-
-  if (!info.installedButBroken && !info.version) {
-    const installCmd = resolveCliInstallCommand(metadata);
-    if (installCmd) {
-      const btn = row.createEl('button', {
-        cls: 'mod-cta',
-        text: t('settings.cliLifecycle.install'),
-      });
-      btn.addEventListener?.('click', () => {
-        btn.disabled = true;
-        btn.setText?.(t('settings.cliLifecycle.installing'));
-        void runLifecycleAction(
-          app,
-          installCmd,
-          'install',
-          metadata.displayName,
-          env,
-          refresh,
-          onCliChanged,
-          reprobeVersion,
-        ).finally(() => {
-          // refresh() re-renders the action row, so this element may already
-          // be detached — resetting it is a no-op then.
-          btn.disabled = false;
-          btn.setText?.(t('settings.cliLifecycle.install'));
-        });
-      });
-    }
-  } else if (!info.installedButBroken && info.version) {
-    if (info.latestVersion && isUpdateAvailable(info.version, info.latestVersion)) {
-      const updateCmd = resolveCliUpdateCommand(metadata);
-      if (updateCmd) {
-        const btn = row.createEl('button', {
-          cls: 'mod-cta',
-          text: t('settings.cliLifecycle.update'),
-        });
-        btn.addEventListener?.('click', () => {
-          btn.disabled = true;
-          btn.setText?.(t('settings.cliLifecycle.updating'));
-          void runLifecycleAction(
-            app,
-            updateCmd,
-            'update',
-            metadata.displayName,
-            env,
-            refresh,
-            onCliChanged,
-            reprobeVersion,
-          ).finally(() => {
-            // refresh() re-renders the action row, so this element may
-            // already be detached — resetting it is a no-op then.
-            btn.disabled = false;
-            btn.setText?.(t('settings.cliLifecycle.update'));
-          });
-        });
-      }
-    } else {
-      row.createSpan({
-        cls: 'claudian-cli-lifecycle-ready',
-        text: t('settings.cliLifecycle.ready'),
-      });
-    }
-  }
-
-  if (onCheckAgain) {
-    const checkBtn = row.createEl('button', {
-      cls: 'claudian-cli-lifecycle-check',
-      text: t('settings.providerReadiness.refresh'),
-    });
-    checkBtn.addEventListener?.('click', () => {
-      void (async () => {
-        checkBtn.disabled = true;
-        checkBtn.setText?.(t('settings.providerReadiness.checking'));
-        try {
-          await onCheckAgain();
-        } catch {
-          // Readiness refresh errors are already surfaced by the panel;
-          // keep the button state consistent.
-        } finally {
-          // The action re-renders the action row via refresh(), so this
-          // element may already be detached — resetting it is a no-op then.
-          checkBtn.disabled = false;
-          checkBtn.setText?.(t('settings.providerReadiness.refresh'));
-        }
-      })();
-    });
-  }
 }
 
 /** Resolve a bare binary name to an absolute path so the update command

@@ -58,14 +58,22 @@
   display: block;
 }
 
+.claudian-mcp-add-dropdown[hidden] {
+  display: none;
+}
+
 .claudian-mcp-add-option {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 8px 12px;
+  border: 0;
+  background: transparent;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-normal);
+  text-align: left;
 }
 
 .claudian-mcp-add-option:hover {

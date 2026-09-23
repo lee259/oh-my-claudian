@@ -1,20 +1,27 @@
+import { h } from 'preact';
+
 import type {
   ProviderId,
   ProviderSettingsTabRendererContext,
 } from '../../core/providers/types';
 import { t } from '../../i18n/i18n';
+import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { ProviderWarningView } from './ProviderWarningView';
 
 export interface ProviderModelEnablementWarning {
   context: ProviderSettingsTabRendererContext;
+  destroy(): void;
   refresh(): void;
 }
 
 export interface ProviderEnablementWarning {
+  destroy(): void;
   hide(): void;
   showFor(durationMs?: number): void;
 }
 
 interface StyledProviderWarning {
+  destroy(): void;
   setVisible(visible: boolean): void;
 }
 
@@ -25,32 +32,56 @@ interface ProviderModelEnablementWarningOptions {
   providerName: string;
 }
 
-const PROVIDER_WARNING_CLASSES = [
-  'claudian-provider-model-warning',
-  'claudian-setting-validation',
-  'claudian-setting-validation-warning',
-  'claudian-hidden',
-].join(' ');
-
 const LAST_PROVIDER_WARNING_DURATION_MS = 10_000;
+const warningDestructors = new WeakMap<HTMLElement, () => void>();
+
+/** Unmount provider warning views before their settings host is cleared. */
+export function destroyProviderWarnings(container: HTMLElement): void {
+  const mounts = Array.from(
+    container.querySelectorAll<HTMLElement>('.claudian-provider-warning-mount'),
+  );
+  if (container.classList.contains('claudian-provider-warning-mount')) mounts.unshift(container);
+  mounts.forEach(mount => warningDestructors.get(mount)?.());
+}
 
 function renderProviderWarning(
   container: HTMLElement,
   text: string,
   attr?: Record<string, string>,
 ): StyledProviderWarning {
-  const warningEl = container.createDiv({
-    ...(attr ? { attr } : {}),
-    cls: PROVIDER_WARNING_CLASSES,
-    text,
-  });
+  const mount = container.createDiv({ cls: 'claudian-provider-warning-mount' });
+  const root: PreactRoot = createPreactRoot(mount);
+  let visible = false;
+  let destroyed = false;
 
-  const setVisible = (visible: boolean): void => {
-    warningEl.toggleClass('claudian-hidden', !visible);
+  const render = (): void => {
+    if (destroyed) return;
+    root.render(h(ProviderWarningView, {
+      ariaLive: attr?.['aria-live'] as 'polite' | 'assertive' | undefined,
+      message: text,
+      role: attr?.role as 'status' | 'alert' | undefined,
+      visible,
+    }));
   };
 
-  setVisible(false);
-  return { setVisible };
+  const destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    warningDestructors.delete(mount);
+    root.unmount();
+    mount.remove();
+  };
+
+  warningDestructors.set(mount, destroy);
+  render();
+
+  return {
+    destroy,
+    setVisible(nextVisible) {
+      visible = nextVisible;
+      render();
+    },
+  };
 }
 
 export function renderLastEnabledProviderWarning(
@@ -65,6 +96,7 @@ export function renderLastEnabledProviderWarning(
     },
   );
   let hideTimer: number | null = null;
+  let destroyed = false;
 
   const hide = (): void => {
     if (hideTimer !== null) {
@@ -74,7 +106,15 @@ export function renderLastEnabledProviderWarning(
     warning.setVisible(false);
   };
 
+  const destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    hide();
+    warning.destroy();
+  };
+
   const showFor = (durationMs = LAST_PROVIDER_WARNING_DURATION_MS): void => {
+    if (destroyed) return;
     hide();
     warning.setVisible(true);
     hideTimer = window.setTimeout(() => {
@@ -83,7 +123,7 @@ export function renderLastEnabledProviderWarning(
     }, durationMs);
   };
 
-  return { hide, showFor };
+  return { destroy, hide, showFor };
 }
 
 export function renderProviderModelEnablementWarning(
@@ -114,5 +154,9 @@ export function renderProviderModelEnablementWarning(
   };
 
   refresh();
-  return { context: warningAwareContext, refresh };
+  return {
+    context: warningAwareContext,
+    destroy: () => warning.destroy(),
+    refresh,
+  };
 }

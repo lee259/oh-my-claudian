@@ -56,11 +56,18 @@ jest.mock('obsidian', () => {
   }
 
   class MockSetting {
+    controlEl = document.createElement('div');
     desc = '';
+    descEl = document.createElement('div');
+    infoEl = document.createElement('div');
     name = '';
+    nameEl = document.createElement('div');
     settingEl = document.createElement('div');
 
     constructor(container: HTMLElement) {
+      this.infoEl.append(this.nameEl, this.descEl);
+      this.settingEl.append(this.infoEl);
+      this.settingEl.append(this.controlEl);
       container.appendChild(this.settingEl);
     }
 
@@ -76,11 +83,13 @@ jest.mock('obsidian', () => {
 
     setDesc(desc: string): this {
       this.desc = desc;
+      this.descEl.textContent = desc;
       return this;
     }
 
     setName(name: string): this {
       this.name = name;
+      this.nameEl.textContent = name;
       return this;
     }
   }
@@ -88,28 +97,44 @@ jest.mock('obsidian', () => {
   return { Setting: MockSetting };
 });
 
-import { renderHostnameCliPathSetting } from '@/shared/settings/HostnameCliPathSetting';
-import { renderProviderEnablementSetting } from '@/shared/settings/ProviderEnablementSetting';
+import {
+  destroyHostnameCliPathSettings,
+  renderHostnameCliPathSetting,
+} from '@/shared/settings/HostnameCliPathSetting';
+import {
+  destroyProviderEnablementSettings,
+  renderProviderEnablementSetting,
+} from '@/shared/settings/ProviderEnablementSetting';
 
-interface TriggerableToggle {
-  disabled: boolean;
-  toggleEl: HTMLButtonElement;
-  trigger(value: boolean): Promise<void>;
-  value: boolean;
+function getEnablementToggle(container: HTMLElement): HTMLInputElement {
+  const toggle = container.querySelector<HTMLInputElement>('[role="switch"]');
+  if (!toggle) throw new Error('Expected provider enablement switch');
+  return toggle;
 }
 
-interface TriggerableText {
-  inputEl: HTMLInputElement;
-  trigger(value: string): Promise<void>;
-  value: string;
+function dispatchToggle(toggle: HTMLInputElement, value: boolean): void {
+  toggle.checked = value;
+  toggle.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function getCliPathInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>('.claudian-settings-cli-path-input');
+  if (!input) throw new Error('Expected CLI path input');
+  return input;
+}
+
+function dispatchInput(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 describe('provider settings controls', () => {
   it('renders enablement state and resynchronizes after callback side effects', async () => {
     const events: string[] = [];
     let persisted = true;
+    const container = document.createElement('div');
     const control = renderProviderEnablementSetting({
-      container: document.createElement('div'),
+      container,
       description: 'Provider-specific description',
       getValue: () => {
         events.push('read');
@@ -121,42 +146,118 @@ describe('provider settings controls', () => {
         persisted = enabled;
       },
     });
-    const toggle = control.toggle as unknown as TriggerableToggle;
+    const toggle = getEnablementToggle(container);
 
-    expect(toggle.value).toBe(true);
-    expect(toggle.toggleEl.getAttribute('aria-label')).toBe('Enable Test Provider');
+    expect(toggle).not.toBeNull();
+    expect(toggle.checked).toBe(true);
+    expect(toggle.getAttribute('aria-label')).toBe('Enable Test Provider');
+    expect(container.textContent).toContain('Provider-specific description');
     events.length = 0;
 
-    await toggle.trigger(false);
+    dispatchToggle(toggle, false);
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(events).toEqual(['change:false', 'read']);
-    expect(toggle.value).toBe(false);
+    expect(toggle.checked).toBe(false);
+    control.dispose();
+  });
+
+  it('toggles provider enablement repeatedly from the switch track', async () => {
+    const changes: boolean[] = [];
+    let persisted = true;
+    const container = document.createElement('div');
+    const control = renderProviderEnablementSetting({
+      container,
+      description: 'Description',
+      getValue: () => persisted,
+      name: 'Enable Test Provider',
+      onChange: async (enabled) => {
+        changes.push(enabled);
+        persisted = enabled;
+      },
+    });
+    const track = container.querySelector<HTMLElement>('.checkbox-container');
+    if (!track) throw new Error('Expected the provider switch track');
+
+    track.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(changes).toEqual([false]);
+
+    track.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(changes).toEqual([false, true]);
+    expect(getEnablementToggle(container).checked).toBe(true);
+    control.dispose();
   });
 
   it('does not invoke enablement callbacks while disabled', async () => {
     const onChange = jest.fn();
+    const container = document.createElement('div');
     const control = renderProviderEnablementSetting({
-      container: document.createElement('div'),
+      container,
       description: 'Description',
       disabled: true,
       getValue: () => true,
       name: 'Enable Test Provider',
       onChange,
     });
-    const toggle = control.toggle as unknown as TriggerableToggle;
+    const toggle = getEnablementToggle(container);
 
     expect(toggle.disabled).toBe(true);
-    expect(toggle.toggleEl.getAttribute('aria-disabled')).toBe('true');
-    await toggle.trigger(false);
+    expect(toggle.getAttribute('aria-disabled')).toBe('true');
+    dispatchToggle(toggle, false);
+    await Promise.resolve();
     expect(onChange).not.toHaveBeenCalled();
-    expect(toggle.value).toBe(true);
+    expect(toggle.checked).toBe(true);
+    control.setDisabled(false);
+    expect(toggle.disabled).toBe(false);
+    control.dispose();
+  });
+
+  it('resynchronizes the switch when persistence does not accept the requested value', async () => {
+    const persisted = true;
+    const container = document.createElement('div');
+    const control = renderProviderEnablementSetting({
+      container,
+      description: 'Description',
+      getValue: () => persisted,
+      name: 'Enable Test Provider',
+      onChange: async () => {},
+    });
+    const toggle = getEnablementToggle(container);
+    dispatchToggle(toggle, false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(toggle.checked).toBe(true);
+    control.dispose();
+  });
+
+  it('unmounts all enablement views owned by a settings content host', () => {
+    const container = document.createElement('div');
+    renderProviderEnablementSetting({
+      container,
+      description: 'Description',
+      getValue: () => true,
+      name: 'Enable Test Provider',
+      onChange: () => {},
+    });
+
+    expect(container.querySelector('[role="switch"]')).not.toBeNull();
+    destroyProviderEnablementSettings(container);
+
+    expect(container.querySelector('[role="switch"]')).toBeNull();
   });
 
   it('renders and edits the current-host CLI path, including clearing', async () => {
     const changes: string[] = [];
     let persistedPath = '/initial/provider';
+    const container = document.createElement('div');
     const control = renderHostnameCliPathSetting({
-      container: document.createElement('div'),
+      container,
       description: 'Provider-specific CLI description',
       getValue: () => persistedPath,
       name: 'CLI path',
@@ -166,17 +267,22 @@ describe('provider settings controls', () => {
       },
       placeholder: '/usr/local/bin/provider',
     });
-    const text = control.text as unknown as TriggerableText;
+    const input = getCliPathInput(container);
 
-    expect(text.value).toBe('/initial/provider');
-    expect(text.inputEl.placeholder).toBe('/usr/local/bin/provider');
-    expect(text.inputEl.getAttribute('aria-label')).toBe('CLI path');
+    expect(input.value).toBe('/initial/provider');
+    expect(input.placeholder).toBe('/usr/local/bin/provider');
+    expect(input.getAttribute('aria-label')).toBe('CLI path');
 
-    await text.trigger(' /custom/provider ');
-    await text.trigger('');
+    dispatchInput(input, ' /custom/provider ');
+    await Promise.resolve();
+    await Promise.resolve();
+    dispatchInput(input, '');
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(changes).toEqual(['/custom/provider', '']);
-    expect(text.value).toBe('');
+    expect(input.value).toBe('');
+    control.dispose();
   });
 
   it('validates before callbacks and suppresses duplicate persistence', async () => {
@@ -198,11 +304,12 @@ describe('provider settings controls', () => {
         return value.includes('invalid') ? 'Invalid path' : null;
       },
     });
-    const text = control.text as unknown as TriggerableText;
+    const input = getCliPathInput(container);
     events.length = 0;
 
-    await text.trigger('/initial/provider');
-    await text.trigger('/invalid/provider');
+    dispatchInput(input, '/initial/provider');
+    dispatchInput(input, '/invalid/provider');
+    await Promise.resolve();
 
     expect(events).toEqual([
       'validate:/initial/provider',
@@ -210,13 +317,16 @@ describe('provider settings controls', () => {
     ]);
     expect(control.validationEl.textContent).toBe('Invalid path');
     expect(control.validationEl.classList.contains('claudian-hidden')).toBe(false);
-    expect(text.inputEl.classList.contains('claudian-input-error')).toBe(true);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.classList.contains('claudian-input-error')).toBe(true);
+    control.dispose();
   });
 
   it('supports disabled CLI controls and dynamic presentation updates', async () => {
     const onChange = jest.fn();
-    const control = renderHostnameCliPathSetting({
-      container: document.createElement('div'),
+    const container = document.createElement('div');
+    const enabledControl = renderHostnameCliPathSetting({
+      container,
       description: 'Initial description',
       disabled: true,
       getValue: () => '',
@@ -224,20 +334,57 @@ describe('provider settings controls', () => {
       onChange,
       placeholder: '/bin/provider',
     });
-    const text = control.text as unknown as TriggerableText;
+    const input = getCliPathInput(container);
 
-    expect(text.inputEl.disabled).toBe(true);
-    expect(text.inputEl.getAttribute('aria-disabled')).toBe('true');
-    await text.trigger('/custom/provider');
+    expect(input.disabled).toBe(true);
+    expect(input.getAttribute('aria-disabled')).toBe('true');
+    dispatchInput(input, '/custom/provider');
     expect(onChange).not.toHaveBeenCalled();
 
-    control.setDisabled(false);
-    control.setDescription('Updated description');
-    control.setPlaceholder('/updated/provider');
+    enabledControl.setDisabled(false);
+    enabledControl.setDescription('Updated description');
+    enabledControl.setPlaceholder('/updated/provider');
 
-    expect(text.inputEl.disabled).toBe(false);
-    expect(text.inputEl.getAttribute('aria-disabled')).toBe('false');
-    expect(text.inputEl.placeholder).toBe('/updated/provider');
-    expect((control.setting as unknown as { desc: string }).desc).toBe('Updated description');
+    expect(input.disabled).toBe(false);
+    expect(input.getAttribute('aria-disabled')).toBe('false');
+    expect(input.placeholder).toBe('/updated/provider');
+    expect(container.textContent).toContain('Updated description');
+    enabledControl.dispose();
+  });
+
+  it('restores the authoritative path when a save does not commit the draft', async () => {
+    const container = document.createElement('div');
+    const control = renderHostnameCliPathSetting({
+      container,
+      description: 'Description',
+      getValue: () => '/saved/provider',
+      name: 'CLI path',
+      onChange: async () => {},
+      placeholder: '/bin/provider',
+    });
+    const input = getCliPathInput(container);
+    dispatchInput(input, '/unsaved/provider');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(input.value).toBe('/saved/provider');
+    control.dispose();
+  });
+
+  it('unmounts all CLI path views owned by a settings content host', () => {
+    const container = document.createElement('div');
+    renderHostnameCliPathSetting({
+      container,
+      description: 'Description',
+      getValue: () => '/bin/provider',
+      name: 'CLI path',
+      onChange: () => {},
+      placeholder: '/bin/provider',
+    });
+
+    expect(container.querySelector('.claudian-settings-cli-path-input')).not.toBeNull();
+    destroyHostnameCliPathSettings(container);
+
+    expect(container.querySelector('.claudian-settings-cli-path-input')).toBeNull();
   });
 });

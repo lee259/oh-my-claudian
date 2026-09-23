@@ -1,4 +1,5 @@
 .claudian-provider-readiness-summary { margin: 4px 12px 10px; color: var(--text-muted); font-size: var(--font-ui-small); font-weight: var(--font-medium); }
+.claudian-provider-readiness-view-mount { display: contents; }
 .claudian-settings .claudian-provider-readiness-summary { margin: var(--size-4-4) var(--size-4-4) var(--size-4-2); }
 .claudian-provider-readiness-summary[data-status="ready"] { color: var(--text-success); }
 .claudian-provider-readiness-summary[data-status="blocked"] { color: var(--text-error); }

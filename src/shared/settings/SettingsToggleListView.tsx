@@ -58,7 +58,15 @@ export function SettingsToggleListView({
               <SettingsSaveFeedback labels={saveLabels} state={saveState} />
             </div>
             <div className="setting-item-control">
-              <div className={`checkbox-container${value ? ' is-enabled' : ''}`}>
+              <div
+                className={`checkbox-container${value ? ' is-enabled' : ''}`}
+                onClick={(event) => {
+                  const input = event.currentTarget.querySelector('input');
+                  if (input && event.target !== input && !input.disabled) {
+                    void handleChange(item, !input.checked);
+                  }
+                }}
+              >
                 <input
                   aria-describedby={descriptionId}
                   aria-label={item.name}

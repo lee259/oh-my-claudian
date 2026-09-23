@@ -20,9 +20,15 @@ import {
   t,
 } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
-import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
-import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
 import {
+  AgentSkillSettings,
+  destroyAgentSkillSettings,
+} from '../../shared/settings/AgentSkillSettings';
+import { destroyCliInstallationCards } from '../../shared/settings/CliInstallationCard';
+import { destroyCliLifecycleSections } from '../../shared/settings/CliLifecycleSection';
+import { CustomModelOverridesView } from '../../shared/settings/CustomModelOverridesView';
+import {
+  destroyEnvironmentSettingsSections,
   type EnvironmentSettingsSectionHandle,
   renderEnvironmentSettingsSection,
 } from '../../shared/settings/EnvironmentSettingsSection';
@@ -31,9 +37,15 @@ import {
   GeneralSettingsLayout,
   type GeneralSettingsSection,
 } from '../../shared/settings/GeneralSettingsLayout';
+import { destroyHostnameCliPathSettings } from '../../shared/settings/HostnameCliPathSetting';
 import { HotkeySettingsView } from '../../shared/settings/HotkeySettingsView';
+import { destroyMcpSettingsManagers } from '../../shared/settings/McpSettingsManager';
 import { NavigationMappingsView } from '../../shared/settings/NavigationMappingsView';
 import { ProviderCapabilityMatrixView } from '../../shared/settings/ProviderCapabilityMatrixView';
+import { destroyProviderEnablementSettings } from '../../shared/settings/ProviderEnablementSetting';
+import { destroyProviderWarnings } from '../../shared/settings/ProviderModelEnablementWarning';
+import { destroyProviderModelPickers } from '../../shared/settings/ProviderModelPicker';
+import { destroyProviderReadinessPanels } from '../../shared/settings/ProviderReadinessPanel';
 import { frameSettingsGroups } from '../../shared/settings/SettingsGroups';
 import { SettingsSelectListView } from '../../shared/settings/SettingsSelectListView';
 import { SettingsSliderView } from '../../shared/settings/SettingsSliderView';
@@ -45,7 +57,7 @@ import {
 import { SettingsTextFieldsView } from '../../shared/settings/SettingsTextFieldsView';
 import { SettingsToggleListView } from '../../shared/settings/SettingsToggleListView';
 import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
-import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
+import { parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
 import {
   MAX_WARM_AGENT_PROCESSES,
@@ -170,6 +182,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
   private readonly generalControlRoots = new Set<PreactRoot>();
+  private readonly customModelOverrideRoots = new Map<HTMLElement, PreactRoot>();
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -192,6 +205,16 @@ export class ClaudianSettingTab extends PluginSettingTab {
   display(): void {
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
+    this.unmountCustomModelOverrideRoots();
+    destroyEnvironmentSettingsSections(this.containerEl);
+    destroyAgentSkillSettings(this.containerEl);
+    destroyCliLifecycleSections(this.containerEl);
+    destroyMcpSettingsManagers(this.containerEl);
+    destroyProviderEnablementSettings(this.containerEl);
+    destroyProviderWarnings(this.containerEl);
+    destroyHostnameCliPathSettings(this.containerEl);
+    destroyProviderModelPickers(this.containerEl);
+    destroyProviderReadinessPanels(this.containerEl);
     destroyCliInstallationCards(this.containerEl);
     this.generalGettingStartedRoot?.unmount();
     this.generalGettingStartedRoot = null;
@@ -272,6 +295,16 @@ export class ClaudianSettingTab extends PluginSettingTab {
       if (!content) {
         return;
       }
+      this.unmountCustomModelOverrideRoots(content);
+      destroyEnvironmentSettingsSections(content);
+      destroyAgentSkillSettings(content);
+      destroyCliLifecycleSections(content);
+      destroyMcpSettingsManagers(content);
+      destroyProviderEnablementSettings(content);
+      destroyProviderWarnings(content);
+      destroyHostnameCliPathSettings(content);
+      destroyProviderModelPickers(content);
+      destroyProviderReadinessPanels(content);
       destroyCliInstallationCards(content);
       content.empty();
       content.createDiv({
@@ -290,6 +323,16 @@ export class ClaudianSettingTab extends PluginSettingTab {
           return;
         }
 
+        destroyCliLifecycleSections(content);
+        destroyEnvironmentSettingsSections(content);
+        destroyAgentSkillSettings(content);
+        destroyMcpSettingsManagers(content);
+        destroyProviderEnablementSettings(content);
+        destroyProviderWarnings(content);
+        destroyHostnameCliPathSettings(content);
+        destroyProviderModelPickers(content);
+        destroyProviderReadinessPanels(content);
+        destroyCliInstallationCards(content);
         content.empty();
         const renderer = ProviderWorkspaceRegistry.getSettingsTabRenderer(providerId);
         if (!renderer) {
@@ -319,6 +362,16 @@ export class ClaudianSettingTab extends PluginSettingTab {
           return;
         }
         renderedProviderTabs.delete(providerId);
+        this.unmountCustomModelOverrideRoots(content);
+        destroyEnvironmentSettingsSections(content);
+        destroyAgentSkillSettings(content);
+        destroyCliLifecycleSections(content);
+        destroyMcpSettingsManagers(content);
+        destroyProviderEnablementSettings(content);
+        destroyProviderWarnings(content);
+        destroyHostnameCliPathSettings(content);
+        destroyProviderModelPickers(content);
+        destroyProviderReadinessPanels(content);
         destroyCliInstallationCards(content);
         content.empty();
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -897,7 +950,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   }
 
   private renderCustomContextLimits(container: HTMLElement, providerId: ProviderId): void {
-    container.empty();
+    this.unmountCustomModelOverrideRoots(container);
 
     const uniqueModelIds = new Set<string>();
     const envVars = parseEnvironmentVariables(
@@ -908,112 +961,60 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
 
     if (uniqueModelIds.size === 0) {
+      container.empty();
       return;
     }
 
-    const headerEl = container.createDiv({ cls: 'claudian-context-limits-header' });
-    headerEl.createSpan({
-      text: t('settings.customModelOverrides.name'),
-      cls: 'claudian-context-limits-label',
-    });
-
-    const descEl = container.createDiv({ cls: 'claudian-context-limits-desc' });
-    descEl.setText(t('settings.customModelOverrides.desc'));
-
-    const listEl = container.createDiv({ cls: 'claudian-context-limits-list' });
-
-    for (const modelId of uniqueModelIds) {
-      const currentValue = this.plugin.settings.customContextLimits?.[modelId];
-      const currentAlias = this.plugin.settings.customModelAliases?.[modelId] ?? '';
-
-      const itemEl = listEl.createDiv({ cls: 'claudian-context-limits-item' });
-      const nameEl = itemEl.createDiv({ cls: 'claudian-context-limits-model' });
-      nameEl.setText(modelId);
-
-      const inputWrapper = itemEl.createDiv({ cls: 'claudian-context-limits-input-wrapper' });
-      const aliasInputEl = inputWrapper.createEl('input', {
-        type: 'text',
-        placeholder: t('settings.customModelAliases.placeholder'),
-        cls: 'claudian-context-alias-input',
-        value: currentAlias,
-      });
-      aliasInputEl.setAttribute('aria-label', `Alias for ${modelId}`);
-      aliasInputEl.title = 'Custom label shown in the model selector. Leave empty to use the default.';
-
-      const inputEl = inputWrapper.createEl('input', {
-        type: 'text',
-        placeholder: '200k',
-        cls: 'claudian-context-limits-input',
-        value: currentValue ? formatContextLimit(currentValue) : '',
-      });
-      inputEl.setAttribute('aria-label', `Context window for ${modelId}`);
-
-      const validationEl = inputWrapper.createDiv({ cls: 'claudian-context-limit-validation claudian-hidden' });
-
-      const saveAlias = async (): Promise<void> => {
-        const existing = this.plugin.settings.customModelAliases[modelId] ?? '';
-        const trimmed = aliasInputEl.value.trim();
-        if (trimmed === existing) {
-          aliasInputEl.value = existing;
-          return;
-        }
-
+    const models = [...uniqueModelIds].map(modelId => ({
+      modelId,
+      alias: this.plugin.settings.customModelAliases?.[modelId] ?? '',
+      contextLimit: this.plugin.settings.customContextLimits?.[modelId],
+    }));
+    const root = createPreactRoot(container);
+    this.customModelOverrideRoots.set(container, root);
+    root.render(h(CustomModelOverridesView, {
+      idPrefix: `claudian-${providerId}`,
+      title: t('settings.customModelOverrides.name'),
+      description: t('settings.customModelOverrides.desc'),
+      aliasLabel: t('settings.customModelAliases.placeholder'),
+      contextLimitLabel: t('settings.customContextLimits.name'),
+      aliasPlaceholder: t('settings.customModelAliases.placeholder'),
+      contextLimitPlaceholder: '200k',
+      invalidContextLimitMessage: t('settings.customContextLimits.invalid'),
+      saveLabels: this.getSettingsSaveLabels(),
+      items: models,
+      onSaveAlias: async (modelId, value) => {
         await this.plugin.mutateSettings((settings) => {
           settings.customModelAliases ??= {};
-          if (trimmed) {
-            settings.customModelAliases[modelId] = trimmed;
+          if (value) {
+            settings.customModelAliases[modelId] = value;
           } else {
             delete settings.customModelAliases[modelId];
           }
         });
         this.notifyProviderModelOptionsChanged(providerId);
-      };
-
-      const saveContextLimit = async (): Promise<void> => {
-        const trimmed = inputEl.value.trim();
-
-        if (!trimmed) {
-          validationEl.toggleClass('claudian-hidden', true);
-          inputEl.classList.remove('claudian-input-error');
-        } else {
-          const parsed = parseContextLimit(trimmed);
-          if (parsed === null) {
-            validationEl.setText(t('settings.customContextLimits.invalid'));
-            validationEl.toggleClass('claudian-hidden', false);
-            inputEl.classList.add('claudian-input-error');
-            return;
-          }
-
-          validationEl.toggleClass('claudian-hidden', true);
-          inputEl.classList.remove('claudian-input-error');
-        }
+      },
+      onSaveContextLimit: async (modelId, value) => {
         await this.plugin.mutateSettings((settings) => {
           settings.customContextLimits ??= {};
-          if (!trimmed) {
+          if (value === null) {
             delete settings.customContextLimits[modelId];
           } else {
-            settings.customContextLimits[modelId] = parseContextLimit(trimmed)!;
+            settings.customContextLimits[modelId] = value;
           }
         });
         this.scheduleCustomContextLimitRefresh(providerId);
-      };
+      },
+    }));
+  }
 
-      inputEl.addEventListener('input', () => {
-        void saveContextLimit();
-      });
-      aliasInputEl.addEventListener('blur', () => {
-        void saveAlias();
-      });
-      aliasInputEl.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          aliasInputEl.blur();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          aliasInputEl.value = this.plugin.settings.customModelAliases?.[modelId] ?? '';
-          aliasInputEl.blur();
-        }
-      });
+  private unmountCustomModelOverrideRoots(container?: HTMLElement): void {
+    for (const [rootContainer, root] of this.customModelOverrideRoots) {
+      if (container && rootContainer !== container && !container.contains(rootContainer)) {
+        continue;
+      }
+      root.unmount();
+      this.customModelOverrideRoots.delete(rootContainer);
     }
   }
 

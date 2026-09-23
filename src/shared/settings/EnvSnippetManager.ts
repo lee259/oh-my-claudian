@@ -510,6 +510,7 @@ export class EnvSnippetManager {
     const envTextarea = (this.containerEl.ownerDocument ?? window.document).querySelector<HTMLTextAreaElement>(selector);
     if (envTextarea) {
       envTextarea.value = value;
+      envTextarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
 }

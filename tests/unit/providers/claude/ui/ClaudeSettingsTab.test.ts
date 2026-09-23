@@ -22,6 +22,37 @@ const mockCliResolverReset = jest.fn();
 const mockMcpManagerLoadServers = jest.fn().mockResolvedValue(undefined);
 const mockAgentManagerLoadAgents = jest.fn().mockResolvedValue(undefined);
 const mockVaultCommandRepository = {};
+const mockHostnameCliPathOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (value: string) => Promise<void> | void;
+  placeholder: string;
+  validate?: (value: string) => string | null;
+}> = [];
+const mockProviderEnablementOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (enabled: boolean) => Promise<void> | void;
+}> = [];
+
+jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
+  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
+    mockProviderEnablementOptions.push(options);
+    return { dispose: jest.fn(), setDisabled: jest.fn() };
+  },
+}));
+jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
+  renderHostnameCliPathSetting: (options: typeof mockHostnameCliPathOptions[number]) => {
+    mockHostnameCliPathOptions.push(options);
+    return {
+      dispose: jest.fn(),
+      revalidate: jest.fn(() => true),
+      setDescription: jest.fn(),
+      setDisabled: jest.fn(),
+      setPlaceholder: jest.fn(),
+    };
+  },
+}));
 
 jest.mock('fs');
 jest.mock('@/core/providers/ProviderSettingsCoordinator', () => ({
@@ -322,6 +353,8 @@ describe('ClaudeSettingsTab', () => {
   const mockedStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 
   beforeEach(() => {
+    mockHostnameCliPathOptions.length = 0;
+    mockProviderEnablementOptions.length = 0;
     createdSettings.length = 0;
     jest.clearAllMocks();
     mockedExistsSync.mockReturnValue(false);
@@ -334,11 +367,10 @@ describe('ClaudeSettingsTab', () => {
 
     claudeSettingsTabRenderer.render(createContainer(), context);
 
-    const cliPathSetting = findSetting('settings.cliPath.name');
-    const cliPathInput = cliPathSetting.textComponents[0];
+    const cliPathSetting = mockHostnameCliPathOptions[0];
 
-    expect(cliPathInput.placeholder).toContain('cli-wrapper.cjs');
-    expect(cliPathInput.placeholder).not.toContain('cli.js');
+    expect(cliPathSetting.placeholder).toContain('cli-wrapper.cjs');
+    expect(cliPathSetting.placeholder).not.toContain('cli.js');
   });
 
   it('persists Claude enablement inside its execution transition and refreshes model options', async () => {
@@ -366,8 +398,8 @@ describe('ClaudeSettingsTab', () => {
     const context = createContext(plugin);
 
     claudeSettingsTabRenderer.render(createContainer(), context);
-    const toggle = findSetting('settings.providerEnablement.name').toggleComponents[0];
-    await toggle.onChangeCallback?.(false);
+    const enablement = mockProviderEnablementOptions[0];
+    await enablement.onChange(false);
 
     expect(plugin.settings.providerConfigs.claude.enabled).toBe(false);
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('claude');
@@ -376,32 +408,19 @@ describe('ClaudeSettingsTab', () => {
   it('warns when disabling Claude would leave no enabled provider', async () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
-    const container = createContainer();
     const coordinator = jest.requireMock('@/core/providers/ProviderSettingsCoordinator')
       .ProviderSettingsCoordinator;
     coordinator.canApplyProviderEnablement.mockImplementationOnce(() => false);
 
-    claudeSettingsTabRenderer.render(container, context);
-    const card = container.createDiv.mock.results[0]?.value;
-    const body = card.createDiv.mock.results[1]?.value;
-    const management = body.createDiv.mock.results[0]?.value;
-    const warningCallIndex = management.createDiv.mock.calls.findIndex(
-      ([options]: [{ text?: string }?]) => options?.text
-        === 'settings.providerEnablement.lastProviderWarning',
-    );
-    const warningEl = management.createDiv.mock.results[warningCallIndex]?.value;
-    const toggle = findSetting('settings.providerEnablement.name').toggleComponents[0];
+    claudeSettingsTabRenderer.render(createContainer(), context);
+    const enablement = mockProviderEnablementOptions[0];
 
-    await toggle.onChangeCallback?.(false);
+    await enablement.onChange(false);
 
-    expect(warningCallIndex).toBeGreaterThanOrEqual(0);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
     expect(plugin.settings.providerConfigs.claude.enabled).toBe(true);
     expect(plugin.runProviderExecutionTransition).not.toHaveBeenCalled();
     expect(coordinator.applyProviderEnablement).not.toHaveBeenCalled();
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
-
-    await toggle.onChangeCallback?.(true);
   });
 
   it('persists and applies a CLI path inside the Claude execution transition', async () => {
@@ -434,9 +453,7 @@ describe('ClaudeSettingsTab', () => {
     });
 
     claudeSettingsTabRenderer.render(createContainer(), createContext(plugin));
-    await findSetting('settings.cliPath.name')
-      .textComponents[0]
-      .onChangeCallback?.('/custom/claude');
+    await mockHostnameCliPathOptions[0].onChange('/custom/claude');
 
     expect(plugin.runProviderExecutionTransition).toHaveBeenCalledWith(
       ['claude'],
@@ -471,9 +488,7 @@ describe('ClaudeSettingsTab', () => {
     mockCliResolverReset.mockImplementation(() => undefined);
 
     claudeSettingsTabRenderer.render(createContainer(), createContext(plugin));
-    await findSetting('settings.cliPath.name')
-      .textComponents[0]
-      .onChangeCallback?.('"/custom dir/claude"');
+    await mockHostnameCliPathOptions[0].onChange('"/custom dir/claude"');
 
     expect(plugin.settings.providerConfigs.claude.cliPathsByHost).toEqual({
       'host-a': '"/custom dir/claude"',
@@ -619,6 +634,8 @@ describe('ClaudeSettingsTab', () => {
     const environmentOptions = mockRenderEnvironmentSettingsSection.mock.calls[0]?.[0];
     expect(environmentOptions).toEqual(expect.objectContaining({
       scope: 'provider:claude',
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
       renderCustomContextLimits: expect.any(Function),
     }));
     environmentOptions.renderCustomContextLimits(target);

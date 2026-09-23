@@ -38,6 +38,37 @@ const mockRenderCodexModelPicker = jest.fn((
   _onSelectionChanged?: () => Promise<void>,
 ) => ({ refresh: mockRefreshCodexModelPicker }));
 const mockRefreshModelCatalog = jest.fn().mockResolvedValue({ changed: false });
+const mockProviderEnablementOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (enabled: boolean) => Promise<void> | void;
+}> = [];
+const mockHostnameCliPathOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (value: string) => Promise<void> | void;
+  placeholder: string;
+  validate?: (value: string) => string | null;
+}> = [];
+
+jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
+  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
+    mockProviderEnablementOptions.push(options);
+    return { dispose: jest.fn(), setDisabled: jest.fn() };
+  },
+}));
+jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
+  renderHostnameCliPathSetting: (options: typeof mockHostnameCliPathOptions[number]) => {
+    mockHostnameCliPathOptions.push(options);
+    return {
+      dispose: jest.fn(),
+      revalidate: jest.fn(() => true),
+      setDescription: jest.fn(),
+      setDisabled: jest.fn(),
+      setPlaceholder: jest.fn(),
+    };
+  },
+}));
 
 jest.mock('fs');
 jest.mock('@/core/providers/ProviderSettingsCoordinator', () => ({
@@ -345,6 +376,8 @@ describe('CodexSettingsTab', () => {
   });
 
   beforeEach(() => {
+    mockHostnameCliPathOptions.length = 0;
+    mockProviderEnablementOptions.length = 0;
     createdSettings.length = 0;
     jest.clearAllMocks();
     mockedExistsSync.mockReturnValue(false);
@@ -359,6 +392,11 @@ describe('CodexSettingsTab', () => {
 
     expect(findSetting('Installation method').dropdownComponents).toHaveLength(1);
     expect(findSetting('WSL distro override').textComponents).toHaveLength(1);
+    expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
+      scope: 'provider:codex',
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
+    }));
   });
 
   it('hides Windows-only installation controls on non-Windows platforms', () => {
@@ -407,11 +445,11 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const enableSetting = findSetting('Enable Codex');
-    expect(enableSetting.desc).toBe(
+    const enablement = mockProviderEnablementOptions[0];
+    expect(enablement.description).toBe(
       'Make enabled Codex models available for new conversations. Existing sessions are preserved when disabled.',
     );
-    await enableSetting.toggleComponents[0].onChangeCallback?.(false);
+    await enablement.onChange(false);
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
   });
@@ -449,8 +487,8 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const toggle = findSetting('Enable Codex').toggleComponents[0];
-    await toggle.onChangeCallback?.(true);
+    const enablement = mockProviderEnablementOptions[0];
+    await enablement.onChange(true);
 
     expect(plugin.runProviderExecutionTransition).toHaveBeenCalledWith(
       ['codex'],
@@ -468,7 +506,7 @@ describe('CodexSettingsTab', () => {
     ['before mutation', false],
     ['after mutation', true],
   ] as const)(
-    'resynchronizes the enable toggle when the transition fails %s',
+    'preserves authoritative enablement when the transition fails %s',
     async (_phase, mutateBeforeFailure) => {
       const plugin = createPlugin();
       plugin.runProviderExecutionTransition.mockImplementation(async (
@@ -481,17 +519,14 @@ describe('CodexSettingsTab', () => {
       const context = createContext(plugin);
 
       codexSettingsTabRenderer.render(createContainer(), context);
-      const toggle = findSetting('Enable Codex').toggleComponents[0];
-      toggle.value = false;
-      toggle.setValue.mockClear();
+      const enablement = mockProviderEnablementOptions[0];
 
-      await expect(toggle.onChangeCallback?.(false)).rejects.toThrow(
+      await expect(enablement.onChange(false)).rejects.toThrow(
         'enablement transition failed',
       );
 
       const persistedEnabled = plugin.settings.providerConfigs.codex.enabled;
       expect(persistedEnabled).toBe(mutateBeforeFailure ? false : true);
-      expect(toggle.setValue).toHaveBeenCalledWith(persistedEnabled);
       expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
     },
   );
@@ -539,21 +574,11 @@ describe('CodexSettingsTab', () => {
 
     codexSettingsTabRenderer.render(container, context);
 
-    const management = mockProviderManagement!;
-    const warningCallIndex = management.createDiv.mock.calls.findIndex(
-      ([options]: [{ text?: string }?]) => options?.text
-        === 'No Codex models are enabled. Go to Models below and enable at least one model.',
-    );
-    const warningEl = management.createDiv.mock.results[warningCallIndex]?.value;
-    expect(warningCallIndex).toBeGreaterThanOrEqual(0);
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', false);
-
     plugin.settings.providerConfigs.codex.customModels = 'gpt-custom';
     const pickerContext = mockRenderCodexModelPicker.mock.calls[0][1];
     pickerContext.notifyProviderModelOptionsChanged('codex');
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
-    expect(warningEl.toggleClass).toHaveBeenLastCalledWith('claudian-hidden', true);
   });
 
   it('renders the fixed-root shared skill manager', () => {
@@ -596,11 +621,12 @@ describe('CodexSettingsTab', () => {
 
     codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
 
-    const cliPathSetting = findSetting('Codex CLI path');
-    expect(cliPathSetting.desc).toBe('Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of "which codex" (or "where codex" on Windows).');
-    expect(cliPathSetting.textComponents[0].placeholder).toBe('/usr/local/bin/codex');
+    const cliPathSetting = mockHostnameCliPathOptions.at(-1);
+    if (!cliPathSetting) throw new Error('Expected Codex CLI path settings');
+    expect(cliPathSetting.description).toBe('Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of "which codex" (or "where codex" on Windows).');
+    expect(cliPathSetting.placeholder).toBe('/usr/local/bin/codex');
 
-    await cliPathSetting.textComponents[0].onChangeCallback?.('codex');
+    expect(cliPathSetting.validate?.('codex')).not.toBeNull();
 
     expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBeUndefined();
     expect(mockSaveSettings).toHaveBeenCalledTimes(0);
@@ -634,8 +660,7 @@ describe('CodexSettingsTab', () => {
     const installationMethodSetting = findSetting('Installation method');
     await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
 
-    const cliPathSetting = findSetting('Codex CLI path');
-    await cliPathSetting.textComponents[0].onChangeCallback?.('codex');
+    await mockHostnameCliPathOptions.at(-1)?.onChange('codex');
 
     expect(plugin.settings.providerConfigs.codex.installationMethodsByHost).toEqual({
       'host-a': 'wsl',
@@ -670,8 +695,9 @@ describe('CodexSettingsTab', () => {
     const installationMethodSetting = findSetting('Installation method');
     await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
 
-    const cliPathSetting = findSetting('Codex CLI path');
-    await cliPathSetting.textComponents[0].onChangeCallback?.('C:\\Users\\me\\AppData\\Roaming\\npm\\codex.exe');
+    const cliPathSetting = mockHostnameCliPathOptions.at(-1);
+    const invalidWindowsPath = 'C:\\Users\\me\\AppData\\Roaming\\npm\\codex.exe';
+    expect(cliPathSetting?.validate?.(invalidWindowsPath)).not.toBeNull();
 
     expect(plugin.settings.providerConfigs.codex.installationMethodsByHost).toEqual({
       'host-a': 'wsl',
@@ -697,7 +723,7 @@ describe('CodexSettingsTab', () => {
     });
 
     codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
-    await findSetting('Codex CLI path').textComponents[0].onChangeCallback?.('"/my tools/codex"');
+    await mockHostnameCliPathOptions.at(-1)?.onChange('"/my tools/codex"');
 
     expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBe('"/my tools/codex"');
   });
@@ -712,8 +738,8 @@ describe('CodexSettingsTab', () => {
     await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
     mockSaveSettings.mockClear();
 
-    const cliPathSetting = findSetting('Codex CLI path');
-    await cliPathSetting.textComponents[0].onChangeCallback?.('"/home/user/my tools/codex"');
+    const cliPathSetting = mockHostnameCliPathOptions.at(-1);
+    await cliPathSetting?.onChange('"/home/user/my tools/codex"');
 
     expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBe(
       '"/home/user/my tools/codex"',
@@ -731,10 +757,8 @@ describe('CodexSettingsTab', () => {
     await installationMethodSetting.dropdownComponents[0].onChangeCallback?.('wsl');
     mockSaveSettings.mockClear();
 
-    const cliPathSetting = findSetting('Codex CLI path');
-    await cliPathSetting.textComponents[0].onChangeCallback?.(
-      '"C:\\Users\\me\\AppData\\Roaming\\npm\\codex.exe"',
-    );
+    const cliPathSetting = mockHostnameCliPathOptions.at(-1);
+    expect(cliPathSetting?.validate?.('"C:\\Users\\me\\AppData\\Roaming\\npm\\codex.exe"')).not.toBeNull();
 
     expect(plugin.settings.providerConfigs.codex.cliPathsByHost['host-a']).toBeUndefined();
     expect(mockSaveSettings).not.toHaveBeenCalled();

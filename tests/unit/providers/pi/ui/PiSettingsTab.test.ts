@@ -7,10 +7,44 @@ import {
   type MockToggleComponent,
 } from '@test/helpers/MockSettingComponents';
 
+import type { ProviderModelPickerOptions } from '@/shared/settings/ProviderModelPicker';
+
 const mockRenderEnvironmentSettingsSection = jest.fn();
 const mockCliResolverReset = jest.fn();
 const mockDiscoverModels = jest.fn();
 const mockNotices: string[] = [];
+let mockProviderModelPickerOptions: ProviderModelPickerOptions | null = null;
+const mockHostnameCliPathOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (value: string) => Promise<void> | void;
+  placeholder: string;
+  validate?: (value: string) => string | null;
+}> = [];
+const mockProviderEnablementOptions: Array<{
+  description: string;
+  name: string;
+  onChange: (enabled: boolean) => Promise<void> | void;
+}> = [];
+
+jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
+  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
+    mockProviderEnablementOptions.push(options);
+    return { dispose: jest.fn(), setDisabled: jest.fn() };
+  },
+}));
+jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
+  renderHostnameCliPathSetting: (options: typeof mockHostnameCliPathOptions[number]) => {
+    mockHostnameCliPathOptions.push(options);
+    return {
+      dispose: jest.fn(),
+      revalidate: jest.fn(() => true),
+      setDescription: jest.fn(),
+      setDisabled: jest.fn(),
+      setPlaceholder: jest.fn(),
+    };
+  },
+}));
 
 jest.mock('@/core/providers/ProviderSettingsCoordinator', () => ({
   ProviderSettingsCoordinator: {
@@ -111,6 +145,12 @@ jest.mock('obsidian', () => ({
 jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
   renderEnvironmentSettingsSection: (...args: unknown[]) => mockRenderEnvironmentSettingsSection(...args),
 }));
+jest.mock('@/shared/settings/ProviderModelPicker', () => ({
+  renderProviderModelPicker: (options: ProviderModelPickerOptions) => {
+    mockProviderModelPickerOptions = options;
+    return { dispose: jest.fn(), refresh: jest.fn() };
+  },
+}));
 jest.mock('@/shared/settings/ProviderReadinessPanel', () => ({
   renderProviderReadinessPanel: createMockProviderReadinessPanel,
 }));
@@ -135,7 +175,6 @@ import { getPiProviderSettings } from '@/providers/pi/settings';
 import { piSettingsTabRenderer } from '@/providers/pi/ui/PiSettingsTab';
 
 const createdSettings: MockSetting[] = [];
-const createdDomElements: any[] = [];
 const mockedExists = fs.existsSync as jest.Mock;
 const mockedStat = fs.statSync as jest.Mock;
 
@@ -244,21 +283,18 @@ function createElement(): any {
       const child = createElement();
       child.tag = tag;
       applyElementAttrs(child, attrs);
-      createdDomElements.push(child);
       return child;
     }),
     createDiv: jest.fn((attrs?: Record<string, unknown>) => {
       const child = createElement();
       child.tag = 'div';
       applyElementAttrs(child, attrs);
-      createdDomElements.push(child);
       return child;
     }),
     createSpan: jest.fn((attrs?: Record<string, unknown>) => {
       const child = createElement();
       child.tag = 'span';
       applyElementAttrs(child, attrs);
-      createdDomElements.push(child);
       return child;
     }),
   };
@@ -347,31 +383,13 @@ function findSetting(name: string): MockSetting {
   return setting;
 }
 
-function findElement(tag: string, cls: string): any {
-  const element = [...createdDomElements].reverse().find(
-    candidate => candidate.tag === tag && candidate.cls === cls,
-  );
-  if (!element) {
-    throw new Error(`Element not found: ${tag}.${cls}`);
-  }
-  return element;
-}
-
-function findInputByType(type: string): any {
-  const element = [...createdDomElements].reverse().find(
-    candidate => candidate.tag === 'input' && candidate.type === type,
-  );
-  if (!element) {
-    throw new Error(`Input not found: ${type}`);
-  }
-  return element;
-}
-
 describe('PiSettingsTab', () => {
   beforeEach(() => {
+    mockHostnameCliPathOptions.length = 0;
+    mockProviderEnablementOptions.length = 0;
     jest.clearAllMocks();
     createdSettings.length = 0;
-    createdDomElements.length = 0;
+    mockProviderModelPickerOptions = null;
     mockNotices.length = 0;
     mockedExists.mockReturnValue(true);
     mockedStat.mockReturnValue({ isFile: () => true });
@@ -385,11 +403,17 @@ describe('PiSettingsTab', () => {
     const settings: Record<string, unknown> = { providerConfigs: { pi: { enabled: false } } };
     const context = render(settings);
 
-    const enableSetting = findSetting('Enable Pi');
-    expect(enableSetting.desc).toBe(
+    expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
+      scope: 'provider:pi',
+      usePreactEnvironmentField: true,
+      usePreactSnippetList: true,
+    }));
+
+    const enablement = mockProviderEnablementOptions[0];
+    expect(enablement.description).toBe(
       'Make enabled Pi models available for new conversations. Existing sessions are preserved when disabled.',
     );
-    await enableSetting.toggleComponents[0].onChangeCallback?.(true);
+    await enablement.onChange(true);
 
     expect(getPiProviderSettings(settings).enabled).toBe(true);
     expect(context.plugin.saveSettings).toHaveBeenCalled();
@@ -401,7 +425,7 @@ describe('PiSettingsTab', () => {
       providerConfigs: { pi: { enabled: true } },
     };
     const context = render(settings);
-    const enableSetting = findSetting('Enable Pi');
+    const enablement = mockProviderEnablementOptions[0];
     context.plugin.runProviderExecutionTransition.mockImplementationOnce(async (
       providerIds: string[],
       mutation: () => Promise<void>,
@@ -412,59 +436,54 @@ describe('PiSettingsTab', () => {
       expect(getPiProviderSettings(settings).enabled).toBe(false);
     });
 
-    await enableSetting.toggleComponents[0].onChangeCallback?.(false);
+    await enablement.onChange(false);
 
     expect(context.plugin.runProviderExecutionTransition).toHaveBeenCalledTimes(1);
     expect(mockDiscoverModels).not.toHaveBeenCalled();
   });
 
-  it('resynchronizes the Pi toggle when disabling the final provider is rejected', async () => {
+  it('preserves Pi enablement when disabling the final provider is rejected', async () => {
     const settings: Record<string, unknown> = {
       providerConfigs: { pi: { enabled: true } },
     };
     const context = render(settings);
-    const toggle = findSetting('Enable Pi').toggleComponents[0];
+    const enablement = mockProviderEnablementOptions[0];
     const coordinator = jest.requireMock('@/core/providers/ProviderSettingsCoordinator')
       .ProviderSettingsCoordinator;
     coordinator.canApplyProviderEnablement.mockImplementationOnce(() => false);
-    toggle.setValue.mockClear();
+    await enablement.onChange(false);
 
-    await toggle.onChangeCallback?.(false);
-
-    expect(toggle.setValue).toHaveBeenLastCalledWith(true);
     expect(context.plugin.runProviderExecutionTransition).not.toHaveBeenCalled();
     expect(coordinator.applyProviderEnablement).not.toHaveBeenCalled();
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
 
-    await toggle.onChangeCallback?.(true);
   });
 
-  it('restores the Pi enablement toggle when the execution transition fails', async () => {
+  it('preserves Pi enablement when the execution transition fails', async () => {
     const settings: Record<string, unknown> = {
       providerConfigs: { pi: { enabled: false } },
     };
     const context = render(settings);
-    const toggle = findSetting('Enable Pi').toggleComponents[0];
+    const enablement = mockProviderEnablementOptions[0];
     context.plugin.runProviderExecutionTransition.mockRejectedValueOnce(
       new Error('transition failed'),
     );
 
-    await expect(toggle.onChangeCallback?.(true)).rejects.toThrow(
+    await expect(enablement.onChange(true)).rejects.toThrow(
       'transition failed',
     );
 
     expect(getPiProviderSettings(settings).enabled).toBe(false);
-    expect(toggle.setValue).toHaveBeenLastCalledWith(false);
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
     expect(mockDiscoverModels).not.toHaveBeenCalled();
   });
 
-  it('resynchronizes Pi enablement to durable settings after a late transition failure', async () => {
+  it('keeps committed Pi enablement after a late transition failure', async () => {
     const settings: Record<string, unknown> = {
       providerConfigs: { pi: { enabled: false } },
     };
     const context = render(settings);
-    const toggle = findSetting('Enable Pi').toggleComponents[0];
+    const enablement = mockProviderEnablementOptions[0];
     context.plugin.runProviderExecutionTransition.mockImplementationOnce(async (
       _providerIds: string[],
       mutation: () => Promise<void>,
@@ -473,12 +492,11 @@ describe('PiSettingsTab', () => {
       throw new Error('transition completion failed');
     });
 
-    await expect(toggle.onChangeCallback?.(true)).rejects.toThrow(
+    await expect(enablement.onChange(true)).rejects.toThrow(
       'transition completion failed',
     );
 
     expect(getPiProviderSettings(settings).enabled).toBe(true);
-    expect(toggle.setValue).toHaveBeenLastCalledWith(true);
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
     expect(mockDiscoverModels).not.toHaveBeenCalled();
   });
@@ -507,16 +525,16 @@ describe('PiSettingsTab', () => {
   it('validates host-scoped CLI paths and resets the resolver after valid changes', async () => {
     const settings: Record<string, unknown> = { providerConfigs: { pi: {} } };
     const context = render(settings);
-    const cliInput = findSetting('CLI path').textComponents[0];
+    const cliPath = mockHostnameCliPathOptions.at(-1);
 
     mockedExists.mockReturnValue(false);
-    await cliInput.onChangeCallback?.('/missing/pi');
+    expect(cliPath?.validate?.('/missing/pi')).not.toBeNull();
     expect(context.plugin.saveSettings).not.toHaveBeenCalled();
     expect(mockCliResolverReset).not.toHaveBeenCalled();
 
     mockedExists.mockReturnValue(true);
     mockedStat.mockReturnValue({ isFile: () => true });
-    await cliInput.onChangeCallback?.('/valid/pi');
+    await cliPath?.onChange('/valid/pi');
     expect(getPiProviderSettings(settings).cliPathsByHost).toEqual({
       'current-host': '/valid/pi',
     });
@@ -534,7 +552,7 @@ describe('PiSettingsTab', () => {
       },
     };
     const context = render(settings);
-    const cliInput = findSetting('CLI path').textComponents[0];
+    const cliPath = mockHostnameCliPathOptions.at(-1);
     const order: string[] = [];
     mockCliResolverReset.mockImplementationOnce(() => {
       order.push('resolver-reset');
@@ -554,7 +572,7 @@ describe('PiSettingsTab', () => {
       order.push('transition-end');
     });
 
-    await cliInput.onChangeCallback?.('/new/pi');
+    await cliPath?.onChange('/new/pi');
 
     expect(order).toEqual([
       'transition-start',
@@ -575,11 +593,11 @@ describe('PiSettingsTab', () => {
   it('accepts a CLI path pasted with surrounding quotes', async () => {
     const settings: Record<string, unknown> = { providerConfigs: { pi: {} } };
     render(settings);
-    const cliInput = findSetting('CLI path').textComponents[0];
+    const cliPath = mockHostnameCliPathOptions.at(-1);
 
     mockedExists.mockImplementation((filePath: unknown) => String(filePath) === '/my tools/pi');
     mockedStat.mockReturnValue({ isFile: () => true });
-    await cliInput.onChangeCallback?.('"/my tools/pi"');
+    await cliPath?.onChange('"/my tools/pi"');
 
     expect(getPiProviderSettings(settings).cliPathsByHost).toEqual({
       'current-host': '"/my tools/pi"',
@@ -593,20 +611,18 @@ describe('PiSettingsTab', () => {
       },
     };
     const context = render(settings);
-    const cliInput = findSetting('CLI path').textComponents[0];
-    cliInput.inputEl.value = '/failed/pi';
+    const cliPath = mockHostnameCliPathOptions.at(-1);
     context.plugin.runProviderExecutionTransition.mockRejectedValueOnce(
       new Error('transition failed'),
     );
 
-    await expect(cliInput.onChangeCallback?.('/failed/pi')).rejects.toThrow(
+    await expect(cliPath?.onChange('/failed/pi')).rejects.toThrow(
       'transition failed',
     );
 
     expect(getPiProviderSettings(settings).cliPathsByHost).toEqual({
       'current-host': '/old/pi',
     });
-    expect(cliInput.inputEl.value).toBe('/old/pi');
     expect(mockCliResolverReset).not.toHaveBeenCalled();
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
   });
@@ -618,20 +634,18 @@ describe('PiSettingsTab', () => {
       },
     };
     const context = render(settings);
-    const cliInput = findSetting('CLI path').textComponents[0];
-    cliInput.inputEl.value = '/new/pi';
+    const cliPath = mockHostnameCliPathOptions.at(-1);
     mockCliResolverReset.mockImplementationOnce(() => {
       throw new Error('resolver reset failed');
     });
 
-    await expect(cliInput.onChangeCallback?.('/new/pi')).rejects.toThrow(
+    await expect(cliPath?.onChange('/new/pi')).rejects.toThrow(
       'resolver reset failed',
     );
 
     expect(getPiProviderSettings(settings).cliPathsByHost).toEqual({
       'current-host': '/new/pi',
     });
-    expect(cliInput.inputEl.value).toBe('/new/pi');
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
   });
 
@@ -657,7 +671,9 @@ describe('PiSettingsTab', () => {
     };
     const context = render(settings);
 
-    await findElement('button', 'claudian-provider-model-picker-action').dispatchMockEvent('click');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(true);
     await flushPromises();
 
     expect(mockDiscoverModels).toHaveBeenCalledTimes(1);
@@ -670,7 +686,8 @@ describe('PiSettingsTab', () => {
       kind: 'completed',
       models: [],
     });
-    await findElement('button', 'claudian-provider-model-picker-action').dispatchMockEvent('click');
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(true);
     await flushPromises();
     expect(mockNotices[0]).toContain('not logged in');
   });
@@ -700,7 +717,9 @@ describe('PiSettingsTab', () => {
       reason: 'provider-disabled',
     });
 
-    await findElement('button', 'claudian-provider-model-picker-action').dispatchMockEvent('click');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(true);
     await flushPromises();
 
     expect(getPiProviderSettings(settings).discoveredModels).toEqual([cachedModel]);
@@ -731,7 +750,9 @@ describe('PiSettingsTab', () => {
       models: [cachedModel],
     });
 
-    await findElement('button', 'claudian-provider-model-picker-action').dispatchMockEvent('click');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.loadCatalog(true);
     await flushPromises();
 
     expect(context.plugin.saveSettings).not.toHaveBeenCalled();
@@ -756,16 +777,13 @@ describe('PiSettingsTab', () => {
       },
     };
     const context = render(settings);
-    const checkboxEl = findInputByType('checkbox');
-
-    checkboxEl.checked = true;
-    await checkboxEl.dispatchMockEvent('change');
+    const pickerOptions = mockProviderModelPickerOptions;
+    if (!pickerOptions) throw new Error('Expected model picker options');
+    await pickerOptions.onSelectedIdsChange(['pi:anthropic/claude-sonnet-4']);
     await flushPromises();
     expect(getPiProviderSettings(settings).visibleModels).toEqual(['pi:anthropic/claude-sonnet-4']);
 
-    const aliasInput = findElement('input', 'claudian-provider-model-picker-selected-alias');
-    aliasInput.value = 'Sonnet';
-    await aliasInput.dispatchMockEvent('blur');
+    await pickerOptions.onAliasesChange({ 'pi:anthropic/claude-sonnet-4': 'Sonnet' });
     await flushPromises();
 
     expect(getPiProviderSettings(settings).modelAliases).toEqual({
