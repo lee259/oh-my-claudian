@@ -187,6 +187,11 @@
   },
   "settings": {
     "title": "Oh My Claudian 설정",
+    "saveFeedback": {
+      "saving": "저장 중…",
+      "saved": "저장됨",
+      "error": "저장하지 못했습니다"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

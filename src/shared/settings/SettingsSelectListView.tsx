@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 
+import {
+  SettingsSaveFeedback,
+  type SettingsSaveLabels,
+  useSettingsSaveState,
+} from './SettingsSaveFeedback';
+
 export interface SettingsSelectOption {
   value: string;
   label: string;
@@ -15,6 +21,7 @@ export interface SettingsSelectListItem {
 
 export interface SettingsSelectListViewProps {
   items: readonly SettingsSelectListItem[];
+  saveLabels: SettingsSaveLabels;
   onChange: (id: string, value: string) => Promise<void> | void;
 }
 
@@ -22,11 +29,11 @@ function getDescriptionId(id: string): string {
   return `claudian-settings-select-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}-description`;
 }
 
-export function SettingsSelectListView({ items, onChange }: SettingsSelectListViewProps) {
+export function SettingsSelectListView({ items, onChange, saveLabels }: SettingsSelectListViewProps) {
   const [values, setValues] = useState<Record<string, string>>(
     () => Object.fromEntries(items.map(item => [item.id, item.value])),
   );
-  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const { states, save } = useSettingsSaveState();
 
   useEffect(() => {
     setValues(Object.fromEntries(items.map(item => [item.id, item.value])));
@@ -34,18 +41,9 @@ export function SettingsSelectListView({ items, onChange }: SettingsSelectListVi
 
   const handleChange = async (item: SettingsSelectListItem, nextValue: string): Promise<void> => {
     setValues(previous => ({ ...previous, [item.id]: nextValue }));
-    setPendingIds(previous => new Set(previous).add(item.id));
-
-    try {
-      await onChange(item.id, nextValue);
-    } catch {
+    const saved = await save(item.id, () => onChange(item.id, nextValue));
+    if (!saved) {
       setValues(previous => ({ ...previous, [item.id]: item.value }));
-    } finally {
-      setPendingIds(previous => {
-        const next = new Set(previous);
-        next.delete(item.id);
-        return next;
-      });
     }
   };
 
@@ -54,7 +52,8 @@ export function SettingsSelectListView({ items, onChange }: SettingsSelectListVi
       {items.map(item => {
         const descriptionId = getDescriptionId(item.id);
         const value = values[item.id] ?? item.value;
-        const pending = pendingIds.has(item.id);
+        const saveState = states[item.id];
+        const pending = saveState?.status === 'saving';
         return (
           <div className="setting-item" key={item.id}>
             <div className="setting-item-info">
@@ -62,6 +61,7 @@ export function SettingsSelectListView({ items, onChange }: SettingsSelectListVi
               <div className="setting-item-description" id={descriptionId}>
                 {item.description}
               </div>
+              <SettingsSaveFeedback labels={saveLabels} state={saveState} />
             </div>
             <div className="setting-item-control">
               <select

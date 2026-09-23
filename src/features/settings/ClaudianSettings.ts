@@ -360,6 +360,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
   private renderGeneralTab(container: HTMLElement): void {
     this.mountGeneralControl(container.createDiv(), h(SettingsSelectListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'interface-language',
         name: t('settings.language.name'),
@@ -464,6 +465,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const setup = section('setup');
     this.mountGeneralControl(setup, h(SettingsSelectListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'chat-view-placement',
         name: t('settings.chatViewPlacement.name'),
@@ -489,6 +491,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalDisplayRoot?.unmount();
     this.generalDisplayRoot = createPreactRoot(display);
     this.generalDisplayRoot.render(h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [
         {
           id: 'enable-auto-scroll',
@@ -548,6 +551,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const conversations = section('conversations');
     this.mountGeneralControl(conversations, h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'enable-auto-title-generation',
         name: t('settings.autoTitle.name'),
@@ -567,6 +571,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     if (this.plugin.settings.enableAutoTitleGeneration) {
       this.mountGeneralControl(conversations.createDiv(), h(SettingsSelectListView, {
+        saveLabels: this.getSettingsSaveLabels(),
         items: [{
           id: 'title-generation-language',
           name: t('settings.titleLanguage.name'),
@@ -603,6 +608,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const content = section('content');
     this.mountGeneralControl(content, h(SettingsTextFieldsView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [
         {
           id: 'user-name',
@@ -669,6 +675,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }));
 
     this.mountGeneralControl(content, h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'use-claudian-system-prompt',
         name: t('settings.useClaudianSystemPrompt.name'),
@@ -688,6 +695,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const input = section('input');
     this.mountGeneralControl(input, h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'require-command-or-control-enter',
         name: t('settings.requireCommandOrControlEnterToSend.name'),
@@ -782,6 +790,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const advanced = section('advanced');
     this.mountGeneralControl(advanced, h(SettingsSliderView, {
+      saveLabels: this.getSettingsSaveLabels(),
       name: t('settings.maxWarmAgentProcesses.name'),
       description: t('settings.maxWarmAgentProcesses.desc'),
       min: MIN_WARM_AGENT_PROCESSES,
@@ -813,6 +822,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private getTitleModelSelectProps() {
     const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
     return {
+      saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'title-generation-model',
         name: t('settings.titleModel.name'),
@@ -829,6 +839,14 @@ export class ClaudianSettingTab extends PluginSettingTab {
           ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
         });
       },
+    };
+  }
+
+  private getSettingsSaveLabels() {
+    return {
+      saving: t('settings.saveFeedback.saving'),
+      saved: t('settings.saveFeedback.saved'),
+      error: t('settings.saveFeedback.error'),
     };
   }
 

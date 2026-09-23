@@ -1,5 +1,11 @@
 import { useState } from 'preact/hooks';
 
+import {
+  SettingsSaveFeedback,
+  type SettingsSaveLabels,
+  useSettingsSaveState,
+} from './SettingsSaveFeedback';
+
 export interface SettingsToggleListItem {
   id: string;
   name: string;
@@ -9,6 +15,7 @@ export interface SettingsToggleListItem {
 
 export interface SettingsToggleListViewProps {
   items: readonly SettingsToggleListItem[];
+  saveLabels: SettingsSaveLabels;
   onChange: (id: string, value: boolean) => Promise<void> | void;
 }
 
@@ -18,27 +25,19 @@ function getDescriptionId(id: string): string {
 
 export function SettingsToggleListView({
   items,
+  saveLabels,
   onChange,
 }: SettingsToggleListViewProps) {
   const [values, setValues] = useState<Record<string, boolean>>(
     () => Object.fromEntries(items.map(item => [item.id, item.value])),
   );
-  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const { states, save } = useSettingsSaveState();
 
   const handleChange = async (item: SettingsToggleListItem, nextValue: boolean): Promise<void> => {
     setValues(previous => ({ ...previous, [item.id]: nextValue }));
-    setPendingIds(previous => new Set(previous).add(item.id));
-
-    try {
-      await onChange(item.id, nextValue);
-    } catch {
+    const saved = await save(item.id, () => onChange(item.id, nextValue));
+    if (!saved) {
       setValues(previous => ({ ...previous, [item.id]: item.value }));
-    } finally {
-      setPendingIds(previous => {
-        const next = new Set(previous);
-        next.delete(item.id);
-        return next;
-      });
     }
   };
 
@@ -47,7 +46,8 @@ export function SettingsToggleListView({
       {items.map(item => {
         const descriptionId = getDescriptionId(item.id);
         const value = values[item.id] ?? item.value;
-        const pending = pendingIds.has(item.id);
+        const saveState = states[item.id];
+        const pending = saveState?.status === 'saving';
         return (
           <div className="setting-item" key={item.id}>
             <div className="setting-item-info">
@@ -55,6 +55,7 @@ export function SettingsToggleListView({
               <div className="setting-item-description" id={descriptionId}>
                 {item.description}
               </div>
+              <SettingsSaveFeedback labels={saveLabels} state={saveState} />
             </div>
             <div className="setting-item-control">
               <div className={`checkbox-container${value ? ' is-enabled' : ''}`}>

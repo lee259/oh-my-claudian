@@ -69,6 +69,17 @@
   color: var(--text-normal);
 }
 
+.claudian-settings-save-feedback {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.claudian-settings-save-feedback--error {
+  color: var(--text-error);
+}
+
 /* Custom section descriptions - align with items */
 .claudian-sp-settings-desc,
 .claudian-mcp-settings-desc,

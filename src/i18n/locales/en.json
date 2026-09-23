@@ -187,6 +187,11 @@
   },
   "settings": {
     "title": "Oh My Claudian Settings",
+    "saveFeedback": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Could not save"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

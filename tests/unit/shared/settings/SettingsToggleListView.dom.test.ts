@@ -4,6 +4,12 @@ import { h, render } from 'preact';
 
 import { SettingsToggleListView } from '@/shared/settings/SettingsToggleListView';
 
+const saveLabels = {
+  saving: 'Saving…',
+  saved: 'Saved',
+  error: 'Could not save',
+};
+
 describe('SettingsToggleListView', () => {
   it('renders labeled switches and reports the changed setting id', async () => {
     const onChange = jest.fn(() => Promise.resolve());
@@ -24,6 +30,7 @@ describe('SettingsToggleListView', () => {
           value: false,
         },
       ],
+      saveLabels,
       onChange,
     }), container);
 
@@ -63,6 +70,7 @@ describe('SettingsToggleListView', () => {
         description: 'Wait until streaming completes.',
         value: true,
       }],
+      saveLabels,
       onChange,
     }), container);
 
@@ -75,10 +83,41 @@ describe('SettingsToggleListView', () => {
     toggle.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
     expect(toggle.disabled).toBe(true);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Saving…');
 
     resolveChange();
     await Promise.resolve();
     await Promise.resolve();
     expect(toggle.disabled).toBe(false);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Saved');
+  });
+
+  it('announces a save failure and restores the last saved value', async () => {
+    const onChange = jest.fn().mockRejectedValue(new Error('Disk is full'));
+    const container = document.createElement('div');
+
+    render(h(SettingsToggleListView, {
+      items: [{
+        id: 'auto-scroll',
+        name: 'Enable auto-scroll',
+        description: 'Keep the latest response visible.',
+        value: true,
+      }],
+      onChange,
+      saveLabels,
+    }), container);
+
+    const toggle = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!toggle) {
+      throw new Error('Expected an auto-scroll switch');
+    }
+
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => window.setTimeout(resolve, 0));
+
+    expect(toggle.checked).toBe(true);
+    expect(container.querySelector('[role="alert"]')?.textContent)
+      .toBe('Could not save: Disk is full');
   });
 });
