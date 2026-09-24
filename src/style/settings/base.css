@@ -147,6 +147,23 @@
 .claudian-settings-slider-control input[type="range"] {
   flex: 1;
   min-width: 0;
+  background: linear-gradient(
+    to right,
+    var(--interactive-accent) 0%,
+    var(--interactive-accent) var(--claudian-settings-slider-progress),
+    var(--slider-track-background, var(--background-modifier-border)) var(--claudian-settings-slider-progress),
+    var(--slider-track-background, var(--background-modifier-border)) 100%
+  );
+}
+
+.claudian-settings-slider-control:dir(rtl) input[type="range"] {
+  background: linear-gradient(
+    to left,
+    var(--interactive-accent) 0%,
+    var(--interactive-accent) var(--claudian-settings-slider-progress),
+    var(--slider-track-background, var(--background-modifier-border)) var(--claudian-settings-slider-progress),
+    var(--slider-track-background, var(--background-modifier-border)) 100%
+  );
 }
 
 .claudian-settings-slider-value {

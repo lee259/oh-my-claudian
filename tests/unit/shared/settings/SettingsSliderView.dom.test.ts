@@ -21,6 +21,22 @@ const baseProps = {
 };
 
 describe('SettingsSliderView', () => {
+  it('updates the filled track position while the slider moves', async () => {
+    const container = document.createElement('div');
+    render(h(SettingsSliderView, { ...baseProps, onChange: jest.fn() }), container);
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+    if (!slider) throw new Error('Expected a warm sessions slider');
+
+    const initialProgress = slider.style.getPropertyValue('--claudian-settings-slider-progress');
+    slider.value = '6';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(slider.style.getPropertyValue('--claudian-settings-slider-progress')).not.toBe(initialProgress);
+    expect(slider.style.getPropertyValue('--claudian-settings-slider-progress')).toBe('71.42857142857143%');
+    expect(container.querySelector('.claudian-settings-slider-value')?.textContent).toBe('6');
+  });
+
   it('shows progress while saving and success after the latest change commits', async () => {
     let resolveChange!: () => void;
     const onChange = jest.fn(() => new Promise<void>((resolve) => {
