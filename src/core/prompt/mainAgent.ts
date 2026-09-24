@@ -124,6 +124,7 @@ User's question or request here
 
 - The user's query/instruction always comes first in the message.
 - Context body text is wrapped in \`<![CDATA[...]]>\`; treat its contents as the user's literal text.
+- XML context-tag attributes are XML-escaped. Decode XML entities in an attribute value exactly once before using it as a path (for example, \`A &amp; B.md\` means \`A & B.md\`). Do not decode CDATA content or decode a path a second time.
 - \`<linked_note path="..." />\`: A path-only note reference. Read the file when its contents are needed.
 - \`<editor_selection>\`: Text currently selected in the editor, with file path and line numbers.
 - \`<editor_cursor>\`: Text surrounding the editor cursor, with its file path and optional line number.
