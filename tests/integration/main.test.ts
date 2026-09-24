@@ -1549,7 +1549,10 @@ describe('ClaudianPlugin', () => {
             }
         )),
       };
-      const service = new GrokModelCatalogService(plugin as any, { runner });
+      const service = new GrokModelCatalogService(plugin as any, {
+        probe: { discover: jest.fn().mockRejectedValue(new Error('Method not found')) },
+        runner,
+      });
       const coordinator = new GrokModelCatalogCoordinator(plugin as any, service);
       const cliResolver = new GrokCliResolver();
       ProviderWorkspaceRegistry.setServices('grok', {
