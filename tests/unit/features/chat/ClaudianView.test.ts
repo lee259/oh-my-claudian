@@ -208,6 +208,30 @@ describe('ClaudianView chat surface state', () => {
     expect(activeTab.dom.contentEl.hasClass('claudian-home-state')).toBe(false);
     expect(activeTab.dom.contentEl.hasClass('claudian-conversation-state')).toBe(true);
   });
+
+  it('switches the shared header presentation when history opens a conversation', () => {
+    const updateConversationHeader = jest.fn();
+    const tab = {
+      conversationId: null as string | null,
+      dom: { updateConversationHeader },
+      state: { messages: [] as Array<{ id: string }> },
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      plugin: {
+        getConversationSync: jest.fn().mockReturnValue({ title: 'Opened from history' }),
+      },
+      tabManager: { getAllTabs: jest.fn().mockReturnValue([tab]) },
+    });
+
+    view.updateConversationHeaders();
+    expect(updateConversationHeader.mock.lastCall).toEqual([expect.any(String), true]);
+
+    tab.conversationId = 'history-conversation';
+    tab.state.messages.push({ id: 'message-1' });
+    view.updateConversationHeaders();
+    expect(updateConversationHeader.mock.lastCall).toEqual(['Opened from history', false]);
+  });
 });
 
 function createViewHarness(options: {
@@ -1924,6 +1948,38 @@ describe('ClaudianView tab controls', () => {
     expect(otherView.notifyConversationListChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('refreshes runtime status immediately in every view even while another tab is active', () => {
+    const otherView = { refreshConversationRuntimeState: jest.fn() };
+    const clearTimeout = jest.fn();
+    const ownerWindow = { clearTimeout } as unknown as Window;
+    const activeTab = {
+      state: { isStreaming: true },
+      session: { hasBackgroundWork: false },
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      plugin: { getAllViews: jest.fn().mockReturnValue([view, otherView]) },
+      tabManager: { getAllTabs: jest.fn().mockReturnValue([activeTab]) },
+      updateConversationHeaders: jest.fn(),
+      refreshWelcomeHomeSurface: jest.fn(),
+      historyDropdownDirty: false,
+      sessionSidebarDirty: false,
+      pendingHistorySurfaceUpdate: { kind: 'timeout', id: 42, ownerWindow },
+    });
+    const updateHistoryDropdown = jest.spyOn(view, 'updateHistoryDropdown');
+
+    view.notifyConversationRuntimeStateChanged();
+
+    expect(view.updateConversationHeaders).toHaveBeenCalledTimes(1);
+    expect(view.refreshWelcomeHomeSurface).toHaveBeenCalledTimes(1);
+    expect(updateHistoryDropdown).toHaveBeenCalledTimes(1);
+    expect(view.historyDropdownDirty).toBe(true);
+    expect(view.sessionSidebarDirty).toBe(true);
+    expect(clearTimeout).toHaveBeenCalledWith(42);
+    expect(view.pendingHistorySurfaceUpdate).toBeNull();
+    expect(otherView.refreshConversationRuntimeState).toHaveBeenCalledTimes(1);
+  });
+
   it('coalesces repeated conversation-list notifications into one delayed update', () => {
     const setTimeout = jest.fn((_callback: () => void) => 1);
     const view = Object.create(ClaudianView.prototype) as any;
@@ -1964,6 +2020,48 @@ describe('ClaudianView tab controls', () => {
     view.notifyConversationListChanged();
 
     expect(mockRefreshWelcomeContent).toHaveBeenCalledWith(welcomeEl);
+  });
+
+  it('exposes live running state for conversations open in another local tab', () => {
+    const tab = {
+      conversationId: 'conversation-1',
+      state: { isStreaming: true },
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      plugin: { findConversationAcrossViews: jest.fn().mockReturnValue(null) },
+      tabManager: { getAllTabs: () => [tab] },
+    });
+
+    const homeOptions = view.getWelcomeHomeOptions();
+
+    expect(homeOptions.isConversationRunning('conversation-1')).toBe(true);
+    tab.state.isStreaming = false;
+    expect(homeOptions.isConversationRunning('conversation-1')).toBe(false);
+    expect(homeOptions.isConversationRunning('another-conversation')).toBe(false);
+  });
+
+  it('exposes live running state for conversations open in another view', () => {
+    const otherTab = { state: { isStreaming: true } };
+    const otherView = {
+      getTabManager: () => ({ getTab: () => otherTab }),
+    };
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      plugin: {
+        findConversationAcrossViews: jest.fn().mockReturnValue({
+          view: otherView,
+          tabId: 'other-tab',
+        }),
+      },
+      tabManager: { getAllTabs: () => [] },
+    });
+
+    const homeOptions = view.getWelcomeHomeOptions();
+
+    expect(homeOptions.isConversationRunning('conversation-1')).toBe(true);
+    otherTab.state.isStreaming = false;
+    expect(homeOptions.isConversationRunning('conversation-1')).toBe(false);
   });
 
   it('defers history-surface rendering while a tab has active stream work', () => {
@@ -2019,7 +2117,7 @@ describe('ClaudianView tab controls', () => {
 
     view.notifyConversationListChanged();
 
-    expect(updateConversationHeader).toHaveBeenCalledWith('Generated title');
+    expect(updateConversationHeader).toHaveBeenCalledWith('Generated title', false);
   });
 
   it('persists linked-note pins through the feature host', async () => {

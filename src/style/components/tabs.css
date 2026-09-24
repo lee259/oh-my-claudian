@@ -129,12 +129,17 @@
 }
 
 .claudian-conversation-header-host {
-  display: none;
+  display: block;
   flex: 0 0 auto;
 }
 
-.claudian-conversation-state .claudian-conversation-header-host {
-  display: block;
+.claudian-conversation-header--home .claudian-home-actions {
+  gap: 2px;
+}
+
+.claudian-conversation-header--home .claudian-home-action svg {
+  width: 18px;
+  height: 18px;
 }
 
 .claudian-conversation-header {

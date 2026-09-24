@@ -45,6 +45,7 @@ export interface WelcomeProviderSummary {
 
 export interface WelcomeHomeOptions {
   getConversations: () => readonly ConversationMeta[];
+  isConversationRunning?: (conversationId: string) => boolean;
   onArchiveConversation?: (conversationId: string) => void;
   onBack?: () => void;
   onOpenConversation?: (conversationId: string) => void;
@@ -53,11 +54,11 @@ export interface WelcomeHomeOptions {
   onNewConversation?: () => void;
 }
 
-function HomeConversationLoadingIndicator() {
+function HomeConversationLoadingIndicator({ label }: { label: string }) {
   return (
     <span
       className="claudian-home-conversation-loading"
-      aria-label={t('chat.history.generatingTitle')}
+      aria-label={label}
       ref={(element) => {
         if (element) setIcon(element, 'loader-2');
       }}
@@ -112,60 +113,46 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
 
   return (
     <>
-      <div className="claudian-home-header">
-        <div className="claudian-home-title">{t('chat.home.title')}</div>
-        <div className="claudian-home-actions">
-          <IconButton
-            className="claudian-home-action"
-            icon="history"
-            label={t('chat.home.history')}
-            onClick={options.onOpenHistory}
-          />
-          <IconButton
-            className="claudian-home-action"
-            icon="settings"
-            label={t('chat.home.settings')}
-            onClick={options.onOpenSettings}
-          />
-          <IconButton
-            className="claudian-home-action"
-            icon="square-pen"
-            label={t('chat.home.newConversation')}
-            onClick={options.onNewConversation}
-          />
-        </div>
-      </div>
       <div className="claudian-home-recent">
-        {conversations.slice(0, 3).map((conversation) => (
-          <div
-            key={conversation.id}
-            className="claudian-home-conversation"
-          >
-            <button
-              className="claudian-home-conversation-open"
-              type="button"
-              aria-label={conversation.title}
-              onClick={(event) => {
-                event.stopPropagation();
-                options.onOpenConversation?.(conversation.id);
-              }}
+        {conversations.slice(0, 3).map((conversation) => {
+          const hasRuntimeStatus = typeof options.isConversationRunning === 'function';
+          const isLoading = hasRuntimeStatus
+            ? options.isConversationRunning?.(conversation.id) === true
+            : conversation.titleGenerationStatus === 'pending';
+
+          return (
+            <div
+              key={conversation.id}
+              className="claudian-home-conversation"
             >
-              <span className="claudian-home-conversation-title">{conversation.title}</span>
-              <span className="claudian-home-conversation-time">
-                {formatActivity(conversation.lastActivityAt)}
-              </span>
-              {conversation.titleGenerationStatus === 'pending' && (
-                <HomeConversationLoadingIndicator />
+              <button
+                className="claudian-home-conversation-open"
+                type="button"
+                aria-label={conversation.title}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  options.onOpenConversation?.(conversation.id);
+                }}
+              >
+                <span className="claudian-home-conversation-title">{conversation.title}</span>
+                <span className="claudian-home-conversation-time">
+                  {formatActivity(conversation.lastActivityAt)}
+                </span>
+                {isLoading && (
+                  <HomeConversationLoadingIndicator
+                    label={t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle')}
+                  />
+                )}
+              </button>
+              {options.onArchiveConversation && (
+                <HomeConversationArchiveAction
+                  conversationId={conversation.id}
+                  onArchive={options.onArchiveConversation}
+                />
               )}
-            </button>
-            {options.onArchiveConversation && (
-              <HomeConversationArchiveAction
-                conversationId={conversation.id}
-                onArchive={options.onArchiveConversation}
-              />
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
         <button
           className="claudian-home-all-conversations"
           type="button"

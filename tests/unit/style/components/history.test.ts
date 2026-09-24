@@ -68,6 +68,25 @@ describe('Single-pane history action styles', () => {
     );
   });
 
+  it('replaces the running indicator with actions while the history menu row is hovered', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+
+    for (const statusClass of [
+      'claudian-session-running-indicator',
+      'claudian-action-loading',
+    ]) {
+      expect(css).toContain(
+        `.claudian-history-menu .claudian-history-item:hover .${statusClass},`,
+      );
+      expect(css).toContain(
+        `.claudian-history-menu .claudian-history-item:focus-within .${statusClass}`,
+      );
+    }
+    expect(css).toMatch(
+      /\.claudian-history-menu \.claudian-history-item:hover \.claudian-action-loading,[\s\S]*?\{\s*display: none;/,
+    );
+  });
+
   it('keeps row actions borderless and transparent while using color for interaction', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
 

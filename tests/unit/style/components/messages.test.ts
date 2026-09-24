@@ -57,6 +57,7 @@ describe('Message styles', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding:\s*0;/);
+    expect(css).toMatch(/\.claudian-message-user\s*{[^}]*margin-block-end:\s*8px;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-content\s*{[^}]*padding:\s*10px 14px;/);
     expect(css).toMatch(/\.claudian-message-action-row\s*{[^}]*display:\s*flex;[^}]*margin-top:\s*8px;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-actions\s*{[^}]*position:\s*absolute;[^}]*inset-inline-end:\s*0;/);
@@ -78,6 +79,14 @@ describe('Message styles', () => {
     );
     expect(css).toMatch(
       /\.claudian-home-conversation:hover \.claudian-home-conversation-time,[\s\S]*?\.claudian-home-conversation:focus-within \.claudian-home-conversation-time\s*{[^}]*opacity:\s*0;/,
+    );
+  });
+
+  it('hides the home title spinner while the archive action replaces the timestamp', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-home-conversation:hover \.claudian-home-conversation-loading,[\s\S]*?\.claudian-home-conversation:focus-within \.claudian-home-conversation-loading\s*{[^}]*display:\s*none;/,
     );
   });
 });

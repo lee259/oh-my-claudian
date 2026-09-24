@@ -1984,6 +1984,49 @@ describe('InputController coordinator execution', () => {
     expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
   });
 
+  it('clears the pending title status when title generation rejects before its callback', async () => {
+    const generateTitle = jest.fn().mockRejectedValue(new Error('Provider initialization failed'));
+    const fixture = createFixture({
+      getTitleGenerationService: () => ({ generateTitle }) as any,
+    });
+    fixture.plugin.settings.enableAutoTitleGeneration = true;
+    fixture.plugin.getConversationById.mockResolvedValue({
+      id: 'conversation-1',
+      title: 'Fallback title',
+    } as any);
+    fixture.state.messages = [{
+      id: 'user-1',
+      role: 'user',
+      content: 'title this',
+      timestamp: 1,
+    }];
+
+    await (fixture.controller as any).triggerTitleGeneration();
+    const updateHistoryDropdown = fixture.deps.conversationController.updateHistoryDropdown as jest.Mock;
+    for (let attempt = 0; attempt < 20 && fixture.plugin.updateConversation.mock.calls.length < 2; attempt++) {
+      await Promise.resolve();
+    }
+    for (
+      let attempt = 0;
+      attempt < 20 && updateHistoryDropdown.mock.calls.length < 2;
+      attempt++
+    ) {
+      await Promise.resolve();
+    }
+
+    expect(fixture.plugin.updateConversation).toHaveBeenNthCalledWith(
+      1,
+      'conversation-1',
+      { titleGenerationStatus: 'pending' },
+    );
+    expect(fixture.plugin.updateConversation).toHaveBeenNthCalledWith(
+      2,
+      'conversation-1',
+      { titleGenerationStatus: 'failed' },
+    );
+    expect(updateHistoryDropdown).toHaveBeenCalledTimes(2);
+  });
+
   it('creates the first-turn conversation with its active note metadata', async () => {
     const fixture = createFixture({
       getFileContextManager: () => ({

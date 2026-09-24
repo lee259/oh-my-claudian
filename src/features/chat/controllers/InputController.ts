@@ -1448,8 +1448,21 @@ export class InputController {
         }
         conversationController.updateHistoryDropdown();
       }
-    ).catch(() => {
-      // Silently ignore title generation errors
+    ).catch(async () => {
+      // A rejected service may fail before it can call back with a failed result
+      // (for example, during provider workspace initialization). Clear the
+      // pending state so recent-conversation indicators cannot spin forever.
+      try {
+        const currentConv = await plugin.getConversationById(convId);
+        if (!currentConv) return;
+
+        await plugin.updateConversation(convId, {
+          titleGenerationStatus: currentConv.title === expectedTitle ? 'failed' : undefined,
+        });
+        conversationController.updateHistoryDropdown();
+      } catch {
+        // Title generation remains best-effort if status persistence also fails.
+      }
     });
   }
 

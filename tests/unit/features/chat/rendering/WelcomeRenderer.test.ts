@@ -111,7 +111,7 @@ describe('Welcome', () => {
     });
 
     expect(welcomeEl.hasClass('claudian-welcome--home')).toBe(true);
-    expect(welcomeEl.querySelector('.claudian-home-title')?.textContent).toBe('Chat');
+    expect(welcomeEl.querySelector('.claudian-home-header')).toBeNull();
     expect(welcomeEl.querySelector('.claudian-home-greeting')?.textContent).toBe('Good morning');
     const recent = welcomeEl.querySelector('.claudian-home-conversation');
     expect(recent?.querySelector('.claudian-home-conversation-title')?.textContent)
@@ -134,6 +134,61 @@ describe('Welcome', () => {
     refreshWelcomeContent(welcomeEl);
     expect(welcomeEl.querySelector('.claudian-home-conversation-title')?.textContent)
       .toBe('Older conversation');
+  });
+
+  it('removes the title spinner when lazy conversation status finishes', () => {
+    const parentEl = document.createElement('div');
+    const conversations = [{
+      id: 'recent',
+      providerId: 'codex' as const,
+      title: 'Recent conversation',
+      createdAt: 2,
+      lastActivityAt: Date.now(),
+      messageCount: 1,
+      preview: '',
+      isArchived: false,
+      titleGenerationStatus: 'pending' as 'pending' | undefined,
+    }];
+    const welcomeEl = createWelcomeElement(parentEl, undefined, undefined, {
+      getConversations: () => conversations,
+    });
+
+    expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).not.toBeNull();
+
+    conversations[0].titleGenerationStatus = undefined;
+    refreshWelcomeContent(welcomeEl);
+
+    expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).toBeNull();
+  });
+
+  it('uses live session status rather than title generation status for home loading', () => {
+    const parentEl = document.createElement('div');
+    const conversations = [{
+      id: 'recent',
+      providerId: 'codex' as const,
+      title: 'Recent conversation',
+      createdAt: 2,
+      lastActivityAt: Date.now(),
+      messageCount: 1,
+      preview: '',
+      isArchived: false,
+      titleGenerationStatus: 'pending' as const,
+    }];
+    let isRunning = false;
+    const welcomeEl = createWelcomeElement(parentEl, undefined, undefined, {
+      getConversations: () => conversations,
+      isConversationRunning: () => isRunning,
+    } as any);
+
+    expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).toBeNull();
+
+    isRunning = true;
+    refreshWelcomeContent(welcomeEl);
+    expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).not.toBeNull();
+
+    isRunning = false;
+    refreshWelcomeContent(welcomeEl);
+    expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).toBeNull();
   });
 
   it('formats recent activity with minute and hour granularity', () => {
