@@ -1,177 +1,227 @@
-/* External Context Selector */
+/* External file and folder context picker */
 .claudian-external-context-selector {
   position: relative;
   display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   align-items: center;
-  margin-left: 8px;
+  gap: 2px 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
 }
 
-.claudian-external-context-icon-wrapper {
-  position: relative;
-  display: flex;
+.claudian-external-context-picker {
+  flex: 1 1 auto;
+  min-height: 36px;
+}
+
+.claudian-external-context-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.claudian-external-context-manage-button,
+.claudian-external-context-lock,
+.claudian-external-context-remove {
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
-.claudian-external-context-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--text-faint);
-  transition: color 0.15s ease;
+.claudian-external-context-manage-button {
+  width: 30px;
+  height: 30px;
 }
 
-.claudian-external-context-icon-wrapper:hover .claudian-external-context-icon {
+.claudian-external-context-manage-button:hover,
+.claudian-external-context-manage-button:focus-visible,
+.claudian-external-context-lock:hover,
+.claudian-external-context-lock:focus-visible,
+.claudian-external-context-remove:hover,
+.claudian-external-context-remove:focus-visible {
+  border: 0;
+  background: var(--background-modifier-hover);
+  box-shadow: none;
   color: var(--text-normal);
 }
 
-.claudian-external-context-icon.active {
-  color: var(--claudian-brand);
-  animation: external-context-glow 2s ease-in-out infinite;
+.claudian-external-context-manage-button:focus-visible,
+.claudian-external-context-lock:focus-visible,
+.claudian-external-context-remove:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 
-.claudian-external-context-icon svg {
+.claudian-external-context-manage-button:active,
+.claudian-external-context-lock:active,
+.claudian-external-context-remove:active {
+  border: 0;
+  background: var(--background-modifier-hover);
+  box-shadow: none;
+  color: var(--text-normal);
+  opacity: 0.75;
+}
+
+.claudian-external-context-manage-button svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-external-context-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--claudian-brand);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-}
-
-.claudian-external-context-badge.visible {
-  opacity: 1;
-}
-
 .claudian-external-context-dropdown {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 100%;
-  margin-bottom: 4px;
-  min-width: 260px;
-  max-width: 320px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-  z-index: 100;
+  flex: 1 0 100%;
+  min-width: 0;
+  padding: 8px 4px 2px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
-.claudian-external-context-selector:hover .claudian-external-context-dropdown {
-  opacity: 1;
-  visibility: visible;
+.claudian-external-context-dropdown[hidden] {
+  display: none;
 }
 
 .claudian-external-context-header {
-  padding: 10px 12px;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 6px 8px;
+}
+
+.claudian-external-context-heading {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.claudian-external-context-description {
   color: var(--text-muted);
-  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
 }
 
 .claudian-external-context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   max-height: 200px;
   overflow-y: auto;
 }
 
 .claudian-external-context-empty {
-  padding: 16px 12px;
-  text-align: center;
+  padding: 8px 6px;
   color: var(--text-muted);
-  font-size: 12px;
-  font-style: italic;
+  font-size: var(--font-ui-smaller);
 }
 
 .claudian-external-context-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 26px 26px;
+  grid-template-rows: auto auto;
   align-items: center;
-  padding: 8px 12px;
-  gap: 8px;
-  border-bottom: 1px solid var(--background-modifier-border-focus);
+  column-gap: 6px;
+  padding: 6px;
+  border-radius: 6px;
 }
 
-.claudian-external-context-item:last-child {
-  border-bottom: none;
+.claudian-external-context-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-external-context-item > .claudian-external-context-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.claudian-external-context-icon svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
 }
 
 .claudian-external-context-text {
-  flex: 1;
-  font-size: 12px;
-  font-family: var(--font-monospace);
-  color: var(--text-normal);
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.claudian-external-context-name {
   overflow: hidden;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.claudian-external-context-lock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  opacity: 0.4;
-  transition: all 0.15s ease;
+.claudian-external-context-path {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.claudian-external-context-lock:hover {
-  background: var(--background-modifier-hover);
-  opacity: 0.8;
+.claudian-external-context-state {
+  grid-column: 2;
+  grid-row: 3;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-external-context-state.is-persistent {
+  color: var(--interactive-accent);
+}
+
+.claudian-external-context-lock,
+.claudian-external-context-remove {
+  width: 26px;
+  height: 26px;
+  grid-row: 1 / span 3;
+}
+
+.claudian-external-context-lock {
+  grid-column: 3;
 }
 
 .claudian-external-context-lock.locked {
-  color: var(--claudian-brand);
-  opacity: 0.9;
-}
-
-.claudian-external-context-lock.locked:hover {
-  opacity: 1;
-}
-
-.claudian-external-context-lock svg {
-  width: 12px;
-  height: 12px;
+  color: var(--interactive-accent);
 }
 
 .claudian-external-context-remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  opacity: 0.6;
-  transition: all 0.15s ease;
+  grid-column: 4;
 }
 
-.claudian-external-context-remove:hover {
-  background: color-mix(in srgb, var(--text-error) 15%, transparent);
-  color: var(--text-error);
-  opacity: 1;
+.claudian-external-context-lock svg {
+  width: 14px;
+  height: 14px;
 }
 
 .claudian-external-context-remove svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 360px) {
+  .claudian-external-context-state {
+    display: none;
+  }
 }

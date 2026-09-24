@@ -7,7 +7,6 @@ import { createMockEl } from '@test/helpers/MockElement';
 import type { UsageInfo } from '@/core/types';
 import {
   ContextUsageMeter,
-  createInputToolbar,
   InputToolbarLayoutController,
   McpServerSelector,
   ModelSelector,
@@ -1368,35 +1367,5 @@ describe('McpServerSelector - toggle and badges', () => {
 
     // Should not throw
     expect(() => mouseenterHandlers![0]()).not.toThrow();
-  });
-});
-
-describe('createInputToolbar', () => {
-  it('should return all toolbar components', () => {
-    const parentEl = createMockEl();
-    const callbacks = createMockCallbacks();
-    const toolbar = createInputToolbar(parentEl, callbacks);
-
-    expect(toolbar.modelSelector).toBeInstanceOf(ModelSelector);
-    expect(toolbar.modeSelector).toBeInstanceOf(ModeSelector);
-    expect(toolbar.thinkingBudgetSelector).toBeInstanceOf(ThinkingBudgetSelector);
-    expect(toolbar.contextUsageMeter).toBeInstanceOf(ContextUsageMeter);
-    expect(toolbar.layoutController).toBeInstanceOf(InputToolbarLayoutController);
-    expect(toolbar.mcpServerSelector).toBeInstanceOf(McpServerSelector);
-    expect(toolbar.permissionToggle).toBeInstanceOf(PermissionToggle);
-    expect(toolbar.serviceTierToggle).toBeInstanceOf(ServiceTierToggle);
-  });
-
-  it('should place the mode selector after the permission toggle in toolbar order', () => {
-    const parentEl = createMockEl();
-    const callbacks = createMockCallbacks();
-
-    createInputToolbar(parentEl, callbacks);
-
-    const permissionIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-permission-toggle'));
-    const modeIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-mode-selector'));
-    expect(permissionIndex).toBeGreaterThanOrEqual(0);
-    expect(modeIndex).toBeGreaterThan(permissionIndex);
-    expect(modeIndex).toBe(parentEl.children.length - 1);
   });
 });

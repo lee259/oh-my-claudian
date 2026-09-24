@@ -1,7 +1,9 @@
 import type { App, EventRef } from 'obsidian';
 import { Notice, TFile, TFolder } from 'obsidian';
+import * as path from 'path';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
+import { t } from '../../../i18n/i18n';
 import type { AgentMentionProvider } from '../../../shared/mention/MentionDropdownController';
 import { MentionDropdownController } from '../../../shared/mention/MentionDropdownController';
 import { VaultMentionDataProvider } from '../../../shared/mention/VaultMentionDataProvider';
@@ -14,6 +16,7 @@ import { buildExternalContextDisplayEntries } from '../../../utils/externalConte
 import { externalContextScanner } from '../../../utils/externalContextScanner';
 import {
   getVaultPath,
+  normalizePathForFilesystem,
   normalizePathForVault as normalizePathForVaultUtil,
   rewriteVaultPathAfterRename,
 } from '../../../utils/path';
@@ -95,21 +98,7 @@ export class FileContextManager {
         this.renderAttachedFiles();
         this.callbacks.onUserChipsChanged?.();
       },
-      onOpenFile: (filePath) => {
-        void (async (): Promise<void> => {
-          try {
-            const normalizedPath = filePath.replace(/\/$/, '');
-            const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-            if (file instanceof TFile) {
-              await this.app.workspace.getLeaf().openFile(file);
-              return;
-            }
-            await this.app.workspace.openLinkText(normalizedPath, '', false);
-          } catch {
-            new Notice(`Could not open file: ${filePath}`);
-          }
-        })();
-      },
+      onActivatePath: (filePath) => this.activateContextPath(filePath),
     });
 
     this.mentionDropdown = new MentionDropdownController(
@@ -147,6 +136,59 @@ export class FileContextManager {
 
   getAttachedFiles(): Set<string> {
     return this.state.getAttachedFiles();
+  }
+
+  /** Reveals a vault file or folder in the file explorer; external paths are not navigable here. */
+  activateContextPath(rawPath: string): void {
+    const vaultPath = getVaultPath(this.app);
+    let vaultRelativePath = this.normalizePathForVault(rawPath);
+    if (
+      !vaultRelativePath
+      && vaultPath
+      && normalizePathForFilesystem(rawPath) === normalizePathForFilesystem(vaultPath)
+    ) {
+      vaultRelativePath = '';
+    }
+
+    if (vaultRelativePath === null || path.isAbsolute(vaultRelativePath)) {
+      new Notice(t('chat.composer.contextPathNotInVault'));
+      return;
+    }
+
+    const target = vaultRelativePath === ''
+      ? this.app.vault.getRoot()
+      : this.app.vault.getAbstractFileByPath(vaultRelativePath);
+    if (!(target instanceof TFile || target instanceof TFolder)) {
+      new Notice(t('chat.composer.contextPathNotInVault'));
+      return;
+    }
+
+    const explorerLeaves = this.app.workspace.getLeavesOfType('file-explorer');
+    for (const leaf of explorerLeaves) {
+      (leaf.view as unknown as { revealInFolder?: (target: unknown) => void })
+        .revealInFolder?.(target);
+    }
+  }
+
+  addExternalFiles(paths: readonly string[]): void {
+    let changed = false;
+    for (const filePath of paths) {
+      const normalizedPath = normalizePathForFilesystem(filePath);
+      if (!path.isAbsolute(normalizedPath) || this.state.getAttachedFiles().has(normalizedPath)) continue;
+      this.state.attachFile(normalizedPath);
+      changed = true;
+    }
+    if (!changed) return;
+    this.renderAttachedFiles();
+    this.callbacks.onUserChipsChanged?.();
+  }
+
+  openMentionPicker(): void {
+    const selectionStart = this.inputEl.selectionStart ?? this.inputEl.value.length;
+    const selectionEnd = this.inputEl.selectionEnd ?? selectionStart;
+    this.inputEl.setRangeText('@', selectionStart, selectionEnd, 'end');
+    this.inputEl.focus();
+    this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   /** Checks whether current note should be sent for this session. */

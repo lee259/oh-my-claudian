@@ -1,6 +1,8 @@
+import * as fs from 'fs';
 import { Notice, setIcon } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
+import { h } from 'preact';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import type {
@@ -17,15 +19,20 @@ import type {
   ManagedMcpServer,
   UsageInfo,
 } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
+import { createPreactRoot, type PreactRoot } from '../../../shared/ui/PreactRoot';
 import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
   type ScheduledAnimationFrame,
 } from '../../../utils/animationFrame';
-import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
+import { filterValidPaths, findConflictingPath, getFolderName, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath, validateFilePath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
+import type { ComposerContextTray } from './ComposerContextTray';
+import { ExternalContextSelectorView } from './ExternalContextSelectorView';
+import { type InputToolbarSlot,InputToolbarView } from './InputToolbarView';
 
 interface ElectronOpenDialogResult {
   canceled: boolean;
@@ -44,6 +51,26 @@ function runToolbarAction(action: () => Promise<void>, failureMessage: string): 
   });
 }
 
+function localizePathValidationError(error: string | undefined): string {
+  switch (error) {
+    case 'Path does not exist':
+      return t('chat.composer.externalContextPathNotFound');
+    case 'Permission denied':
+      return t('chat.composer.externalContextPermissionDenied');
+    case 'Path exists but is not a directory':
+      return t('chat.composer.externalContextPathNotDirectory');
+    case 'Path exists but is not a file':
+      return t('chat.composer.externalContextPathNotFile');
+    default: {
+      const prefix = 'Cannot access path: ';
+      if (error?.startsWith(prefix)) {
+        return t('chat.composer.externalContextCannotAccessPath', { error: error.slice(prefix.length) });
+      }
+      return error ?? '';
+    }
+  }
+}
+
 export interface ToolbarSettings {
   model: string;
   thinkingBudget: string;
@@ -60,6 +87,10 @@ export interface ToolbarCallbacks {
   onEffortLevelChange: (effort: string) => Promise<void>;
   onServiceTierChange: (serviceTier: string) => Promise<void>;
   onPermissionModeChange: (mode: string) => Promise<void>;
+  onAddContext?: () => void;
+  onExternalFilesSelected?: (paths: string[]) => void;
+  onContextPathActivate?: (path: string) => void;
+  onCloseContextActionsMenu?: () => void;
   getSettings: () => ToolbarSettings;
   getEnvironmentVariables?: () => string;
   getUIConfig: () => ProviderChatUIConfig;
@@ -627,11 +658,10 @@ export type AddExternalContextResult =
   | { success: false; error: string };
 
 export class ExternalContextSelector {
-  private container: HTMLElement;
-  private iconEl: HTMLElement | null = null;
-  private badgeEl: HTMLElement | null = null;
-  private dropdownEl: HTMLElement | null = null;
+  private readonly root: PreactRoot;
+  private dropdownOpen = false;
   private callbacks: ToolbarCallbacks;
+  private contextTray: ComposerContextTray | null = null;
   /**
    * Current external context paths. May contain:
    * - Persistent paths only (new sessions via clearExternalContexts)
@@ -644,9 +674,13 @@ export class ExternalContextSelector {
   private onChangeCallback: ((paths: string[]) => void) | null = null;
   private onPersistenceChangeCallback: ((paths: string[]) => void) | null = null;
 
-  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
+  constructor(
+    parentEl: HTMLElement,
+    callbacks: ToolbarCallbacks,
+    private readonly addFilesAndFoldersLabel: string = t('chat.composer.externalFilesAndFolders'),
+  ) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-external-context-selector' });
+    this.root = createPreactRoot(parentEl);
     this.render();
   }
 
@@ -662,6 +696,14 @@ export class ExternalContextSelector {
     return [...this.externalContextPaths];
   }
 
+  setContextTray(contextTray: ComposerContextTray): void {
+    if (this.contextTray && this.contextTray !== contextTray) {
+      this.contextTray.clearItems('external-contexts');
+    }
+    this.contextTray = contextTray;
+    this.renderContextTrayItems();
+  }
+
   getPersistentPaths(): string[] {
     return [...this.persistentPaths];
   }
@@ -675,12 +717,14 @@ export class ExternalContextSelector {
     // Merge persistent paths into external context paths
     this.mergePersistentPaths();
     this.updateDisplay();
-    this.renderDropdown();
 
     // If invalid paths were removed, notify user and save updated list
     if (invalidPaths.length > 0) {
       const pathNames = invalidPaths.map(p => this.shortenPath(p)).join(', ');
-      new Notice(`Removed ${invalidPaths.length} invalid external context path(s): ${pathNames}`, 5000);
+      new Notice(t('chat.composer.externalContextInvalidPathsRemoved', {
+        count: invalidPaths.length,
+        paths: pathNames,
+      }), 5000);
       this.onPersistenceChangeCallback?.([...this.persistentPaths]);
     }
   }
@@ -691,13 +735,13 @@ export class ExternalContextSelector {
     } else {
       // Validate path still exists before persisting
       if (!isValidDirectoryPath(path)) {
-        new Notice(`Cannot persist "${this.shortenPath(path)}" - directory no longer exists`, 4000);
+        new Notice(t('chat.composer.externalContextCannotPersist', { path: this.shortenPath(path) }), 4000);
         return;
       }
       this.persistentPaths.add(path);
     }
     this.onPersistenceChangeCallback?.([...this.persistentPaths]);
-    this.renderDropdown();
+    this.render();
   }
 
   private mergePersistentPaths(): void {
@@ -716,7 +760,6 @@ export class ExternalContextSelector {
   setExternalContexts(paths: string[]): void {
     this.externalContextPaths = [...paths];
     this.updateDisplay();
-    this.renderDropdown();
   }
 
   /**
@@ -732,7 +775,6 @@ export class ExternalContextSelector {
     }
     this.onChangeCallback?.(this.externalContextPaths);
     this.updateDisplay();
-    this.renderDropdown();
   }
 
   /**
@@ -744,7 +786,7 @@ export class ExternalContextSelector {
   addExternalContext(pathInput: string): AddExternalContextResult {
     const trimmed = pathInput?.trim();
     if (!trimmed) {
-      return { success: false, error: 'No path provided. Usage: /add-dir /absolute/path' };
+      return { success: false, error: t('chat.composer.externalContextNoPath') };
     }
 
     // Strip surrounding quotes if present (e.g., "/path/with spaces")
@@ -759,18 +801,24 @@ export class ExternalContextSelector {
     const normalizedPath = normalizePathForFilesystem(expandedPath);
 
     if (!path.isAbsolute(normalizedPath)) {
-      return { success: false, error: 'Path must be absolute. Usage: /add-dir /absolute/path' };
+      return { success: false, error: t('chat.composer.externalContextPathMustBeAbsolute') };
     }
 
     // Validate path exists and is a directory with specific error messages
     const validation = validateDirectoryPath(normalizedPath);
     if (!validation.valid) {
-      return { success: false, error: `${validation.error}: ${pathInput}` };
+      return {
+        success: false,
+        error: t('chat.composer.externalContextPathValidation', {
+          reason: localizePathValidationError(validation.error),
+          path: pathInput,
+        }),
+      };
     }
 
     // Check for duplicate (normalized comparison for cross-platform support)
     if (isDuplicatePath(normalizedPath, this.externalContextPaths)) {
-      return { success: false, error: 'This folder is already added as an external context.' };
+      return { success: false, error: t('chat.composer.externalContextAlreadyAdded') };
     }
 
     // Check for nested/overlapping paths
@@ -783,7 +831,6 @@ export class ExternalContextSelector {
     this.externalContextPaths = [...this.externalContextPaths, normalizedPath];
     this.onChangeCallback?.(this.externalContextPaths);
     this.updateDisplay();
-    this.renderDropdown();
 
     return { success: true, normalizedPath };
   }
@@ -802,40 +849,18 @@ export class ExternalContextSelector {
     }
     this.externalContextPaths = [...this.persistentPaths];
     this.updateDisplay();
-    this.renderDropdown();
   }
 
-  private render() {
-    this.container.empty();
-
-    const iconWrapper = this.container.createDiv({ cls: 'claudian-external-context-icon-wrapper' });
-    iconWrapper.setAttribute('role', 'button');
-    iconWrapper.setAttribute('tabindex', '0');
-    iconWrapper.setAttribute('aria-label', 'Add external context folder');
-
-    this.iconEl = iconWrapper.createDiv({ cls: 'claudian-external-context-icon' });
-    setIcon(this.iconEl, 'folder');
-
-    this.badgeEl = iconWrapper.createDiv({ cls: 'claudian-external-context-badge' });
-
-    this.updateDisplay();
-
-    // Click to open native folder picker
-    iconWrapper.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void this.openFolderPicker();
-    });
-    iconWrapper.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      void this.openFolderPicker();
-    });
-
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-external-context-dropdown' });
-    this.renderDropdown();
+  closeDropdown(): void {
+    this.setDropdownOpen(false);
   }
 
-  private async openFolderPicker() {
+  private setDropdownOpen(open: boolean): void {
+    this.dropdownOpen = open && this.externalContextPaths.length > 0;
+    this.render();
+  }
+
+  private async openContextPicker() {
     try {
       // Access Electron's dialog through remote
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Electron remote is exposed only at runtime in Obsidian's renderer.
@@ -844,33 +869,39 @@ export class ExternalContextSelector {
         throw new Error('Electron remote API is unavailable');
       }
       const result = await remote.dialog.showOpenDialog({
-        properties: ['openDirectory'],
-        title: 'Select External Context',
+        properties: ['openFile', 'openDirectory', 'multiSelections'],
+        title: t('chat.composer.externalContextPickerTitle'),
       });
 
       if (!result.canceled && result.filePaths.length > 0) {
-        const selectedPath = result.filePaths[0];
-
-        // Check for duplicate (normalized comparison for cross-platform support)
-        if (isDuplicatePath(selectedPath, this.externalContextPaths)) {
-          new Notice('This folder is already added as an external context.', 3000);
-          return;
+        const selectedFiles = new Set<string>();
+        for (const selectedPath of result.filePaths) {
+          const normalizedPath = normalizePathForFilesystem(selectedPath);
+          try {
+            const stats = fs.statSync(normalizedPath);
+            if (stats.isDirectory()) {
+              const added = this.addExternalContext(normalizedPath);
+              if (!added.success) new Notice(added.error, 5000);
+            } else if (stats.isFile()) {
+              const validation = validateFilePath(normalizedPath);
+              if (validation.valid) selectedFiles.add(normalizedPath);
+              else new Notice(t('chat.composer.externalContextPathValidation', {
+                reason: localizePathValidationError(validation.error),
+                path: selectedPath,
+              }), 5000);
+            } else {
+              new Notice(t('chat.composer.externalContextSelectedPathNotFileOrFolder', { path: selectedPath }), 5000);
+            }
+          } catch {
+            new Notice(t('chat.composer.externalContextCannotAccessSelectedPath', { path: selectedPath }), 5000);
+          }
         }
-
-        // Check for nested/overlapping paths
-        const conflict = findConflictingPath(selectedPath, this.externalContextPaths);
-        if (conflict) {
-          new Notice(this.formatConflictMessage(selectedPath, conflict), 5000);
-          return;
+        if (selectedFiles.size > 0) {
+          this.callbacks.onExternalFilesSelected?.([...selectedFiles]);
         }
-
-        this.externalContextPaths = [...this.externalContextPaths, selectedPath];
-        this.onChangeCallback?.(this.externalContextPaths);
-        this.updateDisplay();
-        this.renderDropdown();
       }
     } catch {
-      new Notice('Unable to open folder picker.', 5000);
+      new Notice(t('chat.composer.externalContextOpenPickerFailed'), 5000);
     }
   }
 
@@ -879,57 +910,14 @@ export class ExternalContextSelector {
     const shortNew = this.shortenPath(newPath);
     const shortExisting = this.shortenPath(conflict.path);
     return conflict.type === 'parent'
-      ? `Cannot add "${shortNew}" - it's inside existing path "${shortExisting}"`
-      : `Cannot add "${shortNew}" - it contains existing path "${shortExisting}"`;
+      ? t('chat.composer.externalContextNestedPath', { path: shortNew, existing: shortExisting })
+      : t('chat.composer.externalContextContainsExistingPath', { path: shortNew, existing: shortExisting });
   }
 
-  private renderDropdown() {
-    if (!this.dropdownEl) return;
-
-    this.dropdownEl.empty();
-
-    // Header
-    const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-external-context-header' });
-    headerEl.setText('External contexts');
-
-    // Path list
-    const listEl = this.dropdownEl.createDiv({ cls: 'claudian-external-context-list' });
-
-    if (this.externalContextPaths.length === 0) {
-      const emptyEl = listEl.createDiv({ cls: 'claudian-external-context-empty' });
-      emptyEl.setText('Click folder icon to add');
-    } else {
-      for (const pathStr of this.externalContextPaths) {
-        const itemEl = listEl.createDiv({ cls: 'claudian-external-context-item' });
-
-        const pathTextEl = itemEl.createSpan({ cls: 'claudian-external-context-text' });
-        // Show shortened path for display
-        const displayPath = this.shortenPath(pathStr);
-        pathTextEl.setText(displayPath);
-        pathTextEl.setAttribute('title', pathStr);
-
-        // Lock toggle button
-        const isPersistent = this.persistentPaths.has(pathStr);
-        const lockBtn = itemEl.createSpan({ cls: 'claudian-external-context-lock' });
-        if (isPersistent) {
-          lockBtn.addClass('locked');
-        }
-        setIcon(lockBtn, isPersistent ? 'lock' : 'unlock');
-        lockBtn.setAttribute('title', isPersistent ? 'Persistent (click to make session-only)' : 'Session-only (click to persist)');
-        lockBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.togglePersistence(pathStr);
-        });
-
-        const removeBtn = itemEl.createSpan({ cls: 'claudian-external-context-remove' });
-        setIcon(removeBtn, 'x');
-        removeBtn.setAttribute('title', 'Remove path');
-        removeBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.removePath(pathStr);
-        });
-      }
-    }
+  destroy(): void {
+    this.contextTray?.clearItems('external-contexts');
+    this.contextTray = null;
+    this.root.unmount();
   }
 
   /** Shorten path for display (replace home dir with ~) */
@@ -945,10 +933,11 @@ export class ExternalContextSelector {
       const compareHome = process.platform === 'win32'
         ? normalizedHome.toLowerCase()
         : normalizedHome;
-      if (compareFull.startsWith(compareHome)) {
-        // Use normalized path length and normalize the result for consistent display
-        const remainder = normalizedFull.slice(normalizedHome.length);
-        return '~' + remainder;
+      if (compareFull === compareHome) return '~';
+      const homePrefix = compareHome.endsWith('/') ? compareHome : `${compareHome}/`;
+      if (compareFull.startsWith(homePrefix)) {
+        const remainder = normalizedFull.slice(normalizedHome.length).replace(/^\/+/, '');
+        return `~/${remainder}`;
       }
     } catch {
       // Fall through to return full path
@@ -957,33 +946,65 @@ export class ExternalContextSelector {
   }
 
   updateDisplay() {
-    if (!this.iconEl || !this.badgeEl) return;
+    if (this.externalContextPaths.length === 0) this.dropdownOpen = false;
+    this.render();
+  }
 
-    const count = this.externalContextPaths.length;
+  private render(): void {
+    this.renderContextTrayItems();
+    const entries = this.externalContextPaths.map((contextPath) => {
+      const normalizedPath = contextPath.replace(/\\/g, '/').replace(/\/+$/, '');
+      return {
+        path: contextPath,
+        name: getFolderName(contextPath),
+        parentPath: this.shortenPath(path.dirname(normalizedPath)),
+        persistent: this.persistentPaths.has(contextPath),
+      };
+    });
+    this.root.render(h(ExternalContextSelectorView, {
+      addFilesAndFoldersLabel: this.addFilesAndFoldersLabel,
+      manageLabel: t('chat.composer.manageExternalFolders'),
+      managerTitle: t('chat.composer.externalContextManagerTitle'),
+      managerDescription: t('chat.composer.externalContextManagerDescription'),
+      entries,
+      managerOpen: this.dropdownOpen,
+      acrossSessionsLabel: t('chat.composer.externalContextAcrossSessions'),
+      thisConversationLabel: t('chat.composer.externalContextThisConversation'),
+      persistLabel: t('chat.composer.persistExternalFolder'),
+      sessionOnlyLabel: t('chat.composer.makeExternalFolderSessionOnly'),
+      removeLabel: t('chat.composer.removeExternalFolder'),
+      emptyLabel: t('chat.composer.externalContextNoFolders'),
+      onPickFilesAndFolders: () => {
+        this.setDropdownOpen(false);
+        this.callbacks.onCloseContextActionsMenu?.();
+        void this.openContextPicker();
+      },
+      onToggleManager: () => this.setDropdownOpen(!this.dropdownOpen),
+      onTogglePersistence: (contextPath: string) => this.togglePersistence(contextPath),
+      onRemove: (contextPath: string) => this.removePath(contextPath),
+    }));
+  }
 
-    if (count > 0) {
-      this.iconEl.addClass('active');
-      this.iconEl.setAttribute('title', `${count} external context${count > 1 ? 's' : ''} (click to add more)`);
-      this.iconEl.parentElement?.setAttribute(
-        'aria-label',
-        `${count} external context folder${count > 1 ? 's' : ''}. Click to add more.`,
-      );
-
-      // Show badge only when more than 1 path
-      if (count > 1) {
-        this.badgeEl.setText(String(count));
-        this.badgeEl.addClass('visible');
-      } else {
-        this.badgeEl.removeClass('visible');
-      }
-    } else {
-      this.iconEl.removeClass('active');
-      this.iconEl.setAttribute('title', 'Add external contexts (click)');
-      this.iconEl.parentElement?.setAttribute('aria-label', 'Add external context folder');
-      this.badgeEl.removeClass('visible');
-    }
+  private renderContextTrayItems(): void {
+    if (!this.contextTray) return;
+    this.contextTray.setItems('external-contexts', this.externalContextPaths.map((contextPath) => {
+      const label = getFolderName(contextPath);
+      return {
+        id: contextPath,
+        kind: 'folder' as const,
+        label,
+        icon: 'folder',
+        title: contextPath,
+        ariaLabel: `${t('chat.composer.externalContextManagerTitle')}: ${label}`,
+        removeLabel: t('chat.composer.removeExternalFolder'),
+        onActivate: () => this.callbacks.onContextPathActivate?.(contextPath),
+        onRemove: () => this.removePath(contextPath),
+      };
+    }));
   }
 }
+
+let nextMcpSelectorId = 0;
 
 export class McpServerSelector {
   private container: HTMLElement;
@@ -994,10 +1015,21 @@ export class McpServerSelector {
   private enabledServers: Set<string> = new Set();
   private onChangeCallback: ((enabled: Set<string>) => void) | null = null;
   private visible = true;
+  private isOpen = false;
+
+  private readonly handleDocumentClick = (event: MouseEvent): void => {
+    if (!this.container.contains(event.target as Node)) this.setOpen(false);
+  };
 
   constructor(parentEl: HTMLElement) {
     this.container = parentEl.createDiv({ cls: 'claudian-mcp-selector' });
     this.render();
+    this.container.ownerDocument.addEventListener('click', this.handleDocumentClick, true);
+  }
+
+  destroy(): void {
+    this.container.ownerDocument.removeEventListener('click', this.handleDocumentClick, true);
+    this.setOpen(false);
   }
 
   setVisible(visible: boolean): void {
@@ -1090,7 +1122,14 @@ export class McpServerSelector {
   private render() {
     this.container.empty();
 
-    const iconWrapper = this.container.createDiv({ cls: 'claudian-mcp-selector-icon-wrapper' });
+    const iconWrapper = this.container.createEl('button', {
+      cls: 'claudian-mcp-selector-icon-wrapper',
+      attr: {
+        type: 'button',
+        'aria-label': t('settings.mcpServers.name'),
+        'aria-expanded': 'false',
+      },
+    });
 
     this.iconEl = iconWrapper.createDiv({ cls: 'claudian-mcp-selector-icon' });
     appendMcpIcon(this.iconEl);
@@ -1100,7 +1139,13 @@ export class McpServerSelector {
     this.updateDisplay();
 
     this.dropdownEl = this.container.createDiv({ cls: 'claudian-mcp-selector-dropdown' });
+    this.dropdownEl.id = `claudian-mcp-selector-${++nextMcpSelectorId}`;
+    iconWrapper.setAttribute('aria-controls', this.dropdownEl.id);
     this.renderDropdown();
+    iconWrapper.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.setOpen(!this.isOpen);
+    });
 
     // Re-render dropdown content on hover (CSS handles visibility)
     this.container.addEventListener('mouseenter', () => {
@@ -1116,6 +1161,16 @@ export class McpServerSelector {
         this.renderDropdown();
       }
     });
+  }
+
+  private setOpen(open: boolean): void {
+    this.isOpen = open;
+    this.container.classList.toggle('is-open', open);
+    const trigger = this.container.querySelector<HTMLButtonElement>('.claudian-mcp-selector-icon-wrapper');
+    trigger?.setAttribute('aria-expanded', String(open));
+    if (open) {
+      this.dropdownEl?.querySelector<HTMLElement>('.claudian-mcp-selector-item')?.focus();
+    }
   }
 
   private renderDropdown() {
@@ -1147,11 +1202,14 @@ export class McpServerSelector {
   private renderServerItem(listEl: HTMLElement, server: ManagedMcpServer) {
     const itemEl = listEl.createDiv({ cls: 'claudian-mcp-selector-item' });
     itemEl.dataset.serverName = server.name;
+    itemEl.setAttribute('role', 'checkbox');
+    itemEl.setAttribute('tabindex', '0');
 
     const isEnabled = this.enabledServers.has(server.name);
     if (isEnabled) {
       itemEl.addClass('enabled');
     }
+    itemEl.setAttribute('aria-checked', String(isEnabled));
 
     // Checkbox
     const checkEl = itemEl.createDiv({ cls: 'claudian-mcp-selector-check' });
@@ -1178,6 +1236,11 @@ export class McpServerSelector {
       e.stopPropagation();
       this.toggleServer(server.name, itemEl);
     });
+    itemEl.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      this.toggleServer(server.name, itemEl);
+    });
   }
 
   private toggleServer(name: string, itemEl: HTMLElement) {
@@ -1189,6 +1252,7 @@ export class McpServerSelector {
 
     // Update item visually in-place (immediate feedback)
     const isEnabled = this.enabledServers.has(name);
+    itemEl.setAttribute('aria-checked', String(isEnabled));
     const checkEl = itemEl.querySelector<HTMLElement>('.claudian-mcp-selector-check');
 
     if (isEnabled) {
@@ -1355,6 +1419,69 @@ export class ContextUsageMeter {
 const TOOLBAR_COMPACT_CLASS = 'claudian-input-toolbar--compact';
 const ROW_CENTER_TOLERANCE = 1;
 
+let nextContextActionsMenuId = 0;
+
+export class ContextActionsMenu {
+  private container: HTMLElement | null = null;
+  private onChange: (() => void) | null = null;
+  private isOpen = false;
+  readonly id = `claudian-context-actions-${++nextContextActionsMenuId}`;
+
+  private readonly handleDocumentClick = (event: MouseEvent): void => {
+    if (this.container && !this.container.contains(event.target as Node)) {
+      this.setOpen(false);
+    }
+  };
+
+  private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
+    if (!this.isOpen || event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.setOpen(false, true);
+  };
+
+  attach(container: HTMLElement): void {
+    this.container = container;
+    const ownerDocument = container.ownerDocument;
+    ownerDocument.addEventListener('click', this.handleDocumentClick, true);
+    ownerDocument.addEventListener('keydown', this.handleDocumentKeydown, true);
+  }
+
+  setOnChange(callback: () => void): void {
+    this.onChange = callback;
+  }
+
+  get open(): boolean {
+    return this.isOpen;
+  }
+
+  toggle(): void {
+    this.setOpen(!this.isOpen);
+  }
+
+  close(): void {
+    this.setOpen(false);
+  }
+
+  destroy(): void {
+    this.container?.ownerDocument.removeEventListener('click', this.handleDocumentClick, true);
+    this.container?.ownerDocument.removeEventListener('keydown', this.handleDocumentKeydown, true);
+    this.container = null;
+    this.onChange = null;
+    this.setOpen(false);
+  }
+
+  private setOpen(open: boolean, restoreFocus = false): void {
+    this.isOpen = open;
+    this.onChange?.();
+    if (open) {
+      this.container?.querySelector<HTMLElement>('.claudian-context-actions-menu')?.focus();
+    } else if (restoreFocus) {
+      this.container?.querySelector<HTMLButtonElement>('.claudian-context-actions-trigger')?.focus();
+    }
+  }
+}
+
 /** Hides optional labels only when the full toolbar would wrap. */
 export class InputToolbarLayoutController {
   private resizeObserver: ResizeObserver | null = null;
@@ -1383,7 +1510,16 @@ export class InputToolbarLayoutController {
   }
 
   private hasWrappedItems(): boolean {
-    const rowCenters = Array.from(this.toolbarEl.children)
+    const items = Array.from(this.toolbarEl.children).flatMap((item) => (
+      item.classList.contains('claudian-input-toolbar-group')
+        ? Array.from(item.children)
+        : [item]
+    )).flatMap((item) => (
+      item.classList.contains('claudian-input-toolbar-slot')
+        ? Array.from(item.children)
+        : [item]
+    ));
+    const rowCenters = items
       .map((item) => item.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0)
       .map((rect) => rect.top + rect.height / 2);
@@ -1447,16 +1583,67 @@ export function createInputToolbar(
   mcpServerSelector: McpServerSelector;
   permissionToggle: PermissionToggle;
   serviceTierToggle: ServiceTierToggle;
+  contextActionsMenu: ContextActionsMenu;
+  sendButtonSlot: HTMLElement;
+  destroy: () => void;
 } {
-  const modelSelector = new ModelSelector(parentEl, callbacks);
-  const thinkingBudgetSelector = new ThinkingBudgetSelector(parentEl, callbacks);
-  const serviceTierToggle = new ServiceTierToggle(parentEl, callbacks);
-  const contextUsageMeter = new ContextUsageMeter(parentEl);
-  const externalContextSelector = new ExternalContextSelector(parentEl, callbacks);
-  const mcpServerSelector = new McpServerSelector(parentEl);
-  const permissionToggle = new PermissionToggle(parentEl, callbacks);
-  const modeSelector = new ModeSelector(parentEl, callbacks);
+  const root: PreactRoot = createPreactRoot(parentEl);
+  const contextActionsMenu = new ContextActionsMenu();
+  const slots = new Map<InputToolbarSlot, HTMLElement>();
+  let externalContextSelector: ExternalContextSelector | null = null;
+  const render = (): void => {
+    root.render(h(InputToolbarView, {
+      addContextLabel: t('chat.composer.addContext'),
+      menuId: contextActionsMenu.id,
+          menuOpen: contextActionsMenu.open,
+          mcpLabel: t('settings.mcpServers.name'),
+          onAddContext: () => {
+            contextActionsMenu.toggle();
+            callbacks.onAddContext?.();
+          },
+          onMenuToggle: () => contextActionsMenu.toggle(),
+      onSlot: (slot, element) => {
+        if (element) slots.set(slot, element);
+        else slots.delete(slot);
+      },
+    }));
+    if (!contextActionsMenu.open) externalContextSelector?.closeDropdown();
+  };
+  render();
+  contextActionsMenu.setOnChange(render);
+  contextActionsMenu.attach(parentEl.querySelector('.claudian-context-actions') ?? parentEl);
+
+  const getSlot = (name: InputToolbarSlot): HTMLElement => {
+    const slot = slots.get(name);
+    if (!slot) throw new Error(`Input toolbar view did not mount the ${name} slot`);
+    return slot;
+  };
+  externalContextSelector = new ExternalContextSelector(
+    getSlot('context-external'),
+    {
+      ...callbacks,
+      onCloseContextActionsMenu: () => contextActionsMenu.close(),
+    },
+    t('chat.composer.externalFilesAndFolders'),
+  );
+  const mcpServerSelector = new McpServerSelector(getSlot('context-mcp'));
+  const modelSelector = new ModelSelector(getSlot('config'), callbacks);
+  const thinkingBudgetSelector = new ThinkingBudgetSelector(getSlot('config'), callbacks);
+  const serviceTierToggle = new ServiceTierToggle(getSlot('config'), callbacks);
+  const contextUsageMeter = new ContextUsageMeter(getSlot('status'));
+  const permissionToggle = new PermissionToggle(getSlot('execution'), callbacks);
+  const modeSelector = new ModeSelector(getSlot('execution'), callbacks);
   const layoutController = new InputToolbarLayoutController(parentEl);
+
+  const destroy = (): void => {
+    contextActionsMenu.destroy();
+    externalContextSelector?.closeDropdown();
+    externalContextSelector?.destroy();
+    mcpServerSelector.destroy();
+    layoutController.destroy();
+    thinkingBudgetSelector.destroy();
+    root.unmount();
+  };
 
   return {
     modelSelector,
@@ -1468,5 +1655,8 @@ export function createInputToolbar(
     externalContextSelector,
     mcpServerSelector,
     permissionToggle,
+    contextActionsMenu,
+    sendButtonSlot: getSlot('send'),
+    destroy,
   };
 }

@@ -105,16 +105,35 @@ export function buildExternalContextDisplayEntries(
   });
 }
 
-export interface DirectoryValidationResult {
+export interface PathValidationResult {
   valid: boolean;
   error?: string;
 }
 
-export function validateDirectoryPath(p: string): DirectoryValidationResult {
+export function validateDirectoryPath(p: string): PathValidationResult {
   try {
     const stats = fs.statSync(p);
     if (!stats.isDirectory()) {
       return { valid: false, error: 'Path exists but is not a directory' };
+    }
+    return { valid: true };
+  } catch (err) {
+    const error = err as NodeJS.ErrnoException;
+    if (error.code === 'ENOENT') {
+      return { valid: false, error: 'Path does not exist' };
+    }
+    if (error.code === 'EACCES') {
+      return { valid: false, error: 'Permission denied' };
+    }
+    return { valid: false, error: `Cannot access path: ${error.message}` };
+  }
+}
+
+export function validateFilePath(p: string): PathValidationResult {
+  try {
+    const stats = fs.statSync(p);
+    if (!stats.isFile()) {
+      return { valid: false, error: 'Path exists but is not a file' };
     }
     return { valid: true };
   } catch (err) {

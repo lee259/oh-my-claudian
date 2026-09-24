@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 import { createMockEl } from '@test/helpers/MockElement';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
@@ -17,6 +19,18 @@ import {
   updateSendButton,
   wireTabInputEvents,
 } from '@/features/chat/tabs/Tab';
+
+HTMLElement.prototype.empty = function empty(): void {
+  this.replaceChildren();
+};
+
+HTMLElement.prototype.setText = function setText(text: string): void {
+  this.textContent = text;
+};
+
+HTMLElement.prototype.setCssProps = function setCssProps(props: Record<string, string>): void {
+  for (const [name, value] of Object.entries(props)) this.style.setProperty(name, value);
+};
 
 const coordinatorInstances: MockCoordinator[] = [];
 const coordinatorDeps: ChatExecutionCoordinatorDeps[] = [];
@@ -322,7 +336,7 @@ describe('Tab provider execution ownership', () => {
       observe: jest.fn(),
     })) as unknown as typeof ResizeObserver;
     const plugin = createPlugin();
-    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
     initializeTabUI(tab, plugin);
     const modelOptions = Array.from(
       tab.dom.inputWrapper.querySelectorAll('.claudian-model-option'),
@@ -332,7 +346,7 @@ describe('Tab provider execution ownership', () => {
     );
 
     (alternate as HTMLElement | undefined)?.click();
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await new Promise<void>(resolve => window.setTimeout(resolve, 0));
 
     expect(tab.draftModel).toBe('claude-alternate');
     expect(plugin.settings.lastSelectedChatModel).toEqual({
@@ -373,7 +387,7 @@ describe('Tab provider execution ownership', () => {
 
     try {
       const plugin = createPlugin();
-      const tab = createTab({ plugin, containerEl: createMockEl() as any });
+      const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
       const initializeWelcome = jest.fn();
       tab.controllers.conversationController = { initializeWelcome } as any;
       initializeTabUI(tab, plugin, {
@@ -391,14 +405,14 @@ describe('Tab provider execution ownership', () => {
 
       (first as HTMLElement | undefined)?.click();
       (latest as HTMLElement | undefined)?.click();
-      await new Promise<void>(resolve => setImmediate(resolve));
+      await new Promise<void>(resolve => window.setTimeout(resolve, 0));
 
       expect(tab.providerId).toBe('codex');
       expect(tab.draftModel).toBe('codex-latest');
       expect(initializeWelcome).toHaveBeenCalledTimes(1);
 
       rejectCodexSwitch(new Error('Codex initialization failed'));
-      await new Promise<void>(resolve => setImmediate(resolve));
+      await new Promise<void>(resolve => window.setTimeout(resolve, 0));
 
       expect(tab.providerId).toBe('claude');
       expect(tab.draftModel).toBe('claude-default');
@@ -423,7 +437,7 @@ describe('Tab provider execution ownership', () => {
     });
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       conversation,
     });
     initializeTabUI(tab, plugin);
@@ -435,7 +449,7 @@ describe('Tab provider execution ownership', () => {
     );
 
     (alternate as HTMLElement | undefined)?.click();
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await new Promise<void>(resolve => window.setTimeout(resolve, 0));
 
     expect(plugin.updateConversation).toHaveBeenCalledWith(conversation.id, {
       selectedModel: 'claude-alternate',
@@ -459,13 +473,13 @@ describe('Tab provider execution ownership', () => {
     const plugin = createPlugin({ updateConversation });
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       conversation,
     });
     initializeTabUI(tab, plugin);
 
     const result = tab.ui.externalContextSelector?.addExternalContext('/tmp');
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await new Promise<void>(resolve => window.setTimeout(resolve, 0));
 
     expect(result?.success).toBe(true);
     expect(updateConversation).toHaveBeenCalledWith(conversation.id, {
@@ -593,7 +607,7 @@ describe('Tab provider execution ownership', () => {
 
     wireTabInputEvents(tab, plugin);
     tab.dom.inputEl.value = 'Keep this draft';
-    (tab.dom.inputEl as any).dispatchEvent('input');
+    tab.dom.inputEl.dispatchEvent(new Event('input'));
 
     expect(tab.lifecycleState).toBe('cold');
   });
@@ -607,7 +621,7 @@ describe('Tab provider execution ownership', () => {
     const plugin = createPlugin();
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       lifecycleState: 'provisional',
     });
     initializeTabUI(tab, plugin);
@@ -633,7 +647,7 @@ describe('Tab provider execution ownership', () => {
     const plugin = createPlugin();
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       lifecycleState: 'provisional',
     });
     initializeTabUI(tab, plugin);
@@ -653,7 +667,7 @@ describe('Tab provider execution ownership', () => {
     const removeButton = tab.dom.contextRowEl.querySelector(
       '.claudian-context-chip-remove',
     ) as any;
-    removeButton.dispatchEvent('click');
+    removeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(tab.lifecycleState).toBe('cold');
     globalThis.ResizeObserver = originalResizeObserver;
@@ -673,7 +687,7 @@ describe('Tab provider execution ownership', () => {
     });
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       conversation,
       lifecycleState: 'provisional',
     });
@@ -711,7 +725,7 @@ describe('Tab provider execution ownership', () => {
     });
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       conversation: oldConversation,
     });
     tab.state.currentConversationId = oldConversation.id;
@@ -1517,7 +1531,7 @@ describe('Tab provider execution ownership', () => {
     const forkRequest = jest.fn().mockResolvedValue(undefined);
     const tab = createTab({
       plugin,
-      containerEl: createMockEl() as any,
+      containerEl: document.createElement('div') as any,
       conversation,
     });
     initializeTabUI(tab, plugin);

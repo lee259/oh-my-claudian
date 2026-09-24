@@ -5,6 +5,7 @@ import {
   isBuiltInCommandSupported,
 } from '../../../core/commands/builtInCommands';
 import type { ProviderCapabilities } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import type { AddExternalContextResult } from '../ui/InputToolbar';
 
 export interface BuiltInCommandControllerDeps {
@@ -43,7 +44,9 @@ export class BuiltInCommandController {
           return;
         }
         const result = selector.addExternalContext(args);
-        new Notice(result.success ? `Added external context: ${result.normalizedPath}` : result.error);
+        new Notice(result.success
+          ? t('chat.composer.externalContextAdded', { path: result.normalizedPath })
+          : result.error);
         return;
       }
       case 'resume':

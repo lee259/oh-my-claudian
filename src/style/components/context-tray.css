@@ -130,6 +130,10 @@
   height: 12px;
 }
 
+.claudian-context-chip--folder .claudian-context-chip-icon {
+  color: var(--text-accent);
+}
+
 .claudian-context-chip-label {
   min-width: 0;
   overflow: hidden;
