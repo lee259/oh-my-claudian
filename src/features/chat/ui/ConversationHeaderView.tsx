@@ -3,6 +3,7 @@ import { IconButton } from '../../../shared/ui/IconButton';
 
 export interface ConversationHeaderViewProps {
   title: string;
+  isHome?: boolean;
   onBack?: () => void;
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
@@ -11,11 +12,40 @@ export interface ConversationHeaderViewProps {
 
 export function ConversationHeaderView({
   title,
+  isHome = false,
   onBack,
   onOpenHistory,
   onOpenSettings,
   onNewConversation,
 }: ConversationHeaderViewProps) {
+  if (isHome) {
+    return (
+      <header className="claudian-conversation-header claudian-conversation-header--home">
+        <div className="claudian-home-title">{t('chat.home.title')}</div>
+        <div className="claudian-home-actions">
+          <IconButton
+            className="claudian-home-action"
+            icon="history"
+            label={t('chat.home.history')}
+            onClick={onOpenHistory}
+          />
+          <IconButton
+            className="claudian-home-action"
+            icon="settings"
+            label={t('chat.home.settings')}
+            onClick={onOpenSettings}
+          />
+          <IconButton
+            className="claudian-home-action"
+            icon="square-pen"
+            label={t('chat.home.newConversation')}
+            onClick={onNewConversation}
+          />
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="claudian-conversation-header">
       <div className="claudian-conversation-header-leading">

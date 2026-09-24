@@ -230,6 +230,11 @@
   opacity: 0;
 }
 
+.claudian-home-conversation:hover .claudian-home-conversation-loading,
+.claudian-home-conversation:focus-within .claudian-home-conversation-loading {
+  display: none;
+}
+
 .claudian-home-conversation-archive:hover,
 .claudian-home-conversation-archive:focus-visible {
   border: 0;
@@ -335,7 +340,7 @@
   border: 0;
   background: transparent;
   align-self: flex-end;
-  margin-block-end: 36px;
+  margin-block-end: 8px;
   max-width: min(80%, 48ch);
 }
 

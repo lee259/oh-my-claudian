@@ -626,6 +626,13 @@
   opacity: 0;
 }
 
+.claudian-history-menu .claudian-history-item:hover .claudian-session-running-indicator,
+.claudian-history-menu .claudian-history-item:focus-within .claudian-session-running-indicator,
+.claudian-history-menu .claudian-history-item:hover .claudian-action-loading,
+.claudian-history-menu .claudian-history-item:focus-within .claudian-action-loading {
+  display: none;
+}
+
 .claudian-home-history-search {
   display: flex;
   align-items: center;

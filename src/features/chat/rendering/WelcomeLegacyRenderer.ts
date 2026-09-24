@@ -98,6 +98,10 @@ function renderLegacyHomeSurface(
     .filter(conversation => !conversation.isArchived)
     .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   conversations.slice(0, 3).forEach((conversation) => {
+    const hasRuntimeStatus = typeof homeOptions.isConversationRunning === 'function';
+    const isLoading = hasRuntimeStatus
+      ? homeOptions.isConversationRunning?.(conversation.id) === true
+      : conversation.titleGenerationStatus === 'pending';
     const row = recent.createDiv({ cls: 'claudian-home-conversation' });
     const openButton = row.createEl('button', {
       cls: 'claudian-home-conversation-open',
@@ -108,10 +112,13 @@ function renderLegacyHomeSurface(
       cls: 'claudian-home-conversation-time',
       text: formatActivity(conversation.lastActivityAt),
     });
-    if (conversation.titleGenerationStatus === 'pending') {
+    if (isLoading) {
       const loadingEl = openButton.createSpan({ cls: 'claudian-home-conversation-loading' });
       setIcon(loadingEl, 'loader-2');
-      loadingEl.setAttribute('aria-label', t('chat.history.generatingTitle'));
+      loadingEl.setAttribute(
+        'aria-label',
+        t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle'),
+      );
     }
     openButton.addEventListener('click', (event) => {
       event.stopPropagation();

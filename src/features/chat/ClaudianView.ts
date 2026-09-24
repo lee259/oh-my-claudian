@@ -326,11 +326,11 @@ export class ClaudianView extends ItemView {
         },
         onTabStreamingChanged: () => {
           this.updateTabBar();
-          this.notifyConversationListChanged();
+          this.notifyConversationRuntimeStateChanged();
         },
         onTabWorkChanged: () => {
           this.updateTabBar();
-          this.notifyConversationListChanged();
+          this.notifyConversationRuntimeStateChanged();
         },
         onTabRewindingChanged: () => this.updateTabBar(),
         onTabTitleChanged: () => {
@@ -421,6 +421,16 @@ export class ClaudianView extends ItemView {
   getWelcomeHomeOptions() {
     return {
       getConversations: () => this.plugin.getConversationList(),
+      isConversationRunning: (conversationId: string) => {
+        const localTab = this.findTabWithConversation(conversationId);
+        if (localTab) return localTab.state.isStreaming;
+
+        const crossViewResult = this.plugin.findConversationAcrossViews(conversationId);
+        if (!crossViewResult || crossViewResult.view === this) return false;
+
+        const crossViewTab = crossViewResult.view.getTabManager()?.getTab(crossViewResult.tabId);
+        return crossViewTab?.state.isStreaming ?? false;
+      },
       onBack: () => {
         void this.activateOrCreateDraftTab().catch(() => new Notice(t('chat.errors.returnHome')));
       },
@@ -630,7 +640,8 @@ export class ClaudianView extends ItemView {
       const title = tab.conversationId
         ? this.plugin.getConversationSync?.(tab.conversationId)?.title
         : null;
-      tab.dom.updateConversationHeader(title?.trim() || t('chat.home.title'));
+      const isHome = tab.conversationId === null && tab.state.messages?.length === 0;
+      tab.dom.updateConversationHeader(title?.trim() || t('chat.home.title'), isHome);
     }
   }
 
@@ -2305,6 +2316,26 @@ export class ClaudianView extends ItemView {
         view.notifyConversationListChanged();
       }
     }
+  }
+
+  private notifyConversationRuntimeStateChanged(): void {
+    this.refreshConversationRuntimeState();
+    for (const view of this.plugin.getAllViews()) {
+      if (view !== this) {
+        view.refreshConversationRuntimeState();
+      }
+    }
+  }
+
+  /** Refreshes runtime status surfaces immediately without waiting for list debounce. */
+  refreshConversationRuntimeState(): void {
+    this.updateConversationHeaders();
+    this.refreshWelcomeHomeSurface();
+    if (this.pendingHistorySurfaceUpdate) {
+      cancelScheduledAnimationFrame(this.pendingHistorySurfaceUpdate);
+      this.pendingHistorySurfaceUpdate = null;
+    }
+    this.updateHistoryDropdown();
   }
 
   /** Gets the tab manager. */
