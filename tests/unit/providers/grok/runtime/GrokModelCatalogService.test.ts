@@ -1,4 +1,5 @@
 import type { ProviderHost } from '@/core/providers/ProviderHost';
+import type { GrokModelCatalogProbeRequest } from '@/providers/grok/runtime/GrokModelCatalogProbe';
 import {
   buildGrokCatalogFingerprint,
   type GrokCatalogCommandRequest,
@@ -8,6 +9,12 @@ import {
   parseGrokModelsOutput,
   SpawnGrokCatalogCommandRunner,
 } from '@/providers/grok/runtime/GrokModelCatalogService';
+
+const unavailableProbe = {
+  discover: jest.fn(async () => {
+    throw new Error('Method not found');
+  }),
+};
 
 function makeHost(enabled = true): ProviderHost {
   return {
@@ -118,12 +125,57 @@ describe('parseGrokModelsOutput', () => {
 });
 
 describe('GrokModelCatalogService', () => {
+  it('uses native model metadata before falling back to the CLI catalog', async () => {
+    const runner = makeRunner({
+      exitCode: 0,
+      stdout: 'Default model: legacy-model\nAvailable models:\n  legacy-model\n',
+    });
+    const nativeModels = [{
+      rawId: 'grok-4.6',
+      displayName: 'Grok 4.6',
+      reasoningMetadataResolved: true,
+      supportsReasoning: true,
+      defaultReasoningEffort: 'high',
+      reasoningEfforts: [
+        { value: 'xhigh', label: 'Extra High Effort' },
+        { value: 'high', label: 'High Effort' },
+        { value: 'medium', label: 'Medium Effort' },
+        { value: 'low', label: 'Low Effort' },
+      ],
+    }];
+    const probe = {
+      discover: jest.fn(async (_request: GrokModelCatalogProbeRequest) => ({
+        currentModelId: 'grok-4.6',
+        models: nativeModels,
+      })),
+    };
+
+    const result = await new GrokModelCatalogService(makeHost(), {
+      runner,
+      probe,
+    } as any).discoverCatalog();
+
+    expect(result).toMatchObject({
+      kind: 'completed',
+      defaultModelId: 'grok-4.6',
+      models: nativeModels,
+    });
+    const probeRequest = probe.discover.mock.calls[0]?.[0];
+    if (!probeRequest) throw new Error('Expected a native Grok catalog probe request');
+    expect(probeRequest.command).toBe('/opt/grok/bin/grok');
+    expect(probeRequest.cwd).toBe('/vault');
+    expect(probeRequest.env.XAI_API_KEY).toBe('super-secret');
+    expect(probeRequest.timeoutMs).toBe(20_000);
+    expect(probeRequest.version).toBe('0.0.0');
+    expect(runner.requests.map(request => request.args)).toEqual([['--version']]);
+  });
+
   it('runs resolved-grok models with the provider runtime environment', async () => {
     const runner = makeRunner({
       exitCode: 0,
       stdout: 'Default model: kimi-coding\nAvailable models:\n  kimi-coding\n',
     });
-    const service = new GrokModelCatalogService(makeHost(), { runner });
+    const service = new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe });
 
     const result = await service.discoverCatalog();
 
@@ -156,7 +208,7 @@ describe('GrokModelCatalogService', () => {
     const host = makeHost(false);
     const runner = makeRunner({ exitCode: 0, stdout: '' });
 
-    await expect(new GrokModelCatalogService(host, { runner }).discoverCatalog()).resolves.toEqual({
+    await expect(new GrokModelCatalogService(host, { runner, probe: unavailableProbe }).discoverCatalog()).resolves.toEqual({
       kind: 'skipped',
       reason: 'provider-disabled',
     });
@@ -168,7 +220,7 @@ describe('GrokModelCatalogService', () => {
     const rawOutput = 'Account user@example.com token=super-secret';
     const runner = makeRunner({ exitCode: 0, stdout: rawOutput });
 
-    const result = await new GrokModelCatalogService(makeHost(), { runner }).discoverCatalog();
+    const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
       diagnostics: 'Grok models returned no available models',
@@ -185,7 +237,7 @@ describe('GrokModelCatalogService', () => {
       stdout: 'secret stdout',
     });
 
-    const result = await new GrokModelCatalogService(makeHost(), { runner }).discoverCatalog();
+    const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
       diagnostics: 'Grok models exited with code 17',
@@ -202,7 +254,7 @@ describe('GrokModelCatalogService', () => {
       termination: 'timeout',
     });
 
-    const result = await new GrokModelCatalogService(makeHost(), { runner }).discoverCatalog();
+    const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
       diagnostics: 'Grok models timed out',
