@@ -151,6 +151,7 @@ export interface TabUIComponents {
   mcpServerSelector: McpServerSelector | null;
   permissionToggle: PermissionToggle | null;
   serviceTierToggle: ServiceTierToggle | null;
+  refreshComposerLocale: (() => void) | null;
   slashCommandDropdown: SlashCommandDropdown | null;
   instructionModeManager: InstructionModeManager | null;
   bangBashModeManager: BangBashModeManager | null;

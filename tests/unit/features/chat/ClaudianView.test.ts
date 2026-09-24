@@ -130,6 +130,23 @@ describe('ClaudianView model refresh routing', () => {
     expect(view.tabManager.reconcileProviderAvailability).toHaveBeenCalledTimes(1);
     expect(primeProviderExecution).not.toHaveBeenCalled();
   });
+
+  it('refreshes localized composer UI in every retained tab', () => {
+    const refreshDraft = jest.fn();
+    const refreshConversation = jest.fn();
+    const view = Object.create(ClaudianView.prototype) as any;
+    view.tabManager = {
+      getAllTabs: jest.fn().mockReturnValue([
+        { ui: { refreshComposerLocale: refreshDraft } },
+        { ui: { refreshComposerLocale: refreshConversation } },
+      ]),
+    };
+
+    view.refreshComposerLocale();
+
+    expect(refreshDraft).toHaveBeenCalledTimes(1);
+    expect(refreshConversation).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('ClaudianView chat surface state', () => {

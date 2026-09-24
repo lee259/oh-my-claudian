@@ -8,6 +8,7 @@ import {
   createInputToolbar,
   type ToolbarCallbacks,
 } from '@/features/chat/ui/InputToolbar';
+import { setLocale } from '@/i18n/i18n';
 
 jest.mock('obsidian', () => ({
   Notice: jest.fn(),
@@ -90,6 +91,7 @@ describe('createInputToolbar', () => {
   let toolbar: ReturnType<typeof createInputToolbar> | undefined;
 
   beforeEach(() => {
+    setLocale('en');
     toolbarEl = document.createElement('div');
     document.body.append(toolbarEl);
     callbacks = createCallbacks();
@@ -99,6 +101,7 @@ describe('createInputToolbar', () => {
   afterEach(() => {
     toolbar?.destroy();
     toolbarEl.remove();
+    setLocale('en');
   });
 
   it('groups external context controls behind an accessible add-context action', () => {
@@ -117,6 +120,28 @@ describe('createInputToolbar', () => {
     expect(executionGroup?.querySelector('.claudian-permission-toggle')).not.toBeNull();
     expect(executionGroup?.querySelector('.claudian-mode-selector')).not.toBeNull();
     expect(setIcon).toHaveBeenCalledWith(expect.any(HTMLElement), 'plus');
+  });
+
+  it('refreshes mounted composer labels when the locale owner requests it', () => {
+    const addContext = toolbarEl.querySelector<HTMLButtonElement>(
+      '.claudian-context-actions-trigger',
+    );
+    const externalPicker = toolbarEl.querySelector<HTMLButtonElement>(
+      '.claudian-external-context-picker',
+    );
+
+    expect(addContext?.getAttribute('aria-label')).toBe('Add context');
+    expect(externalPicker?.getAttribute('aria-label')).toBe('Add files or folders');
+
+    setLocale('zh-CN');
+    toolbar?.refreshLocale();
+
+    expect(toolbarEl.querySelector('.claudian-context-actions-trigger')?.getAttribute('aria-label'))
+      .toBe('添加上下文');
+    expect(toolbarEl.querySelector('.claudian-external-context-picker')?.getAttribute('aria-label'))
+      .toBe('添加文件或文件夹');
+    expect(toolbarEl.querySelector('.claudian-external-context-label')?.textContent)
+      .toBe('添加文件或文件夹');
   });
 
   it('activates an external folder chip through the context-path callback', () => {

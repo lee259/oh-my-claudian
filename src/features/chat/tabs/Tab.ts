@@ -1446,7 +1446,10 @@ function initializeInputToolbar(
   // Keep the primary action in the toolbar flow so it never overlaps provider controls.
   toolbarComponents.sendButtonSlot.appendChild(dom.sendButtonEl);
 
-  dom.eventCleanups.push(() => toolbarComponents.destroy());
+  dom.eventCleanups.push(() => {
+    toolbarComponents.destroy();
+    tab.ui.refreshComposerLocale = null;
+  });
 
   tab.ui.modelSelector = toolbarComponents.modelSelector;
   tab.ui.modeSelector = toolbarComponents.modeSelector;
@@ -1459,6 +1462,7 @@ function initializeInputToolbar(
   tab.ui.mcpServerSelector = toolbarComponents.mcpServerSelector;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
+  tab.ui.refreshComposerLocale = toolbarComponents.refreshLocale;
 
   tab.ui.mcpServerSelector.setMcpManager(getProviderMcpManager(getTabProviderId(tab, plugin)));
   tab.ui.mcpServerSelector.setOnChange(() => {

@@ -677,7 +677,6 @@ export class ExternalContextSelector {
   constructor(
     parentEl: HTMLElement,
     callbacks: ToolbarCallbacks,
-    private readonly addFilesAndFoldersLabel: string = t('chat.composer.externalFilesAndFolders'),
   ) {
     this.callbacks = callbacks;
     this.root = createPreactRoot(parentEl);
@@ -950,6 +949,10 @@ export class ExternalContextSelector {
     this.render();
   }
 
+  refreshLocale(): void {
+    this.render();
+  }
+
   private render(): void {
     this.renderContextTrayItems();
     const entries = this.externalContextPaths.map((contextPath) => {
@@ -962,7 +965,7 @@ export class ExternalContextSelector {
       };
     });
     this.root.render(h(ExternalContextSelectorView, {
-      addFilesAndFoldersLabel: this.addFilesAndFoldersLabel,
+      addFilesAndFoldersLabel: t('chat.composer.externalFilesAndFolders'),
       manageLabel: t('chat.composer.manageExternalFolders'),
       managerTitle: t('chat.composer.externalContextManagerTitle'),
       managerDescription: t('chat.composer.externalContextManagerDescription'),
@@ -1584,6 +1587,7 @@ export function createInputToolbar(
   permissionToggle: PermissionToggle;
   serviceTierToggle: ServiceTierToggle;
   contextActionsMenu: ContextActionsMenu;
+  refreshLocale: () => void;
   sendButtonSlot: HTMLElement;
   destroy: () => void;
 } {
@@ -1624,7 +1628,6 @@ export function createInputToolbar(
       ...callbacks,
       onCloseContextActionsMenu: () => contextActionsMenu.close(),
     },
-    t('chat.composer.externalFilesAndFolders'),
   );
   const mcpServerSelector = new McpServerSelector(getSlot('context-mcp'));
   const modelSelector = new ModelSelector(getSlot('config'), callbacks);
@@ -1634,6 +1637,10 @@ export function createInputToolbar(
   const permissionToggle = new PermissionToggle(getSlot('execution'), callbacks);
   const modeSelector = new ModeSelector(getSlot('execution'), callbacks);
   const layoutController = new InputToolbarLayoutController(parentEl);
+  const refreshLocale = (): void => {
+    render();
+    externalContextSelector?.refreshLocale();
+  };
 
   const destroy = (): void => {
     contextActionsMenu.destroy();
@@ -1656,6 +1663,7 @@ export function createInputToolbar(
     mcpServerSelector,
     permissionToggle,
     contextActionsMenu,
+    refreshLocale,
     sendButtonSlot: getSlot('send'),
     destroy,
   };

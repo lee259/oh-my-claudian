@@ -28,6 +28,7 @@ export interface FeatureViewHost extends TabManagerViewHost {
   getTabManager(): FeatureTabManagerHost | null;
   notifyConversationListChanged(): void;
   refreshModelSelector(providerId?: ProviderId): void;
+  refreshComposerLocale(): void;
   refreshTabControls(): void;
   updateHiddenProviderCommands(): void;
   invalidateProviderResources(providerIds: ProviderId[], generation: number): void;
