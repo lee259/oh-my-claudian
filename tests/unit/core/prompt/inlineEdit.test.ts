@@ -1,4 +1,17 @@
-import { buildInlineEditPrompt } from '@/core/prompt/inlineEdit';
+import {
+  buildInlineEditPrompt,
+  getInlineEditSystemPrompt,
+} from '@/core/prompt/inlineEdit';
+
+describe('getInlineEditSystemPrompt', () => {
+  it('instructs agents to decode XML attribute paths exactly once', () => {
+    const prompt = getInlineEditSystemPrompt();
+
+    expect(prompt).toContain('Decode XML entities in an attribute value exactly once');
+    expect(prompt).toContain('Do not decode CDATA content');
+    expect(prompt).toContain('A &amp; B.md');
+  });
+});
 
 describe('buildInlineEditPrompt', () => {
   it('serializes selection paths and bodies with canonical XML', () => {
