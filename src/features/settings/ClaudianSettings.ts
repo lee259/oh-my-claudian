@@ -14,6 +14,7 @@ import { AgentSkillRepository } from '../../core/skills/AgentSkillRepository';
 import type { ChatViewPlacement } from '../../core/types/settings';
 import {
   getAvailableLocales,
+  getLocale,
   getLocaleDisplayName,
   resolveLocale,
   setLocale,
@@ -430,10 +431,17 @@ export class ClaudianSettingTab extends PluginSettingTab {
       onChange: async (id, value) => {
         if (id !== 'interface-language') return;
         const locale = value as Locale;
-        setLocale(resolveLocale(locale, getObsidianLanguage()));
         await this.plugin.mutateSettings((settings) => {
           settings.locale = locale;
         });
+        const nextLocale = resolveLocale(locale, getObsidianLanguage());
+        const localeChanged = getLocale() !== nextLocale;
+        setLocale(nextLocale);
+        if (localeChanged) {
+          for (const view of this.plugin.getAllViews()) {
+            view.refreshComposerLocale();
+          }
+        }
         this.display();
       },
     }));

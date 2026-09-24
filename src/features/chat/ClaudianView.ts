@@ -170,6 +170,13 @@ export class ClaudianView extends ItemView {
     return 'bot';
   }
 
+  /** Refreshes composer labels after the interface locale changes. */
+  refreshComposerLocale(): void {
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      tab.ui.refreshComposerLocale?.();
+    }
+  }
+
   /** Refreshes model-dependent UI across all tabs (used after settings/env changes). */
   refreshModelSelector(changedProviderId?: ProviderId): void {
     this.tabManager?.reconcileProviderAvailability();

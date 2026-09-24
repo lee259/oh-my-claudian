@@ -121,6 +121,7 @@ export function createTabRuntime(
       mcpServerSelector: null,
       permissionToggle: null,
       serviceTierToggle: null,
+      refreshComposerLocale: null,
       slashCommandDropdown: null,
       instructionModeManager: null,
       bangBashModeManager: null,
