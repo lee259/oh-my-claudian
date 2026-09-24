@@ -2,7 +2,7 @@ import type { ComposerContextTray } from '../../ComposerContextTray';
 
 export interface FileChipsViewCallbacks {
   onRemoveAttachment: (path: string) => void;
-  onOpenFile: (path: string) => void;
+  onActivatePath: (path: string) => void;
 }
 
 export class FileChipsView {
@@ -33,7 +33,7 @@ export class FileChipsView {
           title: filePath,
           ariaLabel: `Attached file: ${filePath}`,
           onRemove: () => this.callbacks.onRemoveAttachment(filePath),
-          onActivate: () => this.callbacks.onOpenFile(filePath),
+          onActivate: () => this.callbacks.onActivatePath(filePath),
         };
       });
     this.contextTray.setItems('files', items);
@@ -54,7 +54,7 @@ export class FileChipsView {
       icon: 'file-text',
       title: filePath,
       ariaLabel: `Linked note: ${filePath}`,
-      onActivate: () => this.callbacks.onOpenFile(filePath),
+      onActivate: () => this.callbacks.onActivatePath(filePath),
       onRemove: () => this.callbacks.onRemoveAttachment(filePath),
     }]);
   }

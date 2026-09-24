@@ -16,6 +16,44 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
+  it('keeps context actions in a compact, consistently interactive popover', () => {
+    expect(css).toMatch(
+      /\.claudian-context-actions-menu\s*\{[\s\S]*?width:\s*max-content;[\s\S]*?min-width:\s*min\(184px, calc\(100vw - 24px\)\);[\s\S]*?padding:\s*4px;[\s\S]*?border-radius:\s*8px;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-actions-menu\s*\{[\s\S]*?background:\s*var\(--background-secondary\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-action-button\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*flex-start;[\s\S]*?width:\s*100%;[\s\S]*?min-height:\s*32px;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-actions-menu \.claudian-context-action-button\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-actions-menu \.claudian-context-action-button:hover[\s\S]*?background:\s*var\(--background-modifier-hover\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-action-button:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--interactive-accent\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-action-section--external \.claudian-external-context-selector\s*\{[\s\S]*?width:\s*auto;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-context-action-section--external \.claudian-external-context-picker\s*\{[\s\S]*?min-height:\s*32px;/,
+    );
+    const externalContextCss = fs.readFileSync(
+      path.join(process.cwd(), 'src/style/toolbar/external-context.css'),
+      'utf8',
+    );
+    expect(externalContextCss).not.toMatch(
+      /\.claudian-external-context-selector:hover \.claudian-external-context-dropdown/,
+    );
+    expect(externalContextCss).toMatch(
+      /\.claudian-external-context-dropdown\[hidden\]\s*\{\s*display:\s*none;/,
+    );
+    expect(externalContextCss).toMatch(/\.claudian-external-context-item\s*\{[\s\S]*?display:\s*grid;/);
+  });
+
   it('keeps an inactive prompt suggestion from occupying composer space', () => {
     expect(css).toMatch(
       /\.claudian-prompt-suggestion\[hidden\]\s*\{[^}]*display:\s*none;/,
@@ -27,7 +65,7 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-send-button\s*\{[\s\S]*?position:\s*static;[\s\S]*?margin-inline-start:\s*8px;/,
     );
     expect(css).toMatch(
-      /\.oh-my-claudian-root \.claudian-input-toolbar > \.claudian-mode-selector\s*\{[\s\S]*?margin-inline-start:\s*auto;/,
+      /\.oh-my-claudian-root \.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;/,
     );
   });
 

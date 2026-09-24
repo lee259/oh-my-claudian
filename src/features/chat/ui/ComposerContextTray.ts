@@ -9,12 +9,13 @@ import {
 export type ComposerContextSlot =
   | 'current-note'
   | 'files'
+  | 'external-contexts'
   | 'editor-selection'
   | 'browser-selection'
   | 'canvas-selection'
   | 'images';
 
-export type ComposerContextItemKind = 'note' | 'file' | 'selection' | 'image';
+export type ComposerContextItemKind = 'note' | 'file' | 'folder' | 'selection' | 'image';
 
 export interface ComposerContextItem {
   id: string;
@@ -23,6 +24,7 @@ export interface ComposerContextItem {
   icon?: string;
   title?: string;
   ariaLabel?: string;
+  removeLabel?: string;
   onActivate?: () => void;
   onRemove?: () => void;
 }
@@ -34,6 +36,7 @@ export interface ComposerContextTrayOptions {
 const SLOT_ORDER: readonly ComposerContextSlot[] = [
   'current-note',
   'files',
+  'external-contexts',
   'editor-selection',
   'browser-selection',
   'canvas-selection',
@@ -216,7 +219,7 @@ export class ComposerContextTray {
         text: '\u00D7',
         attr: {
           type: 'button',
-          'aria-label': `Remove ${item.ariaLabel ?? item.label}`,
+          'aria-label': item.removeLabel ?? `Remove ${item.ariaLabel ?? item.label}`,
         },
       });
       removeButton.addEventListener('click', item.onRemove);

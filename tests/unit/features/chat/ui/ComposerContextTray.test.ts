@@ -85,6 +85,44 @@ describe('ComposerContextTray', () => {
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
 
+  it('renders external folders in the same removable chip style as attached files', () => {
+    const containerEl = createMockEl();
+    const onRemove = jest.fn();
+    const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
+
+    tray.setItems('files', [{
+      id: '/outside/brief.md',
+      kind: 'file',
+      label: 'brief.md',
+      icon: 'file-text',
+      onRemove: jest.fn(),
+    }]);
+    tray.setItems('external-contexts', [{
+      id: '/outside/project',
+      kind: 'folder',
+      label: 'project',
+      icon: 'folder',
+      title: '/outside/project',
+      removeLabel: 'Remove external folder',
+      onRemove,
+    }]);
+
+    const chips = containerEl.querySelectorAll('.claudian-context-chip');
+    const fileChip = chips.find((chip: any) => chip.dataset.contextId === '/outside/brief.md');
+    const folderChip = chips.find((chip: any) => chip.dataset.contextId === '/outside/project');
+    const folderRemoveButton = folderChip?.querySelector('.claudian-context-chip-remove');
+
+    expect(fileChip?.hasClass('claudian-context-chip--file')).toBe(true);
+    expect(folderChip?.hasClass('claudian-context-chip--folder')).toBe(true);
+    expect(folderChip?.dataset.contextSlot).toBe('external-contexts');
+    expect(folderRemoveButton?.getAttribute('aria-label')).toBe('Remove external folder');
+    expect(folderChip?.querySelector('.claudian-context-chip-icon')).not.toBeNull();
+
+    folderRemoveButton?.click();
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    tray.destroy();
+  });
+
   it('collapses content after the first visual row and exposes the hidden count', () => {
     const containerEl = createMockEl();
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);

@@ -8,6 +8,7 @@ import {
   isValidDirectoryPath,
   normalizePathForComparison,
   validateDirectoryPath,
+  validateFilePath,
 } from '@/utils/externalContext';
 
 jest.mock('fs');
@@ -227,6 +228,34 @@ describe('externalContext utilities', () => {
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Cannot access path');
       expect(result.error).toContain('Something went wrong');
+    });
+  });
+
+  describe('validateFilePath', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('accepts regular files and rejects directories', () => {
+      (fs.statSync as jest.Mock).mockReturnValue({ isFile: () => true });
+      expect(validateFilePath('/outside/notes.md')).toEqual({ valid: true });
+
+      (fs.statSync as jest.Mock).mockReturnValue({ isFile: () => false });
+      expect(validateFilePath('/outside/folder')).toEqual({
+        valid: false,
+        error: 'Path exists but is not a file',
+      });
+    });
+
+    it('reports missing files', () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.statSync as jest.Mock).mockImplementation(() => { throw error; });
+
+      expect(validateFilePath('/outside/missing.md')).toEqual({
+        valid: false,
+        error: 'Path does not exist',
+      });
     });
   });
 

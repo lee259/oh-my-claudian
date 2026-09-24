@@ -1296,6 +1296,9 @@ function initializeInputToolbar(
     getCapabilities: () => getTabCapabilities(tab, plugin),
     getSettings: () => getTabSettingsSnapshot(tab, plugin),
     getEnvironmentVariables: () => plugin.getActiveEnvironmentVariables(),
+    onAddContext: () => tab.ui.fileContextManager?.openMentionPicker(),
+    onExternalFilesSelected: (paths) => tab.ui.fileContextManager?.addExternalFiles(paths),
+    onContextPathActivate: (contextPath) => tab.ui.fileContextManager?.activateContextPath(contextPath),
     onModelChange: async (model: string, selectedProviderId?: ProviderId) => {
       // For blank tabs, update draft model and derive provider
       if (tab.conversationId === null) {
@@ -1441,16 +1444,18 @@ function initializeInputToolbar(
   });
 
   // Keep the primary action in the toolbar flow so it never overlaps provider controls.
-  inputToolbar.appendChild(dom.sendButtonEl);
+  toolbarComponents.sendButtonSlot.appendChild(dom.sendButtonEl);
 
-  dom.eventCleanups.push(() => toolbarComponents.layoutController.destroy());
-  dom.eventCleanups.push(() => toolbarComponents.thinkingBudgetSelector.destroy());
+  dom.eventCleanups.push(() => toolbarComponents.destroy());
 
   tab.ui.modelSelector = toolbarComponents.modelSelector;
   tab.ui.modeSelector = toolbarComponents.modeSelector;
   tab.ui.thinkingBudgetSelector = toolbarComponents.thinkingBudgetSelector;
   tab.ui.contextUsageMeter = toolbarComponents.contextUsageMeter;
   tab.ui.externalContextSelector = toolbarComponents.externalContextSelector;
+  if (tab.ui.contextTray) {
+    toolbarComponents.externalContextSelector.setContextTray(tab.ui.contextTray);
+  }
   tab.ui.mcpServerSelector = toolbarComponents.mcpServerSelector;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;

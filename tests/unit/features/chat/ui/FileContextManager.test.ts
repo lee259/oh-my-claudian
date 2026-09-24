@@ -66,16 +66,25 @@ function findAllByClass(root: MockElement, className: string): MockElement[] {
 
 function createMockApp(options: {
   files?: string[];
+  folders?: string[];
   activeFilePath?: string | null;
   fileCacheByPath?: Map<string, any>;
 } = {}) {
-  const { files = [], activeFilePath = null, fileCacheByPath = new Map() } = options;
-  const fileMap = new Map<string, TFile>();
+  const { files = [], folders = [], activeFilePath = null, fileCacheByPath = new Map() } = options;
+  const fileMap = new Map<string, TFile | TFolder>();
   files.forEach((filePath) => {
     fileMap.set(filePath, createMockTFile(filePath));
   });
+  folders.forEach((folderPath) => {
+    const folder = new TFolder();
+    (folder as any).path = folderPath;
+    fileMap.set(folderPath, folder);
+  });
+
+  const revealInFolder = jest.fn();
 
   return {
+    revealInFolder,
     vault: {
       on: jest.fn(() => ({ id: 'event-ref' })),
       offref: jest.fn(),
@@ -91,6 +100,7 @@ function createMockApp(options: {
       getLeaf: jest.fn(() => ({
         openFile: jest.fn().mockResolvedValue(undefined),
       })),
+      getLeavesOfType: jest.fn(() => [{ view: { revealInFolder } }]),
     },
     metadataCache: {
       getFileCache: jest.fn((file: TFile) => fileCacheByPath.get(file.path) || null),
@@ -125,6 +135,17 @@ describe('FileContextManager', () => {
       value: '',
       selectionStart: 0,
       selectionEnd: 0,
+      setRangeText: jest.fn(function (
+        replacement: string,
+        start: number,
+        end: number,
+        selectMode: 'select' | 'start' | 'end' | 'preserve',
+      ) {
+        inputEl.value = `${inputEl.value.slice(0, start)}${replacement}${inputEl.value.slice(end)}`;
+        const cursor = start + replacement.length;
+        inputEl.selectionStart = selectMode === 'select' ? start : cursor;
+        inputEl.selectionEnd = selectMode === 'select' ? cursor : cursor;
+      }),
       focus: jest.fn(),
       dispatchEvent: jest.fn(),
     } as unknown as HTMLTextAreaElement;
@@ -132,6 +153,50 @@ describe('FileContextManager', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('starts the existing @ mention flow at the current selection', () => {
+    const manager = new FileContextManager(
+      createMockApp({ files: ['notes/alpha.md'] }),
+      containerEl as any,
+      inputEl,
+      createMockCallbacks(),
+    );
+    inputEl.value = 'Hello world';
+    inputEl.selectionStart = 6;
+    inputEl.selectionEnd = 6;
+
+    manager.openMentionPicker();
+
+    expect(inputEl.setRangeText).toHaveBeenCalledWith('@', 6, 6, 'end');
+    expect(inputEl.value).toBe('Hello @world');
+    expect(inputEl.selectionStart).toBe(7);
+    expect(inputEl.selectionEnd).toBe(7);
+    expect(inputEl.focus).toHaveBeenCalledTimes(1);
+    const inputEvent = (inputEl.dispatchEvent as jest.Mock).mock.calls[0][0] as Event;
+    expect(inputEvent.type).toBe('input');
+    expect(inputEvent.bubbles).toBe(true);
+
+    manager.destroy();
+  });
+
+  it('shows selected external files in the shared attachment tray and includes them in turn context', () => {
+    const manager = new FileContextManager(
+      createMockApp(),
+      containerEl as any,
+      inputEl,
+      createMockCallbacks(),
+    );
+
+    manager.addExternalFiles(['/outside/brief.md']);
+
+    expect(manager.getAttachedFiles()).toEqual(new Set(['/outside/brief.md']));
+    const chip = findByClass(containerEl, 'claudian-context-chip');
+    expect(chip).toBeDefined();
+    expect(findByClass(containerEl, 'claudian-context-chip-label')?.textContent).toBe('brief.md');
+    expect(findByClass(containerEl, 'claudian-context-chip-main')?.tagName).toBe('BUTTON');
+
+    manager.destroy();
   });
 
   it('tracks current note send state per session', () => {
@@ -1034,20 +1099,34 @@ describe('FileContextManager', () => {
     });
   });
 
-  describe('onOpenFile callback', () => {
-    it('should show Notice when file not found in vault', async () => {
-      const { Notice: NoticeMock } = jest.requireMock('obsidian');
-      const app = createMockApp();
+  describe('context path activation', () => {
+    it('reveals an attached vault file in the file explorer', () => {
+      const app = createMockApp({ files: ['notes/guide.md'] });
       const manager = new FileContextManager(
         app, containerEl as any, inputEl, createMockCallbacks()
       );
 
-      const chipsView = (manager as any).chipsView;
-      const openCallback = chipsView.callbacks.onOpenFile;
-      expect(openCallback).toBeDefined();
+      manager.addExternalFiles(['/vault/notes/guide.md']);
+      containerEl.querySelector('.claudian-context-chip-main')?.click();
 
-      await openCallback('notes/missing.md');
-      expect(NoticeMock).toHaveBeenCalledWith(expect.stringContaining('Could not open file'));
+      expect(app.revealInFolder).toHaveBeenCalledWith(app.vault.getAbstractFileByPath('notes/guide.md'));
+      expect(app.workspace.getLeaf).not.toHaveBeenCalled();
+      manager.destroy();
+    });
+
+    it('reveals a vault folder and shows a notice for paths outside the vault', () => {
+      const { Notice: NoticeMock } = jest.requireMock('obsidian');
+      const app = createMockApp({ folders: ['projects'] });
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl, createMockCallbacks()
+      );
+
+      manager.activateContextPath('/vault/projects');
+      expect(app.revealInFolder).toHaveBeenCalledWith(app.vault.getAbstractFileByPath('projects'));
+
+      manager.activateContextPath('/outside/brief.md');
+      expect(NoticeMock).toHaveBeenCalledWith(expect.any(String));
+      expect(app.revealInFolder).toHaveBeenCalledTimes(1);
       manager.destroy();
     });
   });

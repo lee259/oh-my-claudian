@@ -1,4 +1,5 @@
-import { createMockEl } from '@test/helpers/MockElement';
+/** @jest-environment jsdom */
+
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -14,6 +15,14 @@ jest.mock('obsidian', () => ({
 // Mock fs
 jest.mock('fs');
 
+jest.mock('electron', () => ({
+  remote: {
+    dialog: {
+      showOpenDialog: jest.fn().mockResolvedValue({ canceled: true, filePaths: [] }),
+    },
+  },
+}), { virtual: true });
+
 // Mock callbacks
 function createMockCallbacks() {
   return {
@@ -23,6 +32,7 @@ function createMockCallbacks() {
     onEffortLevelChange: jest.fn().mockResolvedValue(undefined),
     onServiceTierChange: jest.fn().mockResolvedValue(undefined),
     onPermissionModeChange: jest.fn(),
+    onExternalFilesSelected: jest.fn(),
     getSettings: jest.fn().mockReturnValue({
       model: 'haiku',
       thinkingBudget: 'off',
@@ -69,18 +79,65 @@ describe('ExternalContextSelector', () => {
     jest.clearAllMocks();
     // By default, all paths are valid (exist on filesystem)
     (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-    parentEl = createMockEl();
+    parentEl = document.createElement('div');
+    document.body.append(parentEl);
     callbacks = createMockCallbacks();
     selector = new ExternalContextSelector(parentEl, callbacks);
   });
 
+  afterEach(() => {
+    selector.destroy();
+    parentEl.remove();
+  });
+
   describe('Persistent Paths Management', () => {
     it('exposes the folder picker as a keyboard-accessible control', () => {
-      const picker = parentEl.querySelector('.claudian-external-context-icon-wrapper');
+      const picker = parentEl.querySelector('.claudian-external-context-picker');
 
-      expect(picker?.getAttribute('role')).toBe('button');
-      expect(picker?.getAttribute('tabindex')).toBe('0');
-      expect(picker?.getAttribute('aria-label')).toBe('Add external context folder');
+      expect(picker?.tagName).toBe('BUTTON');
+      expect(picker?.getAttribute('type')).toBe('button');
+      expect(picker?.getAttribute('aria-label')).toBe('Add files or folders');
+      expect(picker?.classList.contains('claudian-context-action-button')).toBe(true);
+    });
+
+    it('opens the folder manager only from its explicit button, not hover', () => {
+      selector.setPersistentPaths(['/path/a']);
+      const manageButton = parentEl.querySelector('.claudian-external-context-manage-button');
+      const selectorEl = parentEl.querySelector('.claudian-external-context-selector');
+
+      expect(manageButton?.getAttribute('aria-expanded')).toBe('false');
+      expect(selectorEl?.classList.contains('is-open')).toBe(false);
+
+      manageButton?.click();
+
+      expect(manageButton?.getAttribute('aria-expanded')).toBe('true');
+      expect(selectorEl?.classList.contains('is-open')).toBe(true);
+      expect(parentEl.querySelector('.claudian-external-context-dropdown')?.getAttribute('hidden')).toBeNull();
+
+      manageButton?.click();
+
+      expect(manageButton?.getAttribute('aria-expanded')).toBe('false');
+      expect(selectorEl?.classList.contains('is-open')).toBe(false);
+      expect(parentEl.querySelector('.claudian-external-context-dropdown')?.getAttribute('hidden')).toBe('');
+    });
+
+    it('keeps the folder manager control hidden until a folder is selected', () => {
+      expect(parentEl.querySelector('.claudian-external-context-manage-button')).toBeNull();
+
+      selector.setExternalContexts(['/path/a']);
+
+      expect(parentEl.querySelector('.claudian-external-context-manage-button')).not.toBeNull();
+    });
+
+    it('keeps the path management actions keyboard-operable with accessible names', () => {
+      selector.setExternalContexts(['/path/a']);
+      const lockButton = parentEl.querySelector('.claudian-external-context-lock');
+      const removeButton = parentEl.querySelector('.claudian-external-context-remove');
+
+      expect(lockButton?.tagName).toBe('BUTTON');
+      expect(lockButton?.getAttribute('aria-label')).toBe('Keep across sessions');
+      expect(removeButton?.tagName).toBe('BUTTON');
+      expect(removeButton?.getAttribute('aria-label')).toBe('Remove external folder');
     });
 
     it('should initialize with empty persistent paths', () => {
@@ -141,6 +198,51 @@ describe('ExternalContextSelector', () => {
       expect(onPersistenceChange).toHaveBeenCalledWith(
         expect.arrayContaining(['/path/a', '/path/b'])
       );
+    });
+  });
+
+  describe('file and folder picker', () => {
+    it('attaches selected files as context files and grants access only to selected folders', async () => {
+      const electron = jest.requireMock('electron') as {
+        remote: { dialog: { showOpenDialog: jest.Mock } };
+      };
+      electron.remote.dialog.showOpenDialog.mockResolvedValue({
+        canceled: false,
+        filePaths: ['/outside/notes/brief.md', '/outside/project'],
+      });
+      (fs.statSync as jest.Mock).mockImplementation((selectedPath: string) => ({
+        isDirectory: () => selectedPath === '/outside/project',
+        isFile: () => selectedPath === '/outside/notes/brief.md',
+      }));
+
+      (parentEl.querySelector('.claudian-external-context-picker') as HTMLButtonElement | null)?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(electron.remote.dialog.showOpenDialog).toHaveBeenCalledWith({
+        properties: ['openFile', 'openDirectory', 'multiSelections'],
+        title: 'Select files or folders',
+      });
+      expect(callbacks.onExternalFilesSelected).toHaveBeenCalledWith(['/outside/notes/brief.md']);
+      expect(selector.getExternalContexts()).toEqual(['/outside/project']);
+    });
+
+    it('unmounts the Preact selector view on destroy', () => {
+      selector.destroy();
+
+      expect(parentEl.childElementCount).toBe(0);
+    });
+
+    it('renders external folders as named rows with explicit access and persistence states', () => {
+      selector.setExternalContexts(['/workspace/alpha']);
+      selector.setPersistentPaths(['/workspace/alpha']);
+      selector.closeDropdown();
+      (parentEl.querySelector('.claudian-external-context-manage-button') as HTMLButtonElement | null)?.click();
+
+      const row = parentEl.querySelector('.claudian-external-context-item');
+      expect(row?.querySelector('.claudian-external-context-name')?.textContent).toBe('alpha');
+      expect(row?.querySelector('.claudian-external-context-path')?.textContent).toBe('/workspace');
+      expect(row?.querySelector('.claudian-external-context-state')?.textContent).toBe('All conversations');
     });
   });
 
@@ -501,6 +603,14 @@ describe('ExternalContextSelector', () => {
       const normalizedInside = insidePath.replace(/\\/g, '/');
       const expected = '~' + normalizedInside.slice(normalizedHome.length);
       expect(result).toBe(expected);
+    });
+
+    it('preserves sibling paths that only share the home directory prefix', () => {
+      const outsidePath = `${os.homedir()}-archive/project`;
+      selector.setExternalContexts([outsidePath]);
+      (parentEl.querySelector('.claudian-external-context-manage-button') as HTMLButtonElement | null)?.click();
+
+      expect(parentEl.querySelector('.claudian-external-context-path')?.textContent).toBe(path.dirname(outsidePath));
     });
   });
 
