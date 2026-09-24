@@ -33,6 +33,9 @@ export function SettingsSliderView({
   const { states, save } = useSettingsSaveState();
   const descriptionId = 'claudian-settings-slider-description';
   const saveState = states.value;
+  const progress = max > min
+    ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))
+    : 0;
 
   return (
     <div className="setting-item">
@@ -49,6 +52,7 @@ export function SettingsSliderView({
           max={max}
           min={min}
           step={step}
+          style={`--claudian-settings-slider-progress: ${progress}%;`}
           type="range"
           value={value}
           onInput={(event) => {
