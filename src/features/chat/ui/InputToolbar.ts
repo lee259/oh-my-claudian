@@ -318,7 +318,7 @@ export class ThinkingBudgetSelector {
     }
   };
   private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape') return;
+    if (event.key !== 'Escape' || !this.container.querySelector('.claudian-thinking-gears.is-open')) return;
     this.closeOpenGears();
     event.preventDefault();
     event.stopPropagation();
