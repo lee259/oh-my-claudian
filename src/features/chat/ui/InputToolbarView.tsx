@@ -1,14 +1,34 @@
 import { ObsidianIcon } from '../../../shared/ui/ObsidianIcon';
+import {
+  PermissionModeMenuView,
+  type PermissionModeMenuOption,
+} from './PermissionModeMenuView';
 
-export type InputToolbarSlot = 'context-external' | 'context-mcp' | 'config' | 'status' | 'execution' | 'send';
+export type InputToolbarSlot =
+  | 'context-external'
+  | 'context-mcp'
+  | 'model'
+  | 'reasoning'
+  | 'service-tier'
+  | 'status'
+  | 'provider-mode'
+  | 'send';
 
 export interface InputToolbarViewProps {
   addContextLabel: string;
   menuId: string;
   menuOpen: boolean;
   mcpLabel: string;
+  modeMenuId: string;
+  modeMenuLabel: string;
+  modeMenuOpen: boolean;
+  modeOptions: PermissionModeMenuOption[];
+  selectedMode: string;
+  modeMenuVisible: boolean;
   onAddContext: () => void;
   onMenuToggle: () => void;
+  onModeMenuOpenChange: (open: boolean) => void;
+  onPermissionModeChange: (mode: string) => void;
   onSlot: (slot: InputToolbarSlot, element: HTMLElement | null) => void;
 }
 
@@ -27,8 +47,16 @@ export function InputToolbarView({
   menuId,
   menuOpen,
   mcpLabel,
+  modeMenuId,
+  modeMenuLabel,
+  modeMenuOpen,
+  modeOptions,
+  selectedMode,
+  modeMenuVisible,
   onAddContext,
   onMenuToggle,
+  onModeMenuOpenChange,
+  onPermissionModeChange,
   onSlot,
 }: InputToolbarViewProps) {
   return (
@@ -72,13 +100,25 @@ export function InputToolbarView({
         </div>
       </div>
       <div className="claudian-input-toolbar-group claudian-input-toolbar-config-group">
-        <Slot name="config" onSlot={onSlot} />
+        <Slot name="model" onSlot={onSlot} />
+        <Slot name="reasoning" onSlot={onSlot} />
+        <Slot name="service-tier" onSlot={onSlot} />
       </div>
       <div className="claudian-input-toolbar-group claudian-input-toolbar-status-group">
         <Slot name="status" onSlot={onSlot} />
       </div>
       <div className="claudian-input-toolbar-group claudian-input-toolbar-execution-group">
-        <Slot name="execution" onSlot={onSlot} />
+        <Slot name="provider-mode" onSlot={onSlot} />
+        <PermissionModeMenuView
+          id={modeMenuId}
+          label={modeMenuLabel}
+          options={modeOptions}
+          selectedValue={selectedMode}
+          open={modeMenuOpen}
+          visible={modeMenuVisible}
+          onOpenChange={onModeMenuOpenChange}
+          onSelect={onPermissionModeChange}
+        />
       </div>
       <Slot name="send" onSlot={onSlot} />
     </>

@@ -393,7 +393,7 @@ describe('OpenCode settings normalization', () => {
     });
   });
 
-  it('normalizes saved custom OpenCode modes back to the managed safe mode', () => {
+  it('does not invent a native selection when discovery has no modes', () => {
     expect(getOpencodeProviderSettings({
       providerConfigs: {
         opencode: {
@@ -401,10 +401,10 @@ describe('OpenCode settings normalization', () => {
           selectedMode: 'compaction',
         },
       },
-    }).selectedMode).toBe('claudian-safe');
+    }).selectedMode).toBe('');
   });
 
-  it('normalizes the legacy build alias back to the managed YOLO mode', () => {
+  it('does not assume native Build exists before ACP discovery', () => {
     expect(getOpencodeProviderSettings({
       providerConfigs: {
         opencode: {
@@ -412,7 +412,7 @@ describe('OpenCode settings normalization', () => {
           selectedMode: 'build',
         },
       },
-    }).selectedMode).toBe('claudian-yolo');
+    }).selectedMode).toBe('');
   });
 
   it('preserves legacy cliPath when no host-scoped path exists', () => {

@@ -74,7 +74,6 @@ const CLASS_DISPLAY: Record<string, string> = {
   'claudian-context-meter': 'flex',
   'claudian-mcp-selector': 'flex',
   'claudian-mode-selector': 'flex',
-  'claudian-permission-toggle': 'flex',
   'claudian-service-tier-toggle': 'flex',
   'claudian-status-panel-bash': 'block',
   'claudian-status-panel-bash-content': 'block',

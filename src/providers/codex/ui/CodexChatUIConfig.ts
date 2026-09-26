@@ -5,11 +5,13 @@ import {
 } from '../../../core/providers/reasoning';
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderServiceTierToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import { OPENAI_PROVIDER_ICON } from '../../../shared/icons';
 import { getCodexModelOptions } from '../modelOptions';
 import {
@@ -40,9 +42,9 @@ const EFFORT_LEVELS: ProviderReasoningOption[] = [
 
 const CODEX_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
-  inactiveLabel: 'Safe',
+  inactiveLabel: t('chat.composer.modeConfiguredSandbox'),
   activeValue: 'yolo',
-  activeLabel: 'YOLO',
+  activeLabel: t('chat.composer.modeFullAccess'),
   planValue: 'plan',
   planLabel: 'Plan',
 };
@@ -169,7 +171,44 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
-    return CODEX_PERMISSION_MODE_TOGGLE;
+    return {
+      ...CODEX_PERMISSION_MODE_TOGGLE,
+      inactiveDescription: t('chat.composer.modeSandboxDescription'),
+      inactiveIcon: 'shield-check',
+      activeDescription: t('chat.composer.modeFullAccessDescription'),
+      activeIcon: 'zap',
+      activeIsDangerous: true,
+      planDescription: t('chat.composer.modePlanGenericDescription'),
+      planIcon: 'clipboard-list',
+    };
+  },
+
+  getPermissionModeOptions(settings: Record<string, unknown>): ProviderPermissionModeOption[] {
+    const safeMode = getCodexProviderSettings(settings).safeMode;
+    return [
+      {
+        value: 'normal',
+        label: safeMode === 'read-only'
+          ? t('chat.composer.modeReadOnly')
+          : t('chat.composer.modeWorkspaceWrite'),
+        description: t('chat.composer.modeSandboxDescription'),
+        icon: 'shield-check',
+      },
+      {
+        value: 'yolo',
+        label: t('chat.composer.modeFullAccess'),
+        description: t('chat.composer.modeFullAccessDescription'),
+        icon: 'zap',
+        isDangerous: true,
+      },
+      {
+        value: 'plan',
+        label: 'Plan',
+        description: t('chat.composer.modePlanGenericDescription'),
+        icon: 'clipboard-list',
+        isPlanMode: true,
+      },
+    ];
   },
 
   getServiceTierToggle(settings): ProviderServiceTierToggleConfig | null {

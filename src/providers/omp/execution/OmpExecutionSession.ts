@@ -27,6 +27,7 @@ import { appendEditorContext } from '@/utils/editor';
 
 import { decodeOmpModelId } from '../models';
 import { createOmpToolStreamAdapter } from '../normalization/ompToolNormalization';
+import type { OmpApprovalMode } from '../runtime/OmpLaunchSpec';
 import { getOmpProviderSettings } from '../settings';
 import {
   DefaultOmpAcpSessionKernel,
@@ -117,6 +118,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
   private readonly blockedToolCallIds = new Set<string>();
   private kernel: OmpAcpSessionKernel | null = null;
+  private kernelApprovalMode: OmpApprovalMode | null = null;
   private nativeSessionId: string | null;
   private activeRun: OmpExecutionRun | null = null;
   private snapshot: ProviderSessionSnapshot;
@@ -167,8 +169,15 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private async startRun(run: OmpExecutionRun, request: ProviderExecutionRequest): Promise<void> {
     this.blockedToolCallIds.clear();
     try {
+      const approvalMode = resolveOmpApprovalMode(request.configuration.permissionMode);
+      if (this.kernel && this.kernelApprovalMode !== approvalMode) {
+        await this.kernel.dispose();
+        this.kernel = null;
+        this.kernelApprovalMode = null;
+      }
       if (!this.kernel) {
         this.kernel = this.createKernel({
+          approvalMode,
           config: this.config,
           getActiveTurnId: () => this.activeRun?.turnId ?? null,
           onClosed: error => {
@@ -182,6 +191,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
           onPermissionDenied: toolCallId => this.blockedToolCallIds.add(toolCallId),
           plugin: this.plugin,
         });
+        this.kernelApprovalMode = approvalMode;
         await this.kernel.connect();
       }
       const native = await this.kernel.openSession(this.nativeSessionId ?? undefined);
@@ -353,4 +363,9 @@ export function buildInitialOmpUsageInfo(model?: string): UsageInfo {
     ...(model ? { model } : {}),
     percentage: 0,
   };
+}
+
+function resolveOmpApprovalMode(value: unknown): OmpApprovalMode {
+  if (value === 'write' || value === 'yolo') return value;
+  return 'always-ask';
 }

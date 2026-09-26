@@ -906,14 +906,15 @@ describe('ProviderSettingsCoordinator', () => {
       expect(settings.serviceTier).toBe('fast');
     });
 
-    it('derives OpenCode permission mode from the managed selected mode when no provider snapshot exists yet', () => {
+    it('projects native OpenCode Build to ordinary execution mode', () => {
       const settings: Record<string, unknown> = {
         settingsProvider: 'claude',
         permissionMode: 'yolo',
         providerConfigs: {
           opencode: {
             enabled: true,
-            selectedMode: 'claudian-safe',
+            availableModes: [{ id: 'build', name: 'Build' }],
+            selectedMode: 'build',
           },
         },
         model: 'haiku',
@@ -955,7 +956,7 @@ describe('ProviderSettingsCoordinator', () => {
 
       ProviderSettingsCoordinator.projectProviderState(settings, 'opencode');
 
-      expect(settings.permissionMode).toBe('yolo');
+      expect(settings.permissionMode).toBe('normal');
     });
   });
 

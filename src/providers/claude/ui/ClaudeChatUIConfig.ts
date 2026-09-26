@@ -1,10 +1,12 @@
 import { DEFAULT_REASONING_VALUE } from '../../../core/providers/reasoning';
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import { CLAUDE_PROVIDER_ICON } from '../../../shared/icons';
 import { getCustomModelIds } from '../env/claudeModelEnv';
 import {
@@ -33,6 +35,36 @@ const CLAUDE_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   planValue: 'plan',
   planLabel: 'PLAN',
 };
+
+function getClaudePermissionModeOptions(): ProviderPermissionModeOption[] {
+  return [
+    {
+      value: 'claude-manual',
+      label: t('chat.composer.modeManual'),
+      description: t('chat.composer.modeManualDescription'),
+      icon: 'hand',
+    },
+    {
+      value: 'claude-edit',
+      label: t('chat.composer.modeAcceptEdits'),
+      description: t('chat.composer.modeEditAutomaticallyDescription'),
+      icon: 'code',
+    },
+    {
+      value: 'plan',
+      label: t('chat.composer.plan'),
+      description: t('chat.composer.modePlanDescription'),
+      icon: 'clipboard-list',
+      isPlanMode: true,
+    },
+    {
+      value: 'claude-auto',
+      label: t('chat.composer.modeAuto'),
+      description: t('chat.composer.modeAutoDescription'),
+      icon: 'zap',
+    },
+  ];
+}
 
 export const claudeChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings) {
@@ -147,6 +179,47 @@ export const claudeChatUIConfig: ProviderChatUIConfig = {
 
   getPermissionModeToggle() {
     return CLAUDE_PERMISSION_MODE_TOGGLE;
+  },
+
+  getPermissionModeOptions() {
+    return getClaudePermissionModeOptions();
+  },
+
+  resolvePermissionModeOption(settings) {
+    if (settings.permissionMode === 'plan') return 'plan';
+    if (settings.permissionMode === 'yolo') return null;
+
+    const safeMode = getClaudeProviderSettings(settings).safeMode;
+    if (safeMode === 'default') return 'claude-manual';
+    if (safeMode === 'auto') return 'claude-auto';
+    return 'claude-edit';
+  },
+
+  applyPermissionMode(value, settings) {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
+
+    const target = settings as Record<string, unknown>;
+    switch (value) {
+      case 'claude-manual':
+        target.permissionMode = 'normal';
+        updateClaudeProviderSettings(target, { safeMode: 'default' });
+        return;
+      case 'claude-edit':
+        target.permissionMode = 'normal';
+        updateClaudeProviderSettings(target, { safeMode: 'acceptEdits' });
+        return;
+      case 'claude-auto':
+        target.permissionMode = 'normal';
+        updateClaudeProviderSettings(target, { safeMode: 'auto' });
+        return;
+      case 'plan':
+        target.permissionMode = 'plan';
+        return;
+      case 'normal':
+      case 'yolo':
+        target.permissionMode = value;
+        return;
+    }
   },
 
   isBangBashEnabled(settings) {

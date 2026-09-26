@@ -440,6 +440,7 @@ export class ProviderSettingsCoordinator {
     const allowedPermissionModes = new Set([
       permissionToggle.inactiveValue,
       permissionToggle.activeValue,
+      ...(permissionToggle.values ?? []),
       ...(permissionToggle.planValue ? [permissionToggle.planValue] : []),
     ]);
     const currentPermissionMode = normalizeToggleValue(settings.permissionMode, allowedPermissionModes);

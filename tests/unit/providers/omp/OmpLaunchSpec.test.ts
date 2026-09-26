@@ -18,7 +18,7 @@ describe('buildOmpLaunchSpec', () => {
     )).toEqual({ PATH: '/usr/bin', OMP_PROFILE: 'omp-work' });
   });
 
-  it('starts OMP in ACP mode with the conversation working directory', () => {
+  it('starts OMP in ACP mode with an explicit safe approval policy', () => {
     const spec = buildOmpLaunchSpec({
       command: '/usr/local/bin/omp',
       cwd: '/vault/project',
@@ -27,12 +27,24 @@ describe('buildOmpLaunchSpec', () => {
     });
 
     expect(spec).toEqual({
-      args: ['acp'],
+      args: ['acp', '--approval-mode', 'always-ask'],
       command: '/usr/local/bin/omp',
       cwd: '/vault/project',
       env: { OMP_PROFILE: 'test', PATH: '/usr/local/bin' },
     });
   });
+
+  it.each(['always-ask', 'write', 'yolo'] as const)(
+    'passes the native %s approval mode to the ACP process',
+    approvalMode => {
+      expect(buildOmpLaunchSpec({
+        approvalMode,
+        command: 'omp',
+        cwd: '/vault/project',
+        settings: DEFAULT_OMP_PROVIDER_SETTINGS,
+      }).args).toEqual(['acp', '--approval-mode', approvalMode]);
+    },
+  );
 
   it('makes Bun available for an absolute OMP executable path', () => {
     const runtimePath = ['/usr/bin', '/bin'].join(path.delimiter);

@@ -408,8 +408,6 @@ async function toggleTabServiceTier(
 }
 
 function refreshTabProviderUI(tab: TabData, plugin: FeatureHost): void {
-  const capabilities = getTabCapabilities(tab, plugin);
-  const permissionMode = getTabPermissionMode(tab, plugin);
   tab.ui.modelSelector?.updateDisplay();
   tab.ui.modelSelector?.renderOptions();
   tab.ui.modeSelector?.updateDisplay();
@@ -417,10 +415,6 @@ function refreshTabProviderUI(tab: TabData, plugin: FeatureHost): void {
   tab.ui.thinkingBudgetSelector?.updateDisplay();
   tab.ui.permissionToggle?.updateDisplay();
   tab.ui.serviceTierToggle?.updateDisplay();
-  tab.dom.inputWrapper.toggleClass(
-    'claudian-input-plan-mode',
-    permissionMode === 'plan' && capabilities.supportsPlanMode,
-  );
 }
 
 /**
@@ -1435,10 +1429,6 @@ function initializeInputToolbar(
         }
       });
       tab.ui.permissionToggle?.updateDisplay();
-      dom.inputWrapper.toggleClass(
-        'claudian-input-plan-mode',
-        mode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
-      );
       onUserModified?.();
     },
   });
@@ -2549,11 +2539,6 @@ export async function updatePlanModeUI(
       }
     }
   } finally {
-    const activeMode = getTabPermissionMode(tab, plugin);
     tab.ui.permissionToggle?.updateDisplay();
-    tab.dom.inputWrapper.toggleClass(
-      'claudian-input-plan-mode',
-      activeMode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
-    );
   }
 }

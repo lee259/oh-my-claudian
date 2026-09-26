@@ -10,7 +10,6 @@ import type {
   ProviderChatUIConfig,
   ProviderId,
   ProviderModeSelectorConfig,
-  ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderServiceTierToggleConfig,
   ProviderUIOption,
@@ -32,7 +31,8 @@ import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path'
 import { toggleServiceTier } from '../actions/toggleServiceTier';
 import type { ComposerContextTray } from './ComposerContextTray';
 import { ExternalContextSelectorView } from './ExternalContextSelectorView';
-import { type InputToolbarSlot,InputToolbarView } from './InputToolbarView';
+import { type InputToolbarSlot, InputToolbarView } from './InputToolbarView';
+import type { PermissionModeMenuOption } from './PermissionModeMenuView';
 
 interface ElectronOpenDialogResult {
   canceled: boolean;
@@ -44,6 +44,8 @@ interface ElectronRemoteApi {
     showOpenDialog(options: { properties: string[]; title: string }): Promise<ElectronOpenDialogResult>;
   };
 }
+
+let nextPermissionModeMenuId = 0;
 
 function runToolbarAction(action: () => Promise<void>, failureMessage: string): void {
   void action().catch(() => {
@@ -95,6 +97,13 @@ export interface ToolbarCallbacks {
   getEnvironmentVariables?: () => string;
   getUIConfig: () => ProviderChatUIConfig;
   getCapabilities: () => ProviderCapabilities;
+}
+
+export interface PermissionModeMenuHandle {
+  updateDisplay: () => void;
+  setVisible: (visible: boolean) => void;
+  canCycle?: () => boolean;
+  cycleMode?: (onSelect?: (mode: string) => void) => boolean;
 }
 
 export class ModelSelector {
@@ -309,7 +318,7 @@ export class ThinkingBudgetSelector {
     }
   };
   private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape') return;
+    if (event.key !== 'Escape' || !this.container.querySelector('.claudian-thinking-gears.is-open')) return;
     this.closeOpenGears();
     event.preventDefault();
     event.stopPropagation();
@@ -493,97 +502,6 @@ export class ThinkingBudgetSelector {
     for (const currentEl of Array.from(this.container.querySelectorAll('.claudian-thinking-current'))) {
       currentEl.setAttribute('aria-expanded', 'false');
     }
-  }
-}
-
-export class PermissionToggle {
-  private container: HTMLElement;
-  private toggleEl: HTMLElement | null = null;
-  private labelEl: HTMLElement | null = null;
-  private callbacks: ToolbarCallbacks;
-  private visible = true;
-
-  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
-    this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-permission-toggle' });
-    this.render();
-  }
-
-  setVisible(visible: boolean): void {
-    this.visible = visible;
-    this.updateDisplay();
-  }
-
-  private render() {
-    this.container.empty();
-
-    this.labelEl = this.container.createSpan({ cls: 'claudian-permission-label' });
-    this.toggleEl = this.container.createDiv({ cls: 'claudian-toggle-switch' });
-
-    this.updateDisplay();
-
-    this.toggleEl.addEventListener('click', () => {
-      runToolbarAction(() => this.toggle(), 'Failed to change permission mode');
-    });
-  }
-
-  private getToggleConfig(): ProviderPermissionModeToggleConfig | null {
-    const uiConfig = this.callbacks.getUIConfig();
-    return uiConfig.getPermissionModeToggle?.() ?? null;
-  }
-
-  updateDisplay() {
-    if (!this.toggleEl || !this.labelEl) return;
-
-    const toggleConfig = this.getToggleConfig();
-    const capabilities = this.callbacks.getCapabilities();
-    if (!this.visible || !toggleConfig) {
-      this.container.addClass('claudian-hidden');
-      return;
-    }
-
-    this.container.removeClass('claudian-hidden');
-    const mode = this.getCurrentMode();
-    const planValue = toggleConfig.planValue;
-    const planLabel = toggleConfig.planLabel ?? 'PLAN';
-    const canShowPlan = Boolean(planValue) && capabilities.supportsPlanMode;
-
-    if (canShowPlan && planValue && mode === planValue) {
-      this.labelEl.setText(planLabel);
-      this.labelEl.addClass('plan-active');
-    } else {
-      this.toggleEl.removeClass('claudian-hidden');
-      this.labelEl.removeClass('plan-active');
-      if (mode === toggleConfig.activeValue) {
-        this.toggleEl.addClass('active');
-        this.labelEl.setText(toggleConfig.activeLabel);
-      } else {
-        this.toggleEl.removeClass('active');
-        this.labelEl.setText(toggleConfig.inactiveLabel);
-      }
-    }
-  }
-
-  private async toggle() {
-    const toggleConfig = this.getToggleConfig();
-    if (!toggleConfig) return;
-
-    const current = this.getCurrentMode();
-    const canCyclePlan = Boolean(toggleConfig.planValue)
-      && this.callbacks.getCapabilities().supportsPlanMode;
-    const newMode = current === toggleConfig.inactiveValue
-      ? toggleConfig.activeValue
-      : current === toggleConfig.activeValue && canCyclePlan
-        ? toggleConfig.planValue!
-        : toggleConfig.inactiveValue;
-    await this.callbacks.onPermissionModeChange(newMode);
-    this.updateDisplay();
-  }
-
-  private getCurrentMode(): string {
-    const settings = this.callbacks.getSettings();
-    return this.callbacks.getUIConfig().resolvePermissionMode?.(settings)
-      ?? settings.permissionMode;
   }
 }
 
@@ -1584,7 +1502,7 @@ export function createInputToolbar(
   layoutController: InputToolbarLayoutController;
   externalContextSelector: ExternalContextSelector;
   mcpServerSelector: McpServerSelector;
-  permissionToggle: PermissionToggle;
+  permissionToggle: PermissionModeMenuHandle;
   serviceTierToggle: ServiceTierToggle;
   contextActionsMenu: ContextActionsMenu;
   refreshLocale: () => void;
@@ -1594,18 +1512,59 @@ export function createInputToolbar(
   const root: PreactRoot = createPreactRoot(parentEl);
   const contextActionsMenu = new ContextActionsMenu();
   const slots = new Map<InputToolbarSlot, HTMLElement>();
+  const modeMenuId = `claudian-permission-mode-menu-${++nextPermissionModeMenuId}`;
   let externalContextSelector: ExternalContextSelector | null = null;
+  let permissionModeMenuVisible = true;
+  let permissionModeMenuOpen = false;
+  let currentModeOptions: PermissionModeMenuOption[] = [];
+  let currentSelectedMode = '';
+  const selectPermissionMode = (mode: string): void => runToolbarAction(async () => {
+    currentSelectedMode = mode;
+    try {
+      await callbacks.onPermissionModeChange(mode);
+    } finally {
+      render();
+    }
+  }, 'Failed to change permission mode');
+
   const render = (): void => {
+    const settings = callbacks.getSettings();
+    const uiConfig = callbacks.getUIConfig();
+    const providerModeOptions = uiConfig.getPermissionModeOptions?.(settings);
+    const modeOptions: PermissionModeMenuOption[] = (providerModeOptions ?? []).filter(option => (
+      !option.isPlanMode || callbacks.getCapabilities().supportsPlanMode
+    ));
+    const resolvedMode = uiConfig.resolvePermissionModeOption?.(settings)
+      ?? uiConfig.resolvePermissionMode?.(settings)
+      ?? settings.permissionMode;
+    const selectedMode = modeOptions.some(option => option.value === resolvedMode)
+      ? resolvedMode
+      : '';
+    currentModeOptions = modeOptions;
+    currentSelectedMode = selectedMode;
+
     root.render(h(InputToolbarView, {
       addContextLabel: t('chat.composer.addContext'),
       menuId: contextActionsMenu.id,
-          menuOpen: contextActionsMenu.open,
-          mcpLabel: t('settings.mcpServers.name'),
-          onAddContext: () => {
-            contextActionsMenu.toggle();
-            callbacks.onAddContext?.();
-          },
-          onMenuToggle: () => contextActionsMenu.toggle(),
+      menuOpen: contextActionsMenu.open,
+      mcpLabel: t('settings.mcpServers.name'),
+      modeMenuId,
+      modeMenuLabel: t('chat.composer.modes'),
+      modeMenuOpen: permissionModeMenuOpen,
+      modeOptions,
+      selectedMode,
+      modeMenuVisible: permissionModeMenuVisible && modeOptions.length > 0,
+      onAddContext: () => {
+        contextActionsMenu.toggle();
+        callbacks.onAddContext?.();
+      },
+      onMenuToggle: () => contextActionsMenu.toggle(),
+      onModeMenuOpenChange: (open: boolean) => {
+        if (permissionModeMenuOpen === open) return;
+        permissionModeMenuOpen = open;
+        render();
+      },
+      onPermissionModeChange: selectPermissionMode,
       onSlot: (slot, element) => {
         if (element) slots.set(slot, element);
         else slots.delete(slot);
@@ -1630,12 +1589,33 @@ export function createInputToolbar(
     },
   );
   const mcpServerSelector = new McpServerSelector(getSlot('context-mcp'));
-  const modelSelector = new ModelSelector(getSlot('config'), callbacks);
-  const thinkingBudgetSelector = new ThinkingBudgetSelector(getSlot('config'), callbacks);
-  const serviceTierToggle = new ServiceTierToggle(getSlot('config'), callbacks);
+  const modelSelector = new ModelSelector(getSlot('model'), callbacks);
+  const thinkingBudgetSelector = new ThinkingBudgetSelector(getSlot('reasoning'), callbacks);
+  const serviceTierToggle = new ServiceTierToggle(getSlot('service-tier'), callbacks);
   const contextUsageMeter = new ContextUsageMeter(getSlot('status'));
-  const permissionToggle = new PermissionToggle(getSlot('execution'), callbacks);
-  const modeSelector = new ModeSelector(getSlot('execution'), callbacks);
+  const permissionToggle: PermissionModeMenuHandle = {
+    updateDisplay: render,
+    canCycle: () => currentModeOptions.length > 1,
+    cycleMode: (onSelect) => {
+      if (currentModeOptions.length < 2) return false;
+      const currentIndex = currentModeOptions.findIndex(
+        option => option.value === currentSelectedMode,
+      );
+      const nextIndex = currentIndex < 0 || currentIndex === currentModeOptions.length - 1
+        ? 0
+        : currentIndex + 1;
+      const nextMode = currentModeOptions[nextIndex].value;
+      currentSelectedMode = nextMode;
+      (onSelect ?? selectPermissionMode)(nextMode);
+      return true;
+    },
+    setVisible: (visible) => {
+      permissionModeMenuVisible = visible;
+      if (!visible) permissionModeMenuOpen = false;
+      render();
+    },
+  };
+  const modeSelector = new ModeSelector(getSlot('provider-mode'), callbacks);
   const layoutController = new InputToolbarLayoutController(parentEl);
   const refreshLocale = (): void => {
     render();

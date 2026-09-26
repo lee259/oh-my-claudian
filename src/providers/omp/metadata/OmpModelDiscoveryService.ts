@@ -72,6 +72,7 @@ export class OmpModelDiscoveryService {
   async discoverCatalog(signal?: AbortSignal): Promise<OmpModelCatalog> {
     signal?.throwIfAborted();
     const kernel = this.createKernel({
+      approvalMode: 'always-ask',
       config: getMetadataSessionConfig(this.plugin),
       getActiveTurnId: () => null,
       onClosed: () => undefined,

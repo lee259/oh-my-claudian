@@ -11,8 +11,6 @@ import { expandHomePath } from '../../../utils/path';
 import {
   OPENCODE_BUILD_MODE_ID,
   OPENCODE_PLAN_MODE_ID,
-  OPENCODE_SAFE_MODE_ID,
-  OPENCODE_YOLO_MODE_ID,
 } from '../modes';
 import { resolveOpencodeDatabasePath } from './OpencodePaths';
 
@@ -45,28 +43,6 @@ export type OpencodeSystemPrompt =
 
 const DEFAULT_OPENCODE_MANAGED_AGENT_CONFIGS: readonly OpencodeManagedAgentConfig[] = [
   { id: OPENCODE_BUILD_MODE_ID },
-  {
-    definition: {
-      mode: 'primary',
-      permission: {
-        plan_enter: 'allow',
-        question: 'allow',
-      },
-    },
-    id: OPENCODE_YOLO_MODE_ID,
-  },
-  {
-    definition: {
-      mode: 'primary',
-      permission: {
-        plan_enter: 'allow',
-        question: 'allow',
-        bash: 'ask',
-        edit: 'ask',
-      },
-    },
-    id: OPENCODE_SAFE_MODE_ID,
-  },
   { id: OPENCODE_PLAN_MODE_ID },
 ];
 

@@ -31,7 +31,10 @@ export interface OpencodeMetadataWarmResult
 
 export interface OpencodeMetadataProbe {
   dispose(): Promise<void>;
-  loadCatalog(signal?: AbortSignal): Promise<OpencodeMetadataCatalogResult>;
+  loadCatalog(
+    signal?: AbortSignal,
+    onMetadata?: (metadata: OpencodeMetadataProjectionInput) => Promise<void>,
+  ): Promise<OpencodeMetadataCatalogResult>;
   warmModel(
     rawModelId: string,
     signal?: AbortSignal,
@@ -77,9 +80,7 @@ export class OpencodeMetadataService {
   async loadCatalog(signal?: AbortSignal): Promise<boolean> {
     const result = await this.runProbe(
       async (probe, ownedSignal) => {
-        const catalog = await probe.loadCatalog(ownedSignal);
-        ownedSignal.throwIfAborted();
-        await projectOpencodeMetadata(this.plugin, catalog);
+        const catalog = await this.loadCatalogWithMetadata(probe, ownedSignal);
         ownedSignal.throwIfAborted();
         this.options.commandCatalog?.setCommandSnapshot(
           catalog.commands.map((command) => ({ ...command })),
@@ -101,9 +102,7 @@ export class OpencodeMetadataService {
   ): Promise<{ commands: SlashCommand[]; loaded: boolean }> {
     const result = await this.runProbe(
       async (probe, ownedSignal) => {
-        const catalog = await probe.loadCatalog(ownedSignal);
-        ownedSignal.throwIfAborted();
-        await projectOpencodeMetadata(this.plugin, catalog);
+        const catalog = await this.loadCatalogWithMetadata(probe, ownedSignal);
         ownedSignal.throwIfAborted();
         const commands = catalog.commands.map((command) => ({ ...command }));
         this.options.commandCatalog?.setCommandSnapshot(commands);
@@ -173,6 +172,22 @@ export class OpencodeMetadataService {
     }
   }
 
+  private async loadCatalogWithMetadata(
+    probe: OpencodeMetadataProbe,
+    signal: AbortSignal,
+  ): Promise<OpencodeMetadataCatalogResult> {
+    let projectedEarly = false;
+    const catalog = await probe.loadCatalog(signal, async metadata => {
+      await projectOpencodeMetadata(this.plugin, metadata);
+      projectedEarly = true;
+    });
+    signal.throwIfAborted();
+    if (!projectedEarly) {
+      await projectOpencodeMetadata(this.plugin, catalog);
+    }
+    return catalog;
+  }
+
   private beginTransition(): void {
     this.transitionFence.beginTransition();
   }
@@ -195,8 +210,17 @@ class DefaultOpencodeMetadataProbe implements OpencodeMetadataProbe {
 
   constructor(private readonly plugin: ProviderHost) {}
 
-  async loadCatalog(signal?: AbortSignal): Promise<OpencodeMetadataCatalogResult> {
+  async loadCatalog(
+    signal?: AbortSignal,
+    onMetadata?: (metadata: OpencodeMetadataProjectionInput) => Promise<void>,
+  ): Promise<OpencodeMetadataCatalogResult> {
     const native = await this.ensureOpen(signal);
+    await onMetadata?.({
+      configOptions: native.configOptions,
+      models: native.models,
+      modes: native.modes,
+    });
+    signal?.throwIfAborted();
     if (!this.commands) {
       await waitForCommands(
         () => this.commands !== null,

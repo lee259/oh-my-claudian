@@ -23,10 +23,12 @@ import {
   type AcpWriteTextFileRequest,
 } from '@/providers/acp';
 
+import type { OmpApprovalMode } from '../runtime/OmpLaunchSpec';
 import { buildOmpEnvironment, buildOmpLaunchSpec } from '../runtime/OmpLaunchSpec';
 import { getOmpProviderSettings } from '../settings';
 
 export interface OmpAcpSessionKernelOptions {
+  readonly approvalMode: OmpApprovalMode;
   readonly config: ProviderSessionConfig;
   readonly getActiveTurnId: () => string | null;
   readonly onClosed: (error: Error) => void;
@@ -72,6 +74,7 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
     const command = await this.options.plugin.getResolvedProviderCliPath('omp') ?? 'omp';
     const settings = getOmpProviderSettings(this.options.plugin.settings);
     const spec = buildOmpLaunchSpec({
+      approvalMode: this.options.approvalMode,
       command,
       cwd: this.options.config.vaultWorkingDirectory,
       env: buildOmpEnvironment(

@@ -31,7 +31,7 @@
 - `prepareOpencodeLaunchArtifacts()` writes managed config and system prompt files under `.claudian/opencode/`.
 - Preserve user OpenCode config by loading `OPENCODE_CONFIG` and layering Claudian-managed agent config over it.
 - Runtime fingerprint changes invalidate OpenCode sessions. The fingerprint includes `OPENCODE_CONFIG`, `OPENCODE_DB`, `OPENCODE_DISABLE_PROJECT_CONFIG`, `XDG_DATA_HOME`, `PATH`, and explicit/host CLI-path inputs.
-- OpenCode mode IDs map to shared permission modes. Keep this mapping in `modes.ts`, not feature code.
+- The composer lists only modes advertised by the active ACP session and persists their native IDs. Project those IDs into generic execution policy only at the provider boundary (`plan` versus ordinary execution); never synthesize Claudian Safe/YOLO modes or treat arbitrary custom-agent names as permission guarantees.
 
 ## Commands and Agents
 
