@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Setting } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 
 import { assessProviderReadiness } from '../../../core/providers/ProviderReadiness';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
@@ -37,6 +37,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const claudeWorkspace = getClaudeWorkspaceServices();
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const claudeSettings = getClaudeProviderSettings(settingsBag);
+    let refreshDefaultModelOptions = (): void => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'Claude',
@@ -60,6 +61,11 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         if (typeof context.plugin.getResolvedProviderCliPath === 'function') {
           await context.plugin.getResolvedProviderCliPath('claude');
         }
+        const modelCatalogResult = await claudeWorkspace.refreshModelCatalog?.();
+        if (modelCatalogResult?.diagnostics) {
+          new Notice(`Claude model refresh failed: ${modelCatalogResult.diagnostics}`);
+        }
+        refreshDefaultModelOptions();
         context.notifyProviderModelOptionsChanged('claude');
       },
     });
@@ -178,11 +184,16 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setName('Default model')
       .setDesc('Used when a new conversation needs a Claude fallback model.')
       .addDropdown((dropdown) => {
-        for (const option of getClaudeModelOptions(settingsBag)) {
-          dropdown.addOption(option.value, option.label);
-        }
+        const populateOptions = (): void => {
+          dropdown.selectEl.replaceChildren();
+          for (const option of getClaudeModelOptions(settingsBag)) {
+            dropdown.addOption(option.value, option.label);
+          }
+          dropdown.setValue(claudeChatUIConfig.getDefaultModel?.(settingsBag) ?? '');
+        };
+        refreshDefaultModelOptions = populateOptions;
+        populateOptions();
         dropdown
-          .setValue(claudeChatUIConfig.getDefaultModel?.(settingsBag) ?? '')
           .onChange(async (value) => {
             await context.plugin.mutateSettings((settings) => {
               const preference = resolveClaudeModelEnvironmentTypePreference(
