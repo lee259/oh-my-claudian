@@ -6,11 +6,11 @@ import {
 import { getOpencodeProviderSettings } from '@/providers/opencode/settings';
 
 function createPlugin(): any {
-  return {
+  const instance: any = {
     executionLifecycleRegistry: {
       registerTransitionHook: jest.fn(() => jest.fn()),
     },
-    mutateSettings: jest.fn(async (mutation) => mutation(plugin.settings)),
+    mutateSettings: jest.fn(async (mutation) => mutation(instance.settings)),
     notifyProviderChatOptionsChanged: jest.fn(),
     settings: {
       providerConfigs: {
@@ -21,6 +21,7 @@ function createPlugin(): any {
       },
     },
   };
+  return instance;
 }
 
 const plugin = createPlugin();
@@ -58,6 +59,44 @@ function createProbe(overrides: Partial<OpencodeMetadataProbe> = {}): OpencodeMe
 }
 
 describe('OpencodeMetadataService', () => {
+  it('publishes native modes before waiting for command discovery to finish', async () => {
+    let finishCatalog!: (catalog: Awaited<ReturnType<OpencodeMetadataProbe['loadCatalog']>>) => void;
+    let resolveProjected!: () => void;
+    const projected = new Promise<void>(resolve => { resolveProjected = resolve; });
+    const probe = createProbe({
+      loadCatalog: jest.fn(async (_signal, onMetadata) => {
+        await onMetadata?.({
+          modes: {
+            availableModes: [
+              { id: 'build', name: 'Build' },
+              { id: 'plan', name: 'Plan' },
+            ],
+            currentModeId: 'build',
+          },
+        });
+        resolveProjected();
+        return await new Promise(resolve => { finishCatalog = resolve; });
+      }),
+    });
+    const metadataPlugin = createPlugin();
+    const service = new OpencodeMetadataService(metadataPlugin, {
+      createProbe: () => probe,
+    });
+
+    const loading = service.loadCatalog();
+    await projected;
+
+    expect(getOpencodeProviderSettings(metadataPlugin.settings).availableModes).toEqual([
+      { id: 'build', name: 'Build' },
+      { id: 'plan', name: 'Plan' },
+    ]);
+    expect(metadataPlugin.notifyProviderChatOptionsChanged).toHaveBeenCalledWith('opencode');
+
+    finishCatalog({ commands: [], modes: { availableModes: [], currentModeId: '' } });
+    await expect(loading).resolves.toBe(true);
+    await service.dispose();
+  });
+
   it('uses an isolated probe, publishes commands, and persists discovered models', async () => {
     const probe = createProbe();
     const commandCatalog = { setCommandSnapshot: jest.fn() };

@@ -786,7 +786,7 @@ describe('Tab provider execution ownership', () => {
 
     expect(plugin.settings.permissionMode).toBe('plan');
     expect(tab.state.prePlanPermissionMode).toBe('yolo');
-    expect(tab.dom.inputWrapper.hasClass('claudian-input-plan-mode')).toBe(true);
+    expect(tab.dom.inputWrapper.hasClass('claudian-input-plan-mode')).toBe(false);
     expect(handleExecutionEvent).not.toHaveBeenCalled();
 
     await coordinatorDeps[0].interactionPort.requestPlanDecision({

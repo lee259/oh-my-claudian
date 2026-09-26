@@ -31,7 +31,7 @@ import type {
   McpServerSelector,
   ModelSelector,
   ModeSelector,
-  PermissionToggle,
+  PermissionModeMenuHandle,
   ServiceTierToggle,
   ThinkingBudgetSelector,
 } from '../ui/InputToolbar';
@@ -149,7 +149,7 @@ export interface TabUIComponents {
   thinkingBudgetSelector: ThinkingBudgetSelector | null;
   externalContextSelector: ExternalContextSelector | null;
   mcpServerSelector: McpServerSelector | null;
-  permissionToggle: PermissionToggle | null;
+  permissionToggle: PermissionModeMenuHandle | null;
   serviceTierToggle: ServiceTierToggle | null;
   refreshComposerLocale: (() => void) | null;
   slashCommandDropdown: SlashCommandDropdown | null;

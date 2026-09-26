@@ -20,8 +20,11 @@ export interface BuildOmpLaunchSpecParams {
   command: string;
   cwd: string;
   env?: NodeJS.ProcessEnv;
+  approvalMode?: OmpApprovalMode;
   settings: OmpProviderSettings;
 }
+
+export type OmpApprovalMode = 'always-ask' | 'write' | 'yolo';
 
 export interface OmpLaunchSpec {
   args: string[];
@@ -32,7 +35,7 @@ export interface OmpLaunchSpec {
 
 export function buildOmpLaunchSpec(params: BuildOmpLaunchSpecParams): OmpLaunchSpec {
   return {
-    args: ['acp'],
+    args: ['acp', '--approval-mode', params.approvalMode ?? 'always-ask'],
     command: params.command,
     cwd: params.cwd,
     env: withCommandDirectoryOnPath(params.command, params.env ?? process.env),

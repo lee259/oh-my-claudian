@@ -204,7 +204,6 @@ export class ClaudianView extends ItemView {
       );
       const model = providerSettings.model;
       const uiConfig = ProviderRegistry.getChatUIConfig(providerId);
-      const capabilities = ProviderRegistry.getCapabilities(providerId);
       const contextWindow = uiConfig.getContextWindowSize(
         model,
         providerSettings.customContextLimits,
@@ -231,10 +230,6 @@ export class ClaudianView extends ItemView {
       tab.ui.thinkingBudgetSelector?.updateDisplay();
       tab.ui.permissionToggle?.updateDisplay();
       tab.ui.serviceTierToggle?.updateDisplay();
-      tab.dom.inputWrapper.toggleClass(
-        'claudian-input-plan-mode',
-        providerSettings.permissionMode === 'plan' && capabilities.supportsPlanMode,
-      );
     }
 
     if (!changedProviderId) {
@@ -2079,47 +2074,36 @@ export class ClaudianView extends ItemView {
       this.historyDropdown?.removeClass('visible');
     });
 
-    // View-level Shift+Tab to toggle plan mode (works from any focused element)
+    // View-level Shift+Tab cycles the active provider's permission modes.
     this.registerDomEvent(this.containerEl, 'keydown', (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.shiftKey && !e.isComposing) {
-        e.preventDefault();
         const activeTab = this.tabManager?.getActiveTab();
         if (!activeTab) return;
-        const providerId = getTabProviderId(activeTab, this.plugin);
-        if (!ProviderRegistry.getCapabilities(providerId).supportsPlanMode) return;
+        const permissionToggle = activeTab.ui.permissionToggle;
+        if (!permissionToggle?.canCycle?.()) return;
         commitProvisionalTab(activeTab);
-        const current = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-          this.plugin.settings,
-          providerId,
-        ).permissionMode as string;
-        if (current === 'plan') {
-          const restoreMode = activeTab.state.prePlanPermissionMode ?? 'normal';
-          void updatePlanModeUI(activeTab, this.plugin, restoreMode, { syncExecution: true })
-            .finally(() => {
+        if (permissionToggle.cycleMode?.((mode) => {
+          const providerId = getTabProviderId(activeTab, this.plugin);
+          const currentMode = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+            this.plugin.settings,
+            providerId,
+          ).permissionMode as string;
+          if (mode === 'plan' && currentMode !== 'plan') {
+            activeTab.state.prePlanPermissionMode = currentMode;
+          }
+          void updatePlanModeUI(activeTab, this.plugin, mode, { syncExecution: true })
+            .then(() => {
+              if (mode !== 'plan') activeTab.state.prePlanPermissionMode = null;
+            })
+            .catch((error: unknown) => {
               const activeMode = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
                 this.plugin.settings,
                 providerId,
               ).permissionMode;
-              if (activeMode !== 'plan') {
-                activeTab.state.prePlanPermissionMode = null;
-              }
-            })
-            .catch((error: unknown) => {
+              if (activeMode !== 'plan') activeTab.state.prePlanPermissionMode = null;
               new Notice(error instanceof Error ? error.message : 'Failed to change permission mode.');
             });
-        } else {
-          activeTab.state.prePlanPermissionMode = current;
-          void updatePlanModeUI(activeTab, this.plugin, 'plan', { syncExecution: true }).catch((error: unknown) => {
-            const activeMode = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-              this.plugin.settings,
-              providerId,
-            ).permissionMode;
-            if (activeMode !== 'plan') {
-              activeTab.state.prePlanPermissionMode = null;
-            }
-            new Notice(error instanceof Error ? error.message : 'Failed to change permission mode.');
-          });
-        }
+        })) e.preventDefault();
       }
     });
 

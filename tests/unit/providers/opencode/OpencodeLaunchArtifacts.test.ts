@@ -3,38 +3,16 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
-  OPENCODE_SAFE_MODE_ID,
-  OPENCODE_YOLO_MODE_ID,
-} from '../../../../src/providers/opencode/modes';
-import {
   buildOpencodeManagedConfig,
   prepareOpencodeLaunchArtifacts,
 } from '../../../../src/providers/opencode/runtime/OpencodeLaunchArtifacts';
 
 describe('buildOpencodeManagedConfig', () => {
-  it('pins OpenCode build, YOLO, safe, and plan prompts to the managed prompt file', () => {
+  it('adds prompts only to OpenCode native primary modes', () => {
     expect(buildOpencodeManagedConfig({}, '/vault/.claudian/opencode/system.md', 'Yishen')).toEqual({
       $schema: 'https://opencode.ai/config.json',
       agent: {
         build: {
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
-        },
-        [OPENCODE_YOLO_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            plan_enter: 'allow',
-            question: 'allow',
-          },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
-        },
-        [OPENCODE_SAFE_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            bash: 'ask',
-            edit: 'ask',
-            plan_enter: 'allow',
-            question: 'allow',
-          },
           prompt: '{file:/vault/.claudian/opencode/system.md}',
         },
         plan: {
@@ -82,22 +60,6 @@ describe('buildOpencodeManagedConfig', () => {
       $schema: 'https://opencode.ai/config.json',
       agent: {
         build: {},
-        [OPENCODE_YOLO_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            plan_enter: 'allow',
-            question: 'allow',
-          },
-        },
-        [OPENCODE_SAFE_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            bash: 'ask',
-            edit: 'ask',
-            plan_enter: 'allow',
-            question: 'allow',
-          },
-        },
         plan: {},
       },
     });
@@ -129,24 +91,6 @@ describe('buildOpencodeManagedConfig', () => {
           permission: {
             bash: 'ask',
             edit: 'ask',
-          },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
-        },
-        [OPENCODE_YOLO_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            plan_enter: 'allow',
-            question: 'allow',
-          },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
-        },
-        [OPENCODE_SAFE_MODE_ID]: {
-          mode: 'primary',
-          permission: {
-            bash: 'ask',
-            edit: 'ask',
-            plan_enter: 'allow',
-            question: 'allow',
           },
           prompt: '{file:/vault/.claudian/opencode/system.md}',
         },
@@ -217,24 +161,6 @@ describe('prepareOpencodeLaunchArtifacts', () => {
     expect(generatedConfig.agent).toMatchObject({
       build: {
         model: 'openai/gpt-5',
-        prompt: `{file:${result.systemPromptPath}}`,
-      },
-      [OPENCODE_YOLO_MODE_ID]: {
-        mode: 'primary',
-        permission: {
-          plan_enter: 'allow',
-          question: 'allow',
-        },
-        prompt: `{file:${result.systemPromptPath}}`,
-      },
-      [OPENCODE_SAFE_MODE_ID]: {
-        mode: 'primary',
-        permission: {
-          bash: 'ask',
-          edit: 'ask',
-          plan_enter: 'allow',
-          question: 'allow',
-        },
         prompt: `{file:${result.systemPromptPath}}`,
       },
       plan: {

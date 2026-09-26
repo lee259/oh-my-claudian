@@ -20,6 +20,7 @@ import {
   type AcpSessionNotification,
   type AcpUsageUpdate,
   buildAcpUsageInfo,
+  extractAcpSessionModeState,
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 
@@ -32,7 +33,6 @@ import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection'
 import { decodeOpencodeModelId } from '../models';
 import {
   resolveOpencodeModeForPermissionMode,
-  resolvePermissionModeForManagedOpencodeMode,
 } from '../modes';
 import { createOpencodeToolStreamAdapter } from '../normalization/opencodeToolNormalization';
 import { buildOpencodePromptBlocks } from '../runtime/buildOpencodePrompt';
@@ -441,13 +441,13 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         ...(result.metadata.type === 'config_options'
           ? { configOptions: result.metadata.configOptions }
           : {}),
+        ...(result.metadata.type === 'current_mode'
+          ? { currentModeId: result.metadata.currentModeId }
+          : {}),
       });
     }
     if (result.metadata?.type === 'current_mode') {
-      const mode = resolvePermissionModeForManagedOpencodeMode(
-        result.metadata.currentModeId,
-      );
-      if (mode) this.emitSessionMode(mode);
+      if (result.metadata.currentModeId === 'plan') this.emitSessionMode('plan');
     }
     if (
       acceptingLiveOutput
@@ -547,10 +547,18 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
       ? 'claudian-execution-passive'
       : profile === 'readonly'
         ? 'claudian-execution-readonly'
-        : request.configuration.mode
+        : resolveSelectedNativeMode(
+          request,
+          native,
+          getOpencodeProviderSettings(this.plugin.settings),
+        )
+          ?? request.configuration.mode
           ?? resolveOpencodeModeForPermissionMode(
             request.configuration.permissionMode,
-            getOpencodeProviderSettings(this.plugin.settings).availableModes,
+            extractAcpSessionModeState({
+              configOptions,
+              modes: native.modes,
+            }).availableModes,
           );
     if (mode) {
       await kernel.setConfigOption({
@@ -844,6 +852,21 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
     }
     return Object.freeze({ ...base, status });
   }
+}
+
+function resolveSelectedNativeMode(
+  request: ProviderExecutionRequest,
+  native: OpencodeNativeSessionInfo,
+  settings: ReturnType<typeof getOpencodeProviderSettings>,
+): string | null {
+  const availableModes = extractAcpSessionModeState({
+    configOptions: native.configOptions,
+    modes: native.modes,
+  }).availableModes;
+  const preferred = settings.selectedMode;
+  if (availableModes.some(mode => mode.id === preferred)) return preferred;
+  const requested = request.configuration.mode;
+  return requested && availableModes.some(mode => mode.id === requested) ? requested : null;
 }
 
 function resolveProfile(request: ProviderExecutionRequest): OpencodeExecutionProfile {

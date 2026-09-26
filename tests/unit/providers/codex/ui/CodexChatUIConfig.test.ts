@@ -615,15 +615,40 @@ describe('CodexChatUIConfig', () => {
   });
 
   describe('getPermissionModeToggle', () => {
+    it('declares Codex supported permission modes and their caution states', () => {
+      const options = codexChatUIConfig.getPermissionModeOptions?.({});
+      expect(options?.map(({ value, label, isPlanMode, isDangerous }) => ({
+        value,
+        label,
+        isPlanMode: isPlanMode ?? false,
+        isDangerous: isDangerous ?? false,
+      }))).toEqual([
+        { value: 'normal', label: 'Workspace write', isPlanMode: false, isDangerous: false },
+        { value: 'yolo', label: 'Full access', isPlanMode: false, isDangerous: true },
+        { value: 'plan', label: 'Plan', isPlanMode: true, isDangerous: false },
+      ]);
+      expect(options?.every(option => option.description && option.icon)).toBe(true);
+      expect(codexChatUIConfig.getPermissionModeOptions?.({
+        providerConfigs: { codex: { safeMode: 'read-only' } },
+      })?.[0]?.label).toBe('Read only');
+    });
+
     it('should return yolo/safe toggle config with plan mode', () => {
       const toggle = codexChatUIConfig.getPermissionModeToggle!();
       expect(toggle).toEqual({
         inactiveValue: 'normal',
-        inactiveLabel: 'Safe',
+        inactiveLabel: 'Configured sandbox',
+        inactiveDescription: 'Use the configured sandbox and request approval when needed.',
+        inactiveIcon: 'shield-check',
         activeValue: 'yolo',
-        activeLabel: 'YOLO',
+        activeLabel: 'Full access',
+        activeDescription: 'Run with full access without approval. Use with care.',
+        activeIcon: 'zap',
+        activeIsDangerous: true,
         planValue: 'plan',
         planLabel: 'Plan',
+        planDescription: 'Explore the workspace and prepare a plan before editing.',
+        planIcon: 'clipboard-list',
       });
     });
   });

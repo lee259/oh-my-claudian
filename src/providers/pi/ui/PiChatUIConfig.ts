@@ -1,10 +1,12 @@
 import { formatReasoningValueLabel } from '../../../core/providers/reasoning';
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import { PI_PROVIDER_ICON } from '../../../shared/icons';
 import {
   clampPiThinkingLevel,
@@ -24,9 +26,9 @@ const DEFAULT_PI_REASONING_LEVELS = getPiSupportedThinkingLevels({ reasoning: tr
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 const PI_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
-  inactiveLabel: 'Read-only',
+  inactiveLabel: t('chat.composer.modeReadOnly'),
   activeValue: 'yolo',
-  activeLabel: 'All tools',
+  activeLabel: t('chat.composer.modeAllTools'),
 };
 
 export const piChatUIConfig: ProviderChatUIConfig = {
@@ -144,7 +146,32 @@ export const piChatUIConfig: ProviderChatUIConfig = {
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
-    return PI_PERMISSION_MODE_TOGGLE;
+    return {
+      ...PI_PERMISSION_MODE_TOGGLE,
+      inactiveDescription: t('chat.composer.modeReadOnlyDescription'),
+      inactiveIcon: 'eye',
+      activeDescription: t('chat.composer.modeAllToolsDescription'),
+      activeIcon: 'wrench',
+      activeIsDangerous: true,
+    };
+  },
+
+  getPermissionModeOptions(): ProviderPermissionModeOption[] {
+    return [
+      {
+        value: 'normal',
+        label: t('chat.composer.modeReadOnly'),
+        description: t('chat.composer.modeReadOnlyDescription'),
+        icon: 'eye',
+      },
+      {
+        value: 'yolo',
+        label: t('chat.composer.modeAllTools'),
+        description: t('chat.composer.modeAllToolsDescription'),
+        icon: 'wrench',
+        isDangerous: true,
+      },
+    ];
   },
 
   resolvePermissionMode(settings: Record<string, unknown>): string | null {

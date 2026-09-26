@@ -349,14 +349,32 @@ describe('GrokChatUIConfig', () => {
     expect(grokChatUIConfig.normalizeModelVariant('claude', settings)).toBe('claude');
   });
 
-  it('exposes Plan as an overlay on the remembered Safe or YOLO base mode', () => {
+  it('exposes xAI Ask, Plan, and Always approve semantics', () => {
+    expect(grokChatUIConfig.getPermissionModeOptions?.({}).map((option) => ({
+      value: option.value,
+      label: option.label,
+      isPlanMode: option.isPlanMode ?? false,
+      isDangerous: option.isDangerous ?? false,
+    }))).toEqual([
+      { value: 'normal', label: 'Ask', isPlanMode: false, isDangerous: false },
+      { value: 'plan', label: 'Plan', isPlanMode: true, isDangerous: false },
+      { value: 'yolo', label: 'Always approve', isPlanMode: false, isDangerous: true },
+    ]);
+
     expect(grokChatUIConfig.getPermissionModeToggle?.()).toEqual({
-      activeLabel: 'YOLO',
+      activeLabel: 'Always approve',
       activeValue: 'yolo',
-      inactiveLabel: 'Safe',
+      activeDescription: 'Automatically approve actions without asking.',
+      activeIcon: 'zap',
+      activeIsDangerous: true,
+      inactiveLabel: 'Ask',
       inactiveValue: 'normal',
-      planLabel: 'PLAN',
+      inactiveDescription: 'Grok asks before taking actions.',
+      inactiveIcon: 'hand',
+      planLabel: 'Plan',
       planValue: 'plan',
+      planDescription: 'Explore the workspace and prepare a plan before editing.',
+      planIcon: 'clipboard-list',
     });
     expect(grokChatUIConfig.getModeSelector?.({})).toBeNull();
 

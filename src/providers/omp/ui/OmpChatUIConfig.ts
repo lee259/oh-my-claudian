@@ -1,5 +1,6 @@
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
@@ -48,17 +49,46 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
   normalizeModelVariant: model => model,
   getCustomModelIds: () => new Set<string>(),
   getPermissionModeToggle: (): ProviderPermissionModeToggleConfig => ({
-    inactiveValue: 'normal',
-    inactiveLabel: t('settings.omp.safe'),
+    inactiveValue: 'always-ask',
+    inactiveLabel: t('settings.omp.alwaysAsk'),
+    inactiveDescription: t('chat.composer.modeApprovalDescription'),
+    inactiveIcon: 'hand',
     activeValue: 'yolo',
     activeLabel: t('settings.omp.yolo'),
+    activeDescription: t('chat.composer.modeFullAccessDescription'),
+    activeIcon: 'zap',
+    activeIsDangerous: true,
+    values: ['always-ask', 'write', 'yolo'],
   }),
+  getPermissionModeOptions: (): ProviderPermissionModeOption[] => ([
+    {
+      value: 'always-ask',
+      label: t('settings.omp.alwaysAsk'),
+      description: t('chat.composer.modeApprovalDescription'),
+      icon: 'hand',
+    },
+    {
+      value: 'write',
+      label: t('settings.omp.write'),
+      description: t('chat.composer.modeWriteApprovalDescription'),
+      icon: 'file-pen-line',
+    },
+    {
+      value: 'yolo',
+      label: t('settings.omp.yolo'),
+      description: t('chat.composer.modeFullAccessDescription'),
+      icon: 'zap',
+      isDangerous: true,
+    },
+  ]),
   resolvePermissionMode(settings) {
-    return settings.permissionMode === 'yolo' ? 'yolo' : 'normal';
+    return settings.permissionMode === 'yolo' || settings.permissionMode === 'write'
+      ? settings.permissionMode
+      : 'always-ask';
   },
   applyPermissionMode(value, settings) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
     const target = settings as Record<string, unknown>;
-    target.permissionMode = value === 'yolo' ? 'yolo' : 'normal';
+    target.permissionMode = value === 'yolo' || value === 'write' ? value : 'always-ask';
   },
 };

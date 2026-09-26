@@ -1,7 +1,61 @@
+import { setLocale } from '@/i18n/i18n';
 import { DEFAULT_CLAUDE_PROVIDER_SETTINGS } from '@/providers/claude/settings';
 import { claudeChatUIConfig } from '@/providers/claude/ui/ClaudeChatUIConfig';
 
 describe('claudeChatUIConfig', () => {
+  describe('permission modes', () => {
+    it('exposes Claude modes with names and descriptions that match their behavior', () => {
+      const options = claudeChatUIConfig.getPermissionModeOptions?.({});
+
+      expect(options?.map(({ value, label }) => [value, label])).toEqual([
+        ['claude-manual', 'Manual'],
+        ['claude-edit', 'Accept edits'],
+        ['plan', 'Plan'],
+        ['claude-auto', 'Auto'],
+      ]);
+      expect(options?.every(option => option.description && option.icon)).toBe(true);
+    });
+
+    it('resolves mode labels using the active locale', () => {
+      setLocale('zh-CN');
+      expect(claudeChatUIConfig.getPermissionModeOptions?.({})[1]?.label).toBe('接受编辑');
+      setLocale('en');
+      expect(claudeChatUIConfig.getPermissionModeOptions?.({})[1]?.label).toBe('Accept edits');
+    });
+
+    it.each([
+      [{ permissionMode: 'normal', providerConfigs: { claude: { safeMode: 'default' } } }, 'claude-manual'],
+      [{ permissionMode: 'normal', providerConfigs: { claude: { safeMode: 'acceptEdits' } } }, 'claude-edit'],
+      [{ permissionMode: 'plan', providerConfigs: { claude: { safeMode: 'acceptEdits' } } }, 'plan'],
+      [{ permissionMode: 'normal', providerConfigs: { claude: { safeMode: 'auto' } } }, 'claude-auto'],
+    ])('resolves the selected Claude mode from provider settings', (settings, expected) => {
+      expect(claudeChatUIConfig.resolvePermissionModeOption?.(settings)).toBe(expected);
+    });
+
+    it('does not expose legacy YOLO as a Claude-native mode', () => {
+      expect(claudeChatUIConfig.resolvePermissionModeOption?.({ permissionMode: 'yolo' }))
+        .toBeNull();
+    });
+
+    it.each([
+      ['claude-manual', 'default', 'normal'],
+      ['claude-edit', 'acceptEdits', 'normal'],
+      ['claude-auto', 'auto', 'normal'],
+      ['plan', 'acceptEdits', 'plan'],
+    ])('applies %s without conflating Claude modes', (value, safeMode, permissionMode) => {
+      const settings: Record<string, unknown> = {
+        permissionMode: 'normal',
+        providerConfigs: { claude: { safeMode: 'acceptEdits' } },
+      };
+
+      claudeChatUIConfig.applyPermissionMode?.(value, settings);
+
+      expect((settings.providerConfigs as Record<string, Record<string, unknown>>).claude.safeMode)
+        .toBe(safeMode);
+      expect(settings.permissionMode).toBe(permissionMode);
+    });
+  });
+
   describe('getDefaultModel', () => {
     it('prefers Opus for fresh Claude settings', () => {
       expect(DEFAULT_CLAUDE_PROVIDER_SETTINGS.defaultModel).toBe('opus');

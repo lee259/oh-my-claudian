@@ -250,14 +250,33 @@ export interface ProviderReasoningOption extends ProviderUIOption {
   tokens?: number;
 }
 
-/** Compact permission-mode toggle descriptor for providers that expose the current toolbar control. */
+/** Provider-owned modes used to build the shared menu when no full option list is supplied. */
 export interface ProviderPermissionModeToggleConfig {
+  /** Extra native mode IDs accepted by settings projection beyond the compact toggle values. */
+  values?: string[];
   inactiveValue: string;
   inactiveLabel: string;
+  inactiveDescription?: string;
+  inactiveIcon?: string;
   activeValue: string;
   activeLabel: string;
+  activeDescription?: string;
+  activeIcon?: string;
+  activeIsDangerous?: boolean;
   planValue?: string;
   planLabel?: string;
+  planDescription?: string;
+  planIcon?: string;
+}
+
+/** Provider-owned option rendered in the chat permission-mode menu. */
+export interface ProviderPermissionModeOption extends ProviderUIOption {
+  /** Obsidian/Lucide icon name describing the mode. */
+  icon?: string;
+  /** Marks modes that require the provider's plan-mode capability. */
+  isPlanMode?: boolean;
+  /** Marks modes that bypass permission checks and need stronger visual caution. */
+  isDangerous?: boolean;
 }
 
 /** Compact service-tier toggle descriptor for providers that expose a fast/standard toolbar control. */
@@ -346,6 +365,12 @@ export interface ProviderChatUIConfig {
 
   /** Optional provider-owned mapping back into the shared permission-mode contract. */
   resolvePermissionMode?(settings: Record<string, unknown>): string | null;
+
+  /** Optional provider-owned presentation of the selected chat permission mode. */
+  resolvePermissionModeOption?(settings: Record<string, unknown>): string | null;
+
+  /** Optional provider-owned permission menu options. Omitted options hide the menu; choices are never inferred from the toggle descriptor. */
+  getPermissionModeOptions?(settings: Record<string, unknown>): ProviderPermissionModeOption[];
 
   /** Optional hook when the toolbar changes permission mode. */
   applyPermissionMode?(value: string, settings: unknown): void;

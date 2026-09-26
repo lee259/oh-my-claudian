@@ -13,6 +13,53 @@ async function flush(): Promise<void> {
 }
 
 describe('OmpExecutionSession', () => {
+  it('restarts the ACP process with the selected native approval mode and resumes the same session', async () => {
+    const createdOptions: any[] = [];
+    const firstKernel = {
+      cancel: jest.fn(),
+      connect: jest.fn().mockResolvedValue(undefined),
+      dispose: jest.fn().mockResolvedValue(undefined),
+      openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'omp-session' }),
+      prompt: jest.fn().mockResolvedValue({ userMessageId: 'first' }),
+      setConfigOption: jest.fn().mockResolvedValue(undefined),
+      setModel: jest.fn().mockResolvedValue(undefined),
+    };
+    const secondKernel = {
+      ...firstKernel,
+      openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'omp-session' }),
+      prompt: jest.fn().mockResolvedValue({ userMessageId: 'second' }),
+    };
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never,
+      lifecycle: 'persistent',
+      nativePersistence: 'provider-default',
+      vaultWorkingDirectory: '/vault',
+    }, {
+      createKernel: options => {
+        createdOptions.push(options);
+        return createdOptions.length === 1 ? firstKernel : secondKernel;
+      },
+    });
+    const request = (permissionMode: string) => ({
+      configuration: {
+        permissionMode,
+        systemInstructions: { kind: 'provider-default' },
+      },
+      input: [{ text: 'Hello', type: 'text' }],
+      signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' },
+    }) as never;
+
+    const first = session.execute(request('always-ask'));
+    for await (const event of first.events) void event;
+    const second = session.execute(request('write'));
+    for await (const event of second.events) void event;
+
+    expect(createdOptions.map(options => options.approvalMode)).toEqual(['always-ask', 'write']);
+    expect(firstKernel.dispose).toHaveBeenCalledTimes(1);
+    expect(secondKernel.openSession).toHaveBeenCalledWith('omp-session');
+  });
+
   it('routes second-turn ACP notifications to the active run', async () => {
     const firstPrompt = deferred<{ userMessageId: string }>();
     const secondPrompt = deferred<{ userMessageId: string }>();

@@ -94,10 +94,3 @@
 .claudian-plan-permissions-list li {
   margin: 0;
 }
-
-/* ── Plan mode input border ──────────────────────── */
-
-.claudian-input-wrapper.claudian-input-plan-mode {
-  --claudian-input-wrapper-border-color: var(--color-cyan, var(--interactive-accent));
-  --claudian-input-wrapper-box-shadow: 0 0 0 1px var(--color-cyan, var(--interactive-accent));
-}

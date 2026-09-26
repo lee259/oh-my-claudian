@@ -26,7 +26,7 @@
 - Use Grok's native history under `~/.grok/sessions/` read-only.
 - Send image attachments as ACP image content blocks and rehydrate their persisted native blocks. Use Grok's `_x.ai/interject` and `_x.ai/session/fork` extensions behind typed provider-owned boundaries for steering and forks.
 - Keep Grok/xAI tools enabled and preserve unknown tool data losslessly. Adapt Grok task-family lifecycle calls into the shared subagent renderer while retaining their raw names and payloads.
-- Expose Safe, Plan, and YOLO. Plan is a native ACP session mode layered over the remembered Safe or YOLO base; native mode updates remain authoritative.
+- Expose xAI's Ask, Plan, and Always approve semantics. Ask maps to Grok's default permission mode; Plan is the native ACP session mode layered over the remembered Ask/Always approve base; Always approve maps to xAI's `yoloMode` extension. Do not label these as generic Safe/YOLO presets.
 
 ## Models and Settings
 

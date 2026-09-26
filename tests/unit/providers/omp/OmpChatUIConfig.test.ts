@@ -30,28 +30,45 @@ describe('OMP chat configuration', () => {
       { label: 'High', value: 'high' },
     ]);
     expect(ompChatUIConfig.getDefaultReasoningValue('omp:openai/gpt-5-mini', settings)).toBe('auto');
-    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('always-ask');
     expect(ompChatUIConfig.getModeSelector?.(settings) ?? null).toBeNull();
   });
 
-  it('reuses the shared Safe and YOLO permission control', () => {
+  it('exposes OMP native approval modes and preserves their IDs', () => {
+    expect(ompChatUIConfig.getPermissionModeOptions?.(settings).map(({ value, label }) => [
+      value,
+      label,
+    ])).toEqual([
+      ['always-ask', 'Always ask'],
+      ['write', 'Write'],
+      ['yolo', 'YOLO'],
+    ]);
+
     expect(ompChatUIConfig.getPermissionModeToggle?.()).toEqual({
       activeLabel: 'YOLO',
       activeValue: 'yolo',
-      inactiveLabel: 'Safe',
-      inactiveValue: 'normal',
+      activeDescription: 'Run with full access without approval. Use with care.',
+      activeIcon: 'zap',
+      activeIsDangerous: true,
+      inactiveLabel: 'Always ask',
+      inactiveValue: 'always-ask',
+      inactiveDescription: 'Ask before running commands or making file changes.',
+      inactiveIcon: 'hand',
+      values: ['always-ask', 'write', 'yolo'],
     });
+    ompChatUIConfig.applyPermissionMode?.('write', settings);
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('write');
     ompChatUIConfig.applyPermissionMode?.('yolo', settings);
     expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('yolo');
-    ompChatUIConfig.applyPermissionMode?.('normal', settings);
-    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('normal');
+    ompChatUIConfig.applyPermissionMode?.('always-ask', settings);
+    expect(ompChatUIConfig.resolvePermissionMode?.(settings)).toBe('always-ask');
   });
 
   it('localizes the permission control with the active interface locale', () => {
     setLocale('zh-CN');
     expect(ompChatUIConfig.getPermissionModeToggle?.()).toMatchObject({
       activeLabel: 'YOLO',
-      inactiveLabel: '安全',
+      inactiveLabel: '始终询问',
     });
   });
 

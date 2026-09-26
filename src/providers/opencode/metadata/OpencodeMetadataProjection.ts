@@ -23,6 +23,7 @@ import {
 
 export interface OpencodeMetadataProjectionInput {
   readonly configOptions?: AcpSessionConfigOption[] | null;
+  readonly currentModeId?: string | null;
   readonly models?: AcpSessionModelState | null;
   readonly modes?: AcpSessionModeState | null;
   readonly selectedRawModelId?: string | null;
@@ -61,6 +62,13 @@ export async function projectOpencodeMetadata(
     })),
   );
   const current = getOpencodeProviderSettings(plugin.settings);
+  const selectedMode = availableModes.some(mode => mode.id === current.selectedMode)
+    ? current.selectedMode
+    : [input.currentModeId, modeState.currentModeId]
+      .find((modeId): modeId is string => Boolean(
+        modeId && availableModes.some(mode => mode.id === modeId),
+      ))
+      ?? null;
   const rawModelId = input.selectedRawModelId
     ?? modelState.currentModelId
     ?? null;
@@ -76,12 +84,14 @@ export async function projectOpencodeMetadata(
   }
   const hasUpdate = discoveredModels.length > 0
     || availableModes.length > 0
+    || selectedMode !== null
     || (baseRawModelId !== null && thinkingOptions.length > 0);
   if (!hasUpdate) return false;
 
   await plugin.mutateSettings((settings) => {
     updateOpencodeProviderSettings(settings, {
       ...(availableModes.length > 0 ? { availableModes } : {}),
+      ...(selectedMode ? { selectedMode } : {}),
       ...(discoveredModels.length > 0 ? { discoveredModels } : {}),
       ...(baseRawModelId && thinkingOptions.length > 0
         ? { thinkingOptionsByModel: nextThinking }

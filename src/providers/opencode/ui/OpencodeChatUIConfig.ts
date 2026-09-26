@@ -1,9 +1,11 @@
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import { OPENCODE_PROVIDER_ICON } from '../../../shared/icons';
 import { maybeGetOpencodeWorkspaceServices } from '../app/OpencodeWorkspaceServices';
 import { OpencodeMetadataService } from '../metadata/OpencodeMetadataService';
@@ -17,8 +19,8 @@ import {
   resolveOpencodeDefaultThinkingLevel,
 } from '../models';
 import {
-  resolveOpencodeModeForPermissionMode,
-  resolvePermissionModeForManagedOpencodeMode,
+  OPENCODE_PLAN_MODE_ID,
+  resolveOpencodePermissionMode,
 } from '../modes';
 import { getOpencodeProviderSettings, updateOpencodeProviderSettings } from '../settings';
 
@@ -201,12 +203,39 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
-    return OPENCODE_PERMISSION_MODE_TOGGLE;
+    return {
+      ...OPENCODE_PERMISSION_MODE_TOGGLE,
+      inactiveDescription: t('chat.composer.modeApprovalDescription'),
+      inactiveIcon: 'hand',
+      activeDescription: t('chat.composer.modeConfiguredPermissionsDescription'),
+      activeIcon: 'zap',
+      activeIsDangerous: false,
+      planDescription: t('chat.composer.modePlanGenericDescription'),
+      planIcon: 'clipboard-list',
+    };
+  },
+
+  getPermissionModeOptions(settings): ProviderPermissionModeOption[] {
+    const opencodeSettings = getOpencodeProviderSettings(settings);
+    return opencodeSettings.availableModes.map(mode => ({
+      ...(mode.description ? { description: mode.description } : {}),
+      icon: mode.id === OPENCODE_PLAN_MODE_ID ? 'clipboard-list' : 'code',
+      ...(mode.id === OPENCODE_PLAN_MODE_ID ? { isPlanMode: true } : {}),
+      label: mode.name,
+      value: mode.id,
+    }));
+  },
+
+  resolvePermissionModeOption(settings): string | null {
+    const selectedMode = getOpencodeProviderSettings(settings).selectedMode;
+    return getOpencodeProviderSettings(settings).availableModes.some(mode => mode.id === selectedMode)
+      ? selectedMode
+      : null;
   },
 
   resolvePermissionMode(settings: Record<string, unknown>): string | null {
     const selectedMode = getOpencodeProviderSettings(settings).selectedMode;
-    return resolvePermissionModeForManagedOpencodeMode(selectedMode);
+    return selectedMode === OPENCODE_PLAN_MODE_ID ? 'plan' : 'normal';
   },
 
   applyPermissionMode(value: string, settings: unknown): void {
@@ -215,12 +244,11 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     }
 
     const settingsBag = settings as Record<string, unknown>;
-    settingsBag.permissionMode = value;
+    const opencodeSettings = getOpencodeProviderSettings(settingsBag);
+    if (!opencodeSettings.availableModes.some(mode => mode.id === value)) return;
+    settingsBag.permissionMode = resolveOpencodePermissionMode(value) ?? 'normal';
     updateOpencodeProviderSettings(settingsBag, {
-      selectedMode: resolveOpencodeModeForPermissionMode(
-        value,
-        getOpencodeProviderSettings(settingsBag).availableModes,
-      ),
+      selectedMode: value,
     });
   },
 

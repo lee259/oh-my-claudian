@@ -2919,22 +2919,19 @@ describe('ClaudianView Escape handling', () => {
     expect(result).toBe(false);
   });
 
-  it('commits a provisional preview before the Shift+Tab plan-mode action', () => {
+  it('commits a provisional preview before cycling modes with Shift+Tab', () => {
     const { view } = createEscapeHarness({ isStreaming: false });
+    const canCycle = jest.fn().mockReturnValue(true);
+    const cycleMode = jest.fn().mockReturnValue(true);
     const activeTab = {
       conversationId: null,
       lifecycleState: 'provisional',
       providerId: 'claude',
       state: { prePlanPermissionMode: null },
+      ui: { permissionToggle: { canCycle, cycleMode } },
     };
     view.tabManager.getActiveTab.mockReturnValue(activeTab);
-    view.plugin.settings = {};
-    jest.spyOn(ProviderRegistry, 'getCapabilities').mockReturnValue({
-      providerId: 'claude',
-      supportsPlanMode: true,
-    } as any);
-    jest.spyOn(ProviderSettingsCoordinator, 'getProviderSettingsSnapshot')
-      .mockReturnValue({ permissionMode: 'normal' } as any);
+    const preventDefault = jest.fn();
 
     view.wireEventHandlers();
     const keydownHandler = view.registerDomEvent.mock.calls.find(
@@ -2943,11 +2940,44 @@ describe('ClaudianView Escape handling', () => {
     keydownHandler({
       isComposing: false,
       key: 'Tab',
-      preventDefault: jest.fn(),
+      preventDefault,
       shiftKey: true,
     } as unknown as KeyboardEvent);
 
     expect(activeTab.lifecycleState).toBe('cold');
+    expect(canCycle).toHaveBeenCalledTimes(1);
+    expect(cycleMode).toHaveBeenCalledWith(expect.any(Function));
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Shift+Tab navigation alone when the provider has no mode cycle', () => {
+    const { view } = createEscapeHarness({ isStreaming: false });
+    const canCycle = jest.fn().mockReturnValue(false);
+    const cycleMode = jest.fn();
+    const activeTab = {
+      conversationId: null,
+      lifecycleState: 'provisional',
+      providerId: 'claude',
+      state: { prePlanPermissionMode: null },
+      ui: { permissionToggle: { canCycle, cycleMode } },
+    };
+    view.tabManager.getActiveTab.mockReturnValue(activeTab);
+    const preventDefault = jest.fn();
+
+    view.wireEventHandlers();
+    const keydownHandler = view.registerDomEvent.mock.calls.find(
+      ([target, event]: [unknown, string]) => target === view.containerEl && event === 'keydown',
+    )?.[2] as (event: KeyboardEvent) => void;
+    keydownHandler({
+      isComposing: false,
+      key: 'Tab',
+      preventDefault,
+      shiftKey: true,
+    } as unknown as KeyboardEvent);
+
+    expect(activeTab.lifecycleState).toBe('provisional');
+    expect(cycleMode).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 
   it('sends from focused composer through scoped Mod+Enter', () => {

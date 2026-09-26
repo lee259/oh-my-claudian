@@ -123,10 +123,10 @@ class FakeKernel implements OpencodeAcpSessionKernel {
     ],
     modes: {
       availableModes: [
-        { id: 'claudian-yolo', name: 'YOLO' },
-        { id: 'claudian-safe', name: 'Safe' },
+        { id: 'build', name: 'Build' },
+        { id: 'plan', name: 'Plan' },
       ],
-      currentModeId: 'claudian-yolo',
+      currentModeId: 'build',
     },
     models: {
       availableModels: [{ id: 'anthropic/claude', name: 'Claude' }],
@@ -217,9 +217,10 @@ function createPlugin(): any {
       providerConfigs: {
         opencode: {
           availableModes: [
-            { id: 'claudian-yolo', name: 'YOLO' },
-            { id: 'claudian-safe', name: 'Safe' },
+            { id: 'build', name: 'Build' },
+            { id: 'plan', name: 'Plan' },
           ],
+          selectedMode: 'build',
           discoveredModels: [
             { label: 'Claude', rawId: 'anthropic/claude' },
           ],
@@ -899,7 +900,7 @@ describe('OpencodeExecutionBackend', () => {
     });
   });
 
-  it('applies model, thought level, and managed mode through ACP configuration', async () => {
+  it('applies model, thought level, and the selected native mode through ACP configuration', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest());
     await waitForPrompt(harness.kernels[0]);
@@ -913,7 +914,7 @@ describe('OpencodeExecutionBackend', () => {
     expect(harness.kernels[0].configCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ configId: 'model', value: 'anthropic/claude' }),
       expect.objectContaining({ configId: 'effort', value: 'high' }),
-      expect.objectContaining({ configId: 'mode', value: 'claudian-safe' }),
+      expect.objectContaining({ configId: 'mode', value: 'build' }),
     ]));
   });
 
@@ -1000,7 +1001,7 @@ describe('OpencodeExecutionBackend', () => {
     const run = harness.session.execute(createRequest());
     await waitForPrompt(harness.kernels[0]);
     harness.kernels[0].notify({
-      currentModeId: 'claudian-safe',
+      currentModeId: 'plan',
       sessionUpdate: 'current_mode_update',
     });
     harness.kernels[0].notify({
@@ -1012,7 +1013,7 @@ describe('OpencodeExecutionBackend', () => {
 
     expect(modes).toEqual([
       expect.objectContaining({
-        mode: 'normal',
+        mode: 'plan',
         scope: expect.objectContaining({ kind: 'session', sequence: 1 }),
         type: 'mode_changed',
       }),

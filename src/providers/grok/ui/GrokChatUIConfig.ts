@@ -1,9 +1,11 @@
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { t } from '../../../i18n/i18n';
 import { GROK_PROVIDER_ICON } from '../../../shared/icons';
 import {
   decodeGrokModelId,
@@ -22,11 +24,11 @@ import {
 
 const GROK_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
-  inactiveLabel: 'Safe',
+  inactiveLabel: t('chat.composer.modeGrokAsk'),
   activeValue: 'yolo',
-  activeLabel: 'YOLO',
+  activeLabel: t('chat.composer.modeGrokAlwaysApprove'),
   planValue: 'plan',
-  planLabel: 'PLAN',
+  planLabel: t('chat.composer.plan'),
 };
 
 export const grokChatUIConfig: ProviderChatUIConfig = {
@@ -161,7 +163,41 @@ export const grokChatUIConfig: ProviderChatUIConfig = {
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
-    return GROK_PERMISSION_MODE_TOGGLE;
+    return {
+      ...GROK_PERMISSION_MODE_TOGGLE,
+      inactiveDescription: t('chat.composer.modeGrokAskDescription'),
+      inactiveIcon: 'hand',
+      activeDescription: t('chat.composer.modeGrokAlwaysApproveDescription'),
+      activeIcon: 'zap',
+      activeIsDangerous: true,
+      planDescription: t('chat.composer.modePlanGenericDescription'),
+      planIcon: 'clipboard-list',
+    };
+  },
+
+  getPermissionModeOptions(): ProviderPermissionModeOption[] {
+    return [
+      {
+        value: 'normal',
+        label: t('chat.composer.modeGrokAsk'),
+        description: t('chat.composer.modeGrokAskDescription'),
+        icon: 'hand',
+      },
+      {
+        value: 'plan',
+        label: t('chat.composer.plan'),
+        description: t('chat.composer.modePlanGenericDescription'),
+        icon: 'clipboard-list',
+        isPlanMode: true,
+      },
+      {
+        value: 'yolo',
+        label: t('chat.composer.modeGrokAlwaysApprove'),
+        description: t('chat.composer.modeGrokAlwaysApproveDescription'),
+        icon: 'zap',
+        isDangerous: true,
+      },
+    ];
   },
 
   resolvePermissionMode(settings): string {

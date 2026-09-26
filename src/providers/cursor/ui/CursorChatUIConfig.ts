@@ -1,5 +1,6 @@
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
@@ -46,11 +47,39 @@ export const cursorChatUIConfig: ProviderChatUIConfig = {
   getPermissionModeToggle: (): ProviderPermissionModeToggleConfig => ({
     inactiveValue: 'normal',
     inactiveLabel: t('settings.cursor.agent'),
+    inactiveDescription: t('chat.composer.modeAgentDescription'),
+    inactiveIcon: 'code',
     activeValue: 'ask',
     activeLabel: t('settings.cursor.ask'),
+    activeDescription: t('chat.composer.modeAskDescription'),
+    activeIcon: 'message-circle-question',
+    activeIsDangerous: false,
     planValue: 'plan',
     planLabel: t('settings.cursor.plan'),
+    planDescription: t('chat.composer.modePlanGenericDescription'),
+    planIcon: 'clipboard-list',
   }),
+  getPermissionModeOptions: (): ProviderPermissionModeOption[] => ([
+    {
+      value: 'normal',
+      label: t('settings.cursor.agent'),
+      description: t('chat.composer.modeAgentDescription'),
+      icon: 'code',
+    },
+    {
+      value: 'ask',
+      label: t('settings.cursor.ask'),
+      description: t('chat.composer.modeAskDescription'),
+      icon: 'message-circle-question',
+    },
+    {
+      value: 'plan',
+      label: t('settings.cursor.plan'),
+      description: t('chat.composer.modePlanGenericDescription'),
+      icon: 'clipboard-list',
+      isPlanMode: true,
+    },
+  ]),
   resolvePermissionMode(settings) {
     return settings.permissionMode === 'plan' || settings.permissionMode === 'ask'
       ? settings.permissionMode

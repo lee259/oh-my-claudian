@@ -24,7 +24,7 @@ import {
   resolveOpencodeDefaultThinkingLevel,
 } from './models';
 import {
-  normalizeManagedOpencodeSelectedMode,
+  normalizeSelectedOpencodeMode,
   type OpencodeMode,
 } from './modes';
 
@@ -182,7 +182,7 @@ export function getOpencodeProviderSettings(
       config.preferredThinkingByModel,
       discoveredModels,
     ),
-    selectedMode: normalizeManagedOpencodeSelectedMode(config.selectedMode, availableModes),
+    selectedMode: normalizeSelectedOpencodeMode(config.selectedMode, availableModes),
     thinkingOptionsByModel,
     visibleModels: normalizeOpencodeVisibleModels(config.visibleModels, discoveredModels),
   };
@@ -220,7 +220,7 @@ export function updateOpencodeProviderSettings(
       current.thinkingOptionsByModel,
       nextDiscoveredModels,
     );
-  const nextSelectedMode = normalizeManagedOpencodeSelectedMode(
+  const nextSelectedMode = normalizeSelectedOpencodeMode(
     updates.selectedMode ?? current.selectedMode,
     nextAvailableModes,
   );

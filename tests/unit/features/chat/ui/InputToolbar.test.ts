@@ -11,7 +11,6 @@ import {
   McpServerSelector,
   ModelSelector,
   ModeSelector,
-  PermissionToggle,
   ServiceTierToggle,
   ThinkingBudgetSelector,
 } from '@/features/chat/ui/InputToolbar';
@@ -124,6 +123,11 @@ function createMockUIConfig() {
       planValue: 'plan',
       planLabel: 'PLAN',
     }),
+    getPermissionModeOptions: jest.fn().mockReturnValue([
+      { value: 'normal', label: 'Safe', icon: 'shield-check' },
+      { value: 'yolo', label: 'YOLO', icon: 'zap', isDangerous: true },
+      { value: 'plan', label: 'PLAN', icon: 'clipboard-list', isPlanMode: true },
+    ]),
     getServiceTierToggle: jest.fn().mockImplementation((settings: Record<string, unknown>) =>
       settings.model === TEST_CODEX_MODEL
         ? {
@@ -643,138 +647,6 @@ describe('ThinkingBudgetSelector', () => {
       const offGear = gears.find((g: any) => g.textContent === 'Off');
       expect(offGear?.getAttribute('title')).toBe('Disabled');
     });
-  });
-});
-
-describe('PermissionToggle', () => {
-  let parentEl: any;
-  let callbacks: ReturnType<typeof createMockCallbacks>;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    parentEl = createMockEl();
-    callbacks = createMockCallbacks();
-    new PermissionToggle(parentEl, callbacks);
-  });
-
-  it('should create a container with permission-toggle class', () => {
-    const container = parentEl.querySelector('.claudian-permission-toggle');
-    expect(container).not.toBeNull();
-  });
-
-  it('should display Safe label when in normal mode', () => {
-    const label = parentEl.querySelector('.claudian-permission-label');
-    expect(label?.textContent).toBe('Safe');
-  });
-
-  it('should display YOLO label when in yolo mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'yolo',
-      enableOpus1M: false,
-      enableSonnet1M: false,
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const label = parentEl2.querySelector('.claudian-permission-label');
-    expect(label?.textContent).toBe('YOLO');
-  });
-
-  it('should show PLAN label and keep the toggle available in plan mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'plan',
-      enableOpus1M: false,
-      enableSonnet1M: false,
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const label = parentEl2.querySelector('.claudian-permission-label');
-    expect(label?.textContent).toBe('PLAN');
-    expect(label?.hasClass('plan-active')).toBe(true);
-
-    const toggle = parentEl2.querySelector('.claudian-toggle-switch');
-    expect(toggle?.style.display).not.toBe('none');
-  });
-
-  it('should add active class when in yolo mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'yolo',
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const toggle = parentEl2.querySelector('.claudian-toggle-switch');
-    expect(toggle?.hasClass('active')).toBe(true);
-  });
-
-  it('should not have active class in normal mode', () => {
-    const toggle = parentEl.querySelector('.claudian-toggle-switch');
-    expect(toggle?.hasClass('active')).toBe(false);
-  });
-
-  it('should toggle from normal to yolo on click', async () => {
-    const toggle = parentEl.querySelector('.claudian-toggle-switch');
-    await toggle?.dispatchEvent('click');
-    expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith('yolo');
-  });
-
-  it('should toggle from yolo to normal on click', async () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      permissionMode: 'yolo',
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const toggle = parentEl2.querySelector('.claudian-toggle-switch');
-    await toggle?.dispatchEvent('click');
-    expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith('plan');
-  });
-
-  it('should toggle from plan back to normal on click', async () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      permissionMode: 'plan',
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const toggle = parentEl2.querySelector('.claudian-toggle-switch');
-    await toggle?.dispatchEvent('click');
-    expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith('normal');
-  });
-
-  it('should hide the control when provider exposes no permission toggle UI', () => {
-    callbacks.getUIConfig.mockReturnValue({
-      ...createMockUIConfig(),
-      getPermissionModeToggle: jest.fn().mockReturnValue(null),
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const container = parentEl2.querySelector('.claudian-permission-toggle');
-    expect(container?.style.display).toBe('none');
-  });
-
-  it('should hide the control when visibility is disabled explicitly', () => {
-    const parentEl2 = createMockEl();
-    const toggle = new PermissionToggle(parentEl2, callbacks);
-
-    toggle.setVisible(false);
-
-    const container = parentEl2.querySelector('.claudian-permission-toggle');
-    expect(container?.style.display).toBe('none');
   });
 });
 
