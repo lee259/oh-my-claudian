@@ -55,6 +55,7 @@ export function createTabRuntime(
     options.getWelcomeHomeOptions,
     conversation?.title ?? '聊天',
     !isBound && state.messages.length === 0,
+    conversation?.id ?? null,
   );
   state.queueIndicatorEl = dom.queueIndicatorEl;
 
@@ -150,13 +151,18 @@ function buildTabDOM(
   getWelcomeHomeOptions?: TabCreateOptions['getWelcomeHomeOptions'],
   conversationTitle = t('chat.home.title'),
   isHome = false,
+  conversationId: string | null = null,
 ): TabDOMElements {
   const homeOptions = getWelcomeHomeOptions?.();
   const conversationHeaderHostEl = contentEl.createDiv({
     cls: 'claudian-conversation-header-host',
   });
   const conversationHeaderRoot = createPreactRoot(conversationHeaderHostEl);
-  const updateConversationHeader = (title: string, showHomeHeader = false): void => {
+  const updateConversationHeader = (
+    title: string,
+    showHomeHeader = false,
+    currentConversationId: string | null = conversationId,
+  ): void => {
     conversationHeaderRoot.render(h(ConversationHeaderView, {
       title,
       isHome: showHomeHeader,
@@ -164,9 +170,15 @@ function buildTabDOM(
       onOpenHistory: homeOptions?.onOpenHistory,
       onOpenSettings: homeOptions?.onOpenSettings,
       onNewConversation: homeOptions?.onNewConversation,
+      onRenameConversation: currentConversationId
+        ? (nextTitle: string) => homeOptions?.onRenameConversation?.(
+          currentConversationId,
+          nextTitle,
+        )
+        : undefined,
     }));
   };
-  updateConversationHeader(conversationTitle, isHome);
+  updateConversationHeader(conversationTitle, isHome, conversationId);
 
   const messagesWrapperEl = contentEl.createDiv({ cls: 'claudian-messages-wrapper' });
   const messagesEl = messagesWrapperEl.createDiv({ cls: 'claudian-messages' });

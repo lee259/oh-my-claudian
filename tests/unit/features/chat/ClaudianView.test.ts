@@ -168,6 +168,19 @@ describe('ClaudianView chat surface state', () => {
       .toBeLessThan(openTabById.mock.invocationCallOrder[0]);
   });
 
+  it('renames the requested conversation from its header action', () => {
+    const renameConversation = jest.fn().mockResolvedValue(undefined);
+    const view = Object.create(ClaudianView.prototype) as any;
+    view.plugin = {
+      getConversationList: jest.fn().mockReturnValue([]),
+      renameConversation,
+    };
+
+    view.getWelcomeHomeOptions().onRenameConversation('conversation-7', 'A clearer title');
+
+    expect(renameConversation).toHaveBeenCalledWith('conversation-7', 'A clearer title');
+  });
+
   it('mirrors the active home or conversation state to shared and tab-owned surfaces', () => {
     const activeTab = {
       id: 'draft-tab',
@@ -225,12 +238,16 @@ describe('ClaudianView chat surface state', () => {
     });
 
     view.updateConversationHeaders();
-    expect(updateConversationHeader.mock.lastCall).toEqual([expect.any(String), true]);
+    expect(updateConversationHeader.mock.lastCall).toEqual([expect.any(String), true, null]);
 
     tab.conversationId = 'history-conversation';
     tab.state.messages.push({ id: 'message-1' });
     view.updateConversationHeaders();
-    expect(updateConversationHeader.mock.lastCall).toEqual(['Opened from history', false]);
+    expect(updateConversationHeader.mock.lastCall).toEqual([
+      'Opened from history',
+      false,
+      'history-conversation',
+    ]);
   });
 });
 
@@ -1117,6 +1134,24 @@ describe('ClaudianView tab controls', () => {
     view.toggleHistoryDropdown();
 
     expect(historyDropdown.hasClass('visible')).toBe(false);
+  });
+
+  it('forces the new-conversation action to finish even if the active turn is streaming', async () => {
+    const createNewConversation = jest.fn().mockResolvedValue(undefined);
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      tabManager: {
+        createNewConversation,
+        getActiveTab: jest.fn().mockReturnValue({ state: { isStreaming: true } }),
+      },
+      updateHistoryDropdown: jest.fn(),
+    });
+
+    view.requestNewConversation();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createNewConversation).toHaveBeenCalledWith({ force: true });
   });
 
   it('switches the single-mode history menu between Sessions and Archived', () => {
@@ -2117,7 +2152,11 @@ describe('ClaudianView tab controls', () => {
 
     view.notifyConversationListChanged();
 
-    expect(updateConversationHeader).toHaveBeenCalledWith('Generated title', false);
+    expect(updateConversationHeader).toHaveBeenCalledWith(
+      'Generated title',
+      false,
+      'conversation-1',
+    );
   });
 
   it('persists linked-note pins through the feature host', async () => {
@@ -2251,6 +2290,27 @@ describe('ClaudianView tab controls', () => {
     const menu = (Menu as typeof Menu & { instances: any[] }).instances.at(-1);
     expect(menu.items.some((item: any) => item.title === 'Title')).toBe(false);
     expect(menu.items.find((item: any) => item.title === 'Last activity').checked).toBe(true);
+  });
+
+  it('opens a history selection in another tab while the active conversation is streaming', async () => {
+    const openConversation = jest.fn().mockResolvedValue(undefined);
+    const historyDropdown = createMockEl();
+    historyDropdown.addClass('visible');
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      historyDropdown,
+      tabManager: {
+        getActiveTab: jest.fn().mockReturnValue({ state: { isStreaming: true } }),
+        openConversation,
+      },
+      cancelHistoryRendering: jest.fn(),
+    });
+
+    await view.openHistoryConversation('history-target');
+
+    expect(openConversation).toHaveBeenCalledWith('history-target', { preferNewTab: true });
+    expect(historyDropdown.hasClass('visible')).toBe(false);
+    expect(view.cancelHistoryRendering).toHaveBeenCalledTimes(1);
   });
 
   it('opens a closed session in a new container from the dual-mode session column', async () => {

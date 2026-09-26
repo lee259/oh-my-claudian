@@ -42,6 +42,7 @@ function createMockTab(options: Record<string, any>): any {
     },
     controllers: {
       conversationController: {
+        createNew: jest.fn().mockResolvedValue(undefined),
         initializeWelcome: jest.fn(),
         save: jest.fn().mockResolvedValue(undefined),
         switchTo: jest.fn().mockResolvedValue(undefined),
@@ -209,6 +210,88 @@ describe('TabManager provider execution orchestration', () => {
 
     expect(createNew).toHaveBeenCalledTimes(1);
     expect(onTabConversationChanged).toHaveBeenCalledWith(activeTab!.id, null);
+  });
+
+  it('runs a new-conversation intent after an in-flight history switch', async () => {
+    const plugin = createPlugin({
+      getCachedConversation: jest.fn((id: string) => ({ id, providerId: 'claude' })),
+    });
+    const { manager } = createManager(plugin);
+    const activeTab = await manager.createTab('current');
+    const switchGate = deferred<void>();
+    const switchTo = activeTab!.controllers.conversationController!.switchTo as jest.Mock;
+    switchTo.mockImplementation(async (id: string) => {
+      activeTab!.state.isSwitchingConversation = true;
+      try {
+        await switchGate.promise;
+        activeTab!.state.currentConversationId = id;
+      } finally {
+        activeTab!.state.isSwitchingConversation = false;
+      }
+    });
+    const createNew = jest.fn(async () => {
+      if (activeTab!.state.isSwitchingConversation) return;
+      activeTab!.state.currentConversationId = null;
+    });
+    activeTab!.controllers.conversationController!.createNew = createNew;
+    createNew.mockClear();
+    switchTo.mockClear();
+
+    const opening = manager.openConversation('history-target');
+    for (let attempt = 0; attempt < 20 && switchTo.mock.calls.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+    const creating = manager.createNewConversation();
+
+    expect(createNew).not.toHaveBeenCalled();
+    switchGate.resolve(undefined);
+    await Promise.all([opening, creating]);
+
+    expect(createNew).toHaveBeenCalledTimes(1);
+    expect(activeTab!.conversationId).toBeNull();
+  });
+
+  it('opens a history selection after an in-flight new-conversation reset', async () => {
+    const plugin = createPlugin({
+      getCachedConversation: jest.fn((id: string) => ({ id, providerId: 'claude' })),
+    });
+    const { manager } = createManager(plugin);
+    const activeTab = await manager.createTab('current');
+    const createGate = deferred<void>();
+    const createNew = jest.fn(async () => {
+      activeTab!.state.isCreatingConversation = true;
+      try {
+        await createGate.promise;
+        activeTab!.state.currentConversationId = null;
+      } finally {
+        activeTab!.state.isCreatingConversation = false;
+      }
+    });
+    const switchTo = activeTab!.controllers.conversationController!.switchTo as jest.Mock;
+    switchTo.mockImplementation(async (id: string) => {
+      if (activeTab!.state.isCreatingConversation) return;
+      activeTab!.state.currentConversationId = id;
+      activeTab!.conversationId = id;
+    });
+    activeTab!.controllers.conversationController!.createNew = createNew;
+    createNew.mockClear();
+    switchTo.mockClear();
+
+    const creating = manager.createNewConversation();
+    for (let attempt = 0; attempt < 20 && createNew.mock.calls.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+    const opening = manager.openConversation('history-target');
+    for (let attempt = 0; attempt < 20; attempt++) {
+      await Promise.resolve();
+    }
+
+    expect(switchTo).not.toHaveBeenCalled();
+    createGate.resolve(undefined);
+    await Promise.all([creating, opening]);
+
+    expect(switchTo).toHaveBeenCalledWith('history-target');
+    expect(activeTab!.conversationId).toBe('history-target');
   });
 
   it('does not inherit the active tab provider when creating another blank tab', async () => {

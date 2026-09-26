@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'preact/hooks';
+
 import { t } from '../../../i18n/i18n';
 import { IconButton } from '../../../shared/ui/IconButton';
 
@@ -8,6 +10,7 @@ export interface ConversationHeaderViewProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onNewConversation?: () => void;
+  onRenameConversation?: (title: string) => void;
 }
 
 export function ConversationHeaderView({
@@ -17,7 +20,37 @@ export function ConversationHeaderView({
   onOpenHistory,
   onOpenSettings,
   onNewConversation,
+  onRenameConversation,
 }: ConversationHeaderViewProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isRenamingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isRenaming) setDraftTitle(title);
+  }, [isRenaming, title]);
+
+  useEffect(() => {
+    if (!isRenaming) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [isRenaming]);
+
+  const cancelRename = (): void => {
+    isRenamingRef.current = false;
+    setDraftTitle(title);
+    setIsRenaming(false);
+  };
+
+  const saveRename = (): void => {
+    if (!isRenamingRef.current) return;
+    isRenamingRef.current = false;
+    setIsRenaming(false);
+    const nextTitle = (inputRef.current?.value ?? draftTitle).trim();
+    if (nextTitle && nextTitle !== title) onRenameConversation?.(nextTitle);
+  };
+
   if (isHome) {
     return (
       <header className="claudian-conversation-header claudian-conversation-header--home">
@@ -56,8 +89,43 @@ export function ConversationHeaderView({
           label={t('chat.header.back')}
           onClick={onBack}
         />
-        <div className="claudian-conversation-header-title">
-          {title}
+        <div className="claudian-conversation-header-title-wrap">
+          {isRenaming ? (
+            <input
+              ref={inputRef}
+              className="claudian-conversation-header-rename-input"
+              aria-label={t('chat.history.rename')}
+              value={draftTitle}
+              onInput={(event) => setDraftTitle(event.currentTarget.value)}
+              onBlur={saveRename}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.isComposing) {
+                  event.preventDefault();
+                  saveRename();
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  cancelRename();
+                }
+              }}
+            />
+          ) : (
+            <div className="claudian-conversation-header-title">
+              {title}
+            </div>
+          )}
+          {!isRenaming && onRenameConversation && (
+            <IconButton
+              className="claudian-conversation-header-action claudian-conversation-header-rename-action"
+              icon="pencil"
+              iconClassName="claudian-conversation-header-icon"
+              label={t('chat.history.rename')}
+              onClick={() => {
+                isRenamingRef.current = true;
+                setDraftTitle(title);
+                setIsRenaming(true);
+              }}
+            />
+          )}
         </div>
       </div>
       <div className="claudian-conversation-header-actions">

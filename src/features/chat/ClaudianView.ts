@@ -434,6 +434,11 @@ export class ClaudianView extends ItemView {
           new Notice(t('chat.errors.openConversation'));
         });
       },
+      onRenameConversation: (conversationId: string, title: string) => {
+        void this.plugin.renameConversation(conversationId, title).catch(() => {
+          new Notice(t('chat.errors.renameConversation'));
+        });
+      },
       onArchiveConversation: (conversationId: string) => {
         void this.setConversationArchived(conversationId, true).catch(() => {
           new Notice(t('chat.errors.archiveSession'));
@@ -505,7 +510,7 @@ export class ClaudianView extends ItemView {
 
   private requestNewConversation(): void {
     void (async () => {
-      await this.tabManager?.createNewConversation();
+      await this.tabManager?.createNewConversation({ force: true });
       this.updateHistoryDropdown();
     })().catch(() => new Notice(t('chat.errors.createConversation')));
   }
@@ -636,7 +641,11 @@ export class ClaudianView extends ItemView {
         ? this.plugin.getConversationSync?.(tab.conversationId)?.title
         : null;
       const isHome = tab.conversationId === null && tab.state.messages?.length === 0;
-      tab.dom.updateConversationHeader(title?.trim() || t('chat.home.title'), isHome);
+      tab.dom.updateConversationHeader(
+        title?.trim() || t('chat.home.title'),
+        isHome,
+        tab.conversationId,
+      );
     }
   }
 
@@ -1958,7 +1967,11 @@ export class ClaudianView extends ItemView {
   }
 
   private async openHistoryConversation(conversationId: string): Promise<void> {
-    await this.tabManager?.openConversation(conversationId);
+    const activeTab = this.tabManager?.getActiveTab();
+    const openOptions = activeTab?.state.isStreaming
+      ? { preferNewTab: true }
+      : undefined;
+    await this.tabManager?.openConversation(conversationId, openOptions);
     this.historyDropdown?.removeClass('visible');
     this.cancelHistoryRendering();
   }
