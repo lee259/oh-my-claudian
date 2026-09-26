@@ -98,9 +98,7 @@ function createHistoryHarness() {
     historySearchQuery: '',
     historyRenderAbortController: null,
     pendingHistorySurfaceUpdate: null,
-    isWideSessionLayout: false,
     isArchiveSessionView: false,
-    activeSidebarSurface: 'sessions',
   });
   tab.state.isStreaming = true;
 

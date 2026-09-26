@@ -5,12 +5,10 @@
 @import "./base/variables.css";
 @import "./base/container.css";
 @import "./base/animations.css";
-@import "./session-metadata-popover.css";
 
 /* Components */
 @import "./components/tabs.css";
 @import "./components/history.css";
-@import "./components/vault-file-tree.css";
 @import "./components/messages.css";
 @import "./components/nav-sidebar.css";
 @import "./components/code.css";

@@ -17,8 +17,6 @@ import {
   CHAT_VIEW_PLACEMENTS,
   type ChatViewPlacement,
   type ClaudianSettings,
-  DUAL_PANE_SIDES,
-  type DualPaneSide,
   type EnvironmentScope,
   type EnvSnippet,
   type HiddenProviderCommands,
@@ -46,6 +44,19 @@ const LEGACY_STRIPPED_SHARED_SETTING_FIELDS = [
   'openInMainTab',
 ] as const;
 
+const REMOVED_SESSION_SIDEBAR_SETTING_FIELDS = [
+  'enableDualPane',
+  'enableFilePane',
+  'dualPaneSide',
+  'sessionManagerOrganization',
+  'sessionManagerSort',
+  'pinnedLinkedNotePaths',
+] as const;
+
+function hasRemovedSessionSidebarSettings(stored: Record<string, unknown>): boolean {
+  return REMOVED_SESSION_SIDEBAR_SETTING_FIELDS.some(key => key in stored);
+}
+
 function getProviderSettingsAdapters() {
   return ProviderRegistry.getRegisteredProviderIds().map(providerId => ({
     adapter: ProviderRegistry.getSettingsStorageAdapter(providerId),
@@ -61,6 +72,7 @@ function stripLegacyFields(settings: Record<string, unknown>): Record<string, un
   const cleaned = { ...settings };
   for (const key of [
     ...LEGACY_STRIPPED_SHARED_SETTING_FIELDS,
+    ...REMOVED_SESSION_SIDEBAR_SETTING_FIELDS,
     ...getLegacyTopLevelProviderFields(),
   ]) {
     delete cleaned[key];
@@ -97,43 +109,6 @@ function shouldPersistChatViewPlacementMigration(
       'chatViewPlacement' in stored
       && stored.chatViewPlacement !== normalized
     );
-}
-
-function normalizeEnableDualPane(value: unknown): boolean {
-  return typeof value === 'boolean'
-    ? value
-    : DEFAULT_CLAUDIAN_SETTINGS.enableDualPane;
-}
-
-function normalizeEnableFilePane(value: unknown): boolean {
-  return typeof value === 'boolean'
-    ? value
-    : DEFAULT_CLAUDIAN_SETTINGS.enableFilePane;
-}
-
-function normalizeDualPaneSide(value: unknown): DualPaneSide {
-  return typeof value === 'string'
-    && (DUAL_PANE_SIDES as readonly string[]).includes(value)
-    ? value as DualPaneSide
-    : DEFAULT_CLAUDIAN_SETTINGS.dualPaneSide;
-}
-
-function shouldPersistDualPaneNormalization(
-  stored: Record<string, unknown>,
-  enableDualPane: boolean,
-  enableFilePane: boolean,
-  dualPaneSide: DualPaneSide,
-): boolean {
-  return (
-    'enableDualPane' in stored
-    && stored.enableDualPane !== enableDualPane
-  ) || (
-    'enableFilePane' in stored
-    && stored.enableFilePane !== enableFilePane
-  ) || (
-    'dualPaneSide' in stored
-    && stored.dualPaneSide !== dualPaneSide
-  );
 }
 
 function normalizeProviderConfigs(value: unknown): ProviderConfigMap {
@@ -390,9 +365,6 @@ export class ClaudianSettingsStorage {
       stored.chatViewPlacement,
       stored.openInMainTab,
     );
-    const enableDualPane = normalizeEnableDualPane(stored.enableDualPane);
-    const enableFilePane = normalizeEnableFilePane(stored.enableFilePane);
-    const dualPaneSide = normalizeDualPaneSide(stored.dualPaneSide);
     const legacyProviderSettings = {
       ...stored,
       hiddenProviderCommands,
@@ -410,9 +382,6 @@ export class ClaudianSettingsStorage {
       hiddenProviderCommands,
       providerConfigs,
       chatViewPlacement,
-      enableDualPane,
-      enableFilePane,
-      dualPaneSide,
       lastSelectedChatModel,
     };
 
@@ -446,12 +415,7 @@ export class ClaudianSettingsStorage {
       || 'enableBlocklist' in stored
       || 'blockedCommands' in stored
       || shouldPersistChatViewPlacementMigration(stored, chatViewPlacement)
-      || shouldPersistDualPaneNormalization(
-        stored,
-        enableDualPane,
-        enableFilePane,
-        dualPaneSide,
-      )
+      || hasRemovedSessionSidebarSettings(stored)
       || JSON.stringify(envSnippets) !== JSON.stringify(stored.envSnippets ?? [])
       || (
         'customModelAliases' in stored

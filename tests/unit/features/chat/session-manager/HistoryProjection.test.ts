@@ -37,67 +37,50 @@ describe('HistoryProjection', () => {
       ],
       sessionScope: 'active',
       searchQuery: 'release plan',
-      organization: 'list',
-      sort: 'last-updated',
-      language: 'en',
     });
 
-    expect(projection.sections[0]?.conversations.map(({ id }) => id)).toEqual(['active-new']);
+    expect(projection.filteredConversations.map(({ id }) => id)).toEqual(['active-new']);
     expect(projection.hasResults).toBe(true);
     expect(projection.searchTerms).toEqual(['release', 'plan']);
   });
 
-  it('separates pinned linked-note sessions and counts collapsed groups', () => {
+  it('searches linked-note paths and preserves activity ordering', () => {
     const projection = projectHistory({
       conversations: [
-        createConversation('pinned-note', {
+        createConversation('older', {
+          currentNote: 'Projects/Plan.md',
+          lastActivityAt: 10,
+        }),
+        createConversation('newer', {
           currentNote: 'Projects/Plan.md',
           lastActivityAt: 30,
         }),
-        createConversation('pinned-session', {
-          isPinned: true,
-          lastActivityAt: 20,
-        }),
-        createConversation('regular', {
-          currentNote: 'Projects/Other.md',
-          lastActivityAt: 10,
+        createConversation('other', {
+          currentNote: 'Notes/Other.md',
+          lastActivityAt: 40,
         }),
       ],
-      organization: 'linked-note',
-      sort: 'last-updated',
-      language: 'en',
-      noteExists: () => true,
-      pinnedLinkedNotePaths: new Set(['Projects/Plan.md']),
-      showPinnedSection: true,
-      collapsedGroupKeys: new Set(['note:Projects/Other.md']),
-      pageSize: 1,
+      searchQuery: 'projects plan',
     });
 
-    expect(projection.pinnedNoteSections.map(({ notePath }) => notePath)).toEqual(['Projects/Plan.md']);
-    expect(projection.sortedPinnedConversations.map(({ id }) => id)).toEqual(['pinned-session']);
-    expect(projection.sections.map(({ notePath }) => notePath)).toEqual(['Projects/Other.md']);
+    expect(projection.filteredConversations.map(({ id }) => id)).toEqual(['newer', 'older']);
     expect(projection.visibleConversationTotal).toBe(2);
-    expect(projection.visibleCount).toBe(1);
   });
 
-  it('keeps archived filtering and pagination state independent', () => {
+  it('keeps archived scope and pagination state', () => {
     const projection = projectHistory({
       conversations: [
         createConversation('archived', { isArchived: true, lastActivityAt: 30 }),
         createConversation('active', { lastActivityAt: 20 }),
       ],
-      organization: 'list',
-      sort: 'last-updated',
-      language: 'en',
       sessionScope: 'archived',
       previousVisibleCount: 50,
       visibleCount: 75,
       pageSize: 20,
     });
 
-    expect(projection.sections[0]?.conversations.map(({ id }) => id)).toEqual(['archived']);
+    expect(projection.filteredConversations.map(({ id }) => id)).toEqual(['archived']);
     expect(projection.visibleCount).toBe(75);
     expect(projection.pageSize).toBe(20);
-    expect(projection.showSessionSections).toBe(false);
   });
 });

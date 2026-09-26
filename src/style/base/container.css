@@ -23,13 +23,6 @@
   overflow: hidden;
 }
 
-.oh-my-claudian-root.claudian-container.claudian-wide-session-layout {
-  flex-direction: row;
-}
-
-.oh-my-claudian-root.claudian-container.claudian-wide-session-layout.claudian-session-sidebar-left {
-  flex-direction: row-reverse;
-}
 
 .oh-my-claudian-root .claudian-provider-icon-variant--dark {
   display: none;

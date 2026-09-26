@@ -80,10 +80,17 @@ describe('types.ts', () => {
       expect(DEFAULT_SETTINGS.maxWarmAgentProcesses).toBe(5);
     });
 
-    it('should enable the right-side dual pane by default', () => {
-      expect(DEFAULT_SETTINGS.enableDualPane).toBe(true);
-      expect(DEFAULT_SETTINGS.enableFilePane).toBe(true);
-      expect(DEFAULT_SETTINGS.dualPaneSide).toBe('right');
+    it('does not expose removed session-sidebar preferences', () => {
+      for (const key of [
+        'enableDualPane',
+        'enableFilePane',
+        'dualPaneSide',
+        'sessionManagerOrganization',
+        'sessionManagerSort',
+        'pinnedLinkedNotePaths',
+      ]) {
+        expect(DEFAULT_SETTINGS).not.toHaveProperty(key);
+      }
     });
   });
 
@@ -125,9 +132,6 @@ describe('types.ts', () => {
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: false,
         chatViewPlacement: 'right-sidebar',
-        enableDualPane: true,
-        enableFilePane: true,
-        dualPaneSide: 'right',
         hiddenProviderCommands: {
           claude: [],
           codex: [],
@@ -185,9 +189,6 @@ describe('types.ts', () => {
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: false,
         chatViewPlacement: 'right-sidebar',
-        enableDualPane: true,
-        enableFilePane: true,
-        dualPaneSide: 'right',
         hiddenProviderCommands: {
           claude: [],
           codex: [],
@@ -246,9 +247,6 @@ describe('types.ts', () => {
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: true,
         chatViewPlacement: 'right-sidebar',
-        enableDualPane: false,
-        enableFilePane: false,
-        dualPaneSide: 'left',
         hiddenProviderCommands: {
           claude: [],
           codex: [],
