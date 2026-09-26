@@ -171,7 +171,11 @@ export interface TabDOMElements {
 
   /** Preact-owned header for bound conversations. */
   conversationHeaderRoot: PreactRoot;
-  updateConversationHeader: (title: string, isHome?: boolean) => void;
+  updateConversationHeader: (
+    title: string,
+    isHome?: boolean,
+    conversationId?: string | null,
+  ) => void;
 
   /** Container for status panel (fixed between messages and input). */
   statusPanelContainerEl: HTMLElement;

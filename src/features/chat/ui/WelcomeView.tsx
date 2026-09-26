@@ -52,6 +52,7 @@ export interface WelcomeHomeOptions {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onNewConversation?: () => void;
+  onRenameConversation?: (conversationId: string, title: string) => void;
 }
 
 function HomeConversationLoadingIndicator({ label }: { label: string }) {

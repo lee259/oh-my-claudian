@@ -163,18 +163,60 @@
   gap: 8px;
 }
 
+.claudian-conversation-header-title-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+}
+
 .claudian-conversation-header-actions {
   flex: 0 0 auto;
   gap: 2px;
 }
 
 .claudian-conversation-header-title {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--text-normal);
   font-size: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.claudian-conversation-header-rename-action {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+}
+
+.claudian-conversation-header-rename-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 16px;
+}
+
+.claudian-conversation-header-rename-input:hover {
+  border-color: var(--background-modifier-border);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+}
+
+.claudian-conversation-header-rename-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
 }
 
 .claudian-conversation-header-action {

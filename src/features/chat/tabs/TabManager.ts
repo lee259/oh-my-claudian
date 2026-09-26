@@ -680,14 +680,25 @@ export class TabManager implements TabManagerInterface {
   /**
    * Creates a new conversation in the active tab.
    */
-  async createNewConversation(): Promise<void> {
-    const activeTab = this.getActiveTab();
-    if (activeTab) {
-      await activeTab.controllers.conversationController?.createNew();
+  async createNewConversation(options: { force?: boolean } = {}): Promise<void> {
+    await this.conversationNavigationQueue.enqueue(async () => {
+      if (this.destroyed || this.provisionalCleanupCoordinator.isRunning()) return;
+
+      const activeTab = this.getActiveTab();
+      if (!activeTab) return;
+
+      const conversationController = activeTab.controllers.conversationController;
+      if (options.force) {
+        await conversationController?.createNew({ force: true });
+      } else {
+        await conversationController?.createNew();
+      }
+      if (!this.isTabAlive(activeTab)) return;
+
       // Sync tab.conversationId with the newly created conversation
       activeTab.conversationId = activeTab.state.currentConversationId;
       this.callbacks.onTabConversationChanged?.(activeTab.id, activeTab.conversationId);
-    }
+    });
   }
 
   invalidateProviderCommandCaches(providerIds?: ProviderId | ProviderId[]): void {
