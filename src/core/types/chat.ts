@@ -169,7 +169,7 @@ export interface Conversation {
   modelRecoverySource?: ConversationModelRecoverySource;
   messages: ChatMessage[];
   currentNote?: string;
-  /** Whether the session is pinned in the dual-pane session manager. */
+  /** Whether the conversation is pinned in History. */
   isPinned?: boolean;
   /** Whether the session is archived and hidden from active session lists. */
   isArchived?: boolean;
@@ -206,7 +206,7 @@ export interface ConversationMeta {
   preview: string;
   /** Vault-relative path of the note linked to this session. */
   currentNote?: string;
-  /** Whether the session is pinned in the dual-pane session manager. */
+  /** Whether the conversation is pinned in History. */
   isPinned?: boolean;
   /** Whether the session is archived and hidden from active session lists. */
   isArchived?: boolean;

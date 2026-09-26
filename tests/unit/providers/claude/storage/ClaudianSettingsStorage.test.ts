@@ -64,9 +64,6 @@ describe('ClaudianSettingsStorage', () => {
       expect(result.requireCommandOrControlEnterToSend).toBe(false);
       expect(result.titleGenerationLocale).toBe('');
       expect(result.lastSelectedChatModel).toBeNull();
-      expect(result.enableDualPane).toBe(true);
-      expect(result.enableFilePane).toBe(true);
-      expect(result.dualPaneSide).toBe('right');
       expect(mockAdapter.read).not.toHaveBeenCalled();
     });
 
@@ -284,23 +281,31 @@ describe('ClaudianSettingsStorage', () => {
       expect(writtenContent.chatViewPlacement).toBe('right-sidebar');
     });
 
-    it('normalizes invalid dual-pane preferences', async () => {
+    it('removes persisted settings for the deleted session sidebar', async () => {
       mockAdapter.exists.mockResolvedValue(true);
       mockAdapter.read.mockResolvedValue(JSON.stringify({
         enableDualPane: 'yes',
         enableFilePane: 'yes',
         dualPaneSide: 'top',
+        sessionManagerOrganization: 'linked-note',
+        sessionManagerSort: 'created',
+        pinnedLinkedNotePaths: ['Projects/Plan.md'],
       }));
 
       const result = await storage.load();
       const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
 
-      expect(result.enableDualPane).toBe(true);
-      expect(result.enableFilePane).toBe(true);
-      expect(result.dualPaneSide).toBe('right');
-      expect(writtenContent.enableDualPane).toBe(true);
-      expect(writtenContent.enableFilePane).toBe(true);
-      expect(writtenContent.dualPaneSide).toBe('right');
+      for (const key of [
+        'enableDualPane',
+        'enableFilePane',
+        'dualPaneSide',
+        'sessionManagerOrganization',
+        'sessionManagerSort',
+        'pinnedLinkedNotePaths',
+      ]) {
+        expect(result).not.toHaveProperty(key);
+        expect(writtenContent).not.toHaveProperty(key);
+      }
     });
 
     it('should strip legacy blocklist fields from loaded data', async () => {

@@ -7,36 +7,28 @@ describe('HistoryViewport', () => {
     const viewport = new HistoryViewport();
     const container = createMockEl();
     const list = container.createDiv({ cls: 'claudian-history-list' });
-    const sessionList = list.createDiv({ cls: 'claudian-session-list-items' });
     list.dataset.visibleCount = '50';
-    sessionList.scrollTop = 320;
+    list.scrollTop = 320;
 
     const snapshot = viewport.capture(container, true);
-    const layout = viewport.createLayout(container, {
-      showSessionSections: false,
-      showArchivedSection: false,
-    });
-    viewport.setVisibleCount(layout.list, snapshot.previousVisibleCount);
-    viewport.restore(layout, snapshot);
+    const nextList = viewport.createLayout(container, { showHistoryHeader: false });
+    viewport.setVisibleCount(nextList, snapshot.previousVisibleCount);
+    viewport.restore(nextList, snapshot);
 
     expect(snapshot.previousVisibleCount).toBe(50);
-    expect(layout.list.dataset.visibleCount).toBe('50');
-    expect(layout.sessionList.scrollTop).toBe(320);
+    expect(nextList.dataset.visibleCount).toBe('50');
+    expect(nextList.scrollTop).toBe(320);
   });
 
-  it('creates separate pinned and session viewports for sectioned history', () => {
+  it('creates a single history list with its header', () => {
     const viewport = new HistoryViewport();
     const container = createMockEl();
 
-    const layout = viewport.createLayout(container, {
-      showSessionSections: true,
-      showArchivedSection: true,
-      hasPinnedSection: true,
-    });
+    const list = viewport.createLayout(container, { historyHeaderLabel: 'Sessions' });
 
-    expect(layout.pinnedList).not.toBeNull();
-    expect(layout.list.querySelector('.claudian-history-section--archived')).not.toBeNull();
-    expect(layout.sessionList.hasClass('claudian-session-list-items')).toBe(true);
+    expect(container.querySelectorAll('.claudian-history-list')).toHaveLength(1);
+    expect(container.querySelector('.claudian-history-header')).not.toBeNull();
+    expect(list.hasClass('claudian-history-list')).toBe(true);
   });
 
   it('reuses keyed history items while committing a staged render', () => {
@@ -69,35 +61,4 @@ describe('HistoryViewport', () => {
     expect(nextItem.replaceWith).toHaveBeenCalledWith(previousItem);
   });
 
-  it('rebuilds interactive history items so hover handlers reflect the current render', () => {
-    const viewport = new HistoryViewport();
-    const previousItem = {
-      getAttribute: (name: string) => name === 'data-history-render-key' ? 'session-1' : null,
-    } as unknown as HTMLElement;
-    const renderRoot = {
-      children: [] as HTMLElement[],
-      querySelectorAll: () => renderRoot.children,
-      remove: jest.fn(),
-    } as unknown as HTMLElement & { children: HTMLElement[] };
-    const nextItem = {
-      getAttribute: (name: string) => {
-        if (name === 'data-history-render-key') return 'session-1';
-        if (name === 'data-history-render-reuse') return 'false';
-        return null;
-      },
-      replaceWith: jest.fn(),
-    } as unknown as HTMLElement;
-    renderRoot.children.push(nextItem);
-    const container = {
-      children: [previousItem],
-      querySelectorAll: () => [previousItem],
-      empty: jest.fn(() => { container.children.length = 0; }),
-      appendChild: jest.fn((child: HTMLElement) => { container.children.push(child); }),
-    } as unknown as HTMLElement & { children: HTMLElement[] };
-
-    viewport.commit(container, renderRoot);
-
-    expect(container.children[0]).toBe(nextItem);
-    expect(nextItem.replaceWith).not.toHaveBeenCalled();
-  });
 });

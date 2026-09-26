@@ -40,8 +40,6 @@ export {
   type InstructionRefineResult,
   type KeyboardNavigationSettings,
   type PermissionMode,
-  type SessionManagerOrganization,
-  type SessionManagerSort,
   type SlashCommand,
   type StoredChatModelSelection,
 } from './settings';

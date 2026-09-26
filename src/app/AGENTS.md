@@ -19,7 +19,6 @@
 | `SharedStorageService` | Plugin-data and vault persistence I/O plus construction of shared persistence adapters |
 | `SettingsCoordinator` | Serialization of settings mutations, rollback before failed persistence, and post-commit publication ordering |
 | `ChatModelSelectionCoordinator` | Application-wide ordering and durable settings commits for explicit future-tab model-seed intents |
-| `PinnedLinkedNotePathCoordinator` | Pinned linked-note path mutation, folder-descendant rewrite, deduplication, and deletion cleanup through ordered settings transactions |
 | `ClaudianProviderHost` | Typed delegation to application capabilities; it owns no duplicate settings, storage, view, or execution state |
 
 Storage adapters own I/O mechanics, not domain decisions. Callers decide what state is valid; adapters merge and persist it without inventing conversation, tab, provider, or settings semantics.

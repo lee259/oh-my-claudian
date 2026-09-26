@@ -21,7 +21,6 @@ import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdap
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
 import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
-import { PinnedLinkedNotePathCoordinator } from './app/settings/PinnedLinkedNotePathCoordinator';
 import { ProviderRuntimeSettingsCoordinator } from './app/settings/ProviderRuntimeSettingsCoordinator';
 import type {
   ConditionalSettingsMutation,
@@ -108,7 +107,6 @@ export default class ClaudianPlugin extends Plugin {
   );
   private settingsCoordinator!: SettingsCoordinator<ClaudianSettings>;
   private chatModelSelectionCoordinator!: ChatModelSelectionCoordinator;
-  private pinnedLinkedNotePaths!: PinnedLinkedNotePathCoordinator;
   private conversationRepository!: ConversationRepository;
   private sessionMetadataCoordinator!: SessionMetadataCoordinator;
   private sessionInvalidationCoordinator!: SessionInvalidationCoordinator;
@@ -162,11 +160,6 @@ export default class ClaudianPlugin extends Plugin {
       this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
         void this.handleLinkedNoteRename(file, oldPath).catch(() => {
           new Notice('Failed to update linked session note paths');
-        });
-      }));
-      this.registerEvent(this.app.vault.on('delete', (file) => {
-        void this.handlePinnedLinkedNoteDeleted(file).catch(() => {
-          new Notice('Failed to update pinned linked notes');
         });
       }));
 
@@ -424,9 +417,6 @@ export default class ClaudianPlugin extends Plugin {
       },
     );
     this.chatModelSelectionCoordinator = new ChatModelSelectionCoordinator(
-      this.settingsCoordinator,
-    );
-    this.pinnedLinkedNotePaths = new PinnedLinkedNotePathCoordinator(
       this.settingsCoordinator,
     );
     this.sessionInvalidationCoordinator = new SessionInvalidationCoordinator({
@@ -929,13 +919,6 @@ export default class ClaudianPlugin extends Plugin {
     this.notifyConversationViewsChanged();
   }
 
-  async setLinkedNotePinned(notePath: string, isPinned: boolean): Promise<void> {
-    const changed = await this.pinnedLinkedNotePaths.setPinned(notePath, isPinned);
-    if (changed) {
-      this.notifyConversationViewsChanged();
-    }
-  }
-
   async setConversationArchived(id: string, isArchived: boolean): Promise<void> {
     await this.conversationRepository.setArchived(id, isArchived);
     this.notifyConversationViewsChanged();
@@ -948,22 +931,7 @@ export default class ClaudianPlugin extends Plugin {
     await this.conversationRepository.rewriteCurrentNotePaths(oldPath, file.path, {
       includeDescendants: file instanceof TFolder,
     });
-    await this.pinnedLinkedNotePaths.rewritePaths(
-      oldPath,
-      file.path,
-      file instanceof TFolder,
-    );
     this.notifyConversationViewsChanged();
-  }
-
-  private async handlePinnedLinkedNoteDeleted(file: TAbstractFile): Promise<void> {
-    const removed = await this.pinnedLinkedNotePaths.removePaths(
-      file.path,
-      file instanceof TFolder,
-    );
-    if (removed) {
-      this.notifyConversationViewsChanged();
-    }
   }
 
   async updateConversation(id: string, updates: Partial<Conversation>): Promise<void> {

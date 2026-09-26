@@ -2,27 +2,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 describe('Session history styles', () => {
-  it('keeps the sidebar surface switcher visible at the top', () => {
+  it('contains no removed session-sidebar or metadata-popover styles', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
 
-    expect(css).not.toMatch(/--claudian-sidebar-surface-footer-height:/);
-    expect(css).toMatch(
-      /\.claudian-sidebar-surface-switcher\s*{[^}]*position:\s*relative;[^}]*flex:\s*0 0 auto;[^}]*background:\s*var\(--background-primary\);/,
-    );
-  });
-
-  it('keeps history rules scoped and session metadata overlay rules global', () => {
-    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
-    const metadataCss = readFileSync(
-      path.resolve('src/style/session-metadata-popover.css'),
-      'utf8',
-    );
-
+    expect(css).not.toMatch(/claudian-(?:session-sidebar|session-resizer|sidebar-surface|session-group|session-metadata-popover)/);
     expect(css).toContain('.claudian-history-container');
-    expect(css).not.toContain('.claudian-session-metadata-popover');
-    expect(metadataCss).toContain('.claudian-session-metadata-popover');
-    expect(metadataCss).toContain('background: var(--background-primary);');
-    expect(metadataCss).not.toContain('body.theme-dark .claudian-session-metadata-popover');
+    expect(css).toContain('.claudian-history-menu');
   });
 });
 
