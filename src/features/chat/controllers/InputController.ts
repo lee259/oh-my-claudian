@@ -474,6 +474,15 @@ export class InputController {
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       throw error;
     }
+    if (state.cancelRequested) {
+      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest), {
+        mergeWithComposer: true,
+      });
+      this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
+      this.resetProviderMessageBoundaryState();
+      this.reportDeferredReviewableSettlement();
+      return;
+    }
     const turnConversationId = state.currentConversationId;
 
     const assistantMsg: ChatMessage = {
@@ -516,6 +525,16 @@ export class InputController {
     // Lazy initialization: bind and prepare execution on the first provider action.
     if (this.deps.ensureExecutionInitialized) {
       const ready = await this.deps.ensureExecutionInitialized();
+      if (state.cancelRequested) {
+        this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest), {
+          mergeWithComposer: true,
+        });
+        this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
+        this.activeStreamingAssistantMessage = null;
+        this.resetProviderMessageBoundaryState();
+        this.reportDeferredReviewableSettlement();
+        return;
+      }
       if (!ready) {
         new Notice('Failed to initialize agent execution. Please try again.');
         this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
