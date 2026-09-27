@@ -29,6 +29,9 @@ export interface CliProviderMetadata {
   /** npm package name for registry-based version checking and install. */
   npmPackage?: string;
 
+  /** Registry packages used only for latest-version checks on selected installed major versions. */
+  latestVersionNpmPackagesByMajor?: Readonly<Record<number, string>>;
+
   /** Optional URL to an official shell installer script (macOS/Linux). */
   installerUrl?: string;
 
