@@ -10,6 +10,14 @@ export const LEGACY_OPENCODE_YOLO_MODE_ID = 'claudian-yolo';
 export const LEGACY_OPENCODE_SAFE_MODE_ID = 'claudian-safe';
 export const OPENCODE_PLAN_MODE_ID = 'plan';
 
+export function isOpencodeBuildModeId(value: unknown): value is string {
+  return typeof value === 'string' && value.toLowerCase() === OPENCODE_BUILD_MODE_ID;
+}
+
+export function isOpencodePlanModeId(value: unknown): value is string {
+  return typeof value === 'string' && value.toLowerCase() === OPENCODE_PLAN_MODE_ID;
+}
+
 export function normalizeOpencodeAvailableModes(value: unknown): OpencodeMode[] {
   if (!Array.isArray(value)) {
     return [];
@@ -42,6 +50,32 @@ export function normalizeOpencodeAvailableModes(value: unknown): OpencodeMode[] 
   }
 
   return normalized;
+}
+
+/** Maps OpenCode v2 primary-capable agents into the same native mode catalog used by ACP. */
+export function normalizeOpencodeAgentModes(value: unknown): OpencodeMode[] {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && !Array.isArray(value)
+      && Array.isArray((value as Record<string, unknown>).data)
+      ? (value as { data: unknown[] }).data
+      : [];
+  return normalizeOpencodeAvailableModes(entries.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const agent = entry as Record<string, unknown>;
+    const name = typeof agent.name === 'string' ? agent.name.trim() : '';
+    const mode = typeof agent.mode === 'string' ? agent.mode : 'primary';
+    if (!name || agent.hidden === true || agent.disable === true || mode === 'subagent') return [];
+    const normalizedName = name.toLowerCase();
+    const id = normalizedName === 'build' || normalizedName === 'plan'
+      ? normalizedName
+      : name;
+    return [{
+      ...(typeof agent.description === 'string' ? { description: agent.description } : {}),
+      id,
+      name,
+    }];
+  }));
 }
 
 export function getEffectiveOpencodeModes(modes: OpencodeMode[]): OpencodeMode[] {
@@ -82,10 +116,11 @@ export function resolveOpencodeModeForPermissionMode(
   modes: OpencodeMode[] = [],
 ): string {
   const nativeModes = getEffectiveOpencodeModes(modes);
-  if (permissionMode === 'plan' && nativeModes.some((mode) => mode.id === OPENCODE_PLAN_MODE_ID)) {
-    return OPENCODE_PLAN_MODE_ID;
+  const planMode = nativeModes.find((mode) => isOpencodePlanModeId(mode.id));
+  if (permissionMode === 'plan' && planMode) {
+    return planMode.id;
   }
-  return nativeModes.find((mode) => mode.id === OPENCODE_BUILD_MODE_ID)?.id
+  return nativeModes.find((mode) => isOpencodeBuildModeId(mode.id))?.id
     ?? nativeModes[0]?.id
     ?? '';
 }
@@ -93,5 +128,5 @@ export function resolveOpencodeModeForPermissionMode(
 export function resolveOpencodePermissionMode(
   modeId: unknown,
 ): 'normal' | 'plan' | 'yolo' | null {
-  return modeId === OPENCODE_PLAN_MODE_ID ? 'plan' : modeId ? 'normal' : null;
+  return isOpencodePlanModeId(modeId) ? 'plan' : modeId ? 'normal' : null;
 }

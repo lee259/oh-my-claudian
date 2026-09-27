@@ -35,6 +35,7 @@ import { loadOpencodeTurnStats } from '../history/OpencodeTurnStats';
 import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection';
 import { decodeOpencodeModelId } from '../models';
 import {
+  isOpencodePlanModeId,
   resolveOpencodeModeForPermissionMode,
 } from '../modes';
 import { createOpencodeToolStreamAdapter } from '../normalization/opencodeToolNormalization';
@@ -305,7 +306,8 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         await pendingDisposal;
         if (!this.isRunCurrent(run, generation)) return;
       }
-      const kernelConfigurationKey = buildKernelConfigurationKey(request);
+      const providerSettings = getOpencodeProviderSettings(this.plugin.settings);
+      const kernelConfigurationKey = buildKernelConfigurationKey(request, providerSettings);
       let kernel = this.kernel;
       let native = this.nativeInfo;
       if (
@@ -397,7 +399,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         });
         this.kernel = kernel;
         await kernel.connect({
-          profile: resolveProfile(request),
+          profile: resolveProfile(request, providerSettings),
           systemInstructions: request.configuration.systemInstructions,
         });
         if (this.kernel === kernel) {
@@ -462,6 +464,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         reason: 'completed',
         scope: run.scope(),
         type: 'turn_completed',
+        ...(response.nativeAssistantId ? { nativeAssistantId: response.nativeAssistantId } : {}),
         ...(turnStats ? { turnStats } : {}),
       });
       this.activeRun = null;
@@ -550,7 +553,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
       });
     }
     if (result.metadata?.type === 'current_mode') {
-      if (result.metadata.currentModeId === 'plan') this.emitSessionMode('plan');
+      if (isOpencodePlanModeId(result.metadata.currentModeId)) this.emitSessionMode('plan');
     }
     if (
       acceptingLiveOutput
@@ -645,7 +648,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
       });
     }
 
-    const profile = resolveProfile(request);
+    const profile = resolveProfile(request, getOpencodeProviderSettings(this.plugin.settings));
     const mode = profile === 'passive'
       ? 'claudian-execution-passive'
       : profile === 'readonly'
@@ -1029,21 +1032,35 @@ function resolveSelectedNativeMode(
   return requested && availableModes.some(mode => mode.id === requested) ? requested : null;
 }
 
-function resolveProfile(request: ProviderExecutionRequest): OpencodeExecutionProfile {
+function resolveProfile(
+  request: ProviderExecutionRequest,
+  settings: ReturnType<typeof getOpencodeProviderSettings>,
+): OpencodeExecutionProfile {
   if (
     request.toolPolicy.kind === 'passive'
     || request.toolPolicy.kind === 'allow-list'
   ) return 'passive';
-  if (request.toolPolicy.kind === 'read-only') return 'readonly';
+  if (request.toolPolicy.kind === 'read-only') {
+    const selectedNativeMode = settings.availableModes.find(mode =>
+      mode.id === settings.selectedMode || mode.id === request.configuration.mode
+    );
+    if (
+      request.configuration.permissionMode === 'plan'
+      && selectedNativeMode
+      && isOpencodePlanModeId(selectedNativeMode.id)
+    ) return 'managed';
+    return 'readonly';
+  }
   return 'managed';
 }
 
 function buildKernelConfigurationKey(
   request: ProviderExecutionRequest,
+  settings: ReturnType<typeof getOpencodeProviderSettings>,
 ): string {
   const instructions = request.configuration.systemInstructions;
   return JSON.stringify([
-    resolveProfile(request),
+    resolveProfile(request, settings),
     instructions.kind,
     instructions.kind === 'explicit' ? instructions.instructions : null,
   ]);

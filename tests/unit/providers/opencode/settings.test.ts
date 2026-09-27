@@ -5,6 +5,7 @@ jest.mock('../../../../src/utils/env', () => ({
   getHostnameKey: () => mockGetHostnameKey(),
 }));
 
+import { clearOpencodeDiscoveryState } from '../../../../src/providers/opencode/discoveryState';
 import {
   DEFAULT_OPENCODE_PROVIDER_SETTINGS,
   getOpencodeProviderSettings,
@@ -161,7 +162,7 @@ describe('OpenCode settings normalization', () => {
 
     expect(next.visibleModels).toEqual(['anthropic/claude-sonnet-4']);
     expect(next.modelAliases).toEqual({ 'anthropic/claude-sonnet-4': 'Sonnet' });
-    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toBeUndefined();
+    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toEqual(discoveredModels);
   });
 
   it('falls back active and saved OpenCode selections when the current model is removed from visible models', () => {
@@ -256,8 +257,14 @@ describe('OpenCode settings normalization', () => {
       ...discoveredModels,
       { label: 'OpenAI/GPT-5', rawId: 'openai/gpt-5' },
     ]);
-    expect((settings.providerConfigs as Record<string, any>).opencode.availableModes).toBeUndefined();
-    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toBeUndefined();
+    expect((settings.providerConfigs as Record<string, any>).opencode.availableModes).toEqual([
+      { id: 'build', name: 'Build' },
+      { id: 'plan', name: 'Plan' },
+    ]);
+    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toEqual([
+      ...discoveredModels,
+      { label: 'OpenAI/GPT-5', rawId: 'openai/gpt-5' },
+    ]);
   });
 
   it('preserves the catalog refresh time across reads and persists a refresh with unchanged models', () => {
@@ -280,6 +287,46 @@ describe('OpenCode settings normalization', () => {
 
     expect(next.catalogTimestamp).toBe(2_000);
     expect((settings.providerConfigs as Record<string, any>).opencode.catalogTimestamp).toBe(2_000);
+  });
+
+  it('persists discovered models so they survive settings serialization and plugin restart', () => {
+    const settings: Record<string, unknown> = {
+      providerConfigs: { opencode: { visibleModels: ['anthropic/claude-sonnet-4'] } },
+    };
+
+    updateOpencodeProviderSettings(settings, {
+      availableModes: [
+        { id: 'build', name: 'Build' },
+        { id: 'plan', name: 'Plan' },
+      ],
+      catalogTimestamp: 2_000,
+      discoveredModels,
+    });
+
+    const reloaded = JSON.parse(JSON.stringify(settings)) as Record<string, unknown>;
+    expect(getOpencodeProviderSettings(reloaded).discoveredModels).toEqual(discoveredModels);
+    expect(getOpencodeProviderSettings(reloaded).availableModes).toEqual([
+      { id: 'build', name: 'Build' },
+      { id: 'plan', name: 'Plan' },
+    ]);
+    expect(getOpencodeProviderSettings(reloaded).catalogTimestamp).toBe(2_000);
+  });
+
+  it('clears the persisted model snapshot when the discovery environment changes', () => {
+    const settings: Record<string, unknown> = {
+      providerConfigs: {
+        opencode: {
+          catalogTimestamp: 2_000,
+          discoveredModels,
+          availableModes: [{ id: 'build', name: 'Build' }],
+        },
+      },
+    };
+
+    expect(clearOpencodeDiscoveryState(settings)).toBe(true);
+    expect(getOpencodeProviderSettings(settings).discoveredModels).toEqual([]);
+    expect(getOpencodeProviderSettings(settings).availableModes).toEqual([]);
+    expect(getOpencodeProviderSettings(settings).catalogTimestamp).toBe(0);
   });
 
   it('does not treat legacy discovered models as freshly refreshed when no timestamp exists', () => {
@@ -338,7 +385,7 @@ describe('OpenCode settings normalization', () => {
         { label: 'Low', value: 'low' },
       ],
     });
-    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toBeUndefined();
+    expect((settings.providerConfigs as Record<string, any>).opencode.discoveredModels).toEqual(discoveredModels);
   });
 
   it('hydrates persisted thinking options without requiring the full discovered model catalog', () => {

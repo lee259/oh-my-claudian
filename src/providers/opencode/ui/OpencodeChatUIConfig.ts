@@ -19,7 +19,8 @@ import {
   resolveOpencodeDefaultThinkingLevel,
 } from '../models';
 import {
-  OPENCODE_PLAN_MODE_ID,
+  isOpencodeBuildModeId,
+  isOpencodePlanModeId,
   resolveOpencodePermissionMode,
 } from '../modes';
 import { getOpencodeProviderSettings, updateOpencodeProviderSettings } from '../settings';
@@ -214,13 +215,16 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
 
   getPermissionModeOptions(settings): ProviderPermissionModeOption[] {
     const opencodeSettings = getOpencodeProviderSettings(settings);
-    return opencodeSettings.availableModes.map(mode => ({
-      ...(mode.description ? { description: mode.description } : {}),
-      icon: mode.id === OPENCODE_PLAN_MODE_ID ? 'clipboard-list' : 'code',
-      ...(mode.id === OPENCODE_PLAN_MODE_ID ? { isPlanMode: true } : {}),
-      label: mode.name,
-      value: mode.id,
-    }));
+    return opencodeSettings.availableModes.map((mode) => {
+      const builtin = getOpenCodeBuiltinModePresentation(mode.id);
+      return {
+        description: builtin?.description ?? mode.description ?? undefined,
+        icon: isOpencodePlanModeId(mode.id) ? 'clipboard-list' : 'code',
+        ...(isOpencodePlanModeId(mode.id) ? { isPlanMode: true } : {}),
+        label: builtin?.label ?? mode.name,
+        value: mode.id,
+      };
+    });
   },
 
   resolvePermissionModeOption(settings): string | null {
@@ -232,7 +236,7 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
 
   resolvePermissionMode(settings: Record<string, unknown>): string | null {
     const selectedMode = getOpencodeProviderSettings(settings).selectedMode;
-    return selectedMode === OPENCODE_PLAN_MODE_ID ? 'plan' : 'normal';
+    return isOpencodePlanModeId(selectedMode) ? 'plan' : 'normal';
   },
 
   applyPermissionMode(value: string, settings: unknown): void {
@@ -277,6 +281,22 @@ function getOpencodeThinkingOptions(
   const opencodeSettings = getOpencodeProviderSettings(settings);
   const baseRawId = resolveOpencodeBaseModelRawId(rawModelId, opencodeSettings.discoveredModels);
   return opencodeSettings.thinkingOptionsByModel[baseRawId] ?? [];
+}
+
+function getOpenCodeBuiltinModePresentation(id: string): { description: string; label: string } | null {
+  if (isOpencodePlanModeId(id)) {
+    return {
+      description: t('chat.composer.modeOpenCodePlanDescription'),
+      label: t('chat.composer.plan'),
+    };
+  }
+  if (isOpencodeBuildModeId(id)) {
+    return {
+      description: t('chat.composer.modeOpenCodeBuildDescription'),
+      label: t('chat.composer.modeOpenCodeBuild'),
+    };
+  }
+  return null;
 }
 
 function pushOption(

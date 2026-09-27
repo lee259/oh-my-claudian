@@ -34,6 +34,7 @@
 - Preserve user OpenCode config by loading `OPENCODE_CONFIG` and layering Claudian-managed agent config over it.
 - Runtime fingerprint changes invalidate OpenCode sessions. The fingerprint includes `OPENCODE_CONFIG`, `OPENCODE_DB`, `OPENCODE_DISABLE_PROJECT_CONFIG`, `XDG_DATA_HOME`, `PATH`, and explicit/host CLI-path inputs.
 - The composer lists only modes advertised by the active ACP session and persists their native IDs. Project those IDs into generic execution policy only at the provider boundary (`plan` versus ordinary execution); never synthesize Claudian Safe/YOLO modes or treat arbitrary custom-agent names as permission guarantees.
+- When the native built-in `plan` agent is selected for a read-only turn, retain the managed session profile and switch the session's native agent; the generic read-only profile would replace native Plan semantics.
 
 ## Commands and Agents
 

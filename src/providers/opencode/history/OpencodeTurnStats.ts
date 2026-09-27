@@ -29,14 +29,14 @@ export class OpencodeTurnStats {
     const tokens = asRecord(info.tokens);
     const output = tokens?.output;
     const reasoning = tokens?.reasoning;
-    if (!isTokenCount(output) || !isTokenCount(reasoning) || info.error
+    if (!isTokenCount(output) || !isTokenCount(reasoning)
       || info.parentID !== this.userId) {
       this.outputTokens = undefined;
     } else if (this.outputTokens !== undefined) {
       this.outputTokens += output + reasoning;
     }
     const completedAt = getCompletedAt(info);
-    return (info.finish === 'stop' || info.finish === 'length')
+    return (info.finish === 'stop' || info.finish === 'length' || info.finish === 'error')
       && this.startedAt !== null && completedAt !== null
       ? createTurnStats(this.outputTokens, completedAt - this.startedAt)
       : undefined;

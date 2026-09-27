@@ -50,7 +50,10 @@ export async function loadOpencodeSessionMessages(
 
   let rows: StoredSessionRows;
   try {
-    rows = await loadOpencodeSessionRows(databasePath, sessionId, { environment });
+    rows = await loadOpencodeSessionRows(databasePath, sessionId, {
+      environment,
+      nativeVersion: providerState?.nativeVersion ?? 'auto',
+    });
   } catch (error) {
     return [createOpencodeHydrationDiagnosticMessage({
       databasePath,
@@ -75,7 +78,10 @@ export async function loadOpencodeSessionModel(
     return null;
   }
 
-  const rows = await loadOpencodeSessionRows(databasePath, sessionId, { environment }).catch(() => null);
+  const rows = await loadOpencodeSessionRows(databasePath, sessionId, {
+    environment,
+    nativeVersion: providerState?.nativeVersion ?? 'auto',
+  }).catch(() => null);
   let rawModelId: string | null = null;
   for (const row of rows?.messageRows ?? []) {
     const data = parseJsonObject(row.data);
@@ -127,6 +133,7 @@ function hydrateStoredMessages(
   partRows: StoredRow[],
 ): StoredMessage[] {
   const partsByMessage = new Map<string, StoredRow[]>();
+  let currentUserMessageId: string | undefined;
 
   for (const row of partRows) {
     const messageId = getString(row.message_id);
@@ -148,9 +155,22 @@ function hydrateStoredMessages(
     }
 
     const data = parseJsonObject(row.data);
+    const isV2 = typeof row.type === 'string';
+    const role = isV2 ? row.type : getString(data?.role);
+    if (role === 'user') currentUserMessageId = id;
     return [{
       info: data
-        ? { ...data, id, time_created: row.time_created }
+        ? {
+            ...data,
+            ...(isV2 ? {
+              role,
+              ...(role === 'assistant' && currentUserMessageId
+                ? { parentID: currentUserMessageId }
+                : {}),
+            } : {}),
+            id,
+            time_created: row.time_created,
+          }
         : {
             data_time_completed: row.data_time_completed,
             data_time_created: row.data_time_created,
@@ -159,7 +179,53 @@ function hydrateStoredMessages(
             role: row.role,
             time_created: row.time_created,
           },
-      parts: partsByMessage.get(id) ?? [],
+      parts: isV2
+        ? buildV2MessageParts(row.type, data)
+        : partsByMessage.get(id) ?? [],
+    }];
+  });
+}
+
+function buildV2MessageParts(type: unknown, data: StoredRow | null): StoredRow[] {
+  if (!data) return [];
+  if (type === 'user') {
+    const text = getString(data.text);
+    return text ? [{ text, type: 'text' }] : [];
+  }
+  if (type !== 'assistant' || !Array.isArray(data.content)) return [];
+
+  return data.content.flatMap((value): StoredRow[] => {
+    const part = getObject(value);
+    if (!part) return [];
+    const partType = getString(part.type);
+    if (partType === 'reasoning' || partType === 'text') {
+      if (partType !== 'reasoning') return [{ ...part }];
+      const time = getObject(part.time);
+      return [{
+        ...part,
+        ...(time ? {
+          time: {
+            ...time,
+            start: time.created,
+            end: time.completed,
+          },
+        } : {}),
+      }];
+    }
+    if (partType !== 'tool') return [];
+
+    const state = getObject(part.state);
+    const content = Array.isArray(state?.content)
+      ? state.content.filter(isPlainObject).flatMap(item => getString(item.text) ?? [])
+      : [];
+    return [{
+      callID: part.id,
+      state: {
+        ...(state ?? {}),
+        ...(content.length > 0 ? { output: content.join('\n') } : {}),
+      },
+      tool: part.name,
+      type: 'tool',
     }];
   });
 }

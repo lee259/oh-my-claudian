@@ -29,9 +29,11 @@ import {
 } from './modes';
 
 export interface PersistedOpencodeProviderSettings {
+  availableModes: OpencodeMode[];
   catalogTimestamp?: number;
   cliPath: string;
   cliPathsByHost: HostnameCliPaths;
+  discoveredModels: OpencodeDiscoveredModel[];
   enabled: boolean;
   environmentHash: string;
   environmentVariables: string;
@@ -51,9 +53,11 @@ export interface OpencodeProviderSettings extends PersistedOpencodeProviderSetti
 export const OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES = 'OPENCODE_ENABLE_EXA=1';
 
 export const DEFAULT_OPENCODE_PROVIDER_SETTINGS: Readonly<PersistedOpencodeProviderSettings> = Object.freeze({
+  availableModes: [],
   catalogTimestamp: 0,
   cliPath: '',
   cliPathsByHost: {},
+  discoveredModels: [],
   enabled: false,
   environmentHash: '',
   environmentVariables: OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES,
@@ -284,9 +288,11 @@ export function updateOpencodeProviderSettings(
   );
 
   setProviderConfig(settings, 'opencode', {
+    availableModes: next.availableModes,
     catalogTimestamp: next.catalogTimestamp,
     cliPath: next.cliPath,
     cliPathsByHost: next.cliPathsByHost,
+    discoveredModels: next.discoveredModels,
     enabled: next.enabled,
     environmentHash: next.environmentHash,
     environmentVariables: next.environmentVariables,
@@ -298,11 +304,6 @@ export function updateOpencodeProviderSettings(
   });
 
   return next;
-}
-
-export function hasLegacyOpencodeDiscoveryFields(settings: Record<string, unknown>): boolean {
-  const config = getProviderConfig(settings, 'opencode');
-  return 'availableModes' in config || 'discoveredModels' in config;
 }
 
 function pruneModelAliasesToVisible(

@@ -48,7 +48,7 @@ export interface OpencodeSessionKernel {
   prompt(request: AcpPromptRequest): Promise<Pick<
     AcpPromptResponse,
     'usage' | 'userMessageId'
-  > & Partial<Pick<AcpPromptResponse, 'stopReason'>>>;
+  > & Partial<Pick<AcpPromptResponse, 'stopReason'>> & { readonly nativeAssistantId?: string }>;
   cancel(sessionId: string): void;
   dispose(): Promise<void>;
 }
