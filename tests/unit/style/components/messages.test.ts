@@ -90,3 +90,17 @@ describe('Message styles', () => {
     );
   });
 });
+
+describe('Message table overflow', () => {
+  it('allows long table cells to wrap and keeps wider content scrollable', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const messageRule = [...css.matchAll(/\.claudian-message-content\s*{[^}]*}/g)]
+      .map(match => match[0])
+      .find(rule => rule.includes('overflow-x: auto;'));
+    const cellRule = css.match(/\.claudian-message-content th,\s*\.claudian-message-content td\s*{[^}]*}/)?.[0];
+
+    expect(messageRule).toContain('overflow-x: auto;');
+    expect(cellRule).toContain('overflow-wrap: anywhere;');
+    expect(cellRule).toContain('white-space: normal;');
+  });
+});
