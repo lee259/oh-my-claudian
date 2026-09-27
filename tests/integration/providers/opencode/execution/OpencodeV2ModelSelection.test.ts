@@ -21,6 +21,7 @@ const server = http.createServer(async (req, res) => {
   if (route === '/api/integration') { activated = true; res.end('{}'); return; }
   if (route === '/api/model') { res.end(JSON.stringify({ data: activated ? [{ id: 'mimo-v2.6-flash-free', providerID: 'opencode', name: 'MiMo-V2.6-Flash Free', enabled: true }] : [] })); return; }
   if (route === '/api/command') { res.end(JSON.stringify({ data: [] })); return; }
+  if (route === '/api/agent') { res.end(JSON.stringify({ data: [] })); return; }
   if (route === '/api/session' && req.method === 'POST') { res.end(JSON.stringify({ data: { id: 'ses_test' } })); return; }
   if (route === '/api/session/ses_test/model' && req.method === 'POST') { selectedModel = body.model; res.writeHead(204).end(); return; }
   if (route === '/api/session/ses_test/prompt' && req.method === 'POST') {

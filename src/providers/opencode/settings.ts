@@ -306,11 +306,6 @@ export function updateOpencodeProviderSettings(
   return next;
 }
 
-export function hasLegacyOpencodeDiscoveryFields(settings: Record<string, unknown>): boolean {
-  const config = getProviderConfig(settings, 'opencode');
-  return 'availableModes' in config || 'discoveredModels' in config;
-}
-
 function pruneModelAliasesToVisible(
   aliases: Record<string, string>,
   visibleModels: string[],

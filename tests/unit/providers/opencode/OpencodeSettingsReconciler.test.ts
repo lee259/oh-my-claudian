@@ -3,6 +3,25 @@ import { getOpencodeDiscoveryState, updateOpencodeDiscoveryState } from '../../.
 import { opencodeSettingsReconciler } from '../../../../src/providers/opencode/env/OpencodeSettingsReconciler';
 
 describe('opencodeSettingsReconciler.normalizeModelVariantSettings', () => {
+  it('does not treat persisted discovery catalogs as legacy settings to migrate', () => {
+    const settings: Record<string, unknown> = {
+      providerConfigs: {
+        opencode: {
+          availableModes: [],
+          discoveredModels: [],
+          visibleModels: [],
+        },
+      },
+      savedProviderEffort: {},
+      savedProviderModel: {},
+      settingsProvider: 'claude',
+    };
+
+    expect(opencodeSettingsReconciler.normalizeModelVariantSettings(settings)).toBe(false);
+    expect(settings.savedProviderModel).toEqual({});
+    expect(settings.savedProviderEffort).toEqual({});
+  });
+
   it('migrates saved variant model ids into base model ids plus effort', () => {
     const settings: Record<string, unknown> = {
       effortLevel: '',
