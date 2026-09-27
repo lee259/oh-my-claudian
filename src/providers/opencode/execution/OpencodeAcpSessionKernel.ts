@@ -39,6 +39,9 @@ import {
   prepareOpencodeLaunchArtifacts,
 } from '../runtime/OpencodeLaunchArtifacts';
 import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
+import { OpencodeSessionMissingError } from './OpencodeSessionContract';
+
+export { OpencodeSessionMissingError } from './OpencodeSessionContract';
 
 export type OpencodeExecutionProfile = 'managed' | 'passive' | 'readonly';
 
@@ -79,19 +82,6 @@ export interface OpencodeAcpSessionKernel {
   > & Partial<Pick<AcpPromptResponse, 'stopReason'>>>;
   cancel(sessionId: string): void;
   dispose(): Promise<void>;
-}
-
-export class OpencodeSessionMissingError extends Error {
-  readonly name = 'OpencodeSessionMissingError';
-
-  constructor(
-    readonly sessionId: string,
-    readonly providerError: unknown,
-  ) {
-    super(providerError instanceof Error
-      ? providerError.message
-      : 'OpenCode session is missing');
-  }
 }
 
 export function classifyOpencodeSessionLoadError(

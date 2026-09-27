@@ -14,6 +14,7 @@ import {
 export interface OpencodeExecutionBackendOptions {
   readonly commandCatalog?: Pick<OpencodeCommandCatalog, 'setCommandSnapshot'>;
   readonly createKernel?: OpencodeAcpSessionKernelFactory;
+  readonly refreshModelCatalog?: (signal?: AbortSignal) => Promise<boolean>;
 }
 
 export class OpencodeExecutionBackend implements ProviderExecutionBackend {

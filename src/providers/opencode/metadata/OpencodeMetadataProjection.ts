@@ -72,6 +72,13 @@ export async function projectOpencodeMetadata(
   const rawModelId = input.selectedRawModelId
     ?? modelState.currentModelId
     ?? null;
+  const hasModels = input.models != null
+    || modelState.currentModelId !== null
+    || discoveredModels.length > 0;
+  const hasModes = input.modes != null
+    || input.currentModeId != null
+    || modeState.currentModeId !== null
+    || availableModes.length > 0;
   const baseRawModelId = rawModelId
     ? resolveOpencodeBaseModelRawId(
       rawModelId,
@@ -82,17 +89,17 @@ export async function projectOpencodeMetadata(
   if (baseRawModelId && thinkingOptions.length > 0) {
     nextThinking[baseRawModelId] = thinkingOptions;
   }
-  const hasUpdate = discoveredModels.length > 0
-    || availableModes.length > 0
+  const hasUpdate = hasModels
+    || hasModes
     || selectedMode !== null
     || (baseRawModelId !== null && thinkingOptions.length > 0);
   if (!hasUpdate) return false;
 
   await plugin.mutateSettings((settings) => {
     updateOpencodeProviderSettings(settings, {
-      ...(availableModes.length > 0 ? { availableModes } : {}),
+      ...(hasModes ? { availableModes } : {}),
       ...(selectedMode ? { selectedMode } : {}),
-      ...(discoveredModels.length > 0 ? { discoveredModels } : {}),
+      ...(hasModels ? { discoveredModels } : {}),
       ...(baseRawModelId && thinkingOptions.length > 0
         ? { thinkingOptionsByModel: nextThinking }
         : {}),
