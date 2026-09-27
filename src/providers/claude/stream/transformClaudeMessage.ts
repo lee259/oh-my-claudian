@@ -13,7 +13,11 @@ import {
 } from '../modelTiers';
 import { isBlockedMessage } from '../sdk/messages';
 import { extractToolResultContent } from '../sdk/toolResultContent';
-import type { ClaudeAsyncSubagentCompletionEvent, TransformEvent } from '../sdk/types';
+import type {
+  ClaudeAsyncSubagentCompletionEvent,
+  ClaudeSubagentProgressEvent,
+  TransformEvent,
+} from '../sdk/types';
 import { isDefaultClaudeModel, resolveContextWindowSize } from '../types/models';
 import { createTransformStreamState, type TransformStreamState } from './toolInputStreamState';
 
@@ -88,6 +92,31 @@ function transformTaskNotification(message: SDKMessage): ClaudeAsyncSubagentComp
     result: normalizeTaskNotificationResult(status, record.summary),
     ...(typeof toolUseId === 'string' && toolUseId.length > 0 ? { toolUseId } : {}),
   };
+}
+
+function transformTaskProgress(message: SDKMessage): ClaudeSubagentProgressEvent | null {
+  if (message.type !== 'system' || message.subtype !== 'task_progress') return null;
+  const raw = message as unknown as Record<string, unknown>;
+  const usage = raw.usage && typeof raw.usage === 'object'
+    ? raw.usage as Record<string, unknown>
+    : {};
+  const taskToolId = raw.tool_use_id;
+  const taskId = raw.task_id;
+  const toolCallId = typeof taskToolId === 'string' && taskToolId.length > 0
+    ? taskToolId
+    : typeof taskId === 'string' ? taskId : '';
+  if (!toolCallId) return null;
+  const progress = {
+    toolCallId,
+    ...(typeof raw.summary === 'string' && raw.summary.trim()
+      ? { summary: raw.summary.trim() }
+      : {}),
+    ...(typeof raw.last_tool_name === 'string' ? { lastToolName: raw.last_tool_name } : {}),
+    ...(typeof usage.tool_uses === 'number' ? { toolUses: usage.tool_uses } : {}),
+    ...(typeof usage.total_tokens === 'number' ? { totalTokens: usage.total_tokens } : {}),
+    ...(typeof usage.duration_ms === 'number' ? { durationMs: usage.duration_ms } : {}),
+  };
+  return { type: 'subagent_progress', progress };
 }
 
 export interface TransformOptions {
@@ -488,6 +517,9 @@ export function* transformSDKMessage(
         if (notification) {
           yield notification;
         }
+      } else if (message.subtype === 'task_progress') {
+        const progress = transformTaskProgress(message);
+        if (progress) yield progress;
       } else if (message.subtype === 'permission_denied') {
         yield emitToolResult(message.agent_id ?? null, {
           id: message.tool_use_id,

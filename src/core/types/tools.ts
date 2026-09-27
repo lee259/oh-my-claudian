@@ -113,3 +113,13 @@ export interface SubagentInfo {
   startedAt?: number;
   completedAt?: number;
 }
+
+/** Ephemeral progress snapshot reported for a running subagent. */
+export interface SubagentProgress {
+  toolCallId: string;
+  summary?: string;
+  lastToolName?: string;
+  toolUses?: number;
+  totalTokens?: number;
+  durationMs?: number;
+}

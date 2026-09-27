@@ -863,6 +863,10 @@ async function handleTabSessionEvent(
   isCurrent: () => boolean,
 ): Promise<void> {
   if (!isCurrent()) return;
+  if (event.type === 'subagent_progress') {
+    tab.controllers.streamController?.updateSubagentProgress(event.progress);
+    return;
+  }
   if (event.type === 'prompt_suggestion') {
     tab.ui.promptSuggestion?.setSuggestion(event.suggestion);
     return;

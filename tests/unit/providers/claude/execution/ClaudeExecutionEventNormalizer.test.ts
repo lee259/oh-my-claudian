@@ -21,6 +21,33 @@ describe('ClaudeExecutionEventNormalizer task tools', () => {
     }]);
   });
 
+  it('normalizes Claude task progress as a provider-neutral ephemeral event', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize({
+      type: 'system',
+      subtype: 'task_progress',
+      task_id: 'agent-1',
+      tool_use_id: 'task-tool-1',
+      summary: 'Searching the vault',
+      last_tool_name: 'Grep',
+      usage: { tool_uses: 3, total_tokens: 1200, duration_ms: 4500 },
+    } as any, 'requested');
+
+    expect(events).toContainEqual({
+      type: 'subagent_progress',
+      event: {
+        type: 'subagent_progress',
+        progress: {
+          toolCallId: 'task-tool-1',
+          summary: 'Searching the vault',
+          lastToolName: 'Grep',
+          toolUses: 3,
+          totalTokens: 1200,
+          durationMs: 4500,
+        },
+      },
+    });
+  });
+
   it('preserves a blocked decision for the matching native tool result', () => {
     const normalizer = new ClaudeExecutionEventNormalizer();
     normalizer.markToolBlocked('tool-1', 'requested');

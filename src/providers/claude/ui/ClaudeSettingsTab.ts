@@ -409,6 +409,19 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       );
 
     new Setting(container)
+      .setName(t('settings.agentProgressSummaries.name'))
+      .setDesc(t('settings.agentProgressSummaries.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(claudeSettings.agentProgressSummaries)
+          .onChange(async (value) => {
+            await context.plugin.mutateSettings((settings) => {
+              updateClaudeProviderSettings(settings, { agentProgressSummaries: value });
+            });
+          })
+      );
+
+    new Setting(container)
       .setName(t('settings.enableBangBash.name'))
       .setDesc(t('settings.enableBangBash.desc'))
       .addToggle((toggle) =>

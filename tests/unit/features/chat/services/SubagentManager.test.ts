@@ -44,6 +44,7 @@ jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
   updateSubagentToolResult: jest.fn(),
   finalizeSubagentBlock: jest.fn(),
   updateAsyncSubagentRunning: jest.fn(),
+  updateAsyncSubagentProgress: jest.fn(),
   finalizeAsyncSubagent: jest.fn(),
   markAsyncSubagentOrphaned: jest.fn(),
 }));
@@ -58,7 +59,7 @@ const createManager = () => {
 
 const createMockEl = () => ({ createDiv: jest.fn(), appendChild: jest.fn() } as any);
 
-describe('SubagentManager', () => {
+  describe('SubagentManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -68,6 +69,27 @@ describe('SubagentManager', () => {
   // ============================================
 
   describe('async lifecycle', () => {
+    it('renders progress only for the matching live async task', () => {
+      const { manager } = createManager();
+      manager.handleTaskToolUse(
+        'task-1',
+        { description: 'Background', run_in_background: true },
+        createMockEl(),
+      );
+
+      manager.updateProgress({ toolCallId: 'other-task', summary: 'Ignored' });
+      manager.updateProgress({ toolCallId: 'task-1', summary: 'Searching' });
+
+      const { updateAsyncSubagentProgress } = jest.requireMock(
+        '@/features/chat/rendering/SubagentRenderer',
+      );
+      expect(updateAsyncSubagentProgress).toHaveBeenCalledTimes(1);
+      expect(updateAsyncSubagentProgress).toHaveBeenCalledWith(
+        expect.objectContaining({ info: expect.objectContaining({ id: 'task-1' }) }),
+        { toolCallId: 'task-1', summary: 'Searching' },
+      );
+    });
+
     it('keeps one canonical task record across notification and late launch events', () => {
       const { manager } = createManager();
       const parentEl = createMockEl();

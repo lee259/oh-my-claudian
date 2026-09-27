@@ -654,6 +654,10 @@
       "name": "Activer les suggestions de prompt",
       "desc": "Afficher les prompts de suivi suggérés après une réponse de Claude. Redémarrage de la session requis."
     },
+    "agentProgressSummaries": {
+      "name": "Afficher la progression en direct des sous-agents",
+      "desc": "Claude générera régulièrement des résumés de progression pour les sous-agents actifs. Cela demande du travail supplémentaire au modèle. Redémarrage de la session requis."
+    },
     "enableBangBash": {
       "name": "Activer le mode bash (!)",
       "desc": "Saisissez ! dans un champ vide pour passer en mode bash. Les commandes sont exécutées directement avec l'utilisateur actuel du système et ne sont pas limitées au Vault. Nécessite de rouvrir la vue.",

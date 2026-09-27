@@ -65,6 +65,7 @@ export {
   type ExitPlanModePresentationOptions,
   type SubagentInfo,
   type SubagentMode,
+  type SubagentProgress,
   type ToolActivityInfo,
   type ToolActivitySubagentInfo,
   type ToolCallInfo,

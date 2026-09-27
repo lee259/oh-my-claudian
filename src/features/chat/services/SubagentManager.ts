@@ -8,6 +8,7 @@ import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
 import type {
   SubagentInfo,
+  SubagentProgress,
   ToolCallInfo,
 } from '../../../core/types';
 import type { FileReference } from '../../../utils/FileReference';
@@ -21,6 +22,7 @@ import {
   finalizeSubagentBlock,
   markAsyncSubagentOrphaned,
   type SubagentState,
+  updateAsyncSubagentProgress,
   updateAsyncSubagentRunning,
   updateSubagentToolResult,
 } from '../rendering/SubagentRenderer';
@@ -411,6 +413,14 @@ export class SubagentManager {
     if (deferred) {
       this.applyAsyncSubagentCompletion(record, deferred);
     }
+  }
+
+  public updateProgress(progress: SubagentProgress): void {
+    const record = this.asyncSubagents.get(progress.toolCallId);
+    const state = this.asyncDomStates.get(progress.toolCallId);
+    if (!record || !state || record.info.asyncStatus === 'completed'
+      || record.info.asyncStatus === 'error' || record.info.asyncStatus === 'orphaned') return;
+    updateAsyncSubagentProgress(state, progress);
   }
 
   public handleAgentOutputToolUse(toolCall: ToolCallInfo): void {

@@ -104,6 +104,7 @@ export interface PersistentQueryConfig {
   enableChrome: boolean;
   enableAutoMode: boolean;
   promptSuggestions: boolean;
+  agentProgressSummaries: boolean;
 }
 
 export interface SessionState {

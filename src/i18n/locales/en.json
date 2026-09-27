@@ -654,6 +654,10 @@
       "name": "Enable prompt suggestions",
       "desc": "Show Claude's suggested follow-up prompts after a response. Requires session restart."
     },
+    "agentProgressSummaries": {
+      "name": "Show live subagent progress",
+      "desc": "Ask Claude to provide periodic progress summaries for running subagents. This uses additional model work. Requires session restart."
+    },
     "enableBangBash": {
       "name": "Enable bash mode (!)",
       "desc": "Type ! on empty input to enter bash mode. Commands run directly as the current OS user and are not confined to the vault. Requires view reopen.",
