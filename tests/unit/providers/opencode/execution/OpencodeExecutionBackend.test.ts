@@ -57,6 +57,11 @@ jest.mock('@/providers/opencode/runtime/OpencodeLaunchArtifacts', () => {
   };
 });
 
+jest.mock('@/providers/opencode/runtime/OpencodeVersion', () => ({
+  assertOpencodeSessionCompatibility: jest.fn(),
+  detectOpencodeNativeVersion: jest.fn().mockResolvedValue(1),
+}));
+
 import type { AcpSessionUpdate } from '@/providers/acp';
 import type { OpencodeCommandCatalog } from '@/providers/opencode/commands/OpencodeCommandCatalog';
 import {
@@ -220,6 +225,7 @@ function createPlugin(): any {
             { id: 'build', name: 'Build' },
             { id: 'plan', name: 'Plan' },
           ],
+          enabled: true,
           selectedMode: 'build',
           discoveredModels: [
             { label: 'Claude', rawId: 'anthropic/claude' },
@@ -295,6 +301,7 @@ async function waitForCondition(condition: () => boolean): Promise<void> {
 function createHarness(
   config = createConfig(),
   onKernelCreated?: (kernel: FakeKernel) => void,
+  refreshModelCatalog?: (signal?: AbortSignal) => Promise<boolean>,
 ) {
   const kernels: FakeKernel[] = [];
   const commandCatalog = {
@@ -308,6 +315,7 @@ function createHarness(
       onKernelCreated?.(kernel);
       return kernel;
     },
+    refreshModelCatalog,
   });
   const session = backend.createSession(config);
   return { backend, commandCatalog, kernels, session };
@@ -316,6 +324,7 @@ function createHarness(
 describe('OpencodeExecutionBackend', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    plugin.settings = createPlugin().settings;
     mockProcessShutdown.mockResolvedValue(undefined);
     mockConnectionInitialize.mockResolvedValue({});
     mockPrepareLaunchArtifacts.mockResolvedValue({
@@ -359,6 +368,68 @@ describe('OpencodeExecutionBackend', () => {
         },
       });
     } finally {
+      await harness.session.dispose();
+    }
+  });
+
+  it('discovers the model catalog before validating a cold-start selection', async () => {
+    const originalConfig = plugin.settings.providerConfigs.opencode;
+    const settings = plugin.settings.providerConfigs.opencode;
+    const original = {
+      discoveredModels: settings.discoveredModels,
+      visibleModels: settings.visibleModels,
+    };
+    settings.discoveredModels = [];
+    settings.visibleModels = ['opencode/mimo-v2.6-flash-free'];
+    const refreshModelCatalog = jest.fn(async () => {
+      plugin.settings.providerConfigs.opencode = {
+        ...plugin.settings.providerConfigs.opencode,
+        discoveredModels: [{
+          label: 'opencode/MiMo-V2.6-Flash-Free',
+          rawId: 'opencode/mimo-v2.6-flash-free',
+        }],
+      };
+      return true;
+    });
+    const harness = createHarness(undefined, (kernel) => {
+      kernel.sessionInfo = {
+        ...kernel.sessionInfo,
+        configOptions: kernel.sessionInfo.configOptions?.map(option => option.id === 'model'
+          ? {
+            ...option,
+            currentValue: 'opencode/mimo-v2.6-flash-free',
+            options: [{ name: 'MiMo-V2.6-Flash-Free', value: 'opencode/mimo-v2.6-flash-free' }],
+          }
+          : option),
+        models: {
+          availableModels: [{ id: 'opencode/mimo-v2.6-flash-free', name: 'MiMo-V2.6-Flash-Free' }],
+          currentModelId: 'opencode/mimo-v2.6-flash-free',
+        },
+      };
+    }, refreshModelCatalog);
+
+    try {
+      const eventsPromise = collect(harness.session.execute(createRequest({
+        configuration: {
+          systemInstructions: { kind: 'provider-default' },
+          model: 'opencode:opencode/mimo-v2.6-flash-free',
+          reasoning: 'high',
+          permissionMode: 'normal',
+        },
+      })).events);
+      await waitForCondition(() => harness.kernels.length > 0);
+      const kernel = harness.kernels[0];
+      await waitForPrompt(kernel);
+      kernel.completePrompt();
+      const events = await eventsPromise;
+      expect(events.some(event => event.type === 'execution_error')).toBe(false);
+      expect(refreshModelCatalog).toHaveBeenCalledTimes(1);
+    } finally {
+      plugin.settings.providerConfigs.opencode = {
+        ...originalConfig,
+        discoveredModels: original.discoveredModels,
+        visibleModels: original.visibleModels,
+      };
       await harness.session.dispose();
     }
   });

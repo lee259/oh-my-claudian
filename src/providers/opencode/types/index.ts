@@ -1,6 +1,7 @@
 export interface OpencodeProviderState extends Record<string, unknown> {
   databasePath?: string;
   nativeConversationContextEstablished?: boolean;
+  nativeVersion?: 1 | 2;
 }
 
 export function getOpencodeState(
@@ -20,6 +21,7 @@ export function getOpencodeState(
       ([key, value]) => (
         key !== 'databasePath'
         && key !== 'nativeConversationContextEstablished'
+        && key !== 'nativeVersion'
         && value !== undefined
       ),
     ),
@@ -31,6 +33,9 @@ export function getOpencodeState(
   if (typeof record.nativeConversationContextEstablished === 'boolean') {
     parsed.nativeConversationContextEstablished =
       record.nativeConversationContextEstablished;
+  }
+  if (record.nativeVersion === 1 || record.nativeVersion === 2) {
+    parsed.nativeVersion = record.nativeVersion;
   }
   return parsed;
 }

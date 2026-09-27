@@ -53,24 +53,21 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     const options: ProviderUIOption[] = [];
     for (const rawModelId of [...opencodeSettings.visibleModels].reverse()) {
       const encodedModelId = encodeOpencodeModelId(rawModelId);
-      pushOption(
-        options,
-        seenValues,
-        encodedModelId,
-        discoveredModels.get(encodedModelId)
-          ?? applyAlias(rawModelId, {
-            description: 'Configured model',
-            label: rawModelId,
-            value: encodedModelId,
-          }),
-      );
+      const discoveredOption = discoveredModels.get(encodedModelId);
+      if (discoveredOption) {
+        pushOption(options, seenValues, encodedModelId, discoveredOption);
+      }
     }
 
     return options;
   },
 
   getDefaultModel(settings: Record<string, unknown>): string | null {
-    const rawModelId = getOpencodeProviderSettings(settings).visibleModels[0];
+    const opencodeSettings = getOpencodeProviderSettings(settings);
+    const discoveredModelIds = new Set(
+      buildOpencodeBaseModels(opencodeSettings.discoveredModels).map((model) => model.rawId),
+    );
+    const rawModelId = opencodeSettings.visibleModels.find((modelId) => discoveredModelIds.has(modelId));
     return rawModelId ? encodeOpencodeModelId(rawModelId) : null;
   },
 

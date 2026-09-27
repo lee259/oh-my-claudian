@@ -24,6 +24,7 @@ export const opencodeProviderRegistration: ProviderModule = {
     const workspace = getOpencodeWorkspaceServices();
     return new OpencodeExecutionBackend(plugin, {
       commandCatalog: workspace.commandCatalog,
+      refreshModelCatalog: (signal) => workspace.metadataService.loadCatalog(signal),
     });
   },
   resolveTitleGenerationModel: (plugin) => {

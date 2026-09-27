@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { ProviderInteractionPort } from '@/core/execution';
+import { probeCliVersion } from '@/core/providers/cli/CliVersionUtils';
 import { OwnedProbeRegistry } from '@/core/providers/metadata/OwnedProbeRegistry';
 import { ProviderTransitionFence } from '@/core/providers/metadata/ProviderTransitionFence';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
@@ -14,10 +15,12 @@ import {
   type OpencodeNativeSessionInfo,
 } from '../execution/OpencodeAcpSessionKernel';
 import { decodeOpencodeModelId } from '../models';
+import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
 import {
   type OpencodeMetadataProjectionInput,
   projectOpencodeMetadata,
 } from './OpencodeMetadataProjection';
+import { OpencodeV2MetadataClientProcess, OpencodeV2MetadataProbe } from './OpencodeV2MetadataProbe';
 
 export interface OpencodeMetadataCatalogResult
   extends OpencodeMetadataProjectionInput {
@@ -43,11 +46,11 @@ export interface OpencodeMetadataProbe {
 
 export interface OpencodeMetadataServiceOptions {
   readonly commandCatalog?: Pick<OpencodeCommandCatalog, 'setCommandSnapshot'>;
-  readonly createProbe?: () => OpencodeMetadataProbe;
+  readonly createProbe?: (signal?: AbortSignal) => OpencodeMetadataProbe | Promise<OpencodeMetadataProbe>;
 }
 
 export class OpencodeMetadataService {
-  private readonly createProbe: () => OpencodeMetadataProbe;
+  private readonly createProbe: (signal: AbortSignal) => OpencodeMetadataProbe | Promise<OpencodeMetadataProbe>;
   private readonly probes: OwnedProbeRegistry<OpencodeMetadataProbe>;
   private readonly transitionFence = new ProviderTransitionFence({
     abortMessage: 'OpenCode metadata probe aborted',
@@ -60,8 +63,20 @@ export class OpencodeMetadataService {
     private readonly plugin: ProviderHost,
     private readonly options: OpencodeMetadataServiceOptions = {},
   ) {
-    this.createProbe = options.createProbe
-      ?? (() => new DefaultOpencodeMetadataProbe(plugin));
+    this.createProbe = options.createProbe ?? (async (signal) => {
+      const cliPath = await plugin.getResolvedProviderCliPath('opencode') ?? 'opencode';
+      const environment = buildOpencodeRuntimeEnv(plugin.settings, cliPath);
+      const version = await probeCliVersion(cliPath, undefined, environment as Record<string, string>, 'opencode');
+      signal.throwIfAborted();
+      if (version.version?.startsWith('2.')) {
+        return new OpencodeV2MetadataProbe(new OpencodeV2MetadataClientProcess(
+          cliPath,
+          resolveVaultPath(plugin),
+          environment,
+        ));
+      }
+      return new DefaultOpencodeMetadataProbe(plugin);
+    });
     this.probes = new OwnedProbeRegistry({
       abortMessage: 'OpenCode metadata probe aborted',
       dispose: probe => probe.dispose(),
@@ -164,7 +179,7 @@ export class OpencodeMetadataService {
         if (!available) return null;
       }
       return await this.probes.run({
-        create: () => this.createProbe(),
+        create: ownedSignal => this.createProbe(ownedSignal),
         query: operation,
       }, signal);
     } catch {

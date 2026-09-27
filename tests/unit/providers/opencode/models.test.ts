@@ -196,22 +196,48 @@ describe('opencodeChatUIConfig', () => {
     })).toBe('opencode:anthropic/claude-sonnet-4');
   });
 
-  it('shows configured base model ids even before discovery finishes', () => {
+  it('hides configured model ids that are missing from the discovered catalog', () => {
     expect(opencodeChatUIConfig.getModelOptions({
       providerConfigs: {
         opencode: {
           visibleModels: [
-            'google/gemini-2.5-pro',
+            'opencode/mimo-v2.6-flash-free',
           ],
         },
       },
-    })).toEqual([
+    })).toEqual([]);
+    expect(opencodeChatUIConfig.getDefaultModel!({
+      providerConfigs: {
+        opencode: {
+          visibleModels: ['opencode/mimo-v2.6-flash-free'],
+        },
+      },
+    })).toBeNull();
+  });
+
+  it('skips stale visible models when selecting the default discovered model', () => {
+    const settings = {
+      providerConfigs: {
+        opencode: {
+          discoveredModels: [
+            { label: 'opencode-go/MiMo-V2.6-Flash', rawId: 'opencode-go/mimo-v2.6-flash' },
+          ],
+          visibleModels: [
+            'opencode/mimo-v2.6-flash-free',
+            'opencode-go/mimo-v2.6-flash',
+          ],
+        },
+      },
+    };
+
+    expect(opencodeChatUIConfig.getModelOptions(settings)).toEqual([
       {
-        description: 'Configured model',
-        label: 'google/gemini-2.5-pro',
-        value: 'opencode:google/gemini-2.5-pro',
+        description: 'ACP runtime',
+        label: 'opencode-go/MiMo-V2.6-Flash',
+        value: 'opencode:opencode-go/mimo-v2.6-flash',
       },
     ]);
+    expect(opencodeChatUIConfig.getDefaultModel!(settings)).toBe('opencode:opencode-go/mimo-v2.6-flash');
   });
 
   it('has no model fallback when no models are enabled', () => {
