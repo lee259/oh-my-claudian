@@ -1,5 +1,6 @@
 import esbuild from 'esbuild';
 import { builtinModules } from 'node:module';
+import { brotliCompressSync, constants as zlibConstants } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import path from 'path';
 import process from 'process';
@@ -158,6 +159,28 @@ const watchDevelopmentResources = {
   },
 };
 
+const compressLocaleJson = {
+  name: 'compress-locale-json',
+  setup(build) {
+    if (!prod) return;
+
+    build.onLoad({ filter: /[\\/]src[\\/]i18n[\\/]locales[\\/].+\.json$/ }, async (args) => {
+      const contents = await fsPromises.readFile(args.path);
+      const compressed = brotliCompressSync(contents, {
+        params: {
+          [zlibConstants.BROTLI_PARAM_QUALITY]: 9,
+        },
+      });
+      const base64 = compressed.toString('base64');
+
+      return {
+        contents: `module.exports = JSON.parse(require('node:zlib').brotliDecompressSync(Buffer.from('${base64}', 'base64')).toString('utf8'));`,
+        loader: 'js',
+      };
+    });
+  },
+};
+
 const writeBundleMetafile = {
   name: 'write-bundle-metafile',
   setup(build) {
@@ -229,6 +252,7 @@ const mainContext = await esbuild.context({
   bundle: true,
   plugins: [
     patchSdkImportMeta,
+    compressLocaleJson,
     watchDevelopmentResources,
     writeBundleMetafile,
     createPatchRendererUnsafeUnref(['main.js']),
