@@ -605,10 +605,11 @@ describe('OpencodeExecutionBackend', () => {
       value: expect.objectContaining({
         snapshot: expect.objectContaining({
           providerSessionId: 'native-session',
-          providerState: {
+          providerState: expect.objectContaining({
             databasePath: '/native/opencode.db',
             nativeConversationContextEstablished: false,
-          },
+            sessionId: 'native-session',
+          }),
           status: 'executing',
         }),
         type: 'session_state_changed',

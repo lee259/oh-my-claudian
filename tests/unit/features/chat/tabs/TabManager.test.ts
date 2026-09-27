@@ -44,9 +44,13 @@ function createMockTab(options: Record<string, any>): any {
       conversationController: {
         createNew: jest.fn().mockResolvedValue(undefined),
         initializeWelcome: jest.fn(),
+        loadActive: jest.fn().mockResolvedValue(undefined),
         save: jest.fn().mockResolvedValue(undefined),
         switchTo: jest.fn().mockResolvedValue(undefined),
       },
+    },
+    session: {
+      disposeExecutionCoordinator: jest.fn().mockResolvedValue(undefined),
     },
     dom: {
       contentEl: createMockEl(),
@@ -796,12 +800,16 @@ describe('TabManager provider execution orchestration', () => {
     expect(manager.getTabCount()).toBe(2);
   });
 
-  it('keeps the fork target chooser and current-tab replacement in single mode', async () => {
+  it('opens the new fork conversation in the current tab', async () => {
     mockChooseForkTarget.mockResolvedValue('current-tab');
-    const { manager, plugin } = createManager(createPlugin(), {
-      shouldForkToNewTab: () => false,
-    });
+    const { manager, plugin } = createManager();
     const source = await manager.createTab();
+    source!.conversationId = 'source';
+    source!.state.currentConversationId = 'source';
+    source!.controllers.conversationController!.switchTo = jest.fn(async (conversationId: string) => {
+      source!.conversationId = conversationId;
+      source!.state.currentConversationId = conversationId;
+    });
     const forkRequest = mockInitializeTabControllers.mock.calls[0]?.[3];
 
     await forkRequest({
@@ -812,7 +820,16 @@ describe('TabManager provider execution orchestration', () => {
     });
 
     expect(mockChooseForkTarget).toHaveBeenCalledWith(plugin.app);
+    expect(plugin.createConversation).toHaveBeenCalledWith({ providerId: 'claude' });
+    expect(plugin.updateConversation).toHaveBeenCalledWith(
+      'forked',
+      expect.objectContaining({
+        messages: [],
+        providerState: { fork: true },
+      }),
+    );
     expect(source!.controllers.conversationController!.switchTo).toHaveBeenCalledWith('forked');
+    expect(source!.conversationId).toBe('forked');
     expect(manager.getTabCount()).toBe(1);
     expect(Notice).toHaveBeenCalled();
   });

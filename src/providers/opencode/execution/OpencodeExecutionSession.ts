@@ -204,8 +204,8 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
   ) {
     this.createKernel = options.createKernel
       ?? ((kernelOptions) => new DefaultOpencodeSessionKernel(kernelOptions));
-    this.nativeSessionId = config.resumeSeed?.providerSessionId ?? null;
     const providerState = getOpencodeState(config.resumeSeed?.providerState);
+    this.nativeSessionId = config.resumeSeed?.providerSessionId ?? providerState.sessionId ?? null;
     this.seedProviderState = Object.freeze({ ...providerState });
     this.databasePath = providerState.databasePath ?? null;
     this.nativeVersion = providerState.nativeVersion;
@@ -980,6 +980,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
       ...this.seedProviderState,
       ...(this.nativeVersion ? { nativeVersion: this.nativeVersion } : {}),
       ...(this.databasePath ? { databasePath: this.databasePath } : {}),
+      ...(this.nativeSessionId ? { sessionId: this.nativeSessionId } : {}),
       ...(
         this.nativeSessionId
         || typeof this.seedProviderState.nativeConversationContextEstablished

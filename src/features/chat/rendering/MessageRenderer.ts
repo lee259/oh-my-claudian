@@ -23,7 +23,6 @@ import type {
 } from '../../../core/types';
 import { createTurnStats } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
-import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -187,6 +186,9 @@ export class MessageRenderer {
    * Returns the message element for content updates.
    */
   addMessage(msg: ChatMessage): HTMLElement {
+    if (this.getCapabilities().forkMode === 'full-session') {
+      this.messagesEl.querySelectorAll('.claudian-message-fork-btn').forEach(button => button.remove());
+    }
     // Render images above message bubble for user messages
     if (msg.role === 'user' && msg.images && msg.images.length > 0) {
       this.renderMessageImages(this.messagesEl, msg.images);
@@ -360,6 +362,12 @@ export class MessageRenderer {
     index?: number,
     options?: { collapseCompletedWork?: boolean },
   ): void {
+    if (
+      this.getCapabilities().forkMode === 'full-session'
+      && allMessages?.at(-1)?.id === msg.id
+    ) {
+      this.messagesEl.querySelectorAll('.claudian-message-fork-btn').forEach(button => button.remove());
+    }
     // Bare interrupt marker: user-role interrupts (Claude bracket markers) always render
     // as a standalone indicator. Assistant-role interrupts (Codex partial responses)
     // only use the bare marker when there's no content to preserve.
@@ -414,9 +422,6 @@ export class MessageRenderer {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
           this.addRewindButton(msgEl, msg.id);
         }
-        if (this.forkCallback && this.isForkEligible(allMessages, index)) {
-          this.addForkButton(msgEl, msg.id);
-        }
       }
     } else if (msg.role === 'assistant') {
       const hadLegacyInterruptIndicator = this.renderAssistantContent(msg, contentEl);
@@ -429,7 +434,9 @@ export class MessageRenderer {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
     if (msg.role === 'assistant' && options?.collapseCompletedWork !== false) {
-      this.finalizeCompletedWork(msg);
+      const isLatestReply = this.getCapabilities().forkMode !== 'full-session'
+        || allMessages?.at(-1)?.id === msg.id;
+      this.finalizeCompletedWork(msg, isLatestReply);
     }
   }
 
@@ -438,7 +445,7 @@ export class MessageRenderer {
    * leaving the final answer visible. This changes presentation only: the
    * message model, provider history, and rendered child nodes remain intact.
    */
-  finalizeCompletedWork(msg: ChatMessage): void {
+  finalizeCompletedWork(msg: ChatMessage, allowFork = true): void {
     if (msg.role !== 'assistant') return;
 
     const msgEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
@@ -459,7 +466,7 @@ export class MessageRenderer {
     if (workEls.length > 0) {
       this.createCompletedWork(contentEl, workEls, msg.durationSeconds);
     }
-    this.syncAssistantMessageActions(msg, msgEl, contentEl);
+    this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
   }
 
   /**
@@ -470,20 +477,29 @@ export class MessageRenderer {
     msg: ChatMessage,
     msgEl: HTMLElement,
     contentEl: HTMLElement,
+    allowFork = true,
   ): void {
     const copyContent = this.getAssistantCopyContent(msg);
     const turnStats = msg.role === 'assistant' && !msg.isInterrupt
       && this.getCapabilities().supportsResponseThroughput
       ? createTurnStats(msg.turnStats?.outputTokens, msg.turnStats?.durationMs)
       : undefined;
-    if (!copyContent && !turnStats) return;
+    const canFork = !!this.forkCallback
+      && !!msg.assistantMessageId
+      && !msg.isInterrupt
+      && allowFork
+      && this.getCapabilities().supportsFork;
+    if (!copyContent && !canFork && !turnStats) return;
 
     contentEl.querySelectorAll('.claudian-text-copy-btn').forEach((button) => button.remove());
     const toolbar = this.getOrCreateActionsToolbar(msgEl);
     toolbar.querySelector('.claudian-text-copy-btn')?.remove();
     if (copyContent) this.addTextCopyButton(toolbar, copyContent);
 
-    if (this.forkCallback && msg.assistantMessageId && !toolbar.querySelector('.claudian-message-fork-btn')) {
+    if (
+      canFork
+      && !toolbar.querySelector('.claudian-message-fork-btn')
+    ) {
       this.addForkButton(msgEl, msg.id);
     }
 
@@ -725,12 +741,6 @@ export class MessageRenderer {
     if (!allMessages || index === undefined) return false;
     const ctx = findRewindContext(allMessages, index);
     return ctx.hasResponse;
-  }
-
-  private isForkEligible(allMessages?: ChatMessage[], index?: number): boolean {
-    if (!allMessages || index === undefined) return false;
-    const ctx = findRewindContext(allMessages, index);
-    return !!ctx.prevAssistantUuid && ctx.hasResponse;
   }
 
   private renderInterruptMessage(): void {
@@ -1280,18 +1290,14 @@ export class MessageRenderer {
   refreshActionButtons(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
     if (!msg.userMessageId) return;
     const canRewind = this.isRewindEligible(allMessages, index);
-    const canFork = this.isForkEligible(allMessages, index);
-    if (!canRewind && !canFork) return;
+    if (!canRewind) return;
     const msgEl = this.liveMessageEls.get(msg.id);
     if (!msgEl) return;
 
     if (canRewind && this.rewindCallback && !msgEl.querySelector('.claudian-message-rewind-btn')) {
       this.addRewindButton(msgEl, msg.id);
     }
-    if (canFork && this.forkCallback && !msgEl.querySelector('.claudian-message-fork-btn')) {
-      this.addForkButton(msgEl, msg.id);
-    }
-    this.cleanupLiveMessageEl(msg.id, msgEl, { canRewind, canFork });
+    this.cleanupLiveMessageEl(msg.id, msgEl, { canRewind, canFork: false });
   }
 
   private cleanupLiveMessageEl(
@@ -1416,12 +1422,6 @@ export class MessageRenderer {
       e.stopPropagation();
       runRendererAction(async () => {
         try {
-          const confirmed = await confirm(
-            this.app,
-            t('chat.fork.confirmMessage'),
-            t('chat.fork.confirmAction'),
-          );
-          if (!confirmed) return;
           await this.forkCallback?.(messageId);
         } catch (err) {
           new Notice(t('chat.fork.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));

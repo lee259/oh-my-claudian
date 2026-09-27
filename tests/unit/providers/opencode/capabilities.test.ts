@@ -21,8 +21,12 @@ describe('OPENCODE_PROVIDER_CAPABILITIES', () => {
     expect(OPENCODE_PROVIDER_CAPABILITIES.supportsRewind).toBe(false);
   });
 
-  it('should not support fork', () => {
-    expect(OPENCODE_PROVIDER_CAPABILITIES.supportsFork).toBe(false);
+  it('should support native full-session fork', () => {
+    expect(OPENCODE_PROVIDER_CAPABILITIES).toMatchObject({
+      supportsFork: true,
+      forkMode: 'full-session',
+      supportsEphemeralFork: false,
+    });
   });
 
   it('should support provider commands', () => {

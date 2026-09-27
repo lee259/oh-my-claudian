@@ -48,6 +48,42 @@ describe('OpencodeConversationHistoryService', () => {
     });
   });
 
+  it('stores the native child session and version for a full-session fork', async () => {
+    const dbPath = path.join(tmpRoot, 'fork.db');
+    seedDatabase(dbPath, 'source-session', 'Source prompt');
+    const forkSession = jest.fn().mockResolvedValue('child-session');
+    const service = new OpencodeConversationHistoryService(forkSession);
+
+    const providerState = await service.buildForkProviderState(
+      'source-session',
+      'assistant-message',
+      { databasePath: dbPath, nativeVersion: 2 },
+      tmpRoot,
+      { environment: { HOME: tmpRoot, OPENCODE_DB: dbPath }, settings: {}, vaultPath: tmpRoot },
+    );
+
+    expect(forkSession).toHaveBeenCalledWith(expect.objectContaining({
+      cwd: tmpRoot,
+      nativeVersion: 2,
+      sourceSessionId: 'source-session',
+    }));
+    expect(providerState).toMatchObject({
+      databasePath: dbPath,
+      nativeVersion: 2,
+      sessionId: 'child-session',
+      nativeConversationContextEstablished: true,
+    });
+
+    const forkedConversation = createConversation('unused-session-field', dbPath);
+    forkedConversation.sessionId = null;
+    forkedConversation.providerState = providerState;
+    expect(service.resolveSessionIdForConversation(forkedConversation)).toBe('child-session');
+    expect(service.buildPersistedProviderState?.(forkedConversation)).toMatchObject({
+      sessionId: 'child-session',
+      nativeVersion: 2,
+    });
+  });
+
   it('retries after a session-level hydration diagnostic', async () => {
     const dbPath = path.join(tmpRoot, 'opencode.db');
     const sessionId = 'session-retry';

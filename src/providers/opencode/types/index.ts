@@ -2,6 +2,7 @@ export interface OpencodeProviderState extends Record<string, unknown> {
   databasePath?: string;
   nativeConversationContextEstablished?: boolean;
   nativeVersion?: 1 | 2;
+  sessionId?: string;
 }
 
 export function getOpencodeState(
@@ -22,6 +23,7 @@ export function getOpencodeState(
         key !== 'databasePath'
         && key !== 'nativeConversationContextEstablished'
         && key !== 'nativeVersion'
+        && key !== 'sessionId'
         && value !== undefined
       ),
     ),
@@ -36,6 +38,9 @@ export function getOpencodeState(
   }
   if (record.nativeVersion === 1 || record.nativeVersion === 2) {
     parsed.nativeVersion = record.nativeVersion;
+  }
+  if (typeof record.sessionId === 'string' && record.sessionId.trim()) {
+    parsed.sessionId = record.sessionId.trim();
   }
   return parsed;
 }

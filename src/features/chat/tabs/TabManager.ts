@@ -755,20 +755,32 @@ export class TabManager implements TabManagerInterface {
   // ============================================
 
   private async handleForkRequest(context: ForkContext): Promise<void> {
+    const sourceTab = context.sourceTabId
+      ? this.getTab(context.sourceTabId)
+      : this.getActiveTab();
+    if (!sourceTab) return;
+    const sourceConversationId = context.sourceConversationId !== undefined
+      ? context.sourceConversationId
+      : sourceTab.conversationId;
+    const isSourceCurrent = (): boolean => this.isTabAlive(sourceTab)
+      && sourceTab.conversationId === sourceConversationId
+      && this.isForkSourceSnapshotCurrent(context, sourceTab);
+    if (!isSourceCurrent()) return;
+
     const shouldForkToNewTab = this.callbacks.shouldForkToNewTab?.() ?? false;
     const target = shouldForkToNewTab
       ? 'new-tab'
       : await chooseForkTarget(this.plugin.app);
-    if (!target) return;
+    if (!target || !isSourceCurrent()) return;
 
     if (target === 'new-tab') {
-      const tab = await this.forkToNewTab(context);
+      const tab = await this.forkToNewTab(context, sourceTab);
       if (!tab) return;
       if (!shouldForkToNewTab) {
         new Notice(t('chat.fork.notice'));
       }
     } else {
-      const success = await this.forkInCurrentTab(context);
+      const success = await this.forkInCurrentTab(context, sourceTab);
       if (!success) {
         new Notice(t('chat.fork.failed', { error: t('chat.fork.errorNoActiveTab') }));
         return;
@@ -777,9 +789,16 @@ export class TabManager implements TabManagerInterface {
     }
   }
 
-  async forkToNewTab(context: ForkContext): Promise<TabData | null> {
-    const sourceCoordinator = this.getActiveTab()?.executionCoordinator ?? null;
+  async forkToNewTab(
+    context: ForkContext,
+    sourceTab: TabData | null = this.getActiveTab(),
+  ): Promise<TabData | null> {
+    const sourceCoordinator = sourceTab?.executionCoordinator ?? null;
     const conversationId = await this.createForkConversation(context, sourceCoordinator);
+    if (sourceTab && !this.isForkSourceCurrent(context, sourceTab)) {
+      await this.plugin.deleteConversation(conversationId).catch(() => {});
+      return null;
+    }
     try {
       return await this.createTab(conversationId);
     } catch (error) {
@@ -788,21 +807,50 @@ export class TabManager implements TabManagerInterface {
     }
   }
 
-  async forkInCurrentTab(context: ForkContext): Promise<boolean> {
-    const activeTab = this.getActiveTab();
-    if (!activeTab?.controllers.conversationController) return false;
+  async forkInCurrentTab(
+    context: ForkContext,
+    sourceTab: TabData | null = this.getActiveTab(),
+  ): Promise<boolean> {
+    const controller = sourceTab?.controllers.conversationController;
+    if (!sourceTab || !controller) return false;
+    if (!this.isForkSourceCurrent(context, sourceTab)) return false;
 
     const conversationId = await this.createForkConversation(
       context,
-      activeTab.executionCoordinator,
+      sourceTab.executionCoordinator,
     );
     try {
-      await activeTab.controllers.conversationController.switchTo(conversationId);
+      if (!this.isForkSourceCurrent(context, sourceTab)) {
+        await this.plugin.deleteConversation(conversationId).catch(() => {});
+        return false;
+      }
+      await controller.switchTo(conversationId);
+      if (!this.isTabAlive(sourceTab) || sourceTab.conversationId !== conversationId) {
+        await this.plugin.deleteConversation(conversationId).catch(() => {});
+        return false;
+      }
     } catch (error) {
       await this.plugin.deleteConversation(conversationId).catch(() => {});
       throw error;
     }
     return true;
+  }
+
+  private isForkSourceCurrent(context: ForkContext, sourceTab: TabData): boolean {
+    const conversationId = context.sourceConversationId !== undefined
+      ? context.sourceConversationId
+      : sourceTab.conversationId;
+    return this.isTabAlive(sourceTab)
+      && sourceTab.conversationId === conversationId
+      && this.isForkSourceSnapshotCurrent(context, sourceTab);
+  }
+
+  private isForkSourceSnapshotCurrent(context: ForkContext, sourceTab: TabData): boolean {
+    const providerId = context.providerId ?? sourceTab.providerId;
+    if (ProviderRegistry.getCapabilities(providerId).forkMode !== 'full-session') return true;
+    const latestMessage = sourceTab.state.messages.at(-1);
+    return latestMessage?.role === 'assistant'
+      && latestMessage.assistantMessageId === context.resumeAt;
   }
 
   private async createForkConversation(
@@ -820,24 +868,7 @@ export class TabManager implements TabManagerInterface {
       : undefined;
 
     try {
-      const vaultPath = getVaultPath(this.plugin.app);
-      const forkProviderState = await ProviderRegistry
-        .getConversationHistoryService(conversation.providerId)
-        .buildForkProviderState(
-          context.sourceSessionId,
-          context.resumeAt,
-          context.sourceProviderState,
-          vaultPath,
-          {
-            environment: {
-              ...process.env,
-              ...getRuntimeEnvironmentVariables(this.plugin.settings, conversation.providerId),
-            },
-            hostPlatform: process.platform,
-            settings: this.plugin.settings,
-            vaultPath,
-          },
-        );
+      const forkProviderState = await this.buildForkProviderState(context);
       await this.plugin.updateConversation(conversation.id, {
         messages: context.messages,
         providerState: forkProviderState,
@@ -851,6 +882,29 @@ export class TabManager implements TabManagerInterface {
     }
 
     return conversation.id;
+  }
+
+  private async buildForkProviderState(context: ForkContext): Promise<Record<string, unknown> | undefined> {
+    const providerId = context.providerId ?? this.getActiveTab()?.providerId;
+    if (!providerId) throw new Error('Cannot fork without an active provider.');
+    const vaultPath = getVaultPath(this.plugin.app);
+    return ProviderRegistry
+      .getConversationHistoryService(providerId)
+      .buildForkProviderState(
+        context.sourceSessionId,
+        context.resumeAt,
+        context.sourceProviderState,
+        vaultPath,
+        {
+          environment: {
+            ...process.env,
+            ...getRuntimeEnvironmentVariables(this.plugin.settings, providerId),
+          },
+          hostPlatform: process.platform,
+          settings: this.plugin.settings,
+          vaultPath,
+        },
+      );
   }
 
   private buildForkTitle(sourceTitle: string, forkAtUserMessage?: number): string {
