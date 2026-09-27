@@ -398,6 +398,33 @@ describe('ChatExecutionCoordinator', () => {
     );
   });
 
+  it('cancels staged input before handing it to a provider', async () => {
+    const harness = createHarness();
+    await harness.coordinator.bindConversation({
+      conversationId: 'conversation-1',
+      providerId: 'claude',
+      resumeSeed: { providerSessionId: 'native-session' },
+    });
+    const stageStarted = deferred<void>();
+    const releaseStage = deferred<void>();
+    (harness.repository.stageConversationInput as jest.Mock).mockImplementationOnce(async () => {
+      stageStarted.resolve();
+      await releaseStage.promise;
+    });
+
+    const execution = harness.coordinator.execute(createSubmission());
+    await stageStarted.promise;
+    harness.coordinator.cancel();
+    releaseStage.resolve();
+
+    await expect(execution).rejects.toBeInstanceOf(ChatExecutionPreHandoffError);
+    expect(harness.backends.get('claude')!.sessions).toHaveLength(0);
+    expect(harness.repository.discardStagedConversationInput).toHaveBeenCalledWith(
+      'conversation-1',
+      'input-1',
+    );
+  });
+
   it('does not install a provider session after the conversation changes during warm acquisition', async () => {
     const pool = new WarmExecutionPool(() => 5);
     const acquisitionGate = deferred<void>();

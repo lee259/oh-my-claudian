@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import type { HostnameCliPaths } from '../../../core/types/settings';
 import { getHostnameKey, parseEnvironmentVariables } from '../../../utils/env';
+import { getEnhancedPath } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { findClaudeCLIPath } from '../cli/findClaudeCLIPath';
 import { getClaudeProviderSettings } from '../settings';
@@ -85,9 +86,13 @@ export function resolveClaudeCliPath(
   legacyPath: string | undefined,
   envText: string,
 ): string | null {
+  const environmentPath = parseEnvironmentVariables(envText || '').PATH;
   return (
     resolveConfiguredPath(hostnamePath) ??
     resolveConfiguredPath(legacyPath) ??
-    findClaudeCLIPath(parseEnvironmentVariables(envText || '').PATH)
+    findClaudeCLIPath(environmentPath) ??
+    // GUI launches may not inherit the shell's PATH, so retry with known
+    // version-manager and package-manager locations after native installs.
+    findClaudeCLIPath(getEnhancedPath(environmentPath))
   );
 }

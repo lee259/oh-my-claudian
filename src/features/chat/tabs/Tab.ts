@@ -87,6 +87,7 @@ import { createTabConversationController } from './TabConversationControllerFact
 import { createTabInputController } from './TabInputControllerFactory';
 import { TabModelSelectionCoordinator } from './TabModelSelectionCoordinator';
 import { initializeTabNavigationController } from './TabNavigationControllerFactory';
+import { resolveTabReasoningSettings } from './TabReasoningSettings';
 import { TabRuntimeCleanup } from './TabRuntimeCleanup';
 import { createTabRuntime } from './TabRuntimeFactory';
 import { createTabStreamController } from './TabStreamControllerFactory';
@@ -168,14 +169,20 @@ function getTabChatUIConfig(
 }
 
 function getTabSettingsSnapshot(
-  tab: TabProviderContext,
+  tab: TabData,
   plugin: FeatureHost,
 ): TabProviderSettings {
   const providerId = getTabProviderId(tab, plugin);
-  return getProviderSettingsSnapshotWithModel(
+  const settings = getProviderSettingsSnapshotWithModel(
     plugin.settings,
     providerId,
     getTabSelectedModel(tab, plugin),
+  );
+  return resolveTabReasoningSettings(
+    settings,
+    providerId,
+    tab.session.reasoningSelections,
+    getTabChatUIConfig(tab, plugin),
   );
 }
 
@@ -183,11 +190,12 @@ function getWritableTabSettingsSnapshot(
   tab: TabProviderContext,
   plugin: FeatureHost,
   settings: ClaudianSettings = plugin.settings,
+  modelOverride?: string | null,
 ): TabProviderSettings {
   return getProviderSettingsSnapshotWithModel(
     settings,
     getTabProviderId(tab, plugin),
-    getTabSelectedModel(tab, plugin),
+    modelOverride ?? getTabSelectedModel(tab, plugin),
   );
 }
 
@@ -218,7 +226,7 @@ function getTabSelectedModel(
 }
 
 function getTabPermissionMode(
-  tab: TabProviderContext,
+  tab: TabData,
   plugin: FeatureHost,
 ): string {
   const permissionMode = getTabSettingsSnapshot(tab, plugin).permissionMode;
@@ -374,11 +382,12 @@ async function updateTabProviderSettings(
   tab: TabProviderContext,
   plugin: FeatureHost,
   update: (settings: TabProviderSettings) => void,
+  modelOverride?: string | null,
 ): Promise<TabProviderSettings> {
   const providerId = getTabProviderId(tab, plugin);
   let snapshot!: TabProviderSettings;
   await plugin.mutateSettings((settings) => {
-    snapshot = getWritableTabSettingsSnapshot(tab, plugin, settings);
+    snapshot = getWritableTabSettingsSnapshot(tab, plugin, settings, modelOverride);
     update(snapshot);
     ProviderSettingsCoordinator.commitProviderSettingsSnapshot(
       settings,
@@ -1409,19 +1418,23 @@ function initializeInputToolbar(
       onUserModified?.();
     },
     onThinkingBudgetChange: async (budget: string) => {
+      const providerId = getTabProviderId(tab, plugin);
+      const model = getTabSelectedModel(tab, plugin) ?? getTabSettingsSnapshot(tab, plugin).model;
       await updateTabProviderSettings(tab, plugin, (settings) => {
-        const model = getTabSelectedModel(tab, plugin) ?? settings.model;
         settings.thinkingBudget = budget;
         getTabChatUIConfig(tab, plugin).applyReasoningSelection?.(model, budget, settings);
-      });
+      }, model);
+      tab.session.reasoningSelections.set(`${providerId}:${model}`, budget);
       onUserModified?.();
     },
     onEffortLevelChange: async (effort: string) => {
+      const providerId = getTabProviderId(tab, plugin);
+      const model = getTabSelectedModel(tab, plugin) ?? getTabSettingsSnapshot(tab, plugin).model;
       await updateTabProviderSettings(tab, plugin, (settings) => {
-        const model = getTabSelectedModel(tab, plugin) ?? settings.model;
         settings.effortLevel = effort;
         getTabChatUIConfig(tab, plugin).applyReasoningSelection?.(model, effort, settings);
-      });
+      }, model);
+      tab.session.reasoningSelections.set(`${providerId}:${model}`, effort);
       onUserModified?.();
     },
     onServiceTierChange: async (serviceTier: string) => {
@@ -1958,6 +1971,7 @@ export function initializeTabRuntimeControllers(
 
   tab.controllers.inputController = createTabInputController(tab, plugin, {
     ensureExecutionInitialized,
+    getProviderSettings: () => getTabSettingsSnapshot(tab, plugin),
     generateId: generateMessageId,
     getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
     openConversation,
