@@ -6,6 +6,8 @@ import {
   readStoredString,
 } from '../../core/providers/settings/storedSettings';
 import type { HostnameCliPaths } from '../../core/types/settings';
+import type { ClaudeDiscoveredModel } from './modelCatalog';
+import { decodeClaudeModels } from './modelCatalog';
 import {
   type ClaudeModelEnvironmentType,
   isClaudeModelEnvironmentType,
@@ -25,6 +27,7 @@ export interface ClaudeProviderSettings {
   enableBangBash: boolean;
   promptSuggestions: boolean;
   customModels: string;
+  discoveredModels: ClaudeDiscoveredModel[];
   defaultModel: string;
   lastModel: string;
   modelEnvironmentType: ClaudeModelEnvironmentType | '';
@@ -43,6 +46,7 @@ export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> 
   enableBangBash: false,
   promptSuggestions: false,
   customModels: '',
+  discoveredModels: [],
   defaultModel: 'opus',
   lastModel: 'haiku',
   modelEnvironmentType: '',
@@ -123,6 +127,7 @@ export function getClaudeProviderSettings(
       config.customModels,
       DEFAULT_CLAUDE_PROVIDER_SETTINGS.customModels,
     ),
+    discoveredModels: decodeClaudeModels(config.discoveredModels),
     defaultModel: readStoredString(
       config.defaultModel,
       DEFAULT_CLAUDE_PROVIDER_SETTINGS.defaultModel,
