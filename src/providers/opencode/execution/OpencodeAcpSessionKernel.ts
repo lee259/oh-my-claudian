@@ -112,6 +112,10 @@ export function classifyOpencodeSessionLoadError(
     : error;
 }
 
+export function buildOpencodeAcpArguments(): string[] {
+  return ['acp'];
+}
+
 const AUX_AGENT_IDS: Record<Exclude<OpencodeExecutionProfile, 'managed'>, string> = {
   passive: 'claudian-execution-passive',
   readonly: 'claudian-execution-readonly',
@@ -204,7 +208,7 @@ export class DefaultOpencodeAcpSessionKernel
         ),
       };
       const subprocess = new AcpSubprocess({
-        args: ['acp', `--cwd=${this.options.config.vaultWorkingDirectory}`],
+        args: buildOpencodeAcpArguments(),
         command: cliPath,
         cwd: this.options.config.vaultWorkingDirectory,
         env: processEnv,

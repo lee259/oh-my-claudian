@@ -14,11 +14,18 @@ import {
   JsonRpcErrorResponse,
 } from '@/providers/acp';
 import {
+  buildOpencodeAcpArguments,
   classifyOpencodeSessionLoadError,
   OpencodeSessionMissingError,
   presentOpencodePermission,
   resolveOpencodeReadPath,
 } from '@/providers/opencode/execution/OpencodeAcpSessionKernel';
+
+describe('OpenCode ACP launch arguments', () => {
+  it('uses the subprocess working directory instead of an unsupported ACP flag', () => {
+    expect(buildOpencodeAcpArguments()).toEqual(['acp']);
+  });
+});
 
 function permissionRequest(
   title: string,
