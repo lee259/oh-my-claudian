@@ -51,6 +51,8 @@ export interface OpencodeSessionKernel {
     AcpPromptResponse,
     'usage' | 'userMessageId'
   > & Partial<Pick<AcpPromptResponse, 'stopReason'>> & { readonly nativeAssistantId?: string }>;
+  /** Native protocols without an inbox decline running-turn input. */
+  steer?(request: AcpPromptRequest): Promise<boolean>;
   cancel(sessionId: string): void;
   dispose(): Promise<void>;
 }

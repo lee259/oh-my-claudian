@@ -3,8 +3,6 @@ const mockSubscribe = jest.fn();
 const mockWaitForActivation = jest.fn();
 const mockDispose = jest.fn();
 const mockClientConstructor = jest.fn();
-let onEvent: ((event: { type: string; data: Record<string, unknown> }) => void) | null = null;
-
 jest.mock('@/providers/opencode/http/OpencodeHttpClient', () => ({
   OpencodeHttpClient: class {
     constructor(...args: unknown[]) {
@@ -37,12 +35,12 @@ jest.mock('@/providers/opencode/runtime/OpencodeLaunchArtifacts', () => ({
 import { OpencodeHttpSessionKernel } from '@/providers/opencode/execution/OpencodeHttpSessionKernel';
 
 describe('OpencodeHttpSessionKernel', () => {
+  let emitEvent: ((event: { type: string; data: Record<string, unknown> }) => void) | undefined;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    onEvent = null;
-    mockSubscribe.mockImplementation(async (handler: typeof onEvent) => {
-      onEvent = handler;
-    });
+    emitEvent = undefined;
+    mockSubscribe.mockImplementation(async (onEvent: typeof emitEvent) => { emitEvent = onEvent; });
     mockRequest.mockImplementation(async (route: string) => {
       if (route === '/api/model') {
         return {
@@ -108,8 +106,8 @@ describe('OpencodeHttpSessionKernel', () => {
     expect(mockRequest).toHaveBeenCalledWith('/api/session/ses_test/prompt', expect.objectContaining({
       body: expect.not.objectContaining({ agent: expect.anything() }),
     }));
-    onEvent?.({ type: 'session.execution.started', data: { sessionID: 'ses_test' } });
-    onEvent?.({ type: 'session.execution.succeeded', data: { sessionID: 'ses_test' } });
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: 'ses_test' } });
+    emitEvent?.({ type: 'session.execution.succeeded', data: { sessionID: 'ses_test' } });
     await prompt;
     await kernel.dispose();
   });
@@ -142,14 +140,14 @@ describe('OpencodeHttpSessionKernel', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    onEvent?.({ type: 'session.execution.started', data: { sessionID: 'ses_test' } });
-    onEvent?.({ type: 'session.step.started', data: { sessionID: 'ses_test', assistantMessageID: 'msg_tool' } });
-    onEvent?.({ type: 'session.step.started', data: { sessionID: 'ses_test', assistantMessageID: 'msg_final' } });
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: 'ses_test' } });
+    emitEvent?.({ type: 'session.step.started', data: { sessionID: 'ses_test', assistantMessageID: 'msg_tool' } });
+    emitEvent?.({ type: 'session.step.started', data: { sessionID: 'ses_test', assistantMessageID: 'msg_final' } });
 
     expect(onNativeOutput.mock.calls.filter(([event]) => event.type === 'assistant_message_started'))
       .toHaveLength(1);
 
-    onEvent?.({ type: 'session.execution.succeeded', data: { sessionID: 'ses_test' } });
+    emitEvent?.({ type: 'session.execution.succeeded', data: { sessionID: 'ses_test' } });
     await expect(prompt).resolves.toMatchObject({ nativeAssistantId: 'msg_final' });
     await kernel.dispose();
   });
@@ -194,6 +192,68 @@ describe('OpencodeHttpSessionKernel', () => {
           },
         },
       },
+    );
+    await kernel.dispose();
+  });
+
+  it('accepts a steer only after the native inbox delivers it and keeps prompt boundaries ordered', async () => {
+    const outputs: Array<Record<string, unknown>> = [];
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      onNativeOutput: event => outputs.push(event as unknown as Record<string, unknown>),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const prompt = kernel.prompt({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Review this' }] } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+    const steer = kernel.steer({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Also check tests' }] } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+    const steerRequest = mockRequest.mock.calls.find(([, options]) => options?.body?.delivery === 'steer');
+    expect(steerRequest).toBeDefined();
+    const inboxId = steerRequest[1].body.id;
+
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: session.sessionId } });
+    expect(outputs[0]).toMatchObject({ type: 'user_message_started' });
+    emitEvent?.({ type: 'session.inbox.delivered', data: { sessionID: session.sessionId, inboxID: inboxId } });
+    await expect(steer).resolves.toBe(true);
+    expect(outputs[1]).toMatchObject({ type: 'user_message_started', content: 'Also check tests', nativeUserMessageId: inboxId });
+    emitEvent?.({ type: 'session.execution.succeeded', data: { sessionID: session.sessionId } });
+    await expect(prompt).resolves.toMatchObject({ stopReason: 'end_turn' });
+    await kernel.dispose();
+  });
+
+  it('recalls an undelivered steer when the native turn is interrupted', async () => {
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const prompt = kernel.prompt({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Review this' }] } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+    const steer = kernel.steer({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Also check tests' }] } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+    const steerRequest = mockRequest.mock.calls.find(([, options]) => options?.body?.delivery === 'steer');
+    const inboxId = steerRequest[1].body.id;
+
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: session.sessionId } });
+    emitEvent?.({ type: 'session.execution.interrupted', data: { sessionID: session.sessionId } });
+    await expect(prompt).resolves.toMatchObject({ stopReason: 'cancelled' });
+    await expect(steer).resolves.toBe(false);
+    expect(mockRequest).toHaveBeenCalledWith(
+      `/api/session/${session.sessionId}/inbox/${inboxId}`,
+      { method: 'DELETE' },
     );
     await kernel.dispose();
   });
