@@ -2,7 +2,12 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { findClaudeCLIPath } from '@/providers/claude/cli/findClaudeCLIPath';
 import { resolveClaudeCliPath } from '@/providers/claude/runtime/ClaudeCliResolver';
+
+jest.mock('@/providers/claude/cli/findClaudeCLIPath', () => ({
+  findClaudeCLIPath: jest.fn(),
+}));
 
 describe('resolveClaudeCliPath', () => {
   let tempDir: string;
@@ -46,5 +51,27 @@ describe('resolveClaudeCliPath', () => {
     const cliPath = createExecutable('plain', 'claude');
 
     expect(resolveClaudeCliPath(cliPath, '', '')).toBe(cliPath);
+  });
+
+  it('discovers mise-managed Claude installs when the shell PATH is unavailable', () => {
+    const originalEnvironment = { ...process.env };
+    const shims = path.join(tempDir, 'mise', 'shims');
+    const cliPath = path.join(shims, 'claude');
+    const findPath = jest.mocked(findClaudeCLIPath);
+    try {
+      process.env.HOME = tempDir;
+      process.env.USERPROFILE = tempDir;
+      process.env.PATH = '';
+      process.env.MISE_SHIMS_DIR = shims;
+      findPath.mockReturnValueOnce(null).mockReturnValueOnce(cliPath);
+
+      expect(resolveClaudeCliPath('', '', 'PATH=')).toBe(cliPath);
+      expect(findPath).toHaveBeenNthCalledWith(1, '');
+      expect(findPath.mock.calls[1][0]?.split(path.delimiter)).toContain(shims);
+    } finally {
+      findPath.mockReset();
+      Object.keys(process.env).forEach(key => delete process.env[key]);
+      Object.assign(process.env, originalEnvironment);
+    }
   });
 });

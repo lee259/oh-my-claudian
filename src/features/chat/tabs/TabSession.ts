@@ -11,6 +11,8 @@ export interface TabSessionState {
 }
 
 export class TabSession {
+  /** Per-tab provider/model reasoning choices; committed settings seed future tabs. */
+  readonly reasoningSelections = new Map<string, string>();
   private activeTurnValue: Promise<void> | null = null;
   private backgroundWork: Promise<void> = Promise.resolve();
   private backgroundWorkCount = 0;

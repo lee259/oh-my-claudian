@@ -265,6 +265,35 @@ describe('getEnhancedPath', () => {
   describe('Unix environment variable paths', () => {
     if (isWindows) return;
 
+    it('uses MISE_SHIMS_DIR ahead of MISE_DATA_DIR and XDG_DATA_HOME', () => {
+      process.env.MISE_SHIMS_DIR = '/custom/mise/shims';
+      process.env.MISE_DATA_DIR = '/unused/mise-data';
+      process.env.XDG_DATA_HOME = '/unused/xdg';
+
+      const entries = getEnhancedPath().split(SEP);
+      expect(entries).toContain('/custom/mise/shims');
+      expect(entries).not.toContain('/unused/mise-data/shims');
+      expect(entries).not.toContain('/unused/xdg/mise/shims');
+    });
+
+    it('uses MISE_DATA_DIR when MISE_SHIMS_DIR is unset', () => {
+      delete process.env.MISE_SHIMS_DIR;
+      process.env.MISE_DATA_DIR = '/custom/mise-data';
+      process.env.XDG_DATA_HOME = '/unused/xdg';
+
+      const entries = getEnhancedPath().split(SEP);
+      expect(entries).toContain('/custom/mise-data/shims');
+      expect(entries).not.toContain('/unused/xdg/mise/shims');
+    });
+
+    it('uses XDG_DATA_HOME when no mise-specific directory is set', () => {
+      delete process.env.MISE_SHIMS_DIR;
+      delete process.env.MISE_DATA_DIR;
+      process.env.XDG_DATA_HOME = '/custom/xdg';
+
+      expect(getEnhancedPath().split(SEP)).toContain('/custom/xdg/mise/shims');
+    });
+
     it('includes VOLTA_HOME/bin when set', () => {
       process.env.VOLTA_HOME = '/custom/volta';
       const result = getEnhancedPath();
@@ -1176,6 +1205,17 @@ describe('getExtraBinaryPaths (Windows branches)', () => {
     const mod = loadWithWindowsPlatform();
     const result = mod.getEnhancedPath();
     expect(result).toContain(';');
+  });
+
+  it('includes the default mise shims directory under LOCALAPPDATA on Windows', () => {
+    process.env.HOME = '/mock/home';
+    process.env.LOCALAPPDATA = '/mock/local-app-data';
+    delete process.env.MISE_SHIMS_DIR;
+    delete process.env.MISE_DATA_DIR;
+    delete process.env.XDG_DATA_HOME;
+    const mod = loadWithWindowsPlatform();
+
+    expect(mod.getEnhancedPath().split(';')).toContain(path.join('/mock/local-app-data', 'mise', 'shims'));
   });
 });
 
