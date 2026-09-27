@@ -95,6 +95,8 @@ export interface ToolbarCallbacks {
   onCloseContextActionsMenu?: () => void;
   getSettings: () => ToolbarSettings;
   getEnvironmentVariables?: () => string;
+  /** Actual model served by the running session, when known. */
+  getRuntimeModel?: () => string | null;
   getUIConfig: () => ProviderChatUIConfig;
   getCapabilities: () => ProviderCapabilities;
 }
@@ -104,6 +106,14 @@ export interface PermissionModeMenuHandle {
   setVisible: (visible: boolean) => void;
   canCycle?: () => boolean;
   cycleMode?: (onSelect?: (mode: string) => void) => boolean;
+}
+
+/** Normalize a model id for display comparison: drop provider prefixes and the [1m] context modifier. */
+function normalizeModelReference(modelId: string): string {
+  const trimmed = modelId.trim().toLowerCase();
+  const separatorIndex = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf(':'));
+  const base = separatorIndex >= 0 ? trimmed.slice(separatorIndex + 1) : trimmed;
+  return base.endsWith('[1m]') ? base.slice(0, -4) : base;
 }
 
 export class ModelSelector {
@@ -160,8 +170,23 @@ export class ModelSelector {
         width: 12,
       });
     }
+    const displayLabel = displayModel?.label || 'Unknown';
+    const runtimeModel = this.callbacks.getRuntimeModel?.()?.trim() || null;
+    let label = displayLabel;
+    if (runtimeModel && displayModel) {
+      const runtimeRef = normalizeModelReference(runtimeModel);
+      const optionRef = normalizeModelReference(displayModel.value);
+      if (runtimeRef && runtimeRef !== optionRef) {
+        const runtimeOption = models.find(model => normalizeModelReference(model.value) === runtimeRef);
+        label = runtimeOption?.label ?? displayLabel;
+      }
+    }
     const labelEl = this.buttonEl.createSpan({ cls: 'claudian-model-label' });
-    labelEl.setText(displayModel?.label || 'Unknown');
+    labelEl.setText(label);
+    this.buttonEl.removeAttribute('title');
+    if (runtimeModel) {
+      this.buttonEl.setAttribute('title', label === displayLabel ? runtimeModel : displayLabel);
+    }
   }
 
   renderOptions() {

@@ -172,6 +172,7 @@ function createMockCallbacks(overrides: Record<string, any> = {}) {
       enableSonnet1M: false,
     }),
     getEnvironmentVariables: jest.fn().mockReturnValue(''),
+    getRuntimeModel: jest.fn().mockReturnValue(null),
     getUIConfig: jest.fn().mockReturnValue(createMockUIConfig()),
     getCapabilities: jest.fn().mockReturnValue({
       providerId: 'claude',
@@ -210,6 +211,22 @@ describe('ModelSelector', () => {
     const label = btn?.querySelector('.claudian-model-label');
     expect(label).not.toBeNull();
     expect(label?.textContent).toBe('Sonnet');
+  });
+
+  it('shows the actual runtime model when it differs from the selected alias', () => {
+    const uiConfig = callbacks.getUIConfig();
+    uiConfig.getModelOptions.mockReturnValue([
+      { value: 'sonnet', label: 'Sonnet' },
+      { value: 'claude-code/claude-sonnet-4-7', label: 'Claude Sonnet 4.7' },
+    ]);
+    callbacks.getRuntimeModel.mockReturnValue('claude-sonnet-4-7');
+    callbacks.getUIConfig.mockReturnValue(uiConfig);
+
+    selector.updateDisplay();
+
+    const button = parentEl.querySelector('.claudian-model-btn');
+    expect(parentEl.querySelector('.claudian-model-label')?.textContent).toBe('Claude Sonnet 4.7');
+    expect(button?.getAttribute('title')).toBe('Sonnet');
   });
 
   it('should display the selected provider icon before the model label', () => {
