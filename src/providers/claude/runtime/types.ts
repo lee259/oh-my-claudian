@@ -39,7 +39,12 @@ export interface PendingAttachmentMessage {
   message: SDKUserMessage;
 }
 
-export type PendingMessage = PendingTextMessage | PendingAttachmentMessage;
+export interface PendingIdentityMessage {
+  type: 'identity';
+  message: SDKUserMessage;
+}
+
+export type PendingMessage = PendingTextMessage | PendingAttachmentMessage | PendingIdentityMessage;
 
 export interface ResponseHandler {
   readonly id: string;

@@ -57,6 +57,14 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
     }
 
     const hasAttachments = this.messageHasAttachments(message);
+    const preserveIdentity = message.priority === 'next';
+
+    if (preserveIdentity && this.resolveNext) {
+      const resolve = this.resolveNext;
+      this.resolveNext = null;
+      resolve({ value: message, done: false });
+      return;
+    }
 
     if (!this.turnActive) {
       if (this.resolveNext) {
@@ -72,8 +80,8 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
           this.onWarning(`[MessageChannel] Queue full (${MESSAGE_CHANNEL_CONFIG.MAX_QUEUED_MESSAGES}), dropping newest`);
           return;
         }
-        if (hasAttachments) {
-          this.queue.push({ type: 'attachment', message });
+        if (hasAttachments || preserveIdentity) {
+          this.queue.push({ type: hasAttachments ? 'attachment' : 'identity', message });
         } else {
           this.queue.push({ type: 'text', content: this.extractTextContent(message) });
         }
@@ -93,6 +101,15 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
       } else {
         this.queue.push({ type: 'attachment', message });
       }
+      return;
+    }
+
+    if (preserveIdentity) {
+      if (this.queue.length >= MESSAGE_CHANNEL_CONFIG.MAX_QUEUED_MESSAGES) {
+        this.onWarning(`[MessageChannel] Queue full (${MESSAGE_CHANNEL_CONFIG.MAX_QUEUED_MESSAGES}), dropping newest`);
+        return;
+      }
+      this.queue.push({ type: 'identity', message });
       return;
     }
 
@@ -182,9 +199,11 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
         }
 
         // If there's a queued message and no active turn, return it
-        if (this.queue.length > 0 && !this.turnActive) {
+        if (this.queue.length > 0 && (
+          !this.turnActive || this.queue[0].type === 'identity'
+        )) {
           const pending = this.queue.shift()!;
-          this.turnActive = true;
+          if (!this.turnActive) this.turnActive = true;
           return Promise.resolve({ value: this.pendingToMessage(pending), done: false });
         }
 
@@ -212,7 +231,7 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
   }
 
   private pendingToMessage(pending: PendingMessage): SDKUserMessage {
-    if (pending.type === 'attachment') {
+    if (pending.type !== 'text') {
       return pending.message;
     }
 
@@ -228,8 +247,8 @@ export class MessageChannel implements AsyncIterable<SDKUserMessage> {
   }
 
   private toPendingMessage(message: SDKUserMessage): PendingMessage {
-    return this.messageHasAttachments(message)
-      ? { type: 'attachment', message }
-      : { type: 'text', content: this.extractTextContent(message) };
+    if (this.messageHasAttachments(message)) return { type: 'attachment', message };
+    if (message.priority === 'next') return { type: 'identity', message };
+    return { type: 'text', content: this.extractTextContent(message) };
   }
 }

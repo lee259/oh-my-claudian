@@ -105,6 +105,23 @@ describe('MessageChannel', () => {
       expect(warnings.some((msg) => msg.includes('Attachment message replaced'))).toBe(true);
     });
 
+    it('preserves the UUID and priority of a queued native steer', async () => {
+      const iterator = channel[Symbol.asyncIterator]();
+      const firstPromise = iterator.next();
+      channel.enqueue(createTextUserMessage('first'));
+      await firstPromise;
+
+      const steer = {
+        ...createTextUserMessage('steer'),
+        priority: 'next' as const,
+        uuid: '00000000-0000-4000-8000-000000000001' as const,
+      };
+      channel.enqueue(steer);
+      channel.onTurnComplete();
+
+      await expect(iterator.next()).resolves.toMatchObject({ value: steer, done: false });
+    });
+
     it('drops merged text when it exceeds the max length', async () => {
       const iterator = channel[Symbol.asyncIterator]();
 

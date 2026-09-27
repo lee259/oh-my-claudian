@@ -8,8 +8,12 @@ import type {
 import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
 import { runColdStartQuery } from '../runtime/claudeColdStartQuery';
 import { MessageChannel } from '../runtime/ClaudeMessageChannel';
-import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
+import {
+  buildClaudeSDKUserMessage,
+  type ClaudeSDKUserMessage,
+} from '../runtime/ClaudeUserMessageFactory';
 import type { ClaudeEncodedExecutionRequest } from './ClaudeExecutionRequestEncoder';
+import { ClaudeTurnInputs } from './ClaudeTurnInputs';
 
 const PLAN_MODE_CONTINUATION_PROMPT =
   'Continue the current user request in plan mode. Continue exploring the task and prepare the implementation plan. Do not wait for another user message.';
@@ -17,10 +21,7 @@ const PLAN_MODE_CONTINUATION_PROMPT =
 export interface ClaudeExecutionStrategySink {
   readonly sessionInstanceId: string;
   getProviderSessionId(): string | null;
-  setPendingNativeUserMessageId(
-    nativeUserMessageId: string,
-    queryToken: number,
-  ): void;
+  bindNativeTurnInputs(inputs: ClaudeTurnInputs, queryToken: number): void;
   markNativeTurnHandedOff(queryToken: number): void;
   handleNativeMessage(message: SDKMessage, queryToken: number): Promise<void>;
   handleNativeFailure(error: unknown, queryToken: number): void;
@@ -42,6 +43,7 @@ export interface ClaudeExecutionStrategy {
     request: ClaudeEncodedExecutionRequest,
     queryToken: number,
   ): Promise<void>;
+  steerTurn(message: ClaudeSDKUserMessage, queryToken: number): boolean;
   cancel(queryToken: number | null, nativeTurnHandedOff: boolean): void;
   setMode(mode: Parameters<Query['setPermissionMode']>[0]): Promise<boolean>;
   getRewindQuery(): Query | null;
@@ -57,6 +59,7 @@ type PersistentNativeTurnOutcome =
   | { readonly type: 'failed'; readonly error: unknown };
 
 interface PersistentNativeTurn {
+  readonly inputs: ClaudeTurnInputs;
   readonly query: Query;
   readonly queryToken: number;
   readonly completion: Promise<PersistentNativeTurnOutcome>;
@@ -72,6 +75,7 @@ implements ClaudeExecutionStrategy {
   private currentConfig: ClaudeEncodedExecutionRequest | null = null;
   private activeNativeTurn: PersistentNativeTurn | null = null;
   private preparingTurnToken: number | null = null;
+  private hasNonPersistentContext = false;
   private disposed = false;
 
   constructor(private readonly sink: ClaudeExecutionStrategySink) {}
@@ -106,19 +110,37 @@ implements ClaudeExecutionStrategy {
         this.sink.getProviderSessionId() ?? '',
         request.images,
       );
-      if (message.uuid) {
-        this.sink.setPendingNativeUserMessageId(message.uuid, queryToken);
-      }
+      const inputs = new ClaudeTurnInputs(message.uuid!);
+      this.sink.bindNativeTurnInputs(inputs, queryToken);
       requestSignal?.throwIfAborted();
       const query = this.query;
       this.messageChannel.enqueue(message);
-      this.activeNativeTurn = createPersistentNativeTurn(query, queryToken);
+      this.activeNativeTurn = createPersistentNativeTurn(query, queryToken, inputs);
+      this.hasNonPersistentContext ||= request.options.persistSession === false;
       this.sink.markNativeTurnHandedOff(queryToken);
     } finally {
       if (this.preparingTurnToken === queryToken) {
         this.preparingTurnToken = null;
       }
     }
+  }
+
+  steerTurn(message: ClaudeSDKUserMessage, queryToken: number): boolean {
+    const nativeTurn = this.activeNativeTurn;
+    if (
+      this.disposed
+      || !nativeTurn
+      || nativeTurn.queryToken !== queryToken
+      || nativeTurn.query !== this.query
+      || nativeTurn.inputs.settled
+      || !this.messageChannel
+      || this.hasNonPersistentContext
+    ) {
+      return false;
+    }
+    nativeTurn.inputs.addSteer(message.uuid!);
+    this.messageChannel.enqueue({ ...message, priority: 'next' });
+    return true;
   }
 
   cancel(
@@ -140,6 +162,10 @@ implements ClaudeExecutionStrategy {
         || this.activeNativeTurn?.queryToken === queryToken
       )
     ) {
+      if (this.activeNativeTurn?.inputs.hasUndeliveredSteers()) {
+        void this.closeCurrentQuery().catch(() => undefined);
+        return;
+      }
       void this.query?.interrupt().catch(() => undefined);
     }
   }
@@ -271,6 +297,7 @@ implements ClaudeExecutionStrategy {
           this.sink.publishCommands(query, queryToken);
         }
         const nativeTurn = this.getNativeTurn(query);
+        nativeTurn?.inputs.observe(message);
         await this.sink.handleNativeMessage(
           message,
           nativeTurn?.queryToken ?? queryToken,
@@ -287,7 +314,9 @@ implements ClaudeExecutionStrategy {
           const shouldContinue = this.sink.shouldContinueAfterPlanMode(
             nativeTurnToken,
           );
-          this.finishNativeTurn(query, { type: 'completed' });
+          if (!nativeTurn || nativeTurn.inputs.settled) {
+            this.finishNativeTurn(query, { type: 'completed' });
+          }
           if (shouldContinue) {
             this.enqueuePlanModeContinuation(query, nativeTurnToken);
           }
@@ -353,7 +382,9 @@ implements ClaudeExecutionStrategy {
       PLAN_MODE_CONTINUATION_PROMPT,
       this.sink.getProviderSessionId() ?? '',
     );
-    this.activeNativeTurn = createPersistentNativeTurn(query, queryToken);
+    const inputs = new ClaudeTurnInputs(message.uuid!);
+    this.sink.bindNativeTurnInputs(inputs, queryToken);
+    this.activeNativeTurn = createPersistentNativeTurn(query, queryToken, inputs);
     try {
       this.messageChannel.enqueueFront(message);
     } catch (error) {
@@ -412,9 +443,8 @@ implements ClaudeExecutionStrategy {
       this.sink.getProviderSessionId() ?? '',
       request.images,
     );
-    if (message.uuid) {
-      this.sink.setPendingNativeUserMessageId(message.uuid, queryToken);
-    }
+    const inputs = new ClaudeTurnInputs(message.uuid!);
+    this.sink.bindNativeTurnInputs(inputs, queryToken);
     const prompt = toSingleMessagePrompt(message);
     this.activeAbortController = abortController;
     let query: Query | null = null;
@@ -443,6 +473,7 @@ implements ClaudeExecutionStrategy {
           ) {
             this.sink.publishCommands(query, queryToken);
           }
+          inputs.observe(message);
           await this.sink.handleNativeMessage(message, queryToken);
         },
       });
@@ -463,6 +494,10 @@ implements ClaudeExecutionStrategy {
       }
       this.sink.releaseNativeTurnFence(queryToken);
     }
+  }
+
+  steerTurn(): boolean {
+    return false;
   }
 
   cancel(
@@ -509,6 +544,7 @@ async function* toSingleMessagePrompt(
 function createPersistentNativeTurn(
   query: Query,
   queryToken: number,
+  inputs: ClaudeTurnInputs,
 ): PersistentNativeTurn {
   let resolve!: (outcome: PersistentNativeTurnOutcome) => void;
   const completion = new Promise<PersistentNativeTurnOutcome>(
@@ -520,6 +556,7 @@ function createPersistentNativeTurn(
   return {
     query,
     queryToken,
+    inputs,
     completion,
     settle: (outcome) => {
       if (settled) return;

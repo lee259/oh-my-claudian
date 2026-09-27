@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 import type { ImageAttachment } from '../../../core/types';
 import type { UserContentBlock } from './types';
 
+export type ClaudeSDKUserMessage = SDKUserMessage;
+
 function buildUserContentBlocks(prompt: string, images?: ImageAttachment[]): UserContentBlock[] {
   const content: UserContentBlock[] = [];
 
