@@ -143,6 +143,7 @@ export interface InputControllerDeps {
   getStatusPanel: () => StatusPanel | null;
   getInputContainerEl: () => HTMLElement;
   generateId: () => string;
+  getProviderSettings?: () => Record<string, unknown>;
   getAuxiliaryModel?: () => string | null;
   getExecutionCoordinator: () => ChatExecutionCoordinator | null;
   getSubagentManager: () => SubagentManager;
@@ -219,6 +220,7 @@ export class InputController {
       getMcpServerSelector: deps.getMcpServerSelector,
       getExternalContextSelector: deps.getExternalContextSelector,
       getProviderId: () => this.getActiveProviderId(),
+      getProviderSettings: deps.getProviderSettings,
       getProviderCapabilities: () => this.getActiveCapabilities(),
       getAuxiliaryModel: () => this.getAuxiliaryModel(),
       generateId: deps.generateId,

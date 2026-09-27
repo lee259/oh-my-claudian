@@ -7,6 +7,7 @@ import type { TabData } from './types';
 export interface TabInputControllerOptions {
   ensureExecutionInitialized: () => Promise<boolean>;
   generateId: () => string;
+  getProviderSettings: () => Record<string, unknown>;
   getAuxiliaryModel: () => string | null;
   openConversation?: (conversationId: string) => Promise<void>;
   handleNewConversationCommand?: () => Promise<boolean>;
@@ -50,6 +51,7 @@ export function createTabInputController(
     getTitleGenerationService: () => services.titleGenerationService,
     getStatusPanel: () => ui.statusPanel,
     generateId: options.generateId,
+    getProviderSettings: options.getProviderSettings,
     getAuxiliaryModel: options.getAuxiliaryModel,
     getExecutionCoordinator: () => tab.executionCoordinator,
     getSubagentManager: () => services.subagentManager,
