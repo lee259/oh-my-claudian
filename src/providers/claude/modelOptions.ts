@@ -4,6 +4,7 @@ import {
   type ClaudeModelEnvType,
   getModelsFromEnvironment,
 } from './env/claudeModelEnv';
+import { getClaudeUserSettingsModelEnvironment } from './env/claudeUserSettingsEnv';
 import { formatCustomModelLabel } from './modelLabels';
 import { encodeClaudeModelSelectionId, toClaudeRuntimeModelId } from './modelSelection';
 import { isClaudeModelTier } from './modelTiers';
@@ -53,21 +54,31 @@ function normalizeCustomModelAliases(value: unknown): Record<string, string> {
 
 export function getClaudeModelOptions(settings: Record<string, unknown>): ClaudeModelOption[] {
   const customModelAliases = normalizeCustomModelAliases(settings.customModelAliases);
+  const userModelEnvironment = getClaudeUserSettingsModelEnvironment();
+  const modelAliases = {
+    ...userModelEnvironment.displayNames,
+    ...customModelAliases,
+  };
   const customModels = getModelsFromEnvironment(
-    getRuntimeEnvironmentVariables(settings, 'claude'),
-    customModelAliases,
+    {
+      ...userModelEnvironment.env,
+      ...getRuntimeEnvironmentVariables(settings, 'claude'),
+    },
+    modelAliases,
   );
   const claudeSettings = getClaudeProviderSettings(settings);
   const discoveredModels = claudeSettings.discoveredModels;
   if (customModels.length > 0) {
+    const settingsConfiguredModelIds = new Set(Object.values(userModelEnvironment.env));
     return customModels.map((model) => ({
       ...model,
       label: customModelAliases[toClaudeRuntimeModelId(model.value)]
+        ?? userModelEnvironment.displayNames[model.value]
         ?? discoveredModels.find(discovered => (
           discovered.value === toClaudeRuntimeModelId(model.value)
           || discovered.resolvedModel === toClaudeRuntimeModelId(model.value)
         ))?.label
-        ?? model.label,
+        ?? (settingsConfiguredModelIds.has(model.value) ? model.value : model.label),
       value: encodeClaudeModelSelectionId(model.value),
     }));
   }
