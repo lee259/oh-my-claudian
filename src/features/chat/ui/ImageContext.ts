@@ -1,6 +1,8 @@
 import { Notice } from 'obsidian';
 import * as path from 'path';
 
+import { normalizeImageMediaType } from '@/utils/imageAttachment';
+
 import type { ImageAttachment, ImageMediaType } from '../../../core/types';
 import { ComposerContextTray } from './ComposerContextTray';
 import { ImagePreviewModal } from './ImagePreviewModal';
@@ -219,7 +221,7 @@ export class ImageContextManager {
       return false;
     }
 
-    const mediaType = this.getMediaType(file.name) || (file.type as ImageMediaType);
+    const mediaType = this.getMediaType(file.name) ?? normalizeImageMediaType(file.type);
     if (!mediaType) {
       this.notifyImageError('Unsupported image type.');
       return false;
