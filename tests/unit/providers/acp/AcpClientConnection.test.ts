@@ -60,6 +60,28 @@ function createConnectionHarness(
 }
 
 describe('AcpClientConnection', () => {
+  it('uses the standard session/fork ACP method', async () => {
+    const harness = createConnectionHarness(transport => new AcpClientConnection({ transport }));
+    try {
+      const forkPromise = harness.connection.forkSession({
+        cwd: '/workspace',
+        mcpServers: [],
+        sessionId: 'source-session',
+      });
+      const request = await harness.nextOutbound();
+      expect(request).toMatchObject({
+        method: 'session/fork',
+        params: { cwd: '/workspace', mcpServers: [], sessionId: 'source-session' },
+      });
+      harness.sendInbound({ id: request.id, jsonrpc: '2.0', result: { sessionId: 'child-session' } });
+      await expect(forkPromise).resolves.toEqual({ sessionId: 'child-session' });
+    } finally {
+      harness.connection.dispose();
+      harness.transport.dispose();
+      harness.close();
+    }
+  });
+
   it('advertises derived client capabilities and dispatches session notifications', async () => {
     const notifications: AcpSessionNotification[] = [];
     const harness = createConnectionHarness((transport) => new AcpClientConnection({

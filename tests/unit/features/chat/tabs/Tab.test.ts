@@ -1590,10 +1590,10 @@ describe('Tab provider execution ownership', () => {
       },
     ];
 
-    await (tab.renderer as any).forkCallback('user-b');
+    await (tab.renderer as any).forkCallback('assistant-b');
 
     expect(coordinatorInstances[0].resolveForkSource).toHaveBeenCalledWith(
-      'assistant-a',
+      'assistant-b',
       expect.any(Function),
     );
     expect(forkRequest).toHaveBeenCalledWith(expect.objectContaining({
@@ -1602,9 +1602,10 @@ describe('Tab provider execution ownership', () => {
         expect.objectContaining({ id: 'interrupt-a', isInterrupt: true }),
         expect.objectContaining({ id: 'rebuilt-a', isRebuiltContext: true }),
       ]),
-      resumeAt: 'assistant-a',
+      resumeAt: 'assistant-b',
       sourceSessionId: 'native-session',
     }));
+
     globalThis.ResizeObserver = originalResizeObserver;
   });
 

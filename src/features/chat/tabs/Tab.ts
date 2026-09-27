@@ -66,7 +66,6 @@ import {
 } from '../execution/ChatExecutionCoordinator';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { unmountWelcomeElement } from '../rendering/WelcomeRenderer';
-import { findRewindContext } from '../rewind';
 import { BangBashService } from '../services/BangBashService';
 import { BangBashModeManager as BangBashModeManagerClass } from '../ui/BangBashModeManager';
 import { ComposerContextTray } from '../ui/ComposerContextTray';
@@ -1595,6 +1594,8 @@ export function initializeTabUI(
 
 export interface ForkContext {
   messages: ChatMessage[];
+  sourceTabId?: string;
+  sourceConversationId?: string | null;
   providerId?: ProviderId;
   sourceSessionId: string;
   sourceProviderState?: Record<string, unknown>;
@@ -1676,7 +1677,7 @@ async function resolveForkSource(
 async function handleForkRequest(
   tab: TabData,
   plugin: FeatureHost,
-  userMessageId: string,
+  assistantMessageId: string,
   forkRequestCallback: (forkContext: ForkContext) => Promise<void>,
 ): Promise<void> {
   const { state } = tab;
@@ -1696,35 +1697,34 @@ async function handleForkRequest(
   }
 
   const msgs = state.messages;
-  const userIdx = msgs.findIndex(m => m.id === userMessageId);
-  if (userIdx === -1) {
+  const assistantIdx = msgs.findIndex(
+    message => message.id === assistantMessageId && message.role === 'assistant',
+  );
+  if (assistantIdx === -1) {
     new Notice(t('chat.fork.failed', { error: t('chat.fork.errorMessageNotFound') }));
     return;
   }
 
-  if (!msgs[userIdx].userMessageId) {
+  const assistantMessage = msgs[assistantIdx];
+  if (!assistantMessage.assistantMessageId) {
     new Notice(t('chat.fork.unavailableNoUuid'));
     return;
   }
 
-  const rewindCtx = findRewindContext(msgs, userIdx);
-  if (!rewindCtx.hasResponse || !rewindCtx.prevAssistantUuid) {
-    new Notice(t('chat.fork.unavailableNoResponse'));
-    return;
-  }
-
-  const source = await resolveForkSource(tab, plugin, rewindCtx.prevAssistantUuid);
+  const source = await resolveForkSource(tab, plugin, assistantMessage.assistantMessageId);
   if (!source) return;
 
   await forkRequestCallback({
-    messages: deepCloneMessages(msgs.slice(0, userIdx)),
+    messages: deepCloneMessages(msgs.slice(0, assistantIdx + 1)),
+    sourceTabId: tab.id,
+    sourceConversationId: tab.conversationId,
     providerId: source.providerId,
     sourceSessionId: source.sourceSessionId,
     sourceProviderState: source.sourceProviderState,
     sourceSelectedModel: source.sourceSelectedModel,
-    resumeAt: rewindCtx.prevAssistantUuid,
+    resumeAt: assistantMessage.assistantMessageId,
     sourceTitle: source.sourceTitle,
-    forkAtUserMessage: msgs.slice(0, userIdx + 1).filter(isCanonicalUserMessage).length,
+    forkAtUserMessage: msgs.slice(0, assistantIdx + 1).filter(isCanonicalUserMessage).length,
     currentNote: source.currentNote,
   });
 }
@@ -1774,6 +1774,8 @@ async function handleForkAll(
 
   await forkRequestCallback({
     messages: deepCloneMessages(msgs),
+    sourceTabId: tab.id,
+    sourceConversationId: tab.conversationId,
     providerId: source.providerId,
     sourceSessionId: source.sourceSessionId,
     sourceProviderState: source.sourceProviderState,

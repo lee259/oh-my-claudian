@@ -666,7 +666,35 @@ describe('MessageRenderer', () => {
 
     expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
     expect(messagesEl.querySelector('.claudian-message-fork-btn')).toBeNull();
+    renderer.renderStoredMessage(allMessages[1], allMessages, 1);
+    const assistantEl = messagesEl.querySelector('[data-message-id="a1"]');
+    expect(assistantEl?.querySelector('.claudian-message-fork-btn')).not.toBeNull();
     expect((renderer as any).liveMessageEls.has('u1')).toBe(false);
+  });
+
+  it('shows full-session fork only on the latest assistant reply', () => {
+    const messagesEl = createMockEl();
+    const forkCallback = jest.fn().mockResolvedValue(undefined);
+    const capabilities = { ...mockCapabilities()(), forkMode: 'full-session' as const };
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      forkCallback,
+      () => capabilities,
+    );
+    jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+    const messages: ChatMessage[] = [
+      { id: 'a1', role: 'assistant', content: 'first', timestamp: 1, assistantMessageId: 'native-a1' },
+      { id: 'a2', role: 'assistant', content: 'latest', timestamp: 2, assistantMessageId: 'native-a2' },
+    ];
+
+    renderer.renderStoredMessage(messages[0], messages, 0);
+    renderer.renderStoredMessage(messages[1], messages, 1);
+
+    expect(messagesEl.querySelector('[data-message-id="a1"]')?.querySelector('.claudian-message-fork-btn')).toBeFalsy();
+    expect(messagesEl.querySelector('[data-message-id="a2"]')?.querySelector('.claudian-message-fork-btn')).not.toBeNull();
   });
 
   it('does not add a rewind button when stored render is called without context', () => {
@@ -809,7 +837,7 @@ describe('MessageRenderer', () => {
     expect(rate?.getAttribute('aria-label')).toBe('300 tokens · 2m 0s');
   });
 
-  it('requires confirmation before forking a conversation', async () => {
+  it('opens the fork target flow directly when clicking a reply fork button', async () => {
     const messagesEl = createMockEl();
     const forkCallback = jest.fn().mockResolvedValue(undefined);
     const renderer = new MessageRenderer(
@@ -821,24 +849,14 @@ describe('MessageRenderer', () => {
       mockCapabilities(),
     );
     const confirmMock = confirm as jest.Mock;
-    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    confirmMock.mockClear();
 
     (renderer as any).addForkButton(messagesEl, 'message-1');
     const button = messagesEl.querySelector('.claudian-message-fork-btn');
     button!.dispatchEvent({ stopPropagation: jest.fn(), type: 'click' });
     await Promise.resolve();
 
-    expect(confirmMock).toHaveBeenCalledWith(
-      {},
-      'Fork this conversation from here? This creates a new conversation.',
-      'Fork conversation',
-    );
-    expect(forkCallback).not.toHaveBeenCalled();
-
-    button!.dispatchEvent({ stopPropagation: jest.fn(), type: 'click' });
-    await Promise.resolve();
-    await Promise.resolve();
-
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(forkCallback).toHaveBeenCalledWith('message-1');
   });
 
