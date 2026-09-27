@@ -26,6 +26,7 @@ export interface MockTextAreaComponent extends MockTextComponent {
 export interface MockDropdownComponent {
   value: string;
   options: Array<{ value: string; label: string }>;
+  selectEl: { replaceChildren: jest.Mock };
   onChangeCallback: ((value: string) => Promise<void> | void) | null;
   addOption: jest.MockedFunction<(value: string, label: string) => MockDropdownComponent>;
   setValue: jest.MockedFunction<(value: string) => MockDropdownComponent>;
@@ -96,6 +97,11 @@ export function createDropdownComponent(): MockDropdownComponent {
   const component = {} as MockDropdownComponent;
   component.value = '';
   component.options = [];
+  component.selectEl = {
+    replaceChildren: jest.fn(() => {
+      component.options = [];
+    }),
+  };
   component.onChangeCallback = null;
   component.addOption = jest.fn((value: string, label: string) => {
     component.options.push({ value, label });

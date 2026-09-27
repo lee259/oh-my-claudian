@@ -206,18 +206,33 @@ export async function readSDKSession(
   }
 }
 
+const SESSION_PARSE_BATCH_CHARS = 1024 * 1024;
+
 export async function readSDKSessionFile(sessionPath: string): Promise<SDKSessionReadResult> {
   try {
     const content = await fs.readFile(sessionPath, 'utf-8');
-    const lines = content.split('\n').filter(line => line.trim());
     const messages: SDKNativeMessage[] = [];
     let skippedLines = 0;
+    let offset = 0;
+    let batchStart = 0;
 
-    for (const line of lines) {
-      try {
-        messages.push(JSON.parse(line) as SDKNativeMessage);
-      } catch {
-        skippedLines++;
+    while (offset < content.length) {
+      const newline = content.indexOf('\n', offset);
+      const end = newline === -1 ? content.length : newline;
+      const line = content.slice(offset, end);
+      offset = end + 1;
+
+      if (line.trim()) {
+        try {
+          messages.push(JSON.parse(line) as SDKNativeMessage);
+        } catch {
+          skippedLines++;
+        }
+      }
+
+      if (offset - batchStart >= SESSION_PARSE_BATCH_CHARS && offset < content.length) {
+        await new Promise<void>(resolve => window.setTimeout(resolve, 0));
+        batchStart = offset;
       }
     }
 

@@ -51,7 +51,7 @@ import {
   resolveGrokSessionCwd,
   resolveGrokSessionDirectory,
 } from '../history/GrokHistoryPathResolver';
-import { resolveGrokUpdateMessageId } from '../history/GrokHistoryStore';
+import { resolveGrokLiveMessageId } from '../history/GrokHistoryStore';
 import {
   decodeGrokModelId,
   findGrokModel,
@@ -805,7 +805,7 @@ RewindableExecutionSession {
       || update.sessionUpdate === 'user_message_chunk'
     ) {
       const role = update.sessionUpdate === 'agent_message_chunk' ? 'assistant' : 'user';
-      const messageId = resolveGrokUpdateMessageId(update, role, notification._meta);
+      const messageId = resolveGrokLiveMessageId(update, role, notification._meta);
       if (messageId) update = { ...update, messageId };
     }
     const result = active.normalizer.normalize(update);

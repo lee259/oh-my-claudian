@@ -24,6 +24,7 @@ import { probeRuntimeCommands } from '../commands/probeRuntimeCommands';
 import { resolveClaudeConfigDir } from '../config/ClaudeConfigDir';
 import { PluginManager } from '../plugins/PluginManager';
 import { ClaudeCliResolver } from '../runtime/ClaudeCliResolver';
+import { ClaudeModelCatalog } from '../runtime/ClaudeModelCatalog';
 import { StorageService } from '../storage/StorageService';
 import { claudeSettingsTabRenderer } from '../ui/ClaudeSettingsTab';
 
@@ -53,6 +54,7 @@ export async function createClaudeWorkspaceServices(
   const claudeStorage = new StorageService(plugin, adapter);
 
   const cliResolver = new ClaudeCliResolver();
+  const modelCatalog = new ClaudeModelCatalog(plugin);
   const mcpStorage = claudeStorage.mcp;
   const mcpManager = new McpServerManager(mcpStorage);
 
@@ -81,7 +83,10 @@ export async function createClaudeWorkspaceServices(
   );
   const unregisterTransitionHook = plugin.executionLifecycleRegistry
     .registerTransitionHook('claude', {
-      beforeTransition: () => commandCatalog.beginEnvironmentTransition(),
+      beforeTransition: async () => {
+        await modelCatalog.cancel();
+        await commandCatalog.beginEnvironmentTransition();
+      },
       afterTransition: () => commandCatalog.endEnvironmentTransition(),
     });
   let disposePromise: Promise<void> | null = null;
@@ -98,6 +103,7 @@ export async function createClaudeWorkspaceServices(
     commandCatalog,
     vaultCommandRepository: commandCatalog,
     agentMentionProvider: agentManager,
+    refreshModelCatalog: () => modelCatalog.refresh(),
     settingsTabRenderer: claudeSettingsTabRenderer,
     refreshAgentMentions: async () => {
       await pluginManager.loadPlugins();
@@ -113,7 +119,8 @@ export async function createClaudeWorkspaceServices(
     dispose() {
       if (disposePromise) return disposePromise;
       unregisterTransitionHook();
-      disposePromise = commandCatalog.dispose();
+      disposePromise = Promise.all([commandCatalog.dispose(), modelCatalog.dispose()])
+        .then(() => undefined);
       return disposePromise;
     },
   };

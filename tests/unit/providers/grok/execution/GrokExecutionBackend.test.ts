@@ -1586,6 +1586,40 @@ describe('GrokExecutionBackend', () => {
     }
   });
 
+  it('groups streamed assistant chunks by prompt when each token has a fresh event ID', async () => {
+    const native = new FakeNativeConnection();
+    native.promptImplementation = async () => {
+      native.emit({
+        _meta: { promptId: 'prompt-turn-1' },
+        content: { text: 'Hello', type: 'text' },
+        sessionUpdate: 'agent_message_chunk',
+      }, 'extension', { eventId: 'event-token-1' });
+      native.emit({
+        _meta: { promptId: 'prompt-turn-1' },
+        content: { text: ' world', type: 'text' },
+        sessionUpdate: 'agent_message_chunk',
+      }, 'extension', { eventId: 'event-token-2' });
+      return { stopReason: 'end_turn' };
+    };
+    const session = new GrokExecutionBackend(
+      { settings: {} } as ProviderHost,
+      { nativeFactory: { create: () => native } },
+    ).createSession(sessionConfig);
+
+    try {
+      const events = await collect(session.execute(executionRequest()).events);
+
+      expect(events.filter(event => event.type === 'assistant_message_started')).toEqual([
+        expect.objectContaining({ nativeAssistantId: 'prompt-turn-1' }),
+      ]);
+      expect(events.filter(event => event.type === 'text_delta').map(event => (
+        event.type === 'text_delta' ? event.text : ''
+      ))).toEqual(['Hello', ' world']);
+    } finally {
+      await session.dispose();
+    }
+  });
+
   it('uses native interjection and rewind without creating an unrelated session', async () => {
     const native = new FakeNativeConnection();
     native.promptImplementation = () => new Promise(() => {});
