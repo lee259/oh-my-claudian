@@ -119,6 +119,7 @@ describe('Pi model helpers', () => {
         label: 'GPT-5',
         provider: 'openai',
         reasoning: false,
+        reasoningMetadataResolved: false,
         thinkingLevels: ['off'],
       },
     ]);

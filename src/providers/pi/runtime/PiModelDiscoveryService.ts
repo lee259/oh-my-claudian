@@ -25,7 +25,7 @@ export type PiModelDiscoveryResult =
 export class PiModelDiscoveryService {
   constructor(private readonly plugin: ProviderHost) {}
 
-  async discoverModels(): Promise<PiModelDiscoveryResult> {
+  async discoverModels(signal?: AbortSignal): Promise<PiModelDiscoveryResult> {
     const settings = getPiProviderSettings(this.plugin.settings);
     if (!settings.enabled) {
       return { kind: 'skipped', reason: 'provider-disabled' };
@@ -49,8 +49,14 @@ export class PiModelDiscoveryService {
     const subprocess = new PiSubprocess(launchSpec);
     let transport: PiRpcTransport | null = null;
     let removeEventListener: (() => void) | null = null;
+    const abort = () => {
+      transport?.dispose();
+      void subprocess.shutdown().catch(() => {});
+    };
+    signal?.addEventListener('abort', abort, { once: true });
 
     try {
+      signal?.throwIfAborted();
       subprocess.start();
       transport = new PiRpcTransport({
         input: subprocess.stdout,
@@ -73,7 +79,11 @@ export class PiModelDiscoveryService {
         }
       });
       const response = await transport.request('get_available_models', {}, 20_000);
-      const models = normalizePiDiscoveredModels(extractModels(response));
+      const models = normalizePiDiscoveredModels(extractModels(response)).map((model) => {
+        // This complete native response is authoritative, including non-reasoning models.
+        delete model.reasoningMetadataResolved;
+        return model;
+      });
       return { kind: 'completed', models };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Pi model discovery failed';
@@ -84,6 +94,7 @@ export class PiModelDiscoveryService {
         models: [],
       };
     } finally {
+      signal?.removeEventListener('abort', abort);
       removeEventListener?.();
       transport?.dispose();
       await subprocess.shutdown().catch(() => {});
