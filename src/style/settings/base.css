@@ -29,11 +29,11 @@
   border-bottom-color: var(--interactive-accent);
 }
 
-.claudian-settings-tab-content {
+.oh-my-claudian-settings .claudian-settings-tab-content {
   display: none;
 }
 
-.claudian-settings-tab-content--active {
+.oh-my-claudian-settings .claudian-settings-tab-content--active {
   display: block;
 }
 
