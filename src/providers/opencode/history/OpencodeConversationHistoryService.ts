@@ -43,7 +43,10 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
     if (!sessionId) return null;
     const databasePath = resolveOpencodeDatabasePathHint(state.databasePath, pathContext);
     if (!databasePath) return null;
-    return loadOpencodeSessionModel(sessionId, { databasePath }, pathContext?.environment);
+    return loadOpencodeSessionModel(sessionId, {
+      databasePath,
+      nativeVersion: state.nativeVersion,
+    }, pathContext?.environment);
   }
 
   async hydrateConversationHistory(
@@ -81,7 +84,10 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
 
     const messages = await loadOpencodeSessionMessages(
       sessionId,
-      { databasePath: databasePath ?? undefined },
+      {
+        databasePath: databasePath ?? undefined,
+        nativeVersion: state.nativeVersion,
+      },
       pathContext?.environment,
     );
     if (messages.length === 0) {

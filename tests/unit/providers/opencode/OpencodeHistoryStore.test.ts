@@ -542,4 +542,82 @@ describe('loadOpencodeSessionMessages', () => {
       db.close();
     }
   });
+
+  it('rehydrates OpenCode v2 messages from session_message data', async () => {
+    const dbPath = path.join(tmpRoot, 'opencode-v2.db');
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.exec(`
+        create table session_v2 (id text primary key);
+        create table session_message (
+          id text primary key,
+          session_id text not null,
+          type text not null,
+          time_created integer not null,
+          seq integer not null,
+          data text not null
+        );
+      `);
+      const sessionId = 'session-v2';
+      const insert = db.prepare(`
+        insert into session_message (id, session_id, type, time_created, seq, data)
+        values (?, ?, ?, ?, ?, ?)
+      `);
+      insert.run('synthetic', sessionId, 'synthetic', 900, 1, JSON.stringify({
+        time: { created: 900 }, text: 'synthetic metadata should not appear',
+      }));
+      insert.run('user-v2', sessionId, 'user', 1_000, 2, JSON.stringify({
+        time: { created: 1_000 }, text: 'Restore this v2 session',
+      }));
+      insert.run('assistant-v2', sessionId, 'assistant', 1_100, 3, JSON.stringify({
+        finish: 'stop',
+        time: { created: 1_100, completed: 2_500 },
+        tokens: { output: 12, reasoning: 3 },
+        content: [
+          { type: 'reasoning', text: 'Checking the request.', time: { created: 1_200, completed: 1_400 } },
+          { type: 'tool', id: 'call-v2', name: 'read', state: {
+            status: 'completed', input: { filePath: 'notes/today.md' }, content: [{ type: 'text', text: 'Read complete.' }],
+          } },
+          { type: 'text', text: 'Session restored.' },
+        ],
+      }));
+
+      await expect(loadOpencodeSessionMessages(sessionId, {
+        databasePath: dbPath,
+        nativeVersion: 2,
+      })).resolves.toEqual([
+        {
+          assistantMessageId: undefined,
+          content: 'Restore this v2 session',
+          id: 'user-v2',
+          role: 'user',
+          timestamp: 1_000,
+          userMessageId: 'user-v2',
+        },
+        {
+          assistantMessageId: 'assistant-v2',
+          content: 'Session restored.',
+          contentBlocks: [
+            { content: 'Checking the request.', durationSeconds: 0.2, type: 'thinking' },
+            { toolId: 'call-v2', type: 'tool_use' },
+            { content: 'Session restored.', type: 'text' },
+          ],
+          durationSeconds: 1.4,
+          id: 'assistant-v2',
+          role: 'assistant',
+          timestamp: 1_100,
+          toolCalls: [{
+            id: 'call-v2',
+            input: { file_path: 'notes/today.md' },
+            name: 'Read',
+            result: 'Read complete.',
+            status: 'completed',
+          }],
+          turnStats: { outputTokens: 15, durationMs: 1_500 },
+        },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
 });
