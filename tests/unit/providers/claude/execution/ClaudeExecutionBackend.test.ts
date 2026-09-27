@@ -19,6 +19,7 @@ import type { ClaudeWorkspaceServices } from '@/providers/claude/app/ClaudeWorks
 import { ClaudeExecutionBackend } from '@/providers/claude/execution/ClaudeExecutionBackend';
 import { ClaudeConversationHistoryService } from '@/providers/claude/history/ClaudeConversationHistoryService';
 import * as historyStore from '@/providers/claude/history/ClaudeHistoryStore';
+import * as claudeTurnStats from '@/providers/claude/history/ClaudeTurnStats';
 
 interface MockContextUsage {
   rawMaxTokens: number;
@@ -272,6 +273,39 @@ describe('ClaudeExecutionBackend', () => {
         source: 'sdk',
       },
     ]);
+  });
+
+  it('uses native result usage when persistent transcript stats are not yet readable', async () => {
+    jest.spyOn(claudeTurnStats, 'loadClaudeTurnStats').mockResolvedValue(undefined);
+    sdkMock.setMockMessages([
+      {
+        type: 'system',
+        subtype: 'init',
+        session_id: 'native-session',
+        agents: [],
+      },
+      {
+        type: 'assistant',
+        uuid: 'assistant-1',
+        message: { content: [{ type: 'text', text: 'Done' }] },
+      },
+      {
+        type: 'result',
+        subtype: 'success',
+        duration_ms: 2_500,
+        usage: { output_tokens: 125 },
+      },
+    ], { appendResult: false });
+    const session = new ClaudeExecutionBackend(createHost(), createServices().services)
+      .createSession(createConfig());
+
+    const events = await collectEvents(session.execute(createRequest()).events);
+
+    expect(events.at(-1)).toMatchObject({
+      type: 'turn_completed',
+      turnStats: { outputTokens: 125, durationMs: 2_500 },
+    });
+    await session.dispose();
   });
 
   it('resumes and materializes a pending fork without losing opaque provider state', async () => {

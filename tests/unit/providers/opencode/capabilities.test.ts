@@ -9,6 +9,10 @@ describe('OPENCODE_PROVIDER_CAPABILITIES', () => {
     expect(OPENCODE_PROVIDER_CAPABILITIES.supportsNativeHistory).toBe(true);
   });
 
+  it('should support response throughput', () => {
+    expect(OPENCODE_PROVIDER_CAPABILITIES.supportsResponseThroughput).toBe(true);
+  });
+
   it('should support plan mode', () => {
     expect(OPENCODE_PROVIDER_CAPABILITIES.supportsPlanMode).toBe(true);
   });

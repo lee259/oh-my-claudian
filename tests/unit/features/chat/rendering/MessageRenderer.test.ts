@@ -779,6 +779,36 @@ describe('MessageRenderer', () => {
     expect(messagesEl.querySelector('.claudian-message-fork-btn')).toBeNull();
   });
 
+  it('shows native response throughput with an accessible token and duration label', () => {
+    const messagesEl = createMockEl();
+    const capabilities = { ...mockCapabilities()(), supportsResponseThroughput: true };
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      undefined,
+      () => capabilities,
+    );
+    jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+    const message: ChatMessage = {
+      id: 'throughput',
+      role: 'assistant',
+      content: 'A completed response',
+      timestamp: 1,
+      turnStats: { outputTokens: 300, durationMs: 119_960 },
+    };
+
+    renderer.renderStoredMessage(message, [message], 0);
+    const messageEl = messagesEl.querySelector('.claudian-message-assistant');
+    const contentEl = messageEl?.querySelector('.claudian-message-content');
+    (renderer as any).syncAssistantMessageActions(message, messageEl, contentEl);
+
+    const rate = messagesEl.querySelector('.claudian-response-throughput');
+    expect(rate?.textContent).toBe('2.5 tok/s');
+    expect(rate?.getAttribute('aria-label')).toBe('300 tokens · 2m 0s');
+  });
+
   it('requires confirmation before forking a conversation', async () => {
     const messagesEl = createMockEl();
     const forkCallback = jest.fn().mockResolvedValue(undefined);

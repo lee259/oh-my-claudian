@@ -11,6 +11,22 @@ import {
 } from '../../../../src/providers/opencode/history/OpencodeHistoryStore';
 
 describe('mapOpencodeMessages', () => {
+  it('restores throughput across assistant tool steps using native usage', () => {
+    const messages = mapOpencodeMessages([
+      { info: { id: 'u', role: 'user', time: { created: 1_000 } }, parts: [{ type: 'text', text: 'Work' }] },
+      { info: {
+        id: 'a', role: 'assistant', parentID: 'u', finish: 'tool-calls',
+        time: { created: 1_200, completed: 2_000 }, tokens: { output: 20, reasoning: 80 },
+      }, parts: [{ type: 'text', text: 'Thinking' }] },
+      { info: {
+        id: 'final', role: 'assistant', parentID: 'u', finish: 'stop',
+        time: { created: 2_500, completed: 3_500 }, tokens: { output: 10, reasoning: 15 },
+      }, parts: [{ type: 'text', text: 'Done' }] },
+    ]);
+
+    expect(messages.at(-1)?.turnStats).toEqual({ outputTokens: 125, durationMs: 2_500 });
+  });
+
   it('preserves Windows paths as literal code in hydration diagnostics', () => {
     const [message] = mapOpencodeMessages(
       [{ info: { id: 'msg-bad', data_valid: 0 }, parts: [] }],

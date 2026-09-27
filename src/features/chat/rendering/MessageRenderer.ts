@@ -21,6 +21,7 @@ import type {
   SubagentInfo,
   ToolCallInfo,
 } from '../../../core/types';
+import { createTurnStats } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -471,21 +472,38 @@ export class MessageRenderer {
     contentEl: HTMLElement,
   ): void {
     const copyContent = this.getAssistantCopyContent(msg);
-    if (!copyContent) return;
+    const turnStats = msg.role === 'assistant' && !msg.isInterrupt
+      && this.getCapabilities().supportsResponseThroughput
+      ? createTurnStats(msg.turnStats?.outputTokens, msg.turnStats?.durationMs)
+      : undefined;
+    if (!copyContent && !turnStats) return;
 
     contentEl.querySelectorAll('.claudian-text-copy-btn').forEach((button) => button.remove());
     const toolbar = this.getOrCreateActionsToolbar(msgEl);
     toolbar.querySelector('.claudian-text-copy-btn')?.remove();
-    this.addTextCopyButton(toolbar, copyContent);
+    if (copyContent) this.addTextCopyButton(toolbar, copyContent);
 
     if (this.forkCallback && msg.assistantMessageId && !toolbar.querySelector('.claudian-message-fork-btn')) {
       this.addForkButton(msgEl, msg.id);
     }
 
+    toolbar.querySelector('.claudian-response-throughput')?.remove();
+    if (turnStats) {
+      const rate = (turnStats.outputTokens / (turnStats.durationMs / 1000)).toFixed(1);
+      toolbar.createSpan({
+        cls: 'claudian-response-throughput',
+        text: `${rate} tok/s`,
+        attr: {
+          'aria-label': `${turnStats.outputTokens.toLocaleString()} tokens · ${formatTurnDuration(turnStats.durationMs)}`,
+        },
+      });
+    }
+
     const copyButton = toolbar.querySelector('.claudian-text-copy-btn');
     const forkButton = toolbar.querySelector('.claudian-message-fork-btn');
+    const throughput = toolbar.querySelector('.claudian-response-throughput');
     const timestamp = toolbar.querySelector('.claudian-message-timestamp');
-    for (const action of [copyButton, forkButton, timestamp]) {
+    for (const action of [copyButton, forkButton, throughput, timestamp]) {
       if (action) toolbar.appendChild(action);
     }
   }
@@ -1432,4 +1450,11 @@ export class MessageRenderer {
     }
   }
 
+}
+
+/** Rounds before splitting so 119.96s displays as "2m 0s", not "1m 60s". */
+function formatTurnDuration(durationMs: number): string {
+  const tenths = Math.round(durationMs / 100);
+  const seconds = `${(tenths % 600) / 10}s`;
+  return tenths < 600 ? seconds : `${Math.floor(tenths / 600)}m ${seconds}`;
 }

@@ -15,7 +15,8 @@ import type {
   ProviderUserMessageStartedEvent,
   ToolExecutionScope,
 } from '../../../core/execution';
-import type { StreamChunk, UsageInfo } from '../../../core/types';
+import type { StreamChunk, TurnStats, UsageInfo } from '../../../core/types';
+import { createTurnStats } from '../../../core/types';
 import { ClaudeTaskToolNormalizer } from '../normalization/ClaudeTaskToolNormalizer';
 import {
   isAsyncSubagentCompletion,
@@ -93,6 +94,7 @@ export type ClaudeNormalizedExecutionEvent =
   }
   | {
     readonly type: 'result';
+    readonly turnStats?: TurnStats;
   };
 
 export type ClaudeExecutionEventChannel = 'requested' | 'background';
@@ -230,7 +232,12 @@ export class ClaudeExecutionEventNormalizer {
       });
     }
     if (message.type === 'result') {
-      normalized.push({ type: 'result' });
+      normalized.push({
+        type: 'result',
+        turnStats: message.subtype === 'success' && !message.is_error
+          ? createTurnStats(message.usage?.output_tokens, message.duration_ms)
+          : undefined,
+      });
     }
     return normalized;
   }

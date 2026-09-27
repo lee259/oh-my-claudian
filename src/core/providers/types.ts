@@ -37,6 +37,9 @@ export interface ProviderCapabilities {
   supportsPlanMode: boolean;
   supportsRewind: boolean;
   supportsFork: boolean;
+  supportsResponseThroughput?: boolean;
+  supportsEphemeralFork?: boolean;
+  forkMode?: 'checkpoint' | 'full-session';
   supportsProviderCommands: boolean;
   supportsImageAttachments: boolean;
   supportsInstructionMode: boolean;

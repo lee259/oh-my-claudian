@@ -2922,3 +2922,26 @@ describe('CodexHistoryStore', () => {
     });
   });
 });
+
+it('restores native output token usage and duration for the main thread turn', () => {
+  const records = [
+    { type: 'session_meta', payload: { id: 'main' } },
+    { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+    { type: 'event_msg', payload: { type: 'user_message', message: 'Work' } },
+    { type: 'token_usage_record', payload: {
+      thread_id: 'main', turn_id: 'turn-1', turn_token_usage: { output_tokens: 125 },
+    } },
+    { type: 'response_item', payload: {
+      type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done' }],
+    } },
+    { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-1', duration_ms: 2_500 } },
+  ].map((record, index) => JSON.stringify({
+    timestamp: new Date(1_000 + index * 500).toISOString(),
+    ...record,
+  })).join('\n');
+
+  expect(parseCodexSessionContent(records).at(-1)?.turnStats).toEqual({
+    outputTokens: 125,
+    durationMs: 2_500,
+  });
+});

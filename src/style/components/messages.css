@@ -795,6 +795,13 @@ button.claudian-completed-work-header:focus-visible {
   margin-inline-start: auto;
 }
 
+.claudian-message-actions .claudian-response-throughput {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
 .claudian-message-actions button.claudian-text-copy-btn {
   position: static;
   opacity: 1;

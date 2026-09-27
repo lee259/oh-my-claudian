@@ -5,6 +5,7 @@ import type { ProviderHistoryPathContext } from '../../../core/providers/types';
 import type { ChatMessage, SubagentInfo, ToolCallInfo } from '../../../core/types';
 import { ClaudeTaskToolNormalizer } from '../normalization/ClaudeTaskToolNormalizer';
 import { isClaudeSubagentToolName } from '../subagentToolNames';
+import { ClaudeTurnStats } from './ClaudeTurnStats';
 import { buildAsyncSubagentInfo } from './sdkAsyncSubagent';
 import { filterActiveBranch } from './sdkBranchFilter';
 import type { SDKNativeMessage, SDKSessionLoadResult } from './sdkHistoryTypes';
@@ -15,6 +16,7 @@ import {
   extractXmlTag,
   hydrateFallbackAskUserAnswers,
   hydrateStructuredToolResults,
+  isCanonicalSdkUserMessage,
   isSystemInjectedMessage,
   mergeAssistantMessage,
   parseSDKMessageToChat,
@@ -172,7 +174,7 @@ async function assembleSDKChatMessages(
   const sessionPath = options?.sessionPath;
   const pathContext = options?.pathContext;
 
-  const filteredEntries = filterActiveBranch(entries, resumeAtMessageId);
+  const filteredEntries = filterActiveBranch(entries.filter(entry => !entry.isSidechain), resumeAtMessageId);
   const manualCompactBoundaryIds = collectManualCompactBoundaryIds(filteredEntries);
   const realUserMessageIds = new Set(
     filteredEntries
@@ -190,6 +192,7 @@ async function assembleSDKChatMessages(
   let turnStartedAt: number | undefined;
   let lastAssistantAt: number | undefined;
   let requestedResponsePending = false;
+  let turnStats = new ClaudeTurnStats();
   const taskToolNormalizer = new ClaudeTaskToolNormalizer();
 
   const flushPendingAssistant = (includeDuration: boolean): void => {
@@ -199,7 +202,7 @@ async function assembleSDKChatMessages(
         : undefined;
       if (includeDuration && nativeDuration !== undefined && nativeDuration > 0) {
         if (!pendingAssistant.isAutomaticResponse) {
-          pendingAssistant.durationSeconds = nativeDuration;
+          pendingAssistant.durationSeconds = Math.floor(nativeDuration / 1_000);
         }
       }
       if (includeDuration && nativeDuration === undefined && !pendingAssistant.isAutomaticResponse
@@ -207,12 +210,16 @@ async function assembleSDKChatMessages(
         && lastAssistantAt >= turnStartedAt) {
         pendingAssistant.durationSeconds = Math.floor((lastAssistantAt - turnStartedAt) / 1_000);
       }
+      if (includeDuration) {
+        pendingAssistant.turnStats = turnStats.finish(turnStartedAt, lastAssistantAt);
+      }
       chatMessages.push(pendingAssistant);
     }
     pendingAssistant = null;
     lastAssistantAt = undefined;
     turnStartedAt = undefined;
     requestedResponsePending = false;
+    turnStats = new ClaudeTurnStats();
   };
 
   // Preserve task notification boundaries without ending an unfinished response.
@@ -263,12 +270,13 @@ async function assembleSDKChatMessages(
       } else {
         pendingAssistant = chatMsg;
       }
+      turnStats.add(sdkMsg);
       lastAssistantAt = parseSDKTimestamp(sdkMsg.timestamp);
       requestedResponsePending = turnStartedAt !== undefined
         && sdkMsg.message?.stop_reason === 'tool_use';
     } else {
       flushPendingAssistant(!chatMsg.isInterrupt);
-      if (!chatMsg.isInterrupt && !chatMsg.isRebuiltContext) {
+      if (isCanonicalSdkUserMessage(sdkMsg)) {
         turnStartedAt = parseSDKTimestamp(sdkMsg.timestamp);
       }
       chatMessages.push(chatMsg);
@@ -485,7 +493,7 @@ function collectNativeTurnDurations(
 
     const assistantUuid = resolveTurnDurationAssistantUuid(entry.parentUuid, entriesByUuid);
     if (assistantUuid) {
-      durations.set(assistantUuid, Math.floor(durationMs / 1_000));
+      durations.set(assistantUuid, durationMs);
     }
   }
   return durations;
