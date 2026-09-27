@@ -5,7 +5,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { isWriteEditTool } from '../../../core/tools/toolNames';
-import type { ChatMessage, ContentBlock, ImageAttachment, ToolCallInfo } from '../../../core/types';
+import type { ChatMessage, ContentBlock, ImageAttachment, ToolCallInfo, TurnStats } from '../../../core/types';
+import { createTurnStats, isTokenCount } from '../../../core/types';
 import { extractUserQuery } from '../../../utils/context';
 import { extractDiffData } from '../../../utils/diff';
 import { buildImageAttachmentFromBase64 } from '../../../utils/imageAttachment';
@@ -435,6 +436,8 @@ function mapPiSessionEntries(
   syntheticIdNamespace?: string,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [];
+  let turnStartedAt: number | undefined;
+  const stats = new PiTurnStats();
 
   for (const entry of entries) {
     const mapped = mapPiSessionEntry(entry, messages, syntheticIdNamespace);
@@ -445,10 +448,78 @@ function mapPiSessionEntries(
       } else {
         messages.push(mapped);
       }
+
+      const nativeMessage = entry.message ?? entry.raw;
+      const turnStats = stats.add(entry);
+      if (mapped.role === 'user') {
+        turnStartedAt = parsePiTimestamp(nativeMessage.timestamp) ?? parsePiTimestamp(entry.raw.timestamp);
+      } else if (isBoundaryMessage(mapped)) {
+        turnStartedAt = undefined;
+      } else if (mapped.role === 'assistant') {
+        const stopReason = getString(nativeMessage.stopReason);
+        const completedAt = parsePiTimestamp(entry.raw.timestamp);
+        if ((stopReason === 'stop' || stopReason === 'length')
+          && turnStats && turnStartedAt !== undefined && completedAt !== undefined
+          && completedAt >= turnStartedAt) {
+          messages[messages.length - 1].turnStats = turnStats;
+          messages[messages.length - 1].durationSeconds = Math.floor((completedAt - turnStartedAt) / 1_000);
+        }
+      }
     }
   }
 
   return messages;
+}
+
+class PiTurnStats {
+  private startedAt: number | undefined;
+  private outputTokens: number | undefined = 0;
+
+  add(entry: PiSessionEntry): TurnStats | undefined {
+    const message = entry.message ?? entry.raw;
+    const role = getString(message.role) ?? inferRole(entry.type);
+    if (role === 'user') {
+      this.startedAt = parsePiTimestamp(message.timestamp) ?? parsePiTimestamp(entry.raw.timestamp);
+      this.outputTokens = 0;
+    } else if (entry.type === 'compaction') {
+      this.startedAt = undefined;
+    } else if (role === 'assistant') {
+      const output = getRecord(message.usage)?.output;
+      this.outputTokens = this.outputTokens !== undefined && isTokenCount(output)
+        ? this.outputTokens + output
+        : undefined;
+      const stopReason = getString(message.stopReason);
+      const completedAt = parsePiTimestamp(entry.raw.timestamp);
+      const result = (stopReason === 'stop' || stopReason === 'length')
+        && this.startedAt !== undefined && completedAt !== undefined
+        ? createTurnStats(this.outputTokens, completedAt - this.startedAt)
+        : undefined;
+      if (stopReason && stopReason !== 'toolUse') this.startedAt = undefined;
+      return result;
+    }
+    return undefined;
+  }
+}
+
+export function getPiTurnStats(
+  entries: PiSessionEntry[],
+  assistantId: string | undefined,
+): TurnStats | undefined {
+  const stats = new PiTurnStats();
+  for (const entry of entries) {
+    const result = stats.add(entry);
+    if (assistantId && entry.id === assistantId) return result;
+  }
+  return undefined;
+}
+
+function parsePiTimestamp(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return undefined;
 }
 
 function isAssistantMessageEntry(entry: PiSessionEntry): boolean {

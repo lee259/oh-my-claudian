@@ -24,12 +24,13 @@ import {
   type RewindableExecutionSession,
 } from '../../../core/execution';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
-import type { PermissionMode, SlashCommand } from '../../../core/types';
+import type { PermissionMode, SlashCommand, TurnStats } from '../../../core/types';
 import {
   getMissingSessionId,
   isSessionMissingError,
 } from '../../../utils/session';
 import type { ClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
+import { loadClaudeTurnStats } from '../history/ClaudeTurnStats';
 import { executeClaudeRewind } from '../runtime/ClaudeRewindService';
 import { getClaudeState } from '../types/providerState';
 import { ClaudeExecutionEventNormalizer } from './ClaudeExecutionEventNormalizer';
@@ -58,6 +59,7 @@ interface ActiveRequestedRun {
   accepted: boolean;
   nativeFork: boolean;
   nativeHandedOff: boolean;
+  nativeCompleted?: boolean;
   historyReplayGeneration: number | null;
   nativeUserMessageId?: string;
   nativeAssistantId?: string;
@@ -242,6 +244,7 @@ ClaudeExecutionStrategySink {
 
   cancel(): void {
     const active = this.activeRun;
+    if (active?.nativeCompleted) return;
     if (!active || active.terminal) return;
     this.setStatus('cancelling');
     this.emitRequestedState(active);
@@ -314,7 +317,9 @@ ClaudeExecutionStrategySink {
 
   async dispose(): Promise<void> {
     if (this.disposed) return;
-    if (this.activeRun) {
+    if (this.activeRun?.nativeCompleted) {
+      this.finishCompleted(this.activeRun, 'completed');
+    } else if (this.activeRun) {
       this.cancel();
     }
     this.disposed = true;
@@ -606,7 +611,24 @@ ClaudeExecutionStrategySink {
           if (this.shouldDeferPlanModeCompletion(this.activeRun, queryToken)) {
             continue;
           }
-          this.finishCompleted(this.activeRun, 'completed');
+          const active = this.activeRun;
+          active.nativeCompleted = true;
+          let turnStats = normalized.turnStats;
+          if (turnStats && this.lastEncodedRequest?.options.persistSession !== false) {
+            const sessionId = this.providerSessionId;
+            if (sessionId && active.nativeAssistantId) {
+              const transcriptStats = await loadClaudeTurnStats(
+                this.config.vaultWorkingDirectory,
+                sessionId,
+                active.nativeAssistantId,
+                { environment: this.lastEncodedRequest?.options.env ?? process.env },
+              ).catch(() => undefined);
+              turnStats = transcriptStats ?? turnStats;
+            }
+          }
+          if (this.activeRun === active && !active.terminal) {
+            this.finishCompleted(active, 'completed', turnStats);
+          }
         } else if (this.backgroundTurn) {
           this.finishBackgroundTurn('completed');
         }
@@ -1075,6 +1097,7 @@ ClaudeExecutionStrategySink {
   private finishCompleted(
     active: ActiveRequestedRun,
     reason: 'completed' | 'provider-ended',
+    turnStats?: TurnStats,
   ): void {
     if (active.terminal) return;
     this.setStatus('idle');
@@ -1082,6 +1105,7 @@ ClaudeExecutionStrategySink {
     this.emitRequested(active, {
       type: 'turn_completed',
       nativeAssistantId: active.nativeAssistantId,
+      ...(turnStats ? { turnStats } : {}),
       planCompleted: active.planCompleted || undefined,
       reason,
     });

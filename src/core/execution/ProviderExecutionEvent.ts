@@ -2,6 +2,7 @@ import type {
   CitationGroup,
   SDKToolUseResult,
   ToolProviderPayload,
+  TurnStats,
   UsageInfo,
 } from '../types';
 import type { ProviderSessionSnapshot } from './ProviderSessionSnapshot';
@@ -226,6 +227,7 @@ export type ProviderTurnCompletedEvent = ProviderEventBase<
   ProviderOpaqueEventPayload & {
     readonly nativeAssistantId?: string;
     readonly nativeCheckpointId?: string;
+    readonly turnStats?: TurnStats;
     readonly planCompleted?: boolean;
     readonly reason: ProviderTurnCompletionReason;
   };

@@ -24,10 +24,12 @@ export {
   OH_MY_CLAUDIAN_ROOT_CLASS,
   type SessionMetadata,
   type StreamChunk,
+  type TurnStats,
   type UsageInfo,
   VIEW_TYPE_CLAUDIAN,
 } from './chat';
 export { type ProviderId } from './provider';
+export { createTurnStats, isTokenCount } from './turnStats';
 
 // Settings and command types
 export {

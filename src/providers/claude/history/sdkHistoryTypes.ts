@@ -8,13 +8,21 @@ export interface SDKSessionReadResult {
 
 /** Stored in session JSONL files. Based on Claude Agent SDK internal format. */
 export interface SDKNativeMessage {
-  type: 'user' | 'assistant' | 'system' | 'result' | 'file-history-snapshot' | 'queue-operation';
+  type: 'user' | 'assistant' | 'system' | 'result' | 'file-history-snapshot' | 'queue-operation' | 'attachment';
+  attachment?: {
+    type?: string;
+    prompt?: string | SDKNativeContentBlock[];
+    source_uuid?: string;
+    commandMode?: string;
+  };
   parentUuid?: string | null;
   sessionId?: string;
   uuid?: string;
   timestamp?: string;
   requestId?: string;
   message?: {
+    id?: string;
+    usage?: { output_tokens?: unknown };
     role?: string;
     content?: string | SDKNativeContentBlock[];
     model?: string;
@@ -28,6 +36,7 @@ export interface SDKNativeMessage {
   sourceToolAssistantUUID?: string;
   sourceToolUseID?: string;
   isMeta?: boolean;
+  isSidechain?: boolean;
   operation?: string;
   content?: string;
 }

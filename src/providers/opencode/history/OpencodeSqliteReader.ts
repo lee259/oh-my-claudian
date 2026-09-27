@@ -5,6 +5,7 @@ import { findNodeExecutables } from '../../../utils/env';
 export type StoredRow = Record<string, unknown>;
 
 export interface StoredSessionRows {
+  nativeVersion?: 2;
   messageRows: StoredRow[];
   partRows: StoredRow[];
 }
@@ -21,6 +22,7 @@ interface SqliteModule {
 type SpawnSqliteProcess = (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 
 export interface OpencodeSqliteReaderDependencies {
+  nativeVersion?: 1 | 2 | 'auto';
   environment?: NodeJS.ProcessEnv;
   findNodeExecutables?: () => string[];
   requireSqliteModule?: () => SqliteModule | null;
@@ -30,7 +32,6 @@ export interface OpencodeSqliteReaderDependencies {
 export const OPENCODE_SQLITE_QUERY_MAX_BUFFER = 100 * 1024 * 1024;
 export const OPENCODE_MESSAGE_ROW_SQL = buildOpencodeMessageRowsSql('?');
 
-const OPENCODE_PART_ROW_SQL = buildOpencodePartRowsSql('?');
 const OPENCODE_SQLITE_CHILD_SCRIPT = `
 const { DatabaseSync } = require('node:sqlite');
 const [databasePath, sessionId, messageSql, partSql] = process.argv.slice(1);
@@ -50,18 +51,46 @@ export async function loadOpencodeSessionRows(
   sessionId: string,
   dependencies: OpencodeSqliteReaderDependencies = {},
 ): Promise<StoredSessionRows> {
+  let nativeVersion = dependencies.nativeVersion ?? 1;
+  if (nativeVersion === 'auto') {
+    const schema = await querySessionRows(databasePath, sessionId, dependencies,
+      id => `SELECT name FROM sqlite_master WHERE name = 'session_v2' AND ${id} IS NOT NULL`,
+      id => `SELECT 1 WHERE ${id} IS NULL`);
+    nativeVersion = schema.messageRows.length > 0 ? 2 : 1;
+  }
+  if (nativeVersion === 2) {
+    const rows = await querySessionRows(databasePath, sessionId, dependencies,
+      id => `SELECT id, type, time_created, data FROM session_message WHERE session_id = ${id} ORDER BY seq ASC`,
+      id => `SELECT 1 WHERE ${id} IS NULL`);
+    return { ...rows, nativeVersion: 2 };
+  }
+  return querySessionRows(
+    databasePath,
+    sessionId,
+    dependencies,
+    buildOpencodeMessageRowsSql,
+    buildOpencodePartRowsSql,
+  );
+}
+
+async function querySessionRows(
+  databasePath: string,
+  sessionId: string,
+  dependencies: OpencodeSqliteReaderDependencies,
+  messageSql: (id: string) => string,
+  partSql: (id: string) => string,
+): Promise<StoredSessionRows> {
   const spawn = dependencies.spawn ?? defaultSpawn;
   const environment = dependencies.environment ?? process.env;
   const errors: string[] = [];
-
   try {
     const sqlite = (dependencies.requireSqliteModule ?? requireSqliteModule)();
     if (!sqlite) throw new Error('node:sqlite is unavailable.');
     const db = new sqlite.DatabaseSync(databasePath, { readOnly: true });
     try {
       return {
-        messageRows: db.prepare(OPENCODE_MESSAGE_ROW_SQL).all(sessionId),
-        partRows: db.prepare(OPENCODE_PART_ROW_SQL).all(sessionId),
+        messageRows: db.prepare(messageSql('?')).all(sessionId),
+        partRows: db.prepare(partSql('?')).all(sessionId),
       };
     } finally {
       db.close();
@@ -75,12 +104,8 @@ export async function loadOpencodeSessionRows(
   for (const nodePath of nodePaths) {
     try {
       const stdout = await runBufferedChild(nodePath, [
-        '-e',
-        OPENCODE_SQLITE_CHILD_SCRIPT,
-        databasePath,
-        sessionId,
-        OPENCODE_MESSAGE_ROW_SQL,
-        OPENCODE_PART_ROW_SQL,
+        '-e', OPENCODE_SQLITE_CHILD_SCRIPT, databasePath, sessionId,
+        messageSql('?'), partSql('?'),
       ], spawn, environment);
       const rows = parseStoredSessionRows(stdout);
       if (!rows) throw new Error('Invalid SQLite query output.');
@@ -93,22 +118,15 @@ export async function loadOpencodeSessionRows(
   try {
     const escapedSessionId = escapeSqlLiteral(sessionId);
     const messageRows = await runSqlite3JsonQuery(
-      databasePath,
-      buildOpencodeMessageRowsSql(`'${escapedSessionId}'`),
-      spawn,
-      environment,
+      databasePath, messageSql(`'${escapedSessionId}'`), spawn, environment,
     );
     const partRows = await runSqlite3JsonQuery(
-      databasePath,
-      buildOpencodePartRowsSql(`'${escapedSessionId}'`),
-      spawn,
-      environment,
+      databasePath, partSql(`'${escapedSessionId}'`), spawn, environment,
     );
     return { messageRows, partRows };
   } catch (error) {
     errors.push(`sqlite3: ${formatError(error)}`);
   }
-
   throw new Error([
     'Could not read OpenCode session rows from SQLite.',
     ...errors,
@@ -257,7 +275,12 @@ select
   case when data_valid then json_extract(data, '$.providerID') end as provider_id,
   case when data_valid then json_extract(data, '$.modelID') end as model_id,
   case when data_valid then json_extract(data, '$.time.created') end as data_time_created,
-  case when data_valid then json_extract(data, '$.time.completed') end as data_time_completed
+  case when data_valid then json_extract(data, '$.time.completed') end as data_time_completed,
+  case when data_valid then json_extract(data, '$.parentID') end as parent_id,
+  case when data_valid then json_extract(data, '$.tokens.output') end as output_tokens,
+  case when data_valid then json_extract(data, '$.tokens.reasoning') end as reasoning_tokens,
+  case when data_valid then json_extract(data, '$.finish') end as finish,
+  case when data_valid then json_extract(data, '$.error') end as error
 from message_json
 order by time_created asc, id asc;`.trim();
 }

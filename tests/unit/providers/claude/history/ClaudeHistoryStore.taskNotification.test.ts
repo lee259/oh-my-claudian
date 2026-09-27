@@ -35,3 +35,19 @@ it('preserves a task notification between the requested response and its automat
     ],
   });
 });
+
+it('restores native output token usage and duration for the completed response', async () => {
+  const entries = [
+    { type: 'user', uuid: 'u', timestamp: '2026-09-20T11:00:00Z', message: { content: 'Work' } },
+    { type: 'assistant', uuid: 'a', parentUuid: 'u', timestamp: '2026-09-20T11:00:02.500Z',
+      message: {
+        id: 'response', model: 'claude-sonnet', stop_reason: 'end_turn',
+        usage: { output_tokens: 125 }, content: [{ type: 'text', text: 'Done' }],
+      } },
+  ];
+  readFile.mockResolvedValue(entries.map(entry => JSON.stringify(entry)).join('\n'));
+
+  const result = await loadSDKSessionMessages('/vault', 'session', undefined, '/session.jsonl');
+
+  expect(result.messages.at(-1)?.turnStats).toEqual({ outputTokens: 125, durationMs: 2_500 });
+});

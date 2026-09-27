@@ -22,6 +22,7 @@ import {
   type StoredRow,
   type StoredSessionRows,
 } from './OpencodeSqliteReader';
+import { OpencodeTurnStats } from './OpencodeTurnStats';
 
 export { OPENCODE_MESSAGE_ROW_SQL } from './OpencodeSqliteReader';
 
@@ -92,14 +93,24 @@ export function mapOpencodeMessages(
   context: OpencodeHydrationDiagnosticContext = {},
 ): ChatMessage[] {
   const mappedMessages: ChatMessage[] = [];
+  const turnStats = new OpencodeTurnStats();
+  let previousAssistant: ChatMessage | undefined;
 
   for (const message of messages) {
     try {
       const mappedMessage = mapStoredMessage(message, context);
       if (mappedMessage) {
+        if (mappedMessage.role === 'user') previousAssistant = undefined;
+        else {
+          if (previousAssistant) previousAssistant.turnStats = undefined;
+          previousAssistant = mappedMessage;
+        }
+        mappedMessage.turnStats = turnStats.add(message.info);
         mappedMessages.push(mappedMessage);
       }
     } catch (error) {
+      turnStats.reset();
+      previousAssistant = undefined;
       mappedMessages.push(createOpencodeHydrationDiagnosticMessage({
         ...context,
         messageId: getString(message.info.id) ?? undefined,
@@ -229,6 +240,7 @@ function mergeAdjacentAssistantMessages(messages: ChatMessage[]): ChatMessage[] 
       previous.assistantMessageId = message.assistantMessageId ?? previous.assistantMessageId;
       previous.durationFlavorWord = message.durationFlavorWord ?? previous.durationFlavorWord;
       previous.durationSeconds = mergeAssistantDurationSeconds(previous, message);
+      previous.turnStats = message.turnStats;
       previous.toolCalls = mergeOptionalArrays(previous.toolCalls, message.toolCalls);
       previous.contentBlocks = mergeOptionalArrays(previous.contentBlocks, message.contentBlocks);
       continue;

@@ -638,6 +638,37 @@ describe('InputController coordinator execution', () => {
     );
   });
 
+  it('persists provider throughput before finalizing the completed assistant message', async () => {
+    const fixture = createFixture();
+    const finalizeCompletedWork = jest.fn();
+    (fixture.deps.renderer as any).finalizeCompletedWork = finalizeCompletedWork;
+    fixture.coordinator.execute.mockImplementationOnce(async () => {
+      await fixture.controller.handleExecutionEvent({
+        scope: {
+          executionId: 'execution-1',
+          kind: 'requested',
+          sequence: 1,
+          sessionInstanceId: 'session-1',
+          turnId: 'turn-1',
+        },
+        turnStats: { outputTokens: 125, durationMs: 2_500 },
+        type: 'turn_completed',
+        reason: 'completed',
+      });
+      return { accepted: true, planCompleted: false, status: 'completed' };
+    });
+
+    await fixture.controller.sendMessage({ content: 'hello' });
+
+    expect(fixture.state.messages.at(-1)?.turnStats).toEqual({
+      outputTokens: 125,
+      durationMs: 2_500,
+    });
+    expect(finalizeCompletedWork).toHaveBeenCalledWith(
+      expect.objectContaining({ turnStats: { outputTokens: 125, durationMs: 2_500 } }),
+    );
+  });
+
   it('flushes buffered tools before finalizing a requested turn', async () => {
     const fixture = createFixture();
     fixture.coordinator.execute.mockImplementationOnce(async () => {

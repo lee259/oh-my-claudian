@@ -11,6 +11,7 @@ import type {
   ImageAttachment,
   ToolCallInfo,
 } from '../../../core/types';
+import { createTurnStats, isTokenCount } from '../../../core/types';
 import { extractUserDisplayContent } from '../../../utils/context';
 import {
   buildImageAttachmentFromBase64,
@@ -164,6 +165,8 @@ interface CodexTurnState {
   startedAt: number;
   completedAt?: number;
   completed?: boolean;
+  outputTokens?: number;
+  durationMs?: number;
   lastEventAt: number;
   userTimestamp?: number;
   userChunks: string[];
@@ -1259,6 +1262,8 @@ function processEventMsg(
         if (turn) {
           turn.completedAt = timestamp;
           turn.completed = true;
+          const duration = (payload as Record<string, unknown>).duration_ms;
+          if (typeof duration === 'number') turn.durationMs = duration;
           closeAssistantBubble(turn);
           const serverTurnId = extractServerTurnId(payload);
           if (serverTurnId && !turn.serverTurnId) turn.serverTurnId = serverTurnId;
@@ -1434,6 +1439,7 @@ function flushBubbleTurnMessages(
     const lastNonInterrupt = [...assistantMessages].reverse().find(m => !m.isInterrupt);
     if (lastNonInterrupt) {
       lastNonInterrupt.assistantMessageId = turn.serverTurnId;
+      lastNonInterrupt.turnStats = createTurnStats(turn.outputTokens, turn.durationMs);
     }
   }
 
@@ -1769,9 +1775,25 @@ function parseLegacySession(records: ParsedSessionRecord[]): ChatMessage[] {
 
 function parseModernSessionTurns(records: ParsedSessionRecord[]): CodexParsedTurn[] {
   const ctx = createPersistedParseContext();
+  let threadId: string | undefined;
+  const turnOutputTokens = new Map<string, number | undefined>();
 
   for (const [lineIndex, parsed] of records.entries()) {
     const timestamp = parsed.timestamp;
+    const payload = parsed.payload as Record<string, unknown> | undefined;
+    if (parsed.type === 'session_meta') {
+      threadId ??= typeof payload?.id === 'string' ? payload.id : undefined;
+    }
+    if (parsed.type === 'token_usage_record' && threadId && payload?.thread_id === threadId) {
+      if (typeof payload.turn_id === 'string') {
+        const usage = payload.turn_token_usage as { output_tokens?: unknown } | undefined;
+        turnOutputTokens.set(
+          payload.turn_id,
+          isTokenCount(usage?.output_tokens) ? usage.output_tokens : undefined,
+        );
+      }
+      continue;
+    }
 
     // Legacy event records can appear in mixed sessions
     if (parsed.type === 'event' && parsed.event) {
@@ -1795,6 +1817,9 @@ function parseModernSessionTurns(records: ParsedSessionRecord[]): CodexParsedTur
     }
   }
 
+  for (const turn of ctx.turns.values()) {
+    if (turn.serverTurnId) turn.outputTokens = turnOutputTokens.get(turn.serverTurnId);
+  }
   return flushBubbleTurnsGrouped(ctx.turns, ctx.turnOrder);
 }
 

@@ -87,6 +87,7 @@ export interface Turn {
   items: ThreadItem[];
   status: 'inProgress' | 'completed' | 'failed' | 'interrupted';
   error: TurnError | null;
+  durationMs?: number | null;
 }
 
 export interface TurnError {

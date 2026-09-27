@@ -31,6 +31,7 @@ import {
   DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import type { OpencodeCommandCatalog } from '../commands/OpencodeCommandCatalog';
+import { loadOpencodeTurnStats } from '../history/OpencodeTurnStats';
 import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection';
 import { decodeOpencodeModelId } from '../models';
 import {
@@ -115,6 +116,7 @@ class OpencodeExecutionRun implements ProviderExecutionRun {
   acceptingLiveOutput = false;
   contextUsage: AcpUsageUpdate | null = null;
   cancellationRequested = false;
+  nativeCompleted = false;
   lastSequence = 0;
   abortCleanup: (() => void) | null = null;
 
@@ -269,11 +271,17 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
     if (run && !run.terminal) {
       run.cancellationRequested = true;
       run.acceptingLiveOutput = false;
-      run.finish({
+      run.finish(run.nativeCompleted
+        ? {
+            reason: 'completed',
+            scope: run.scope(),
+            type: 'turn_completed',
+          }
+        : {
         reason: 'session-disposed',
         scope: run.scope(),
         type: 'cancelled',
-      });
+          });
     }
     this.activeRun = null;
     this.listeners.clear();
@@ -420,12 +428,14 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         !this.nativeConversationContextEstablished,
       );
       reportResolvedTurnPrompt(request, getPromptCharacters(prompt));
+      const promptStartedAt = Date.now();
       const response = await kernel.prompt({
         prompt,
         sessionId: native.sessionId,
       });
       this.markNativeConversationContextEstablished(run);
       if (!this.isRunCurrent(run, generation)) return;
+      run.nativeCompleted = response.stopReason !== 'cancelled';
       run.accept(response.userMessageId ?? undefined);
       if (response.usage) {
         const usage = buildAcpUsageInfo({
@@ -435,6 +445,13 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         });
         if (usage) run.emit({ type: 'usage_updated', scope: run.scope(), usage });
       }
+      const turnStats = response.stopReason !== 'cancelled' && native.databasePath
+        ? await loadOpencodeTurnStats(native.sessionId, {
+          databasePath: native.databasePath,
+          ...(native.nativeVersion ? { nativeVersion: native.nativeVersion } : {}),
+        }, { userMessageId: response.userMessageId, startedAt: promptStartedAt }).catch(() => undefined)
+        : undefined;
+      if (!this.isRunCurrent(run, generation)) return;
       this.snapshot = this.createSnapshot(this.backgroundTurn || this.backgroundScopes.size ? 'executing' : 'idle');
       run.emit({
         scope: run.scope(),
@@ -445,6 +462,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
         reason: 'completed',
         scope: run.scope(),
         type: 'turn_completed',
+        ...(turnStats ? { turnStats } : {}),
       });
       this.activeRun = null;
     } catch (error) {
@@ -664,7 +682,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
   }
 
   private cancelRun(run: OpencodeExecutionRun): void {
-    if (!this.isRunCurrent(run, this.lifecycleGeneration)) return;
+    if (!this.isRunCurrent(run, this.lifecycleGeneration) || run.nativeCompleted) return;
     run.cancellationRequested = true;
     run.acceptingLiveOutput = false;
     const generation = ++this.lifecycleGeneration;
