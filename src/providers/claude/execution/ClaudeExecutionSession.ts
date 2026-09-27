@@ -584,6 +584,13 @@ ClaudeExecutionStrategySink {
         });
         continue;
       }
+      if (normalized.type === 'subagent_progress') {
+        this.emitSession({
+          type: 'subagent_progress',
+          progress: normalized.event.progress,
+        });
+        continue;
+      }
       if (normalized.type === 'prompt_suggestion') {
         this.emitSession({
           type: 'prompt_suggestion',

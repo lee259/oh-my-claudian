@@ -654,6 +654,10 @@
       "name": "Eingabevorschläge aktivieren",
       "desc": "Vorgeschlagene Folgeprompts nach einer Claude-Antwort anzeigen. Sitzung muss neu gestartet werden."
     },
+    "agentProgressSummaries": {
+      "name": "Live-Fortschritt von Subagenten anzeigen",
+      "desc": "Claude erstellt regelmäßig Fortschrittszusammenfassungen für laufende Subagenten. Dies verursacht zusätzliche Modellarbeit. Sitzungsneustart erforderlich."
+    },
     "enableBangBash": {
       "name": "Bash-Modus (!) aktivieren",
       "desc": "Gib ! in ein leeres Eingabefeld ein, um den Bash-Modus zu starten. Befehle werden direkt als aktueller Betriebssystembenutzer ausgeführt und sind nicht auf den Vault beschränkt. Die Ansicht muss neu geöffnet werden.",

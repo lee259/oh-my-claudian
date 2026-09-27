@@ -26,6 +26,7 @@ export interface ClaudeProviderSettings {
   enableChrome: boolean;
   enableBangBash: boolean;
   promptSuggestions: boolean;
+  agentProgressSummaries: boolean;
   customModels: string;
   discoveredModels: ClaudeDiscoveredModel[];
   defaultModel: string;
@@ -45,6 +46,7 @@ export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> 
   enableChrome: false,
   enableBangBash: false,
   promptSuggestions: false,
+  agentProgressSummaries: false,
   customModels: '',
   discoveredModels: [],
   defaultModel: 'opus',
@@ -122,6 +124,10 @@ export function getClaudeProviderSettings(
     promptSuggestions: readStoredBoolean(
       config.promptSuggestions,
       DEFAULT_CLAUDE_PROVIDER_SETTINGS.promptSuggestions,
+    ),
+    agentProgressSummaries: readStoredBoolean(
+      config.agentProgressSummaries,
+      DEFAULT_CLAUDE_PROVIDER_SETTINGS.agentProgressSummaries,
     ),
     customModels: readStoredString(
       config.customModels,

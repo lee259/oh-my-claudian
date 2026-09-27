@@ -654,6 +654,10 @@
       "name": "Ativar sugestões de prompt",
       "desc": "Mostrar prompts de acompanhamento sugeridos após uma resposta do Claude. É necessário reiniciar a sessão."
     },
+    "agentProgressSummaries": {
+      "name": "Mostrar progresso ao vivo dos subagentes",
+      "desc": "Claude gerará resumos periódicos do progresso dos subagentes em execução. Isso exige trabalho adicional do modelo. Requer reiniciar a sessão."
+    },
     "enableBangBash": {
       "name": "Ativar modo bash (!)",
       "desc": "Digite ! com a entrada vazia para entrar no modo bash. Os comandos são executados diretamente como o usuário atual do sistema e não ficam restritos ao Vault. Requer reabrir a visualização.",

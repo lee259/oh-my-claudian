@@ -261,6 +261,7 @@ export class ClaudeExecutionRequestEncoder {
         ...(claudeSettings.enableChrome ? { chrome: null } : {}),
       },
       includePartialMessages: true,
+      agentProgressSummaries: claudeSettings.agentProgressSummaries,
       enableFileCheckpointing: true,
       canUseTool,
       disallowedTools,

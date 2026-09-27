@@ -8,6 +8,16 @@ jest.mock('@/utils/env', () => ({
 import { getClaudeProviderSettings } from '@/providers/claude/settings';
 
 describe('Claude settings normalization', () => {
+  it('keeps subagent progress summaries disabled by default and decodes stored values', () => {
+    expect(getClaudeProviderSettings({}).agentProgressSummaries).toBe(false);
+    expect(getClaudeProviderSettings({
+      providerConfigs: { claude: { agentProgressSummaries: true } },
+    }).agentProgressSummaries).toBe(true);
+    expect(getClaudeProviderSettings({
+      providerConfigs: { claude: { agentProgressSummaries: 'yes' } },
+    }).agentProgressSummaries).toBe(false);
+  });
+
   it('keeps prompt suggestions disabled by default and decodes stored values', () => {
     expect(getClaudeProviderSettings({}).promptSuggestions).toBe(false);
     expect(getClaudeProviderSettings({

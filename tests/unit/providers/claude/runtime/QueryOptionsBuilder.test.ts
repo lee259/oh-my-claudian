@@ -78,6 +78,7 @@ function createMockPersistentQueryConfig(
     enableChrome: false,
     enableAutoMode: false,
     promptSuggestions: false,
+    agentProgressSummaries: false,
     ...overrides,
   };
 }
@@ -106,6 +107,12 @@ describe('QueryOptionsBuilder', () => {
     it('returns true when prompt suggestions change', () => {
       const currentConfig = createMockPersistentQueryConfig();
       const newConfig = { ...currentConfig, promptSuggestions: true };
+      expect(QueryOptionsBuilder.needsRestart(currentConfig, newConfig)).toBe(true);
+    });
+
+    it('returns true when agent progress summaries change', () => {
+      const currentConfig = createMockPersistentQueryConfig();
+      const newConfig = { ...currentConfig, agentProgressSummaries: true };
       expect(QueryOptionsBuilder.needsRestart(currentConfig, newConfig)).toBe(true);
     });
 

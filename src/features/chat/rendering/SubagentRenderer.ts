@@ -2,7 +2,7 @@ import { setIcon } from 'obsidian';
 
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
-import type { SubagentInfo, ToolCallInfo } from '../../../core/types';
+import type { SubagentInfo, SubagentProgress, ToolCallInfo } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type { FileReference } from '../../../utils/FileReference';
 import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
@@ -434,6 +434,7 @@ export interface AsyncSubagentState {
   headerEl: HTMLElement;
   labelEl: HTMLElement;
   resultSummaryEl: HTMLElement;
+  progressEl: HTMLElement;
   statusTextEl: HTMLElement;  // Running / Completed / Error / Orphaned
   statusEl: HTMLElement;
   openTranscriptBtnEl?: HTMLElement | null;
@@ -696,6 +697,7 @@ export function createAsyncSubagentBlock(
   setIcon(statusEl, 'loader-2');
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-content' });
+  const progressEl = wrapperEl.createDiv({ cls: 'claudian-subagent-progress claudian-hidden' });
   renderAsyncContentLikeSync(contentEl, info, 'running', options.onOpenFile);
 
   setupCollapsible(wrapperEl, headerEl, contentEl, info);
@@ -707,11 +709,28 @@ export function createAsyncSubagentBlock(
     headerEl,
     labelEl,
     resultSummaryEl,
+    progressEl,
     statusTextEl,
     statusEl,
     info,
     onOpenFile: options.onOpenFile,
   };
+}
+
+export function updateAsyncSubagentProgress(
+  state: AsyncSubagentState,
+  progress: SubagentProgress,
+): void {
+  if (state.info.asyncStatus !== 'running' && state.info.asyncStatus !== 'pending') return;
+  const parts = [progress.summary, progress.lastToolName ? `Using ${progress.lastToolName}` : undefined]
+    .filter((part): part is string => Boolean(part));
+  if (parts.length === 0) {
+    state.progressEl.addClass('claudian-hidden');
+    state.progressEl.setText('');
+    return;
+  }
+  state.progressEl.setText(parts.join(' · '));
+  state.progressEl.removeClass('claudian-hidden');
 }
 
 export function updateAsyncSubagentRunning(

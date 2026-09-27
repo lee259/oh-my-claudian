@@ -109,6 +109,12 @@
   border-inline-start: 2px solid var(--background-modifier-border);
 }
 
+.claudian-subagent-progress {
+  margin: 0 0 4px 24px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .claudian-subagent-section {
   margin: 2px 0 6px;
 }
@@ -328,4 +334,3 @@
 .claudian-subagent-list.async.orphaned .claudian-subagent-status-text {
   color: var(--color-orange);
 }
-

@@ -34,6 +34,7 @@ import type {
   ChatMessage,
   StreamChunk,
   SubagentInfo,
+  SubagentProgress,
   ToolActivityInfo,
   ToolCallInfo,
   UsageInfo,
@@ -1856,6 +1857,10 @@ export class StreamController {
       );
     }
     this.scrollToBottom();
+  }
+
+  updateSubagentProgress(progress: SubagentProgress): void {
+    this.deps.subagentManager.updateProgress(progress);
   }
 
   private updateSubagentInMessages(subagent: SubagentInfo): ChatMessage | undefined {
