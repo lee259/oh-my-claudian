@@ -738,6 +738,23 @@ describe('InputController coordinator execution', () => {
     expect(fixture.state.cancelRequested).toBe(true);
   });
 
+  it('prevents provider execution when Stop arrives during initialization', async () => {
+    const initialization = deferred<boolean>();
+    const ensureExecutionInitialized = jest.fn(() => initialization.promise);
+    const fixture = createFixture({ ensureExecutionInitialized });
+    const sending = fixture.controller.sendMessage({ content: 'keep this unsent' });
+    await waitForCall(ensureExecutionInitialized);
+
+    const draining = fixture.controller.cancelStreamingAndWait();
+    initialization.resolve(true);
+    await Promise.all([sending, draining]);
+
+    expect(fixture.coordinator.execute).not.toHaveBeenCalled();
+    expect(fixture.state.messages).toEqual([]);
+    expect(fixture.input.value).toBe('keep this unsent');
+    expect(fixture.state.isStreaming).toBe(false);
+  });
+
   it('settles a cancelled turn before rendering the next turn', async () => {
     const fixture = createFixture();
     const cancelledResult = deferred<{

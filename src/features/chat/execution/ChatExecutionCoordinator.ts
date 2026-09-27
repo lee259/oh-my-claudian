@@ -34,6 +34,7 @@ import type {
   ImageAttachment,
   ProviderId,
 } from '@/core/types';
+import { throwIfAborted } from '@/utils/abort';
 import { toError } from '@/utils/error';
 
 import {
@@ -235,6 +236,7 @@ export class ChatExecutionCoordinator {
   private conversation: ChatExecutionConversationBinding | null = null;
   private sessionBinding: SessionBinding | null = null;
   private activeExecution: ActiveExecution | null = null;
+  private requestController: AbortController | null = null;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
   private readonly pendingSteerAttempts = new Map<string, PendingSteerAttempt>();
   private disposed = false;
@@ -389,63 +391,76 @@ export class ChatExecutionCoordinator {
     if (this.activeExecution) {
       throw new Error('A chat execution is already active');
     }
-    const conversation = this.requireConversation();
-    const record = createInputRecord(submission);
-    try {
-      await this.deps.persistence.stageConversationInput(
-        conversation.conversationId,
-        record,
-      );
-    } catch (error) {
-      throw new ChatExecutionPreHandoffError(error);
+    if (this.requestController) {
+      throw new Error('A chat execution is already preparing');
     }
-
     const requestController = new AbortController();
-    let binding: SessionBinding;
-    let run: ProviderExecutionRun;
     try {
-      if (!sameConversationBinding(conversation, this.conversation)) {
-        throw new Error('Chat execution binding changed before provider handoff');
-      }
-      await this.prepare();
-      if (!sameConversationBinding(conversation, this.conversation)) {
-        throw new Error('Chat execution binding changed before provider handoff');
-      }
-      binding = this.requireCurrentSessionBinding();
-      run = binding.session.execute(
-        createExecutionRequest(submission, requestController.signal),
-      );
-    } catch (error) {
+      this.requestController = requestController;
+      const conversation = this.requireConversation();
+      const record = createInputRecord(submission);
       try {
-        await this.discardPreSendRecord(conversation.conversationId, record.id);
-      } catch (discardError) {
-        throw new ChatExecutionPreHandoffError(discardError);
+        await this.deps.persistence.stageConversationInput(
+          conversation.conversationId,
+          record,
+        );
+      } catch (error) {
+        throw new ChatExecutionPreHandoffError(error);
       }
-      throw new ChatExecutionPreHandoffError(error);
-    }
 
-    const active: ActiveExecution = {
-      binding,
-      run,
-      requestController,
-      inputRecordId: record.id,
-      hasImages: submission.images.length > 0,
-      messages: submission.messages,
-      terminationOverride: null,
-    };
-    this.activeExecution = active;
+      let binding: SessionBinding;
+      let run: ProviderExecutionRun;
+      try {
+        if (!sameConversationBinding(conversation, this.conversation)) {
+          throw new Error('Chat execution binding changed before provider handoff');
+        }
+        throwIfAborted(requestController.signal, 'Turn cancelled before provider handoff');
+        await this.prepare();
+        if (!sameConversationBinding(conversation, this.conversation)) {
+          throw new Error('Chat execution binding changed before provider handoff');
+        }
+        throwIfAborted(requestController.signal, 'Turn cancelled before provider handoff');
+        binding = this.requireCurrentSessionBinding();
+        run = binding.session.execute(
+          createExecutionRequest(submission, requestController.signal),
+        );
+      } catch (error) {
+        try {
+          await this.discardPreSendRecord(conversation.conversationId, record.id);
+        } catch (discardError) {
+          throw new ChatExecutionPreHandoffError(discardError);
+        }
+        throw new ChatExecutionPreHandoffError(error);
+      }
 
-    try {
-      return await this.consumeRequestedEvents(active);
+      const active: ActiveExecution = {
+        binding,
+        run,
+        requestController,
+        inputRecordId: record.id,
+        hasImages: submission.images.length > 0,
+        messages: submission.messages,
+        terminationOverride: null,
+      };
+      this.activeExecution = active;
+
+      try {
+        return await this.consumeRequestedEvents(active);
+      } finally {
+        this.dismissInteractionsForTurn(active.run.turnId, 'native-rejected');
+        if (this.activeExecution === active) {
+          this.activeExecution = null;
+        }
+      }
     } finally {
-      this.dismissInteractionsForTurn(active.run.turnId, 'native-rejected');
-      if (this.activeExecution === active) {
-        this.activeExecution = null;
+      if (this.requestController === requestController) {
+        this.requestController = null;
       }
     }
   }
 
   cancel(): void {
+    this.requestController?.abort();
     const active = this.activeExecution;
     if (!active) return;
     active.terminationOverride = 'cancelled';
@@ -1118,6 +1133,7 @@ export class ChatExecutionCoordinator {
     status: 'cancelled' | 'invalidated',
     dismissReason: ProviderInteractionDismissReason,
   ): void {
+    this.requestController?.abort();
     const active = this.activeExecution;
     if (active) {
       active.terminationOverride = status;
