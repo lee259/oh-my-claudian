@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "Suggested follow-up: {suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "Quote"
     }
   },
   "settings": {

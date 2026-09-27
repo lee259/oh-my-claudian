@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "Sugestão para continuar: {suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "Citar"
     }
   },
   "settings": {

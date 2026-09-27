@@ -53,6 +53,11 @@ import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
 import {
+  appendQuoteToComposer,
+  formatSelectionQuote,
+  MessageQuoteController,
+} from '../controllers/MessageQuoteController';
+import {
   providerOutputEventToStreamChunk,
 } from '../controllers/StreamController';
 import {
@@ -1970,6 +1975,16 @@ export function initializeTabRuntimeControllers(
     },
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
   });
+
+  const messageQuoteController = new MessageQuoteController({
+    messagesEl: dom.messagesEl,
+    label: t('chat.quote.buttonLabel'),
+    onQuote: (text) => {
+      commitProvisionalTab(tab);
+      appendQuoteToComposer(dom.inputEl, formatSelectionQuote(text));
+    },
+  });
+  dom.eventCleanups.push(() => messageQuoteController.dispose());
 
   initializeTabNavigationController(tab, plugin);
 }

@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "Предложение продолжения: {suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "Цитировать"
     }
   },
   "settings": {

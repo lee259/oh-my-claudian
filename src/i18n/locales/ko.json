@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "추천 후속 작업: {suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "인용"
     }
   },
   "settings": {
