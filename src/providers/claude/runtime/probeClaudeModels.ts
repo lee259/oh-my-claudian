@@ -4,9 +4,10 @@ import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { throwIfAborted, toAbortError } from '../../../utils/abort';
 import { getEnhancedPath, parseEnvironmentVariables } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
-import { decodeClaudeModels, type ClaudeDiscoveredModel } from '../modelCatalog';
-import { getClaudeProviderSettings, resolveClaudeSettingSources } from '../settings';
 import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
+import type { ClaudeDiscoveredModel } from '../modelCatalog';
+import { decodeClaudeModels } from '../modelCatalog';
+import { getClaudeProviderSettings, resolveClaudeSettingSources } from '../settings';
 import { createCustomSpawnFunction } from './customSpawn';
 
 /** Start an independent SDK query to read supported models without sending a prompt. */
@@ -41,6 +42,8 @@ export async function probeClaudeModels(
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
     const config = getClaudeProviderSettings(host.settings);
 
+    // The SDK query is intentionally held open until cancellation without yielding a user message.
+    // eslint-disable-next-line require-yield
     async function* prompt(): AsyncGenerator<SDKUserMessage> {
       await new Promise<void>(resolve => {
         if (controller.signal.aborted) {

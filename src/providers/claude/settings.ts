@@ -6,7 +6,8 @@ import {
   readStoredString,
 } from '../../core/providers/settings/storedSettings';
 import type { HostnameCliPaths } from '../../core/types/settings';
-import { decodeClaudeModels, type ClaudeDiscoveredModel } from './modelCatalog';
+import type { ClaudeDiscoveredModel } from './modelCatalog';
+import { decodeClaudeModels } from './modelCatalog';
 import {
   type ClaudeModelEnvironmentType,
   isClaudeModelEnvironmentType,
