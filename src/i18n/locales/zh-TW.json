@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "建議繼續：{suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "引用"
     }
   },
   "settings": {

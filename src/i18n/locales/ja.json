@@ -248,6 +248,9 @@
     },
     "promptSuggestion": {
       "label": "次の提案：{suggestion}"
+    },
+    "quote": {
+      "buttonLabel": "引用"
     }
   },
   "settings": {
