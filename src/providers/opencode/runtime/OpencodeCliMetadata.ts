@@ -4,6 +4,9 @@ export const opencodeCliMetadata: CliProviderMetadata = {
   binaryName: 'opencode',
   displayName: 'OpenCode',
   npmPackage: 'opencode-ai',
+  latestVersionNpmPackagesByMajor: {
+    2: '@opencode/cli',
+  },
   installerUrl: 'https://opencode.ai/install',
   update: {
     command: 'opencode',

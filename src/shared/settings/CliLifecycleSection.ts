@@ -133,6 +133,7 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
 
       const cliVersionInfo = await resolveCliVersionInfo(cliPath, {
         binaryName: metadata.binaryName,
+        latestVersionNpmPackagesByMajor: metadata.latestVersionNpmPackagesByMajor,
         npmPackage: metadata.npmPackage,
       }, undefined, currentEnv);
 
@@ -194,6 +195,7 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
     const cliPath = await resolveCliPath();
     return resolveCliVersionInfo(cliPath, {
       binaryName: metadata.binaryName,
+      latestVersionNpmPackagesByMajor: metadata.latestVersionNpmPackagesByMajor,
       npmPackage: metadata.npmPackage,
     }, undefined, currentEnv);
   };

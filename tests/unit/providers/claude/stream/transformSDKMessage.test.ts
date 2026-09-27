@@ -1148,7 +1148,7 @@ describe('transformSDKMessage', () => {
         }),
       });
       expect(resultResults).toEqual([
-        { type: 'context_window', contextWindow: 200000 },
+        { type: 'context_window', contextWindow: 200000, model: 'sonnet' },
       ]);
     });
 
@@ -1373,7 +1373,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message)];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 200000 },
+        { type: 'context_window', contextWindow: 200000, model: 'claude-sonnet-4-5-20250514' },
       ]);
     });
 
@@ -1387,7 +1387,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message)];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 200000 },
+        { type: 'context_window', contextWindow: 200000, model: 'claude-sonnet-test' },
         { type: 'error', content: 'Hit maximum turn limit' },
       ]);
     });
@@ -1412,7 +1412,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message)];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'claude-opus-4-6[1m]' },
       ]);
     });
 
@@ -1446,7 +1446,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'custom-main-model' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 200000 },
+        { type: 'context_window', contextWindow: 200000, model: 'custom-main-model' },
       ]);
     });
 
@@ -1480,7 +1480,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'opus[1m]' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'claude-opus-4-6[1m]' },
       ]);
     });
 
@@ -1514,7 +1514,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'fable' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'claude-fable-5-v1:0' },
       ]);
     });
 
@@ -1548,7 +1548,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'anthropic/claude-opus-4-6[1m]' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'claude-opus-4-6[1m]' },
       ]);
     });
 
@@ -1582,7 +1582,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'eu.anthropic.claude-opus-4-6[1m]' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'eu.anthropic.claude-opus-4-6[1m]' },
       ]);
     });
 
@@ -1616,7 +1616,7 @@ describe('transformSDKMessage', () => {
       const results = [...transformSDKMessage(message, { intendedModel: 'anthropic/claude-opus-4-6[1M]' })];
 
       expect(results).toEqual([
-        { type: 'context_window', contextWindow: 1000000 },
+        { type: 'context_window', contextWindow: 1000000, model: 'claude-opus-4-6[1m]' },
       ]);
     });
 

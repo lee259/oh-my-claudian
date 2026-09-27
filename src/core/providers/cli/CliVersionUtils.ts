@@ -219,6 +219,7 @@ export async function resolveCliVersionInfo(
   metadata: {
     binaryName: string;
     npmPackage?: string;
+    latestVersionNpmPackagesByMajor?: Readonly<Record<number, string>>;
   },
   runner?: ManagedCommandRunner,
   env?: Record<string, string>,
@@ -230,8 +231,12 @@ export async function resolveCliVersionInfo(
   const probe = await probeCliVersion(command, runner, env, metadata.binaryName);
 
   let latestVersion: string | null = null;
-  if (metadata.npmPackage) {
-    latestVersion = await fetchLatestNpmVersion(metadata.npmPackage);
+  const majorVersion = probe.version?.match(/^(\d+)\./u)?.[1];
+  const versionPackage = majorVersion
+    ? metadata.latestVersionNpmPackagesByMajor?.[Number(majorVersion)] ?? metadata.npmPackage
+    : metadata.npmPackage;
+  if (versionPackage) {
+    latestVersion = await fetchLatestNpmVersion(versionPackage);
   }
 
   return {

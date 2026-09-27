@@ -79,6 +79,38 @@ describe('PiModelDiscoveryService', () => {
     expect(mockTransportRequest).not.toHaveBeenCalled();
   });
 
+  it('does not launch Pi when discovery is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled'));
+
+    const result = await new PiModelDiscoveryService(createPlugin()).discoverModels(controller.signal);
+
+    expect(result.kind).toBe('completed');
+    if (result.kind !== 'completed') throw new Error('Expected completed Pi model discovery');
+    expect(result.models).toEqual([]);
+    expect(result.diagnostics).toContain('cancelled');
+    expect(mockProcessStart).not.toHaveBeenCalled();
+    expect(mockTransportStart).not.toHaveBeenCalled();
+    expect(mockProcessShutdown).toHaveBeenCalled();
+  });
+
+  it('shuts down Pi when discovery is aborted while the RPC request is pending', async () => {
+    const controller = new AbortController();
+    let finishRequest!: (value: unknown) => void;
+    mockTransportRequest.mockImplementation(() => new Promise(resolve => { finishRequest = resolve; }));
+
+    const discovery = new PiModelDiscoveryService(createPlugin()).discoverModels(controller.signal);
+    await Promise.resolve();
+    controller.abort(new Error('cancelled'));
+    finishRequest({ models: [] });
+
+    const result = await discovery;
+
+    expect(result.kind).toBe('completed');
+    expect(mockTransportDispose).toHaveBeenCalled();
+    expect(mockProcessShutdown).toHaveBeenCalled();
+  });
+
   it('discovers and normalizes Pi models through a short-lived no-session runtime', async () => {
     mockTransportRequest.mockResolvedValue({
       models: [{
@@ -88,6 +120,7 @@ describe('PiModelDiscoveryService', () => {
         maxTokens: 8192,
         name: 'GPT-5',
         provider: 'openai',
+        reasoningMetadataResolved: false,
         reasoning: true,
         thinkingLevelMap: {
           max: 'max',

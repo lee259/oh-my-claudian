@@ -25,6 +25,7 @@ export interface PiDiscoveredModel {
   maxTokens?: number;
   provider: string;
   reasoning: boolean;
+  reasoningMetadataResolved?: boolean;
   thinkingLevels: PiThinkingLevel[];
 }
 
@@ -172,6 +173,9 @@ export function normalizePiDiscoveredModels(value: unknown): PiDiscoveredModel[]
       ...(maxTokens !== undefined ? { maxTokens } : {}),
       provider,
       reasoning,
+      ...(entry.reasoningMetadataResolved === false
+        || (!Array.isArray(entry.thinkingLevels) || entry.thinkingLevels.length === 0)
+        ? { reasoningMetadataResolved: false } : {}),
       thinkingLevels,
     });
   }
