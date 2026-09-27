@@ -990,6 +990,24 @@ describe('OpencodeExecutionBackend', () => {
     ]));
   });
 
+  it('uses OpenCode native Plan instead of replacing it with the generic read-only agent', async () => {
+    plugin.settings.providerConfigs.opencode.selectedMode = 'plan';
+    const baseConfiguration = createRequest().configuration;
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      configuration: { ...baseConfiguration, permissionMode: 'plan' },
+      toolPolicy: { kind: 'read-only' },
+    }));
+    await waitForPrompt(harness.kernels[0]);
+    harness.kernels[0].completePrompt();
+    await collect(run.events);
+
+    expect(harness.kernels[0].connectCalls[0]).toMatchObject({ profile: 'managed' });
+    expect(harness.kernels[0].configCalls).toContainEqual(
+      expect.objectContaining({ configId: 'mode', value: 'plan' }),
+    );
+  });
+
   it('publishes immutable command snapshots outside the execution-session API', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest());

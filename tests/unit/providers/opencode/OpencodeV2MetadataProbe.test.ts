@@ -12,6 +12,12 @@ function createClient(): OpencodeV2MetadataClient {
         ] };
       }
       if (route === '/api/command') return { data: [{ name: 'review', description: 'Review changes' }] };
+      if (route === '/api/agent') return { data: [
+        { description: 'Plan changes', mode: 'primary', name: 'Plan' },
+        { description: 'Reviews code', mode: 'subagent', name: 'review' },
+        { description: 'Writes docs', mode: 'all', name: 'writer' },
+        { hidden: true, mode: 'primary', name: 'hidden' },
+      ] };
       if (route === '/api/integration') return { data: [] };
       throw new Error(`Unexpected route: ${route}`);
     }),
@@ -32,10 +38,32 @@ describe('OpencodeV2MetadataProbe', () => {
         availableModels: [{ modelId: 'anthropic/claude-3-7-sonnet', name: 'anthropic/Claude 3.7 Sonnet' }],
         currentModelId: '',
       },
+      modes: {
+        availableModes: [
+          { description: 'Plan changes', id: 'plan', name: 'Plan' },
+          { description: 'Writes docs', id: 'writer', name: 'writer' },
+        ],
+        currentModeId: 'plan',
+      },
     });
     expect(client.request).toHaveBeenCalledWith('/api/model', expect.anything());
     expect(client.request).toHaveBeenCalledWith('/api/command', expect.anything());
+    expect(client.request).toHaveBeenCalledWith('/api/agent', expect.anything());
     expect(client.request).not.toHaveBeenCalledWith(expect.stringContaining('/session'), expect.anything());
+  });
+
+  it('excludes subagents and hidden agents from selectable modes', async () => {
+    const probe = new OpencodeV2MetadataProbe(createClient());
+
+    await expect(probe.loadCatalog()).resolves.toMatchObject({
+      modes: {
+        availableModes: [
+          { id: 'plan', name: 'Plan' },
+          { id: 'writer', name: 'writer' },
+        ],
+        currentModeId: 'plan',
+      },
+    });
   });
 
   it('exposes native model variants as the reasoning selector options', async () => {

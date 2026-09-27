@@ -1,3 +1,4 @@
+import { getProviderConfig, setProviderConfig } from '../../core/providers/providerConfig';
 import { sameDiscoveredModels, sameModes, sameThinkingOptionsByModel } from './internal/compareCollections';
 import {
   normalizeOpencodeDiscoveredModels,
@@ -107,11 +108,18 @@ export function updateOpencodeDiscoveryState(
 
 export function clearOpencodeDiscoveryState(settings: Record<string, unknown>): boolean {
   const state = ensureDiscoveryState(settings);
+  const providerConfig = getProviderConfig(settings, 'opencode');
+  const hasPersistedDiscovery = (
+    Array.isArray(providerConfig.availableModes) && providerConfig.availableModes.length > 0
+  ) || (
+    Array.isArray(providerConfig.discoveredModels) && providerConfig.discoveredModels.length > 0
+  );
   if (
     state.availableModes.length === 0
     && state.discoveredModels.length === 0
     && state.refreshedAt === 0
     && Object.keys(state.thinkingOptionsByModel).length === 0
+    && !hasPersistedDiscovery
   ) {
     return false;
   }
@@ -120,6 +128,13 @@ export function clearOpencodeDiscoveryState(settings: Record<string, unknown>): 
   state.refreshedAt = 0;
   state.discoveredModels = [];
   state.thinkingOptionsByModel = {};
+  setProviderConfig(settings, 'opencode', {
+    ...providerConfig,
+    availableModes: [],
+    catalogTimestamp: 0,
+    discoveredModels: [],
+    thinkingOptionsByModel: {},
+  });
   return true;
 }
 

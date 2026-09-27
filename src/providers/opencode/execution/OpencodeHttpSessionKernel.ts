@@ -4,6 +4,7 @@ import type { AcpPromptRequest, AcpSessionConfigOption } from '@/providers/acp';
 
 import { isRecord, OpencodeHttpClient, OpencodeHttpError, type OpencodeHttpEvent } from '../http/OpencodeHttpClient';
 import { projectOpencodeFormQuestions } from '../http/OpencodeHttpForms';
+import { normalizeOpencodeAgentModes, type OpencodeMode } from '../modes';
 import { normalizeOpencodeToolInput, normalizeOpencodeToolName, normalizeOpencodeToolUseResult } from '../normalization/opencodeToolNormalization';
 import { AUX_AGENT_IDS, buildAgentConfig, getSystemPromptSettings } from '../runtime/OpencodeExecutionAgents';
 import { prepareOpencodeLaunchArtifacts } from '../runtime/OpencodeLaunchArtifacts';
@@ -16,7 +17,7 @@ import {
   OpencodeSessionMissingError,
 } from './OpencodeSessionContract';
 
-type PendingPrompt = { resolve: (value: { stopReason: 'end_turn' | 'cancelled'; userMessageId?: string }) => void; reject: (error: Error) => void; userMessageId?: string; started: boolean };
+type PendingPrompt = { resolve: (value: { stopReason: 'end_turn' | 'cancelled'; userMessageId?: string; nativeAssistantId?: string }) => void; reject: (error: Error) => void; userMessageId?: string; nativeAssistantId?: string; assistantMessageStarted: boolean; started: boolean };
 interface NativeModel { providerID: string; id: string; variant?: string }
 interface NativeChild { outputSessionId: string; toolCallId: string; turnId: string; interactionTurnId: string; background: boolean; text: Map<string, string> }
 interface NativeTool { name: string; input: Record<string, unknown> }
@@ -30,6 +31,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private databasePath: string | null = null;
   private model: NativeModel | null = null;
   private models: Array<Record<string, unknown>> = [];
+  private modes: OpencodeMode[] = [];
   private commands = new Set<string>();
   private profile: OpencodeKernelConnectOptions['profile'] = 'managed';
   private readonly text = new Map<string, string>();
@@ -71,6 +73,9 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     } while (Date.now() < deadline);
     const catalog = await this.client.request<{ data: Array<{ name: string }> }>('/api/command');
     this.commands = new Set(catalog.data.map(command => command.name));
+    this.modes = normalizeOpencodeAgentModes(
+      await this.client.request('/api/agent'),
+    );
   }
 
   async openSession(resumeSessionId?: string): Promise<OpencodeNativeSessionInfo> {
@@ -84,14 +89,21 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     }
     if (typeof data.id !== 'string' || (resumeSessionId && data.id !== resumeSessionId)) throw new Error('Invalid OpenCode session response.');
     this.sessionId = data.id;
-    return { sessionId: data.id, nativeVersion: 2, databasePath: this.databasePath, models: { currentModelId: '', availableModels: this.models.map(model => ({ modelId: `${model.providerID}/${model.id}`, name: `${model.providerID}/${model.name}` })) } };
+    return {
+      sessionId: data.id,
+      nativeVersion: 2,
+      databasePath: this.databasePath,
+      models: { currentModelId: '', availableModels: this.models.map(model => ({ modelId: `${model.providerID}/${model.id}`, name: `${model.providerID}/${model.name}` })) },
+      modes: { availableModes: this.modes, currentModeId: this.modes[0]?.id ?? '' },
+    };
   }
 
   async setConfigOption(request: Record<string, unknown>): Promise<{ configOptions?: AcpSessionConfigOption[] }> {
     const route = `/api/session/${encodeURIComponent(String(request.sessionId))}`;
     const value = String(request.value);
     if (request.configId === 'mode') {
-      await this.requireClient().request(`${route}/agent`, { method: 'POST', body: { agent: value } });
+      const agent = this.modes.find(mode => mode.id === value || mode.name === value)?.id ?? value;
+      await this.requireClient().request(`${route}/agent`, { method: 'POST', body: { agent } });
     } else if (request.configId === 'model') {
       const slash = value.indexOf('/');
       if (slash < 1) throw new Error('Invalid OpenCode model selection.');
@@ -116,7 +128,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     let resolve!: PendingPrompt['resolve'];
     let reject!: PendingPrompt['reject'];
     const completion = new Promise<{ stopReason: 'end_turn' | 'cancelled'; userMessageId?: string }>((yes, no) => { resolve = yes; reject = no; });
-    const pending = { resolve, reject, started: false, userMessageId: undefined as string | undefined };
+    const pending = { resolve, reject, started: false, assistantMessageStarted: false, userMessageId: undefined as string | undefined, nativeAssistantId: undefined as string | undefined };
     this.pending = pending;
     // A native error may arrive before the admission request resolves.
     void completion.catch(() => undefined);
@@ -213,7 +225,15 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
       case 'form.created': if (form) void this.interact(form, true, child?.interactionTurnId).catch(error => this.fail(error)); break;
       case 'session.step.started': {
         const id = String(data.assistantMessageID);
-        this.emit({ type: 'assistant_message_started', nativeAssistantId: id });
+        if (this.pending) {
+          this.pending.nativeAssistantId = id;
+          if (!this.pending.assistantMessageStarted) {
+            this.pending.assistantMessageStarted = true;
+            this.emit({ type: 'assistant_message_started', nativeAssistantId: id });
+          }
+        } else {
+          this.emit({ type: 'assistant_message_started', nativeAssistantId: id });
+        }
         break;
       }
       case 'session.text.delta': case 'session.reasoning.delta':
@@ -358,7 +378,11 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private finish(stopReason: 'end_turn' | 'cancelled' = 'end_turn'): void {
     const pending = this.pending;
     this.pending = null;
-    pending?.resolve({ stopReason, userMessageId: pending.userMessageId });
+    pending?.resolve({
+      stopReason,
+      userMessageId: pending.userMessageId,
+      nativeAssistantId: pending.nativeAssistantId,
+    });
     this.options.onNativeTurn?.('completed', undefined, !!pending);
   }
   private fail(cause: unknown): void {

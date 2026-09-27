@@ -1,3 +1,4 @@
+import { t } from '../../../../src/i18n/i18n';
 import {
   getEffectiveOpencodeModes,
   normalizeOpencodeAvailableModes,
@@ -72,11 +73,16 @@ describe('OpenCode mode settings', () => {
     expect(resolveOpencodePermissionMode('plan')).toBe('plan');
     expect(resolveOpencodePermissionMode('summary')).toBe('normal');
     expect(resolveOpencodePermissionMode('')).toBeNull();
+    expect(resolveOpencodePermissionMode('Plan')).toBe('plan');
+    expect(resolveOpencodeModeForPermissionMode('plan', [
+      { id: 'Build', name: 'Build' },
+      { id: 'Plan', name: 'Plan' },
+    ])).toBe('Plan');
   });
 });
 
 describe('opencodeChatUIConfig permission mode wiring', () => {
-  it('shows each native ACP mode with its native id, name, and description', () => {
+  it('localizes built-in mode descriptions and preserves custom native descriptions', () => {
     const options = opencodeChatUIConfig.getPermissionModeOptions?.({
       providerConfigs: {
         opencode: {
@@ -98,8 +104,8 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
     }))).toEqual([
       {
         value: 'build',
-        label: 'Build mode',
-        description: 'Execute configured tools.',
+        label: t('chat.composer.modeOpenCodeBuild'),
+        description: t('chat.composer.modeOpenCodeBuildDescription'),
         isPlanMode: false,
       },
       {
@@ -110,8 +116,8 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
       },
       {
         value: 'plan',
-        label: 'Plan mode',
-        description: 'Do not edit files.',
+        label: t('chat.composer.plan'),
+        description: t('chat.composer.modeOpenCodePlanDescription'),
         isPlanMode: true,
       },
       {

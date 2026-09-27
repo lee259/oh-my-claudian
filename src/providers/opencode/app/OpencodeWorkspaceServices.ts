@@ -11,6 +11,7 @@ import { OpencodeAgentMentionProvider } from '../agents/OpencodeAgentMentionProv
 import { OpencodeCommandCatalog } from '../commands/OpencodeCommandCatalog';
 import { OpencodeMetadataService } from '../metadata/OpencodeMetadataService';
 import { OpencodeCliResolver } from '../runtime/OpencodeCliResolver';
+import { getOpencodeProviderSettings } from '../settings';
 import { OpencodeAgentStorage } from '../storage/OpencodeAgentStorage';
 import { opencodeSettingsTabRenderer } from '../ui/OpencodeSettingsTab';
 import { OpencodeCommandLoader } from './OpencodeCommandLoader';
@@ -36,6 +37,10 @@ export async function createOpencodeWorkspaceServices(
   const agentMentionProvider = new OpencodeAgentMentionProvider(agentStorage);
   const commandCatalog = new OpencodeCommandCatalog();
   const metadataService = new OpencodeMetadataService(plugin, { commandCatalog });
+  const settings = getOpencodeProviderSettings(plugin.settings);
+  if (settings.enabled && settings.availableModes.length === 0) {
+    void metadataService.loadCatalog();
+  }
 
   return {
     agentStorage,

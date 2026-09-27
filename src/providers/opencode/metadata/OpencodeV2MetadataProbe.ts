@@ -6,6 +6,7 @@ import { formatReasoningValueLabel } from '@/core/providers/reasoning';
 import { normalizeAcpAvailableCommands } from '@/providers/acp';
 import { toAbortError } from '@/utils/abort';
 
+import { normalizeOpencodeAgentModes } from '../modes';
 import type {
   OpencodeMetadataCatalogResult,
   OpencodeMetadataProbe,
@@ -36,12 +37,18 @@ export class OpencodeV2MetadataProbe implements OpencodeMetadataProbe {
     const ownedSignal = this.client.signal(signal);
     const models = this.models = await this.loadModels(ownedSignal);
     const commands = await this.read('command', ownedSignal);
+    const agents = await this.read('agent', ownedSignal);
+    const availableModes = normalizeOpencodeAgentModes(agents);
     return {
       commands: normalizeAcpAvailableCommands(commands.filter(isNamedRecord).map(command => ({
         name: command.name,
         ...(typeof command.description === 'string' ? { description: command.description } : {}),
       }))),
       models: modelState(models),
+      modes: {
+        availableModes,
+        currentModeId: availableModes[0]?.id ?? '',
+      },
     };
   }
 
@@ -95,8 +102,9 @@ export class OpencodeV2MetadataProbe implements OpencodeMetadataProbe {
     }
   }
 
-  private async read(resource: 'model' | 'command', signal: AbortSignal): Promise<unknown[]> {
-    const result = await this.client.request(`/api/${resource}`, { signal });
+  private async read(resource: 'model' | 'command' | 'agent', signal: AbortSignal): Promise<unknown[]> {
+    const result: unknown = await this.client.request<unknown>(`/api/${resource}`, { signal });
+    if (Array.isArray(result)) return result as unknown[];
     if (!isRecord(result) || !Array.isArray(result.data)) throw new Error('Invalid OpenCode catalog response.');
     return result.data as unknown[];
   }
