@@ -6,6 +6,36 @@ import { DatabaseSync } from 'node:sqlite';
 import { loadOpencodeTurnStats } from '@/providers/opencode/history/OpencodeTurnStats';
 
 describe('loadOpencodeTurnStats', () => {
+  it('keeps token throughput for an interrupted assistant step with recorded usage', async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'opencode-throughput-'));
+    const databasePath = path.join(root, 'opencode.db');
+    const db = new DatabaseSync(databasePath);
+    db.exec(`CREATE TABLE session_v2(name TEXT);
+      CREATE TABLE session_message(id TEXT, session_id TEXT, type TEXT, time_created INTEGER, seq INTEGER, data TEXT);`);
+    db.prepare('INSERT INTO session_message VALUES(?, ?, ?, ?, ?, ?)').run(
+      'user', 'session', 'user', 1_000, 1, JSON.stringify({ time: { created: 1_000 } }),
+    );
+    db.prepare('INSERT INTO session_message VALUES(?, ?, ?, ?, ?, ?)').run(
+      'answer', 'session', 'assistant', 1_100, 2, JSON.stringify({
+        error: { message: 'Step interrupted' },
+        finish: 'error',
+        time: { created: 1_100, completed: 3_000 },
+        tokens: { output: 375, reasoning: 138 },
+      }),
+    );
+    db.close();
+
+    try {
+      await expect(loadOpencodeTurnStats(
+        'session',
+        { databasePath, nativeVersion: 2 },
+        { userMessageId: 'user', startedAt: 1_000 },
+      )).resolves.toEqual({ outputTokens: 513, durationMs: 2_000 });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each([1, 2])('reads the current turn from OpenCode v%s storage', async version => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'opencode-throughput-'));
     const databasePath = path.join(root, 'opencode.db');
