@@ -24,6 +24,7 @@ export interface TurnSubmissionBuilderDeps {
   getMcpServerSelector: () => McpServerSelector | null;
   getExternalContextSelector: () => { getExternalContexts: () => string[] } | null;
   getProviderId: () => ProviderId;
+  getProviderSettings?: () => Record<string, unknown>;
   getProviderCapabilities: () => ProviderCapabilities;
   getAuxiliaryModel: () => string | null;
   generateId: () => string;
@@ -85,10 +86,11 @@ export class TurnSubmissionBuilder {
     assistant?: ChatMessage,
   ): ChatTurnSubmission {
     const providerId = this.deps.getProviderId();
-    const settings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-      this.deps.plugin.settings,
-      providerId,
-    );
+    const settings = this.deps.getProviderSettings?.()
+      ?? ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+        this.deps.plugin.settings,
+        providerId,
+      );
     const permissionMode = typeof settings.permissionMode === 'string'
       ? settings.permissionMode
       : undefined;
