@@ -728,6 +728,8 @@ export class ChatExecutionCoordinator {
     let nativeUserMessageId: string | undefined;
     let nativeAssistantMessageId: string | undefined;
     let nativeCheckpointId: string | undefined;
+    let sawSubmittedUserMessage = false;
+    let submittedMessages: typeof active.messages | undefined = active.messages;
     let terminalSinkFailure: { readonly error: unknown } | undefined;
     let terminal:
       | Extract<
@@ -751,24 +753,29 @@ export class ChatExecutionCoordinator {
       if (event.type === 'turn_started' && event.accepted) {
         accepted = true;
         nativeUserMessageId = event.nativeUserMessageId ?? nativeUserMessageId;
-        attachUserMessageId(active.messages, nativeUserMessageId);
+        attachUserMessageId(submittedMessages, nativeUserMessageId);
         await this.deps.persistence.acceptConversationInput(
           active.binding.conversation.conversationId,
           active.inputRecordId,
           { providerUserMessageId: nativeUserMessageId },
         );
       } else if (event.type === 'user_message_started' && accepted) {
-        nativeUserMessageId = event.nativeUserMessageId ?? nativeUserMessageId;
-        attachUserMessageId(active.messages, nativeUserMessageId);
-        await this.deps.persistence.acceptConversationInput(
-          active.binding.conversation.conversationId,
-          active.inputRecordId,
-          { providerUserMessageId: nativeUserMessageId },
-        );
+        if (sawSubmittedUserMessage) {
+          submittedMessages = undefined;
+        } else {
+          sawSubmittedUserMessage = true;
+          nativeUserMessageId = event.nativeUserMessageId ?? nativeUserMessageId;
+          attachUserMessageId(submittedMessages, nativeUserMessageId);
+          await this.deps.persistence.acceptConversationInput(
+            active.binding.conversation.conversationId,
+            active.inputRecordId,
+            { providerUserMessageId: nativeUserMessageId },
+          );
+        }
       } else if (event.type === 'assistant_message_started') {
         nativeAssistantMessageId =
           event.nativeAssistantId ?? nativeAssistantMessageId;
-        attachAssistantMessageId(active.messages, nativeAssistantMessageId);
+        attachAssistantMessageId(submittedMessages, nativeAssistantMessageId);
       } else if (event.type === 'session_state_changed' || event.type === 'mode_changed') {
         await this.persistSnapshot(active.binding, event.snapshot);
       } else if (event.type === 'turn_completed') {
@@ -779,7 +786,7 @@ export class ChatExecutionCoordinator {
         nativeCheckpointId =
           event.nativeCheckpointId ?? nativeCheckpointId;
         attachAssistantMessageId(
-          active.messages,
+          submittedMessages,
           nativeAssistantMessageId ?? nativeCheckpointId,
         );
         if (accepted) {

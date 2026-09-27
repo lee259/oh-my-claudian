@@ -107,6 +107,11 @@ export interface ClaudeEncodedExecutionRequest {
   readonly allowedTools: ReadonlySet<string> | null;
 }
 
+export interface ClaudeEncodedSteer {
+  readonly prompt: string;
+  readonly images: ImageAttachment[];
+}
+
 export interface ClaudeExecutionRequestEncoderDeps {
   readonly host: ProviderHost;
   readonly mcpManager: McpServerManager;
@@ -252,6 +257,7 @@ export class ClaudeExecutionRequestEncoder {
       // Auto mode stays available so safe-mode changes can remain live setters.
       extraArgs: {
         'enable-auto-mode': null,
+        'replay-user-messages': null,
         ...(claudeSettings.enableChrome ? { chrome: null } : {}),
       },
       includePartialMessages: true,
@@ -301,6 +307,17 @@ export class ClaudeExecutionRequestEncoder {
       }),
       mcpServersKey: `${JSON.stringify(externalMcpServers)}|obsidian-vault:${obsidianVaultToolEnabled ? 'enabled' : 'disabled'}`,
       allowedTools: policy.allowedTools,
+    };
+  }
+
+  /** A steer joins the current run, so it carries only its own prompt and attachments. */
+  encodeSteer(request: ProviderExecutionRequest): ClaudeEncodedSteer {
+    const prompt = this.encodePrompt(request, false);
+    return {
+      prompt: this.deps.mcpManager.transformMentions(prompt),
+      images: request.input
+        .filter((block) => block.type === 'image')
+        .map((block) => ({ ...block.image })),
     };
   }
 

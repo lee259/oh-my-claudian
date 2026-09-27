@@ -22,6 +22,7 @@ import {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
   type RewindableExecutionSession,
+  type SteerableExecutionSession,
 } from '../../../core/execution';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { PermissionMode, SlashCommand, TurnStats } from '../../../core/types';
@@ -32,6 +33,7 @@ import {
 import type { ClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
 import { loadClaudeTurnStats } from '../history/ClaudeTurnStats';
 import { executeClaudeRewind } from '../runtime/ClaudeRewindService';
+import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
 import { getClaudeState } from '../types/providerState';
 import { ClaudeExecutionEventNormalizer } from './ClaudeExecutionEventNormalizer';
 import {
@@ -46,6 +48,8 @@ import {
   ClaudePersistentExecutionStrategy,
 } from './ClaudeExecutionStrategies';
 import { ClaudeInteractionHandler } from './ClaudeInteractionHandler';
+import type { ClaudeTurnInputs } from './ClaudeTurnInputs';
+import { getReplayedUserMessageId } from './ClaudeTurnInputs';
 
 interface ActiveRequestedRun {
   readonly executionId: string;
@@ -62,11 +66,19 @@ interface ActiveRequestedRun {
   nativeCompleted?: boolean;
   historyReplayGeneration: number | null;
   nativeUserMessageId?: string;
+  inputs: ClaudeTurnInputs | null;
+  readonly steers: Map<string, PendingClaudeSteer>;
   nativeAssistantId?: string;
   planModeEntered: boolean;
   planModeContinuationRequested: boolean;
   planCompleted: boolean;
   terminal: boolean;
+}
+
+interface PendingClaudeSteer {
+  readonly content: string;
+  resolve(accepted: boolean): void;
+  reject(error: Error): void;
 }
 
 interface BackgroundTurn {
@@ -84,6 +96,7 @@ implements
 ProviderExecutionSession,
 ModeConfigurableExecutionSession,
 RewindableExecutionSession,
+SteerableExecutionSession,
 ClaudeExecutionStrategySink {
   readonly providerId = 'claude' as const;
   readonly sessionInstanceId = randomUUID();
@@ -215,6 +228,8 @@ ClaudeExecutionStrategySink {
       nativeFork: false,
       nativeHandedOff: false,
       historyReplayGeneration: null,
+      inputs: null,
+      steers: new Map(),
       planModeEntered: false,
       planModeContinuationRequested: false,
       planCompleted: false,
@@ -265,6 +280,41 @@ ClaudeExecutionStrategySink {
       reason: 'Cancelled',
     });
     this.endActiveRun(active);
+  }
+
+  async steer(request: ProviderExecutionRequest): Promise<boolean> {
+    const active = this.activeRun;
+    if (
+      this.disposed
+      || !active
+      || active.terminal
+      || !active.nativeHandedOff
+      || active.nativeCompleted
+      || !active.inputs
+      || active.inputs.settled
+      || active.abortController.signal.aborted
+      || request.signal.aborted
+    ) {
+      return false;
+    }
+    const encoded = this.encoder.encodeSteer(request);
+    const message = buildClaudeSDKUserMessage(
+      encoded.prompt,
+      this.providerSessionId ?? '',
+      encoded.images,
+    );
+    const acceptance = new Promise<boolean>((resolve, reject) => {
+      active.steers.set(message.uuid!, {
+        content: getInputText(request),
+        resolve,
+        reject,
+      });
+    });
+    if (!this.strategy.steerTurn(message, active.queryToken)) {
+      active.steers.delete(message.uuid!);
+      return false;
+    }
+    return acceptance;
   }
 
   getSnapshot(): ProviderSessionSnapshot {
@@ -434,12 +484,10 @@ ClaudeExecutionStrategySink {
     return this.getNativeResumeSessionId();
   }
 
-  setPendingNativeUserMessageId(
-    nativeUserMessageId: string,
-    queryToken: number,
-  ): void {
+  bindNativeTurnInputs(inputs: ClaudeTurnInputs, queryToken: number): void {
     if (this.activeRun?.queryToken === queryToken) {
-      this.activeRun.nativeUserMessageId = nativeUserMessageId;
+      this.activeRun.inputs = inputs;
+      this.activeRun.nativeUserMessageId = inputs.primaryId;
     }
   }
 
@@ -473,6 +521,15 @@ ClaudeExecutionStrategySink {
     }
 
     const active = this.activeRun;
+    const replayedInputId = getReplayedUserMessageId(message);
+    if (replayedInputId !== undefined) {
+      if (active?.nativeHandedOff && active.inputs?.ids.includes(replayedInputId)) {
+        this.ensureRequestedAccepted(active);
+        this.acceptDeliveredSteer(active, replayedInputId);
+      }
+      return;
+    }
+    const inputMatch = active?.inputs?.matches(message);
     const intendedModel = this.lastEncodedRequest?.model;
     const authoritativeContextWindow = intendedModel
       && this.authoritativeContextWindow?.model === intendedModel
@@ -608,6 +665,10 @@ ClaudeExecutionStrategySink {
       }
       if (normalized.type === 'result') {
         if (this.activeRun) {
+          const current = this.activeRun;
+          if (current.nativeHandedOff && inputMatch === false) continue;
+          if (current.inputs && !current.inputs.settled) continue;
+          this.settleConsumedSteers(current);
           if (this.shouldDeferPlanModeCompletion(this.activeRun, queryToken)) {
             continue;
           }
@@ -991,6 +1052,27 @@ ClaudeExecutionStrategySink {
     }
   }
 
+  private acceptDeliveredSteer(active: ActiveRequestedRun, nativeUserMessageId: string): void {
+    const steer = active.steers.get(nativeUserMessageId);
+    if (!steer || active.terminal) return;
+    active.steers.delete(nativeUserMessageId);
+    this.eventNormalizer.beginUserBoundary('requested');
+    this.emitRequested(active, {
+      type: 'user_message_started',
+      content: steer.content,
+      nativeUserMessageId,
+    });
+    steer.resolve(true);
+  }
+
+  private settleConsumedSteers(active: ActiveRequestedRun): void {
+    for (const [id, steer] of active.steers) {
+      if (!active.inputs?.wasConsumed(id)) continue;
+      active.steers.delete(id);
+      steer.resolve(true);
+    }
+  }
+
   private emitTurnOutput(
     target: ActiveRequestedRun | BackgroundTurn,
     event: WithoutScope<
@@ -1180,6 +1262,10 @@ ClaudeExecutionStrategySink {
       active.onRequestAbort,
     );
     active.events.end();
+    for (const steer of active.steers.values()) {
+      steer.reject(new Error('Claude run ended before the steer was delivered.'));
+    }
+    active.steers.clear();
     if (this.activeRun === active) {
       this.activeRun = null;
     }
@@ -1265,6 +1351,13 @@ ClaudeExecutionStrategySink {
     this.lastAllowedTools = encoded.allowedTools;
     return await this.strategy.ensureReadyForRewind(encoded, queryToken);
   }
+}
+
+function getInputText(request: ProviderExecutionRequest): string {
+  return request.input
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n\n');
 }
 
 type WithoutScope<T> = T extends unknown ? Omit<T, 'scope'> : never;

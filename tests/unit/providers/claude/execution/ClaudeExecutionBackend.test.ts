@@ -1207,7 +1207,10 @@ describe('ClaudeExecutionBackend', () => {
     await collectEvents(session.execute(createRequest()).events);
 
     expect(sdkMock.getQueryCallCount()).toBe(1);
-    expect(sdkMock.getLastOptions()?.extraArgs).toEqual({ 'enable-auto-mode': null });
+    expect(sdkMock.getLastOptions()?.extraArgs).toEqual({
+      'enable-auto-mode': null,
+      'replay-user-messages': null,
+    });
     expect(query?.setPermissionMode).toHaveBeenLastCalledWith('auto');
     await session.dispose();
   });
@@ -1792,7 +1795,7 @@ describe('ClaudeExecutionBackend', () => {
       'user-1',
       { dryRun: true },
     );
-    expect('steer' in session).toBe(false);
+    expect('steer' in session).toBe(true);
 
     const withoutSeed = new ClaudeExecutionBackend(createHost(), services)
       .createSession(createConfig());
@@ -2437,6 +2440,177 @@ describe('Claude provider execution contract', () => {
   });
 });
 
+describe('ClaudeExecutionSession steering', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function startSteerableSession(
+    script: (
+      nextInput: () => Promise<sdkModule.SDKUserMessage>,
+      keepOpen: Promise<unknown>,
+    ) => AsyncGenerator<unknown>,
+    config: Partial<ProviderSessionConfig> = {},
+  ) {
+    const keepOpen = createDeferred<unknown>();
+    const { services } = createServices();
+    let query: ScriptedQuery | null = null;
+    const loadQuery = jest.spyOn(
+      await import('@/providers/claude/loadClaudeAgentSdk'),
+      'loadClaudeAgentQuery',
+    ).mockResolvedValueOnce((({ prompt }: { prompt: AsyncIterable<sdkModule.SDKUserMessage> }) => {
+      query = createInputDrivenQuery(prompt, nextInput => script(nextInput, keepOpen.promise));
+      return query;
+    }) as never);
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig(config));
+    const run = session.execute(createRequest({
+      input: [{ type: 'text', text: 'Refactor the parser' }],
+    }));
+    const events: ProviderExecutionEvent[] = [];
+    const done = (async () => {
+      for await (const event of run.events) events.push(event);
+    })();
+    return {
+      session,
+      run,
+      events,
+      done,
+      loadQuery,
+      getQuery: () => query,
+      dispose: async () => {
+        keepOpen.resolve(null);
+        await session.dispose();
+      },
+    };
+  }
+
+  function steerRequest(text: string): ProviderExecutionRequest {
+    return createRequest({ input: [{ type: 'text', text }] });
+  }
+
+  it('folds a steer into the live run after replay acknowledges delivery', async () => {
+    const observedSteer = createDeferred<sdkModule.SDKUserMessage>();
+    const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+      const prompt = await nextInput();
+      yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      yield replayOf(prompt);
+      yield assistantText('assistant-1', 'Working on the parser.');
+      const steer = await nextInput();
+      observedSteer.resolve(steer);
+      yield replayOf(steer);
+      yield assistantText('assistant-2', 'Using tabs instead.');
+      yield successResult([prompt.uuid!, steer.uuid!], 0);
+      await keepOpen;
+    });
+
+    try {
+      await waitFor(() => events.some(event => event.type === 'text_delta'));
+      const acceptance = session.steer(steerRequest('Use tabs instead'));
+      const steer = await observedSteer.promise;
+      await expect(acceptance).resolves.toBe(true);
+      await done;
+
+      expect(steer.priority).toBe('next');
+      expect(getNativePromptText(steer)).toBe('Use tabs instead');
+      expect(events.filter(event => event.type === 'turn_completed')).toHaveLength(1);
+      expect(events).toContainEqual(expect.objectContaining({
+        type: 'user_message_started',
+        content: 'Use tabs instead',
+        nativeUserMessageId: steer.uuid,
+      }));
+      expect(events).toContainEqual(expect.objectContaining({
+        type: 'assistant_message_started',
+        nativeAssistantId: 'assistant-2',
+      }));
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('keeps the requested run open when Claude runs a late steer as the next turn', async () => {
+    const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+      const prompt = await nextInput();
+      yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      yield replayOf(prompt);
+      yield assistantText('assistant-1', 'Parser refactored.');
+      const steer = await nextInput();
+      yield successResult([prompt.uuid!], 1);
+      yield replayOf(steer);
+      yield assistantText('assistant-2', 'Added tests too.');
+      yield successResult([steer.uuid!], 0);
+      await keepOpen;
+    });
+
+    try {
+      await waitFor(() => events.some(event => event.type === 'text_delta'));
+      await expect(session.steer(steerRequest('Add tests too'))).resolves.toBe(true);
+      await done;
+      expect(events.filter(event => event.type === 'turn_completed')).toHaveLength(1);
+      expect(events.at(-1)).toMatchObject({
+        type: 'turn_completed',
+        nativeAssistantId: 'assistant-2',
+      });
+      expect(session.getStatus()).toBe('idle');
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('accepts a steer when a result confirms consumption without replay', async () => {
+    const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+      const prompt = await nextInput();
+      yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      yield assistantText('assistant-1', 'Working.');
+      const steer = await nextInput();
+      yield successResult([prompt.uuid!, steer.uuid!], 0);
+      await keepOpen;
+    });
+
+    try {
+      await waitFor(() => events.some(event => event.type === 'text_delta'));
+      await expect(session.steer(steerRequest('Be brief'))).resolves.toBe(true);
+      await done;
+      expect(events.at(-1)?.type).toBe('turn_completed');
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('rejects a steer whose delivery is still unknown when the run is cancelled', async () => {
+    const queued = createDeferred<sdkModule.SDKUserMessage>();
+    const { session, run, events, done, getQuery, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+      await nextInput();
+      yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      yield assistantText('assistant-1', 'Working.');
+      queued.resolve(await nextInput());
+      await keepOpen;
+    });
+
+    try {
+      await waitFor(() => events.some(event => event.type === 'text_delta'));
+      const acceptance = session.steer(steerRequest('Stop after this'));
+      await queued.promise;
+      run.cancel();
+
+      await expect(acceptance).rejects.toThrow('before the steer was delivered');
+      await done;
+      expect(events.at(-1)?.type).toBe('cancelled');
+      expect(getQuery()?.interrupt).toHaveBeenCalled();
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('declines steering without an active native turn', async () => {
+    const { services } = createServices();
+    const idle = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+    await expect(idle.steer(steerRequest('Too early'))).resolves.toBe(false);
+    await idle.dispose();
+  });
+});
+
 let deferredRelease: (() => void) | null = null;
 
 function deferredMessage(): Promise<null> {
@@ -2556,6 +2730,65 @@ function createPromptDrivenPersistentQuery(
     }
   })();
   return attachQueryMethods(query, finished);
+}
+
+function createInputDrivenQuery(
+  prompt: AsyncIterable<sdkModule.SDKUserMessage>,
+  script: (nextInput: () => Promise<sdkModule.SDKUserMessage>) => AsyncGenerator<unknown>,
+): ScriptedQuery {
+  let resolveFinished!: () => void;
+  const finished = new Promise<void>((resolve) => {
+    resolveFinished = resolve;
+  });
+  const input = prompt[Symbol.asyncIterator]();
+  const nextInput = async (): Promise<sdkModule.SDKUserMessage> => {
+    const next = await input.next();
+    if (next.done) throw new Error('Native input closed');
+    return next.value;
+  };
+  const query = (async function* () {
+    try {
+      yield* script(nextInput);
+    } finally {
+      resolveFinished();
+    }
+  })();
+  return attachQueryMethods(query, finished);
+}
+
+function replayOf(message: sdkModule.SDKUserMessage): unknown {
+  return { ...message, isReplay: true, session_id: 'session-1' };
+}
+
+function assistantText(uuid: string, text: string): unknown {
+  return {
+    type: 'assistant',
+    uuid,
+    parent_tool_use_id: null,
+    message: { content: [{ type: 'text', text }] },
+  };
+}
+
+function successResult(userMessageIds: string[], queuedTurnCount: number): unknown {
+  return {
+    type: 'result',
+    subtype: 'success',
+    duration_ms: 100,
+    duration_api_ms: 100,
+    is_error: false,
+    num_turns: 1,
+    result: '',
+    stop_reason: 'end_turn',
+    total_cost_usd: 0,
+    usage: { output_tokens: 1 },
+    modelUsage: {},
+    permission_denials: [],
+    errors: [],
+    user_message_uuids: userMessageIds,
+    queued_turn_count: queuedTurnCount,
+    uuid: '00000000-0000-4000-8000-000000000099',
+    session_id: 'session-1',
+  };
 }
 
 function getNativePromptText(message: sdkModule.SDKUserMessage): string {

@@ -278,6 +278,10 @@ export class ClaudeExecutionEventNormalizer {
     this.states[channel].blockedToolIds.add(toolUseId);
   }
 
+  beginUserBoundary(channel: ClaudeExecutionEventChannel): void {
+    this.states[channel].assistantStarted = false;
+  }
+
   reset(channel: ClaudeExecutionEventChannel): void {
     const state = this.states[channel];
     state.streamState.clearAll();

@@ -880,6 +880,49 @@ describe('ChatExecutionCoordinator', () => {
     expect(assistantMessage.assistantMessageId).toBe('native-assistant');
   });
 
+  it('keeps later steered identities off the submitted message pair', async () => {
+    const harness = createHarness();
+    const userMessage: ChatMessage = { id: 'user', role: 'user', content: 'Hello', timestamp: 1 };
+    const assistantMessage: ChatMessage = { id: 'assistant', role: 'assistant', content: '', timestamp: 2 };
+    const { session, run, resultPromise } = await beginExecution(
+      harness,
+      createSubmission({ messages: { user: userMessage, assistant: assistantMessage } }),
+    );
+    run.events.push({
+      type: 'turn_started', scope: requestedScope(session, run, 1), accepted: true,
+      nativeUserMessageId: 'native-user',
+    });
+    run.events.push({
+      type: 'user_message_started', scope: requestedScope(session, run, 2),
+      nativeUserMessageId: 'native-user',
+    });
+    run.events.push({
+      type: 'assistant_message_started', scope: requestedScope(session, run, 3),
+      nativeAssistantId: 'native-assistant',
+    });
+    run.events.push({
+      type: 'user_message_started', scope: requestedScope(session, run, 4),
+      content: 'Steer', nativeUserMessageId: 'steer-user',
+    });
+    run.events.push({
+      type: 'assistant_message_started', scope: requestedScope(session, run, 5),
+      nativeAssistantId: 'steer-assistant',
+    });
+    run.events.push({
+      type: 'turn_completed', scope: requestedScope(session, run, 6), reason: 'completed',
+      nativeAssistantId: 'steer-assistant',
+    });
+    run.events.end();
+
+    await expect(resultPromise).resolves.toMatchObject({
+      status: 'completed',
+      nativeUserMessageId: 'native-user',
+      nativeAssistantMessageId: 'steer-assistant',
+    });
+    expect(userMessage.userMessageId).toBe('native-user');
+    expect(assistantMessage.assistantMessageId).toBe('native-assistant');
+  });
+
   it('does not send staged input if the conversation switches while the ledger write is pending', async () => {
     const harness = createHarness();
     const stageBarrier = deferred<void>();
