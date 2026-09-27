@@ -57,19 +57,50 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
     getRuntimeEnvironmentVariables(settings, 'claude'),
     customModelAliases,
   );
+  const claudeSettings = getClaudeProviderSettings(settings);
+  const discoveredModels = claudeSettings.discoveredModels;
   if (customModels.length > 0) {
     return customModels.map((model) => ({
       ...model,
+      label: customModelAliases[toClaudeRuntimeModelId(model.value)]
+        ?? discoveredModels.find(discovered => (
+          discovered.value === toClaudeRuntimeModelId(model.value)
+          || discovered.resolvedModel === toClaudeRuntimeModelId(model.value)
+        ))?.label
+        ?? model.label,
       value: encodeClaudeModelSelectionId(model.value),
     }));
   }
 
-  const claudeSettings = getClaudeProviderSettings(settings);
-  const models = [...DEFAULT_CLAUDE_MODELS];
+  const models = DEFAULT_CLAUDE_MODELS.map(model => {
+    const runtimeModel = toClaudeRuntimeModelId(model.value);
+    const discovered = discoveredModels.find(candidate => (
+      candidate.value === runtimeModel
+      || candidate.resolvedModel === runtimeModel
+      || normalizeLegacyClaudeModelAlias(candidate.value)
+        === normalizeLegacyClaudeModelAlias(runtimeModel)
+    ));
+    return discovered
+      ? { ...model, label: customModelAliases[runtimeModel] ?? discovered.label,
+        description: discovered.description || model.description }
+      : model;
+  });
 
   const seenModelIds = new Set(models.map(model =>
     normalizeLegacyClaudeModelAlias(toClaudeRuntimeModelId(model.value))
   ));
+  for (const discovered of discoveredModels) {
+    const runtimeModel = toClaudeRuntimeModelId(discovered.value);
+    const normalizedModelId = normalizeLegacyClaudeModelAlias(runtimeModel);
+    if (seenModelIds.has(normalizedModelId)) continue;
+    seenModelIds.add(normalizedModelId);
+    models.push({
+      value: encodeClaudeModelSelectionId(runtimeModel),
+      label: customModelAliases[runtimeModel] ?? discovered.label,
+      description: discovered.description || 'Claude Code model',
+    });
+  }
+
   for (const configuredModelId of parseConfiguredCustomModelIds(claudeSettings.customModels)) {
     const modelId = toClaudeRuntimeModelId(configuredModelId);
     const normalizedModelId = normalizeLegacyClaudeModelAlias(modelId);
