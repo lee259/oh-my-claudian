@@ -1,8 +1,11 @@
+import type { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
 import {
   compareVersions,
   extractVersion,
   isUpdateAvailable,
+  resolveCliVersionInfo,
 } from '@/core/providers/cli/CliVersionUtils';
+import { opencodeCliMetadata } from '@/providers/opencode/runtime/OpencodeCliMetadata';
 
 describe('compareVersions', () => {
   it('compares equal versions as 0', () => {
@@ -77,5 +80,55 @@ describe('extractVersion', () => {
 
   it('returns the trimmed raw output when no version is found', () => {
     expect(extractVersion('  unknown  ')).toBe('unknown');
+  });
+});
+
+describe('resolveCliVersionInfo', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('queries the latest package for the installed major version', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: '2.0.18' }),
+    } as Response);
+    const runner = {
+      run: jest.fn().mockResolvedValue({
+        exitCode: 0,
+        stdout: 'opencode v2.0.18',
+      }),
+    } as unknown as ManagedCommandRunner;
+
+    const info = await resolveCliVersionInfo(
+      '/usr/local/bin/opencode',
+      opencodeCliMetadata,
+      runner,
+      { PATH: '/usr/local/bin' },
+    );
+
+    expect(info).toMatchObject({ version: '2.0.18', latestVersion: '2.0.18' });
+    expect(fetchMock).toHaveBeenCalledWith('https://registry.npmjs.org/@opencode/cli/latest', expect.anything());
+  });
+
+  it('keeps using the default package for other installed major versions', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: '1.18.32' }),
+    } as Response);
+    const runner = {
+      run: jest.fn().mockResolvedValue({
+        exitCode: 0,
+        stdout: 'opencode v1.18.23',
+      }),
+    } as unknown as ManagedCommandRunner;
+
+    const info = await resolveCliVersionInfo(
+      '/usr/local/bin/opencode',
+      opencodeCliMetadata,
+      runner,
+      { PATH: '/usr/local/bin' },
+    );
+
+    expect(info).toMatchObject({ version: '1.18.23', latestVersion: '1.18.32' });
+    expect(fetchMock).toHaveBeenCalledWith('https://registry.npmjs.org/opencode-ai/latest', expect.anything());
   });
 });
