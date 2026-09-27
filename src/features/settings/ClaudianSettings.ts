@@ -239,7 +239,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.settingsTabsRoot = null;
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.addClass('claudian-settings');
+    containerEl.addClass('claudian-settings', 'oh-my-claudian-settings');
     this.refreshTitleModelOptions = null;
 
     setLocale(resolveLocale(this.plugin.settings.locale, getObsidianLanguage()));
