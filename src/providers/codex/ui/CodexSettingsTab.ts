@@ -9,7 +9,6 @@ import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycle
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
-import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
   renderLastEnabledProviderWarning,
   renderProviderModelEnablementWarning,
@@ -36,6 +35,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let installationMethod = codexSettings.installationMethod;
     const environmentModelPlaceholder = getDefaultCodexModel(codexSettings.discoveredModels)?.model
       ?? 'model-id';
+    let refreshCodexCliSummary = async (): Promise<void> => {};
 
     const refreshCodexModelCatalog = async (): Promise<void> => {
       const result = await codexWorkspace.refreshModelCatalog?.();
@@ -62,22 +62,28 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
     const management = readinessPanel.management;
 
-    renderProviderEnablementSetting({
-      container: management,
-      description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
-      getValue: () => getCodexProviderSettings(settingsBag).enabled,
-      name: t('settings.providerEnablement.name', { provider: 'Codex' }),
-      onChange: async (value) => {
-        if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
-          settingsBag,
-          'codex',
-          value,
-        )) {
-          lastProviderWarning.showFor();
-          return;
-        }
+    const providerToggleName = t('settings.providerEnablement.name', { provider: 'Codex' });
+    const syncProviderToggle = (): void => {
+      readinessPanel.setHeaderToggle({
+        name: providerToggleName,
+        checked: getCodexProviderSettings(settingsBag).enabled,
+        onChange: onProviderEnablementChange,
+      });
+    };
 
-        let accepted = true;
+    const onProviderEnablementChange = async (value: boolean): Promise<void> => {
+      if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
+        settingsBag,
+        'codex',
+        value,
+      )) {
+        lastProviderWarning.showFor();
+        syncProviderToggle();
+        return;
+      }
+
+      let accepted = true;
+      try {
         await context.plugin.runProviderExecutionTransition(['codex'], async () => {
           await context.plugin.mutateSettings((settings) => {
             accepted = ProviderSettingsCoordinator.applyProviderEnablement(
@@ -87,15 +93,20 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
             );
           });
         });
-        if (accepted) {
-          lastProviderWarning.hide();
-        } else {
-          lastProviderWarning.showFor();
-        }
-        await readinessPanel.refresh();
-        modelWarning.context.notifyProviderModelOptionsChanged('codex');
-      },
-    });
+      } finally {
+        syncProviderToggle();
+      }
+      if (accepted) {
+        lastProviderWarning.hide();
+      } else {
+        lastProviderWarning.showFor();
+      }
+      await readinessPanel.refresh();
+      await refreshCodexCliSummary();
+      modelWarning.context.notifyProviderModelOptionsChanged('codex');
+    };
+
+    syncProviderToggle();
 
     const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
@@ -125,6 +136,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
                 () => codexWorkspace.cliResolver.reset(),
               );
               refreshInstallationMethodUI();
+              await refreshCodexCliSummary();
               await refreshCodexModelCatalog();
             });
         });
@@ -201,6 +213,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => codexWorkspace.cliResolver.reset(),
         );
+        await refreshCodexCliSummary();
       },
       placeholder: getCliPathCopy().placeholder,
       validate: validatePath,
@@ -358,7 +371,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     // --- CLI lifecycle ---
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: codexCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('codex'),
@@ -366,7 +379,19 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getCodexProviderSettings(settingsBag);
+        const customPath = current.cliPathsByHost[hostnameKey] || current.cliPath;
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(customPath
+            ? 'settings.codex.cliInstallation.customPath'
+            : 'settings.codex.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCodexCliSummary = cliLifecycle.refresh;
 
     // --- Environment ---
 

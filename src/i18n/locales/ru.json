@@ -714,6 +714,10 @@
       "noModelsWarning": "Нет включённых моделей {provider}. В разделе «Модели» ниже включите хотя бы одну модель."
     },
     "codex": {
+      "cliInstallation": {
+        "customPath": "Пользовательский путь",
+        "automaticPath": "Обнаружено автоматически"
+      },
       "installationMethod": {
         "name": "Способ установки",
         "desc": "Как Oh My Claudian должен запускать Codex в Windows. Нативный Windows использует путь к Windows-исполняемому файлу. WSL запускает Linux CLI внутри выбранного дистрибутива.",

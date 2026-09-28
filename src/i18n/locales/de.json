@@ -714,6 +714,10 @@
       "noModelsWarning": "Keine {provider}-Modelle sind aktiviert. Aktivieren Sie unten unter „Modelle“ mindestens ein Modell."
     },
     "codex": {
+      "cliInstallation": {
+        "customPath": "Benutzerdefinierter Pfad",
+        "automaticPath": "Automatisch erkannt"
+      },
       "installationMethod": {
         "name": "Installationsmethode",
         "desc": "Wie Oh My Claudian Codex unter Windows starten soll. Native Windows verwendet einen Windows-Programmpfad. WSL startet die Linux-CLI in einer ausgewählten Distribution.",

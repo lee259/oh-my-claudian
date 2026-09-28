@@ -47,6 +47,8 @@ export interface CliLifecycleSectionOptions {
   /** Re-run the provider readiness check, rendered as a "Check again" button
    *  in the same action area as install/update. */
   onCheckAgain?: () => Promise<void>;
+  /** Notify a provider-owned card summary when its CLI is probed. */
+  onProbe?: (info: CliVersionInfo, cliPath: string | null) => void;
 }
 
 const lifecycleDestructors = new WeakMap<HTMLElement, () => void>();
@@ -83,7 +85,13 @@ export function destroyCliLifecycleSections(container: HTMLElement): void {
  * });
  * ```
  */
-export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): void {
+export interface CliLifecycleSectionController {
+  refresh: () => Promise<void>;
+}
+
+export function renderCliLifecycleSection(
+  options: CliLifecycleSectionOptions,
+): CliLifecycleSectionController {
   const { container, metadata, resolveCliPath, getRuntimeEnvText, app } = options;
 
   const mount = container.createDiv({ cls: 'claudian-cli-lifecycle-mount' });
@@ -137,7 +145,9 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
         npmPackage: metadata.npmPackage,
       }, undefined, currentEnv);
 
+      if (destroyed) return;
       info = cliVersionInfo;
+      options.onProbe?.(cliVersionInfo, cliPath);
       statusText = '';
     } catch {
       info = null;
@@ -211,6 +221,7 @@ export function renderCliLifecycleSection(options: CliLifecycleSectionOptions): 
   lifecycleDestructors.set(mount, destroy);
   render();
   void refresh();
+  return { refresh };
 }
 
 /** Resolve a bare binary name to an absolute path so the update command

@@ -7,6 +7,15 @@ export type CliInstallationCardViewState =
 
 export interface CliInstallationCardViewProps {
   label: string;
+  version: string;
+  sourceText: string;
+  path: string;
+  headerToggle?: {
+    name: string;
+    checked: boolean;
+    disabled: boolean;
+    onChange: (checked: boolean) => Promise<void> | void;
+  };
   bodyId: string;
   state: CliInstallationCardViewState;
   statusText: string;
@@ -17,6 +26,10 @@ export interface CliInstallationCardViewProps {
 
 export function CliInstallationCardView({
   label,
+  version,
+  sourceText,
+  path,
+  headerToggle,
   bodyId,
   state,
   statusText,
@@ -45,7 +58,11 @@ export function CliInstallationCardView({
             <span className="claudian-cli-installation-dot" data-state={state} />
           </span>
           <span className="claudian-cli-installation-summary">
-            <span className="claudian-cli-installation-title">{label}</span>
+            <span className="claudian-cli-installation-title">
+              {label}
+              {version && <span className="claudian-cli-installation-version">{version}</span>}
+            </span>
+            {sourceText && <span className="claudian-cli-installation-source">{sourceText}</span>}
             <span
               className="claudian-cli-installation-status"
               id={statusId}
@@ -60,7 +77,25 @@ export function CliInstallationCardView({
             {expanded ? '⌄' : '›'}
           </span>
         </button>
+        {headerToggle && (
+          <div className="claudian-cli-installation-header-actions">
+            <input
+              aria-label={headerToggle.name}
+              aria-disabled={headerToggle.disabled}
+              checked={headerToggle.checked}
+              disabled={headerToggle.disabled}
+              role="switch"
+              type="checkbox"
+              onChange={(event) => headerToggle.onChange(event.currentTarget.checked)}
+            />
+          </div>
+        )}
       </div>
+      {path && (
+        <div className="claudian-cli-installation-path" title={path}>
+          <code>{path}</code>
+        </div>
+      )}
       <div
         className="claudian-cli-installation-body"
         id={bodyId}

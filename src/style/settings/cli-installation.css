@@ -14,6 +14,11 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
+.claudian-settings .claudian-cli-installation-header-actions {
+  flex: 0 0 auto;
+  padding-right: var(--size-4-4);
+}
+
 .claudian-settings .claudian-cli-installation-header,
 .claudian-settings .claudian-cli-installation-header:hover,
 .claudian-settings .claudian-cli-installation-header:focus,
@@ -95,9 +100,28 @@
 }
 
 .claudian-cli-installation-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--size-4-2);
   color: var(--text-normal);
   font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
+}
+
+.claudian-cli-installation-version {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-cli-installation-source {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
 
 .claudian-cli-installation-status {
@@ -113,6 +137,24 @@
   color: var(--text-muted);
   font-size: 22px;
   line-height: 1;
+}
+
+.claudian-settings .claudian-cli-installation-path {
+  overflow: hidden;
+  padding: var(--size-4-2) var(--size-4-4);
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-settings .claudian-cli-installation-path code {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  font-family: var(--font-monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .claudian-cli-installation-body {

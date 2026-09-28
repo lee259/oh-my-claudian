@@ -714,6 +714,10 @@
       "noModelsWarning": "No {provider} models are enabled. Go to Models below and enable at least one model."
     },
     "codex": {
+      "cliInstallation": {
+        "customPath": "Custom path",
+        "automaticPath": "Detected automatically"
+      },
       "installationMethod": {
         "name": "Installation method",
         "desc": "How Oh My Claudian should launch Codex on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro.",

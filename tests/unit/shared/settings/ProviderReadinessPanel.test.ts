@@ -126,6 +126,36 @@ describe('renderProviderReadinessPanel', () => {
     expect(controller.root.contains(management)).toBe(true);
   });
 
+  it('renders provider installation details and exposes a stable header control slot', () => {
+    const container = document.createElement('div');
+    const controller = renderProviderReadinessPanel({
+      container,
+      providerName: 'Codex',
+      getSnapshot: async () => ({ status: 'ready', checks: [] }),
+    });
+
+    const onChange = jest.fn();
+    controller.setHeaderToggle({ name: 'Enable Codex', checked: true, onChange });
+    controller.setInstallationSummary({
+      version: '0.157.1',
+      sourceText: 'Custom path',
+      path: '/opt/codex/bin/codex',
+    });
+
+    const toggle = container.querySelector<HTMLInputElement>('[role="switch"]');
+    expect(toggle?.getAttribute('aria-label')).toBe('Enable Codex');
+    expect(toggle?.checked).toBe(true);
+    toggle!.checked = false;
+    toggle!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onChange).toHaveBeenCalledWith(false);
+    expect(container.querySelector('.claudian-cli-installation-title')?.textContent)
+      .toContain('0.157.1');
+    expect(container.querySelector('.claudian-cli-installation-source')?.textContent)
+      .toBe('Custom path');
+    expect(container.querySelector('.claudian-cli-installation-path code')?.textContent)
+      .toBe('/opt/codex/bin/codex');
+  });
+
   it('destroys the card and its rendering root through the controller', () => {
     const container = document.createElement('div');
     const controller = renderProviderReadinessPanel({

@@ -714,6 +714,10 @@
       "noModelsWarning": "未启用任何 {provider} 模型。请前往下方的“模型”部分并至少启用一个模型。"
     },
     "codex": {
+      "cliInstallation": {
+        "customPath": "自定义路径",
+        "automaticPath": "自动检测"
+      },
       "installationMethod": {
         "name": "安装方式",
         "desc": "Oh My Claudian 在 Windows 上启动 Codex 的方式。原生 Windows 使用 Windows 可执行文件路径；WSL 会在所选发行版内启动 Linux CLI。",
