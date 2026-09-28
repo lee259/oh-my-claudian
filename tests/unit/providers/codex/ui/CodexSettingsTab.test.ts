@@ -22,22 +22,24 @@ const mockCodexCliResolverReset = jest.fn();
 const mockRefreshCodexModelPicker = jest.fn();
 const mockRefreshProviderReadiness = jest.fn().mockResolvedValue(undefined);
 const mockRenderCliLifecycleRefresh = jest.fn().mockResolvedValue(undefined);
-const mockProviderHeaderToggles: Array<{
+const mockProviderEnablementOptions: Array<{
+  container: unknown;
+  description: string;
+  getValue: () => boolean;
   name: string;
-  checked: boolean;
   onChange: (enabled: boolean) => Promise<void> | void;
 }> = [];
 let mockProviderManagement: ReturnType<typeof createContainer> | undefined;
+let mockProviderEnablement: ReturnType<typeof createContainer> | undefined;
 function createMockProviderReadinessPanel() {
   mockProviderManagement = createContainer();
+  mockProviderEnablement = createContainer();
   return {
     refresh: mockRefreshProviderReadiness,
     root: { createDiv: jest.fn(() => createElement()), createEl: jest.fn(() => createElement()) },
     management: mockProviderManagement,
+    enablement: mockProviderEnablement,
     setInstallationSummary: jest.fn(),
-    setHeaderToggle: (toggle: typeof mockProviderHeaderToggles[number]) => {
-      mockProviderHeaderToggles.push(toggle);
-    },
     cliDetail: { createDiv: jest.fn(() => createElement()) },
   };
 }
@@ -70,6 +72,12 @@ jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
 }));
 jest.mock('@/shared/settings/CliLifecycleSection', () => ({
   renderCliLifecycleSection: () => ({ refresh: mockRenderCliLifecycleRefresh }),
+}));
+jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
+  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
+    mockProviderEnablementOptions.push(options);
+    return { dispose: jest.fn(), setDisabled: jest.fn() };
+  },
 }));
 
 jest.mock('fs');
@@ -379,7 +387,7 @@ describe('CodexSettingsTab', () => {
 
   beforeEach(() => {
     mockHostnameCliPathOptions.length = 0;
-    mockProviderHeaderToggles.length = 0;
+    mockProviderEnablementOptions.length = 0;
     mockRenderCliLifecycleRefresh.mockClear();
     createdSettings.length = 0;
     jest.clearAllMocks();
@@ -448,8 +456,9 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const enablement = mockProviderHeaderToggles[0];
+    const enablement = mockProviderEnablementOptions[0];
     expect(enablement.name).toBe('Enable Codex');
+    expect(enablement.container).toBe(mockProviderEnablement);
     await enablement.onChange(false);
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
@@ -488,7 +497,7 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const enablement = mockProviderHeaderToggles[0];
+    const enablement = mockProviderEnablementOptions[0];
     await enablement.onChange(true);
 
     expect(plugin.runProviderExecutionTransition).toHaveBeenCalledWith(
@@ -496,7 +505,7 @@ describe('CodexSettingsTab', () => {
       expect.any(Function),
     );
     expect(plugin.settings.providerConfigs.codex.enabled).toBe(true);
-    expect(mockProviderHeaderToggles.at(-1)?.checked).toBe(true);
+    expect(enablement.getValue()).toBe(true);
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(registry.getProviderGeneration('codex')).toBe(1);
     expect(mockRefreshModelCatalog).not.toHaveBeenCalled();
@@ -521,7 +530,7 @@ describe('CodexSettingsTab', () => {
       const context = createContext(plugin);
 
       codexSettingsTabRenderer.render(createContainer(), context);
-      const enablement = mockProviderHeaderToggles[0];
+      const enablement = mockProviderEnablementOptions[0];
 
       await expect(enablement.onChange(false)).rejects.toThrow(
         'enablement transition failed',

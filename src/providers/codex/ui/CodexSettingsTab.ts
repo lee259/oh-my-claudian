@@ -5,6 +5,7 @@ import { assessProviderReadiness } from '../../../core/providers/ProviderReadine
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { OPENAI_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
@@ -47,6 +48,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: OPENAI_PROVIDER_ICON,
       providerName: 'Codex',
       async getSnapshot() {
         const current = getCodexProviderSettings(settingsBag);
@@ -64,8 +66,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
       getValue: () => getCodexProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Codex' }),

@@ -1,15 +1,16 @@
-import { h } from 'preact';
+import type { ProviderIconSvg } from '../../core/providers/types';
+import { createProviderIconSvg } from '../icons';
 
-import { createPreactRoot } from '../ui/PreactRoot';
-import {
-  CliInstallationCardView,
-  type CliInstallationCardViewState,
-} from './CliInstallationCardView';
-
-export type CliInstallationCardState = CliInstallationCardViewState;
+export type CliInstallationCardState =
+  | 'checking'
+  | 'disabled'
+  | 'blocked'
+  | 'attention'
+  | 'ready';
 
 export interface CliInstallationCardOptions {
   container: HTMLElement;
+  icon?: ProviderIconSvg;
   label: string;
   expanded?: boolean;
 }
@@ -20,20 +21,12 @@ export interface CliInstallationCardSummary {
   path?: string | null;
 }
 
-export interface CliInstallationCardToggle {
-  name: string;
-  description?: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => Promise<void> | void;
-}
-
 export interface CliInstallationCardController {
   card: HTMLElement;
   body: HTMLElement;
+  enablement: HTMLElement;
   setStatus: (state: CliInstallationCardState, text: string) => void;
   setSummary: (summary: CliInstallationCardSummary) => void;
-  setToggle: (toggle: CliInstallationCardToggle | null) => void;
   destroy: () => void;
 }
 
@@ -57,77 +50,79 @@ export function renderCliInstallationCard(
   options: CliInstallationCardOptions,
 ): CliInstallationCardController {
   const mount = options.container.createDiv({ cls: 'claudian-cli-installation-mount' });
-  const root = createPreactRoot(mount);
-  const bodyId = `claudian-cli-installation-${++nextCardId}`;
-  let expanded = options.expanded ?? true;
-  let state: CliInstallationCardState = 'checking';
-  let statusText = '';
-  let body: HTMLElement | null = null;
-  let summary: CliInstallationCardSummary = {};
-  let toggle: CliInstallationCardToggle | null = null;
-
-  const render = (): void => {
-    root.render(h(CliInstallationCardView, {
-      label: options.label,
-      version: summary.version ?? '',
-      sourceText: summary.sourceText ?? '',
-      path: summary.path ?? '',
-      headerToggle: toggle ? {
-        name: toggle.name,
-        description: toggle.description,
-        checked: toggle.checked,
-        disabled: toggle.disabled ?? false,
-        onChange: toggle.onChange,
-      } : undefined,
-      bodyId,
-      state,
-      statusText,
-      expanded,
-      onToggle: () => {
-        expanded = !expanded;
-        render();
-      },
-      bodyRef: (nextBody) => {
-        body = nextBody;
-      },
-    }));
-  };
-
-  render();
-
-  const card = mount.querySelector<HTMLElement>('.claudian-cli-installation');
-  if (!card || !body) {
-    root.unmount();
-    mount.remove();
-    throw new Error('Could not mount the CLI installation card.');
+  const card = mount.createDiv({ cls: 'claudian-cli-installation' });
+  const heading = card.createDiv({ cls: 'claudian-cli-installation-heading' });
+  const header = heading.createEl('button', {
+    cls: 'claudian-cli-installation-header',
+    attr: {
+      type: 'button',
+      'aria-label': `${options.label} details`,
+      'aria-expanded': String(options.expanded ?? true),
+    },
+  });
+  const icon = header.createSpan({ cls: 'claudian-cli-installation-icon', attr: { 'aria-hidden': 'true' } });
+  if (options.icon) {
+    createProviderIconSvg(options.icon, { parent: icon, width: 26, height: 26 });
+  } else {
+    icon.setText('⌘');
   }
+  const dot = icon.createSpan({ cls: 'claudian-cli-installation-dot' });
+  const details = header.createSpan({ cls: 'claudian-cli-installation-summary' });
+  const title = details.createSpan({ cls: 'claudian-cli-installation-title' });
+  title.createSpan({ text: options.label });
+  const version = title.createSpan({ cls: 'claudian-cli-installation-version' });
+  const source = details.createSpan({ cls: 'claudian-cli-installation-source' });
+  const status = details.createSpan({
+    cls: 'claudian-cli-installation-status',
+    attr: { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' },
+  });
+  const chevron = header.createSpan({
+    cls: 'claudian-cli-installation-chevron',
+    text: options.expanded === false ? '›' : '⌄',
+    attr: { 'aria-hidden': 'true' },
+  });
+  const enablement = heading.createDiv({ cls: 'claudian-cli-installation-enablement' });
+  const pathRow = card.createDiv({ cls: 'claudian-cli-installation-path' });
+  const path = pathRow.createEl('code');
+  const body = card.createDiv({ cls: 'claudian-cli-installation-body' });
+  const bodyId = `claudian-cli-installation-${++nextCardId}`;
+  const headerId = `${bodyId}-header`;
+  const statusId = `${bodyId}-status`;
+  body.id = bodyId;
+  body.hidden = options.expanded === false;
+  body.setAttribute('role', 'region');
+  body.setAttribute('aria-labelledby', headerId);
+  header.id = headerId;
+  header.setAttribute('aria-controls', bodyId);
+  header.setAttribute('aria-describedby', statusId);
+  status.id = statusId;
 
-  const setStatus = (nextState: CliInstallationCardState, text: string): void => {
-    state = nextState;
-    statusText = text;
-    render();
+  header.addEventListener('click', () => {
+    body.hidden = !body.hidden;
+    header.setAttribute('aria-expanded', String(!body.hidden));
+    chevron.setText(body.hidden ? '›' : '⌄');
+  });
+
+  const setStatus = (state: CliInstallationCardState, text: string): void => {
+    card.dataset.state = state;
+    dot.dataset.state = state;
+    status.setText(text);
   };
 
-  const setSummary = (nextSummary: CliInstallationCardSummary): void => {
-    summary = nextSummary;
-    render();
-  };
-
-  const setToggle = (nextToggle: CliInstallationCardToggle | null): void => {
-    toggle = nextToggle;
-    render();
+  const setSummary = (summary: CliInstallationCardSummary): void => {
+    version.setText(summary.version ? `v${summary.version.replace(/^v/u, '')}` : '');
+    source.setText(summary.sourceText ?? '');
+    path.setText(summary.path ?? '');
+    pathRow.title = summary.path ?? '';
+    pathRow.hidden = !summary.path;
   };
 
   const destroy = (): void => {
-    if (!mountedCardDestructors.has(mount)) {
-      return;
-    }
+    if (!mountedCardDestructors.has(mount)) return;
     mountedCardDestructors.delete(mount);
-    root.unmount();
     mount.remove();
   };
 
   mountedCardDestructors.set(mount, destroy);
-
-  return { card, body, setStatus, setSummary, setToggle, destroy };
+  return { card, body, enablement, setStatus, setSummary, destroy };
 }

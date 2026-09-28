@@ -205,6 +205,7 @@ function createMockProviderReadinessPanel() {
     refresh: jest.fn().mockResolvedValue(undefined),
     root: createElement(),
     management: createElement(),
+    enablement: createElement(),
     cliDetail: createElement(),
     destroy: jest.fn(),
   };

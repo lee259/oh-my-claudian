@@ -8,6 +8,7 @@ import type {
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { OPENCODE_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
@@ -52,6 +53,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: OPENCODE_PROVIDER_ICON,
       providerName: 'OpenCode',
       async getSnapshot() {
         const current = getOpencodeProviderSettings(settingsBag);
@@ -79,8 +81,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.providerEnablement.desc', { provider: 'OpenCode' }),
       getValue: () => getOpencodeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'OpenCode' }),
