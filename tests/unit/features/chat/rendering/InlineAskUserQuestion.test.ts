@@ -318,6 +318,28 @@ describe('InlineAskUserQuestion', () => {
       const checkedAfter = checksAfter.filter((c: any) => c.hasClass('is-checked')).length;
       expect(checkedAfter).toBe(1);
     });
+
+    it('checks a multi-select custom answer as soon as text is entered', () => {
+      const input = makeInput([
+        { question: 'Pick many', options: ['X', 'Y'], multiSelect: true, isOther: true },
+      ]);
+      const { container } = renderWidget(input);
+      const customItem = container.querySelector('.claudian-ask-custom-item');
+      const customInput = customItem?.querySelector('.claudian-ask-custom-text');
+      const checkbox = customItem?.querySelector('.claudian-ask-check');
+
+      customInput.value = 'Something else';
+      customInput.dispatchEvent({ type: 'input' });
+
+      expect(customItem?.hasClass('is-selected')).toBe(true);
+      expect(checkbox?.hasClass('is-checked')).toBe(true);
+
+      customInput.value = '';
+      customInput.dispatchEvent({ type: 'input' });
+
+      expect(customItem?.hasClass('is-selected')).toBe(false);
+      expect(checkbox?.hasClass('is-checked')).toBe(false);
+    });
   });
 
   describe('handleSubmit', () => {
