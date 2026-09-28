@@ -49,7 +49,7 @@ Live execution state and replay state are separate authorities. Do not fill gaps
 ## History Gotchas
 
 - A session file may contain legacy records and modern records. Prefer the modern path if any modern records are present.
-- Do not replay `type: 'compacted'` `replacement_history` as visible UI history. The durable visible marker is `event_msg:context_compacted`.
+- Do not replay `type: 'compacted'` `replacement_history` as visible UI history. Render the compaction boundary from either its record or `event_msg:context_compacted`, deduplicating paired representations.
 - Session file names may include a date prefix. Keep DFS fallback in session-file lookup.
 - Historical selected-model recovery must honor the persisted rollback/fork checkpoint. For a materialized fork, validate the source segment before trusting the fork transcript, search trusted archived roots when the active session path no longer exists, and never make invalidated thread metadata resumable.
 
