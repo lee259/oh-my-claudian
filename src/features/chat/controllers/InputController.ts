@@ -1266,6 +1266,19 @@ export class InputController {
       } else {
         await this.deps.streamController.finalizeCurrentThinkingBlock(previousAssistant);
         await this.deps.streamController.finalizeCurrentTextBlock(previousAssistant);
+        const responseStartTime = this.deps.state.responseStartTime;
+        if (responseStartTime !== null) {
+          const durationSeconds = Math.floor(
+            (performance.now() - responseStartTime) / 1_000,
+          );
+          if (durationSeconds > 0) {
+            previousAssistant.durationSeconds = durationSeconds;
+            previousAssistant.durationFlavorWord = COMPLETION_FLAVOR_WORDS[
+              Math.floor(Math.random() * COMPLETION_FLAVOR_WORDS.length)
+            ];
+          }
+        }
+        this.deps.renderer.finalizeCompletedWork(previousAssistant, false);
       }
     }
     this.deps.streamController.hideThinkingIndicator();
@@ -1318,6 +1331,7 @@ export class InputController {
     if (previousAssistant) {
       await this.deps.streamController.finalizeCurrentThinkingBlock(previousAssistant);
       await this.deps.streamController.finalizeCurrentTextBlock(previousAssistant);
+      this.deps.renderer.finalizeCompletedWork(previousAssistant, false);
     }
 
     const assistantMessage: ChatMessage = {
