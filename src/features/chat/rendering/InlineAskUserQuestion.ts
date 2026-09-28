@@ -82,6 +82,8 @@ export class InlineAskUserQuestion {
 
     if (!this.config.immediateSelect) {
       this.tabBar = this.rootEl.createDiv({ cls: 'claudian-ask-tab-bar' });
+      this.tabBar.setAttribute('role', 'group');
+      this.tabBar.setAttribute('aria-label', 'Questions');
       this.renderTabBar();
     }
     this.contentArea = this.rootEl.createDiv({ cls: 'claudian-ask-content' });
@@ -188,22 +190,32 @@ export class InlineAskUserQuestion {
 
     for (let idx = 0; idx < this.questions.length; idx++) {
       const answered = this.isQuestionAnswered(idx);
-      const tab = this.tabBar.createSpan({ cls: 'claudian-ask-tab' });
+      const tab = this.tabBar.createEl('button', { cls: 'claudian-ask-tab' });
+      tab.setAttribute('type', 'button');
       tab.createSpan({ text: this.questions[idx].header, cls: 'claudian-ask-tab-label' });
       tab.createSpan({ text: answered ? ' \u2713' : '', cls: 'claudian-ask-tab-tick' });
       tab.setAttribute('title', this.questions[idx].question);
+      tab.setAttribute('aria-label', `${this.questions[idx].header}: ${this.questions[idx].question}${answered ? ', answered' : ', unanswered'}`);
 
-      if (idx === this.activeTabIndex) tab.addClass('is-active');
+      if (idx === this.activeTabIndex) {
+        tab.addClass('is-active');
+        tab.setAttribute('aria-current', 'step');
+      }
       if (answered) tab.addClass('is-answered');
       tab.addEventListener('click', () => this.switchTab(idx));
       this.tabElements.push(tab);
     }
 
     const allAnswered = this.questions.every((_, i) => this.isQuestionAnswered(i));
-    const submitTab = this.tabBar.createSpan({ cls: 'claudian-ask-tab' });
+    const submitTab = this.tabBar.createEl('button', { cls: 'claudian-ask-tab' });
+    submitTab.setAttribute('type', 'button');
+    submitTab.setAttribute('aria-label', 'Review answers');
     submitTab.createSpan({ text: allAnswered ? '\u2713 ' : '', cls: 'claudian-ask-tab-submit-check' });
     submitTab.createSpan({ text: 'Submit', cls: 'claudian-ask-tab-label' });
-    if (this.activeTabIndex === this.questions.length) submitTab.addClass('is-active');
+    if (this.activeTabIndex === this.questions.length) {
+      submitTab.addClass('is-active');
+      submitTab.setAttribute('aria-current', 'step');
+    }
     submitTab.addEventListener('click', () => this.switchTab(this.questions.length));
     this.tabElements.push(submitTab);
   }
@@ -254,7 +266,10 @@ export class InlineAskUserQuestion {
       const optionValue = this.getOptionValue(option);
       const isSelected = selected.has(optionValue);
 
-      const row = listEl.createDiv({ cls: 'claudian-ask-item' });
+      const row = listEl.createEl('button', { cls: 'claudian-ask-item' });
+      row.setAttribute('type', 'button');
+      row.setAttribute('aria-pressed', `${isSelected}`);
+      row.setAttribute('aria-label', option.description ? `${option.label}: ${option.description}` : option.label);
       if (isFocused) row.addClass('is-focused');
       if (isSelected) row.addClass('is-selected');
 
@@ -265,8 +280,8 @@ export class InlineAskUserQuestion {
         this.renderMultiSelectCheckbox(row, isSelected);
       }
 
-      const labelBlock = row.createDiv({ cls: 'claudian-ask-item-content' });
-      const labelRow = labelBlock.createDiv({ cls: 'claudian-ask-label-row' });
+      const labelBlock = row.createSpan({ cls: 'claudian-ask-item-content' });
+      const labelRow = labelBlock.createSpan({ cls: 'claudian-ask-label-row' });
       labelRow.createSpan({ text: option.label, cls: 'claudian-ask-item-label' });
 
       if (!isMulti && isSelected) {
@@ -274,7 +289,7 @@ export class InlineAskUserQuestion {
       }
 
       if (option.description) {
-        labelBlock.createDiv({ text: option.description, cls: 'claudian-ask-item-desc' });
+        labelBlock.createSpan({ text: option.description, cls: 'claudian-ask-item-desc' });
       }
 
       row.addEventListener('click', () => {
@@ -351,11 +366,13 @@ export class InlineAskUserQuestion {
       const q = this.questions[idx];
       const answerText = this.getAnswerText(idx);
 
-      const pairEl = reviewEl.createDiv({ cls: 'claudian-ask-review-pair' });
-      pairEl.createDiv({ text: `${idx + 1}.`, cls: 'claudian-ask-review-num' });
-      const bodyEl = pairEl.createDiv({ cls: 'claudian-ask-review-body' });
-      bodyEl.createDiv({ text: q.question, cls: 'claudian-ask-review-q-text' });
-      bodyEl.createDiv({
+      const pairEl = reviewEl.createEl('button', { cls: 'claudian-ask-review-pair' });
+      pairEl.setAttribute('type', 'button');
+      pairEl.setAttribute('aria-label', `Edit answer for ${q.question}`);
+      pairEl.createSpan({ text: `${idx + 1}.`, cls: 'claudian-ask-review-num' });
+      const bodyEl = pairEl.createSpan({ cls: 'claudian-ask-review-body' });
+      bodyEl.createSpan({ text: q.question, cls: 'claudian-ask-review-q-text' });
+      bodyEl.createSpan({
         text: answerText || 'Not answered',
         cls: answerText ? 'claudian-ask-review-a-text' : 'claudian-ask-review-empty',
       });
@@ -370,7 +387,10 @@ export class InlineAskUserQuestion {
     const actionsEl = this.contentArea.createDiv({ cls: 'claudian-ask-list' });
     const allAnswered = this.questions.every((_, i) => this.isQuestionAnswered(i));
 
-    const submitRow = actionsEl.createDiv({ cls: 'claudian-ask-item' });
+    const submitRow = actionsEl.createEl('button', { cls: 'claudian-ask-item' });
+    submitRow.setAttribute('type', 'button');
+    submitRow.setAttribute('aria-disabled', `${!allAnswered}`);
+    submitRow.setAttribute('aria-label', 'Submit answers');
     if (this.focusedItemIndex === 0) submitRow.addClass('is-focused');
     if (!allAnswered) submitRow.addClass('is-disabled');
     submitRow.createSpan({ text: this.focusedItemIndex === 0 ? '\u203A' : '\u00A0', cls: 'claudian-ask-cursor' });
@@ -383,7 +403,9 @@ export class InlineAskUserQuestion {
     });
     this.currentItems.push(submitRow);
 
-    const cancelRow = actionsEl.createDiv({ cls: 'claudian-ask-item' });
+    const cancelRow = actionsEl.createEl('button', { cls: 'claudian-ask-item' });
+    cancelRow.setAttribute('type', 'button');
+    cancelRow.setAttribute('aria-label', 'Cancel');
     if (this.focusedItemIndex === 1) cancelRow.addClass('is-focused');
     cancelRow.createSpan({ text: this.focusedItemIndex === 1 ? '\u203A' : '\u00A0', cls: 'claudian-ask-cursor' });
     cancelRow.createSpan({ text: '2. ', cls: 'claudian-ask-item-num' });
@@ -461,6 +483,7 @@ export class InlineAskUserQuestion {
       const isSelected = selected.has(this.getOptionValue(q.options[i]));
 
       item.toggleClass('is-selected', isSelected);
+      item.setAttribute('aria-pressed', `${isSelected}`);
 
       if (isMulti) {
         const checkSpan = item.querySelector('.claudian-ask-check');
@@ -501,6 +524,7 @@ export class InlineAskUserQuestion {
       const tick = tab.querySelector('.claudian-ask-tab-tick');
       const answered = this.isQuestionAnswered(idx);
       tab.toggleClass('is-answered', answered);
+      tab.setAttribute('aria-label', `${this.questions[idx].header}: ${this.questions[idx].question}${answered ? ', answered' : ', unanswered'}`);
       if (tick) tick.textContent = answered ? ' \u2713' : '';
     }
     const submitTab = this.tabElements[this.questions.length];
