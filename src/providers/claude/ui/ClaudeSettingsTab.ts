@@ -5,6 +5,7 @@ import { assessProviderReadiness } from '../../../core/providers/ProviderReadine
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { CLAUDE_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
@@ -41,6 +42,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: CLAUDE_PROVIDER_ICON,
       providerName: 'Claude',
       async getSnapshot() {
         const current = getClaudeProviderSettings(settingsBag);
@@ -89,8 +91,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     };
 
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.providerEnablement.desc', { provider: 'Claude' }),
       getValue: () => getClaudeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Claude' }),

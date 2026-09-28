@@ -8,6 +8,7 @@ import type {
   ProviderSettingsTabRenderer,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { OMP_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
@@ -35,6 +36,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: OMP_PROVIDER_ICON,
       providerName: 'OMP',
       async getSnapshot() {
         const provider = getOmpProviderSettings(settings);
@@ -57,8 +59,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
     const management = readinessPanel.management;
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.omp.enableDesc'),
       getValue: () => getOmpProviderSettings(settings).enabled,
       name: t('settings.omp.enable'),

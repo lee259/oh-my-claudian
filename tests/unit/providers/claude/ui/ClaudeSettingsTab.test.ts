@@ -274,13 +274,15 @@ function createContainer(): any {
 
 function createMockProviderReadinessPanel(options: { container: any }) {
   const card = options.container.createDiv({ cls: 'claudian-cli-installation' });
-  card.createDiv({ cls: 'claudian-cli-installation-heading' });
+  const heading = card.createDiv({ cls: 'claudian-cli-installation-heading' });
+  const enablement = heading.createDiv({ cls: 'claudian-cli-installation-enablement' });
   const body = card.createDiv({ cls: 'claudian-cli-installation-body' });
   const management = body.createDiv({ cls: 'claudian-cli-installation-management' });
   return {
     refresh: jest.fn().mockResolvedValue(undefined),
     root: card,
     management,
+    enablement,
     cliDetail: body.createDiv({ cls: 'claudian-provider-readiness-cli-detail' }),
     destroy: jest.fn(),
   };

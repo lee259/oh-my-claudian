@@ -7,18 +7,19 @@ import type {
   ProviderReadinessSnapshot,
   ProviderReadinessStatus,
 } from '../../core/providers/ProviderReadiness';
+import type { ProviderIconSvg } from '../../core/providers/types';
 import { t } from '../../i18n/i18n';
 import type { TranslationKey } from '../../i18n/types';
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import {
   type CliInstallationCardSummary,
-  type CliInstallationCardToggle,
   renderCliInstallationCard,
 } from './CliInstallationCard';
 import { ProviderReadinessView, type ProviderReadinessViewCheck } from './ProviderReadinessView';
 
 export interface ProviderReadinessPanelOptions {
   container: HTMLElement;
+  icon?: ProviderIconSvg;
   providerName: string;
   getSnapshot: () => Promise<ProviderReadinessSnapshot>;
   onRefresh?: () => Promise<void>;
@@ -32,10 +33,10 @@ export interface ProviderReadinessPanelController {
   root: HTMLElement;
   /** Stable container for provider-specific management controls such as CLI paths. */
   management: HTMLElement;
+  /** Compact provider enablement control slot in the CLI card header. */
+  enablement: HTMLElement;
   /** Update optional provider-owned CLI details shown above readiness content. */
   setInstallationSummary(summary: CliInstallationCardSummary): void;
-  /** Set or remove an interactive provider control in the card header. */
-  setHeaderToggle(toggle: CliInstallationCardToggle | null): void;
   /** Stable container for CLI lifecycle content, rendered below the checks.
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
@@ -61,6 +62,7 @@ export function renderProviderReadinessPanel(
 ): ProviderReadinessPanelController {
   const installationCard = renderCliInstallationCard({
     container: options.container,
+    icon: options.icon,
     label: `${options.providerName} CLI`,
   });
   const root = installationCard.card;
@@ -128,8 +130,8 @@ export function renderProviderReadinessPanel(
     refresh,
     root,
     management,
+    enablement: installationCard.enablement,
     setInstallationSummary: installationCard.setSummary,
-    setHeaderToggle: installationCard.setToggle,
     cliDetail,
     destroy: dispose,
   };

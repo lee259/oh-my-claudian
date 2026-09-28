@@ -97,7 +97,6 @@ jest.mock('obsidian', () => {
   return { Setting: MockSetting };
 });
 
-import type { CliInstallationCardToggle } from '@/shared/settings/CliInstallationCard';
 import {
   destroyHostnameCliPathSettings,
   renderHostnameCliPathSetting,
@@ -164,29 +163,28 @@ describe('provider settings controls', () => {
     control.dispose();
   });
 
-  it('renders the enablement switch through the supplied CLI card header', async () => {
-    let persisted = true;
-    const headerToggleState: { current: CliInstallationCardToggle | null } = { current: null };
+  it('renders the compact CLI header switch with the host switch styling', async () => {
+    let persisted = false;
     const container = document.createElement('div');
+    container.classList.add('claudian-cli-installation-enablement');
     const control = renderProviderEnablementSetting({
       container,
-      description: 'Header toggle description',
+      description: 'Enable the provider',
       getValue: () => persisted,
       name: 'Enable Test Provider',
-      onChange: async enabled => { persisted = enabled; },
-      setHeaderToggle: toggle => { headerToggleState.current = toggle; },
+      onChange: async (enabled) => { persisted = enabled; },
     });
+    const toggle = getEnablementToggle(container);
 
-    expect(container.childElementCount).toBe(0);
-    expect(headerToggleState.current?.checked).toBe(true);
-    expect(headerToggleState.current?.description).toBe('Header toggle description');
-
-    await headerToggleState.current?.onChange(false);
-    expect(persisted).toBe(false);
-    expect(headerToggleState.current?.checked).toBe(false);
+    expect(container.querySelector('.checkbox-container')).not.toBeNull();
+    dispatchToggle(toggle, true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(persisted).toBe(true);
+    expect(getEnablementToggle(container).checked).toBe(true);
 
     control.dispose();
-    expect(headerToggleState.current).toBeNull();
+    expect(container.childElementCount).toBe(0);
   });
 
   it('toggles provider enablement repeatedly from the switch track', async () => {
