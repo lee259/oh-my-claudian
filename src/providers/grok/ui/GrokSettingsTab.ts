@@ -12,6 +12,7 @@ import type {
 } from '../../../core/providers/types';
 import type { ClaudianSettings } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { GROK_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
@@ -64,6 +65,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: GROK_PROVIDER_ICON,
       providerName: 'Grok',
       async getSnapshot() {
         const current = getGrokProviderSettings(settingsBag);
@@ -83,8 +85,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.providerEnablement.desc', { provider: 'Grok' }),
       getValue: () => getGrokProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Grok' }),

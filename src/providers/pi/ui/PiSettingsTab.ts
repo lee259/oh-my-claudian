@@ -9,6 +9,7 @@ import type {
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { PI_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
@@ -44,6 +45,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
+      icon: PI_PROVIDER_ICON,
       providerName: 'Pi',
       async getSnapshot() {
         const current = getPiProviderSettings(settingsBag);
@@ -77,8 +79,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
 
     renderProviderEnablementSetting({
-      container: management,
-      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      container: readinessPanel.enablement,
       description: t('settings.providerEnablement.desc', { provider: 'Pi' }),
       getValue: () => getPiProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Pi' }),

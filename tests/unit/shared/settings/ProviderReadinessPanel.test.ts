@@ -34,6 +34,9 @@ describe('renderProviderReadinessPanel', () => {
     const header = card?.querySelector<HTMLButtonElement>('.claudian-cli-installation-header');
     const body = card?.querySelector<HTMLElement>('.claudian-cli-installation-body');
     const management = card?.querySelector<HTMLElement>('.claudian-cli-installation-management');
+    const retainedControl = document.createElement('span');
+    retainedControl.textContent = 'Retained provider settings';
+    management?.append(retainedControl);
 
     expect(controller.root).toBe(card);
     expect(controller.management).toBe(management);
@@ -53,6 +56,13 @@ describe('renderProviderReadinessPanel', () => {
 
     expect(header?.getAttribute('aria-expanded')).toBe('false');
     expect(body?.hidden).toBe(true);
+    expect(management?.contains(retainedControl)).toBe(true);
+
+    header?.click();
+
+    expect(header?.getAttribute('aria-expanded')).toBe('true');
+    expect(body?.hidden).toBe(false);
+    expect(management?.contains(retainedControl)).toBe(true);
   });
 
   it('shows an actionable hint for each blocked or attention check', async () => {
@@ -126,7 +136,7 @@ describe('renderProviderReadinessPanel', () => {
     expect(controller.root.contains(management)).toBe(true);
   });
 
-  it('renders provider installation details and exposes a stable header control slot', () => {
+  it('renders provider installation details and a native enablement slot', () => {
     const container = document.createElement('div');
     const controller = renderProviderReadinessPanel({
       container,
@@ -134,20 +144,14 @@ describe('renderProviderReadinessPanel', () => {
       getSnapshot: async () => ({ status: 'ready', checks: [] }),
     });
 
-    const onChange = jest.fn();
-    controller.setHeaderToggle({ name: 'Enable Codex', checked: true, onChange });
     controller.setInstallationSummary({
       version: '0.157.1',
       sourceText: 'Custom path',
       path: '/opt/codex/bin/codex',
     });
 
-    const toggle = container.querySelector<HTMLInputElement>('[role="switch"]');
-    expect(toggle?.getAttribute('aria-label')).toBe('Enable Codex');
-    expect(toggle?.checked).toBe(true);
-    toggle!.checked = false;
-    toggle!.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onChange).toHaveBeenCalledWith(false);
+    expect(controller.enablement.parentElement)
+      .toBe(container.querySelector('.claudian-cli-installation-heading'));
     expect(container.querySelector('.claudian-cli-installation-title')?.textContent)
       .toContain('0.157.1');
     expect(container.querySelector('.claudian-cli-installation-source')?.textContent)
