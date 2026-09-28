@@ -924,7 +924,6 @@ function renderAskUserQuestionResult(container: HTMLElement, toolCall: ToolCallI
       (q.id ? answers[q.id] : undefined) ?? answers[q.question]
     );
     const pairEl = reviewEl.createDiv({ cls: 'claudian-ask-review-pair' });
-    pairEl.createDiv({ text: `${i + 1}.`, cls: 'claudian-ask-review-num' });
     const bodyEl = pairEl.createDiv({ cls: 'claudian-ask-review-body' });
     bodyEl.createDiv({ text: q.question, cls: 'claudian-ask-review-q-text' });
     bodyEl.createDiv({
@@ -959,7 +958,6 @@ function renderAskUserQuestionFallback(container: HTMLElement, toolCall: ToolCal
     const question = questions[questionIndex];
     const reviewEl = container.createDiv({ cls: 'claudian-ask-review' });
     const pairEl = reviewEl.createDiv({ cls: 'claudian-ask-review-pair' });
-    pairEl.createDiv({ text: `${questionIndex + 1}.`, cls: 'claudian-ask-review-num' });
     const bodyEl = pairEl.createDiv({ cls: 'claudian-ask-review-body' });
     bodyEl.createDiv({ text: question.question, cls: 'claudian-ask-review-q-text' });
 
@@ -969,8 +967,8 @@ function renderAskUserQuestionFallback(container: HTMLElement, toolCall: ToolCal
     }
 
     const listEl = bodyEl.createDiv({ cls: 'claudian-ask-list' });
-    question.options.forEach((option, optionIndex) => {
-      renderAskUserQuestionOption(listEl, option, optionIndex, question.multiSelect === true);
+    question.options.forEach((option) => {
+      renderAskUserQuestionOption(listEl, option, question.multiSelect === true);
     });
   }
 }
@@ -978,15 +976,14 @@ function renderAskUserQuestionFallback(container: HTMLElement, toolCall: ToolCal
 function renderAskUserQuestionOption(
   parentEl: HTMLElement,
   option: AskUserQuestionOption,
-  optionIndex: number,
   isMultiSelect: boolean,
 ): void {
   const itemEl = parentEl.createDiv({ cls: 'claudian-ask-item is-disabled' });
 
   if (isMultiSelect) {
-    itemEl.createDiv({ cls: 'claudian-ask-check', text: '[ ] ' });
+    itemEl.createDiv({ cls: 'claudian-ask-check', attr: { 'aria-hidden': 'true' } });
   } else {
-    itemEl.createDiv({ cls: 'claudian-ask-item-num', text: `${optionIndex + 1}. ` });
+    itemEl.createDiv({ cls: 'claudian-ask-radio', attr: { 'aria-hidden': 'true' } });
   }
 
   const contentEl = itemEl.createDiv({ cls: 'claudian-ask-item-content' });
