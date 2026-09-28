@@ -19,6 +19,7 @@ export class ImagePreviewModal {
   openSource(ownerDocument: Document, src: string, name: string): void {
     this.close();
 
+    const keyboardTarget = ownerDocument.defaultView ?? ownerDocument;
     const previouslyFocusedElement = getFocusableActiveElement(ownerDocument);
     const overlay = ownerDocument.body.createDiv({ cls: 'claudian-image-modal-overlay' });
     const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
@@ -46,7 +47,7 @@ export class ImagePreviewModal {
     const close = () => {
       if (isClosed) return;
       isClosed = true;
-      ownerDocument.removeEventListener('keydown', handleKeyDown);
+      keyboardTarget.removeEventListener('keydown', handleKeyDown, true);
       overlay.remove();
       if (this.closeCurrent === close) {
         this.closeCurrent = null;
@@ -56,7 +57,9 @@ export class ImagePreviewModal {
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.isComposing) {
+        event.preventDefault();
+        event.stopPropagation();
         close();
       } else if (event.key === 'Tab') {
         event.preventDefault();
@@ -68,7 +71,7 @@ export class ImagePreviewModal {
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) close();
     });
-    ownerDocument.addEventListener('keydown', handleKeyDown);
+    keyboardTarget.addEventListener('keydown', handleKeyDown, true);
     this.closeCurrent = close;
     closeButton.focus();
   }
