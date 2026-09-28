@@ -59,6 +59,26 @@ function findItems(container: any): any[] {
 }
 
 describe('InlineAskUserQuestion', () => {
+  it('exposes question navigation and choices as labeled native buttons', () => {
+    const input = makeInput([{ question: 'Choose tools', options: ['Search', 'Edit'], multiSelect: true }]);
+    const { container } = renderWidget(input);
+    const tabBar = container.querySelector('claudian-ask-tab-bar');
+    const tab = container.querySelectorAll('claudian-ask-tab')[0];
+    const option = findItems(container)[0];
+
+    expect(tabBar?.getAttribute('role')).toBe('group');
+    expect(tabBar?.getAttribute('aria-label')).toBe('Questions');
+    expect(tab?.tagName).toBe('BUTTON');
+    expect(tab?.getAttribute('aria-current')).toBe('step');
+    expect(tab?.getAttribute('aria-label')).toContain('Choose tools');
+    expect(option?.tagName).toBe('BUTTON');
+    expect(option?.getAttribute('aria-pressed')).toBe('false');
+
+    option?.click();
+
+    expect(option?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   describe('parseQuestions', () => {
     it('resolves null when input has no questions', () => {
       const { resolve } = renderWidget({});

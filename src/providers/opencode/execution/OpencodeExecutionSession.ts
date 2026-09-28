@@ -14,6 +14,7 @@ import {
   type ProviderSessionStatus,
   reportHistoryReplay,
   reportResolvedTurnPrompt,
+  type SteerableExecutionSession,
 } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { ChatMessage } from '@/core/types';
@@ -172,7 +173,7 @@ class OpencodeExecutionRun implements ProviderExecutionRun {
   }
 }
 
-export class OpencodeExecutionSession implements ProviderExecutionSession {
+export class OpencodeExecutionSession implements ProviderExecutionSession, SteerableExecutionSession {
   readonly providerId = 'opencode' as const;
   readonly sessionInstanceId = randomUUID();
 
@@ -257,6 +258,23 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
 
   getStatus(): ProviderSessionStatus {
     return this.snapshot.status;
+  }
+
+  /** Only native kernels with a steer inbox accept input while a turn is running. */
+  async steer(request: ProviderExecutionRequest): Promise<boolean> {
+    const run = this.activeRun;
+    const kernel = this.kernel;
+    const native = this.nativeInfo;
+    if (
+      !run
+      || run.terminal
+      || run.cancellationRequested
+      || !run.acceptingLiveOutput
+      || !kernel?.steer
+      || !native
+      || request.signal.aborted
+    ) return false;
+    return kernel.steer({ prompt: buildPromptBlocks(request, false), sessionId: native.sessionId });
   }
 
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void {

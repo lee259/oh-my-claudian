@@ -18,7 +18,19 @@ import {
   OpencodeSessionMissingError,
 } from './OpencodeSessionContract';
 
-type PendingPrompt = { resolve: (value: { stopReason: 'end_turn' | 'cancelled'; userMessageId?: string; nativeAssistantId?: string }) => void; reject: (error: Error) => void; userMessageId?: string; nativeAssistantId?: string; assistantMessageStarted: boolean; started: boolean };
+type PendingPrompt = {
+  resolve: (value: { stopReason: 'end_turn' | 'cancelled'; userMessageId?: string; nativeAssistantId?: string }) => void;
+  reject: (error: Error) => void;
+  userMessageId?: string;
+  nativeAssistantId?: string;
+  inputId?: string;
+  announced: boolean;
+  assistantMessageStarted: boolean;
+  started: boolean;
+  steerable: boolean;
+  idle: boolean;
+};
+interface PendingSteer { text: string; admission: Promise<'admitted' | 'refused' | 'unknown'>; resolve: (delivered: boolean) => void; reject: (error: Error) => void; recall: Promise<void> | null }
 interface NativeModel { providerID: string; id: string; variant?: string }
 interface NativeChild { outputSessionId: string; toolCallId: string; turnId: string; interactionTurnId: string; background: boolean; text: Map<string, string>; startedAt: number; toolUses: number; totalTokens: number; lastToolName?: string }
 interface NativeTool { name: string; input: Record<string, unknown> }
@@ -41,6 +53,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private readonly globalForms = new Map<string, { settled: boolean }>();
   private readonly interactions = new Map<string, AbortController>();
   private pending: PendingPrompt | null = null;
+  private readonly steers = new Map<string, PendingSteer>();
   private cancellation: Promise<unknown> | null = null;
 
   constructor(private readonly options: OpencodeSessionKernelOptions, private readonly cliPath: string, private readonly environment: NodeJS.ProcessEnv) {}
@@ -128,16 +141,26 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     const previousMessage = command ? await this.latestMessage(request.sessionId) : undefined;
     let resolve!: PendingPrompt['resolve'];
     let reject!: PendingPrompt['reject'];
-    const completion = new Promise<{ stopReason: 'end_turn' | 'cancelled'; userMessageId?: string }>((yes, no) => { resolve = yes; reject = no; });
-    const pending = { resolve, reject, started: false, assistantMessageStarted: false, userMessageId: undefined as string | undefined, nativeAssistantId: undefined as string | undefined };
+    const completion = new Promise<{ stopReason: 'end_turn' | 'cancelled'; userMessageId?: string; nativeAssistantId?: string }>((yes, no) => { resolve = yes; reject = no; });
+    const pending: PendingPrompt = {
+      resolve,
+      reject,
+      inputId: command ? undefined : nativeMessageId(),
+      announced: false,
+      assistantMessageStarted: false,
+      started: false,
+      steerable: false,
+      idle: false,
+    };
     this.pending = pending;
     // A native error may arrive before the admission request resolves.
     void completion.catch(() => undefined);
     try {
       const admitted = await this.requireClient().request<{ data?: { id?: string } }>(`/api/session/${encodeURIComponent(request.sessionId)}/${command ? 'command' : 'prompt'}`, {
-        method: 'POST', ...(command ? { timeoutMs: 0 } : {}), body: { ...(command ? { name: command[1] } : { id: `msg_${randomUUID().replaceAll('-', '')}` }), text: command ? command[2] ?? '' : text, ...(files.length ? { files } : {}) },
+        method: 'POST', ...(command ? { timeoutMs: 0 } : {}), body: { ...(command ? { name: command[1] } : { id: pending.inputId }), text: command ? command[2] ?? '' : text, ...(files.length ? { files } : {}) },
       });
       this.captureAdmission(admitted?.data?.id);
+      if (!command && this.pending === pending) pending.steerable = true;
       // A command can complete without starting an agent loop (for example a status command).
       if (command) {
         void this.requireClient().request(`/api/experimental/session/${encodeURIComponent(request.sessionId)}/wait`, { method: 'POST', timeoutMs: 0 })
@@ -155,12 +178,39 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     return completion;
   }
 
+  /** Delivers additional input through OpenCode v2's native inbox. */
+  async steer(request: AcpPromptRequest): Promise<boolean> {
+    const pending = this.pending;
+    if (!pending?.steerable || pending.idle || this.cancellation || this.disposed || request.sessionId !== this.sessionId) return false;
+    const client = this.requireClient();
+    const { text, files } = toNativeInput(request);
+    const id = nativeMessageId();
+    let resolveAdmission!: (outcome: 'admitted' | 'refused' | 'unknown') => void;
+    const admission = new Promise<'admitted' | 'refused' | 'unknown'>(resolve => { resolveAdmission = resolve; });
+    let resolve!: (delivered: boolean) => void;
+    let reject!: (error: Error) => void;
+    const delivery = new Promise<boolean>((yes, no) => { resolve = yes; reject = no; });
+    void delivery.catch(() => undefined);
+    this.steers.set(id, { text, admission, resolve, reject, recall: null });
+    void client.request(`/api/session/${encodeURIComponent(request.sessionId)}/prompt`, {
+      method: 'POST', body: { id, text, ...(files.length ? { files } : {}), delivery: 'steer' },
+    }).then(
+      () => resolveAdmission('admitted'),
+      error => resolveAdmission(error instanceof OpencodeHttpError && error.status >= 400 && error.status < 500 ? 'refused' : 'unknown'),
+    );
+    const outcome = await admission;
+    if (outcome === 'refused') this.settleSteer(id, false);
+    else if (outcome === 'unknown' || this.pending !== pending) void this.recallSteers();
+    return delivery;
+  }
+
   cancel(sessionId: string): void {
     this.cancellation ??= this.requireClient().request(`/api/session/${encodeURIComponent(sessionId)}/interrupt?resume=false`, { method: 'POST' }).catch(() => undefined);
   }
 
   async dispose(): Promise<void> {
     if (this.disposed) return;
+    const recalls = this.recallSteers();
     this.disposed = true;
     this.controller.abort();
     for (const [id, controller] of this.interactions) {
@@ -170,7 +220,8 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     this.interactions.clear();
     this.pending?.reject(new Error('OpenCode session disposed.'));
     this.pending = null;
-    await this.cancellation;
+    await Promise.all([this.cancellation, recalls]);
+    for (const id of [...this.steers.keys()]) this.settleSteer(id, new Error('OpenCode session disposed before the steer was delivered.'));
     await this.client?.dispose();
   }
 
@@ -216,10 +267,24 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
       : { toolCallId: String(data.id), toolScope: { kind: 'main' as const } };
     switch (event.type) {
       case 'session.execution.started':
-        if (this.pending) this.pending.started = true;
+        if (this.pending) { this.pending.started = true; this.pending.idle = false; }
         this.options.onNativeTurn?.('started', undefined, !!this.pending);
+        this.announcePrompt();
         break;
-      case 'session.execution.succeeded': if (!this.pending || this.pending.started) this.finish(); break;
+      case 'session.execution.succeeded':
+        if (this.pending && this.steers.size > 0) this.pending.idle = true;
+        else if (!this.pending || this.pending.started) this.finish();
+        break;
+      case 'session.inbox.delivered': {
+        const id = String(data.inboxID);
+        const steer = this.steers.get(id);
+        if (!steer) break;
+        this.announcePrompt();
+        this.emit({ type: 'user_message_started', content: steer.text, nativeUserMessageId: id });
+        this.settleSteer(id, true);
+        break;
+      }
+      case 'session.inbox.cancelled': this.settleSteer(String(data.inboxID), false); break;
       case 'session.execution.interrupted': if (!this.pending || this.pending.started) this.finish('cancelled'); break;
       case 'session.execution.failed': this.fail(new Error(errorText(data.error))); break;
       case 'permission.asked': void this.interact(data, false, child?.interactionTurnId).catch(error => this.fail(error)); break;
@@ -397,6 +462,36 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     this.options.onNativeSubagentProgress?.(progress);
   }
   private emit(event: OpencodeNativeOutput, childSessionId?: string): void { this.options.onNativeOutput?.(event, childSessionId); }
+  /** The initial submitted prompt boundary must precede any delivered steer boundary. */
+  private announcePrompt(): void {
+    const pending = this.pending;
+    if (!pending?.inputId || pending.announced) return;
+    pending.announced = true;
+    this.emit({ type: 'user_message_started', nativeUserMessageId: pending.inputId });
+  }
+  private settleSteer(id: string, outcome: boolean | Error): void {
+    const steer = this.steers.get(id);
+    if (!steer) return;
+    this.steers.delete(id);
+    if (outcome instanceof Error) steer.reject(outcome);
+    else steer.resolve(outcome);
+    if (this.pending?.idle && this.steers.size === 0) this.finish();
+  }
+  private recallSteers(): Promise<unknown> {
+    const client = this.client;
+    return Promise.all([...this.steers].map(([id, steer]) => steer.recall ??= steer.admission.then(outcome => {
+      if (outcome !== 'refused') return this.recallSteer(id, client);
+    })));
+  }
+  private async recallSteer(id: string, client: OpencodeHttpClient | null): Promise<void> {
+    try {
+      if (!client) throw new Error('OpenCode HTTP session is not connected.');
+      await client.request(`/api/session/${encodeURIComponent(this.sessionId!)}/inbox/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      this.settleSteer(id, false);
+    } catch (error) {
+      this.settleSteer(id, new Error('OpenCode steer delivery could not be confirmed.', { cause: error }));
+    }
+  }
   private finish(stopReason: 'end_turn' | 'cancelled' = 'end_turn'): void {
     const pending = this.pending;
     this.pending = null;
@@ -405,6 +500,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
       userMessageId: pending.userMessageId,
       nativeAssistantId: pending.nativeAssistantId,
     });
+    void this.recallSteers();
     this.options.onNativeTurn?.('completed', undefined, !!pending);
   }
   private fail(cause: unknown): void {
@@ -412,6 +508,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     if (this.disposed) return;
     const pending = this.pending;
     this.pending = null;
+    void this.recallSteers();
     pending?.reject(error);
     this.options.onNativeTurn?.('completed', error.message, !!pending);
     if (!pending) this.options.onClosed(error);
@@ -428,6 +525,17 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
       signal.addEventListener('abort', onAbort, { once: true });
     });
   }
+}
+
+function toNativeInput(request: AcpPromptRequest): { text: string; files: Array<{ uri: string }> } {
+  return {
+    text: request.prompt.filter(block => block.type === 'text').map(block => block.text).join('\n'),
+    files: request.prompt.flatMap(block => block.type === 'image' ? [{ uri: `data:${block.mimeType};base64,${block.data}` }] : []),
+  };
+}
+
+function nativeMessageId(): string {
+  return `msg_${randomUUID().replaceAll('-', '')}`;
 }
 
 function errorText(error: unknown): string {
