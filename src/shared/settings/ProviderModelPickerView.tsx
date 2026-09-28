@@ -1,4 +1,7 @@
+import { Notice } from 'obsidian';
 import { useState } from 'preact/hooks';
+
+import { t } from '@/i18n/i18n';
 
 import type {
   ProviderModelPickerModel,
@@ -13,9 +16,9 @@ export interface ProviderModelPickerViewProps {
   state: ProviderModelPickerState;
   loadingCatalog: boolean;
   catalogLoadFailed: boolean;
-  onLoadCatalog(force: boolean): void;
-  onAliasesChange(aliases: Record<string, string>): Promise<void>;
-  onSelectedIdsChange(selectedIds: string[]): Promise<void>;
+  onLoadCatalog(this: void, force: boolean): void;
+  onAliasesChange(this: void, aliases: Record<string, string>): Promise<void>;
+  onSelectedIdsChange(this: void, selectedIds: string[]): Promise<void>;
 }
 
 function reorderProviderModelIds(
@@ -302,14 +305,19 @@ export function ProviderModelPickerView({
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  onChange={async (event) => {
+                  onChange={(event) => {
                     const selecting = event.currentTarget.checked;
                     const currentIds = options.getState().selectedIds;
                     const nextIds = selecting
                       ? [...currentIds, model.id]
                       : currentIds.filter(id => id !== model.id);
-                    await persistSelectedIds(nextIds);
-                    if (selecting) await options.onModelSelected?.(model);
+                    void persistSelectedIds(nextIds)
+                      .then(async () => {
+                        if (selecting) await options.onModelSelected?.(model);
+                      })
+                      .catch((error: unknown) => {
+                        new Notice(error instanceof Error ? error.message : t('common.error'));
+                      });
                   }}
                 />
                 <div className="claudian-provider-model-picker-row-text">

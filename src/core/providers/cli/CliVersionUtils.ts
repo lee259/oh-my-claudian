@@ -1,3 +1,5 @@
+import { requestUrl } from 'obsidian';
+
 import { findCliBinaryPath } from '../../../utils/cliBinaryLocator';
 import { buildShellCommand, shellQuote } from '../../../utils/shell';
 import { ManagedCommandRunner } from '../../process/ManagedCommandRunner';
@@ -197,17 +199,26 @@ export async function probeCliVersion(
 
 /**
  * Fetch the latest version of an npm package from the registry.
- * Uses fetch() which is available in Obsidian's renderer.
+ * Uses Obsidian's request API so the request follows the host's network policy.
  */
 export async function fetchLatestNpmVersion(packageName: string): Promise<string | null> {
   const url = `https://registry.npmjs.org/${packageName}/latest`;
+  let timeoutId: number | undefined;
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!response.ok) return null;
-    const data = await response.json() as { version?: string };
-    return data.version ?? null;
+    const response = await Promise.race([
+      requestUrl({ url, method: 'GET', throw: false }),
+      new Promise<never>((_resolve, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error('Request timed out')), 10_000);
+      }),
+    ]);
+    if (response.status < 200 || response.status >= 300) return null;
+    const data: unknown = response.json;
+    if (typeof data !== 'object' || data === null || !('version' in data)) return null;
+    return typeof data.version === 'string' ? data.version : null;
   } catch {
     return null;
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
   }
 }
 

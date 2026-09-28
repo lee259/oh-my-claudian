@@ -67,9 +67,9 @@ export interface ProviderModelPickerOptions {
   loadCatalogOnRender?: boolean;
   loadingCatalogText: string;
   modifier: string;
-  onAliasesChange(aliases: Record<string, string>): Promise<void>;
-  onModelSelected?(model: ProviderModelPickerModel): Promise<void>;
-  onSelectedIdsChange(selectedIds: string[]): Promise<void>;
+  onAliasesChange(this: void, aliases: Record<string, string>): Promise<void>;
+  onModelSelected?(this: void, model: ProviderModelPickerModel): Promise<void>;
+  onSelectedIdsChange(this: void, selectedIds: string[]): Promise<void>;
   providerName: string;
   searchPlaceholder?: string;
 }

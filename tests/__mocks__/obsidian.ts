@@ -1,5 +1,13 @@
 // Mock for Obsidian API
 
+export async function requestUrl({ url, method }: { url: string; method?: string }) {
+  const response = await fetch(url, { method });
+  return {
+    status: response.status,
+    json: await response.json(),
+  };
+}
+
 export class Plugin {
   app: any;
   manifest: any;

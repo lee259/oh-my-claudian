@@ -27,7 +27,7 @@ export class ObsidianCapabilityAdapter implements ObsidianWorkspaceAdapter {
 
   async setProperty(path: string, name: string, value: ObsidianPropertyValue): Promise<void> {
     const file = this.getFile(path);
-    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
       if (value === null) {
         delete frontmatter[name];
       } else {
