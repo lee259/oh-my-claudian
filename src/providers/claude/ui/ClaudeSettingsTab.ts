@@ -38,6 +38,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const claudeSettings = getClaudeProviderSettings(settingsBag);
     let refreshDefaultModelOptions = (): void => {};
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'Claude',
@@ -89,6 +90,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.providerEnablement.desc', { provider: 'Claude' }),
       getValue: () => getClaudeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Claude' }),
@@ -168,6 +170,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => claudeWorkspace.cliResolver.reset(),
         );
+        await refreshCliInstallationSummary();
         await readinessPanel.refresh();
       },
       placeholder: process.platform === 'win32'
@@ -451,7 +454,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     // --- CLI lifecycle ---
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: claudeCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('claude'),
@@ -459,6 +462,17 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getClaudeProviderSettings(settingsBag);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
   },
 };

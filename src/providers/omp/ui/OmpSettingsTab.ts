@@ -32,6 +32,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const settings = context.plugin.settings as unknown as Record<string, unknown>;
     const workspace = maybeGetOmpWorkspaceServices();
     const hostnameKey = getHostnameKey();
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'OMP',
@@ -57,6 +58,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.omp.enableDesc'),
       getValue: () => getOmpProviderSettings(settings).enabled,
       name: t('settings.omp.enable'),
@@ -85,6 +87,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => workspace?.cliResolver.reset(),
         );
+        await refreshCliInstallationSummary();
         context.notifyProviderModelOptionsChanged('omp');
       },
       placeholder: process.platform === 'win32'
@@ -92,7 +95,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
         : '/Users/you/.bun/bin/omp',
       validate: validateCliPath,
     });
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: ompCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('omp'),
@@ -100,7 +103,18 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getOmpProviderSettings(settings);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
     new Setting(container).setName(t('settings.omp.models')).setHeading();
     renderOmpModelPicker(container, context, settings);
   },

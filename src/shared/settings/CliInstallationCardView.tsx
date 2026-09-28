@@ -12,6 +12,7 @@ export interface CliInstallationCardViewProps {
   path: string;
   headerToggle?: {
     name: string;
+    description?: string;
     checked: boolean;
     disabled: boolean;
     onChange: (checked: boolean) => Promise<void> | void;
@@ -82,6 +83,7 @@ export function CliInstallationCardView({
             <input
               aria-label={headerToggle.name}
               aria-disabled={headerToggle.disabled}
+              title={headerToggle.description}
               checked={headerToggle.checked}
               disabled={headerToggle.disabled}
               role="switch"

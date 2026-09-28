@@ -49,6 +49,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const opencodeWorkspace = maybeGetOpencodeWorkspaceServices();
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const hostnameKey = getHostnameKey();
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'OpenCode',
@@ -79,6 +80,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.providerEnablement.desc', { provider: 'OpenCode' }),
       getValue: () => getOpencodeProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'OpenCode' }),
@@ -144,6 +146,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => opencodeWorkspace?.cliResolver?.reset(),
         );
+        await refreshCliInstallationSummary();
         await readinessPanel.refresh();
       },
       placeholder: process.platform === 'win32'
@@ -209,7 +212,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'opencode'),
     });
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: opencodeCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('opencode'),
@@ -217,7 +220,18 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getOpencodeProviderSettings(settingsBag);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
   },
 };
 

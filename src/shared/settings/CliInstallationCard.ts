@@ -22,6 +22,7 @@ export interface CliInstallationCardSummary {
 
 export interface CliInstallationCardToggle {
   name: string;
+  description?: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => Promise<void> | void;
@@ -73,6 +74,7 @@ export function renderCliInstallationCard(
       path: summary.path ?? '',
       headerToggle: toggle ? {
         name: toggle.name,
+        description: toggle.description,
         checked: toggle.checked,
         disabled: toggle.disabled ?? false,
         onChange: toggle.onChange,

@@ -9,6 +9,7 @@ import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycle
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
+import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
   renderLastEnabledProviderWarning,
   renderProviderModelEnablementWarning,
@@ -62,28 +63,23 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
     const management = readinessPanel.management;
 
-    const providerToggleName = t('settings.providerEnablement.name', { provider: 'Codex' });
-    const syncProviderToggle = (): void => {
-      readinessPanel.setHeaderToggle({
-        name: providerToggleName,
-        checked: getCodexProviderSettings(settingsBag).enabled,
-        onChange: onProviderEnablementChange,
-      });
-    };
+    renderProviderEnablementSetting({
+      container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
+      description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
+      getValue: () => getCodexProviderSettings(settingsBag).enabled,
+      name: t('settings.providerEnablement.name', { provider: 'Codex' }),
+      onChange: async (value) => {
+        if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
+          settingsBag,
+          'codex',
+          value,
+        )) {
+          lastProviderWarning.showFor();
+          return;
+        }
 
-    const onProviderEnablementChange = async (value: boolean): Promise<void> => {
-      if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
-        settingsBag,
-        'codex',
-        value,
-      )) {
-        lastProviderWarning.showFor();
-        syncProviderToggle();
-        return;
-      }
-
-      let accepted = true;
-      try {
+        let accepted = true;
         await context.plugin.runProviderExecutionTransition(['codex'], async () => {
           await context.plugin.mutateSettings((settings) => {
             accepted = ProviderSettingsCoordinator.applyProviderEnablement(
@@ -93,20 +89,16 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
             );
           });
         });
-      } finally {
-        syncProviderToggle();
-      }
-      if (accepted) {
-        lastProviderWarning.hide();
-      } else {
-        lastProviderWarning.showFor();
-      }
-      await readinessPanel.refresh();
-      await refreshCodexCliSummary();
-      modelWarning.context.notifyProviderModelOptionsChanged('codex');
-    };
-
-    syncProviderToggle();
+        if (accepted) {
+          lastProviderWarning.hide();
+        } else {
+          lastProviderWarning.showFor();
+        }
+        await readinessPanel.refresh();
+        await refreshCodexCliSummary();
+        modelWarning.context.notifyProviderModelOptionsChanged('codex');
+      },
+    });
 
     const lastProviderWarning = renderLastEnabledProviderWarning(management);
 
@@ -385,8 +377,8 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(customPath
-            ? 'settings.codex.cliInstallation.customPath'
-            : 'settings.codex.cliInstallation.automaticPath'),
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
           path: cliPath,
         });
       },

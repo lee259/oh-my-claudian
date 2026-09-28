@@ -263,6 +263,10 @@
       "saved": "Salvo",
       "error": "Não foi possível salvar"
     },
+    "cliInstallation": {
+      "customPath": "Caminho personalizado",
+      "automaticPath": "Detectado automaticamente"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",
@@ -714,10 +718,6 @@
       "noModelsWarning": "Nenhum modelo {provider} está ativado. Vá para Modelos abaixo e ative pelo menos um modelo."
     },
     "codex": {
-      "cliInstallation": {
-        "customPath": "Caminho personalizado",
-        "automaticPath": "Detectado automaticamente"
-      },
       "installationMethod": {
         "name": "Método de instalação",
         "desc": "Como o Oh My Claudian deve iniciar o Codex no Windows. Windows nativo usa um caminho de executável do Windows. WSL inicia a CLI Linux dentro de uma distro selecionada.",
