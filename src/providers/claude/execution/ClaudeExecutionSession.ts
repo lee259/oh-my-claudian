@@ -48,6 +48,7 @@ import {
   ClaudePersistentExecutionStrategy,
 } from './ClaudeExecutionStrategies';
 import { ClaudeInteractionHandler } from './ClaudeInteractionHandler';
+import { ClaudeTaskNotificationQueue } from './ClaudeTaskNotificationQueue';
 import type { ClaudeTurnInputs } from './ClaudeTurnInputs';
 import { getReplayedUserMessageId } from './ClaudeTurnInputs';
 
@@ -132,6 +133,7 @@ ClaudeExecutionStrategySink {
   private lastAllowedTools: ReadonlySet<string> | null = null;
   private currentPermissionMode: PermissionMode;
   private readonly eventNormalizer = new ClaudeExecutionEventNormalizer();
+  private readonly taskNotifications = new ClaudeTaskNotificationQueue();
   private nativeQuery: Query | null = null;
   private authoritativeContextWindow: {
     readonly model: string;
@@ -381,6 +383,7 @@ ClaudeExecutionStrategySink {
       snapshot: this.getSnapshot(),
     });
     this.sessionListeners.clear();
+    this.taskNotifications.reset();
     this.backgroundTurn = null;
     this.suppressedPersistentQueryTokens.clear();
     this.suppressedEphemeralQueryTokens.clear();
@@ -520,7 +523,21 @@ ClaudeExecutionStrategySink {
       return;
     }
 
+    this.taskNotifications.observe(message);
     const active = this.activeRun;
+    const nativeUser = message.type === 'user' ? message as unknown as {
+      parent_tool_use_id?: string | null;
+      uuid?: string;
+      message?: { content?: unknown };
+    } : undefined;
+    if (nativeUser && nativeUser.parent_tool_use_id == null
+      && (!nativeUser.uuid || !active?.inputs?.ids.includes(nativeUser.uuid))) {
+      const notification = this.taskNotifications.consume(nativeUser.message?.content);
+      if (notification !== null) {
+        this.emitTaskNotification(notification);
+        return;
+      }
+    }
     const replayedInputId = getReplayedUserMessageId(message);
     if (replayedInputId !== undefined) {
       if (active?.nativeHandedOff && active.inputs?.ids.includes(replayedInputId)) {
@@ -535,6 +552,12 @@ ClaudeExecutionStrategySink {
       && this.authoritativeContextWindow?.model === intendedModel
       ? this.authoritativeContextWindow.contextWindow
       : undefined;
+    if (!active && ((message.type === 'stream_event' && message.event.type === 'message_start')
+      || (message.type === 'assistant' && message.parent_tool_use_id == null))) {
+      for (const content of this.taskNotifications.takeTurnNotifications()) {
+        this.emitTaskNotification(content);
+      }
+    }
     const normalizedEvents = this.eventNormalizer.normalize(
       message,
       active ? 'requested' : 'background',
@@ -569,6 +592,7 @@ ClaudeExecutionStrategySink {
       }
       if (normalized.type === 'async_subagent_completion') {
         const event = normalized.event;
+        this.taskNotifications.complete(message, event.result);
         this.emitSession({
           type: 'async_subagent_completed',
           originatingTurnId: event.toolUseId
@@ -833,12 +857,14 @@ ClaudeExecutionStrategySink {
   handleNativeQueryOpened(query: Query): void {
     if (this.nativeQuery === query) return;
     this.nativeQuery = query;
+    this.taskNotifications.reset();
     this.authoritativeContextWindow = null;
   }
 
   handleNativeQueryClosed(query: Query): void {
     if (this.nativeQuery !== query) return;
     this.nativeQuery = null;
+    this.taskNotifications.reset();
     this.authoritativeContextWindow = null;
   }
 
@@ -1097,6 +1123,11 @@ ClaudeExecutionStrategySink {
         event as WithoutScope<ProviderSessionEvent>,
       );
     }
+  }
+
+  private emitTaskNotification(content: string): void {
+    const target = this.getOutputTarget();
+    if (target) this.emitTurnOutput(target, { type: 'task_notification', content });
   }
 
   private emitRequested(

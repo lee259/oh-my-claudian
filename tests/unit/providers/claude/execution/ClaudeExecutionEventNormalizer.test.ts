@@ -220,7 +220,7 @@ describe('ClaudeExecutionEventNormalizer API errors', () => {
 });
 
 describe('Claude task notification presentation', () => {
-  it('exposes completed task notification content as output', () => {
+  it('keeps completion separate from the later native consumption boundary', () => {
     const events = new ClaudeExecutionEventNormalizer().normalize({
       type: 'system',
       subtype: 'task_notification',
@@ -230,10 +230,8 @@ describe('Claude task notification presentation', () => {
       session_id: 'session-1',
     } as any, 'background');
 
-    expect(events).toContainEqual({
-      type: 'output',
-      event: { type: 'task_notification', content: 'Background work finished.' },
-    });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'async_subagent_completion' }));
+    expect(events.filter(event => event.type === 'output')).toEqual([]);
   });
 
   it('does not expose notifications excluded from the transcript', () => {

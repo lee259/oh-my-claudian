@@ -131,6 +131,71 @@ describe('MessageRenderer', () => {
       expect(notification?.querySelector('.claudian-work-history')?.hidden).toBe(false);
     });
 
+    it('groups automatic response work under its consumed task notification', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'automatic-response' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const notification = contentEl.createDiv({ cls: 'claudian-task-notification' });
+      const history = notification.createDiv({ cls: 'claudian-work-history' });
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      const answerEl = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The task is complete.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('automatic-response') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'automatic-response',
+        role: 'assistant',
+        content: 'The task is complete.',
+        timestamp: Date.now(),
+        durationSeconds: 8,
+        isAutomaticResponse: true,
+        contentBlocks: [
+          { type: 'task_notification', content: 'Background task completed.' },
+          { type: 'tool_use', toolId: 'tool-1' },
+          { type: 'text', content: 'The task is complete.' },
+        ],
+      } as ChatMessage);
+
+      expect(history.contains(toolEl)).toBe(true);
+      expect(contentEl.contains(answerEl)).toBe(true);
+      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+    });
+
+    it('includes a requested response notification in the completed-work disclosure', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'requested-response' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const notification = contentEl.createDiv({ cls: 'claudian-task-notification' });
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      const answerEl = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The task is complete.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('requested-response') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'requested-response',
+        role: 'assistant',
+        content: 'The task is complete.',
+        timestamp: Date.now(),
+        durationSeconds: 8,
+      } as ChatMessage);
+
+      const workHistory = contentEl.querySelector('.claudian-completed-work')
+        ?.querySelector('.claudian-completed-work-history');
+      expect(workHistory?.contains(notification)).toBe(true);
+      expect(workHistory?.contains(toolEl)).toBe(true);
+      expect(contentEl.contains(answerEl)).toBe(true);
+    });
+
     it('collapses completed work while keeping the final answer visible', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl, 'claude', {}, jest.fn());

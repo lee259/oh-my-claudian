@@ -14,6 +14,7 @@ import type {
   SubagentInfo,
   ToolCallInfo,
 } from '../../../core/types';
+import { extractHandbackResult } from '../normalization/claudeSubagentResult';
 import { isClaudeSubagentToolName } from '../subagentToolNames';
 import {
   type ClaudeProviderState,
@@ -212,6 +213,34 @@ function mergeImageAttachments(
 
 function mergeDuplicateMessage(target: ChatMessage, incoming: ChatMessage): void {
   target.images = mergeImageAttachments(target.images, incoming.images);
+  for (const nativeTool of incoming.toolCalls ?? []) {
+    if (!isClaudeSubagentToolName(nativeTool.name) || nativeTool.input.run_in_background === true
+      || nativeTool.subagent?.mode === 'async' || nativeTool.result === undefined) continue;
+    const cachedTool = target.toolCalls?.find(tool => tool.id === nativeTool.id);
+    if (!cachedTool || cachedTool.input.run_in_background === true
+      || cachedTool.subagent?.mode === 'async' || normalizeAsyncStatus(cachedTool.subagent) !== undefined) continue;
+    const result = extractHandbackResult(nativeTool.result) ?? nativeTool.result;
+    cachedTool.result = result;
+    cachedTool.status = nativeTool.status;
+    if (cachedTool.subagent) {
+      cachedTool.subagent.result = result;
+      cachedTool.subagent.status = nativeTool.status === 'error'
+        ? 'error' : nativeTool.status === 'running' ? 'running' : 'completed';
+    }
+  }
+}
+
+function normalizeCachedSyncResults(messages: ChatMessage[]): void {
+  for (const message of messages) {
+    for (const tool of message.toolCalls ?? []) {
+      if (!isClaudeSubagentToolName(tool.name) || tool.input.run_in_background === true
+        || tool.subagent?.mode === 'async') continue;
+      if (tool.result !== undefined) tool.result = extractHandbackResult(tool.result) ?? tool.result;
+      if (tool.subagent?.result !== undefined) {
+        tool.subagent.result = extractHandbackResult(tool.subagent.result) ?? tool.subagent.result;
+      }
+    }
+  }
 }
 
 function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
@@ -237,6 +266,49 @@ function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
     result.push(message);
   }
 
+  return result;
+}
+
+/** Native transcript order wins; cached-only messages retain their surrounding anchors. */
+function mergeHistoryMessages(cached: ChatMessage[], native: ChatMessage[]): ChatMessage[] {
+  const byId = new Map(dedupeMessages([...cached, ...native]).map(message => [message.id, message]));
+  const nativeIds = new Set(native.map(message => message.id));
+  const nextAnchors = new Map<string, string>();
+  let nextAnchor: string | undefined;
+  for (const message of [...cached].reverse()) {
+    if (nativeIds.has(message.id)) nextAnchor = message.id;
+    else if (nextAnchor) nextAnchors.set(message.id, nextAnchor);
+  }
+
+  const emitted = new Set<string>();
+  const result: ChatMessage[] = [];
+  const append = (message: ChatMessage) => {
+    if (emitted.has(message.id)) return;
+    emitted.add(message.id);
+    const merged = byId.get(message.id);
+    if (merged) result.push(merged);
+  };
+
+  let cursor = 0;
+  for (const message of native) {
+    while (cursor < cached.length) {
+      const candidate = cached[cursor];
+      if (candidate.id === message.id) {
+        cursor++;
+        break;
+      }
+      if (emitted.has(candidate.id)) {
+        cursor++;
+        continue;
+      }
+      if (nativeIds.has(candidate.id)
+        || (nextAnchors.get(candidate.id) !== message.id && candidate.timestamp > message.timestamp)) break;
+      append(candidate);
+      cursor++;
+    }
+    append(message);
+  }
+  for (; cursor < cached.length; cursor++) append(cached[cursor]);
   return result;
 }
 
@@ -662,6 +734,8 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
       return;
     }
 
+    normalizeCachedSyncResults(conversation.messages);
+
     await this.recoverConversationSessionReference(conversation, vaultPath, pathContext);
     const allSessionIds = this.getConversationSessionIds(conversation);
 
@@ -780,10 +854,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
 
     const filteredSdkMessages = allSdkMessages.filter(msg => !msg.isRebuiltContext);
 
-    const merged = dedupeMessages([
-      ...conversation.messages,
-      ...filteredSdkMessages,
-    ]).sort((a, b) => a.timestamp - b.timestamp);
+    const merged = mergeHistoryMessages(conversation.messages, filteredSdkMessages);
 
     if (state.subagentData) {
       await enrichAsyncSubagentToolCalls(

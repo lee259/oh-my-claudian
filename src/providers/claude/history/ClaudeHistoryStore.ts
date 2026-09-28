@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import type { ProviderHistoryPathContext } from '../../../core/providers/types';
 import type { ChatMessage, SubagentInfo, ToolCallInfo } from '../../../core/types';
+import { extractHandbackResult } from '../normalization/claudeSubagentResult';
 import { ClaudeTaskToolNormalizer } from '../normalization/ClaudeTaskToolNormalizer';
 import { isClaudeSubagentToolName } from '../subagentToolNames';
 import { ClaudeTurnStats } from './ClaudeTurnStats';
@@ -285,6 +286,19 @@ async function assembleSDKChatMessages(
 
   flushPendingAssistant(true);
 
+  for (const message of chatMessages) {
+    for (const toolCall of message.toolCalls ?? []) {
+      if (!isClaudeSubagentToolName(toolCall.name) || toolCall.input.run_in_background === true
+        || toolCall.subagent?.mode === 'async') continue;
+      if (toolCall.result !== undefined) {
+        toolCall.result = extractHandbackResult(toolCall.result) ?? toolCall.result;
+      }
+      if (toolCall.subagent?.result !== undefined) {
+        toolCall.subagent.result = extractHandbackResult(toolCall.subagent.result) ?? toolCall.subagent.result;
+      }
+    }
+  }
+
   hydrateStructuredToolResults(chatMessages, toolUseResults);
   hydrateFallbackAskUserAnswers(chatMessages);
 
@@ -341,7 +355,19 @@ async function assembleSDKChatMessages(
     }
   }
 
-  chatMessages.sort((a, b) => a.timestamp - b.timestamp);
+  // Task notification timestamps record when work was enqueued, not when Claude
+  // consumed it. Keep those transcript boundaries fixed while sorting within
+  // each surrounding section (including explicit compaction records).
+  let sectionStart = 0;
+  for (let index = 0; index <= chatMessages.length; index++) {
+    if (index < chatMessages.length
+      && !chatMessages[index].contentBlocks?.some(block => block.type === 'task_notification')) continue;
+    const section = chatMessages.slice(sectionStart, index).sort((a, b) => a.timestamp - b.timestamp);
+    for (let offset = 0; offset < section.length; offset++) {
+      chatMessages[sectionStart + offset] = section[offset];
+    }
+    sectionStart = index + 1;
+  }
   applyTranscriptDurationFallback(chatMessages, realUserMessageIds);
 
   return chatMessages;

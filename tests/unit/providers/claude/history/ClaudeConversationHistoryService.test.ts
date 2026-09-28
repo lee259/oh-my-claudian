@@ -374,6 +374,40 @@ describe('ClaudeConversationHistoryService', () => {
   });
 
   describe('hydrateConversationHistory', () => {
+    it('keeps native transcript order and places cached-only messages between their shared anchors', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation({
+        messages: [
+          { id: 'native-a', role: 'assistant', content: 'First native response', timestamp: 10, assistantMessageId: 'native-a' },
+          { id: 'cached-note', role: 'assistant', content: 'Cached notification', timestamp: 100 },
+          { id: 'native-b', role: 'assistant', content: 'Second native response', timestamp: 90, assistantMessageId: 'native-b' },
+        ],
+      });
+      const locationSpy = jest.spyOn(historyStore, 'locateSDKSessions')
+        .mockResolvedValue(new Map([['session-1', {
+          availability: 'available',
+          sessionPath: '/vault/session-1.jsonl',
+        }]]));
+      const signatureSpy = jest.spyOn(historyStore, 'getSDKSessionSignature').mockResolvedValue('size:200:mtime:2');
+      const loadSpy = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({
+        messages: [
+          { id: 'native-a', role: 'assistant', content: 'First native response', timestamp: 10, assistantMessageId: 'native-a' },
+          { id: 'native-b', role: 'assistant', content: 'Second native response', timestamp: 1, assistantMessageId: 'native-b' },
+        ],
+        skippedLines: 0,
+      });
+
+      await service.hydrateConversationHistory(conversation, '/vault');
+
+      expect(conversation.messages.map(message => message.id)).toEqual([
+        'native-a', 'cached-note', 'native-b',
+      ]);
+
+      locationSpy.mockRestore();
+      signatureSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
     it('reloads the live transcript when an external process appends a turn', async () => {
       const service = new ClaudeConversationHistoryService();
       const conversation = createConversation();
