@@ -9,9 +9,53 @@ describe('Session history styles', () => {
     expect(css).toContain('.claudian-history-container');
     expect(css).toContain('.claudian-history-menu');
   });
+
+  it('keeps history search compact and free of a filled field surface', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-home-history-search\s*{[^}]*padding:\s*4px 8px;[^}]*background:\s*transparent;/,
+    );
+    expect(css).not.toMatch(/\.claudian-home-history-search:focus-within\s*{/);
+    expect(css).not.toMatch(/\.claudian-home-history-search(?::focus-within)?\s*{[^}]*border-bottom/);
+    expect(css).toMatch(
+      /\.claudian-home-history-search input\.claudian-home-history-search-input:focus\s*{[^}]*border:\s*0;[^}]*outline:\s*none;[^}]*box-shadow:\s*none;[^}]*background:\s*transparent;/,
+    );
+  });
 });
 
 describe('Single-pane history action styles', () => {
+  it('highlights matching history search text with the theme accent', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+    const matchRule = css.match(/\.claudian-history-search-match\s*{[^}]*}/)?.[0];
+
+    expect(matchRule).toContain('border-radius: 2px;');
+    expect(matchRule).toContain(
+      'background: color-mix(in srgb, var(--interactive-accent) 24%, transparent);',
+    );
+    expect(matchRule).toContain('color: inherit;');
+  });
+
+  it('removes hover background from history rows without hiding their actions', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-history-menu \.claudian-history-item:hover\s*{[^}]*background:\s*transparent;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-history-menu \.claudian-history-item\.active:hover,[\s\S]*?\.claudian-history-menu \.claudian-history-item\.open:hover\s*{[^}]*background:\s*var\(--background-modifier-hover\);/,
+    );
+  });
+
+  it('renders the archived-session count as a compact pill', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+    const countRule = css.match(/\.claudian-history-archive-count\s*{[^}]*}/)?.[0];
+
+    expect(countRule).toContain('border-radius: 999px;');
+    expect(countRule).toContain('background: var(--background-modifier-hover);');
+    expect(countRule).toContain('text-align: center;');
+  });
+
   it('animates the live session running indicator', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
     const runningIndicatorRule = css.match(
@@ -21,20 +65,26 @@ describe('Single-pane history action styles', () => {
     expect(runningIndicatorRule).toContain('animation: spin 1s linear infinite;');
   });
 
-  it('keeps archive navigation pinned above rows on an opaque full-width surface', () => {
+  it('keeps expanded archived sessions within the parent history scroller', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-history-archive-section > \.claudian-history-list\s*{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/,
+    );
+  });
+
+  it('styles the archive navigation as a full-width list row', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
     const archiveControlRule = css.match(/\.claudian-history-archive-control\s*{[^}]*}/)?.[0];
 
-    expect(archiveControlRule).toContain('position: sticky;');
-    expect(archiveControlRule).toContain('top: 0;');
-    expect(archiveControlRule).toContain('z-index: 3;');
     expect(archiveControlRule).toContain('box-sizing: border-box;');
     expect(archiveControlRule).toContain('width: 100%;');
-    expect(archiveControlRule).toContain('isolation: isolate;');
-    expect(archiveControlRule).toContain('background: var(--background-primary);');
-    expect(css).toMatch(
-      /\.claudian-history-archive-control:hover,[\s\S]*?\.claudian-history-archive-control:focus-visible\s*{[^}]*background:\s*color-mix\(in srgb, var\(--background-primary\) 92%, var\(--text-normal\)\);/,
-    );
+    expect(archiveControlRule).toContain('background: transparent;');
+    const archiveControlInteractionRule = css.match(
+      /\.claudian-history-archive-control:hover,[\s\S]*?\.claudian-history-archive-control:focus-visible\s*{[^}]*}/,
+    )?.[0];
+    expect(archiveControlInteractionRule).not.toContain('background:');
+    expect(archiveControlInteractionRule).toContain('color: var(--text-normal);');
   });
 
   it('anchors the home history surface below the chat header', () => {

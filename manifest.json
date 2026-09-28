@@ -3,7 +3,7 @@
   "name": "Oh My Claudian",
   "version": "2.5.10",
   "minAppVersion": "1.7.2",
-  "description": "Embeds coding agents as AI collaborators in your vault, including Oh My Pi support.",
+  "description": "Embeds Claude Code, Codex, Cursor Agent, Grok, Oh My Pi, OpenCode, and Pi as AI collaborators in your vault. Use sidebar chat and inline editing to run file-aware, multi-step workflows.",
   "author": "Lee",
   "authorUrl": "https://github.com/lee259",
   "isDesktopOnly": true

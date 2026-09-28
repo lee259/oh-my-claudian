@@ -919,6 +919,119 @@ describe('ConversationController', () => {
         expect(container.children.length).toBe(2); // header + list
       });
 
+      it('shows one no-match state for a unified search across active and archived sessions', () => {
+        const container = createMockEl();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'active-1', title: 'Active chat', createdAt: 1000, lastActivityAt: 1000 },
+          {
+            id: 'archived-1',
+            title: 'Archived chat',
+            createdAt: 1000,
+            lastActivityAt: 1000,
+            isArchived: true,
+          },
+        ]);
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          searchQuery: '1w',
+          sessionActionMode: 'mixed',
+        });
+
+        expect(container.querySelectorAll('.claudian-history-empty')).toHaveLength(1);
+        expect(container.querySelector('.claudian-history-empty')?.textContent)
+          .toBe('No matching sessions');
+        expect(container.querySelector('.claudian-history-archive-control')).toBeNull();
+      });
+
+      it('searches active and archived sessions together with archive-specific actions', () => {
+        const container = createMockEl();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'active-1', title: 'Release active', createdAt: 1000, lastActivityAt: 1000 },
+          {
+            id: 'archived-1',
+            title: 'Release archived',
+            createdAt: 1000,
+            lastActivityAt: 900,
+            isArchived: true,
+          },
+        ]);
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          searchQuery: 'release',
+          sessionActionMode: 'mixed',
+        });
+
+        const historyItems = Array.from(
+          container.querySelectorAll('.claudian-history-item') as NodeListOf<HTMLElement>,
+        );
+        const activeItem = historyItems.find(item => (
+          item.getAttribute('data-conversation-id') === 'active-1'
+        ))!;
+        const archivedItem = historyItems.find(item => (
+          item.getAttribute('data-conversation-id') === 'archived-1'
+        ))!;
+        expect(historyItems).toHaveLength(2);
+        expect(activeItem.querySelector('.claudian-archive-btn')).not.toBeNull();
+        expect(activeItem.querySelector('.claudian-restore-btn')).toBeNull();
+        expect(archivedItem.querySelector('.claudian-restore-btn')).not.toBeNull();
+        expect(archivedItem.querySelector('.claudian-delete-btn')).not.toBeNull();
+        expect(activeItem.querySelector('.claudian-history-search-match')?.textContent)
+          .toBe('Release');
+        expect(archivedItem.querySelector('.claudian-history-search-match')?.textContent)
+          .toBe('Release');
+      });
+
+      it('highlights search terms literally and case-insensitively in conversation titles', () => {
+        const container = createMockEl();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          {
+            id: 'conv-1',
+            title: 'Fix [API] result',
+            createdAt: 1000,
+            lastActivityAt: 1000,
+          },
+        ]);
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          searchQuery: '[api]',
+          sessionActionMode: 'mixed',
+        });
+
+        const highlighted = container.querySelector('.claudian-history-search-match');
+        expect(highlighted?.textContent).toBe('[API]');
+      });
+
+      it('loads the next page when the load-more button is inside a composed history surface', () => {
+        const container = createMockEl();
+        const conversations = Array.from({ length: 12 }, (_, index) => ({
+          id: `conv-${index}`,
+          title: `Conversation ${index}`,
+          createdAt: index + 1,
+          lastActivityAt: index + 1,
+        }));
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue(conversations);
+
+        const options = {
+          onSelectConversation: jest.fn(),
+          onRerender: () => controller.renderHistoryDropdown(container, options),
+          onBeforeRestoreListState: (target: HTMLElement) => {
+            const list = target.querySelector<HTMLElement>('.claudian-history-list')!;
+            list.createDiv({ cls: 'claudian-history-archive-control' });
+          },
+          pageSize: 10,
+          preserveListState: true,
+        };
+        controller.renderHistoryDropdown(container, options);
+
+        (container.querySelector('.claudian-history-load-more') as HTMLButtonElement).click();
+
+        expect(container.querySelectorAll('.claudian-history-item')).toHaveLength(12);
+        expect(container.querySelector('.claudian-history-load-more')).toBeNull();
+      });
+
 
 
 

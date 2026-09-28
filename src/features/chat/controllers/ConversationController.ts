@@ -152,7 +152,7 @@ export type HistoryConversationStatus = {
   showOpenStateLabels?: boolean;
   preserveListState?: boolean;
   sessionScope?: 'active' | 'archived';
-  sessionActionMode?: 'active' | 'archived';
+  sessionActionMode?: 'active' | 'archived' | 'mixed';
   historyHeaderLabel?: string;
   showHistoryHeader?: boolean;
   /** Hides current/open tab styling while retaining the underlying status. */
@@ -171,6 +171,37 @@ export type HistoryConversationStatus = {
 type HistorySurfaceRenderOptions = Omit<HistoryRenderOptions, 'onRerender'> & {
   onRerender?: () => void;
 };
+
+function appendHighlightedHistoryTitle(
+  titleEl: HTMLElement,
+  title: string,
+  searchTerms: string[],
+): void {
+  const terms = [...new Set(searchTerms)].sort((left, right) => right.length - left.length);
+  if (terms.length === 0) {
+    titleEl.textContent = title;
+    return;
+  }
+
+  const expression = new RegExp(
+    terms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+    'gi',
+  );
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = expression.exec(title)) !== null) {
+    if (match.index > cursor) {
+      titleEl.createSpan({ text: title.slice(cursor, match.index) });
+    }
+    titleEl.createSpan({ cls: 'claudian-history-search-match', text: match[0] });
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < title.length) {
+    titleEl.createSpan({ text: title.slice(cursor) });
+  }
+}
 
 export class ConversationController {
   private activeInlineRename: {
@@ -1090,7 +1121,7 @@ export class ConversationController {
 
     const visibleConversations = filteredConversations.slice(0, visibleCount);
     for (const conversation of visibleConversations) {
-      this.renderHistoryConversationItem(list, conversation, options);
+      this.renderHistoryConversationItem(list, conversation, options, searchTerms);
     }
     const renderedConversationCount = visibleConversations.length;
 
@@ -1126,8 +1157,16 @@ export class ConversationController {
     list: HTMLElement,
     conversation: ConversationMeta,
     options: HistoryRenderOptions,
+    searchTerms: string[],
   ): void {
     if (options.signal?.aborted) return;
+
+    const sessionActionMode = options.sessionActionMode === 'mixed'
+      ? conversation.isArchived === true ? 'archived' : 'active'
+      : options.sessionActionMode;
+    const conversationOptions = sessionActionMode === options.sessionActionMode
+      ? options
+      : { ...options, sessionActionMode };
 
     const conversationStatus = this.getHistoryConversationStatusForConversation(
       conversation,
@@ -1166,7 +1205,7 @@ export class ConversationController {
       attention: conversationStatus.attention ?? null,
       location: conversationStatus.location ?? null,
       tabIndex: conversationStatus.tabIndex ?? null,
-      sessionActionMode: options.sessionActionMode ?? null,
+      sessionActionMode: sessionActionMode ?? null,
       showOpenStateLabels: options.showOpenStateLabels !== false,
       allowConversationSelection: options.allowConversationSelection !== false,
     }));
@@ -1185,8 +1224,8 @@ export class ConversationController {
     const content = item.createDiv({ cls: 'claudian-history-item-content' });
     const titleEl = content.createDiv({
       cls: 'claudian-history-item-title',
-      text: conversation.title,
     });
+    appendHighlightedHistoryTitle(titleEl, conversation.title, searchTerms);
     titleEl.setAttribute('title', conversation.title);
     content.createDiv({
       cls: 'claudian-history-item-date',
@@ -1220,7 +1259,7 @@ export class ConversationController {
         item,
         conversation,
         isCurrent,
-        options,
+        conversationOptions,
         event,
       );
     });
@@ -1255,7 +1294,7 @@ export class ConversationController {
         event.stopPropagation();
         runConversationAction(
           () => this.runHistoryAction(
-            () => this.deleteHistoryConversation(conversation.id, options),
+            () => this.deleteHistoryConversation(conversation.id, conversationOptions),
             t('chat.errors.deleteConversation'),
           ),
           t('chat.errors.deleteConversation'),
@@ -1263,7 +1302,7 @@ export class ConversationController {
       });
     };
 
-    if (options.sessionActionMode === 'active') {
+    if (sessionActionMode === 'active') {
       const archiveBtn = actions.createEl('button', {
         cls: 'claudian-action-btn claudian-archive-btn',
       });
@@ -1279,14 +1318,14 @@ export class ConversationController {
           event.stopPropagation();
           runConversationAction(
             () => this.runHistoryAction(
-              () => options.onSetConversationArchived?.(conversation.id, true),
+              () => conversationOptions.onSetConversationArchived?.(conversation.id, true),
               t('chat.errors.archiveSession'),
             ),
             t('chat.errors.archiveSession'),
           );
         });
       }
-    } else if (options.sessionActionMode === 'archived') {
+    } else if (sessionActionMode === 'archived') {
       const restoreBtn = actions.createEl('button', {
         cls: 'claudian-action-btn claudian-restore-btn',
       });
@@ -1296,7 +1335,7 @@ export class ConversationController {
         event.stopPropagation();
         runConversationAction(
           () => this.runHistoryAction(
-            () => options.onSetConversationArchived?.(conversation.id, false),
+            () => conversationOptions.onSetConversationArchived?.(conversation.id, false),
             'Failed to restore session',
           ),
           'Failed to restore session',
@@ -1309,7 +1348,7 @@ export class ConversationController {
       renameBtn.setAttribute('aria-label', t('chat.history.rename'));
       renameBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        this.showRenameEditor(item, conversation.id, conversation.title, options);
+        this.showRenameEditor(item, conversation.id, conversation.title, conversationOptions);
       });
       createDeleteButton();
     }
