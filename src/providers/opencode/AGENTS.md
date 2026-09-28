@@ -23,6 +23,7 @@
 ## Protocol Rules
 
 - v1 live output comes from ACP session notifications and is normalized through `AcpSessionUpdateNormalizer` plus OpenCode tool normalization. v2 output and interactions use native HTTP/SSE events and native session routes; wait for `/api/integration` activation and catalog readiness before choosing models, and keep model IDs as the exact `{providerID}/{id}` pair returned by `/api/model`.
+- Only the v2 HTTP kernel can steer through the native inbox. Treat inbox delivery as acceptance, recall undelivered entries when a run ends, and keep the submitted prompt boundary ahead of steer boundaries; v1 ACP declines steering.
 - History hydration reads OpenCode's native SQLite database.
 - Historical selected-model recovery reads the session row's stored provider/model identifiers from the trusted database path. Preserve the raw historical selection even when it is no longer in the current model catalog, and never promote a recovery-only locator into a live ACP binding.
 - `providerState.databasePath` preserves the database used for a conversation until a typed history or environment transition replaces it. Keep it when building session updates.
