@@ -8,6 +8,7 @@ import type { McpServerManager } from '../mcp/McpServerManager';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type {
   AgentDefinition,
+  AskUserAnswers,
   AuxiliaryContinuityReset,
   ChatMessage,
   Conversation,
@@ -51,6 +52,12 @@ export interface ProviderCapabilities {
 
 export const DEFAULT_CHAT_PROVIDER_ID = 'claude' as const satisfies ProviderId;
 
+/** Provider-native question replies are sent as user input and may be hidden in the chat UI. */
+export interface ProviderQuestionReply {
+  content: string;
+  displayContent: string;
+}
+
 /**
  * Chat-facing provider registration.
  *
@@ -75,6 +82,7 @@ export interface ProviderRegistration {
   historyService: ProviderConversationHistoryService;
   taskResultInterpreter: ProviderTaskResultInterpreter;
   subagentAdapter?: ProviderSubagentAdapter;
+  formatQuestionReply?: (tool: ToolCallInfo, answers: AskUserAnswers) => ProviderQuestionReply | null;
   collectDiagnostics?: ProviderDiagnosticCollector;
 }
 

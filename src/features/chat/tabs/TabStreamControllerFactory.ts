@@ -67,5 +67,6 @@ export function createTabStreamController(
     updateToolActivity: (activity) => tab.ui.statusPanel?.updateToolActivity(activity),
     removeToolActivity: (id) => tab.ui.statusPanel?.removeToolActivity(id),
     clearToolActivities: () => tab.ui.statusPanel?.clearToolActivities(),
+    onQuestionToolUpdate: tool => tab.controllers.inputController?.updateAsyncQuestion(tool),
   });
 }

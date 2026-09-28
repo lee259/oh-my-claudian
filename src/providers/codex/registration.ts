@@ -10,6 +10,7 @@ import { CodexExecutionBackend } from './execution/CodexExecutionBackend';
 import { CodexConversationHistoryService } from './history/CodexConversationHistoryService';
 import { getCodexModelOptions } from './modelOptions';
 import { toCodexRuntimeModelId } from './modelSelection';
+import { formatCodexQuestionReply } from './normalization/codexQuestionNormalization';
 import { codexSubagentLifecycleAdapter } from './normalization/codexSubagentNormalization';
 import {
   getCodexProviderSettings,
@@ -75,5 +76,6 @@ export const codexProviderRegistration: ProviderModule = {
   historyService: new CodexConversationHistoryService(),
   taskResultInterpreter: NOOP_TASK_RESULT_INTERPRETER,
   subagentAdapter: codexSubagentLifecycleAdapter,
+  formatQuestionReply: formatCodexQuestionReply,
   workspace: codexWorkspaceRegistration,
 };

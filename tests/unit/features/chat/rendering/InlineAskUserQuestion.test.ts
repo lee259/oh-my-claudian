@@ -26,10 +26,11 @@ function makeInput(
 function renderWidget(
   input: Record<string, unknown>,
   signal?: AbortSignal,
+  config?: InlineAskQuestionConfig,
 ): { container: any; resolve: jest.Mock; widget: InlineAskUserQuestion } {
   const container = createMockEl();
   const resolve = jest.fn();
-  const widget = new InlineAskUserQuestion(container, input, resolve, signal);
+  const widget = new InlineAskUserQuestion(container, input, resolve, signal, config);
   widget.render();
   return { container, resolve, widget };
 }
@@ -398,6 +399,34 @@ describe('InlineAskUserQuestion', () => {
         'Size?': 'M',
       });
       jest.useRealTimers();
+    });
+
+    it('keeps async questions open after a failed delivery and allows retry', async () => {
+      const onSubmit = jest.fn()
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValue(undefined);
+      const { container, resolve } = renderWidget(
+        makeInput([{ question: 'Continue?', options: ['Yes'], isOther: false }]),
+        undefined,
+        { onSubmit },
+      );
+
+      findItems(container)[0]?.click();
+      const tabs = container.querySelectorAll('claudian-ask-tab');
+      tabs[tabs.length - 1]?.click();
+      let submitRow = findItems(container)[0];
+      submitRow?.click();
+      await new Promise(resolvePromise => setTimeout(resolvePromise, 0));
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(resolve).not.toHaveBeenCalled();
+
+      submitRow = findItems(container)[0];
+      submitRow?.click();
+      await new Promise(resolvePromise => setTimeout(resolvePromise, 0));
+
+      expect(onSubmit).toHaveBeenCalledTimes(2);
+      expect(resolve).toHaveBeenCalledWith({ 'Continue?': 'Yes' });
     });
 
     it('submits multi-select answers as arrays instead of joining them into one string', () => {

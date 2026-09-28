@@ -3,6 +3,7 @@ import type { AskUserQuestionItem, AskUserQuestionOption } from '../../../core/t
 const CHECK_GLYPH = '\u2713';
 
 export interface InlineAskQuestionConfig {
+  onSubmit?: (answers: Record<string, string | string[]>) => Promise<void>;
   title?: string;
   headerEl?: HTMLElement;
   showCustomInput?: boolean;
@@ -14,8 +15,11 @@ export class InlineAskUserQuestion {
   private input: Record<string, unknown>;
   private resolveCallback: (result: Record<string, string | string[]> | null) => void;
   private resolved = false;
+  private submitting = false;
+  private submissionError = '';
   private signal?: AbortSignal;
-  private config: Required<Omit<InlineAskQuestionConfig, 'headerEl'>> & { headerEl?: HTMLElement };
+  private config: Required<Omit<InlineAskQuestionConfig, 'headerEl' | 'onSubmit'>>
+    & Pick<InlineAskQuestionConfig, 'headerEl' | 'onSubmit'>;
 
   private questions: AskUserQuestionItem[] = [];
   private answers = new Map<number, Set<string>>();
@@ -45,6 +49,7 @@ export class InlineAskUserQuestion {
     this.resolveCallback = resolve;
     this.signal = signal;
     this.config = {
+      onSubmit: config?.onSubmit,
       title: config?.title ?? 'Question',
       headerEl: config?.headerEl,
       showCustomInput: config?.showCustomInput ?? true,
@@ -224,6 +229,7 @@ export class InlineAskUserQuestion {
   }
 
   private switchTab(index: number): void {
+    if (this.submitting || this.resolved) return;
     const clamped = Math.max(0, Math.min(index, this.questions.length));
     if (clamped === this.activeTabIndex) return;
     this.activeTabIndex = clamped;
@@ -377,7 +383,9 @@ export class InlineAskUserQuestion {
     submitRow.setAttribute('aria-label', 'Submit answers');
     if (this.focusedItemIndex === 0) submitRow.addClass('is-focused');
     if (!allAnswered) submitRow.addClass('is-disabled');
-    submitRow.createSpan({ text: 'Submit answers', cls: 'claudian-ask-item-label' });
+    submitRow.disabled = this.submitting || !allAnswered;
+    submitRow.setAttribute('aria-label', this.submitting ? 'Sending...' : 'Submit answers');
+    submitRow.createSpan({ text: this.submitting ? 'Sending...' : 'Submit answers', cls: 'claudian-ask-item-label' });
     submitRow.addEventListener('click', () => {
       this.focusedItemIndex = 0;
       this.updateFocusIndicator();
@@ -388,14 +396,19 @@ export class InlineAskUserQuestion {
     const cancelRow = actionsEl.createEl('button', { cls: 'claudian-ask-item claudian-ask-action' });
     cancelRow.setAttribute('type', 'button');
     cancelRow.setAttribute('aria-label', 'Cancel');
+    cancelRow.disabled = this.submitting;
     if (this.focusedItemIndex === 1) cancelRow.addClass('is-focused');
     cancelRow.createSpan({ text: 'Cancel', cls: 'claudian-ask-item-label' });
     cancelRow.addEventListener('click', () => {
+      if (this.submitting) return;
       this.focusedItemIndex = 1;
       this.handleResolve(null);
     });
     this.currentItems.push(cancelRow);
 
+    if (this.submissionError) {
+      this.contentArea.createDiv({ text: this.submissionError, cls: 'claudian-ask-error', attr: { role: 'alert' } });
+    }
   }
 
   private getAnswerText(idx: number): string {
@@ -408,6 +421,7 @@ export class InlineAskUserQuestion {
   }
 
   private selectOption(qIdx: number, option: AskUserQuestionOption): void {
+    if (this.submitting || this.resolved) return;
     const q = this.questions[qIdx];
     const selected = this.answers.get(qIdx)!;
     const isMulti = q.multiSelect;
@@ -547,6 +561,11 @@ export class InlineAskUserQuestion {
 
   private handleKeyDown(e: KeyboardEvent): void {
     if (e.isComposing) return;
+    if (this.submitting) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
 
     if (this.isInputFocused) {
       if (e.key === 'Escape') {
@@ -643,6 +662,7 @@ export class InlineAskUserQuestion {
   }
 
   private handleSubmit(): void {
+    if (this.submitting || this.resolved) return;
     const allAnswered = this.questions.every((_, i) => this.isQuestionAnswered(i));
     if (!allAnswered) return;
 
@@ -664,7 +684,23 @@ export class InlineAskUserQuestion {
 
       result[key] = customInput || selectedValues[0] || '';
     }
-    this.handleResolve(result);
+    if (!this.config.onSubmit) {
+      this.handleResolve(result);
+      return;
+    }
+
+    this.submitting = true;
+    this.rootEl.setAttribute('aria-busy', 'true');
+    this.renderTabContent();
+    void this.config.onSubmit(result).then(() => {
+      if (!this.resolved) this.handleResolve(result);
+    }).catch((error: unknown) => {
+      if (this.resolved) return;
+      this.submitting = false;
+      this.submissionError = error instanceof Error ? error.message : 'Could not send the answer. Please try again.';
+      this.rootEl.setAttribute('aria-busy', 'false');
+      this.renderTabContent();
+    });
   }
 
   private canShowCustomInputForQuestion(question: AskUserQuestionItem): boolean {

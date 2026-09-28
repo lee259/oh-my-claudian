@@ -79,7 +79,14 @@ export function mergeQueuedMessages(
     toQueuedChatTurn(existing),
     toQueuedChatTurn(incoming),
   );
-  return createQueuedMessage(mergedTurn.displayContent, mergedTurn.request);
+  const merged = createQueuedMessage(mergedTurn.displayContent, mergedTurn.request);
+  const callbacks = [existing.onDelivery, incoming.onDelivery].filter(
+    (callback): callback is NonNullable<QueuedMessage['onDelivery']> => callback !== undefined,
+  );
+  if (callbacks.length > 0) {
+    merged.onDelivery = accepted => callbacks.forEach(callback => callback(accepted));
+  }
+  return merged;
 }
 
 export function cloneChatTurnRequest(request: ChatTurnRequest): ChatTurnRequest {

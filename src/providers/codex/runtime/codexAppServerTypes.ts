@@ -127,6 +127,8 @@ export interface AgentMessageItem {
   text: string;
   phase: string;
   memoryCitation: CodexMemoryCitation | null;
+  delivery?: 'async' | 'sync';
+  questions?: Array<Record<string, unknown>>;
 }
 
 export interface CodexMemoryCitation {

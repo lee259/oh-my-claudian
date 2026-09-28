@@ -1059,7 +1059,15 @@ function renderToolContent(
     renderTodoWriteResult(content, toolCall.input);
   } else if (toolCall.name === TOOL_ASK_USER_QUESTION) {
     content.addClass('claudian-tool-content-ask');
-    if (initialText) {
+    if (toolCall.input.replyMode === 'user-message' && !toolCall.resolvedAnswers) {
+      renderAskUserQuestionFallback(
+        content,
+        toolCall,
+        toolCall.questionStatus === 'pending'
+          ? 'Answer in the question panel below.'
+          : toolCall.questionStatus === 'expired' ? 'Question expired.' : 'Question sent. Awaiting your reply.',
+      );
+    } else if (initialText) {
       renderAskUserQuestionFallback(content, toolCall, 'Waiting for answer...');
     } else if (!renderAskUserQuestionResult(content, toolCall)) {
       renderAskUserQuestionFallback(content, toolCall);

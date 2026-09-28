@@ -26,6 +26,7 @@ import {
   normalizeCodexMemoryCitation,
   stripCodexMemoryCitationMarkup,
 } from '../normalization/CodexMemoryCitation';
+import { parseCodexQuestionReply } from '../normalization/codexQuestionNormalization';
 import { applyCodexSubagentActivity, normalizeCodexSubagentActivity } from '../normalization/codexSubagentActivity';
 import { buildCodexSubagentInfo } from '../normalization/codexSubagentNormalization';
 import {
@@ -128,6 +129,7 @@ interface PersistedMcpToolCallPayload {
 }
 
 interface PersistedEventPayload {
+  item?: { type?: string; id?: string; delivery?: string; questions?: unknown[] };
   type?: string;
   text?: string;
   message?: string;
@@ -945,6 +947,22 @@ function findPersistedToolCallById(ctx: PersistedParseContext, callId: string): 
   return turn.assistantBubbles[origin.bubbleIndex].toolCalls.find(tool => tool.id === callId) ?? null;
 }
 
+function applyPersistedQuestionReplies(text: string, ctx: PersistedParseContext): boolean {
+  const replies = parseCodexQuestionReply(text);
+  for (const reply of replies) {
+    const tool = findPersistedToolCallById(ctx, reply.callId);
+    const questions: unknown = tool?.input.questions;
+    const question: unknown = Array.isArray(questions) ? questions[reply.index] : undefined;
+    if (tool?.input.replyMode !== 'user-message'
+      || !question || typeof question !== 'object' || Array.isArray(question)) continue;
+    const item = question as Record<string, unknown>;
+    if (item.question !== reply.question) continue;
+    const answerKey = typeof item.id === 'string' ? item.id : String(reply.index);
+    tool.resolvedAnswers = { ...tool.resolvedAnswers, [answerKey]: reply.answer };
+  }
+  return replies.length > 0;
+}
+
 function applyPersistedExecEnvelopeOutput(
   toolCallIds: string[],
   rawOutputValue: string | unknown[] | undefined,
@@ -1189,9 +1207,10 @@ function processPersistedPayload(
 
       if (messagePayload.role === 'user') {
         const text = extractUserMessageText(messagePayload.content);
+        const isQuestionReply = applyPersistedQuestionReplies(text, ctx);
         const visibleText = extractCodexUserVisibleText(text);
         const hasImages = hasMessageImages(messagePayload.content);
-        if (visibleText === null && !hasImages) break;
+        if (visibleText === null && !hasImages && !isQuestionReply) break;
 
         // Close any active bubble in the current turn before starting user content
         if (ctx.currentTurnId) {
@@ -1203,8 +1222,8 @@ function processPersistedPayload(
         ctx.currentTurnId = null;
         const turn = ensureTurn(ctx.turns, ctx.turnOrder, nextTurnId(ctx), null, timestamp);
         ctx.currentTurnId = turn.id;
-        if (visibleText !== null) {
-          appendUserChunk(turn, visibleText, timestamp);
+        if (isQuestionReply || visibleText !== null) {
+          appendUserChunk(turn, isQuestionReply ? text : visibleText!, timestamp);
         }
         appendUserImages(turn, messagePayload.content, timestamp);
       } else if (messagePayload.role === 'assistant') {
@@ -1284,6 +1303,23 @@ function processEventMsg(
           ctx,
         );
       }
+      const item = payload.item;
+      if ((item?.type === 'AgentMessage' || item?.type === 'agentMessage')
+        && item.delivery === 'async' && item.id && Array.isArray(item.questions)) {
+        if (!findPersistedToolCallById(ctx, item.id)) {
+          processPersistedToolCall({
+            type: 'function_call',
+            call_id: item.id,
+            name: 'request_user_input_async',
+            arguments: JSON.stringify({ questions: item.questions }),
+          }, timestamp, ctx);
+        }
+        const questionTool = findPersistedToolCallById(ctx, item.id);
+        if (questionTool?.status === 'running') {
+          questionTool.status = 'completed';
+          questionTool.result = 'Question sent. Awaiting your reply.';
+        }
+      }
       break;
     }
     case 'task_started': {
@@ -1331,9 +1367,10 @@ function processEventMsg(
       const turn = ensureTurn(ctx.turns, ctx.turnOrder, nextTurnId(ctx), ctx.currentTurnId, timestamp);
       const msg = payload.message;
       if (typeof msg === 'string') {
+        const isQuestionReply = applyPersistedQuestionReplies(msg, ctx);
         const visibleText = extractCodexUserVisibleText(msg);
-        if (visibleText !== null) {
-          appendUserChunk(turn, visibleText, timestamp);
+        if (isQuestionReply || visibleText !== null) {
+          appendUserChunk(turn, isQuestionReply ? msg : visibleText!, timestamp);
         }
       }
       break;
@@ -1403,14 +1440,18 @@ function flushBubbleTurnMessages(
 ): { messages: ChatMessage[]; nextMsgIndex: number } {
   const messages: ChatMessage[] = [];
 
-  const visibleUserText = extractCodexUserVisibleText(turn.userChunks.join('\n'));
+  const rawUserText = turn.userChunks.join('\n');
+  const isQuestionReply = parseCodexQuestionReply(rawUserText).length > 0;
+  const visibleUserText = extractCodexUserVisibleText(rawUserText);
   const userImages = turn.userImages.length > 0 ? turn.userImages : undefined;
-  if (visibleUserText || userImages) {
-    const displayContent = visibleUserText ? extractUserDisplayContent(visibleUserText) : undefined;
+  if (visibleUserText || userImages || isQuestionReply) {
+    const displayContent = visibleUserText
+      ? extractUserDisplayContent(visibleUserText)
+      : isQuestionReply ? '' : undefined;
     messages.push({
       id: `codex-msg-${msgIndex}`,
       role: 'user',
-      content: visibleUserText ?? '',
+      content: isQuestionReply ? rawUserText : visibleUserText ?? '',
       ...(displayContent !== undefined ? { displayContent } : {}),
       ...(userImages ? { images: userImages } : {}),
       ...(turn.serverTurnId ? { userMessageId: turn.serverTurnId } : {}),

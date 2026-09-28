@@ -114,4 +114,34 @@ describe('QueuedTurn', () => {
       },
     });
   });
+
+  it('retains delivery observers when queued messages are merged', () => {
+    const first = jest.fn();
+    const second = jest.fn();
+    const merged = mergeQueuedMessages(
+      {
+        browserContext: null,
+        canvasContext: null,
+        content: '',
+        editorContext: null,
+        onDelivery: first,
+        turnRequest: { text: '<hidden reply>' },
+      },
+      {
+        browserContext: null,
+        canvasContext: null,
+        content: 'visible follow-up',
+        editorContext: null,
+        onDelivery: second,
+        turnRequest: { text: 'visible follow-up' },
+      },
+    );
+
+    merged.onDelivery?.(true);
+
+    expect(merged.content).toBe('visible follow-up');
+    expect(merged.turnRequest?.text).toBe('<hidden reply>\n\nvisible follow-up');
+    expect(first).toHaveBeenCalledWith(true);
+    expect(second).toHaveBeenCalledWith(true);
+  });
 });

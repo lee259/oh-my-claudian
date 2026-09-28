@@ -18,6 +18,7 @@ describe('normalizeCodexToolName', () => {
     ['exec_command', 'Bash'],
     ['update_plan', 'TodoWrite'],
     ['request_user_input', 'AskUserQuestion'],
+    ['request_user_input_async', 'AskUserQuestion'],
     ['view_image', 'Read'],
     ['web_search', 'WebSearch'],
     ['web_search_call', 'WebSearch'],
@@ -114,6 +115,25 @@ describe('normalizeCodexToolInput', () => {
         multiSelect: true,
       },
     ]);
+  });
+
+  it('normalizes async request_user_input as a user-message question', () => {
+    expect(normalizeCodexToolInput('request_user_input_async', {
+      questions: [{ title: 'Which check?', options: ['History', 'Rendering'] }],
+    })).toEqual({
+      questions: [{
+        question: 'Which check?',
+        header: 'Q1',
+        options: [
+          { label: 'History', description: '' },
+          { label: 'Rendering', description: '' },
+        ],
+        multiSelect: false,
+        id: '0',
+        isOther: true,
+      }],
+      replyMode: 'user-message',
+    });
   });
 
   it('normalizes shell command arrays into a single command string', () => {
@@ -382,6 +402,10 @@ describe('Codex MCP normalization helpers', () => {
 });
 
 describe('normalizeCodexToolResult', () => {
+  it('normalizes accepted async question results', () => {
+    expect(normalizeCodexToolResult('AskUserQuestion', '{"accepted":true}'))
+      .toBe('Question sent. Awaiting your reply.');
+  });
   it('unwraps JSON { output: "..." } for Bash', () => {
     const result = normalizeCodexToolResult('Bash', '{"output":"hello world"}');
     expect(result).toBe('hello world');
