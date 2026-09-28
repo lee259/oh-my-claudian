@@ -13,7 +13,9 @@ it('preserves a task notification between the requested response and its automat
     { type: 'user', uuid: 'u', timestamp: '2026-09-20T11:29:55Z', message: { content: 'Run a task' } },
     { type: 'assistant', uuid: 'a1', parentUuid: 'u', timestamp: '2026-09-20T11:30:00Z',
       message: { content: [{ type: 'text', text: 'Waiting for completion.' }] } },
-    { type: 'user', uuid: 'notification', parentUuid: 'a1', timestamp: '2026-09-20T11:30:18Z',
+    // The timestamp is the enqueue time; native record order places consumption
+    // after the requested response and before the automatic follow-up.
+    { type: 'user', uuid: 'notification', parentUuid: 'a1', timestamp: '2026-09-20T11:29:50Z',
       message: { content: '<task-notification><task-id>task-1</task-id><status>completed</status>'
         + '<result>Background command completed.</result></task-notification>' } },
     { type: 'assistant', uuid: 'a2', parentUuid: 'notification', timestamp: '2026-09-20T11:30:23Z',

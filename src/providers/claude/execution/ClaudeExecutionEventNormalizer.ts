@@ -159,15 +159,6 @@ export class ClaudeExecutionEventNormalizer {
           type: 'async_subagent_completion',
           event,
         });
-        const rawMessage = message as unknown as { subtype?: string; skip_transcript?: boolean };
-        if (rawMessage.subtype === 'task_notification'
-          && rawMessage.skip_transcript !== true
-          && event.result) {
-          normalized.push({
-            type: 'output',
-            event: { type: 'task_notification', content: event.result },
-          });
-        }
         continue;
       }
       if (isSubagentProgress(event)) {

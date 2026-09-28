@@ -7,6 +7,7 @@ import {
   extractXmlTag,
   resolveToolUseResultStatus,
 } from '../history/ClaudeHistoryStore';
+import { extractHandbackResult } from '../normalization/claudeSubagentResult';
 
 function extractAgentIdFromString(value: string): string | null {
   const regexPatterns = [
@@ -41,19 +42,19 @@ function extractResultFromTaskObject(task: unknown): string | null {
   return output.length > 0 ? output : null;
 }
 
-function extractTextFromContentBlocks(content: unknown): string | null {
+function extractTextFromContentBlocks(content: unknown, agentId: unknown): string | null {
   if (!Array.isArray(content)) {
     return null;
   }
 
-  const firstTextBlock = (content as Array<Record<string, unknown>>)
-    .find(block => block && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string');
-  if (!firstTextBlock || typeof firstTextBlock.text !== 'string') {
-    return null;
-  }
-
-  const text = firstTextBlock.text.trim();
-  return text.length > 0 ? text : null;
+  const texts = (content as Array<Record<string, unknown>>)
+    .flatMap(block => block && typeof block === 'object' && block.type === 'text'
+      && typeof block.text === 'string' ? [block.text] : []);
+  const trailer = texts.at(-1)?.match(/^agentId: ([a-zA-Z0-9_-]+)(?: \([^\r\n]*\))?\r?\n<usage>[^]*<\/usage>\s*$/);
+  if (texts.length > 1 && trailer && trailer[1] === agentId) texts.pop();
+  const text = texts.join('\n');
+  if (!text.trim()) return null;
+  return extractHandbackResult(text) ?? text;
 }
 
 export class ClaudeTaskResultInterpreter implements ProviderTaskResultInterpreter {
@@ -139,15 +140,15 @@ export class ClaudeTaskResultInterpreter implements ProviderTaskResultInterprete
 
     const result = typeof record.result === 'string' ? record.result.trim() : '';
     if (result.length > 0) {
-      return result;
+      return extractHandbackResult(result) ?? result;
     }
 
     const output = typeof record.output === 'string' ? record.output.trim() : '';
     if (output.length > 0) {
-      return output;
+      return extractHandbackResult(output) ?? output;
     }
 
-    return extractTextFromContentBlocks(record.content);
+    return extractTextFromContentBlocks(record.content, record.agentId);
   }
 
   resolveTerminalStatus(

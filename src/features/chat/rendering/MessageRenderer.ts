@@ -463,8 +463,21 @@ export class MessageRenderer {
 
     const children = Array.from(contentEl.children) as HTMLElement[];
     const workEls = this.findCompletedWorkElements(children);
-    if (workEls.length > 0) {
-      this.createCompletedWork(contentEl, workEls, msg.durationSeconds);
+    const notification = msg.isAutomaticResponse
+      ? contentEl.querySelector<HTMLElement>('.claudian-task-notification')
+      : null;
+    const notificationHistory = notification?.querySelector<HTMLElement>('.claudian-work-history');
+    if (notificationHistory && workEls.length > 0) {
+      for (const workEl of workEls) notificationHistory.appendChild(workEl);
+      this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
+      return;
+    }
+    const requestedNotifications = msg.isAutomaticResponse ? [] : children.filter(child =>
+      child.hasClass('claudian-task-notification'));
+    const completedWorkEls = [...workEls, ...requestedNotifications]
+      .sort((left, right) => children.indexOf(left) - children.indexOf(right));
+    if (completedWorkEls.length > 0) {
+      this.createCompletedWork(contentEl, completedWorkEls, msg.durationSeconds);
     }
     this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
   }

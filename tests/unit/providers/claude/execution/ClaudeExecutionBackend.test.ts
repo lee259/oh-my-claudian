@@ -1859,6 +1859,51 @@ describe('ClaudeExecutionBackend', () => {
     }));
   });
 
+  it('orders a live task notification at its native consumption boundary without duplicating completion', async () => {
+    const query = createScriptedPersistentQuery([[
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      { type: 'system', subtype: 'task_started', task_id: 'task-1', is_backgrounded: true },
+      {
+        type: 'system',
+        subtype: 'task_notification',
+        session_id: 'session-1',
+        task_id: 'task-1',
+        status: 'completed',
+        summary: 'Subagent result',
+      },
+      { type: 'result', subtype: 'success' },
+      {
+        type: 'user',
+        uuid: 'task-notification-echo',
+        parent_tool_use_id: null,
+        message: { content: '<task-notification><task-id>task-1</task-id><status>completed</status><result>Subagent result</result></task-notification>' },
+      },
+      {
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: 'Automatic result' }] },
+      },
+      { type: 'result', subtype: 'success' },
+    ]]);
+    jest.spyOn(
+      await import('@/providers/claude/loadClaudeAgentSdk'),
+      'loadClaudeAgentQuery',
+    ).mockResolvedValueOnce((() => query) as never);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+    const sessionEvents: ProviderSessionEvent[] = [];
+    session.onEvent((event) => sessionEvents.push(event));
+
+    await collectEvents(session.execute(createRequest()).events);
+    await query.finished;
+
+    const notifications = sessionEvents.filter(event => event.type === 'task_notification');
+    expect(notifications).toHaveLength(1);
+    expect(sessionEvents.map(event => event.type).indexOf('task_notification'))
+      .toBeLessThan(sessionEvents.map(event => event.type).indexOf('text_delta'));
+    expect(sessionEvents.filter(event => event.type === 'async_subagent_completed')).toHaveLength(1);
+  });
+
   it('cancels one active run, fences late output, and rejects execution after disposal', async () => {
     const query = createScriptedPersistentQuery([[
       { type: 'system', subtype: 'init', session_id: 'session-1' },
