@@ -783,6 +783,15 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Tool handling', () => {
+    it('clears active tool activity through the status-panel callback', () => {
+      const clearToolActivities = jest.fn();
+      deps.clearToolActivities = clearToolActivities;
+
+      controller.clearToolActivities();
+
+      expect(clearToolActivities).toHaveBeenCalledTimes(1);
+    });
+
     it('should report active tool activity and remove it on completion', async () => {
       const msg = createTestMessage();
       const updateToolActivity = jest.fn();
