@@ -48,7 +48,7 @@ describe('OpencodeConversationHistoryService', () => {
     });
   });
 
-  it('stores the native child session and version for a full-session fork', async () => {
+  it('stores the native child session and version for a checkpoint fork', async () => {
     const dbPath = path.join(tmpRoot, 'fork.db');
     seedDatabase(dbPath, 'source-session', 'Source prompt');
     const forkSession = jest.fn().mockResolvedValue('child-session');
@@ -66,6 +66,7 @@ describe('OpencodeConversationHistoryService', () => {
       cwd: tmpRoot,
       nativeVersion: 2,
       sourceSessionId: 'source-session',
+      resumeAt: 'assistant-message',
     }));
     expect(providerState).toMatchObject({
       databasePath: dbPath,

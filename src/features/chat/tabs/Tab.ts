@@ -157,7 +157,10 @@ function getTabCapabilities(
   conversation?: Conversation | null,
 ): ProviderCapabilities {
   const providerId = getTabProviderId(tab, plugin, conversation);
-  return ProviderRegistry.getCapabilities(providerId);
+  const providerState = conversation === undefined && tab.conversationId
+    ? plugin.getConversationSync(tab.conversationId)?.providerState
+    : conversation?.providerState;
+  return ProviderRegistry.getCapabilities(providerId, providerState);
 }
 
 function getTabChatUIConfig(

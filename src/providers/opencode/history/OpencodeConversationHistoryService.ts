@@ -172,6 +172,7 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
       environment,
       nativeVersion,
       sourceSessionId,
+      resumeAt: _resumeAt,
       onNativeVersion: version => { nativeVersion = version ?? nativeVersion; },
     });
     return {
