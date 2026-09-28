@@ -13,4 +13,13 @@ describe('Approval detail styles', () => {
     );
     expect(css).toMatch(/\.claudian-ask-approval-desc:focus-visible\s*{/);
   });
+
+  it('does not let the inline flex layout override the hidden attribute', () => {
+    const css = readFileSync(
+      path.resolve('src/style/features/ask-user-question.css'),
+      'utf8',
+    );
+
+    expect(css).toMatch(/\.claudian-ask-question-inline\[hidden\]\s*{[^}]*display:\s*none;/);
+  });
 });
