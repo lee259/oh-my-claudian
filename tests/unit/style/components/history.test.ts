@@ -12,6 +12,15 @@ describe('Session history styles', () => {
 });
 
 describe('Single-pane history action styles', () => {
+  it('animates the live session running indicator', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+    const runningIndicatorRule = css.match(
+      /\.claudian-session-running-indicator\s+svg\s*{[^}]*}/,
+    )?.[0];
+
+    expect(runningIndicatorRule).toContain('animation: spin 1s linear infinite;');
+  });
+
   it('keeps archive navigation pinned above rows on an opaque full-width surface', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
     const archiveControlRule = css.match(/\.claudian-history-archive-control\s*{[^}]*}/)?.[0];

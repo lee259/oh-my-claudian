@@ -374,6 +374,10 @@
   color: var(--text-normal);
 }
 
+.claudian-session-running-indicator svg {
+  animation: spin 1s linear infinite;
+}
+
 .claudian-rename-input {
   width: 100%;
   padding: 2px 4px;
