@@ -13,6 +13,10 @@ export class ImagePreviewModal {
   private closeCurrent: (() => void) | null = null;
 
   open(ownerDocument: Document, image: ImageAttachment): void {
+    this.openSource(ownerDocument, `data:${image.mediaType};base64,${image.data}`, image.name);
+  }
+
+  openSource(ownerDocument: Document, src: string, name: string): void {
     this.close();
 
     const previouslyFocusedElement = getFocusableActiveElement(ownerDocument);
@@ -20,12 +24,12 @@ export class ImagePreviewModal {
     const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', `Image preview: ${image.name}`);
+    modal.setAttribute('aria-label', `Image preview: ${name}`);
 
     modal.createEl('img', {
       attr: {
-        src: `data:${image.mediaType};base64,${image.data}`,
-        alt: image.name,
+        src,
+        alt: name,
       },
     });
 
