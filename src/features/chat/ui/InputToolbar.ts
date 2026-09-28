@@ -1219,11 +1219,11 @@ export class McpServerSelector {
     // Show/hide container based on whether there are servers and visibility
     if (!hasServers || !this.visible) {
       this.container.addClass('claudian-hidden');
-      this.container.closest('.claudian-context-action-section')?.classList.add('claudian-hidden');
+      this.container.closest('.claudian-context-action-section')?.classList?.add('claudian-hidden');
       return;
     }
     this.container.removeClass('claudian-hidden');
-    this.container.closest('.claudian-context-action-section')?.classList.remove('claudian-hidden');
+    this.container.closest('.claudian-context-action-section')?.classList?.remove('claudian-hidden');
 
     if (count > 0) {
       this.iconEl.addClass('active');
