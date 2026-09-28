@@ -82,6 +82,15 @@ button.claudian-message-image:focus-visible {
   outline-offset: 2px;
 }
 
+.claudian-message-image-previewable {
+  cursor: zoom-in;
+}
+
+.claudian-message-image-previewable:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 button.claudian-message-image img {
   width: 100%;
   height: 100%;
