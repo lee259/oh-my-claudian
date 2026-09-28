@@ -20,7 +20,7 @@ The built-in provider integrations are:
 - [OpenCode](https://github.com/anomalyco/opencode)
 - [Pi](https://github.com/earendil-works/pi)
 
-Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific.
+Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude and Codex.
 
 ## What it provides
 
@@ -30,6 +30,7 @@ Provider capabilities are intentionally different. The plugin exposes controls o
 - Slash commands, skills, `@` mentions, instruction mode, and Mermaid rendering.
 - Model discovery, readiness diagnostics, and provider-aware CLI lifecycle management: discovery, health checks, version comparison, install, update, and post-action verification.
 - File and folder attachments from Obsidian or your desktop as clickable context chips.
+- Obsidian-native vault actions: inspect backlinks, update or remove note frontmatter properties, move or rename vault files while Obsidian handles link updates, and send files to Obsidian trash.
 - External-file access boundaries and approval-aware write handling.
 - Internationalized UI with 10 locales, including Simplified and Traditional Chinese.
 
