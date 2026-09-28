@@ -4,7 +4,7 @@ import type {
   ProviderConversationHistoryService,
   ProviderHistoryPathContext,
 } from '../../../core/providers/types';
-import type { Conversation } from '../../../core/types';
+import type { ChatMessage, Conversation } from '../../../core/types';
 import { encodeCodexModelSelectionId } from '../modelSelection';
 import type { CodexProviderState } from '../types';
 import { getCodexState } from '../types';
@@ -22,6 +22,7 @@ import {
   parseCodexSessionModel,
   parseCodexSessionTurns,
 } from './CodexHistoryStore';
+import { hydrateCodexSubagentHistory } from './CodexSubagentHistory';
 
 async function readSessionTurns(sessionFilePath: string): Promise<CodexParsedTurn[]> {
   const controller = new AbortController();
@@ -171,6 +172,7 @@ export class CodexConversationHistoryService implements ProviderConversationHist
         return;
       }
       conversation.messages = truncated.flatMap(t => t.messages);
+      await this.hydrateSubagents(conversation.messages, sourceSessionFile, state.forkSourceTranscriptRootPath, pathContext);
       return;
     }
 
@@ -207,16 +209,17 @@ export class CodexConversationHistoryService implements ProviderConversationHist
         const sourceTurnIds = new Set(sourceTurns.map(t => t.turnId).filter(Boolean));
         const forkOnlyTurns = forkTurns.filter(t => !t.turnId || !sourceTurnIds.has(t.turnId));
 
-        const messages = [
-          ...sourcePrefix.flatMap(t => t.messages),
-          ...forkOnlyTurns.flatMap(t => t.messages),
-        ];
+        const sourceMessages = sourcePrefix.flatMap(t => t.messages);
+        const forkMessages = forkOnlyTurns.flatMap(t => t.messages);
+        const messages = [...sourceMessages, ...forkMessages];
 
         if (messages.length === 0) {
           this.hydratedConversationPaths.delete(conversation.id);
           return;
         }
 
+        await this.hydrateSubagents(sourceMessages, sourceSessionFile, state.forkSourceTranscriptRootPath, pathContext);
+        await this.hydrateSubagents(forkMessages, forkSessionFile, transcriptRootPath, pathContext);
         conversation.messages = messages;
         this.hydratedConversationPaths.set(conversation.id, `fork::${state.threadId}`);
         this.markNativeConversationContextEstablished(conversation);
@@ -276,9 +279,26 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       return;
     }
 
+    await this.hydrateSubagents(sdkMessages, sessionFilePath, resolvedTranscriptRootPath, pathContext);
     conversation.messages = sdkMessages;
     this.hydratedConversationPaths.set(conversation.id, hydrationKey);
     this.markNativeConversationContextEstablished(conversation);
+  }
+
+  private async hydrateSubagents(
+    messages: ChatMessage[],
+    sessionFilePath: string,
+    rootHint: string | null | undefined,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<void> {
+    const root = resolveCodexTranscriptRootHint(
+      rootHint ?? deriveCodexSessionsRootFromSessionPath(sessionFilePath),
+      pathContext,
+    );
+    await hydrateCodexSubagentHistory(messages, [
+      ...(root ? [root] : []),
+      ...getCodexArchivedTranscriptRoots(pathContext, root ? [root] : []),
+    ], Date.now() + CODEX_HISTORY_LOOKUP_TIMEOUT_MS);
   }
 
   resolveSessionIdForConversation(conversation: Conversation | null): string | null {
