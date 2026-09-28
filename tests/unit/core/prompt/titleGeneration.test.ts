@@ -43,6 +43,17 @@ describe('titleGeneration', () => {
     })).toBe('ja');
   });
 
+  it('uses the resolved Obsidian locale when both locale settings follow Obsidian', () => {
+    const locale = resolveTitleGenerationLocale({
+      locale: '',
+      titleGenerationLocale: '',
+    }, 'zh-CN');
+
+    expect(locale).toBe('zh-CN');
+    expect(buildTitleGenerationSystemPrompt(locale))
+      .toContain('Write the title in Simplified Chinese');
+  });
+
   it('prefers the independent title locale over the interface locale', () => {
     expect(resolveTitleGenerationLocale({
       locale: 'en',
