@@ -142,6 +142,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
     },
     streamController: {
       appendText: jest.fn(),
+      clearToolActivities: jest.fn(),
       finalizeCurrentTextBlock: jest.fn(),
       finalizeCurrentThinkingBlock: jest.fn(),
       flushPendingTools: jest.fn(),
@@ -772,6 +773,7 @@ describe('InputController coordinator execution', () => {
 
     expect(fixture.state.isStreaming).toBe(false);
     expect(fixture.state.cancelRequested).toBe(false);
+    expect(fixture.deps.streamController.clearToolActivities).toHaveBeenCalledTimes(1);
 
     const secondResult = deferred<{
       accepted: boolean;

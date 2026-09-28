@@ -1504,6 +1504,7 @@ export class InputController {
     this.pendingSteersByConversation.clearCurrentUi(this.deps.state.currentConversationId);
     this.getExecutionCoordinator()?.cancel();
     streamController.hideThinkingIndicator();
+    streamController.clearToolActivities();
   }
 
   /** Cancels the active turn and waits for its cleanup and conversation persistence. */

@@ -2226,6 +2226,10 @@ export class StreamController {
     state.responseStartTime = null;
   }
 
+  clearToolActivities(): void {
+    this.deps.clearToolActivities?.();
+  }
+
   dispose(): void {
     this.textRenderCoordinator.dispose();
     this.thinkingRenderCoordinator.dispose();
