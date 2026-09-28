@@ -6,6 +6,23 @@
   outline: none;
 }
 
+:is(button.claudian-ask-tab, button.claudian-ask-item, button.claudian-ask-review-pair),
+:is(button.claudian-ask-tab, button.claudian-ask-item, button.claudian-ask-review-pair):is(:hover, :focus, :active, :disabled) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  height: auto;
+  min-height: 0;
+}
+
+:is(button.claudian-ask-tab, button.claudian-ask-item, button.claudian-ask-review-pair):focus-visible {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
 .claudian-ask-inline-title {
   font-weight: 700;
   color: var(--text-muted);
@@ -215,6 +232,11 @@
   display: flex;
   gap: 6px;
   margin-bottom: 4px;
+}
+
+button.claudian-ask-review-pair {
+  width: 100%;
+  cursor: pointer;
 }
 
 .claudian-ask-review-pair:last-child {
