@@ -14,6 +14,7 @@ import {
   loadOpencodeSessionModel,
 } from './OpencodeHistoryStore';
 import { forkOpencodeSession } from './OpencodeSessionFork';
+import { hydrateOpenCodeV2Children } from './OpencodeSubagentHistory';
 
 const OPENCODE_PROVIDER_STATE_KEYS = [
   'sessionId',
@@ -95,6 +96,9 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
       return;
     }
 
+    if (state.nativeVersion === 2 && databasePath) {
+      await hydrateOpenCodeV2Children(messages, databasePath, pathContext?.environment ?? process.env);
+    }
     conversation.messages = messages;
     if (
       messages.length === 1
