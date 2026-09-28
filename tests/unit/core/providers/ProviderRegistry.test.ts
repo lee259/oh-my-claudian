@@ -98,6 +98,10 @@ describe('ProviderRegistry', () => {
       supportsEphemeralFork: false,
       forkMode: 'full-session',
     });
+    expect(ProviderRegistry.getCapabilities('opencode', { nativeVersion: 2 })).toMatchObject({
+      supportsFork: true,
+      forkMode: 'checkpoint',
+    });
   });
 
   it('registers provider-owned subagent protocols outside the capability matrix', () => {

@@ -5,6 +5,7 @@ import {
 } from '@/providers/acp';
 
 import { OpencodeHttpClient } from '../http/OpencodeHttpClient';
+import { readOpencodeHttpMessages } from '../http/OpencodeHttpHistory';
 import { assertOpencodeSessionCompatibility, detectOpencodeNativeVersion, parseOpencodeNativeVersion } from '../runtime/OpencodeVersion';
 
 export interface OpencodeSessionForkOptions {
@@ -14,6 +15,7 @@ export interface OpencodeSessionForkOptions {
   nativeVersion?: 1 | 2;
   onNativeVersion?: (version: 1 | 2 | undefined) => void;
   sourceSessionId: string;
+  resumeAt?: string;
 }
 
 /** Creates the native child before the source can accept another turn. */
@@ -26,14 +28,7 @@ export async function forkOpencodeSession(options: OpencodeSessionForkOptions): 
     const client = new OpencodeHttpClient(options.cliPath, options.cwd, options.environment);
     try {
       await client.waitForActivation();
-      const response = await client.request<{ data?: { id?: unknown } }>(
-        `/api/session/${encodeURIComponent(options.sourceSessionId)}/fork`,
-        { method: 'POST', body: {} },
-      );
-      const sessionId = response.data?.id;
-      if (typeof sessionId !== 'string' || !sessionId.trim() || sessionId === options.sourceSessionId) {
-        throw new Error('OpenCode fork returned an invalid child session.');
-      }
+      const sessionId = await forkOpencodeHttpSession(client, options.sourceSessionId, options.resumeAt);
       options.onNativeVersion?.(2);
       return sessionId;
     } finally {
@@ -79,4 +74,37 @@ export async function forkOpencodeSession(options: OpencodeSessionForkOptions): 
     transport?.dispose();
     await subprocess.shutdown();
   }
+}
+
+/** Fork before the next native entry so the selected assistant reply is retained. */
+export async function forkOpencodeHttpSession(
+  client: Pick<OpencodeHttpClient, 'request'>,
+  sourceSessionId: string,
+  resumeAt?: string,
+): Promise<string> {
+  let before: string | undefined;
+  if (resumeAt) {
+    const messages = await readOpencodeHttpMessages(client, sourceSessionId);
+    const index = messages.findIndex(message => message.id === resumeAt && message.type === 'assistant');
+    if (index === -1) {
+      throw new Error('OpenCode fork checkpoint not found. Reload the conversation and try again.');
+    }
+    const nextMessage = messages[index + 1];
+    if (nextMessage) {
+      if (typeof nextMessage.id !== 'string' || !nextMessage.id.trim()) {
+        throw new Error('OpenCode fork boundary has an invalid message ID.');
+      }
+      before = nextMessage.id;
+    }
+  }
+
+  const response = await client.request<{ data?: { id?: unknown } }>(
+    `/api/session/${encodeURIComponent(sourceSessionId)}/fork`,
+    { method: 'POST', body: before ? { before } : {} },
+  );
+  const sessionId = response.data?.id;
+  if (typeof sessionId !== 'string' || !sessionId.trim() || sessionId === sourceSessionId) {
+    throw new Error('OpenCode fork returned an invalid child session.');
+  }
+  return sessionId;
 }

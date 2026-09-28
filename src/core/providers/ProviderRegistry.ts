@@ -151,8 +151,12 @@ export class ProviderRegistry {
     return this.getProviderRegistration(providerId).subagentAdapter ?? null;
   }
 
-  static getCapabilities(providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID): ProviderCapabilities {
-    return this.getProviderRegistration(providerId).capabilities;
+  static getCapabilities(
+    providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID,
+    providerState?: Record<string, unknown>,
+  ): ProviderCapabilities {
+    const registration = this.getProviderRegistration(providerId);
+    return registration.getConversationCapabilities?.(providerState) ?? registration.capabilities;
   }
 
   static async collectDiagnostics(

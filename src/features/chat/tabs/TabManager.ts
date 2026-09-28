@@ -847,7 +847,7 @@ export class TabManager implements TabManagerInterface {
 
   private isForkSourceSnapshotCurrent(context: ForkContext, sourceTab: TabData): boolean {
     const providerId = context.providerId ?? sourceTab.providerId;
-    if (ProviderRegistry.getCapabilities(providerId).forkMode !== 'full-session') return true;
+    if (ProviderRegistry.getCapabilities(providerId, context.sourceProviderState).forkMode !== 'full-session') return true;
     const latestMessage = sourceTab.state.messages.at(-1);
     return latestMessage?.role === 'assistant'
       && latestMessage.assistantMessageId === context.resumeAt;
