@@ -14,10 +14,26 @@ export interface CliInstallationCardOptions {
   expanded?: boolean;
 }
 
+export interface CliInstallationCardSummary {
+  version?: string | null;
+  sourceText?: string;
+  path?: string | null;
+}
+
+export interface CliInstallationCardToggle {
+  name: string;
+  description?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => Promise<void> | void;
+}
+
 export interface CliInstallationCardController {
   card: HTMLElement;
   body: HTMLElement;
   setStatus: (state: CliInstallationCardState, text: string) => void;
+  setSummary: (summary: CliInstallationCardSummary) => void;
+  setToggle: (toggle: CliInstallationCardToggle | null) => void;
   destroy: () => void;
 }
 
@@ -47,10 +63,22 @@ export function renderCliInstallationCard(
   let state: CliInstallationCardState = 'checking';
   let statusText = '';
   let body: HTMLElement | null = null;
+  let summary: CliInstallationCardSummary = {};
+  let toggle: CliInstallationCardToggle | null = null;
 
   const render = (): void => {
     root.render(h(CliInstallationCardView, {
       label: options.label,
+      version: summary.version ?? '',
+      sourceText: summary.sourceText ?? '',
+      path: summary.path ?? '',
+      headerToggle: toggle ? {
+        name: toggle.name,
+        description: toggle.description,
+        checked: toggle.checked,
+        disabled: toggle.disabled ?? false,
+        onChange: toggle.onChange,
+      } : undefined,
       bodyId,
       state,
       statusText,
@@ -80,6 +108,16 @@ export function renderCliInstallationCard(
     render();
   };
 
+  const setSummary = (nextSummary: CliInstallationCardSummary): void => {
+    summary = nextSummary;
+    render();
+  };
+
+  const setToggle = (nextToggle: CliInstallationCardToggle | null): void => {
+    toggle = nextToggle;
+    render();
+  };
+
   const destroy = (): void => {
     if (!mountedCardDestructors.has(mount)) {
       return;
@@ -91,5 +129,5 @@ export function renderCliInstallationCard(
 
   mountedCardDestructors.set(mount, destroy);
 
-  return { card, body, setStatus, destroy };
+  return { card, body, setStatus, setSummary, setToggle, destroy };
 }

@@ -97,6 +97,7 @@ jest.mock('obsidian', () => {
   return { Setting: MockSetting };
 });
 
+import type { CliInstallationCardToggle } from '@/shared/settings/CliInstallationCard';
 import {
   destroyHostnameCliPathSettings,
   renderHostnameCliPathSetting,
@@ -161,6 +162,31 @@ describe('provider settings controls', () => {
     expect(events).toEqual(['change:false', 'read']);
     expect(toggle.checked).toBe(false);
     control.dispose();
+  });
+
+  it('renders the enablement switch through the supplied CLI card header', async () => {
+    let persisted = true;
+    const headerToggleState: { current: CliInstallationCardToggle | null } = { current: null };
+    const container = document.createElement('div');
+    const control = renderProviderEnablementSetting({
+      container,
+      description: 'Header toggle description',
+      getValue: () => persisted,
+      name: 'Enable Test Provider',
+      onChange: async enabled => { persisted = enabled; },
+      setHeaderToggle: toggle => { headerToggleState.current = toggle; },
+    });
+
+    expect(container.childElementCount).toBe(0);
+    expect(headerToggleState.current?.checked).toBe(true);
+    expect(headerToggleState.current?.description).toBe('Header toggle description');
+
+    await headerToggleState.current?.onChange(false);
+    expect(persisted).toBe(false);
+    expect(headerToggleState.current?.checked).toBe(false);
+
+    control.dispose();
+    expect(headerToggleState.current).toBeNull();
   });
 
   it('toggles provider enablement repeatedly from the switch track', async () => {

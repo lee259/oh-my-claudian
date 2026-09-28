@@ -41,6 +41,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const hostnameKey = getHostnameKey();
     const workspace = maybeGetPiWorkspaceServices();
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'Pi',
@@ -77,6 +78,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.providerEnablement.desc', { provider: 'Pi' }),
       getValue: () => getPiProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Pi' }),
@@ -145,6 +147,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
           () => workspace?.cliResolver?.reset(),
         );
         context.notifyProviderModelOptionsChanged('pi');
+        await refreshCliInstallationSummary();
         await readinessPanel.refresh();
       },
       placeholder: process.platform === 'win32'
@@ -178,7 +181,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       scope: 'provider:pi',
     });
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: piCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('pi'),
@@ -186,7 +189,18 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getPiProviderSettings(settingsBag);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
   },
 };
 

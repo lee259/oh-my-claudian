@@ -263,6 +263,10 @@
       "saved": "已儲存",
       "error": "儲存失敗"
     },
+    "cliInstallation": {
+      "customPath": "自訂路徑",
+      "automaticPath": "自動偵測"
+    },
     "gettingStarted": {
       "title": "開始使用",
       "desc": "依照以下三個步驟傳送第一則由 Provider 驅動的聊天訊息。",

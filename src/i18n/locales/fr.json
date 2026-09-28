@@ -263,6 +263,10 @@
       "saved": "Enregistré",
       "error": "Échec de l’enregistrement"
     },
+    "cliInstallation": {
+      "customPath": "Chemin personnalisé",
+      "automaticPath": "Détecté automatiquement"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

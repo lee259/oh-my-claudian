@@ -48,6 +48,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const hostnameKey = getHostnameKey();
     const workspace = getGrokWorkspaceServices();
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
 
     const refreshModelCatalog = async (): Promise<'empty' | 'failed' | 'loaded'> => {
       const result = await workspace.refreshModelCatalog();
@@ -83,6 +84,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.providerEnablement.desc', { provider: 'Grok' }),
       getValue: () => getGrokProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Grok' }),
@@ -158,6 +160,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
           mutation,
           () => workspace.cliResolver.reset(),
         );
+        await refreshCliInstallationSummary();
         modelWarning.context.notifyProviderModelOptionsChanged(GROK_PROVIDER_ID);
         await readinessPanel.refresh();
       },
@@ -202,7 +205,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       scope: 'provider:grok',
     });
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: grokCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath(GROK_PROVIDER_ID),
@@ -210,7 +213,18 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getGrokProviderSettings(settingsBag);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
   },
 };
 

@@ -32,6 +32,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const settings = context.plugin.settings as unknown as Record<string, unknown>;
     const workspace = maybeGetCursorWorkspaceServices();
     const hostnameKey = getHostnameKey();
+    let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
       providerName: 'Cursor',
@@ -57,6 +58,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const management = readinessPanel.management;
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.cursor.enableDesc'),
       getValue: () => getCursorProviderSettings(settings).enabled,
       name: t('settings.cursor.enable'),
@@ -85,6 +87,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => workspace?.cliResolver.reset(),
         );
+        await refreshCliInstallationSummary();
         context.notifyProviderModelOptionsChanged('cursor');
       },
       placeholder: process.platform === 'win32'
@@ -92,7 +95,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
         : '/Users/you/.local/bin/agent',
       validate: validateCliPath,
     });
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: cursorCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('cursor'),
@@ -100,7 +103,18 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getCursorProviderSettings(settings);
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
     new Setting(container).setName(t('settings.cursor.models')).setHeading();
     renderCursorModelPicker(container, context, settings);
   },

@@ -10,7 +10,11 @@ import type {
 import { t } from '../../i18n/i18n';
 import type { TranslationKey } from '../../i18n/types';
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
-import { renderCliInstallationCard } from './CliInstallationCard';
+import {
+  type CliInstallationCardSummary,
+  type CliInstallationCardToggle,
+  renderCliInstallationCard,
+} from './CliInstallationCard';
 import { ProviderReadinessView, type ProviderReadinessViewCheck } from './ProviderReadinessView';
 
 export interface ProviderReadinessPanelOptions {
@@ -26,8 +30,12 @@ export interface ProviderReadinessPanelController {
   refresh(refreshCatalog?: boolean): Promise<void>;
   /** Root container element, for appending related content (e.g. CLI lifecycle). */
   root: HTMLElement;
-  /** Stable container for provider enablement and CLI path controls. */
+  /** Stable container for provider-specific management controls such as CLI paths. */
   management: HTMLElement;
+  /** Update optional provider-owned CLI details shown above readiness content. */
+  setInstallationSummary(summary: CliInstallationCardSummary): void;
+  /** Set or remove an interactive provider control in the card header. */
+  setHeaderToggle(toggle: CliInstallationCardToggle | null): void;
   /** Stable container for CLI lifecycle content, rendered below the checks.
    *  Unlike `root`, it is not cleared on refresh, so a CLI lifecycle section
    *  attached here keeps its own state. */
@@ -120,6 +128,8 @@ export function renderProviderReadinessPanel(
     refresh,
     root,
     management,
+    setInstallationSummary: installationCard.setSummary,
+    setHeaderToggle: installationCard.setToggle,
     cliDetail,
     destroy: dispose,
   };

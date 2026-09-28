@@ -263,6 +263,10 @@
       "saved": "已保存",
       "error": "保存失败"
     },
+    "cliInstallation": {
+      "customPath": "自定义路径",
+      "automaticPath": "自动检测"
+    },
     "gettingStarted": {
       "title": "开始使用",
       "desc": "按以下三个步骤发送第一条由 Provider 驱动的聊天消息。",

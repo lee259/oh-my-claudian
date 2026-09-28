@@ -36,6 +36,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     let installationMethod = codexSettings.installationMethod;
     const environmentModelPlaceholder = getDefaultCodexModel(codexSettings.discoveredModels)?.model
       ?? 'model-id';
+    let refreshCodexCliSummary = async (): Promise<void> => {};
 
     const refreshCodexModelCatalog = async (): Promise<void> => {
       const result = await codexWorkspace.refreshModelCatalog?.();
@@ -64,6 +65,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: management,
+      setHeaderToggle: toggle => readinessPanel.setHeaderToggle(toggle),
       description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
       getValue: () => getCodexProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Codex' }),
@@ -93,6 +95,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
           lastProviderWarning.showFor();
         }
         await readinessPanel.refresh();
+        await refreshCodexCliSummary();
         modelWarning.context.notifyProviderModelOptionsChanged('codex');
       },
     });
@@ -125,6 +128,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
                 () => codexWorkspace.cliResolver.reset(),
               );
               refreshInstallationMethodUI();
+              await refreshCodexCliSummary();
               await refreshCodexModelCatalog();
             });
         });
@@ -201,6 +205,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
           },
           () => codexWorkspace.cliResolver.reset(),
         );
+        await refreshCodexCliSummary();
       },
       placeholder: getCliPathCopy().placeholder,
       validate: validatePath,
@@ -358,7 +363,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     // --- CLI lifecycle ---
 
-    renderCliLifecycleSection({
+    const cliLifecycle = renderCliLifecycleSection({
       container: readinessPanel.cliDetail,
       metadata: codexCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('codex'),
@@ -366,7 +371,19 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       app: context.plugin.app,
       onCliChanged: async () => { await readinessPanel.refresh(); },
       onCheckAgain: () => readinessPanel.refresh(true),
+      onProbe: (info, cliPath) => {
+        const current = getCodexProviderSettings(settingsBag);
+        const customPath = current.cliPathsByHost[hostnameKey] || current.cliPath;
+        readinessPanel.setInstallationSummary({
+          version: info.version ?? '',
+          sourceText: t(customPath
+            ? 'settings.cliInstallation.customPath'
+            : 'settings.cliInstallation.automaticPath'),
+          path: cliPath,
+        });
+      },
     });
+    refreshCodexCliSummary = cliLifecycle.refresh;
 
     // --- Environment ---
 

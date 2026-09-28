@@ -2,6 +2,7 @@ import { Setting } from 'obsidian';
 import { h } from 'preact';
 
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import type { CliInstallationCardToggle } from './CliInstallationCard';
 import { ProviderEnablementView } from './ProviderEnablementView';
 
 export interface ProviderEnablementSettingOptions {
@@ -11,6 +12,8 @@ export interface ProviderEnablementSettingOptions {
   getValue: () => boolean;
   name: string;
   onChange: (enabled: boolean) => Promise<void> | void;
+  /** Render this provider switch in the shared CLI card header. */
+  setHeaderToggle?: (toggle: CliInstallationCardToggle | null) => void;
 }
 
 export interface ProviderEnablementSettingControl {
@@ -32,6 +35,48 @@ export function destroyProviderEnablementSettings(container: HTMLElement): void 
 export function renderProviderEnablementSetting(
   options: ProviderEnablementSettingOptions,
 ): ProviderEnablementSettingControl {
+  if (options.setHeaderToggle) {
+    let disabled = options.disabled ?? false;
+    let disposed = false;
+
+    const renderHeaderToggle = (): void => {
+      if (disposed) return;
+      options.setHeaderToggle?.({
+        name: options.name,
+        description: options.description,
+        checked: options.getValue(),
+        disabled,
+        onChange: async (enabled) => {
+          if (disposed) return;
+          if (disabled) {
+            renderHeaderToggle();
+            return;
+          }
+          try {
+            await options.onChange(enabled);
+          } finally {
+            renderHeaderToggle();
+          }
+        },
+      });
+    };
+
+    const dispose = (): void => {
+      if (disposed) return;
+      disposed = true;
+      options.setHeaderToggle?.(null);
+    };
+
+    renderHeaderToggle();
+    return {
+      dispose,
+      setDisabled: (nextDisabled) => {
+        disabled = nextDisabled;
+        renderHeaderToggle();
+      },
+    };
+  }
+
   const setting = new Setting(options.container)
     .setName(options.name)
     .setDesc(options.description);

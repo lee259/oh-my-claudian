@@ -263,6 +263,10 @@
       "saved": "Guardado",
       "error": "No se pudo guardar"
     },
+    "cliInstallation": {
+      "customPath": "Ruta personalizada",
+      "automaticPath": "Detectado automáticamente"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

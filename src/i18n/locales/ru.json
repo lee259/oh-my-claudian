@@ -263,6 +263,10 @@
       "saved": "Сохранено",
       "error": "Не удалось сохранить"
     },
+    "cliInstallation": {
+      "customPath": "Пользовательский путь",
+      "automaticPath": "Обнаружено автоматически"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

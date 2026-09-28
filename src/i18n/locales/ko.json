@@ -263,6 +263,10 @@
       "saved": "저장됨",
       "error": "저장하지 못했습니다"
     },
+    "cliInstallation": {
+      "customPath": "사용자 지정 경로",
+      "automaticPath": "자동 검색됨"
+    },
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",

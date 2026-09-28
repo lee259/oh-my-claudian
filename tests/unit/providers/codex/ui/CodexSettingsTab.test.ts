@@ -21,6 +21,12 @@ const mockSaveSettings = jest.fn().mockResolvedValue(undefined);
 const mockCodexCliResolverReset = jest.fn();
 const mockRefreshCodexModelPicker = jest.fn();
 const mockRefreshProviderReadiness = jest.fn().mockResolvedValue(undefined);
+const mockRenderCliLifecycleRefresh = jest.fn().mockResolvedValue(undefined);
+const mockProviderHeaderToggles: Array<{
+  name: string;
+  checked: boolean;
+  onChange: (enabled: boolean) => Promise<void> | void;
+}> = [];
 let mockProviderManagement: ReturnType<typeof createContainer> | undefined;
 function createMockProviderReadinessPanel() {
   mockProviderManagement = createContainer();
@@ -28,6 +34,10 @@ function createMockProviderReadinessPanel() {
     refresh: mockRefreshProviderReadiness,
     root: { createDiv: jest.fn(() => createElement()), createEl: jest.fn(() => createElement()) },
     management: mockProviderManagement,
+    setInstallationSummary: jest.fn(),
+    setHeaderToggle: (toggle: typeof mockProviderHeaderToggles[number]) => {
+      mockProviderHeaderToggles.push(toggle);
+    },
     cliDetail: { createDiv: jest.fn(() => createElement()) },
   };
 }
@@ -38,11 +48,6 @@ const mockRenderCodexModelPicker = jest.fn((
   _onSelectionChanged?: () => Promise<void>,
 ) => ({ refresh: mockRefreshCodexModelPicker }));
 const mockRefreshModelCatalog = jest.fn().mockResolvedValue({ changed: false });
-const mockProviderEnablementOptions: Array<{
-  description: string;
-  name: string;
-  onChange: (enabled: boolean) => Promise<void> | void;
-}> = [];
 const mockHostnameCliPathOptions: Array<{
   description: string;
   name: string;
@@ -51,12 +56,6 @@ const mockHostnameCliPathOptions: Array<{
   validate?: (value: string) => string | null;
 }> = [];
 
-jest.mock('@/shared/settings/ProviderEnablementSetting', () => ({
-  renderProviderEnablementSetting: (options: typeof mockProviderEnablementOptions[number]) => {
-    mockProviderEnablementOptions.push(options);
-    return { dispose: jest.fn(), setDisabled: jest.fn() };
-  },
-}));
 jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
   renderHostnameCliPathSetting: (options: typeof mockHostnameCliPathOptions[number]) => {
     mockHostnameCliPathOptions.push(options);
@@ -68,6 +67,9 @@ jest.mock('@/shared/settings/HostnameCliPathSetting', () => ({
       setPlaceholder: jest.fn(),
     };
   },
+}));
+jest.mock('@/shared/settings/CliLifecycleSection', () => ({
+  renderCliLifecycleSection: () => ({ refresh: mockRenderCliLifecycleRefresh }),
 }));
 
 jest.mock('fs');
@@ -377,7 +379,8 @@ describe('CodexSettingsTab', () => {
 
   beforeEach(() => {
     mockHostnameCliPathOptions.length = 0;
-    mockProviderEnablementOptions.length = 0;
+    mockProviderHeaderToggles.length = 0;
+    mockRenderCliLifecycleRefresh.mockClear();
     createdSettings.length = 0;
     jest.clearAllMocks();
     mockedExistsSync.mockReturnValue(false);
@@ -445,10 +448,8 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const enablement = mockProviderEnablementOptions[0];
-    expect(enablement.description).toBe(
-      'Make enabled Codex models available for new conversations. Existing sessions are preserved when disabled.',
-    );
+    const enablement = mockProviderHeaderToggles[0];
+    expect(enablement.name).toBe('Enable Codex');
     await enablement.onChange(false);
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
@@ -487,7 +488,7 @@ describe('CodexSettingsTab', () => {
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
-    const enablement = mockProviderEnablementOptions[0];
+    const enablement = mockProviderHeaderToggles[0];
     await enablement.onChange(true);
 
     expect(plugin.runProviderExecutionTransition).toHaveBeenCalledWith(
@@ -495,6 +496,7 @@ describe('CodexSettingsTab', () => {
       expect.any(Function),
     );
     expect(plugin.settings.providerConfigs.codex.enabled).toBe(true);
+    expect(mockProviderHeaderToggles.at(-1)?.checked).toBe(true);
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(registry.getProviderGeneration('codex')).toBe(1);
     expect(mockRefreshModelCatalog).not.toHaveBeenCalled();
@@ -519,7 +521,7 @@ describe('CodexSettingsTab', () => {
       const context = createContext(plugin);
 
       codexSettingsTabRenderer.render(createContainer(), context);
-      const enablement = mockProviderEnablementOptions[0];
+      const enablement = mockProviderHeaderToggles[0];
 
       await expect(enablement.onChange(false)).rejects.toThrow(
         'enablement transition failed',
