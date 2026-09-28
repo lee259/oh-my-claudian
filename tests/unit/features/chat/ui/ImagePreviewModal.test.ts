@@ -131,8 +131,16 @@ describe('ImagePreviewModal', () => {
     const escapeModal = new ImagePreviewModal();
     escapeModal.open(escapeHarness.ownerDocument, IMAGE);
     const removeEscapeOverlay = jest.spyOn(escapeHarness.overlayEl, 'remove');
-    escapeHarness.listeners.get('keydown')?.[0]({ key: 'Escape' });
+    const escapeEvent = {
+      key: 'Escape',
+      isComposing: false,
+      preventDefault: jest.fn(),
+      stopPropagation: jest.fn(),
+    };
+    escapeHarness.listeners.get('keydown')?.[0](escapeEvent);
     expect(removeEscapeOverlay).toHaveBeenCalledTimes(1);
+    expect(escapeEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(escapeEvent.stopPropagation).toHaveBeenCalledTimes(1);
 
     const buttonHarness = createDocumentHarness();
     const buttonModal = new ImagePreviewModal();
