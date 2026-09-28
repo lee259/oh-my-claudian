@@ -346,6 +346,18 @@ export class OpencodeExecutionSession implements ProviderExecutionSession {
             } });
             this.closeBackgroundScope(event.subagentId, event.status === 'completed' ? 'completed' : 'provider-ended');
           },
+          onNativeSubagentProgress: progress => {
+            if (kernelGeneration !== this.kernelGeneration || this.disposed) return;
+            this.emitSessionEvent({
+              type: 'subagent_progress',
+              progress,
+              scope: {
+                kind: 'session',
+                sequence: ++this.sessionEventSequence,
+                sessionInstanceId: this.sessionInstanceId,
+              },
+            });
+          },
           onNativeTurn: (status, error, requested) => {
             if (kernelGeneration !== this.kernelGeneration || this.disposed) return;
             if (status === 'started' && !requested) {

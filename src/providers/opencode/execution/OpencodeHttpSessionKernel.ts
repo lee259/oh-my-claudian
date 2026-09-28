@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { SubagentProgress } from '@/core/types';
 import type { AcpPromptRequest, AcpSessionConfigOption } from '@/providers/acp';
 
 import { isRecord, OpencodeHttpClient, OpencodeHttpError, type OpencodeHttpEvent } from '../http/OpencodeHttpClient';
@@ -19,7 +20,7 @@ import {
 
 type PendingPrompt = { resolve: (value: { stopReason: 'end_turn' | 'cancelled'; userMessageId?: string; nativeAssistantId?: string }) => void; reject: (error: Error) => void; userMessageId?: string; nativeAssistantId?: string; assistantMessageStarted: boolean; started: boolean };
 interface NativeModel { providerID: string; id: string; variant?: string }
-interface NativeChild { outputSessionId: string; toolCallId: string; turnId: string; interactionTurnId: string; background: boolean; text: Map<string, string> }
+interface NativeChild { outputSessionId: string; toolCallId: string; turnId: string; interactionTurnId: string; background: boolean; text: Map<string, string>; startedAt: number; toolUses: number; totalTokens: number; lastToolName?: string }
 interface NativeTool { name: string; input: Record<string, unknown> }
 
 /** V2 uses native HTTP events and interactions; ACP is only the v1 wire protocol. */
@@ -253,6 +254,11 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
         if (!tool) break;
         tool.input = normalizeOpencodeToolInput(tool.name, isRecord(data.input) ? data.input : {});
         this.emit({ type: 'tool_started', ...identity, name: normalizeOpencodeToolName(tool.name), input: tool.input, providerPayload: { rawName: tool.name, rawInput: data.input } }, child?.outputSessionId);
+        if (child) {
+          child.toolUses += 1;
+          child.lastToolName = normalizeOpencodeToolName(tool.name);
+          this.emitSubagentProgress(child);
+        }
         break;
       }
       case 'session.tool.progress': {
@@ -262,7 +268,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
         if (tool?.name === 'subagent' && typeof metadata.sessionID === 'string' && turnId && !this.children.has(metadata.sessionID)) {
           const background = tool.input.run_in_background === true;
           const interactionTurnId = (background ? this.options.onNativeTaskStarted?.(metadata.sessionID, turnId) : undefined) ?? child?.interactionTurnId ?? turnId;
-          this.children.set(metadata.sessionID, { outputSessionId: background ? metadata.sessionID : child?.outputSessionId ?? metadata.sessionID, toolCallId: identity.toolCallId, turnId, interactionTurnId, background, text: new Map() });
+          this.children.set(metadata.sessionID, { outputSessionId: background ? metadata.sessionID : child?.outputSessionId ?? metadata.sessionID, toolCallId: identity.toolCallId, turnId, interactionTurnId, background, text: new Map(), startedAt: Date.now(), toolUses: 0, totalTokens: 0 });
         }
         if (typeof metadata.output === 'string') this.emit({ type: 'tool_output', ...identity, content: metadata.output }, child?.outputSessionId);
         break;
@@ -274,7 +280,13 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
         this.tools.delete(key);
         break;
       }
-      case 'session.step.ended': this.emitUsage(data.tokens); break;
+      case 'session.step.ended':
+        if (child && isRecord(data.tokens)) {
+          child.totalTokens += tokenCount(data.tokens.input) + tokenCount(data.tokens.output) + tokenCount(data.tokens.reasoning);
+          this.emitSubagentProgress(child);
+        }
+        this.emitUsage(data.tokens);
+        break;
       case 'session.compaction.ended': this.emit({ type: 'context_compacted' }); break;
     }
   }
@@ -374,6 +386,16 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private captureAdmission(id?: string): void {
     if (this.pending) this.pending.userMessageId = id;
   }
+  private emitSubagentProgress(child: NativeChild): void {
+    const progress: SubagentProgress = {
+      toolCallId: child.toolCallId,
+      ...(child.lastToolName ? { lastToolName: child.lastToolName } : {}),
+      toolUses: child.toolUses,
+      totalTokens: child.totalTokens,
+      durationMs: Math.max(0, Date.now() - child.startedAt),
+    };
+    this.options.onNativeSubagentProgress?.(progress);
+  }
   private emit(event: OpencodeNativeOutput, childSessionId?: string): void { this.options.onNativeOutput?.(event, childSessionId); }
   private finish(stopReason: 'end_turn' | 'cancelled' = 'end_turn'): void {
     const pending = this.pending;
@@ -410,4 +432,8 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
 
 function errorText(error: unknown): string {
   return isRecord(error) && typeof error.message === 'string' ? error.message : typeof error === 'string' ? error : JSON.stringify(error) ?? 'OpenCode execution failed.';
+}
+
+function tokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
 }
