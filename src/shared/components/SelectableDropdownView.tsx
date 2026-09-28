@@ -47,7 +47,7 @@ export function SelectableDropdownView<T>({
     };
 
     const handleClick: JSX.MouseEventHandler<HTMLDivElement> = event => {
-      onItemClick?.(item, index, event as unknown as MouseEvent);
+      onItemClick?.(item, index, event);
     };
 
     return (

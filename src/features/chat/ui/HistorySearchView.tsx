@@ -31,7 +31,7 @@ export function HistorySearchView({
         aria-label={t('chat.history.searchAria')}
         value={query}
         onInput={(event) => {
-          const nextQuery = (event.currentTarget as HTMLInputElement).value;
+          const nextQuery = event.currentTarget.value;
           setQuery(nextQuery);
           onQueryChange(nextQuery);
         }}

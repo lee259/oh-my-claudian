@@ -99,25 +99,25 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
+      /\.claudian-input-wrapper \.claudian-input-mention-highlights\s*\{[\s\S]*?line-height:\s*1\.4;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?color:\s*transparent\s*!important;/,
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?color:\s*transparent;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?-webkit-text-fill-color:\s*transparent\s*!important;/,
+      /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?-webkit-text-fill-color:\s*transparent;/,
     );
     expect(css).toMatch(
       /\.claudian-input-wrapper textarea\.claudian-input\s*\{[\s\S]*?caret-color:\s*var\(--text-normal\);/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlights\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
+      /\.claudian-input-wrapper \.claudian-input-mention-highlights\s*\{[\s\S]*?color:\s*var\(--text-normal\);/,
     );
   });
 
   it('keeps the placeholder visible when the textarea text is rendered by the mention layer', () => {
     expect(css).toMatch(
-      /\.claudian-input-wrapper textarea\.claudian-input::placeholder\s*\{[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\)\s*!important;/,
+      /\.claudian-input-wrapper textarea\.claudian-input::placeholder\s*\{[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\);/,
     );
   });
 

@@ -1,14 +1,13 @@
 /** A consumed native task notification keeps its task identity across live and replay paths. */
 export function parseClaudeTaskNotification(content: unknown): { taskId: string; content: string } | null {
+  const textBlocks = (blocks: unknown[]): string => blocks
+    .filter(isNonemptyTextBlock)
+    .map(block => block.text)
+    .join('\n');
   const text = typeof content === 'string'
     ? content
     : Array.isArray(content)
-      ? content.filter((block): block is { type: 'text'; text: string } => (
-        typeof block === 'object' && block !== null
-        && 'type' in block && block.type === 'text'
-        && 'text' in block && typeof block.text === 'string'
-        && block.text.trim() !== '(no content)'
-      )).map(block => block.text).join('\n')
+      ? textBlocks(content as unknown[])
       : '';
   if (!text.trimStart().startsWith('<task-notification>')) return null;
 
@@ -19,6 +18,13 @@ export function parseClaudeTaskNotification(content: unknown): { taskId: string;
     taskId,
     content: extractXmlTag(text, 'result') ?? extractXmlTag(text, 'summary') ?? `Background task ${status}.`,
   };
+}
+
+function isNonemptyTextBlock(block: unknown): block is { type: 'text'; text: string } {
+  if (typeof block !== 'object' || block === null) return false;
+  if (!('type' in block) || block.type !== 'text') return false;
+  if (!('text' in block) || typeof block.text !== 'string') return false;
+  return block.text.trim() !== '(no content)';
 }
 
 function extractXmlTag(content: string, tagName: string): string | null {

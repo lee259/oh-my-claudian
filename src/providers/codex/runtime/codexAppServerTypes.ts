@@ -816,7 +816,7 @@ export interface McpElicitationRequest {
   turnId: string;
   serverName: string;
   message: string;
-  mode?: 'form' | 'url' | string;
+  mode?: 'form' | 'url';
   requestedSchema?: Record<string, unknown> | null;
 }
 
