@@ -56,6 +56,7 @@ import { hasDiagramFence } from '../rendering/DisplayOnlyCodeFences';
 import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
 import { resolveSubagentAdapter } from '../rendering/subagentAdapterResolution';
 import {
+  addSubagentToolCall,
   type AsyncSubagentState,
   createAsyncSubagentBlock,
   createSubagentBlock,
@@ -63,6 +64,7 @@ import {
   finalizeSubagentBlock,
   type SubagentState,
   updateAsyncSubagentRunning,
+  updateSubagentToolResult,
 } from '../rendering/SubagentRenderer';
 import {
   createThinkingBlock,
@@ -158,6 +160,7 @@ export class StreamController {
   // Provider lifecycle agent tracking (spawn → wait/close lifecycle)
   private lifecycleSubagentStates = new Map<string, SubagentState | AsyncSubagentState>(); // spawn callId → rendered state
   private lifecycleAgentIdToSpawnId = new Map<string, string>();      // agentId → spawn callId
+  private lifecycleSessionSubagentUpdates = new Map<string, SubagentInfo>();
 
   constructor(deps: StreamControllerDeps) {
     this.deps = deps;
@@ -302,7 +305,7 @@ export class StreamController {
           break;
         }
         if (subagentAdapter?.protocol === 'lifecycle') {
-          if (subagentAdapter.isSpawnTool(chunk.name)) {
+          if (subagentAdapter.isSpawnTool(chunk.name) || this.lifecycleSessionSubagentUpdates.has(chunk.id)) {
             this.handleProviderSubagentSpawn(chunk, msg, subagentAdapter);
             break;
           }
@@ -753,7 +756,10 @@ export class StreamController {
       existingToolCall.name = chunk.name.trim() || existingToolCall.name;
       existingToolCall.input = { ...existingToolCall.input, ...chunk.input };
       mergeToolProviderPayload(existingToolCall, chunk.providerPayload);
-      const subagentInfo = adapter.buildSubagentInfo(existingToolCall, msg.toolCalls ?? []);
+      const subagentInfo = this.mergeSessionSubagentInfo(
+        existingToolCall,
+        adapter.buildSubagentInfo(existingToolCall, msg.toolCalls ?? []),
+      );
       existingToolCall.subagent = subagentInfo;
       this.ensureProviderSubagentState(chunk.id, subagentInfo);
       this.bindProviderSubagentId(chunk.id, subagentInfo.agentId, msg, adapter);
@@ -780,7 +786,10 @@ export class StreamController {
     msg.contentBlocks = msg.contentBlocks || [];
     msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
 
-    const subagentInfo = adapter.buildSubagentInfo(toolCall, msg.toolCalls);
+    const subagentInfo = this.mergeSessionSubagentInfo(
+      toolCall,
+      adapter.buildSubagentInfo(toolCall, msg.toolCalls),
+    );
     toolCall.subagent = subagentInfo;
     this.ensureProviderSubagentState(chunk.id, subagentInfo);
     this.bindProviderSubagentId(chunk.id, subagentInfo.agentId, msg, adapter);
@@ -792,6 +801,32 @@ export class StreamController {
     }
   }
 
+  public handleSessionSubagentUpdate(info: SubagentInfo): boolean {
+    this.lifecycleSessionSubagentUpdates.set(info.id, info);
+    for (const message of this.deps.state.messages) {
+      const toolCall = message.toolCalls?.find(candidate => candidate.id === info.id);
+      if (!toolCall) continue;
+      const adapter = this.getSubagentAdapter(toolCall.name);
+      if (adapter?.protocol !== 'lifecycle') return false;
+      this.handleProviderSubagentSpawn({
+        type: 'tool_use',
+        id: toolCall.id,
+        name: toolCall.name,
+        input: toolCall.input,
+        ...(toolCall.providerPayload ? { providerPayload: toolCall.providerPayload } : {}),
+      }, message, adapter);
+      return true;
+    }
+    return false;
+  }
+
+  private mergeSessionSubagentInfo(toolCall: ToolCallInfo, info: SubagentInfo): SubagentInfo {
+    const sessionInfo = this.lifecycleSessionSubagentUpdates.get(toolCall.id);
+    const merged = sessionInfo ? { ...info, ...sessionInfo } : info;
+    toolCall.subagent = merged;
+    return merged;
+  }
+
   private ensureProviderSubagentState(
     spawnId: string,
     subagentInfo: SubagentInfo,
@@ -800,7 +835,15 @@ export class StreamController {
     const existingMode = existingSubagentState?.info.mode ?? 'sync';
     const nextMode = subagentInfo.mode ?? 'sync';
     if (existingSubagentState && existingMode === nextMode) {
+      const wasRunning = existingSubagentState.info.status === 'running';
       this.updateProviderSubagentState(spawnId, subagentInfo);
+      if (wasRunning && (subagentInfo.status === 'completed' || subagentInfo.status === 'error')) {
+        this.finalizeProviderSubagentState(
+          spawnId,
+          subagentInfo.result || (subagentInfo.status === 'error' ? 'Error' : 'DONE'),
+          subagentInfo.status === 'error',
+        );
+      }
       return;
     }
 
@@ -1059,7 +1102,18 @@ export class StreamController {
   private updateProviderSubagentState(spawnId: string, info: SubagentInfo): void {
     const state = this.lifecycleSubagentStates.get(spawnId);
     if (!state) return;
+    const renderedToolCalls = state.info.toolCalls;
     Object.assign(state.info, info);
+    if (state.info.mode !== 'async') {
+      const syncState = state as SubagentState;
+      syncState.info.toolCalls = renderedToolCalls;
+      for (const toolCall of info.toolCalls) {
+        addSubagentToolCall(syncState, { ...toolCall, input: { ...toolCall.input } });
+        if (toolCall.status !== 'running' || toolCall.result !== undefined) {
+          updateSubagentToolResult(syncState, toolCall.id, toolCall);
+        }
+      }
+    }
     state.labelEl.setText(
       info.description.length > 40
         ? info.description.substring(0, 40) + '...'
@@ -2236,6 +2290,7 @@ export class StreamController {
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.deps.clearToolActivities?.();
+    this.lifecycleSessionSubagentUpdates.clear();
   }
 }
 

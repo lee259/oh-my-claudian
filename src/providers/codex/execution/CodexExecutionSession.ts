@@ -26,7 +26,7 @@ import {
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
-import type { ChatMessage, ImageAttachment, StreamChunk } from '../../../core/types';
+import type { ChatMessage, ImageAttachment, StreamChunk, SubagentInfo } from '../../../core/types';
 import { createTurnStats, isTokenCount } from '../../../core/types';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
@@ -59,6 +59,7 @@ import {
   resolveCodexAppServerLaunchSpec,
 } from '../runtime/codexAppServerSupport';
 import type {
+  ItemCompletedNotification,
   SandboxPolicy,
   ServerRequestResolvedNotification,
   ThreadCompactStartResult,
@@ -103,6 +104,7 @@ import type {
 } from '../types';
 import { adaptCodexStreamChunk } from './CodexExecutionEventAdapter';
 import { CodexExecutionServerRequestRouter } from './CodexExecutionServerRequestRouter';
+import { CodexSubagentTracker } from './CodexSubagentTracker';
 
 const PASSIVE_INSTRUCTIONS =
   'Do not invoke tools. Complete the request only from the supplied input and context.';
@@ -280,6 +282,8 @@ export class CodexExecutionSession
   private readonly serverRequestRouter: CodexExecutionServerRequestRouter;
   private readonly sessionEventListeners =
     new Set<(event: ProviderSessionEvent) => void>();
+  private sessionEventSequence = 0;
+  private readonly subagents: CodexSubagentTracker;
   private readonly activeInputBundles = new Set<CodexInputBundle>();
 
   private process: CodexAppServerProcess | null = null;
@@ -318,6 +322,18 @@ export class CodexExecutionSession
     private readonly config: ProviderSessionConfig,
   ) {
     this.seedState = Object.freeze({ ...(config.resumeSeed?.providerState ?? {}) });
+    this.subagents = new CodexSubagentTracker(
+      subagent => this.emitSubagentUpdate(subagent),
+      async threadId => {
+        if (!this.transport) throw new Error('Codex transport is unavailable');
+        return (await this.transport.request<ThreadReadResult>(
+          'thread/read',
+          { threadId, includeTurns: true },
+          THREAD_READ_RECOVERY_TIMEOUT_MS,
+        )).thread;
+      },
+      () => this.resolveTargetWorkingDirectory(),
+    );
     const codexState = this.seedState as CodexProviderState;
     this.pendingFork = codexState.forkSource;
     this.pendingForkTarget = this.pendingFork
@@ -366,6 +382,10 @@ export class CodexExecutionSession
 
   cancel(): void {
     this.activeRun?.cancel();
+  }
+
+  hasBackgroundWork(): boolean {
+    return this.subagents.hasBackgroundWork();
   }
 
   getSnapshot(): ProviderSessionSnapshot {
@@ -444,6 +464,7 @@ export class CodexExecutionSession
     this.cleanupInputBundles();
     this.notificationRouter?.endTurn();
     this.notificationRouter = null;
+    this.subagents.clear();
     this.pendingTurnNotifications = [];
     try {
       const processDisposal = this.disposeOwnedProcessAfterForkIdentity();
@@ -767,6 +788,23 @@ export class CodexExecutionSession
       );
       return;
     }
+
+    if (method === 'item/completed') {
+      const notification = params as ItemCompletedNotification;
+      if (notification.item.type === 'subAgentActivity') {
+        this.subagents.activity(notification.item, notification.turnId);
+      }
+    }
+    if (method === 'turn/started') {
+      const started = params as TurnStartedNotification;
+      if (this.subagents.turnStarted(started.threadId, started.turn.id)) return;
+    }
+    if (method === 'turn/completed') {
+      const completed = params as TurnCompletedNotification;
+      if (this.subagents.turnCompleted(completed.threadId, completed.turn)) return;
+    }
+    const childScope = extractNotificationScope(method, params);
+    if (childScope && this.subagents.handleNotification(childScope.threadId, childScope.turnId, method, params)) return;
 
     const run = this.activeRun;
     if (!run || run.isTerminal || run.isCancellationRequested) return;
@@ -1103,6 +1141,7 @@ export class CodexExecutionSession
             : {}),
         },
       );
+      this.subagents.seed(result.thread);
       this.loadedThreadId = result.thread.id;
       return {
         threadId: result.thread.id,
@@ -1145,6 +1184,7 @@ export class CodexExecutionSession
         ...(dynamicTools.length > 0 ? { dynamicTools } : {}),
       },
     );
+    this.subagents.seed(result.thread);
     this.loadedThreadId = result.thread.id;
     this.workspaceDependencyToolVersion = dynamicTools.some(spec =>
       spec.namespace === CODEX_WORKSPACE_DEPENDENCY_TOOL_NAMESPACE
@@ -1627,7 +1667,7 @@ export class CodexExecutionSession
       scope: {
         kind: 'session',
         sessionInstanceId: this.sessionInstanceId,
-        sequence: this.snapshot.revision,
+        sequence: ++this.sessionEventSequence,
       },
       snapshot: this.snapshot,
     };
@@ -1636,6 +1676,25 @@ export class CodexExecutionSession
         listener(event);
       } catch {
         // Session listeners cannot interfere with native lifecycle cleanup.
+      }
+    }
+  }
+
+  private emitSubagentUpdate(subagent: SubagentInfo): void {
+    const event: ProviderSessionEvent = {
+      type: 'subagent_updated',
+      scope: {
+        kind: 'session',
+        sessionInstanceId: this.sessionInstanceId,
+        sequence: ++this.sessionEventSequence,
+      },
+      subagent,
+    };
+    for (const listener of this.sessionEventListeners) {
+      try {
+        listener(event);
+      } catch {
+        // Session listeners cannot interfere with native event handling.
       }
     }
   }
