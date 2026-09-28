@@ -1,3 +1,4 @@
+import { getLocale } from '../../i18n/i18n';
 import { getVaultPath } from '../../utils/path';
 import type { AuxiliaryExecutionContext } from '../auxiliary/AuxiliaryExecutionContext';
 import { InlineEditService as SharedInlineEditService } from '../auxiliary/InlineEditService';
@@ -81,7 +82,7 @@ export class ProviderRegistry {
     const registration = this.getProviderRegistration(providerId);
     return new SharedTitleGenerationService({
       ...this.createAuxiliaryExecutionContext(plugin, providerId),
-      resolveLocale: () => resolveTitleGenerationLocale(plugin.settings),
+      resolveLocale: () => resolveTitleGenerationLocale(plugin.settings, getLocale()),
       resolveModel: registration.resolveTitleGenerationModel
         ? () => registration.resolveTitleGenerationModel?.(plugin)
         : undefined,

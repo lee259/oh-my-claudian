@@ -21,13 +21,16 @@ interface TitleGenerationLocaleSettings {
 
 export function resolveTitleGenerationLocale(
   settings: TitleGenerationLocaleSettings,
+  interfaceLocale?: string,
 ): Locale {
   const titleLocale = getLocaleInfo(settings.titleGenerationLocale ?? '');
   if (titleLocale) {
     return titleLocale.code;
   }
 
-  return getLocaleInfo(settings.locale ?? '')?.code ?? DEFAULT_LOCALE;
+  return getLocaleInfo(settings.locale ?? '')?.code
+    ?? getLocaleInfo(interfaceLocale ?? '')?.code
+    ?? DEFAULT_LOCALE;
 }
 
 export function buildTitleGenerationSystemPrompt(locale: string = DEFAULT_LOCALE): string {
