@@ -938,6 +938,18 @@ function enqueueTabSessionEvent(
     return undefined;
   }
 
+  if (event.type === 'subagent_updated') {
+    const streamController = tab.controllers.streamController;
+    if (!streamController) return undefined;
+    streamController.handleSessionSubagentUpdate(event.subagent);
+    const pending = enqueueTabBackgroundWork(tab, async () => {
+      if (!isCurrent()) return;
+      await tab.controllers.conversationController?.save(true);
+      if (isCurrent()) coordinator?.notifyMayCool();
+    });
+    return pending ?? undefined;
+  }
+
   // A completed background task must update its card immediately. Keeping this
   // behind the general background FIFO makes the UI appear frozen while the
   // parent agent is still producing output or while transcript recovery runs.
