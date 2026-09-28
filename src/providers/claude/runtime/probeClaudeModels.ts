@@ -43,7 +43,7 @@ export async function probeClaudeModels(
     const config = getClaudeProviderSettings(host.settings);
 
     // The SDK query is intentionally held open until cancellation without yielding a user message.
-    // eslint-disable-next-line require-yield
+    // eslint-disable-next-line require-yield -- The probe keeps the SDK query open without sending a prompt.
     async function* prompt(): AsyncGenerator<SDKUserMessage> {
       await new Promise<void>(resolve => {
         if (controller.signal.aborted) {
