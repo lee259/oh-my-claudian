@@ -13,19 +13,38 @@ export class ImagePreviewModal {
   private closeCurrent: (() => void) | null = null;
 
   open(ownerDocument: Document, image: ImageAttachment): void {
+    this.openSource(ownerDocument, `data:${image.mediaType};base64,${image.data}`, image.name);
+  }
+
+  openSource(ownerDocument: Document, src: string, name: string): void {
     this.close();
 
+    const keyboardWindow = ownerDocument.defaultView;
+    const addKeyboardListener = (handler: (event: KeyboardEvent) => void) => {
+      if (keyboardWindow) {
+        keyboardWindow.addEventListener('keydown', handler, true);
+      } else {
+        ownerDocument.addEventListener('keydown', handler, true);
+      }
+    };
+    const removeKeyboardListener = (handler: (event: KeyboardEvent) => void) => {
+      if (keyboardWindow) {
+        keyboardWindow.removeEventListener('keydown', handler, true);
+      } else {
+        ownerDocument.removeEventListener('keydown', handler, true);
+      }
+    };
     const previouslyFocusedElement = getFocusableActiveElement(ownerDocument);
     const overlay = ownerDocument.body.createDiv({ cls: 'claudian-image-modal-overlay' });
     const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', `Image preview: ${image.name}`);
+    modal.setAttribute('aria-label', `Image preview: ${name}`);
 
     modal.createEl('img', {
       attr: {
-        src: `data:${image.mediaType};base64,${image.data}`,
-        alt: image.name,
+        src,
+        alt: name,
       },
     });
 
@@ -42,7 +61,7 @@ export class ImagePreviewModal {
     const close = () => {
       if (isClosed) return;
       isClosed = true;
-      ownerDocument.removeEventListener('keydown', handleKeyDown);
+      removeKeyboardListener(handleKeyDown);
       overlay.remove();
       if (this.closeCurrent === close) {
         this.closeCurrent = null;
@@ -52,7 +71,9 @@ export class ImagePreviewModal {
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.isComposing) {
+        event.preventDefault();
+        event.stopPropagation();
         close();
       } else if (event.key === 'Tab') {
         event.preventDefault();
@@ -64,7 +85,7 @@ export class ImagePreviewModal {
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) close();
     });
-    ownerDocument.addEventListener('keydown', handleKeyDown);
+    addKeyboardListener(handleKeyDown);
     this.closeCurrent = close;
     closeButton.focus();
   }

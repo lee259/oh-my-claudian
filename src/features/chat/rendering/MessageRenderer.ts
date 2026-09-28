@@ -1114,6 +1114,15 @@ export class MessageRenderer {
     this.imagePreviewModal.open(ownerDocument, image);
   }
 
+  private showRenderedImage(imageEl: HTMLImageElement): void {
+    if (this.isDisposed) return;
+    const src = imageEl.currentSrc || imageEl.src;
+    if (!src) return;
+
+    const ownerDocument = imageEl.ownerDocument ?? window.document;
+    this.imagePreviewModal.openSource(ownerDocument, src, imageEl.alt || 'Image');
+  }
+
   /**
    * Sets image src from attachment data.
    */
@@ -1239,6 +1248,25 @@ export class MessageRenderer {
       ) {
         processFileLinks(this.app, el);
       }
+
+      el.querySelectorAll<HTMLImageElement>('img').forEach((imageEl) => {
+        imageEl.classList.add('claudian-message-image-previewable');
+        imageEl.setAttribute('role', 'button');
+        imageEl.setAttribute('tabindex', '0');
+        imageEl.setAttribute('aria-label', `Preview ${imageEl.alt || 'image'}`);
+
+        imageEl.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.showRenderedImage(imageEl);
+        });
+        imageEl.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          event.stopPropagation();
+          this.showRenderedImage(imageEl);
+        });
+      });
     } catch {
       el.createDiv({
         cls: 'claudian-render-error',
