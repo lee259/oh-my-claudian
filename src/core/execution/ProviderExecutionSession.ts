@@ -39,6 +39,8 @@ export interface ProviderExecutionSession {
   cancel(): void;
   getSnapshot(): ProviderSessionSnapshot;
   getStatus(): ProviderSessionStatus;
+  /** Whether provider-owned work is still active after the requested turn ends. */
+  hasBackgroundWork?(): boolean;
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void;
   dispose(): Promise<void>;
 }

@@ -704,6 +704,7 @@ export class ChatExecutionCoordinator {
       && this.pendingSteerAttempts.size === 0
       && binding.backgroundSequences.size === 0
       && binding.pendingWorkCount === 0
+      && !(binding.session.hasBackgroundWork?.() ?? false)
       && (this.deps.warmExecution?.canCool() ?? true),
     );
   }

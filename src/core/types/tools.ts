@@ -100,6 +100,8 @@ export type AsyncSubagentStatus =
 /** Subagent (Agent tool) tracking for sync and async modes. */
 export interface SubagentInfo {
   id: string;
+  /** Identifies updates reconstructed from provider-native child-session events. */
+  lifecycleSource?: 'session';
   description: string;
   prompt?: string;
   mode?: SubagentMode;

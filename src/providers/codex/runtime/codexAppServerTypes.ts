@@ -109,6 +109,7 @@ export type ThreadItem =
   | FileChangeItem
   | ImageViewItem
   | WebSearchItem
+  | SubAgentActivityItem
   | CollabAgentToolCallItem
   | McpToolCallItem
   | DynamicToolCallItem
@@ -214,6 +215,14 @@ export interface WebSearchItem {
     pattern?: string;
   };
   status?: string;
+}
+
+export interface SubAgentActivityItem {
+  type: 'subAgentActivity';
+  id: string;
+  kind: 'started' | 'interacted' | 'interrupted' | 'completed';
+  agentThreadId: string;
+  agentPath: string;
 }
 
 export interface CollabAgentToolCallItem {

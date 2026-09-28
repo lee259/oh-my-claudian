@@ -92,6 +92,7 @@ interface DeferredRawExecCall {
     claimed: boolean;
     canonicalItemId?: string;
     canonicalCompleted?: boolean;
+    fallbackId?: string;
   }>;
   hasRawOutput?: boolean;
   rawOutput?: unknown;
@@ -145,6 +146,7 @@ export class CodexNotificationRouter {
   // Non-Bash Code Mode exec calls are transport envelopes. Canonical items own their
   // semantic lifecycles; the envelope remains available as a lossless raw-only fallback.
   private deferredRawExecCalls = new Map<string, DeferredRawExecCall>();
+  private rawExecAliases = new Map<string, string>();
   private projectedCanonicalItemIds = new Set<string>();
   private activeCanonicalToolProjections = new Map<string, CanonicalToolProjection>();
   private deferredOwnedCanonicalItemIds = new Set<string>();
@@ -153,10 +155,22 @@ export class CodexNotificationRouter {
   private fileChangeInputsById = new Map<string, Record<string, unknown>>();
 
   constructor(
-    private readonly emit: ChunkEmitter,
+    private readonly emitChunk: ChunkEmitter,
     private readonly onTurnMetadata?: TurnMetadataListener,
     private readonly workingDirectory?: string,
+    private readonly streamRawExecCalls = false,
   ) {}
+
+  private emit(chunk: StreamChunk): void {
+    if (chunk.type === 'tool_use' || chunk.type === 'tool_result' || chunk.type === 'tool_output') {
+      const id = this.rawExecAliases.get(chunk.id);
+      if (id) {
+        this.emitChunk({ ...chunk, id });
+        return;
+      }
+    }
+    this.emitChunk(chunk);
+  }
 
   private resetAssistantTextTracking(): void {
     this.streamedAssistantTurnText = '';
@@ -213,6 +227,7 @@ export class CodexNotificationRouter {
   }
 
   beginTurn(params: { isPlanTurn: boolean }): void {
+    this.rawExecAliases.clear();
     this.isPlanTurn = params.isPlanTurn;
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
@@ -253,6 +268,7 @@ export class CodexNotificationRouter {
   }
 
   endTurn(): void {
+    this.rawExecAliases.clear();
     this.isPlanTurn = false;
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
@@ -445,6 +461,29 @@ export class CodexNotificationRouter {
 
   private onItemCompleted(params: ItemCompletedNotification): void {
     const item = params.item;
+    if (item.type === 'subAgentActivity') {
+      // Native lifecycle items can survive a server restart after their raw call does not.
+      if (item.kind === 'interacted' && !this.rawStartedCallIds.has(item.id)) {
+        this.emit({ type: 'tool_use', id: item.id, name: 'send_input', input: { id: item.agentThreadId } });
+        this.emit({ type: 'tool_result', id: item.id, content: '', isError: false });
+      }
+      if (item.kind === 'started' && !this.completedCanonicalToolItemIds.has(item.id)) {
+        this.completedCanonicalToolItemIds.add(item.id);
+        this.emit({
+          type: 'tool_use',
+          id: item.id,
+          name: 'spawn_agent',
+          input: normalizeCodexToolInput('spawn_agent', { task_name: item.agentPath }),
+        });
+        this.emit({
+          type: 'tool_result',
+          id: item.id,
+          content: JSON.stringify({ agent_id: item.agentThreadId, task_name: item.agentPath }),
+          isError: false,
+        });
+      }
+      return;
+    }
     const itemId = getItemId(item);
     if (itemId && isCanonicalToolItem(item)) {
       if (this.completedCanonicalToolItemIds.has(itemId)) {
@@ -690,6 +729,10 @@ export class CodexNotificationRouter {
           }),
         });
         this.claimActiveCanonicalProjections();
+        if (this.streamRawExecCalls) {
+          const deferred = this.deferredRawExecCalls.get(callId);
+          if (deferred) this.emitDeferredRawExecFallback(deferred);
+        }
         return;
       }
     }
@@ -815,6 +858,7 @@ export class CodexNotificationRouter {
       if (deferredExec.expectedCalls.length > 0) {
         deferredExec.hasRawOutput = true;
         deferredExec.rawOutput = item.output;
+        if (this.streamRawExecCalls) this.emitDeferredRawExecFallback(deferredExec, item.output, true);
         if (deferredExec.expectedCalls.every(call => (
           call.claimed && call.canonicalCompleted
         ))) {
@@ -1124,7 +1168,7 @@ export class CodexNotificationRouter {
     const rawOutputText = stringifyCodexToolOutput(rawOutput);
     deferredExec.expectedCalls.forEach((call, index) => {
       if (call.claimed) {
-        if (!call.canonicalCompleted && call.canonicalItemId) {
+        if (emitResult && !call.canonicalCompleted && call.canonicalItemId) {
           this.completedCanonicalToolItemIds.add(call.canonicalItemId);
           this.emit({
             type: 'tool_result',
@@ -1140,13 +1184,11 @@ export class CodexNotificationRouter {
       const fallbackId = deferredExec.expectedCalls.length === 1
         ? deferredExec.callId
         : `${deferredExec.callId}:${index + 1}`;
-      this.resetAssistantSegmentText();
-      this.emit({
-        type: 'tool_use',
-        id: fallbackId,
-        name: call.name,
-        input: call.input,
-      });
+      if (!call.fallbackId) {
+        this.resetAssistantSegmentText();
+        this.emit({ type: 'tool_use', id: fallbackId, name: call.name, input: call.input });
+        if (this.streamRawExecCalls) call.fallbackId = fallbackId;
+      }
       if (emitResult) {
         this.emit({
           type: 'tool_result',
@@ -1281,6 +1323,9 @@ export class CodexNotificationRouter {
     }
 
     const { deferredExec, expectedCall } = match;
+    if (expectedCall.fallbackId && canonicalItemId) {
+      this.rawExecAliases.set(canonicalItemId, expectedCall.fallbackId);
+    }
     expectedCall.claimed = true;
     expectedCall.canonicalItemId = canonicalItemId;
     expectedCall.canonicalCompleted = canonicalCompleted;

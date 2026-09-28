@@ -256,6 +256,9 @@ export function buildCodexSubagentInfo(
   siblingToolCalls: ToolCallInfo[] = [],
 ): SubagentInfo {
   const prompt = getCodexSubagentPrompt(spawnToolCall.input);
+  if (spawnToolCall.subagent?.lifecycleSource === 'session') {
+    return prompt ? { ...spawnToolCall.subagent, prompt } : spawnToolCall.subagent;
+  }
   const model = getCodexSubagentModel(spawnToolCall.input);
   const spawnResult = extractCodexSpawnResult(spawnToolCall.result, spawnToolCall);
   const taskName = typeof spawnToolCall.input.task_name === 'string'
