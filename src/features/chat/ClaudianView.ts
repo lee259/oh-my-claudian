@@ -71,7 +71,8 @@ export class ClaudianView extends ItemView {
   private historySearchRoot: PreactRoot | null = null;
   private historySearchQuery = '';
   private historyRenderAbortController: AbortController | null = null;
-  private isArchiveSessionView = false;
+  private isArchiveSectionExpanded = false;
+  private archivedHistoryVisibleCount: number | undefined;
 
   // Event refs for cleanup
   private eventRefs: EventRef[] = [];
@@ -817,7 +818,49 @@ export class ClaudianView extends ItemView {
       return;
     }
 
-    const isArchiveView = this.isArchiveSessionView;
+    const searchQuery = overrides.searchQuery;
+    const isSearching = Boolean(searchQuery?.trim());
+
+    if (isSearching) {
+      conversationController.renderHistoryDropdown(container, {
+        onSelectConversation: (id) => this.openHistoryConversation(id),
+        getConversationStatus: (id) => this.getHistoryConversationStatus(id),
+        onRerender: () => this.updateHistoryDropdown(),
+        showOpenStateLabels: overrides.showOpenStateLabels ?? false,
+        showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
+        showHistoryHeader: false,
+        showOpenStateActions: overrides.showOpenStateActions ?? true,
+        preserveListState: true,
+        onRequestInlineRename: ({ beginRename, conversationId }) => {
+          const restoreAndRename = () => {
+            if (signal.aborted || this.historyDropdown !== container) return;
+            const targetItem = Array.from(
+              container.querySelectorAll<HTMLElement>('.claudian-history-item'),
+            ).find(item => item.getAttribute('data-conversation-id') === conversationId);
+            if (!targetItem) return;
+
+            container.addClass('visible');
+            beginRename(targetItem);
+          };
+          scheduleAnimationFrame(
+            restoreAndRename,
+            container.ownerDocument.defaultView,
+          );
+        },
+        sessionActionMode: 'mixed',
+        searchQuery,
+        allowConversationSelection: true,
+        onSetConversationPinned: (id: string, isPinned: boolean) => (
+          this.setConversationPinned(id, isPinned)
+        ),
+        onSetConversationArchived: (id: string, isArchived: boolean) => (
+          this.setConversationArchived(id, isArchived)
+        ),
+        signal,
+      });
+      return;
+    }
+
     conversationController.renderHistoryDropdown(container, {
       onSelectConversation: (id) => this.openHistoryConversation(id),
       getConversationStatus: (id) => this.getHistoryConversationStatus(id),
@@ -825,7 +868,7 @@ export class ClaudianView extends ItemView {
       showOpenStateLabels: overrides.showOpenStateLabels ?? false,
       showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
       showHistoryHeader: false,
-      showOpenStateActions: overrides.showOpenStateActions ?? !isArchiveView,
+      showOpenStateActions: overrides.showOpenStateActions ?? true,
       preserveListState: true,
       onRequestInlineRename: ({ beginRename, conversationId }) => {
         const restoreAndRename = () => {
@@ -843,18 +886,44 @@ export class ClaudianView extends ItemView {
           container.ownerDocument.defaultView,
         );
       },
-      sessionScope: isArchiveView ? 'archived' : 'active',
-      sessionActionMode: isArchiveView ? 'archived' : 'active',
-      searchQuery: overrides.searchQuery,
-      allowConversationSelection: !isArchiveView,
+      sessionScope: 'active',
+      sessionActionMode: 'active',
+      allowConversationSelection: true,
       onSetConversationPinned: (id: string, isPinned: boolean) => (
         this.setConversationPinned(id, isPinned)
       ),
       onSetConversationArchived: (id: string, isArchived: boolean) => (
         this.setConversationArchived(id, isArchived)
       ),
-      onBeforeRestoreListState: (target: HTMLElement) => (
-        this.buildHistoryArchiveNavigation(target)
+      onBeforeRestoreListState: (target: HTMLElement) => this.buildHistoryArchiveSection(
+        target,
+        (archiveSection) => conversationController.renderHistoryDropdown(archiveSection, {
+          onSelectConversation: (id) => this.openHistoryConversation(id),
+          getConversationStatus: (id) => this.getHistoryConversationStatus(id),
+          onRerender: () => {
+            const visibleCount = Number(
+              archiveSection.querySelector<HTMLElement>('.claudian-history-list')?.dataset.visibleCount,
+            );
+            if (Number.isFinite(visibleCount) && visibleCount > 0) {
+              this.archivedHistoryVisibleCount = visibleCount;
+            }
+            this.updateHistoryDropdown();
+          },
+          showOpenStateLabels: false,
+          showOpenStateIndicators: false,
+          showOpenStateActions: false,
+          showHistoryHeader: false,
+          preserveListState: true,
+          sessionScope: 'archived',
+          sessionActionMode: 'archived',
+          searchQuery,
+          visibleCount: this.archivedHistoryVisibleCount,
+          allowConversationSelection: false,
+          onSetConversationArchived: (id, isArchived) => (
+            this.setConversationArchived(id, isArchived)
+          ),
+          signal,
+        }),
       ),
       signal,
     });
@@ -869,31 +938,32 @@ export class ClaudianView extends ItemView {
       ?.handleActiveFileMetadataChanged(file);
   }
 
-  private setArchiveSessionView(isArchiveSessionView: boolean): void {
-    if (this.isArchiveSessionView === isArchiveSessionView) return;
-    this.isArchiveSessionView = isArchiveSessionView;
-    this.historyDropdownDirty = true;
-    if (this.historyDropdown?.hasClass('visible')) {
-      this.renderHistoryDropdown();
-    }
-  }
-
-  private buildHistoryArchiveNavigation(container: HTMLElement): void {
+  private buildHistoryArchiveSection(
+    container: HTMLElement,
+    renderArchivedSessions: (archiveSection: HTMLElement) => void,
+  ): void {
     const list = container.querySelector<HTMLElement>('.claudian-history-list');
     if (!list) return;
 
-    const label = this.isArchiveSessionView
-      ? t('chat.history.sessions')
-      : t('chat.history.archive');
+    const archivedSessionCount = this.plugin.getConversationList()
+      .filter(conversation => conversation.isArchived).length;
+    const archiveLabel = t('chat.history.archivedSessions');
     const control = list.createDiv({ cls: 'claudian-history-archive-control' });
     control.setAttribute('role', 'button');
     control.setAttribute('tabindex', '0');
-    control.setAttribute('aria-label', label);
+    control.setAttribute('aria-label', `${archiveLabel} (${archivedSessionCount})`);
+    control.setAttribute('aria-expanded', String(this.isArchiveSectionExpanded));
     const icon = control.createSpan({ cls: 'claudian-session-nav-icon' });
-    setIcon(icon, this.isArchiveSessionView ? 'arrow-left' : 'archive');
-    control.createSpan({ cls: 'claudian-session-nav-label', text: label });
+    setIcon(icon, this.isArchiveSectionExpanded ? 'chevron-down' : 'chevron-right');
+    control.createSpan({ cls: 'claudian-session-nav-label', text: archiveLabel });
+    control.createSpan({
+      cls: 'claudian-history-archive-count',
+      text: String(archivedSessionCount),
+      attr: { 'aria-hidden': 'true' },
+    });
     const toggleArchiveView = (): void => {
-      this.setArchiveSessionView(!this.isArchiveSessionView);
+      this.isArchiveSectionExpanded = !this.isArchiveSectionExpanded;
+      this.updateHistoryDropdown();
     };
     control.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -905,7 +975,13 @@ export class ClaudianView extends ItemView {
       event.stopPropagation();
       toggleArchiveView();
     });
-    list.insertBefore(control, list.firstChild);
+    list.appendChild(control);
+
+    if (this.isArchiveSectionExpanded) {
+      const archiveSection = list.createDiv({ cls: 'claudian-history-archive-section' });
+      list.appendChild(archiveSection);
+      renderArchivedSessions(archiveSection);
+    }
   }
 
   private async setConversationPinned(

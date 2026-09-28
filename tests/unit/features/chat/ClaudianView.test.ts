@@ -285,30 +285,79 @@ describe('ClaudianView tab controls', () => {
 
 
 
-  it('keeps archive navigation at the top of the single-mode history list', () => {
+  it('starts with archived sessions collapsed', () => {
+    const basePrototype = Object.getPrototypeOf(ClaudianView.prototype) as Record<string, unknown>;
+    Object.defineProperty(basePrototype, 'load', {
+      configurable: true,
+      value: jest.fn(),
+    });
+    let view: ClaudianView;
+    try {
+      view = new ClaudianView({} as any, {
+        storage: { setTabManagerState: jest.fn() },
+      } as any);
+    } finally {
+      delete basePrototype.load;
+    }
+
+    expect((view as any).isArchiveSectionExpanded).toBe(false);
+  });
+
+  it('places archive navigation after active history rows', () => {
     const container = createMockEl();
     const list = container.createDiv({ cls: 'claudian-history-list' });
     list.createDiv({ cls: 'claudian-history-item' });
-    const setArchiveSessionView = jest.fn();
+    const updateHistoryDropdown = jest.fn();
     const view = Object.create(ClaudianView.prototype) as any;
     Object.assign(view, {
-      isArchiveSessionView: false,
-      setArchiveSessionView,
+      isArchiveSectionExpanded: false,
+      plugin: { getConversationList: () => [] },
+      updateHistoryDropdown,
     });
 
-    view.buildHistoryArchiveNavigation(container);
+    view.buildHistoryArchiveSection(container, jest.fn());
 
     const archiveControl = list.querySelector('.claudian-history-archive-control')!;
-    expect(list.children[0]).toBe(archiveControl);
+    expect(list.children[0]).not.toBe(archiveControl);
+    expect(list.children[1]).toBe(archiveControl);
     expect(archiveControl.querySelector('.claudian-session-nav-label')?.textContent)
-      .toBe('Archive');
+      .toBe('Archived sessions');
+    expect(archiveControl.getAttribute('aria-expanded')).toBe('false');
     const stopPropagation = jest.fn();
     archiveControl.dispatchEvent({
       type: 'click',
       stopPropagation,
     });
     expect(stopPropagation).toHaveBeenCalledTimes(1);
-    expect(setArchiveSessionView).toHaveBeenCalledWith(true);
+    expect(view.isArchiveSectionExpanded).toBe(true);
+    expect(updateHistoryDropdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels the collapsible archive section with its archived session count', () => {
+    const container = createMockEl();
+    const list = container.createDiv({ cls: 'claudian-history-list' });
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      isArchiveSectionExpanded: false,
+      plugin: {
+        getConversationList: () => [
+          { id: 'archived-1', isArchived: true },
+          { id: 'active-1', isArchived: false },
+          { id: 'archived-2', isArchived: true },
+        ],
+      },
+      updateHistoryDropdown: jest.fn(),
+    });
+
+    view.buildHistoryArchiveSection(container, jest.fn());
+
+    const archiveControl = list.querySelector('.claudian-history-archive-control')!;
+    expect(archiveControl.querySelector('.claudian-session-nav-label')?.textContent)
+      .toBe('Archived sessions');
+    expect(archiveControl.querySelector('.claudian-history-archive-count')?.textContent)
+      .toBe('2');
+    expect(archiveControl.getAttribute('aria-label')).toBe('Archived sessions (2)');
+    expect(archiveControl.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('keeps conversation navigation on the single-mode history surface', () => {
@@ -322,14 +371,14 @@ describe('ClaudianView tab controls', () => {
     const renderHistoryDropdown = jest.fn();
     const view = Object.create(ClaudianView.prototype) as any;
     Object.assign(view, {
-      isArchiveSessionView: false,
+      isArchiveSectionExpanded: false,
       historyDropdown: container,
       openHistoryConversation: jest.fn(),
       getHistoryConversationStatus: jest.fn(),
       setConversationPinned: jest.fn(),
       setConversationArchived: jest.fn(),
       updateHistoryDropdown: jest.fn(),
-      buildHistoryArchiveNavigation: jest.fn(),
+      buildHistoryArchiveSection: jest.fn(),
       tabManager: {
         getActiveTab: jest.fn().mockReturnValue({
           controllers: { conversationController: { renderHistoryDropdown } },
@@ -606,34 +655,45 @@ describe('ClaudianView tab controls', () => {
     expect(createNewConversation).toHaveBeenCalledWith({ force: true });
   });
 
-  it('switches the history menu between active and archived conversations', () => {
+  it('expands archived conversations inline without replacing active sessions', () => {
     const historyDropdown = createMockEl();
     historyDropdown.addClass('visible');
-    const renderHistoryDropdown = jest.fn((container, _options?: unknown) => {
+    const historyListHost = historyDropdown.createDiv({ cls: 'claudian-history-list-host' });
+    const renderHistoryDropdown = jest.fn((container, options?: unknown) => {
       container.empty();
-      container.createDiv({ cls: 'claudian-history-header' });
-      container.createDiv({ cls: 'claudian-history-list' });
-      (_options as { onBeforeRestoreListState?: (target: HTMLElement) => void })
+      const list = container.createDiv({ cls: 'claudian-history-list' });
+      list.createDiv({ cls: 'claudian-history-item' });
+      (options as { onBeforeRestoreListState?: (target: HTMLElement) => void })
         ?.onBeforeRestoreListState?.(container);
     });
     const view = Object.create(ClaudianView.prototype) as any;
     Object.assign(view, {
       historyDropdown,
-      historyDropdownDirty: true,
-      historySurfaceRendered: true,
-      isArchiveSessionView: false,
-      plugin: {},
+      isArchiveSectionExpanded: false,
+      historyListHostEl: historyListHost,
+      plugin: {
+        getConversationList: () => [
+          { id: 'active-1', isArchived: false },
+          { id: 'archived-1', isArchived: true },
+        ],
+      },
+      openHistoryConversation: jest.fn(),
+      getHistoryConversationStatus: jest.fn(),
+      setConversationPinned: jest.fn(),
+      setConversationArchived: jest.fn(),
+      updateHistoryDropdown: jest.fn(),
       tabManager: {
         getActiveTab: jest.fn().mockReturnValue({
           controllers: { conversationController: { renderHistoryDropdown } },
         }),
       },
     });
+    const signal = new AbortController().signal;
 
-    view.renderHistoryDropdown();
+    view.renderHistorySurface(historyListHost, signal);
 
     expect(renderHistoryDropdown).toHaveBeenLastCalledWith(
-      view.historyListHostEl,
+      historyListHost,
       expect.objectContaining({
         preserveListState: true,
         sessionScope: 'active',
@@ -643,10 +703,12 @@ describe('ClaudianView tab controls', () => {
       }),
     );
     historyDropdown.querySelector('.claudian-history-archive-control')!.click();
+    expect(view.isArchiveSectionExpanded).toBe(true);
+    expect(view.updateHistoryDropdown).toHaveBeenCalledTimes(1);
 
-    expect(view.isArchiveSessionView).toBe(true);
+    view.renderHistorySurface(historyListHost, signal);
     expect(renderHistoryDropdown).toHaveBeenLastCalledWith(
-      view.historyListHostEl,
+      expect.anything(),
       expect.objectContaining({
         preserveListState: true,
         sessionScope: 'archived',
@@ -654,10 +716,118 @@ describe('ClaudianView tab controls', () => {
         allowConversationSelection: false,
       }),
     );
-    expect(renderHistoryDropdown.mock.calls.at(-1)?.[1])
-      .not.toHaveProperty('onOpenConversationInNewTab');
-    expect(historyDropdown.querySelector('.claudian-session-nav-label')?.textContent)
-      .toBe('Sessions');
+    expect(historyDropdown.querySelector('.claudian-history-archive-section')).not.toBeNull();
+    const activeHistoryList = historyListHost.querySelector('.claudian-history-list')!;
+    const activeChildren = Array.from(activeHistoryList.children as ArrayLike<HTMLElement>);
+    const activeItemIndex = activeChildren.findIndex(item => item.classList.contains('claudian-history-item'));
+    const archiveControlIndex = activeChildren.findIndex(item => item.classList.contains('claudian-history-archive-control'));
+    const archiveSectionIndex = activeChildren.findIndex(item => item.classList.contains('claudian-history-archive-section'));
+    expect(activeItemIndex).toBeGreaterThanOrEqual(0);
+    expect(archiveControlIndex).toBeGreaterThan(activeItemIndex);
+    expect(archiveSectionIndex).toBeGreaterThan(archiveControlIndex);
+    expect(historyDropdown.querySelector('.claudian-history-archive-section')
+      ?.querySelectorAll('.claudian-history-item')).toHaveLength(1);
+    expect(historyDropdown.querySelector('.claudian-history-archive-control')?.getAttribute('aria-expanded'))
+      .toBe('true');
+
+    historyDropdown.querySelector('.claudian-history-archive-control')!.click();
+    expect(view.isArchiveSectionExpanded).toBe(false);
+    view.renderHistorySurface(historyListHost, signal);
+    expect(historyDropdown.querySelector('.claudian-history-archive-section')).toBeNull();
+    expect(renderHistoryDropdown.mock.calls.filter(([, options]) => (
+      (options as { sessionScope?: string } | undefined)?.sessionScope === 'archived'
+    ))).toHaveLength(1);
+  });
+
+  it('renders one unified session scope while searching', () => {
+    const historyDropdown = createMockEl();
+    const historyListHost = historyDropdown.createDiv({ cls: 'claudian-history-list-host' });
+    const renderHistoryDropdown = jest.fn((container: any, options?: any) => {
+      container.empty();
+      container.createDiv({ cls: 'claudian-history-list' });
+      options?.onBeforeRestoreListState?.(container);
+    });
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      isArchiveSectionExpanded: true,
+      historyListHostEl: historyListHost,
+      plugin: {
+        getConversationList: () => [],
+      },
+      openHistoryConversation: jest.fn(),
+      getHistoryConversationStatus: jest.fn(),
+      setConversationPinned: jest.fn(),
+      setConversationArchived: jest.fn(),
+      updateHistoryDropdown: jest.fn(),
+      tabManager: {
+        getActiveTab: jest.fn().mockReturnValue({
+          controllers: { conversationController: { renderHistoryDropdown } },
+        }),
+      },
+    });
+
+    view.renderHistorySurface(historyListHost, new AbortController().signal, {
+      searchQuery: '1w',
+    });
+
+    expect(renderHistoryDropdown).toHaveBeenCalledTimes(1);
+    expect(renderHistoryDropdown).toHaveBeenCalledWith(
+      historyListHost,
+      expect.objectContaining({
+        searchQuery: '1w',
+        sessionActionMode: 'mixed',
+        allowConversationSelection: true,
+      }),
+    );
+    expect(renderHistoryDropdown.mock.calls[0]?.[1])
+      .not.toHaveProperty('sessionScope');
+    expect(renderHistoryDropdown.mock.calls[0]?.[1])
+      .not.toHaveProperty('onBeforeRestoreListState');
+  });
+
+  it('preserves the archived page size when the history surface rerenders', () => {
+    const historyDropdown = createMockEl();
+    const historyListHost = historyDropdown.createDiv({ cls: 'claudian-history-list-host' });
+    const signal = new AbortController().signal;
+    const renderHistoryDropdown = jest.fn((container: any, options?: any) => {
+      container.empty();
+      const list = container.createDiv({ cls: 'claudian-history-list' });
+      list.dataset.visibleCount = String(options?.visibleCount ?? 10);
+      options?.onBeforeRestoreListState?.(container);
+    });
+    const view = Object.create(ClaudianView.prototype) as any;
+    Object.assign(view, {
+      isArchiveSectionExpanded: true,
+      historyDropdown,
+      historyListHostEl: historyListHost,
+      plugin: {
+        getConversationList: () => [{ id: 'archived-1', isArchived: true }],
+      },
+      openHistoryConversation: jest.fn(),
+      getHistoryConversationStatus: jest.fn(),
+      setConversationPinned: jest.fn(),
+      setConversationArchived: jest.fn(),
+      updateHistoryDropdown: () => view.renderHistorySurface(historyListHost, signal),
+      tabManager: {
+        getActiveTab: jest.fn().mockReturnValue({
+          controllers: { conversationController: { renderHistoryDropdown } },
+        }),
+      },
+    });
+
+    view.renderHistorySurface(historyListHost, signal);
+    const archiveSection = historyDropdown.querySelector('.claudian-history-archive-section')!;
+    archiveSection.querySelector('.claudian-history-list')!.dataset.visibleCount = '20';
+    const archivedOptions = renderHistoryDropdown.mock.calls
+      .map(([, options]) => options)
+      .find(options => options?.sessionScope === 'archived')!;
+    archivedOptions.onRerender();
+
+    const rerenderedArchivedOptions = renderHistoryDropdown.mock.calls
+      .map(([, options]) => options)
+      .filter(options => options?.sessionScope === 'archived')
+      .at(-1);
+    expect(rerenderedArchivedOptions?.visibleCount).toBe(20);
   });
 
   it('defers hidden history rendering and coalesces invalidations until the dropdown opens', () => {
