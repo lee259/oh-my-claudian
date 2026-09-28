@@ -16,6 +16,7 @@ const TOOL_NAME_MAP: Record<string, string> = {
   exec_command: 'Bash',
   update_plan: 'TodoWrite',
   request_user_input: 'AskUserQuestion',
+  request_user_input_async: 'AskUserQuestion',
   view_image: 'Read',
   web_search: 'WebSearch',
   web_search_call: 'WebSearch',
@@ -471,6 +472,16 @@ export function normalizeCodexToolInput(
     case 'request_user_input':
       return { questions: normalizeQuestions(input) };
 
+    case 'request_user_input_async':
+      return {
+        questions: normalizeQuestions(input).map((question, index) => ({
+          ...question,
+          id: String(index),
+          isOther: true,
+        })),
+        replyMode: 'user-message',
+      };
+
     case 'view_image':
       return {
         ...input,
@@ -539,7 +550,7 @@ function normalizeQuestions(input: Record<string, unknown>): Array<Record<string
       : [];
 
     return {
-      question: stringifyCodexValue(item.question) || `Question ${index + 1}`,
+      question: firstNonEmptyString(item.question, item.title) || `Question ${index + 1}`,
       ...(item.id ? { id: stringifyCodexValue(item.id) } : {}),
       header: typeof item.header === 'string' && item.header.trim()
         ? String(item.header)
@@ -727,6 +738,18 @@ export function normalizeCodexToolResult(
   rawResult: string,
 ): string {
   if (!rawResult) return rawResult;
+  if (normalizedName === 'AskUserQuestion') {
+    try {
+      const parsed: unknown = JSON.parse(rawResult);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        && (parsed as Record<string, unknown>).accepted === true
+        && Object.keys(parsed).length === 1) {
+        return 'Question sent. Awaiting your reply.';
+      }
+    } catch {
+      // Preserve provider output when the tool result is not JSON.
+    }
+  }
   if (!TERMINAL_RESULT_TOOLS.has(normalizedName)) return rawResult;
   return unwrapTerminalResult(rawResult);
 }

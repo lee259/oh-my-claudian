@@ -6,6 +6,7 @@ import {
   normalizeCodexMemoryCitation,
   stripCodexMemoryCitationMarkup,
 } from '../normalization/CodexMemoryCitation';
+import { parseCodexQuestionReply } from '../normalization/codexQuestionNormalization';
 import {
   appendCodexCommandOutput,
   decodeCodexExecEnvelopeCalls,
@@ -384,6 +385,7 @@ export class CodexNotificationRouter {
 
   private onItemStarted(params: ItemStartedNotification): void {
     const item = params.item;
+    if (item.type === 'agentMessage' && this.handleAsyncQuestion(item, false)) return;
     const itemId = getItemId(item);
     const deferredOwned = this.claimDeferredRawExecFromItem(item, false);
     if (item.type === 'commandExecution' && !deferredOwned) {
@@ -461,6 +463,7 @@ export class CodexNotificationRouter {
 
   private onItemCompleted(params: ItemCompletedNotification): void {
     const item = params.item;
+    if (item.type === 'agentMessage' && this.handleAsyncQuestion(item, true)) return;
     if (item.type === 'subAgentActivity') {
       // Native lifecycle items can survive a server restart after their raw call does not.
       if (item.kind === 'interacted' && !this.rawStartedCallIds.has(item.id)) {
@@ -607,6 +610,8 @@ export class CodexNotificationRouter {
 
       case 'agentMessage':
       case 'message':
+        if (itemType === 'agentMessage'
+          && this.handleAsyncQuestion(item as unknown as AgentMessageItem, true)) break;
         this.emitMissingRawAgentMessageText(item);
         break;
 
@@ -1773,14 +1778,15 @@ export class CodexNotificationRouter {
     const visibleContent = extractCodexUserVisibleText(rawContent);
     this.startedUserMessageIds.add(item.id);
 
-    if (visibleContent === null && rawContent.trim()) {
+    const isQuestionReply = parseCodexQuestionReply(rawContent).length > 0;
+    if (visibleContent === null && rawContent.trim() && !isQuestionReply) {
       return;
     }
 
     this.emit({
       type: 'user_message_start',
       itemId: item.id,
-      content: visibleContent ?? rawContent,
+      content: visibleContent ?? (isQuestionReply ? '' : rawContent),
     });
   }
 
@@ -1792,6 +1798,17 @@ export class CodexNotificationRouter {
     this.startedAgentMessageIds.add(item.id);
     this.claimAssistantSegment(item.id);
     this.emit({ type: 'assistant_message_start', itemId: item.id });
+  }
+
+  private handleAsyncQuestion(item: AgentMessageItem, completed: boolean): boolean {
+    if (item.delivery !== 'async' || !Array.isArray(item.questions) || item.questions.length === 0) return false;
+    this.emitRawToolUse(item.id, 'request_user_input_async', {}, { questions: item.questions });
+    if (completed && !this.emittedImmediateToolResultIds.has(item.id)) {
+      this.emittedImmediateToolResultIds.add(item.id);
+      this.rawToolOutputsByCallId.delete(item.id);
+      this.emit({ type: 'tool_result', id: item.id, content: 'Question sent. Awaiting your reply.', isError: false });
+    }
+    return true;
   }
 
   private completeAgentMessage(item: AgentMessageItem): void {

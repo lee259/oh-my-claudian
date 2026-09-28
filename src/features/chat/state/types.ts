@@ -28,6 +28,8 @@ export interface ChatTurnRequest {
 
 /** Queued message waiting to be sent after current streaming completes. */
 export interface QueuedMessage {
+  /** Transient send observer; never persisted with conversation history. */
+  onDelivery?: (accepted: boolean) => void;
   content: string;
   images?: ImageAttachment[];
   editorContext: EditorSelectionContext | null;

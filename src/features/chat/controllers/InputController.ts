@@ -16,10 +16,12 @@ import {
 import { TOOL_EXIT_PLAN_MODE } from '../../../core/tools/toolNames';
 import {
   type ApprovalDecision,
+  type AskUserAnswers,
   type ChatMessage,
   type ExitPlanModeDecision,
   type ExitPlanModePresentationOptions,
   type StreamChunk,
+  type ToolCallInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type { BrowserSelectionContext } from '../../../utils/browser';
@@ -34,6 +36,7 @@ import {
   type ChatExecutionCoordinator,
   ChatExecutionPreHandoffError,
 } from '../execution/ChatExecutionCoordinator';
+import { AsyncQuestionPrompts } from '../rendering/AsyncQuestionPrompts';
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../rendering/InlineAskUserQuestion';
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
 import { InlinePlanApproval, type PlanApprovalDecision } from '../rendering/InlinePlanApproval';
@@ -174,6 +177,8 @@ export interface SendMessageOptions {
   browserContextOverride?: BrowserSelectionContext | null;
   canvasContextOverride?: CanvasSelectionContext | null;
   content?: string;
+  displayContentOverride?: string;
+  onDelivery?: (accepted: boolean) => void;
   images?: ChatMessage['images'];
   turnRequestOverride?: ChatTurnRequest;
 }
@@ -187,6 +192,9 @@ export class InputController {
   private pendingPlanApprovalInvalidated = false;
   private readonly resumeDropdownController: ResumeDropdownController;
   private readonly inputContainerVisibility = new InputContainerVisibility();
+  private readonly asyncQuestions: AsyncQuestionPrompts;
+  private readonly deferredDeliveryCallbacks = new WeakSet<(accepted: boolean) => void>();
+  private activeDelivery: ((accepted: boolean) => void) | undefined;
   private readonly pendingSteersByConversation: PendingSteerRegistry;
   private activeStreamingAssistantMessage: ChatMessage | null = null;
   private pendingProviderUserMessages: PendingProviderUserMessage[] = [];
@@ -201,6 +209,15 @@ export class InputController {
 
   constructor(deps: InputControllerDeps) {
     this.deps = deps;
+    this.asyncQuestions = new AsyncQuestionPrompts({
+      showQuestion: (tool, signal, onSubmit) => this.showAsyncQuestion(tool, signal, onSubmit),
+      answer: (tool, answers, conversationId) => this.answerAsyncQuestion(tool, answers, conversationId),
+      onChange: tool => updateToolCallResult(tool.id, tool, this.deps.state.toolCallElements),
+      onPendingChange: (id, pending) => pending
+        ? this.deps.state.beginActionRequired(id)
+        : this.deps.state.endActionRequired(id),
+      getConversationId: () => this.deps.state.currentConversationId,
+    });
     this.turnCoordinator = new TurnCoordinator(
       (options) => this.executeSendMessage(options),
       deps.turnOwner,
@@ -315,10 +332,28 @@ export class InputController {
   // ============================================
 
   async sendMessage(options?: SendMessageOptions): Promise<void> {
-    await this.turnCoordinator.run(options);
+    if (!options?.onDelivery) {
+      await this.turnCoordinator.run(options);
+      return;
+    }
+
+    let settled = false;
+    const onDelivery = (accepted: boolean) => {
+      if (settled) return;
+      settled = true;
+      options.onDelivery?.(accepted);
+    };
+    try {
+      await this.turnCoordinator.run({ ...options, onDelivery });
+      if (!settled && !this.deferredDeliveryCallbacks.has(onDelivery)) onDelivery(false);
+    } catch (error) {
+      onDelivery(false);
+      throw error;
+    }
   }
 
   async handleExecutionEvent(event: ProviderExecutionEvent): Promise<void> {
+    if (event.type === 'turn_started' && event.accepted) this.activeDelivery?.(true);
     if (event.type === 'usage_updated') {
       this.deps.streamController.updateUsage(event.usage);
       return;
@@ -379,7 +414,7 @@ export class InputController {
     const hasImages = imageOverride !== undefined
       ? imageOverride.length > 0
       : (imageContextManager?.hasImages() ?? false);
-    if (!content && !hasImages) {
+    if (!content && !hasImages && !options?.turnRequestOverride?.text.trim()) {
       this.reportDeferredReviewableSettlement();
       return;
     }
@@ -417,7 +452,7 @@ export class InputController {
 
     // If agent is working, queue the message instead of dropping it
     if (state.isStreaming) {
-      this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput);
+      this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options);
       return;
     }
 
@@ -439,7 +474,7 @@ export class InputController {
 
     const turnSubmission = options?.turnRequestOverride
       ? {
-        displayContent: content,
+        displayContent: options.displayContentOverride ?? content,
         turnRequest: cloneChatTurnRequest(options.turnRequestOverride),
       }
       : this.turnSubmissionBuilder.buildRequest({
@@ -560,12 +595,14 @@ export class InputController {
     try {
       userMsg.content = turnRequest.text;
       userMsg.currentNote = isCompact ? undefined : turnRequest.currentNotePath;
+      this.activeDelivery = options?.onDelivery;
       const result = await coordinator.execute(this.turnSubmissionBuilder.buildExecutionSubmission(
         displayContent,
         turnRequest,
         userMsg,
         assistantMsg,
       ));
+      if (result.accepted) options?.onDelivery?.(true);
       didEnqueueToSdk = result.accepted;
       planCompleted = result.planCompleted;
       if (isCompact && result.status === 'completed') {
@@ -592,10 +629,13 @@ export class InputController {
           ) ?? null;
       }
       if (result.status === 'cancelled') {
+        this.asyncQuestions.expireAll();
         wasInterrupted = true;
       } else if (result.status === 'invalidated') {
+        this.asyncQuestions.expireAll();
         wasInvalidated = true;
       } else if (result.status === 'missing-session') {
+        this.asyncQuestions.expireAll();
         this.handleMissingSessionResult(
           result,
           displayContent,
@@ -630,6 +670,7 @@ export class InputController {
           this.deps.captureReviewableSettlement?.('error') ?? null;
       }
     } finally {
+      if (this.activeDelivery === options?.onDelivery) this.activeDelivery = undefined;
       const finalAssistantMsg = this.activeStreamingAssistantMessage ?? assistantMsg;
 
       // ALWAYS clear the timer interval, even on stream invalidation (prevents memory leaks)
@@ -813,23 +854,30 @@ export class InputController {
     imageOverride: ChatMessage['images'] | undefined,
     hasImages: boolean,
     shouldUseInput: boolean,
+    options?: SendMessageOptions,
   ): void {
     const imageContextManager = this.deps.getImageContextManager();
     const images = hasImages
       ? [...(imageOverride ?? imageContextManager?.getAttachedImages() ?? [])]
       : undefined;
-    const { displayContent, turnRequest } = this.turnSubmissionBuilder.buildRequest({
+    const built = this.turnSubmissionBuilder.buildRequest({
       content,
       images,
       editorContextOverride: this.deps.selectionController.getContext(),
       browserContextOverride: this.deps.browserSelectionController?.getContext() ?? null,
       canvasContextOverride: this.deps.canvasSelectionController.getContext(),
     });
+    const displayContent = options?.displayContentOverride ?? built.displayContent;
+    const turnRequest = options?.turnRequestOverride
+      ? cloneChatTurnRequest(options.turnRequestOverride)
+      : built.turnRequest;
     const { state } = this.deps;
-    state.queuedMessage = mergeQueuedMessages(
-      state.queuedMessage,
-      createQueuedMessage(displayContent, turnRequest),
-    );
+    const queued = createQueuedMessage(displayContent, turnRequest);
+    if (options?.onDelivery) {
+      queued.onDelivery = options.onDelivery;
+      this.deferredDeliveryCallbacks.add(options.onDelivery);
+    }
+    state.queuedMessage = mergeQueuedMessages(state.queuedMessage, queued);
     if (shouldUseInput) {
       const inputEl = this.deps.getInputEl();
       inputEl.value = '';
@@ -947,6 +995,7 @@ export class InputController {
     options: { mergeWithComposer?: boolean } = {},
   ): void {
     if (!message) return;
+    message.onDelivery?.(false);
 
     const { content, images } = message;
     const inputEl = this.deps.getInputEl();
@@ -997,6 +1046,7 @@ export class InputController {
         void this.sendMessage({
           content: queuedMessage.content,
           images: queuedMessage.images,
+          onDelivery: queuedMessage.onDelivery,
           turnRequestOverride: toQueuedChatTurn(queuedMessage).request,
         }).catch(() => this.reportDeferredReviewableSettlement());
       },
@@ -1165,6 +1215,7 @@ export class InputController {
         return;
       }
 
+      queuedMessage.onDelivery?.(true);
       pending.providerDisposition = 'accepted-awaiting-correlation';
       this.pendingSteersByConversation.clearUi(pending);
       if (pending.correlationState !== 'pending') {
@@ -1672,6 +1723,60 @@ export class InputController {
     );
   }
 
+  updateAsyncQuestion(tool: ToolCallInfo): void {
+    this.asyncQuestions.update(tool);
+  }
+
+  private showAsyncQuestion(
+    tool: ToolCallInfo,
+    signal: AbortSignal,
+    onSubmit: (answers: AskUserAnswers) => Promise<void>,
+  ): Promise<AskUserAnswers | null> {
+    const inputContainerEl = this.deps.getInputContainerEl();
+    const parentEl = inputContainerEl.parentElement;
+    if (!parentEl) return Promise.resolve(null);
+    return this.showInlineQuestion(
+      parentEl,
+      inputContainerEl,
+      tool.input,
+      inline => { this.pendingAskInline = inline; },
+      signal,
+      { title: 'Answer agent question', onSubmit },
+    );
+  }
+
+  private async answerAsyncQuestion(
+    tool: ToolCallInfo,
+    answers: AskUserAnswers,
+    conversationId: string | null,
+  ): Promise<void> {
+    const { state } = this.deps;
+    const belongsToConversation = state.currentConversationId === conversationId
+      && state.messages.some(message => message.toolCalls?.some(candidate => candidate.id === tool.id));
+    if (!belongsToConversation) throw new Error('This question belongs to a different conversation.');
+
+    const reply = ProviderRegistry.formatQuestionReply(this.getActiveProviderId(), tool, answers);
+    if (!reply) throw new Error('The provider could not format this question reply.');
+    const submission = this.turnSubmissionBuilder.buildRequest({
+      content: reply.content,
+      images: [],
+      editorContextOverride: null,
+      browserContextOverride: null,
+      canvasContextOverride: null,
+    });
+    await new Promise<void>((resolve, reject) => {
+      void this.sendMessage({
+        content: reply.content,
+        displayContentOverride: reply.displayContent,
+        images: [],
+        onDelivery: accepted => accepted
+          ? resolve()
+          : reject(new Error('The answer was not sent. Please try again.')),
+        turnRequestOverride: submission.turnRequest,
+      }).catch(reject);
+    });
+  }
+
   private showInlineQuestion(
     parentEl: HTMLElement,
     inputContainerEl: HTMLElement,
@@ -1779,6 +1884,7 @@ export class InputController {
   }
 
   dismissPendingApproval(): void {
+    this.asyncQuestions.expireAll();
     this.dismissPendingApprovalPrompt();
     if (this.pendingAskInline) {
       this.pendingAskInline.destroy();

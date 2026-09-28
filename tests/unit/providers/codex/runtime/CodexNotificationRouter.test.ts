@@ -17,6 +17,38 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('text streaming', () => {
+    it.each([false, true])('routes async agent questions to a question tool exactly once (notification first: %s)', notificationFirst => {
+      router.beginTurn({ isPlanTurn: false });
+      const questions = [{ title: 'Which check?', options: ['History', 'Rendering'] }];
+      const notifyQuestion = () => {
+        router.handleNotification('item/started', { item: {
+          type: 'agentMessage', id: 'question-1', text: 'Which check?', phase: 'streaming',
+          memoryCitation: null, delivery: 'async', questions,
+        } });
+        router.handleNotification('item/completed', { item: {
+          type: 'agentMessage', id: 'question-1', text: 'Which check?', phase: 'final',
+          memoryCitation: null, delivery: 'async', questions,
+        } });
+      };
+      const notifyRawTool = () => router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'function_call', call_id: 'question-1', name: 'request_user_input_async',
+        arguments: JSON.stringify({ questions }),
+      } });
+
+      if (notificationFirst) notifyQuestion();
+      notifyRawTool();
+      if (!notificationFirst) notifyQuestion();
+
+      expect(chunks.filter(chunk => chunk.type === 'text' || chunk.type === 'assistant_message_start')).toEqual([]);
+      expect(chunks.filter(chunk => chunk.type === 'tool_use')).toEqual([expect.objectContaining({
+        type: 'tool_use', id: 'question-1', name: 'AskUserQuestion',
+        input: expect.objectContaining({ replyMode: 'user-message' }),
+      })]);
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([{
+        type: 'tool_result', id: 'question-1', content: 'Question sent. Awaiting your reply.', isError: false,
+      }]);
+    });
+
     it('maps item/agentMessage/delta to a text chunk', () => {
       router.handleNotification('item/agentMessage/delta', {
         threadId: 't1',
@@ -4833,6 +4865,16 @@ describe('CodexNotificationRouter', () => {
       expect(chunks).toEqual([
         { type: 'user_message_start', itemId: 'u1', content: 'hi' },
       ]);
+    });
+
+    it('preserves a boundary for hidden async-question reply messages', () => {
+      const reply = '<send_user_message_question_reply>\n[{"questionItemId":"[\\"request_user_input_async\\",\\"call\\",0]","question":"Which?","answer":"History"}]\n</send_user_message_question_reply>';
+      router.handleNotification('item/started', {
+        item: { type: 'userMessage', id: 'reply-1', content: [{ type: 'text', text: reply }] },
+        threadId: 't1',
+        turnId: 'turn1',
+      });
+      expect(chunks).toEqual([{ type: 'user_message_start', itemId: 'reply-1', content: '' }]);
     });
 
     it('hides generated image placeholder tags from userMessage boundaries', () => {

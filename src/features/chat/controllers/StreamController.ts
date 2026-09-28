@@ -110,6 +110,7 @@ export interface StreamControllerDeps {
   updateToolActivity?: (activity: ToolActivityInfo) => void;
   removeToolActivity?: (id: string) => void;
   clearToolActivities?: () => void;
+  onQuestionToolUpdate?: (tool: ToolCallInfo) => void;
 }
 
 export interface SubagentHistoryRecoveryRequest {
@@ -504,6 +505,7 @@ export class StreamController {
       }
       this.reportToolActivity(existingToolCall);
       this.ensureRegularToolCallVisibility(existingToolCall, msg);
+      this.deps.onQuestionToolUpdate?.(existingToolCall);
       return;
     }
 
@@ -537,6 +539,8 @@ export class StreamController {
     if (chunk.name === TOOL_WRITE) {
       this.capturePlanFilePath(chunk.input);
     }
+
+    this.deps.onQuestionToolUpdate?.(toolCall);
 
     // Buffer the tool call instead of rendering immediately
     if (state.currentContentEl) {
@@ -1222,6 +1226,7 @@ export class StreamController {
           extractResolvedAnswersFromResultText(normalizedContent);
         if (answers) existingToolCall.resolvedAnswers = answers;
       }
+      this.deps.onQuestionToolUpdate?.(existingToolCall);
 
       const writeEditState = state.writeEditStates.get(chunk.id);
       if (writeEditState && isWriteEditTool(existingToolCall.name)) {

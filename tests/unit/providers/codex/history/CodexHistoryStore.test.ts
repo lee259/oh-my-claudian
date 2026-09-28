@@ -8,6 +8,7 @@ import {
   parseCodexSessionFile,
   parseCodexSessionTurns,
 } from '@/providers/codex/history/CodexHistoryStore';
+import { formatCodexQuestionReply } from '@/providers/codex/normalization/codexQuestionNormalization';
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
@@ -1029,6 +1030,38 @@ describe('CodexHistoryStore', () => {
       expect(askTool!.input.questions).toEqual([
         expect.objectContaining({ question: 'Should I also update the tests?', id: 'q1' }),
       ]);
+    });
+
+    it('restores async question notifications and applies hidden user replies to the original tool', () => {
+      const tool = {
+        id: 'async-question',
+        name: 'AskUserQuestion',
+        status: 'completed' as const,
+        input: {
+          replyMode: 'user-message',
+          questions: [{ id: '0', question: 'Which check?', header: 'Check', options: [], multiSelect: false }],
+        },
+      };
+      const reply = formatCodexQuestionReply(tool, { '0': 'History' })!;
+      const content = [
+        JSON.stringify({ timestamp: '2026-03-27T00:00:00.000Z', type: 'event_msg', payload: { type: 'task_started' } }),
+        JSON.stringify({ timestamp: '2026-03-27T00:00:01.000Z', type: 'event_msg', payload: {
+          type: 'item_completed', item: { type: 'agentMessage', id: 'async-question', delivery: 'async', questions: [{ title: 'Which check?', options: [] }] },
+        } }),
+        JSON.stringify({ timestamp: '2026-03-27T00:00:02.000Z', type: 'event_msg', payload: { type: 'user_message', message: reply.content } }),
+        JSON.stringify({ timestamp: '2026-03-27T00:00:03.000Z', type: 'event_msg', payload: { type: 'agent_message', message: 'I will check history.' } }),
+        JSON.stringify({ timestamp: '2026-03-27T00:00:04.000Z', type: 'event_msg', payload: { type: 'task_complete' } }),
+      ].join('\n');
+
+      const messages = parseCodexSessionContent(content);
+      const question = messages.flatMap(message => message.toolCalls ?? []).find(call => call.id === 'async-question');
+      expect(question).toMatchObject({
+        name: 'AskUserQuestion',
+        status: 'completed',
+        input: { replyMode: 'user-message' },
+        resolvedAnswers: { '0': 'History' },
+      });
+      expect(messages.filter(message => message.role === 'user').every(message => message.displayContent === '')).toBe(true);
     });
 
     it('restores request_user_input options and multi-select metadata', () => {

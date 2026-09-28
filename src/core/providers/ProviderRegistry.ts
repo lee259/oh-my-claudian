@@ -9,6 +9,7 @@ import type {
   ProviderInteractionPort,
 } from '../execution';
 import { resolveTitleGenerationLocale } from '../prompt/titleGeneration';
+import type { AskUserAnswers, ToolCallInfo } from '../types';
 import { decodeProviderModelSelectionId } from './modelSelection';
 import type {
   ProviderDiagnosticCollectorContext,
@@ -24,6 +25,7 @@ import {
   type ProviderChatUIConfig,
   type ProviderConversationHistoryService,
   type ProviderId,
+  type ProviderQuestionReply,
   type ProviderRegistration,
   type ProviderSettingsReconciler,
   type ProviderSettingsStorageAdapter,
@@ -149,6 +151,14 @@ export class ProviderRegistry {
     providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID,
   ): ProviderSubagentAdapter | null {
     return this.getProviderRegistration(providerId).subagentAdapter ?? null;
+  }
+
+  static formatQuestionReply(
+    providerId: ProviderId,
+    tool: ToolCallInfo,
+    answers: AskUserAnswers,
+  ): ProviderQuestionReply | null {
+    return this.getProviderRegistration(providerId).formatQuestionReply?.(tool, answers) ?? null;
   }
 
   static getCapabilities(
