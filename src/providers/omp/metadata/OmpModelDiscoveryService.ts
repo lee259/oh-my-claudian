@@ -14,7 +14,7 @@ import {
   normalizeOmpDiscoveredModels,
   type OmpDiscoveredModel,
 } from '../models';
-import { buildOmpEnvironment } from '../runtime/OmpLaunchSpec';
+import { resolveOmpRuntimeEnvironment } from '../runtime/OmpRuntimeEnvironment';
 
 const MODEL_COMMAND_TIMEOUT_MS = 20_000;
 const MAX_STDOUT_BYTES = 4 * 1024 * 1024;
@@ -104,14 +104,15 @@ export class OmpModelDiscoveryService {
 
   private async discoverCliModels(signal?: AbortSignal): Promise<OmpDiscoveredModel[]> {
     const command = await this.plugin.getResolvedProviderCliPath('omp') ?? 'omp';
+    const env = await resolveOmpRuntimeEnvironment(
+      process.env,
+      getRuntimeEnvironmentVariables(this.plugin.settings, 'omp'),
+    );
     const result = await this.runner.run({
       args: ['models', '--json'],
       command,
       cwd: getVaultPath(this.plugin.app) ?? process.cwd(),
-      env: buildOmpEnvironment(
-        process.env,
-        getRuntimeEnvironmentVariables(this.plugin.settings, 'omp'),
-      ),
+      env,
       signal,
       timeoutMs: MODEL_COMMAND_TIMEOUT_MS,
     });

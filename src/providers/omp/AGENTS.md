@@ -11,6 +11,7 @@
 ## Isolation Rules
 
 - OMP must not inherit `PI_*` environment variables or Pi data/configuration directories. Keep the filtering in `OmpLaunchSpec` and apply it to both runtime and metadata subprocesses.
+- On POSIX hosts, OMP ACP and metadata subprocesses resolve the user's login-shell environment so GUI-launched Obsidian can use the same CLI credentials as a terminal. Explicit Claudian environment settings override shell values; never log resolved environment values.
 - OMP model selections use the `omp:` namespace. Never route an OMP model through Pi's `pi:` namespace or infer provider ownership from an unscoped raw model ID.
 - OMP settings writers must merge provider-owned fields and normalize persisted catalog, thinking, environment, and CLI-path values before use.
 
