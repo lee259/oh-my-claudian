@@ -45,6 +45,7 @@ jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
   finalizeSubagentBlock: jest.fn(),
   updateAsyncSubagentRunning: jest.fn(),
   updateAsyncSubagentProgress: jest.fn(),
+  updateSubagentProgress: jest.fn(),
   finalizeAsyncSubagent: jest.fn(),
   markAsyncSubagentOrphaned: jest.fn(),
 }));
@@ -87,6 +88,26 @@ const createMockEl = () => ({ createDiv: jest.fn(), appendChild: jest.fn() } as 
       expect(updateAsyncSubagentProgress).toHaveBeenCalledWith(
         expect.objectContaining({ info: expect.objectContaining({ id: 'task-1' }) }),
         { toolCallId: 'task-1', summary: 'Searching' },
+      );
+    });
+
+    it('routes progress to a matching running sync task', () => {
+      const { manager } = createManager();
+      manager.handleTaskToolUse(
+        'sync-task',
+        { description: 'Foreground', run_in_background: false },
+        createMockEl(),
+      );
+
+      manager.updateProgress({ toolCallId: 'sync-task', summary: 'Reading' });
+
+      const { updateSubagentProgress } = jest.requireMock(
+        '@/features/chat/rendering/SubagentRenderer',
+      );
+      expect(updateSubagentProgress).toHaveBeenCalledTimes(1);
+      expect(updateSubagentProgress).toHaveBeenCalledWith(
+        expect.objectContaining({ info: expect.objectContaining({ id: 'sync-task' }) }),
+        { toolCallId: 'sync-task', summary: 'Reading' },
       );
     });
 
