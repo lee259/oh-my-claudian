@@ -15,6 +15,7 @@ import type {
   ToolCallInfo,
 } from '../../../core/types';
 import { extractHandbackResult } from '../normalization/claudeSubagentResult';
+import { omitToolResultImageData } from '../sdk/toolResultContent';
 import { isClaudeSubagentToolName } from '../subagentToolNames';
 import {
   type ClaudeProviderState,
@@ -473,6 +474,34 @@ function buildPersistedSubagentData(messages: ChatMessage[]): Record<string, Sub
   return result;
 }
 
+function stripResultImageData(result: string | undefined): string | undefined {
+  if (!result?.includes('"base64"')) return result;
+
+  try {
+    let changed = false;
+    const content: unknown = JSON.parse(result, (key, value: unknown) => {
+      const sanitized = omitToolResultImageData(key, value);
+      if (sanitized !== value) changed = true;
+      return sanitized;
+    });
+    return changed ? JSON.stringify(content) : result;
+  } catch {
+    return result;
+  }
+}
+
+function buildPersistedSubagent(subagent: SubagentInfo): SubagentInfo {
+  return {
+    ...subagent,
+    result: stripResultImageData(subagent.result),
+    toolCalls: subagent.toolCalls.map(toolCall => ({
+      ...toolCall,
+      result: stripResultImageData(toolCall.result),
+      ...(toolCall.subagent ? { subagent: buildPersistedSubagent(toolCall.subagent) } : {}),
+    })),
+  };
+}
+
 function sanitizeProviderState(
   providerState: ClaudeProviderState,
 ): Record<string, unknown> | undefined {
@@ -672,14 +701,19 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
 
   buildPersistedProviderState(
     conversation: Conversation,
+    options: { preserveProviderState?: boolean } = {},
   ): Record<string, unknown> | undefined {
     const providerState: ClaudeProviderState = {
       ...getClaudeState(conversation.providerState),
     };
 
-    const subagentData = buildPersistedSubagentData(conversation.messages);
+    const subagentData = options.preserveProviderState
+      ? providerState.subagentData ?? {}
+      : buildPersistedSubagentData(conversation.messages);
     if (Object.keys(subagentData).length > 0) {
-      providerState.subagentData = subagentData;
+      providerState.subagentData = Object.fromEntries(
+        Object.entries(subagentData).map(([id, subagent]) => [id, buildPersistedSubagent(subagent)]),
+      );
     } else {
       delete providerState.subagentData;
     }

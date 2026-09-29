@@ -524,6 +524,152 @@ describe('ConversationRepository input ledger', () => {
     },
   );
 
+  it.each([
+    ['codex', { threadId: 'codex-thread', opaque: { checkpoint: 'codex-checkpoint' } }],
+    ['grok', { sessionDirectory: '/grok/session', opaque: { checkpoint: 'grok-checkpoint' } }],
+    ['opencode', { sessionId: 'opencode-session', databasePath: '/opencode.db', opaque: { checkpoint: 'opencode-checkpoint' } }],
+    ['pi', { sessionId: 'pi-session', sessionFile: '/pi.jsonl', opaque: { checkpoint: 'pi-checkpoint' } }],
+  ] as const)(
+    'preserves %s recovery provider state through the provider projection',
+    async (providerId, providerState) => {
+      const conversation = createConversation(`recovery-${providerId}`);
+      conversation.providerId = providerId;
+      conversation.sessionId = null;
+      conversation.modelRecoverySource = {
+        sessionId: `${providerId}-recovery`,
+        providerState,
+      };
+      const { repository, persistence } = createRepository(conversation);
+
+      await repository.adoptMetadataConversations([{
+        conversation,
+        needsMigration: true,
+        source: 'current',
+      }]);
+
+      expect(persistence.saveMetadata).toHaveBeenLastCalledWith(expect.objectContaining({
+        modelRecoverySource: expect.objectContaining({
+          sessionId: `${providerId}-recovery`,
+          providerState,
+        }),
+      }));
+    },
+  );
+
+  it('strips base64 images from preserved Claude state and model-recovery metadata on save', async () => {
+    const imageData = 'a'.repeat(2048);
+    const imageResult = JSON.stringify([{
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: imageData },
+    }]);
+    const subagentData = {
+      task: {
+        id: 'task',
+        description: 'Inspect image',
+        isExpanded: false,
+        status: 'completed' as const,
+        result: imageResult,
+        toolCalls: [{
+          id: 'read',
+          name: 'Read',
+          input: { file_path: '/image.png' },
+          status: 'completed' as const,
+          result: imageResult,
+        }],
+      },
+    };
+    const providerState = { providerSessionId: 'session-current', subagentData };
+    const recoveryProviderState = { providerSessionId: 'session-recovery', subagentData };
+    const conversation = createConversation();
+    conversation.sessionId = null;
+    conversation.providerState = providerState;
+    conversation.modelRecoverySource = {
+      sessionId: 'session-recovery',
+      providerState: recoveryProviderState,
+    };
+    const { repository, persistence } = createRepository(conversation);
+
+    await repository.adoptMetadataConversations([{
+      conversation,
+      needsMigration: true,
+      source: 'current',
+    }]);
+
+    const saved = persistence.saveMetadata.mock.lastCall?.[0];
+    expect(saved).toBeDefined();
+    expect(JSON.stringify(saved)).not.toContain(imageData);
+    expect(saved?.providerState).toMatchObject({
+      providerSessionId: 'session-current',
+      subagentData: { task: expect.objectContaining({
+        result: JSON.stringify([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } }]),
+        toolCalls: [expect.objectContaining({
+          result: JSON.stringify([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } }]),
+        })],
+      }) },
+    });
+    expect(saved?.modelRecoverySource?.providerState).toMatchObject({
+      providerSessionId: 'session-recovery',
+      subagentData: { task: expect.objectContaining({
+        result: JSON.stringify([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } }]),
+      }) },
+    });
+    expect(conversation.providerState).toEqual(providerState);
+    expect(conversation.modelRecoverySource?.providerState).toEqual(recoveryProviderState);
+  });
+
+  it('strips base64 images when rebuilding persisted Claude state from loaded messages', async () => {
+    const imageData = 'b'.repeat(2048);
+    const imageResult = JSON.stringify([{
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: imageData },
+    }]);
+    const conversation = createConversation('loaded-image-metadata');
+    conversation.messages = [{
+      id: 'assistant-1',
+      role: 'assistant',
+      content: 'Image review complete.',
+      timestamp: 2,
+      toolCalls: [{
+        id: 'task',
+        name: 'Task',
+        input: { description: 'Inspect image' },
+        status: 'completed',
+        result: imageResult,
+        subagent: {
+          id: 'task',
+          description: 'Inspect image',
+          isExpanded: false,
+          status: 'completed',
+          result: imageResult,
+          toolCalls: [{
+            id: 'read',
+            name: 'Read',
+            input: { file_path: '/image.png' },
+            status: 'completed',
+            result: imageResult,
+          }],
+        },
+      }],
+    }];
+    const { repository, persistence } = createRepository(conversation);
+
+    await repository.rename(conversation.id, 'Updated title');
+
+    const saved = persistence.saveMetadata.mock.lastCall?.[0];
+    expect(saved).toBeDefined();
+    expect(JSON.stringify(saved)).not.toContain(imageData);
+    expect(saved?.providerState).toMatchObject({
+      subagentData: { task: expect.objectContaining({
+        result: JSON.stringify([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } }]),
+        toolCalls: [expect.objectContaining({
+          result: JSON.stringify([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } }]),
+        })],
+      }) },
+    });
+    expect(conversation.messages[0].toolCalls?.[0].subagent?.result).toBe(imageResult);
+    expect(conversation.messages[0].toolCalls?.[0].subagent?.toolCalls[0].result).toBe(imageResult);
+  });
+
   it('drops malformed OpenCode-owned state without clobbering opaque fields', async () => {
     const conversation = createConversation();
     conversation.providerId = 'opencode';

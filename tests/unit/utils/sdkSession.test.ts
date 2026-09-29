@@ -2359,6 +2359,21 @@ describe('sdkSession', () => {
         JSON.stringify(content, null, 2)
       );
     });
+
+    it('omits base64 image bytes when serializing image-only tool results', () => {
+      const content = [{
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/png', data: 'large-image-payload' },
+      }];
+
+      const result = extractToolResultContent(content);
+
+      expect(JSON.parse(result)).toEqual([{
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/png', data: '' },
+      }]);
+      expect(content[0].source.data).toBe('large-image-payload');
+    });
   });
 
   describe('collectAsyncSubagentResults', () => {
