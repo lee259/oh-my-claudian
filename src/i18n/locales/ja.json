@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Grok 環境変数",
+        "desc": "Grok にのみ渡す環境変数。カスタムモデルのシークレットはこのプロバイダーのスコープ内に留まり、ネイティブ設定からは env_key で参照されます。"
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Pi 環境変数",
+        "desc": "Pi にのみ渡す環境変数。"
+      }
     },
     "providerReadiness": {
       "title": "準備状況",
@@ -632,14 +640,20 @@
         "save": "保存",
         "update": "更新",
         "cancel": "キャンセル"
-      }
+      },
+      "insert": "挿入",
+      "insertFailed": "スニペットの挿入に失敗しました",
+      "deleteConfirm": "環境変数スニペット「{name}」を削除しますか?",
+      "deleteFailed": "スニペットの削除に失敗しました"
     },
     "customModelOverrides": {
       "name": "カスタムモデルの上書き",
       "desc": "カスタムモデルのモデルセレクター表示名とコンテキストウィンドウサイズを設定します。"
     },
     "customModelAliases": {
-      "placeholder": "エイリアス"
+      "placeholder": "エイリアス",
+      "ariaLabel": "{model} のエイリアス",
+      "ariaDescription": "モデルセレクターに表示されるカスタムラベル。空欄の場合はデフォルトを使用します。"
     },
     "customContextLimits": {
       "name": "カスタムコンテキスト制限",
@@ -704,8 +718,13 @@
       "descUnix": "\"which claude\" の出力を貼り付けてください - ネイティブと npm/pnpm/yarn インストールの両方で動作します。",
       "validation": {
         "notExist": "パスが存在しません",
-        "isDirectory": "パスはディレクトリでファイルではありません"
-      }
+        "isDirectory": "パスはディレクトリでファイルではありません",
+        "mustBeAbsolute": "パスは絶対パスである必要があります",
+        "notFile": "パスはファイルを指している必要があります",
+        "notAccessible": "パスにアクセスできません",
+        "notExecutable": "パスは実行可能である必要があります"
+      },
+      "genericName": "CLI パス"
     },
     "language": {
       "name": "言語",
@@ -911,6 +930,44 @@
         "error": "診断ログフォルダーを開けませんでした。"
       },
       "openCommandName": "Provider 診断ログを開く"
+    },
+    "providerSettings": {
+      "unavailable": "プロバイダー設定を利用できません。",
+      "loadFailed": "プロバイダー設定を読み込めませんでした: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "共有環境",
+      "desc": "すべてのプロバイダーで共有される、プロバイダー非依存のランタイム変数。PATH、プロキシ、証明書、一時ディレクトリの変数に使用します。"
+    },
+    "modelPicker": {
+      "name": "表示するモデル",
+      "desc": "チャットのセレクターで利用できるモデルを選択します。ドラッグして並べ替えられます。プロバイダーは現在利用可能な最初のモデルをデフォルトとして使用します。このプロバイダーを使うには少なくとも1つのモデルを選択してください。",
+      "browse": "モデルを参照",
+      "filterLabel": "{provider} モデルを絞り込む",
+      "searchPlaceholder": "モデル、プロバイダー、ID で絞り込み...",
+      "providerFilterLabel": "モデルプロバイダーを絞り込む",
+      "allProviders": "すべてのプロバイダー ({count})",
+      "discover": "検出",
+      "visible": "表示: ",
+      "ofDiscovered": " / 検出 {count}",
+      "oneProvider": " | 1 プロバイダー",
+      "manyProviders": " | {count} プロバイダー",
+      "loadingModels": "モデルを読み込んでいます...",
+      "loading": "読み込み中...",
+      "available": "{count} 件利用可能",
+      "noneDiscovered": "まだモデルが検出されていません",
+      "selected": "選択済み ({count})",
+      "clearAllLabel": "選択したすべての {provider} モデルをクリア",
+      "reorderLabel": "{model} を並べ替え。ドラッグするか上下の矢印キーを使用します",
+      "default": "デフォルト",
+      "unavailable": "利用不可",
+      "unavailableTitle": "設定済みのモデルは現在 {provider} から報告されていません",
+      "aliasLabel": "エイリアス(任意)",
+      "removeLabel": "{model} を削除",
+      "noMatch": "フィルターに一致するモデルはありません。",
+      "emptyCatalog": "{provider} からモデルが報告されていません。設定を確認して「検出」をクリックしてください。",
+      "loadingCatalog": "{provider} モデルを読み込んでいます…",
+      "stale": "{provider} のモデルカタログが古くなっています。「検出」をクリックして更新してください。"
     }
   }
 }

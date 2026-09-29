@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Grok environment variables",
+        "desc": "Environment variables passed only to Grok. Custom-model secrets stay in this provider scope and are referenced from native config by env_key."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Pi environment variables",
+        "desc": "Environment variables passed only to Pi."
+      }
     },
     "providerReadiness": {
       "title": "Readiness",
@@ -632,14 +640,20 @@
         "save": "Save",
         "update": "Update",
         "cancel": "Cancel"
-      }
+      },
+      "insert": "Insert",
+      "insertFailed": "Failed to insert snippet",
+      "deleteConfirm": "Delete environment snippet \"{name}\"?",
+      "deleteFailed": "Failed to delete snippet"
     },
     "customModelOverrides": {
       "name": "Custom model overrides",
       "desc": "Set model selector aliases and context window sizes for custom models."
     },
     "customModelAliases": {
-      "placeholder": "Alias"
+      "placeholder": "Alias",
+      "ariaLabel": "Alias for {model}",
+      "ariaDescription": "Custom label shown in the model selector. Leave empty to use the default."
     },
     "customContextLimits": {
       "name": "Custom Context Limits",
@@ -704,8 +718,13 @@
       "descUnix": "Paste the output of \"which claude\" — works for both native and npm/pnpm/yarn installs. On Windows, paste the output of \"where claude\".",
       "validation": {
         "notExist": "Path does not exist",
-        "isDirectory": "Path is a directory, not a file"
-      }
+        "isDirectory": "Path is a directory, not a file",
+        "mustBeAbsolute": "Path must be absolute",
+        "notFile": "Path must point to a file",
+        "notAccessible": "Path is not accessible",
+        "notExecutable": "Path must be executable"
+      },
+      "genericName": "CLI path"
     },
     "language": {
       "name": "Language",
@@ -911,6 +930,44 @@
         "error": "Could not open the diagnostic log folder."
       },
       "openCommandName": "Open provider diagnostic logs"
+    },
+    "providerSettings": {
+      "unavailable": "Provider settings are unavailable.",
+      "loadFailed": "Could not load provider settings: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "Shared environment",
+      "desc": "Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables."
+    },
+    "modelPicker": {
+      "name": "Visible models",
+      "desc": "Choose which models are available in the chat selector. Drag to reorder them; the provider uses the first currently usable model as its default. Select at least one model to use this provider.",
+      "browse": "Browse models",
+      "filterLabel": "Filter {provider} models",
+      "searchPlaceholder": "Filter by model, provider, or ID...",
+      "providerFilterLabel": "Filter model providers",
+      "allProviders": "All providers ({count})",
+      "discover": "Discover",
+      "visible": "Visible: ",
+      "ofDiscovered": " of {count} discovered",
+      "oneProvider": " | 1 provider",
+      "manyProviders": " | {count} providers",
+      "loadingModels": "Loading models...",
+      "loading": "Loading...",
+      "available": "{count} available",
+      "noneDiscovered": "No models discovered yet",
+      "selected": "Selected ({count})",
+      "clearAllLabel": "Clear all selected {provider} models",
+      "reorderLabel": "Reorder {model}; drag or use the Up and Down Arrow keys",
+      "default": "Default",
+      "unavailable": "Unavailable",
+      "unavailableTitle": "Configured model not currently reported by {provider}",
+      "aliasLabel": "Alias (optional)",
+      "removeLabel": "Remove {model}",
+      "noMatch": "No models match your filter.",
+      "emptyCatalog": "No {provider} models reported. Check your configuration and click Discover.",
+      "loadingCatalog": "Loading {provider} models…",
+      "stale": "{provider} model catalog is stale. Click Discover to refresh it."
     }
   }
 }

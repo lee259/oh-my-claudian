@@ -337,7 +337,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         content.empty();
         const renderer = ProviderWorkspaceRegistry.getSettingsTabRenderer(providerId);
         if (!renderer) {
-          content.createDiv({ text: 'Provider settings are unavailable.' });
+          content.createDiv({ text: t('settings.providerSettings.unavailable') });
           return;
         }
         renderer.render(content, {
@@ -378,7 +378,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         const message = error instanceof Error ? error.message : 'Unknown error';
         content.createDiv({
           cls: 'claudian-setting-validation claudian-setting-validation-error',
-          text: `Could not load provider settings: ${message}`,
+          text: t('settings.providerSettings.loadFailed', { message }),
         });
       }
     };
@@ -845,8 +845,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
       container: environment,
       plugin: this.plugin.providerHost,
       scope: 'shared',
-      name: 'Shared environment',
-      desc: 'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
+      name: t('settings.sharedEnvironment.name'),
+      desc: t('settings.sharedEnvironment.desc'),
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
       usePreactEnvironmentField: true,
       usePreactSnippetList: true,

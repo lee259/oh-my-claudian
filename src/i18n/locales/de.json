@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Grok-Umgebungsvariablen",
+        "desc": "Umgebungsvariablen, die nur an Grok übergeben werden. Geheimnisse für benutzerdefinierte Modelle bleiben in diesem Anbieterbereich und werden in der nativen Konfiguration über env_key referenziert."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Pi-Umgebungsvariablen",
+        "desc": "Umgebungsvariablen, die nur an Pi übergeben werden."
+      }
     },
     "providerReadiness": {
       "title": "Bereitschaft",
@@ -632,14 +640,20 @@
         "save": "Speichern",
         "update": "Aktualisieren",
         "cancel": "Abbrechen"
-      }
+      },
+      "insert": "Einfügen",
+      "insertFailed": "Snippet konnte nicht eingefügt werden",
+      "deleteConfirm": "Umgebungs-Snippet \"{name}\" löschen?",
+      "deleteFailed": "Snippet konnte nicht gelöscht werden"
     },
     "customModelOverrides": {
       "name": "Benutzerdefinierte Modellüberschreibungen",
       "desc": "Legen Sie Aliasnamen in der Modellauswahl und Kontextfenstergrößen für benutzerdefinierte Modelle fest."
     },
     "customModelAliases": {
-      "placeholder": "Aliasname"
+      "placeholder": "Aliasname",
+      "ariaLabel": "Alias für {model}",
+      "ariaDescription": "Benutzerdefinierte Bezeichnung in der Modellauswahl. Leer lassen, um die Standardbezeichnung zu verwenden."
     },
     "customContextLimits": {
       "name": "Benutzerdefinierte Kontextlimits",
@@ -704,8 +718,13 @@
       "descUnix": "Fügen Sie die Ausgabe von \"which claude\" ein — funktioniert sowohl für native als auch npm/pnpm/yarn-Installationen.",
       "validation": {
         "notExist": "Pfad existiert nicht",
-        "isDirectory": "Pfad ist ein Verzeichnis, keine Datei"
-      }
+        "isDirectory": "Pfad ist ein Verzeichnis, keine Datei",
+        "mustBeAbsolute": "Pfad muss absolut sein",
+        "notFile": "Pfad muss auf eine Datei verweisen",
+        "notAccessible": "Pfad ist nicht zugänglich",
+        "notExecutable": "Pfad muss ausführbar sein"
+      },
+      "genericName": "CLI-Pfad"
     },
     "language": {
       "name": "Sprache",
@@ -911,6 +930,44 @@
         "error": "Der Diagnoseordner konnte nicht geöffnet werden."
       },
       "openCommandName": "Provider-Diagnoseprotokolle öffnen"
+    },
+    "providerSettings": {
+      "unavailable": "Anbietereinstellungen sind nicht verfügbar.",
+      "loadFailed": "Anbietereinstellungen konnten nicht geladen werden: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "Gemeinsame Umgebung",
+      "desc": "Anbieterunabhängige Laufzeitvariablen, die mit allen Anbietern geteilt werden. Verwenden Sie dies für PATH-, Proxy-, Zertifikats- und Temp-Variablen."
+    },
+    "modelPicker": {
+      "name": "Sichtbare Modelle",
+      "desc": "Wählen Sie, welche Modelle in der Chat-Auswahl verfügbar sind. Ziehen Sie sie, um die Reihenfolge zu ändern; der Anbieter verwendet das erste derzeit nutzbare Modell als Standard. Wählen Sie mindestens ein Modell aus, um diesen Anbieter zu verwenden.",
+      "browse": "Modelle durchsuchen",
+      "filterLabel": "{provider}-Modelle filtern",
+      "searchPlaceholder": "Nach Modell, Anbieter oder ID filtern...",
+      "providerFilterLabel": "Modellanbieter filtern",
+      "allProviders": "Alle Anbieter ({count})",
+      "discover": "Erkennen",
+      "visible": "Sichtbar: ",
+      "ofDiscovered": " von {count} erkannten",
+      "oneProvider": " | 1 Anbieter",
+      "manyProviders": " | {count} Anbieter",
+      "loadingModels": "Modelle werden geladen...",
+      "loading": "Wird geladen...",
+      "available": "{count} verfügbar",
+      "noneDiscovered": "Noch keine Modelle erkannt",
+      "selected": "Ausgewählt ({count})",
+      "clearAllLabel": "Alle ausgewählten {provider}-Modelle entfernen",
+      "reorderLabel": "{model} neu anordnen; ziehen oder die Pfeiltasten nach oben und unten verwenden",
+      "default": "Standard",
+      "unavailable": "Nicht verfügbar",
+      "unavailableTitle": "Konfiguriertes Modell wird derzeit nicht von {provider} gemeldet",
+      "aliasLabel": "Alias (optional)",
+      "removeLabel": "{model} entfernen",
+      "noMatch": "Keine Modelle entsprechen Ihrem Filter.",
+      "emptyCatalog": "Keine {provider}-Modelle gemeldet. Prüfen Sie Ihre Konfiguration und klicken Sie auf Erkennen.",
+      "loadingCatalog": "{provider}-Modelle werden geladen…",
+      "stale": "Der {provider}-Modellkatalog ist veraltet. Klicken Sie auf Erkennen, um ihn zu aktualisieren."
     }
   }
 }

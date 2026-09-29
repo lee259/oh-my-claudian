@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Grok 環境變數",
+        "desc": "僅傳遞給 Grok 的環境變數。自訂模型的密鑰保留在此提供者範圍內，並在原生設定中透過 env_key 參照。"
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Pi 環境變數",
+        "desc": "僅傳遞給 Pi 的環境變數。"
+      }
     },
     "providerReadiness": {
       "title": "就緒狀態",
@@ -632,14 +640,20 @@
         "save": "儲存",
         "update": "更新",
         "cancel": "取消"
-      }
+      },
+      "insert": "插入",
+      "insertFailed": "無法插入片段",
+      "deleteConfirm": "要刪除環境變數片段「{name}」嗎？",
+      "deleteFailed": "無法刪除片段"
     },
     "customModelOverrides": {
       "name": "自訂模型覆寫",
       "desc": "為自訂模型設定模型選擇器別名和上下文視窗大小。"
     },
     "customModelAliases": {
-      "placeholder": "別名"
+      "placeholder": "別名",
+      "ariaLabel": "{model} 的別名",
+      "ariaDescription": "顯示在模型選擇器中的自訂標籤。留空則使用預設值。"
     },
     "customContextLimits": {
       "name": "自訂上下文限制",
@@ -704,8 +718,13 @@
       "descUnix": "貼上 \"which claude\" 的輸出 - 適用於原生安裝和 npm/pnpm/yarn 安裝。",
       "validation": {
         "notExist": "路徑不存在",
-        "isDirectory": "路徑是目錄，不是檔案"
-      }
+        "isDirectory": "路徑是目錄，不是檔案",
+        "mustBeAbsolute": "路徑必須是絕對路徑",
+        "notFile": "路徑必須指向檔案",
+        "notAccessible": "無法存取路徑",
+        "notExecutable": "路徑必須可執行"
+      },
+      "genericName": "CLI 路徑"
     },
     "language": {
       "name": "語言",
@@ -911,6 +930,44 @@
         "error": "無法開啟診斷記錄資料夾。"
       },
       "openCommandName": "開啟 Provider 診斷記錄"
+    },
+    "providerSettings": {
+      "unavailable": "無法使用提供者設定。",
+      "loadFailed": "無法載入提供者設定：{message}"
+    },
+    "sharedEnvironment": {
+      "name": "共用環境",
+      "desc": "與提供者無關、所有提供者共用的執行階段變數。用於 PATH、Proxy、憑證和暫存目錄變數。"
+    },
+    "modelPicker": {
+      "name": "顯示的模型",
+      "desc": "選擇在聊天選擇器中可用的模型。拖曳即可調整順序；提供者會將第一個目前可用的模型作為預設模型。至少選擇一個模型才能使用此提供者。",
+      "browse": "瀏覽模型",
+      "filterLabel": "篩選 {provider} 模型",
+      "searchPlaceholder": "依模型、提供者或 ID 篩選...",
+      "providerFilterLabel": "篩選模型提供者",
+      "allProviders": "所有提供者（{count}）",
+      "discover": "探索",
+      "visible": "顯示: ",
+      "ofDiscovered": " / 已探索到 {count} 個",
+      "oneProvider": " | 1 個提供者",
+      "manyProviders": " | {count} 個提供者",
+      "loadingModels": "正在載入模型...",
+      "loading": "正在載入...",
+      "available": "{count} 個可用",
+      "noneDiscovered": "尚未探索到任何模型",
+      "selected": "已選取（{count}）",
+      "clearAllLabel": "清除所有已選取的 {provider} 模型",
+      "reorderLabel": "調整 {model} 的順序；拖曳或使用上、下方向鍵",
+      "default": "預設",
+      "unavailable": "無法使用",
+      "unavailableTitle": "{provider} 目前未回報此已設定的模型",
+      "aliasLabel": "別名（選用）",
+      "removeLabel": "移除 {model}",
+      "noMatch": "沒有符合篩選條件的模型。",
+      "emptyCatalog": "{provider} 未回報任何模型。請檢查設定並點擊「探索」。",
+      "loadingCatalog": "正在載入 {provider} 模型…",
+      "stale": "{provider} 模型目錄已過時。點擊「探索」以重新整理。"
     }
   }
 }

@@ -2,20 +2,14 @@ export type CodexModel = string;
 
 export const CODEX_SPARK_MODEL: CodexModel = 'gpt-5.3-codex-spark';
 
-function formatCodexModelSuffix(suffix: string): string {
-  return suffix
-    .split('-')
-    .filter(Boolean)
-    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
-    .join(' ');
-}
-
-export function formatCodexModelLabel(model: string): string {
-  const match = model.match(/^gpt-([^-]+)(?:-(.+))?$/i);
+export function formatCodexModelLabel(name: string): string {
+  const match = name.match(/^gpt-(\d[^-\s]*)(?:-(\S+))?$/i);
   if (!match) {
-    return model;
+    return name;
   }
 
   const [, version, suffix] = match;
-  return `GPT-${version}${suffix ? ` ${formatCodexModelSuffix(suffix)}` : ''}`;
+  const words = suffix?.split('-').filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) ?? [];
+  return [`GPT-${version}`, ...words].join(' ');
 }

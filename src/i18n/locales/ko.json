@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Grok 환경 변수",
+        "desc": "Grok에만 전달되는 환경 변수입니다. 사용자 지정 모델의 비밀 값은 이 제공자 범위에 남아 있으며 네이티브 구성에서 env_key로 참조됩니다."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Pi 환경 변수",
+        "desc": "Pi에만 전달되는 환경 변수입니다."
+      }
     },
     "providerReadiness": {
       "title": "준비 상태",
@@ -632,14 +640,20 @@
         "save": "저장",
         "update": "업데이트",
         "cancel": "취소"
-      }
+      },
+      "insert": "삽입",
+      "insertFailed": "스니펫을 삽입하지 못했습니다",
+      "deleteConfirm": "환경 변수 스니펫 \"{name}\"을(를) 삭제할까요?",
+      "deleteFailed": "스니펫을 삭제하지 못했습니다"
     },
     "customModelOverrides": {
       "name": "사용자 정의 모델 재정의",
       "desc": "사용자 정의 모델의 모델 선택기 별칭과 컨텍스트 창 크기를 설정합니다."
     },
     "customModelAliases": {
-      "placeholder": "별칭"
+      "placeholder": "별칭",
+      "ariaLabel": "{model}의 별칭",
+      "ariaDescription": "모델 선택기에 표시되는 사용자 지정 레이블입니다. 비워 두면 기본값을 사용합니다."
     },
     "customContextLimits": {
       "name": "사용자 정의 컨텍스트 제한",
@@ -704,8 +718,13 @@
       "descUnix": "\"which claude\"의 출력을 붙여넣으세요 - 네이티브 및 npm/pnpm/yarn 설치 모두에서 작동합니다.",
       "validation": {
         "notExist": "경로가 존재하지 않습니다",
-        "isDirectory": "경로가 디렉토리입니다 파일이 아닙니다"
-      }
+        "isDirectory": "경로가 디렉토리입니다 파일이 아닙니다",
+        "mustBeAbsolute": "경로는 절대 경로여야 합니다",
+        "notFile": "경로는 파일을 가리켜야 합니다",
+        "notAccessible": "경로에 접근할 수 없습니다",
+        "notExecutable": "경로는 실행 가능해야 합니다"
+      },
+      "genericName": "CLI 경로"
     },
     "language": {
       "name": "언어",
@@ -911,6 +930,44 @@
         "error": "진단 로그 폴더를 열 수 없습니다."
       },
       "openCommandName": "Provider 진단 로그 열기"
+    },
+    "providerSettings": {
+      "unavailable": "제공자 설정을 사용할 수 없습니다.",
+      "loadFailed": "제공자 설정을 불러올 수 없습니다: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "공유 환경",
+      "desc": "모든 제공자가 함께 사용하는 제공자 중립 런타임 변수입니다. PATH, 프록시, 인증서, 임시 디렉터리 변수에 사용하세요."
+    },
+    "modelPicker": {
+      "name": "표시할 모델",
+      "desc": "채팅 선택기에서 사용할 모델을 선택합니다. 드래그하여 순서를 바꿀 수 있으며, 제공자는 현재 사용 가능한 첫 번째 모델을 기본값으로 사용합니다. 이 제공자를 사용하려면 모델을 하나 이상 선택하세요.",
+      "browse": "모델 찾아보기",
+      "filterLabel": "{provider} 모델 필터",
+      "searchPlaceholder": "모델, 제공자 또는 ID로 필터...",
+      "providerFilterLabel": "모델 제공자 필터",
+      "allProviders": "모든 제공자 ({count})",
+      "discover": "검색",
+      "visible": "표시: ",
+      "ofDiscovered": " / 발견된 {count}개",
+      "oneProvider": " | 제공자 1개",
+      "manyProviders": " | 제공자 {count}개",
+      "loadingModels": "모델을 불러오는 중...",
+      "loading": "불러오는 중...",
+      "available": "{count}개 사용 가능",
+      "noneDiscovered": "아직 발견된 모델이 없습니다",
+      "selected": "선택됨 ({count})",
+      "clearAllLabel": "선택한 {provider} 모델 모두 지우기",
+      "reorderLabel": "{model} 순서 변경. 드래그하거나 위/아래 화살표 키를 사용하세요",
+      "default": "기본값",
+      "unavailable": "사용 불가",
+      "unavailableTitle": "구성된 모델이 현재 {provider}에서 보고되지 않습니다",
+      "aliasLabel": "별칭 (선택)",
+      "removeLabel": "{model} 제거",
+      "noMatch": "필터와 일치하는 모델이 없습니다.",
+      "emptyCatalog": "보고된 {provider} 모델이 없습니다. 구성을 확인하고 검색을 클릭하세요.",
+      "loadingCatalog": "{provider} 모델을 불러오는 중…",
+      "stale": "{provider} 모델 카탈로그가 오래되었습니다. 검색을 클릭하여 새로 고치세요."
     }
   }
 }

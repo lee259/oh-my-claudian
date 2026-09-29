@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Variáveis de ambiente do Grok",
+        "desc": "Variáveis de ambiente passadas somente ao Grok. Os segredos de modelos personalizados permanecem no escopo deste provedor e são referenciados na configuração nativa por env_key."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Variáveis de ambiente do Pi",
+        "desc": "Variáveis de ambiente passadas somente ao Pi."
+      }
     },
     "providerReadiness": {
       "title": "Prontidão",
@@ -632,14 +640,20 @@
         "save": "Salvar",
         "update": "Atualizar",
         "cancel": "Cancelar"
-      }
+      },
+      "insert": "Inserir",
+      "insertFailed": "Falha ao inserir o snippet",
+      "deleteConfirm": "Excluir o snippet de ambiente \"{name}\"?",
+      "deleteFailed": "Falha ao excluir o snippet"
     },
     "customModelOverrides": {
       "name": "Substituições de modelos personalizados",
       "desc": "Defina aliases no seletor de modelos e tamanhos de janela de contexto para modelos personalizados."
     },
     "customModelAliases": {
-      "placeholder": "Apelido"
+      "placeholder": "Apelido",
+      "ariaLabel": "Alias de {model}",
+      "ariaDescription": "Rótulo personalizado exibido no seletor de modelos. Deixe vazio para usar o padrão."
     },
     "customContextLimits": {
       "name": "Limites de contexto personalizados",
@@ -704,8 +718,13 @@
       "descUnix": "Cole a saída de \"which claude\" — funciona tanto para instalações nativas quanto npm/pnpm/yarn.",
       "validation": {
         "notExist": "Caminho não existe",
-        "isDirectory": "Caminho é um diretório, não um arquivo"
-      }
+        "isDirectory": "Caminho é um diretório, não um arquivo",
+        "mustBeAbsolute": "O caminho deve ser absoluto",
+        "notFile": "O caminho deve apontar para um arquivo",
+        "notAccessible": "O caminho não está acessível",
+        "notExecutable": "O caminho deve ser executável"
+      },
+      "genericName": "Caminho da CLI"
     },
     "language": {
       "name": "Idioma",
@@ -911,6 +930,44 @@
         "error": "Não foi possível abrir a pasta de registos de diagnóstico."
       },
       "openCommandName": "Abrir registos de diagnóstico do fornecedor"
+    },
+    "providerSettings": {
+      "unavailable": "As configurações do provedor não estão disponíveis.",
+      "loadFailed": "Não foi possível carregar as configurações do provedor: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "Ambiente compartilhado",
+      "desc": "Variáveis de runtime neutras, compartilhadas por todos os provedores. Use isto para variáveis de PATH, proxy, certificados e arquivos temporários."
+    },
+    "modelPicker": {
+      "name": "Modelos visíveis",
+      "desc": "Escolha quais modelos ficam disponíveis no seletor do chat. Arraste para reordená-los; o provedor usa o primeiro modelo utilizável no momento como padrão. Selecione pelo menos um modelo para usar este provedor.",
+      "browse": "Explorar modelos",
+      "filterLabel": "Filtrar modelos {provider}",
+      "searchPlaceholder": "Filtrar por modelo, provedor ou ID...",
+      "providerFilterLabel": "Filtrar provedores de modelos",
+      "allProviders": "Todos os provedores ({count})",
+      "discover": "Descobrir",
+      "visible": "Visíveis: ",
+      "ofDiscovered": " de {count} descobertos",
+      "oneProvider": " | 1 provedor",
+      "manyProviders": " | {count} provedores",
+      "loadingModels": "Carregando modelos...",
+      "loading": "Carregando...",
+      "available": "{count} disponíveis",
+      "noneDiscovered": "Nenhum modelo descoberto ainda",
+      "selected": "Selecionados ({count})",
+      "clearAllLabel": "Limpar todos os modelos {provider} selecionados",
+      "reorderLabel": "Reordenar {model}; arraste ou use as teclas de seta para cima e para baixo",
+      "default": "Padrão",
+      "unavailable": "Indisponível",
+      "unavailableTitle": "Modelo configurado não informado atualmente por {provider}",
+      "aliasLabel": "Alias (opcional)",
+      "removeLabel": "Remover {model}",
+      "noMatch": "Nenhum modelo corresponde ao filtro.",
+      "emptyCatalog": "Nenhum modelo {provider} informado. Verifique sua configuração e clique em Descobrir.",
+      "loadingCatalog": "Carregando modelos {provider}…",
+      "stale": "O catálogo de modelos {provider} está desatualizado. Clique em Descobrir para atualizá-lo."
     }
   }
 }

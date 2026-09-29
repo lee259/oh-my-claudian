@@ -9,7 +9,7 @@ describe('Codex models', () => {
     {
       id: 'gpt-5.6-sol',
       model: 'gpt-5.6-sol',
-      displayName: 'GPT-5.6-Sol',
+      displayName: 'GPT-5.6 Sol',
       description: 'Latest frontier agentic coding model.',
       hidden: false,
       supportedReasoningEfforts: [
@@ -29,7 +29,7 @@ describe('Codex models', () => {
     {
       id: 'gpt-5.6-luna',
       model: 'gpt-5.6-luna',
-      displayName: 'GPT-5.6-Luna',
+      displayName: 'GPT-5.6 Luna',
       description: 'Fast and affordable agentic coding model.',
       hidden: false,
       supportedReasoningEfforts: [
@@ -49,7 +49,7 @@ describe('Codex models', () => {
     expect(normalizeCodexDiscoveredModels(rawModels)).toEqual([
       {
         model: 'gpt-5.6-sol',
-        displayName: 'GPT-5.6-Sol',
+        displayName: 'GPT-5.6 Sol',
         description: 'Latest frontier agentic coding model.',
         supportedReasoningEfforts: [
           { value: 'low', description: 'Fast responses' },
@@ -66,7 +66,7 @@ describe('Codex models', () => {
       },
       {
         model: 'gpt-5.6-luna',
-        displayName: 'GPT-5.6-Luna',
+        displayName: 'GPT-5.6 Luna',
         description: 'Fast and affordable agentic coding model.',
         supportedReasoningEfforts: [
           { value: 'low', description: 'Fast responses' },
@@ -120,7 +120,20 @@ describe('Codex models', () => {
     const models = normalizeCodexDiscoveredModels(rawModels);
 
     expect(getDefaultCodexModel(models)?.model).toBe('gpt-5.6-sol');
-    expect(findCodexModel(models, 'gpt-5.6-luna')?.displayName).toBe('GPT-5.6-Luna');
+    expect(findCodexModel(models, 'gpt-5.6-luna')?.displayName).toBe('GPT-5.6 Luna');
+  });
+
+  it.each([
+    ['GPT-6-Astra', 'gpt-6-astra', 'GPT-6 Astra'],
+    ['GPT-5.3-Codex-Spark', 'gpt-5.3-codex-spark', 'GPT-5.3 Codex Spark'],
+    ['GPT-5.4 Mini', 'gpt-5.4-mini', 'GPT-5.4 Mini'],
+    ['GPT-5.5', 'gpt-5.5', 'GPT-5.5'],
+    ['GPT-Reserve', 'gpt-reserve', 'GPT-Reserve'],
+    ['Codex Auto Review', 'codex-auto-review', 'Codex Auto Review'],
+    [undefined, 'gpt-6-astra', 'GPT-6 Astra'],
+  ])('displays app-server name %p for %s as %p', (displayName, model, expected) => {
+    expect(normalizeCodexDiscoveredModels([{ ...rawModels[0], id: model, model, displayName }])[0]?.displayName)
+      .toBe(expected);
   });
 
   it('rejects malformed entries, hidden entries, duplicate models, and invalid defaults', () => {

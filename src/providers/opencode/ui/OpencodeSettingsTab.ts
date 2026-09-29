@@ -129,7 +129,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       container: management,
       description: t('settings.opencode.cliPathDesc'),
       getValue: () => getOpencodeProviderSettings(settingsBag).cliPathsByHost[hostnameKey] || '',
-      name: 'CLI path',
+      name: t('settings.cliPath.genericName'),
       onChange: async (value) => {
         const cliPathsByHost = {
           ...getOpencodeProviderSettings(settingsBag).cliPathsByHost,
@@ -330,10 +330,10 @@ function validateCliPath(value: string): string | null {
 
   const expandedPath = normalizeConfiguredCliPath(trimmed);
   if (!fs.existsSync(expandedPath)) {
-    return 'Path does not exist';
+    return t('settings.cliPath.validation.notExist');
   }
   if (!fs.statSync(expandedPath).isFile()) {
-    return 'Path must point to a file';
+    return t('settings.cliPath.validation.notFile');
   }
   return null;
 }

@@ -145,8 +145,8 @@ export class EnvSnippetModal extends Modal {
           cls: 'claudian-snippet-alias-input',
         });
         aliasInput.value = existingAliases[modelId] ?? '';
-        aliasInput.setAttribute('aria-label', `Alias for ${modelId}`);
-        aliasInput.title = 'Custom label shown in the model selector. Leave empty to use the default.';
+        aliasInput.setAttribute('aria-label', t('settings.customModelAliases.ariaLabel', { model: modelId }));
+        aliasInput.title = t('settings.customModelAliases.ariaDescription');
         modelAliasInputs.set(modelId, aliasInput);
 
         const input = row.createEl('input', {
@@ -334,7 +334,7 @@ export class EnvSnippetManager {
           try {
             await this.insertSnippet(snippet);
           } catch {
-            new Notice('Failed to insert snippet');
+            new Notice(t('settings.envSnippets.insertFailed'));
           }
         })();
       });
@@ -356,11 +356,11 @@ export class EnvSnippetManager {
       deleteBtn.addEventListener('click', () => {
         void (async (): Promise<void> => {
           try {
-            if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
+            if (await confirmDelete(this.plugin.app, t('settings.envSnippets.deleteConfirm', { name: snippet.name }))) {
               await this.deleteSnippet(snippet);
             }
           } catch {
-            new Notice('Failed to delete snippet');
+            new Notice(t('settings.envSnippets.deleteFailed'));
           }
         })();
       });
@@ -376,17 +376,17 @@ export class EnvSnippetManager {
     try {
       await this.insertSnippet(snippet);
     } catch {
-      new Notice('Failed to insert snippet');
+      new Notice(t('settings.envSnippets.insertFailed'));
     }
   }
 
   private async deleteSnippetWithNotice(snippet: EnvSnippet): Promise<void> {
     try {
-      if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
+      if (await confirmDelete(this.plugin.app, t('settings.envSnippets.deleteConfirm', { name: snippet.name }))) {
         await this.deleteSnippet(snippet);
       }
     } catch {
-      new Notice('Failed to delete snippet');
+      new Notice(t('settings.envSnippets.deleteFailed'));
     }
   }
 
