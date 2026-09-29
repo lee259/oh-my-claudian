@@ -3,6 +3,7 @@ import {
   encodeGrokModelId,
   findGrokModel,
   getGrokAvailableReasoningEfforts,
+  getGrokModelLabel,
   GROK_CONTEXT_WINDOW_FALLBACK,
   isGrokModelSelectionId,
   mergeGrokDiscoveredModels,
@@ -28,6 +29,15 @@ describe('Grok model identity', () => {
 });
 
 describe('Grok model metadata', () => {
+  it('formats a bare Grok model id while preserving a native display name', () => {
+    expect(getGrokModelLabel({ displayName: 'grok-4.7', rawId: 'grok-4.7' }))
+      .toBe('Grok 4.7');
+    expect(getGrokModelLabel({ displayName: 'Grok Fast', rawId: 'grok-4.7' }))
+      .toBe('Grok Fast');
+    expect(getGrokModelLabel({ displayName: 'custom-model', rawId: 'custom-model' }))
+      .toBe('custom-model');
+  });
+
   it('normalizes only non-secret persisted metadata', () => {
     expect(normalizeGrokDiscoveredModels([{
       agentType: ' coding ',

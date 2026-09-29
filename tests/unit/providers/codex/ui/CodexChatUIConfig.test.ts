@@ -91,12 +91,12 @@ describe('CodexChatUIConfig', () => {
       expect(options).toEqual([
         {
           value: 'gpt-5.6-luna',
-          label: 'GPT-5.6-Luna',
+          label: 'GPT-5.6 Luna',
           description: 'Fast and affordable agentic coding model.',
         },
         {
           value: 'gpt-5.6-sol',
-          label: 'GPT-5.6-Sol',
+          label: 'GPT-5.6 Sol',
           description: 'Latest frontier agentic coding model.',
         },
       ]);
@@ -283,7 +283,7 @@ describe('CodexChatUIConfig', () => {
 
       expect(options).toEqual([{
         value: 'openai-codex/gpt-env-model',
-        label: 'GPT-env Model',
+        label: 'gpt-env-model',
         description: 'Custom (env)',
       }]);
     });

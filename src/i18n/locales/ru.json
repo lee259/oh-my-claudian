@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Переменные окружения Grok",
+        "desc": "Переменные окружения, передаваемые только в Grok. Секреты пользовательских моделей остаются в области этого провайдера, а нативная конфигурация ссылается на них через env_key."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Переменные окружения Pi",
+        "desc": "Переменные окружения, передаваемые только в Pi."
+      }
     },
     "providerReadiness": {
       "title": "Готовность",
@@ -632,14 +640,20 @@
         "save": "Сохранить",
         "update": "Обновить",
         "cancel": "Отмена"
-      }
+      },
+      "insert": "Вставить",
+      "insertFailed": "Не удалось вставить сниппет",
+      "deleteConfirm": "Удалить сниппет окружения «{name}»?",
+      "deleteFailed": "Не удалось удалить сниппет"
     },
     "customModelOverrides": {
       "name": "Переопределения пользовательских моделей",
       "desc": "Настройте псевдонимы в селекторе моделей и размеры окна контекста для пользовательских моделей."
     },
     "customModelAliases": {
-      "placeholder": "Псевдоним"
+      "placeholder": "Псевдоним",
+      "ariaLabel": "Псевдоним для {model}",
+      "ariaDescription": "Пользовательская метка в селекторе моделей. Оставьте пустым, чтобы использовать значение по умолчанию."
     },
     "customContextLimits": {
       "name": "Пользовательские лимиты контекста",
@@ -704,8 +718,13 @@
       "descUnix": "Вставьте вывод команды \"which claude\" — работает как для нативных установок, так и для npm/pnpm/yarn.",
       "validation": {
         "notExist": "Путь не существует",
-        "isDirectory": "Путь является директорией, а не файлом"
-      }
+        "isDirectory": "Путь является директорией, а не файлом",
+        "mustBeAbsolute": "Путь должен быть абсолютным",
+        "notFile": "Путь должен указывать на файл",
+        "notAccessible": "Путь недоступен",
+        "notExecutable": "Путь должен быть исполняемым"
+      },
+      "genericName": "Путь к CLI"
     },
     "language": {
       "name": "Язык",
@@ -911,6 +930,44 @@
         "error": "Не удалось открыть папку диагностических журналов."
       },
       "openCommandName": "Открыть диагностические журналы провайдера"
+    },
+    "providerSettings": {
+      "unavailable": "Настройки провайдера недоступны.",
+      "loadFailed": "Не удалось загрузить настройки провайдера: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "Общее окружение",
+      "desc": "Независимые от провайдера переменные среды выполнения, общие для всех провайдеров. Используйте для PATH, прокси, сертификатов и временных каталогов."
+    },
+    "modelPicker": {
+      "name": "Видимые модели",
+      "desc": "Выберите, какие модели доступны в селекторе чата. Перетаскивайте их, чтобы изменить порядок; провайдер использует первую доступную сейчас модель по умолчанию. Выберите хотя бы одну модель, чтобы использовать этого провайдера.",
+      "browse": "Обзор моделей",
+      "filterLabel": "Фильтр моделей {provider}",
+      "searchPlaceholder": "Фильтр по модели, провайдеру или ID...",
+      "providerFilterLabel": "Фильтр провайдеров моделей",
+      "allProviders": "Все провайдеры ({count})",
+      "discover": "Обнаружить",
+      "visible": "Видимых: ",
+      "ofDiscovered": " из {count} обнаруженных",
+      "oneProvider": " | провайдеров: 1",
+      "manyProviders": " | провайдеров: {count}",
+      "loadingModels": "Загрузка моделей...",
+      "loading": "Загрузка...",
+      "available": "Доступно: {count}",
+      "noneDiscovered": "Модели пока не обнаружены",
+      "selected": "Выбрано ({count})",
+      "clearAllLabel": "Снять выбор со всех моделей {provider}",
+      "reorderLabel": "Изменить порядок {model}; перетащите или используйте клавиши со стрелками вверх и вниз",
+      "default": "По умолчанию",
+      "unavailable": "Недоступна",
+      "unavailableTitle": "Настроенная модель сейчас не сообщается провайдером {provider}",
+      "aliasLabel": "Псевдоним (необязательно)",
+      "removeLabel": "Удалить {model}",
+      "noMatch": "Нет моделей, соответствующих фильтру.",
+      "emptyCatalog": "{provider} не сообщил ни одной модели. Проверьте конфигурацию и нажмите «Обнаружить».",
+      "loadingCatalog": "Загрузка моделей {provider}…",
+      "stale": "Каталог моделей {provider} устарел. Нажмите «Обнаружить», чтобы обновить его."
     }
   }
 }

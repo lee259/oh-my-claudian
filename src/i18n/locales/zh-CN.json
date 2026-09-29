@@ -338,13 +338,21 @@
       "tool": "工具"
     },
     "grok": {
-      "cliPathDesc": "可选的 Grok CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。"
+      "cliPathDesc": "可选的 Grok CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。",
+      "environment": {
+        "name": "Grok 环境变量",
+        "desc": "仅传递给 Grok 的环境变量。自定义模型的密钥保留在此提供商范围内，并在原生配置中通过 env_key 引用。"
+      }
     },
     "opencode": {
       "cliPathDesc": "可选的 OpenCode CLI 绝对路径。留空会查找 PATH。可粘贴 \"which opencode\" 的输出（Windows 使用 \"where opencode\"）。"
     },
     "pi": {
-      "cliPathDesc": "可选的 Pi CLI 绝对路径。留空会查找 PATH。可粘贴 \"which pi\" 的输出（Windows 使用 \"where pi\"）。"
+      "cliPathDesc": "可选的 Pi CLI 绝对路径。留空会查找 PATH。可粘贴 \"which pi\" 的输出（Windows 使用 \"where pi\"）。",
+      "environment": {
+        "name": "Pi 环境变量",
+        "desc": "仅传递给 Pi 的环境变量。"
+      }
     },
     "providerReadiness": {
       "title": "就绪状态",
@@ -632,14 +640,20 @@
         "save": "保存",
         "update": "更新",
         "cancel": "取消"
-      }
+      },
+      "insert": "插入",
+      "insertFailed": "插入片段失败",
+      "deleteConfirm": "删除环境变量片段“{name}”？",
+      "deleteFailed": "删除片段失败"
     },
     "customModelOverrides": {
       "name": "自定义模型覆盖",
       "desc": "为自定义模型设置模型选择器别名和上下文窗口大小。"
     },
     "customModelAliases": {
-      "placeholder": "别名"
+      "placeholder": "别名",
+      "ariaLabel": "{model} 的别名",
+      "ariaDescription": "显示在模型选择器中的自定义标签。留空则使用默认值。"
     },
     "customContextLimits": {
       "name": "自定义上下文限制",
@@ -704,8 +718,13 @@
       "descUnix": "粘贴 \"which claude\" 的输出 - 适用于原生安装和 npm/pnpm/yarn 安装。Windows 请粘贴 \"where claude\" 的输出。",
       "validation": {
         "notExist": "路径不存在",
-        "isDirectory": "路径是目录，不是文件"
-      }
+        "isDirectory": "路径是目录，不是文件",
+        "mustBeAbsolute": "路径必须是绝对路径",
+        "notFile": "路径必须指向文件",
+        "notAccessible": "路径无法访问",
+        "notExecutable": "路径必须可执行"
+      },
+      "genericName": "CLI 路径"
     },
     "language": {
       "name": "语言",
@@ -911,6 +930,44 @@
         "error": "无法打开诊断日志目录。"
       },
       "openCommandName": "打开 Provider 诊断日志"
+    },
+    "providerSettings": {
+      "unavailable": "提供商设置不可用。",
+      "loadFailed": "无法加载提供商设置：{message}"
+    },
+    "sharedEnvironment": {
+      "name": "共享环境",
+      "desc": "与提供商无关、所有提供商共享的运行时变量。用于 PATH、代理、证书和临时目录变量。"
+    },
+    "modelPicker": {
+      "name": "可见模型",
+      "desc": "选择在聊天选择器中可用的模型。拖动可调整顺序；提供商会将第一个当前可用的模型作为默认模型。至少选择一个模型才能使用此提供商。",
+      "browse": "浏览模型",
+      "filterLabel": "筛选 {provider} 模型",
+      "searchPlaceholder": "按模型、提供商或 ID 筛选...",
+      "providerFilterLabel": "筛选模型提供商",
+      "allProviders": "所有提供商（{count}）",
+      "discover": "发现",
+      "visible": "可见: ",
+      "ofDiscovered": " / 已发现 {count} 个",
+      "oneProvider": " | 1 个提供商",
+      "manyProviders": " | {count} 个提供商",
+      "loadingModels": "正在加载模型...",
+      "loading": "正在加载...",
+      "available": "{count} 个可用",
+      "noneDiscovered": "尚未发现模型",
+      "selected": "已选择（{count}）",
+      "clearAllLabel": "清除所有已选择的 {provider} 模型",
+      "reorderLabel": "调整 {model} 的顺序；拖动或使用上下方向键",
+      "default": "默认",
+      "unavailable": "不可用",
+      "unavailableTitle": "{provider} 当前未报告此已配置的模型",
+      "aliasLabel": "别名（可选）",
+      "removeLabel": "移除 {model}",
+      "noMatch": "没有与筛选条件匹配的模型。",
+      "emptyCatalog": "{provider} 未报告任何模型。请检查配置并点击“发现”。",
+      "loadingCatalog": "正在加载 {provider} 模型…",
+      "stale": "{provider} 模型目录已过期。点击“发现”以刷新。"
     }
   }
 }

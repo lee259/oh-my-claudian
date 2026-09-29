@@ -1,10 +1,11 @@
 import { Setting } from 'obsidian';
 import { h } from 'preact';
 
+import { t } from '@/i18n/i18n';
+
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import { ProviderModelPickerView } from './ProviderModelPickerView';
 
-const VISIBLE_MODELS_DESCRIPTION = 'Choose which models are available in the chat selector. Drag to reorder them; the provider uses the first currently usable model as its default. Select at least one model to use this provider.';
 const pickerDestructors = new WeakMap<HTMLElement, () => void>();
 
 /** Unmount Provider Model Picker roots before their settings tab is cleared. */
@@ -78,8 +79,8 @@ export function renderProviderModelPicker(
   options: ProviderModelPickerOptions,
 ): ProviderModelPickerController {
   const visibleModelsSetting = new Setting(options.container)
-    .setName('Visible models')
-    .setDesc(VISIBLE_MODELS_DESCRIPTION);
+    .setName(t('settings.modelPicker.name'))
+    .setDesc(t('settings.modelPicker.desc'));
   visibleModelsSetting.settingEl.addClass('claudian-provider-model-picker-setting');
 
   const mount = options.container.createDiv({ cls: 'claudian-provider-model-picker-mount' });

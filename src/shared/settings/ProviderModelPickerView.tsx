@@ -125,8 +125,8 @@ export function ProviderModelPickerView({
         <button
           type="button"
           className="claudian-provider-model-picker-selected-drag"
-          aria-label={`Reorder ${defaultLabel}; drag or use the Up and Down Arrow keys`}
-          title="Drag or use arrow keys to reorder"
+          aria-label={t('settings.modelPicker.reorderLabel', { model: defaultLabel })}
+          title={t('settings.modelPicker.reorderLabel', { model: defaultLabel })}
           draggable={state.selectedIds.length > 1}
           onDragStart={(event) => {
             setDraggedModelId(modelId);
@@ -156,7 +156,7 @@ export function ProviderModelPickerView({
             )}
             <span className="claudian-provider-model-picker-selected-name">{model.name}</span>
             {modelId === defaultModelId && (
-              <span className="claudian-provider-model-picker-selected-default">Default</span>
+              <span className="claudian-provider-model-picker-selected-default">{t('settings.modelPicker.default')}</span>
             )}
           </div>
           {model.isAvailable === false && model.unavailableMessage && (
@@ -166,14 +166,14 @@ export function ProviderModelPickerView({
         </div>
         <div className="claudian-provider-model-picker-selected-controls">
           <label className="claudian-provider-model-picker-selected-alias-field">
-            <span className="claudian-provider-model-picker-selected-alias-label">Alias (optional)</span>
+            <span className="claudian-provider-model-picker-selected-alias-label">{t('settings.modelPicker.aliasLabel')}</span>
             <input
               className="claudian-provider-model-picker-selected-alias"
               type="text"
               placeholder={defaultLabel}
               value={state.aliases[model.id] ?? ''}
-              aria-label={`Alias for ${defaultLabel}`}
-              title="Custom label shown in the model selector. Leave empty to use the default."
+              aria-label={t('settings.customModelAliases.ariaLabel', { model: defaultLabel })}
+              title={t('settings.customModelAliases.ariaDescription')}
               onBlur={(event) => void persistAlias(model.id, event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
@@ -190,7 +190,7 @@ export function ProviderModelPickerView({
           <button
             type="button"
             className="claudian-provider-model-picker-selected-remove"
-            aria-label={`Remove ${defaultLabel}`}
+            aria-label={t('settings.modelPicker.removeLabel', { model: defaultLabel })}
             onClick={() => void persistSelectedIds(state.selectedIds.filter(id => id !== model.id))}
           >
             ×
@@ -206,25 +206,27 @@ export function ProviderModelPickerView({
       data-catalog-status={catalogStatus}
     >
       <div className="claudian-provider-model-picker-summary">
-        <span>Visible: </span>
+        <span>{t('settings.modelPicker.visible')}</span>
         <span className="claudian-provider-model-picker-summary-value">{state.selectedIds.length}</span>
         <span>
-          {` of ${state.discoveredCount} discovered`}
-          {providers.size > 0 && ` | ${providers.size} ${providers.size === 1 ? 'provider' : 'providers'}`}
+          {t('settings.modelPicker.ofDiscovered', { count: state.discoveredCount })}
+          {providers.size > 0 && (providers.size === 1
+            ? t('settings.modelPicker.oneProvider')
+            : t('settings.modelPicker.manyProviders', { count: providers.size }))}
         </span>
       </div>
       <div className={`claudian-provider-model-picker-selected${state.selectedIds.length ? '' : ' claudian-hidden'}`}>
         {state.selectedIds.length > 0 && (
           <>
             <div className="claudian-provider-model-picker-selected-header">
-              <span className="claudian-provider-model-picker-selected-label">Selected ({state.selectedIds.length})</span>
+              <span className="claudian-provider-model-picker-selected-label">{t('settings.modelPicker.selected', { count: state.selectedIds.length })}</span>
               <button
                 type="button"
                 className="claudian-provider-model-picker-selected-clear"
-                aria-label={`Clear all selected ${options.providerName} models`}
+                aria-label={t('settings.modelPicker.clearAllLabel', { provider: options.providerName })}
                 onClick={() => void persistSelectedIds([])}
               >
-                Clear all
+                {t('common.clearAll')}
               </button>
             </div>
             <div className="claudian-provider-model-picker-selected-rows">{selectedModels}</div>
@@ -242,29 +244,31 @@ export function ProviderModelPickerView({
       >
         <summary className="claudian-provider-model-picker-catalog-summary">
           <span className="claudian-provider-model-picker-catalog-caret">▸</span>
-          <span className="claudian-provider-model-picker-catalog-title">Browse models</span>
+          <span className="claudian-provider-model-picker-catalog-title">{t('settings.modelPicker.browse')}</span>
           <span className="claudian-provider-model-picker-catalog-count">
             {loadingCatalog
-              ? 'Loading models...'
+              ? t('settings.modelPicker.loadingModels')
               : state.discoveredCount > 0
-              ? `${state.discoveredCount} available`
-              : 'No models discovered yet'}
+              ? t('settings.modelPicker.available', { count: state.discoveredCount })
+              : t('settings.modelPicker.noneDiscovered')}
           </span>
         </summary>
         <div className="claudian-provider-model-picker-controls">
           <input
             className="claudian-provider-model-picker-search"
             type="search"
-            placeholder={options.searchPlaceholder ?? 'Filter by model, provider, or ID...'}
+            aria-label={t('settings.modelPicker.filterLabel', { provider: options.providerName })}
+            placeholder={options.searchPlaceholder ?? t('settings.modelPicker.searchPlaceholder')}
             value={searchQuery}
             onInput={(event) => setSearchQuery(event.currentTarget.value)}
           />
           <select
             className={`claudian-provider-model-picker-provider${providers.size === 0 ? ' claudian-hidden' : ''}`}
             value={effectiveProviderFilter}
+            aria-label={t('settings.modelPicker.providerFilterLabel')}
             onChange={(event) => setProviderFilter(event.currentTarget.value)}
           >
-            <option value={ALL_PROVIDERS_KEY}>{`All providers (${state.models.length})`}</option>
+            <option value={ALL_PROVIDERS_KEY}>{t('settings.modelPicker.allProviders', { count: state.models.length })}</option>
             {[...providers.entries()]
               .sort(([, left], [, right]) => left.label.localeCompare(right.label))
               .map(([key, provider]) => (
@@ -277,7 +281,11 @@ export function ProviderModelPickerView({
             disabled={loadingCatalog}
             onClick={() => onLoadCatalog(true)}
           >
-            {loadingCatalog ? 'Loading...' : state.discoveredCount > 0 ? 'Refresh' : 'Discover'}
+            {loadingCatalog
+              ? t('settings.modelPicker.loading')
+              : state.discoveredCount > 0
+              ? t('common.refresh')
+              : t('settings.modelPicker.discover')}
           </button>
         </div>
         <div className="claudian-provider-model-picker-list">
@@ -289,12 +297,12 @@ export function ProviderModelPickerView({
                 ? options.failedCatalogText
                 : state.models.length === 0
                 ? options.emptyCatalogText
-                : 'No models match your filter.'}
+                : t('settings.modelPicker.noMatch')}
             </div>
           ) : filteredModels.map((model: ProviderModelPickerModel) => {
             const isSelected = selectedIds.has(model.id);
             const badgeLabel = model.isAvailable === false
-              ? 'Unavailable'
+              ? t('settings.modelPicker.unavailable')
               : model.catalogBadge ?? model.providerLabel;
             return (
               <label
@@ -327,7 +335,7 @@ export function ProviderModelPickerView({
                       <span
                         className={`claudian-provider-model-picker-row-badge${model.isAvailable === false ? ' claudian-provider-model-picker-row-badge--unavailable' : ''}`}
                         title={model.isAvailable === false
-                          ? model.unavailableTitle ?? `Configured model not currently reported by ${options.providerName}`
+                          ? model.unavailableTitle ?? t('settings.modelPicker.unavailableTitle', { provider: options.providerName })
                           : undefined}
                       >
                         {badgeLabel}

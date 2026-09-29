@@ -338,13 +338,21 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "environment": {
+        "name": "Variables de entorno de Grok",
+        "desc": "Variables de entorno que se pasan solo a Grok. Los secretos de los modelos personalizados permanecen en el ámbito de este proveedor y se referencian desde la configuración nativa mediante env_key."
+      }
     },
     "opencode": {
       "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "environment": {
+        "name": "Variables de entorno de Pi",
+        "desc": "Variables de entorno que se pasan solo a Pi."
+      }
     },
     "providerReadiness": {
       "title": "Preparación",
@@ -632,14 +640,20 @@
         "save": "Guardar",
         "update": "Actualizar",
         "cancel": "Cancelar"
-      }
+      },
+      "insert": "Insertar",
+      "insertFailed": "No se pudo insertar el snippet",
+      "deleteConfirm": "¿Eliminar el snippet de entorno \"{name}\"?",
+      "deleteFailed": "No se pudo eliminar el snippet"
     },
     "customModelOverrides": {
       "name": "Anulaciones de modelos personalizados",
       "desc": "Configure alias en el selector de modelos y tamaños de ventana de contexto para modelos personalizados."
     },
     "customModelAliases": {
-      "placeholder": "Alias"
+      "placeholder": "Alias",
+      "ariaLabel": "Alias de {model}",
+      "ariaDescription": "Etiqueta personalizada que se muestra en el selector de modelos. Déjalo vacío para usar la predeterminada."
     },
     "customContextLimits": {
       "name": "Límites de contexto personalizados",
@@ -704,8 +718,13 @@
       "descUnix": "Pegue la salida de \"which claude\" — funciona tanto para instalaciones nativas como npm/pnpm/yarn.",
       "validation": {
         "notExist": "La ruta no existe",
-        "isDirectory": "La ruta es un directorio, no un archivo"
-      }
+        "isDirectory": "La ruta es un directorio, no un archivo",
+        "mustBeAbsolute": "La ruta debe ser absoluta",
+        "notFile": "La ruta debe apuntar a un archivo",
+        "notAccessible": "La ruta no es accesible",
+        "notExecutable": "La ruta debe ser ejecutable"
+      },
+      "genericName": "Ruta de la CLI"
     },
     "language": {
       "name": "Idioma",
@@ -911,6 +930,44 @@
         "error": "No se pudo abrir la carpeta de registros de diagnóstico."
       },
       "openCommandName": "Abrir registros de diagnóstico del proveedor"
+    },
+    "providerSettings": {
+      "unavailable": "Los ajustes del proveedor no están disponibles.",
+      "loadFailed": "No se pudieron cargar los ajustes del proveedor: {message}"
+    },
+    "sharedEnvironment": {
+      "name": "Entorno compartido",
+      "desc": "Variables de ejecución independientes del proveedor, compartidas entre todos los proveedores. Úsalo para variables de PATH, proxy, certificados y archivos temporales."
+    },
+    "modelPicker": {
+      "name": "Modelos visibles",
+      "desc": "Elige qué modelos están disponibles en el selector del chat. Arrástralos para reordenarlos; el proveedor usa como predeterminado el primer modelo utilizable en ese momento. Selecciona al menos un modelo para usar este proveedor.",
+      "browse": "Explorar modelos",
+      "filterLabel": "Filtrar modelos de {provider}",
+      "searchPlaceholder": "Filtrar por modelo, proveedor o ID...",
+      "providerFilterLabel": "Filtrar proveedores de modelos",
+      "allProviders": "Todos los proveedores ({count})",
+      "discover": "Descubrir",
+      "visible": "Visibles: ",
+      "ofDiscovered": " de {count} descubiertos",
+      "oneProvider": " | 1 proveedor",
+      "manyProviders": " | {count} proveedores",
+      "loadingModels": "Cargando modelos...",
+      "loading": "Cargando...",
+      "available": "{count} disponibles",
+      "noneDiscovered": "Aún no se han descubierto modelos",
+      "selected": "Seleccionados ({count})",
+      "clearAllLabel": "Quitar todos los modelos de {provider} seleccionados",
+      "reorderLabel": "Reordenar {model}; arrastra o usa las teclas de flecha arriba y abajo",
+      "default": "Predeterminado",
+      "unavailable": "No disponible",
+      "unavailableTitle": "{provider} no informa actualmente del modelo configurado",
+      "aliasLabel": "Alias (opcional)",
+      "removeLabel": "Quitar {model}",
+      "noMatch": "Ningún modelo coincide con tu filtro.",
+      "emptyCatalog": "{provider} no ha informado de ningún modelo. Revisa tu configuración y haz clic en Descubrir.",
+      "loadingCatalog": "Cargando modelos de {provider}…",
+      "stale": "El catálogo de modelos de {provider} está desactualizado. Haz clic en Descubrir para actualizarlo."
     }
   }
 }

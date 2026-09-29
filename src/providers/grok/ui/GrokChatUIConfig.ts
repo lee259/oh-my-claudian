@@ -12,6 +12,7 @@ import {
   encodeGrokModelId,
   findGrokModel,
   getGrokAvailableReasoningEfforts,
+  getGrokModelLabel,
   isGrokModelSelectionId,
   resolveGrokContextWindow,
   resolveGrokDefaultReasoningEffort,
@@ -234,7 +235,7 @@ function pushModelOption(
   options: ProviderUIOption[],
   seen: Set<string>,
   rawId: string,
-  catalogById: ReadonlyMap<string, { description?: string; displayName: string }>,
+  catalogById: ReadonlyMap<string, { description?: string; displayName: string; rawId: string }>,
   aliases: Record<string, string>,
 ): void {
   const value = encodeGrokModelId(rawId);
@@ -245,7 +246,7 @@ function pushModelOption(
   const model = catalogById.get(rawId);
   options.push({
     value,
-    label: aliases[rawId] ?? model?.displayName ?? rawId,
+    label: aliases[rawId] ?? (model ? getGrokModelLabel(model) : rawId),
     description: model?.description ?? 'Selected in an existing session',
   });
 }
