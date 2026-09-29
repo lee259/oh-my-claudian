@@ -576,7 +576,7 @@ describe('StreamController - Text Content', () => {
       expect(msg.contentBlocks).toContainEqual({ type: 'context_compacted' });
     });
 
-    it('does not let a later Claude sub-request lower usage in the same stream', () => {
+    it('does not let a later Claude Code sub-request lower usage in the same stream', () => {
       controller.updateUsage(createMockUsage({ contextTokens: 100, percentage: 100 }));
       controller.updateUsage(createMockUsage({ contextTokens: 60, percentage: 60 }));
 
@@ -895,7 +895,7 @@ describe('StreamController - Text Content', () => {
       'Task',
       'future_agent',
     ])(
-      'keeps Grok %s tools as ordinary lossless cards',
+      'keeps Grok Build %s tools as ordinary lossless cards',
       async (name) => {
         const msg = createTestMessage();
         deps.state.currentContentEl = createMockEl();
@@ -993,7 +993,7 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.writeEditStates.has('opencode-agent')).toBe(false);
     });
 
-    it('routes the current Claude Agent tool through the managed subagent protocol', async () => {
+    it('routes the current Claude Code Agent tool through the managed subagent protocol', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
       (deps.subagentManager.handleTaskToolUse as jest.Mock).mockReturnValueOnce({
@@ -3365,7 +3365,7 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'spawn-1',
         expect.objectContaining({
-          description: 'Codex subagent (gpt-5.4-mini)',
+          description: 'Codex CLI subagent (gpt-5.4-mini)',
           prompt: 'Inspect utils.ts and return the final patch summary.',
         }),
         expect.objectContaining({ onOpenFile: expect.any(Function) }),

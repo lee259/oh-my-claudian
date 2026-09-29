@@ -327,7 +327,7 @@ export class GrokModelCatalogCoordinator {
     try {
       promise = operation();
     } catch (error) {
-      promise = Promise.reject(toError(error, 'Grok metadata operation failed'));
+      promise = Promise.reject(toError(error, 'Grok Build metadata operation failed'));
     }
     this.activeMetadataOperations.add(promise);
     void promise.then(
@@ -383,7 +383,7 @@ export class GrokModelCatalogCoordinator {
         this.state = 'failed';
         return {
           ...this.completedResult(),
-          diagnostics: discovery.diagnostics ?? 'Grok models returned no available models',
+          diagnostics: discovery.diagnostics ?? 'Grok Build models returned no available models',
         };
       }
 
@@ -415,7 +415,7 @@ export class GrokModelCatalogCoordinator {
       this.state = 'failed';
       return {
         ...this.completedResult(),
-        diagnostics: 'Grok model catalog refresh failed',
+        diagnostics: 'Grok Build model catalog refresh failed',
       };
     } finally {
       if (this.abortController === abortController) {

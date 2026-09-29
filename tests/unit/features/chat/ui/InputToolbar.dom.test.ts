@@ -344,7 +344,7 @@ describe('createInputToolbar', () => {
     expect(toolbarEl.querySelector('[data-mode-value="plan"]')).toBeNull();
   });
 
-  it('refreshes mounted Claude mode labels when the locale changes', () => {
+  it('refreshes mounted Claude Code mode labels when the locale changes', () => {
     callbacks.getUIConfig = () => claudeChatUIConfig;
     toolbar?.permissionToggle.updateDisplay();
 
@@ -362,7 +362,7 @@ describe('createInputToolbar', () => {
     )?.textContent).toBe('Accept edits');
   });
 
-  it('renders only Claude’s four native modes and leaves legacy YOLO unselected', () => {
+  it('renders only Claude Code’s four native modes and leaves legacy YOLO unselected', () => {
     callbacks.getUIConfig = () => claudeChatUIConfig;
     callbacks.getSettings().permissionMode = 'yolo';
     toolbar?.permissionToggle.updateDisplay();
@@ -381,10 +381,10 @@ describe('createInputToolbar', () => {
   });
 
   it.each([
-    ['Claude', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto'], []],
-    ['Codex', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
+    ['Claude Code', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto'], []],
+    ['Codex CLI', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
     ['Cursor', 'cursor', cursorChatUIConfig, ['Agent', 'Ask', 'Plan'], []],
-    ['Grok', 'grok', grokChatUIConfig, ['Ask', 'Plan', 'Always approve'], ['Always approve']],
+    ['Grok Build', 'grok', grokChatUIConfig, ['Ask', 'Plan', 'Always approve'], ['Always approve']],
     ['OMP', 'omp', ompChatUIConfig, ['Always ask', 'Write', 'YOLO'], ['YOLO']],
     ['OpenCode', 'opencode', opencodeChatUIConfig, ['Build', 'Plan'], []],
     ['Pi', 'pi', piChatUIConfig, ['Read only', 'All tools'], ['All tools']],

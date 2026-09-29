@@ -162,7 +162,7 @@ implements GrokExecutionNativeConnection {
       { signal, timeoutMs: 5_000 },
     );
     if (!Array.isArray(response.commands)) {
-      throw new Error('Grok returned malformed command metadata.');
+      throw new Error('Grok Build returned malformed command metadata.');
     }
     return normalizeAcpAvailableCommands(response.commands);
   }

@@ -329,7 +329,7 @@ export class SlashCommandSettings {
   private renderUnavailable(): void {
     this.containerEl.empty();
     const emptyEl = this.containerEl.createDiv({ cls: 'claudian-sp-empty-state' });
-    emptyEl.setText('Claude command catalog is unavailable.');
+    emptyEl.setText('Claude Code command catalog is unavailable.');
   }
 
   private render(): void {

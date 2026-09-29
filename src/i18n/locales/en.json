@@ -298,8 +298,8 @@
     },
     "tabs": {
       "general": "General",
-      "claude": "Claude",
-      "codex": "Codex"
+      "claude": "Claude Code",
+      "codex": "Codex CLI"
     },
     "omp": {
       "setup": "Setup",
@@ -338,10 +338,10 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
       "environment": {
-        "name": "Grok environment variables",
-        "desc": "Environment variables passed only to Grok. Custom-model secrets stay in this provider scope and are referenced from native config by env_key."
+        "name": "Grok Build environment variables",
+        "desc": "Environment variables passed only to Grok Build. Custom-model secrets stay in this provider scope and are referenced from native config by env_key."
       }
     },
     "opencode": {
@@ -479,7 +479,7 @@
     },
     "mediaFolder": {
       "name": "Media folder",
-      "desc": "Folder containing attachments/images. When notes use ![[image.jpg]], Claude will look here. Leave empty for vault root."
+      "desc": "Folder containing attachments/images. When notes use ![[image.jpg]], Claude Code will look here. Leave empty for vault root."
     },
     "systemPrompt": {
       "name": "Custom system prompt",
@@ -604,7 +604,7 @@
     },
     "safety": "Safety",
     "loadUserSettings": {
-      "name": "Load user Claude settings",
+      "name": "Load user Claude Code settings",
       "desc": "Load ~/.claude/settings.json. When enabled, user's Claude Code permission rules may bypass Safe mode."
     },
     "claudeSafeMode": {
@@ -618,7 +618,7 @@
     "environment": "Environment",
     "customVariables": {
       "name": "Custom variables",
-      "desc": "Environment variables for Claude SDK (KEY=VALUE format, one per line). Shell export prefix supported."
+      "desc": "Environment variables for Claude Code SDK (KEY=VALUE format, one per line). Shell export prefix supported."
     },
     "envSnippets": {
       "name": "Snippets",
@@ -662,20 +662,20 @@
     },
     "customModels": {
       "name": "Custom models",
-      "desc": "Append additional Claude model IDs to the picker, one per line. Environment model overrides still replace the picker.",
+      "desc": "Append additional Claude Code model IDs to the picker, one per line. Environment model overrides still replace the picker.",
       "placeholder": "claude-opus-4-6\nclaude-opus-4-5-20251101"
     },
     "enableChrome": {
       "name": "Enable Chrome extension",
-      "desc": "Allow Claude to interact with Chrome via the claude-in-chrome extension. Requires the extension to be installed. Requires session restart."
+      "desc": "Allow Claude Code to interact with Chrome via the claude-in-chrome extension. Requires the extension to be installed. Requires session restart."
     },
     "promptSuggestions": {
       "name": "Enable prompt suggestions",
-      "desc": "Show Claude's suggested follow-up prompts after a response. Requires session restart."
+      "desc": "Show Claude Code's suggested follow-up prompts after a response. Requires session restart."
     },
     "agentProgressSummaries": {
       "name": "Show live subagent progress",
-      "desc": "Ask Claude to provide periodic progress summaries for running subagents. This uses additional model work. Requires session restart."
+      "desc": "Ask Claude Code to provide periodic progress summaries for running subagents. This uses additional model work. Requires session restart."
     },
     "enableBangBash": {
       "name": "Enable bash mode (!)",
@@ -690,7 +690,7 @@
     },
     "enableAutoScroll": {
       "name": "Auto-scroll during streaming",
-      "desc": "Automatically scroll to the bottom as Claude streams responses. Disable to stay at the top and read from the beginning."
+      "desc": "Automatically scroll to the bottom as Claude Code streams responses. Disable to stay at the top and read from the beginning."
     },
     "showTabTitlesByDefault": {
       "name": "Show tab titles by default",
@@ -712,7 +712,7 @@
       "mainTab": "Main editor tab"
     },
     "cliPath": {
-      "name": "Claude CLI path",
+      "name": "Claude Code CLI path",
       "desc": "Custom path to Claude Code CLI. Leave empty for auto-detection.",
       "descWindows": "For the native installer, use claude.exe. For npm/pnpm/yarn or other package manager installs, use the cli-wrapper.cjs path (not claude.cmd).",
       "descUnix": "Paste the output of \"which claude\" — works for both native and npm/pnpm/yarn installs. On Windows, paste the output of \"where claude\".",
@@ -740,15 +740,15 @@
     "codex": {
       "installationMethod": {
         "name": "Installation method",
-        "desc": "How Oh My Claudian should launch Codex on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro.",
+        "desc": "How Oh My Claudian should launch Codex CLI on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro.",
         "nativeWindows": "Native Windows",
         "wsl": "WSL"
       },
       "cliPath": {
         "name": "Codex CLI path",
-        "descUnix": "Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
+        "descUnix": "Custom path to the local Codex CLI. Leave empty to prefer known Codex CLI installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
         "descWindows": "Custom path to the local Codex CLI. Leave empty to auto-detect from PATH. Paste the output of \"where codex\" or use the native executable path, usually `codex.exe`.",
-        "descWsl": "Linux-side Codex command or absolute path to run inside WSL. Leave empty for PATH lookup inside the selected distro.",
+        "descWsl": "Linux-side Codex CLI command or absolute path to run inside WSL. Leave empty for PATH lookup inside the selected distro.",
         "validation": {
           "wslWindowsPath": "WSL mode expects a Linux command or Linux absolute path, not a Windows executable path."
         }
@@ -763,7 +763,7 @@
       },
       "customModels": {
         "name": "Custom models",
-        "desc": "Append additional Codex model IDs to the picker, one per line. `OPENAI_MODEL` still takes precedence when set.",
+        "desc": "Append additional Codex CLI model IDs to the picker, one per line. `OPENAI_MODEL` still takes precedence when set.",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -776,27 +776,27 @@
       },
       "ultraEffort": {
         "name": "Enable ultra effort",
-        "desc": "Allow Ultra in the effort selector for Codex models that advertise support. Ultra uses maximum reasoning with automatic task delegation."
+        "desc": "Allow Ultra in the effort selector for Codex CLI models that advertise support. Ultra uses maximum reasoning with automatic task delegation."
       },
       "skills": {
-        "name": "Codex skills",
+        "name": "Codex CLI skills",
         "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
         "hiddenName": "Hidden Skills",
-        "hiddenDesc": "Hide specific Codex skills from the dropdown. Enter skill names without the leading $, one per line.",
+        "hiddenDesc": "Hide specific Codex CLI skills from the dropdown. Enter skill names without the leading $, one per line.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex subagents",
-        "desc": "Manage vault-level Codex subagents stored in .codex/agents/. Each TOML file defines one custom agent."
+        "name": "Codex CLI subagents",
+        "desc": "Manage vault-level Codex CLI subagents stored in .codex/agents/. Each TOML file defines one custom agent."
       },
       "mcp": {
-        "descBeforeCommand": "Codex manages MCP servers via its own CLI. Configure with ",
+        "descBeforeCommand": "Codex CLI manages MCP servers via its own CLI. Configure with ",
         "descAfterCommand": " and they will be available in Oh My Claudian. ",
         "learnMore": "Learn more"
       },
       "environment": {
-        "name": "Codex environment",
-        "desc": "Codex-owned runtime variables only. Use this for OPENAI_* and CODEX_* settings. If Codex auto-detection needs help, add its install directory to shared PATH instead of this provider section."
+        "name": "Codex CLI environment",
+        "desc": "Codex CLI-owned runtime variables only. Use this for OPENAI_* and CODEX_* settings. If Codex CLI auto-detection needs help, add its install directory to shared PATH instead of this provider section."
       }
     },
     "agentSkills": {
@@ -837,8 +837,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Edit Codex Skill",
-        "titleAdd": "Add Codex Skill",
+        "titleEdit": "Edit Codex CLI Skill",
+        "titleAdd": "Add Codex CLI Skill",
         "directory": "Directory",
         "directoryDesc": "Where to store the skill",
         "skillName": "Skill name",
@@ -850,21 +850,21 @@
         "instructionsPlaceholder": "Analyze the code for..."
       },
       "instructionsRequired": "Instructions are required",
-      "saveFailed": "Failed to save Codex skill",
-      "header": "Codex Skills",
-      "noSkills": "No Codex skills in vault. Click + to create one.",
+      "saveFailed": "Failed to save Codex CLI skill",
+      "header": "Codex CLI Skills",
+      "noSkills": "No Codex CLI skills in vault. Click + to create one.",
       "skillBadge": "skill",
-      "deleted": "Codex skill \"{name}\" deleted",
-      "deleteFailed": "Failed to delete Codex skill",
-      "created": "Codex skill \"{name}\" created",
-      "updated": "Codex skill \"{name}\" updated"
+      "deleted": "Codex CLI skill \"{name}\" deleted",
+      "deleteFailed": "Failed to delete Codex CLI skill",
+      "created": "Codex CLI skill \"{name}\" created",
+      "updated": "Codex CLI skill \"{name}\" updated"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Edit Codex Subagent",
-        "titleAdd": "Add Codex Subagent",
-        "nameDesc": "Agent name Codex uses when spawning (lowercase, hyphens, underscores)",
-        "descriptionDesc": "When Codex should use this agent",
+        "titleEdit": "Edit Codex CLI Subagent",
+        "titleAdd": "Add Codex CLI Subagent",
+        "nameDesc": "Agent name Codex CLI uses when spawning (lowercase, hyphens, underscores)",
+        "descriptionDesc": "When Codex CLI should use this agent",
         "modelDesc": "Model override (leave empty to inherit)",
         "namePlaceholder": "code_reviewer"
       },
@@ -902,8 +902,8 @@
         "nicknameInvalid": "Nickname candidates can only contain ASCII letters, numbers, spaces, hyphens, and underscores",
         "nicknameDuplicate": "Nickname candidates must be unique"
       },
-      "header": "Codex Subagents",
-      "noAgents": "No Codex subagents in vault. Click + to create one."
+      "header": "Codex CLI Subagents",
+      "noAgents": "No Codex CLI subagents in vault. Click + to create one."
     },
     "providerArguments": {
       "name": "Additional CLI arguments",

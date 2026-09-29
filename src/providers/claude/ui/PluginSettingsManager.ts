@@ -46,7 +46,7 @@ export class PluginSettingsManager {
 
     if (plugins.length === 0) {
       const emptyEl = this.containerEl.createDiv({ cls: 'claudian-plugin-empty' });
-      emptyEl.setText('No Claude code plugins found. Enable plugins via the Claude CLI.');
+      emptyEl.setText('No Claude Code plugins found. Enable plugins via the Claude Code CLI.');
       return;
     }
 

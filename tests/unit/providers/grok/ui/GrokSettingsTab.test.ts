@@ -329,7 +329,7 @@ describe('GrokSettingsTab', () => {
     mockedAccessSync.mockImplementation(() => undefined);
   });
 
-  it('commits Grok enablement inside a transition without creating metadata', async () => {
+  it('commits Grok Build enablement inside a transition without creating metadata', async () => {
     const plugin = createPlugin();
     plugin.settings.providerConfigs.grok.enabled = false;
     let transitionActive = false;
@@ -355,7 +355,7 @@ describe('GrokSettingsTab', () => {
 
     const enablement = mockProviderEnablementOptions[0];
     expect(enablement.description).toBe(
-      'Make enabled Grok models available for new conversations. Existing sessions are preserved when disabled.',
+      'Make enabled Grok Build models available for new conversations. Existing sessions are preserved when disabled.',
     );
     await enablement.onChange(true);
 
@@ -368,7 +368,7 @@ describe('GrokSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('grok');
   });
 
-  it('preserves Grok enablement when disabling the final provider is rejected', async () => {
+  it('preserves Grok Build enablement when disabling the final provider is rejected', async () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
     grokSettingsTabRenderer.render(createContainer(), context);
@@ -386,7 +386,7 @@ describe('GrokSettingsTab', () => {
     await enablement.onChange(true);
   });
 
-  it('preserves Grok enablement when the transition fails', async () => {
+  it('preserves Grok Build enablement when the transition fails', async () => {
     const plugin = createPlugin();
     const transitionError = new Error('transition failed');
     plugin.runProviderExecutionTransition.mockRejectedValueOnce(transitionError);
@@ -529,9 +529,9 @@ describe('GrokSettingsTab', () => {
 
     expect(createdSettings.map(setting => setting.name)).not.toEqual(expect.arrayContaining([
       'Authentication',
-      'Grok account',
+      'Grok Build account',
       'Bring your own model',
-      'Grok-native custom models',
+      'Grok Build-native custom models',
     ]));
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       heading: 'Environment',
@@ -544,14 +544,14 @@ describe('GrokSettingsTab', () => {
   it('delegates refresh and reports concise workspace diagnostics', async () => {
     mockRefreshModelCatalog.mockResolvedValue({
       changed: false,
-      diagnostics: 'Grok CLI is not logged in',
+      diagnostics: 'Grok Build CLI is not logged in',
     });
     const plugin = createPlugin();
     grokSettingsTabRenderer.render(createContainer(), createContext(plugin));
 
     expect(await getPickerOptions().loadCatalog(true)).toBe('failed');
     expect(mockRefreshModelCatalog).toHaveBeenCalledTimes(1);
-    expect(notices).toEqual(['Grok model discovery failed: Grok CLI is not logged in']);
+    expect(notices).toEqual(['Grok Build model discovery failed: Grok Build CLI is not logged in']);
   });
 
   it('persists picker visibility and aliases for discovered raw model ids', async () => {
@@ -600,7 +600,7 @@ describe('GrokSettingsTab', () => {
       .not.toHaveProperty('reasoningMetadataResolved');
   });
 
-  it('directs MCP setup to the native Grok CLI', () => {
+  it('directs MCP setup to the native Grok Build CLI', () => {
     const plugin = createPlugin();
     grokSettingsTabRenderer.render(createContainer(), createContext(plugin));
 
@@ -620,7 +620,7 @@ describe('GrokSettingsTab', () => {
     ]));
   });
 
-  it('renders only native skills, hidden runtime commands, MCP guidance, and the Grok environment scope', () => {
+  it('renders only native skills, hidden runtime commands, MCP guidance, and the Grok Build environment scope', () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
     const container = createContainer();
@@ -633,7 +633,7 @@ describe('GrokSettingsTab', () => {
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       container,
       'grok',
-      expect.objectContaining({ name: 'Hidden Grok commands' }),
+      expect.objectContaining({ name: 'Hidden Grok Build commands' }),
     );
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       plugin,

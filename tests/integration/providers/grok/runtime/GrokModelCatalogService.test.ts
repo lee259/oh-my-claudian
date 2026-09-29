@@ -83,7 +83,7 @@ describe('GrokModelCatalogService ACP discovery integration', () => {
     controller.abort();
 
     await expect(discovery).resolves.toMatchObject({
-      diagnostics: 'Grok models was cancelled',
+      diagnostics: 'Grok Build models was cancelled',
       kind: 'completed',
       models: [],
     });
@@ -130,7 +130,7 @@ async function waitForFile(filePath: string): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
   }
-  throw new Error('Grok fixture did not receive the model-list request');
+  throw new Error('Grok Build fixture did not receive the model-list request');
 }
 
 function readPid(filePath: string): number | null {

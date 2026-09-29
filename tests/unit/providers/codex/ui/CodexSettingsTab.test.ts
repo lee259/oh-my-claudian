@@ -450,21 +450,21 @@ describe('CodexSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
   });
 
-  it('refreshes title model options after Codex enablement changes', async () => {
+  it('refreshes title model options after Codex CLI enablement changes', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
     const plugin = createPlugin();
     const context = createContext(plugin);
 
     codexSettingsTabRenderer.render(createContainer(), context);
     const enablement = mockProviderEnablementOptions[0];
-    expect(enablement.name).toBe('Enable Codex');
+    expect(enablement.name).toBe('Enable Codex CLI');
     expect(enablement.container).toBe(mockProviderEnablement);
     await enablement.onChange(false);
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
   });
 
-  it('commits enablement inside the Codex transition without launching metadata discovery', async () => {
+  it('commits enablement inside the Codex CLI transition without launching metadata discovery', async () => {
     const registry = new ProviderExecutionLifecycleRegistry();
     const dispose = acquireSettingsLease(registry);
     const plugin = createPlugin({
@@ -558,7 +558,7 @@ describe('CodexSettingsTab', () => {
     );
   });
 
-  it('refreshes readiness after a Codex model selection change', async () => {
+  it('refreshes readiness after a Codex CLI model selection change', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
 
     codexSettingsTabRenderer.render(createContainer(), createContext(createPlugin()));
@@ -569,7 +569,7 @@ describe('CodexSettingsTab', () => {
     expect(mockRefreshProviderReadiness).toHaveBeenCalledTimes(1);
   });
 
-  it('warns when Codex is enabled without any enabled models', () => {
+  it('warns when Codex CLI is enabled without any enabled models', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
     const plugin = createPlugin({
       providerConfigs: {
@@ -634,7 +634,7 @@ describe('CodexSettingsTab', () => {
 
     const cliPathSetting = mockHostnameCliPathOptions.at(-1);
     if (!cliPathSetting) throw new Error('Expected Codex CLI path settings');
-    expect(cliPathSetting.description).toBe('Custom path to the local Codex CLI. Leave empty to prefer known Codex installs, then PATH. Paste the output of "which codex" (or "where codex" on Windows).');
+    expect(cliPathSetting.description).toBe('Custom path to the local Codex CLI. Leave empty to prefer known Codex CLI installs, then PATH. Paste the output of "which codex" (or "where codex" on Windows).');
     expect(cliPathSetting.placeholder).toBe('/usr/local/bin/codex');
 
     expect(cliPathSetting.validate?.('codex')).not.toBeNull();

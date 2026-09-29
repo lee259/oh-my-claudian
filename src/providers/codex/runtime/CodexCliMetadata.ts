@@ -2,7 +2,7 @@ import type { CliProviderMetadata } from '../../../core/providers/cli/CliProvide
 
 export const codexCliMetadata: CliProviderMetadata = {
   binaryName: 'codex',
-  displayName: 'Codex',
+  displayName: 'Codex CLI',
   npmPackage: '@openai/codex',
   update: {
     command: 'codex',

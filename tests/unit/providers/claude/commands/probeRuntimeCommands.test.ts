@@ -172,7 +172,7 @@ describe('probeRuntimeCommands', () => {
     abortController.abort('caller cancelled');
 
     await expect(probe).rejects.toMatchObject({
-      message: 'Claude command discovery aborted',
+      message: 'Claude Code command discovery aborted',
       cause: 'caller cancelled',
     });
   });

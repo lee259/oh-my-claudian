@@ -72,7 +72,7 @@ export function renderCodexModelPicker(
           id: modelId,
           isAvailable: false,
           name: modelId,
-          unavailableMessage: 'Not currently reported by Codex',
+          unavailableMessage: 'Not currently reported by Codex CLI',
         });
       }
     }
@@ -106,8 +106,8 @@ export function renderCodexModelPicker(
   const picker = renderProviderModelPicker({
     checkCatalogFreshnessWhenCached: true,
     container,
-    emptyCatalogText: 'No Codex models discovered yet. Click Discover to query app-server.',
-    failedCatalogText: 'Could not load models from Codex app-server. Check the CLI path and login state, then try again.',
+    emptyCatalogText: 'No Codex CLI models discovered yet. Click Discover to query app-server.',
+    failedCatalogText: 'Could not load models from Codex CLI app-server. Check the CLI path and login state, then try again.',
     getState,
     initiallyOpen: getCodexProviderSettings(settingsBag).discoveredModels.length === 0,
     async loadCatalog(force) {
@@ -128,7 +128,7 @@ export function renderCodexModelPicker(
         );
       }
       if (result.diagnostics) {
-        new Notice(`Codex model discovery failed: ${result.diagnostics}`);
+        new Notice(`Codex CLI model discovery failed: ${result.diagnostics}`);
         return 'failed';
       }
       if (result.refreshed) {
@@ -136,7 +136,7 @@ export function renderCodexModelPicker(
       }
       return getCodexProviderSettings(settingsBag).discoveredModels.length > 0 ? 'loaded' : 'empty';
     },
-    loadingCatalogText: 'Loading the Codex model catalog...',
+    loadingCatalogText: 'Loading the Codex CLI model catalog...',
     modifier: 'codex',
     async onAliasesChange(modelAliases) {
       await context.plugin.mutateSettings((settings) => {
@@ -145,7 +145,7 @@ export function renderCodexModelPicker(
       context.notifyProviderModelOptionsChanged('codex');
     },
     onSelectedIdsChange: persistVisibleModels,
-    providerName: 'Codex',
+    providerName: 'Codex CLI',
     searchPlaceholder: 'Filter by model name, description, or ID...',
   });
   refreshPicker = picker.refresh.bind(picker);

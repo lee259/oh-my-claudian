@@ -1345,7 +1345,7 @@ describe('GrokExecutionBackend', () => {
     expect(session.getStatus()).toBe('disposed');
   });
 
-  it('deduplicates mirrored Grok notifications and publishes commands', async () => {
+  it('deduplicates mirrored Grok Build notifications and publishes commands', async () => {
     const native = new FakeNativeConnection();
     const setCommandSnapshot = jest.fn();
     native.promptImplementation = async () => {
@@ -1381,7 +1381,7 @@ describe('GrokExecutionBackend', () => {
     ]);
   });
 
-  it('normalizes live Grok tool names, inputs, results, and provider payloads like replay', async () => {
+  it('normalizes live Grok Build tool names, inputs, results, and provider payloads like replay', async () => {
     const native = new FakeNativeConnection();
     const rawInput = { target_file: 'README.md' };
     const rawOutput = { bytes: 12 };
@@ -1433,7 +1433,7 @@ describe('GrokExecutionBackend', () => {
     }));
   });
 
-  it('preserves native overwrite diffs in live Grok tool results', async () => {
+  it('preserves native overwrite diffs in live Grok Build tool results', async () => {
     const native = new FakeNativeConnection();
     const rawInput = { content: 'new text', file_path: 'src/write.ts' };
     const rawOutput = { type: 'WriteResult' };
@@ -1527,7 +1527,7 @@ describe('GrokExecutionBackend', () => {
     }
   });
 
-  it('combines final Grok token usage with the streamed context window', async () => {
+  it('combines final Grok Build token usage with the streamed context window', async () => {
     const native = new FakeNativeConnection();
     native.promptImplementation = async () => {
       native.emit({ sessionUpdate: 'usage_update', size: 200_000, used: 12 });
@@ -1561,7 +1561,7 @@ describe('GrokExecutionBackend', () => {
     }
   });
 
-  it('preserves Grok assistant checkpoint IDs from notification metadata', async () => {
+  it('preserves Grok Build assistant checkpoint IDs from notification metadata', async () => {
     const native = new FakeNativeConnection();
     native.promptImplementation = async () => {
       native.emit({
@@ -1633,7 +1633,7 @@ describe('GrokExecutionBackend', () => {
     const run = session.execute(executionRequest());
     while (native.promptRequests.length === 0) await Promise.resolve();
     if (!isSteerableExecutionSession(session) || !isRewindableExecutionSession(session)) {
-      throw new Error('Expected Grok execution capabilities.');
+      throw new Error('Expected Grok Build execution capabilities.');
     }
 
     await expect(session.steer(executionRequest('redirect'))).resolves.toBe(true);
@@ -1661,7 +1661,7 @@ describe('GrokExecutionBackend', () => {
     const run = session.execute(executionRequest());
     while (native.promptRequests.length === 0) await Promise.resolve();
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Expected Grok steer capability.');
+      throw new Error('Expected Grok Build steer capability.');
     }
 
     await expect(session.steer(executionRequest('redirect')))
@@ -1689,7 +1689,7 @@ describe('GrokExecutionBackend', () => {
     const run = session.execute(executionRequest());
     while (native.promptRequests.length === 0) await Promise.resolve();
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Expected Grok steer capability.');
+      throw new Error('Expected Grok Build steer capability.');
     }
 
     const steering = session.steer(executionRequest('redirect'));
@@ -1719,7 +1719,7 @@ describe('GrokExecutionBackend', () => {
     const run = session.execute(executionRequest());
     while (native.promptRequests.length === 0) await Promise.resolve();
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Expected Grok steer capability.');
+      throw new Error('Expected Grok Build steer capability.');
     }
 
     const steering = session.steer(executionRequest('redirect'));
@@ -1740,7 +1740,7 @@ describe('GrokExecutionBackend', () => {
       { nativeFactory: { create: () => native } },
     ).createSession(sessionConfig);
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Expected Grok steer capability.');
+      throw new Error('Expected Grok Build steer capability.');
     }
 
     await expect(session.steer(executionRequest('before turn'))).resolves.toBe(false);
@@ -1774,7 +1774,7 @@ describe('GrokExecutionBackend', () => {
 
     await collect(session.execute(executionRequest()).events);
     if (!isRewindableExecutionSession(session)) {
-      throw new Error('Expected Grok rewind capability.');
+      throw new Error('Expected Grok Build rewind capability.');
     }
     await expect(session.previewRewind('user-1', 'assistant-fresh'))
       .resolves.toMatchObject({ canRewind: true });
@@ -1855,7 +1855,7 @@ describe('GrokExecutionBackend', () => {
     });
 
     if (!isRewindableExecutionSession(session)) {
-      throw new Error('Expected Grok rewind capability.');
+      throw new Error('Expected Grok Build rewind capability.');
     }
     await expect(session.previewRewind('user-target', 'assistant-target'))
       .resolves.toMatchObject({ canRewind: true });
@@ -2017,7 +2017,7 @@ describe('GrokExecutionBackend', () => {
     const failedEvents = await collect(session.execute(executionRequest('fork')).events);
 
     expect(failedEvents.at(-1)).toMatchObject({
-      message: 'Grok returned a fork for an unexpected parent session.',
+      message: 'Grok Build returned a fork for an unexpected parent session.',
       type: 'execution_error',
     });
     expect(session.getSnapshot()).toMatchObject({
@@ -2120,7 +2120,7 @@ describe('GrokExecutionBackend', () => {
     await collect(run.events);
   });
 
-  it('routes Grok question extensions through stable interaction identities', async () => {
+  it('routes Grok Build question extensions through stable interaction identities', async () => {
     const native = new FakeNativeConnection();
     native.promptImplementation = () => new Promise(() => {});
     let nativeOptions: GrokExecutionNativeCreateOptions | undefined;
@@ -2266,7 +2266,7 @@ describe('GrokExecutionBackend', () => {
   });
 });
 
-describe('Grok provider execution contract', () => {
+describe('Grok Build provider execution contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLoadGrokPromptIndexAfterAssistant.mockResolvedValue(3);

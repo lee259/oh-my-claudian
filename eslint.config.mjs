@@ -97,7 +97,7 @@ const stagedObsidianRules = {
     obsidianRuleSeverity,
     {
       ignoreWords: ['Claudian', 'Codex', 'OpenCode', 'Pi', 'WSL'],
-      brands: [...DEFAULT_BRANDS, 'Claudian', 'Codex', 'OpenCode', 'Pi'],
+      brands: [...DEFAULT_BRANDS, 'Claude Code', 'Claudian', 'Codex', 'Grok Build', 'OpenCode', 'Pi'],
       acronyms: [...DEFAULT_ACRONYMS, 'TOML', 'WSL'],
       ignoreRegex: ['\\.(?:claude|codex|opencode)/'],
       enforceCamelCaseLower: true,

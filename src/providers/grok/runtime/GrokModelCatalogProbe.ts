@@ -53,7 +53,7 @@ export class GrokModelCatalogProbe implements GrokModelCatalogProbeLike {
         options,
       );
       const models = parseGrokModelUpdateState(response);
-      if (!models) throw new Error('Grok returned malformed model metadata.');
+      if (!models) throw new Error('Grok Build returned malformed model metadata.');
 
       return normalizeGrokSessionModelMetadata({ models });
     } finally {

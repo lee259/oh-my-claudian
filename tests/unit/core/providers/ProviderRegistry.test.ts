@@ -77,7 +77,7 @@ describe('ProviderRegistry', () => {
     )).toThrow('Provider "nonexistent" is not registered.');
   });
 
-  it('returns Codex capabilities', () => {
+  it('returns Codex CLI capabilities', () => {
     const caps = ProviderRegistry.getCapabilities('codex');
     expect(caps.providerId).toBe('codex');
     expect(caps.supportsPlanMode).toBe(true);
@@ -247,18 +247,18 @@ describe('ProviderRegistry', () => {
     });
 
     expect(options.find(option => option.value === TEST_CODEX_MODEL)?.label)
-      .toBe(`Codex: ${TEST_CODEX_MODEL_LABEL}`);
+      .toBe(`Codex CLI: ${TEST_CODEX_MODEL_LABEL}`);
     expect(options.find(option => option.value === 'sonnet')?.label)
-      .toBe('Claude: Sonnet');
+      .toBe('Claude Code: Sonnet');
   });
 
   it('returns the display name from provider registration metadata', () => {
-    expect(ProviderRegistry.getProviderDisplayName('claude')).toBe('Claude');
-    expect(ProviderRegistry.getProviderDisplayName('codex')).toBe('Codex');
-    expect(ProviderRegistry.getProviderDisplayName('grok')).toBe('Grok');
+    expect(ProviderRegistry.getProviderDisplayName('claude')).toBe('Claude Code');
+    expect(ProviderRegistry.getProviderDisplayName('codex')).toBe('Codex CLI');
+    expect(ProviderRegistry.getProviderDisplayName('grok')).toBe('Grok Build');
   });
 
-  it('routes auto title generation to Claude independently of chat provider state', async () => {
+  it('routes auto title generation to Claude Code independently of chat provider state', async () => {
     const providerCalls: ProviderId[] = [];
     const originalCreate = ProviderRegistry.createTitleGenerationService.bind(ProviderRegistry);
     jest.spyOn(ProviderRegistry, 'createTitleGenerationService')
@@ -289,7 +289,7 @@ describe('ProviderRegistry', () => {
     });
   });
 
-  it('routes automatic title generation away from Claude when Claude is disabled', async () => {
+  it('routes automatic title generation away from Claude Code when Claude Code is disabled', async () => {
     const providerCalls: ProviderId[] = [];
     const originalCreate = ProviderRegistry.createTitleGenerationService.bind(ProviderRegistry);
     jest.spyOn(ProviderRegistry, 'createTitleGenerationService')

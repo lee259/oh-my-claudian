@@ -56,7 +56,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const refreshModelCatalog = async (): Promise<'empty' | 'failed' | 'loaded'> => {
       const result = await workspace.refreshModelCatalog();
       if (result.diagnostics) {
-        new Notice(`Grok model discovery failed: ${result.diagnostics}`);
+        new Notice(`Grok Build model discovery failed: ${result.diagnostics}`);
         return 'failed';
       }
       modelWarning.context.notifyProviderModelOptionsChanged(GROK_PROVIDER_ID);
@@ -68,7 +68,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const readinessPanel = renderProviderReadinessPanel({
       container,
       icon: GROK_PROVIDER_ICON,
-      providerName: 'Grok',
+      providerName: 'Grok Build',
       async getSnapshot() {
         const current = getGrokProviderSettings(settingsBag);
         return assessProviderReadiness({
@@ -88,9 +88,9 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: readinessPanel.enablement,
-      description: t('settings.providerEnablement.desc', { provider: 'Grok' }),
+      description: t('settings.providerEnablement.desc', { provider: 'Grok Build' }),
       getValue: () => getGrokProviderSettings(settingsBag).enabled,
-      name: t('settings.providerEnablement.name', { provider: 'Grok' }),
+      name: t('settings.providerEnablement.name', { provider: 'Grok Build' }),
       onChange: async (enabled) => {
         if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
           settingsBag,
@@ -131,7 +131,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
       getIsEnabled: () => getGrokProviderSettings(settingsBag).enabled,
       providerId: GROK_PROVIDER_ID,
-      providerName: 'Grok',
+      providerName: 'Grok Build',
     });
 
     renderHostnameCliPathSetting({
@@ -181,8 +181,8 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName('Commands').setHeading();
     context.renderHiddenProviderCommandSetting(container, GROK_PROVIDER_ID, {
-      name: 'Hidden Grok commands',
-      desc: 'Hide runtime commands advertised by Grok from the command dropdown. Enter names without the leading slash, one per line.',
+      name: 'Hidden Grok Build commands',
+      desc: 'Hide runtime commands advertised by Grok Build from the command dropdown. Enter names without the leading slash, one per line.',
       placeholder: 'compact\nreview',
     });
 
@@ -253,12 +253,12 @@ function renderGrokModelPicker(
   renderProviderModelPicker({
     checkCatalogFreshnessWhenCached: true,
     container,
-    emptyCatalogText: 'No Grok models discovered yet. Run `grok login` if needed, then click Discover.',
-    failedCatalogText: 'Could not load the Grok model catalog. Check the CLI path, account login, and custom-model environment, then try again.',
+    emptyCatalogText: 'No Grok Build models discovered yet. Run `grok login` if needed, then click Discover.',
+    failedCatalogText: 'Could not load the Grok Build model catalog. Check the CLI path, account login, and custom-model environment, then try again.',
     getState,
     initiallyOpen: (getGrokProviderSettings(settingsBag).currentCatalog?.models.length ?? 0) === 0,
     loadCatalog: async () => loadCatalog(),
-    loadingCatalogText: 'Loading the Grok model catalog...',
+    loadingCatalogText: 'Loading the Grok Build model catalog...',
     modifier: 'grok',
     async onAliasesChange(modelAliases) {
       await context.plugin.mutateSettings((settings) => {
@@ -280,7 +280,7 @@ function renderGrokModelPicker(
       });
       context.notifyProviderModelOptionsChanged(GROK_PROVIDER_ID);
     },
-    providerName: 'Grok',
+    providerName: 'Grok Build',
     searchPlaceholder: 'Filter by model name, description, or alias ID...',
   });
 }
@@ -305,7 +305,7 @@ function buildGrokPickerModels(
       id: rawId,
       isAvailable: false,
       name: rawId,
-      unavailableMessage: 'Not currently reported by Grok',
+      unavailableMessage: 'Not currently reported by Grok Build',
     });
   }
   return models;

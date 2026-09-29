@@ -78,7 +78,7 @@ describe('CodexModelDiscoveryService', () => {
     });
   });
 
-  it('does not launch Codex when the provider is disabled', async () => {
+  it('does not launch Codex CLI when the provider is disabled', async () => {
     const result = await new CodexModelDiscoveryService(createPlugin(false)).discoverModels();
 
     expect(result).toEqual({ kind: 'skipped', reason: 'provider-disabled' });
@@ -103,7 +103,7 @@ describe('CodexModelDiscoveryService', () => {
 
     expect(result.kind).toBe('completed');
     if (result.kind !== 'completed') {
-      throw new Error('Expected completed Codex model discovery');
+      throw new Error('Expected completed Codex CLI model discovery');
     }
     expect(result.diagnostics).toBeUndefined();
     expect(result.models.map(model => model.model)).toEqual([
@@ -180,7 +180,7 @@ describe('CodexModelDiscoveryService', () => {
 
     const result = await discoveryPromise;
     if (result.kind !== 'completed') {
-      throw new Error('Expected completed Codex model discovery');
+      throw new Error('Expected completed Codex CLI model discovery');
     }
     expect(result.diagnostics).toMatch(/cancelled/i);
     expect(mockTransportDispose).toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('CodexModelDiscoveryService', () => {
 
     const result = await service.discoverModels(controller.signal);
     if (result.kind !== 'completed') {
-      throw new Error('Expected completed Codex model discovery');
+      throw new Error('Expected completed Codex CLI model discovery');
     }
 
     expect(result.diagnostics).toMatch(/cancelled/i);
@@ -202,7 +202,7 @@ describe('CodexModelDiscoveryService', () => {
     expect(mockProcessStart).not.toHaveBeenCalled();
   });
 
-  it('does not start Codex when aborted during launch-spec resolution', async () => {
+  it('does not start Codex CLI when aborted during launch-spec resolution', async () => {
     let resolveLaunchSpec!: (value: {
       args: string[];
       command: string;
@@ -229,7 +229,7 @@ describe('CodexModelDiscoveryService', () => {
 
     await expect(discoveryPromise).resolves.toEqual({
       kind: 'completed',
-      diagnostics: 'Codex model discovery was cancelled',
+      diagnostics: 'Codex CLI model discovery was cancelled',
       models: [],
     });
     expect(mockProcessStart).not.toHaveBeenCalled();

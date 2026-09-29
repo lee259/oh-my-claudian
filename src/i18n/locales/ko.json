@@ -298,8 +298,8 @@
     },
     "tabs": {
       "general": "일반",
-      "claude": "Claude",
-      "codex": "Codex"
+      "claude": "Claude Code",
+      "codex": "Codex CLI"
     },
     "omp": {
       "setup": "설정",
@@ -338,9 +338,9 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
       "environment": {
-        "name": "Grok 환경 변수",
+        "name": "Grok Build 환경 변수",
         "desc": "Grok에만 전달되는 환경 변수입니다. 사용자 지정 모델의 비밀 값은 이 제공자 범위에 남아 있으며 네이티브 구성에서 env_key로 참조됩니다."
       }
     },
@@ -604,7 +604,7 @@
     },
     "safety": "보안",
     "loadUserSettings": {
-      "name": "사용자 Claude 설정 로드",
+      "name": "사용자 Claude Code 설정 로드",
       "desc": "~/.claude/settings.json을 로드합니다. 활성화하면 사용자의 Claude Code 허용 규칙이 보안 모드를 우회할 수 있습니다."
     },
     "claudeSafeMode": {
@@ -618,7 +618,7 @@
     "environment": "환경",
     "customVariables": {
       "name": "커스텀 변수",
-      "desc": "Claude SDK 환경 변수 (KEY=VALUE 형식, 한 줄에 하나). export 접두사 지원."
+      "desc": "Claude Code SDK 환경 변수 (KEY=VALUE 형식, 한 줄에 하나). export 접두사 지원."
     },
     "envSnippets": {
       "name": "스니펫",
@@ -662,7 +662,7 @@
     },
     "customModels": {
       "name": "사용자 지정 모델",
-      "desc": "추가 Claude 모델 ID를 한 줄에 하나씩 선택기에 추가합니다. 환경 모델 재정의는 계속 선택기를 대체합니다.",
+      "desc": "추가 Claude Code 모델 ID를 한 줄에 하나씩 선택기에 추가합니다. 환경 모델 재정의는 계속 선택기를 대체합니다.",
       "placeholder": "claude-opus-4-6\nclaude-opus-4-5-20251101"
     },
     "enableChrome": {
@@ -671,7 +671,7 @@
     },
     "promptSuggestions": {
       "name": "프롬프트 제안 활성화",
-      "desc": "Claude 응답 후 추천 후속 프롬프트를 표시합니다. 세션을 다시 시작해야 합니다."
+      "desc": "Claude Code 응답 후 추천 후속 프롬프트를 표시합니다. 세션을 다시 시작해야 합니다."
     },
     "agentProgressSummaries": {
       "name": "하위 에이전트 실시간 진행 상황 표시",
@@ -712,7 +712,7 @@
       "mainTab": "메인 편집기 탭"
     },
     "cliPath": {
-      "name": "Claude CLI 경로",
+      "name": "Claude Code CLI 경로",
       "desc": "Claude Code CLI의 사용자 정의 경로. 비워두면 자동 감지 사용.",
       "descWindows": "네이티브 설치 프로그램의 경우 claude.exe를 사용하세요. npm/pnpm/yarn 또는 기타 패키지 관리자 설치의 경우 cli-wrapper.cjs 경로를 사용하세요 (claude.cmd가 아님).",
       "descUnix": "\"which claude\"의 출력을 붙여넣으세요 - 네이티브 및 npm/pnpm/yarn 설치 모두에서 작동합니다.",
@@ -746,9 +746,9 @@
       },
       "cliPath": {
         "name": "Codex CLI 경로",
-        "descUnix": "로컬 Codex CLI의 사용자 지정 경로입니다. 비워 두면 알려진 Codex 설치를 먼저 사용한 뒤 PATH를 찾습니다.",
+        "descUnix": "로컬 Codex CLI의 사용자 지정 경로입니다. 비워 두면 알려진 Codex CLI 설치를 먼저 사용한 뒤 PATH를 찾습니다.",
         "descWindows": "로컬 Codex CLI의 사용자 지정 경로입니다. 비워 두면 PATH에서 자동 감지합니다. 일반적으로 `codex.exe`인 네이티브 Windows 실행 파일 경로를 사용하세요.",
-        "descWsl": "WSL 안에서 실행할 Linux 측 Codex 명령 또는 절대 경로입니다. 비워 두면 선택한 배포판의 PATH에서 찾습니다.",
+        "descWsl": "WSL 안에서 실행할 Linux 측 Codex CLI 명령 또는 절대 경로입니다. 비워 두면 선택한 배포판의 PATH에서 찾습니다.",
         "validation": {
           "wslWindowsPath": "WSL 모드에는 Windows 실행 파일 경로가 아니라 Linux 명령 또는 Linux 절대 경로가 필요합니다."
         }
@@ -763,7 +763,7 @@
       },
       "customModels": {
         "name": "사용자 지정 모델",
-        "desc": "추가 Codex 모델 ID를 한 줄에 하나씩 선택기에 추가합니다. `OPENAI_MODEL`이 설정되어 있으면 계속 우선 적용됩니다.",
+        "desc": "추가 Codex CLI 모델 ID를 한 줄에 하나씩 선택기에 추가합니다. `OPENAI_MODEL`이 설정되어 있으면 계속 우선 적용됩니다.",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -776,18 +776,18 @@
       },
       "ultraEffort": {
         "name": "Ultra 추론 강도 활성화",
-        "desc": "Ultra를 지원하는 Codex 모델의 추론 강도 선택기에 표시합니다. Ultra는 최대 추론과 자동 작업 위임을 사용합니다."
+        "desc": "Ultra를 지원하는 Codex CLI 모델의 추론 강도 선택기에 표시합니다. Ultra는 최대 추론과 자동 작업 위임을 사용합니다."
       },
       "skills": {
-        "name": "Codex 스킬",
+        "name": "Codex CLI 스킬",
         "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
         "hiddenName": "숨긴 스킬",
-        "hiddenDesc": "드롭다운에서 특정 Codex 스킬을 숨깁니다. 앞의 $ 없이 스킬 이름을 한 줄에 하나씩 입력하세요.",
+        "hiddenDesc": "드롭다운에서 특정 Codex CLI 스킬을 숨깁니다. 앞의 $ 없이 스킬 이름을 한 줄에 하나씩 입력하세요.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex 하위 에이전트",
-        "desc": ".codex/agents/에 저장된 vault 수준 Codex 하위 에이전트를 관리합니다. 각 TOML 파일은 사용자 지정 에이전트 하나를 정의합니다."
+        "name": "Codex CLI 하위 에이전트",
+        "desc": ".codex/agents/에 저장된 vault 수준 Codex CLI 하위 에이전트를 관리합니다. 각 TOML 파일은 사용자 지정 에이전트 하나를 정의합니다."
       },
       "mcp": {
         "descBeforeCommand": "Codex는 자체 CLI로 MCP 서버를 관리합니다. ",
@@ -795,8 +795,8 @@
         "learnMore": "자세히 알아보기"
       },
       "environment": {
-        "name": "Codex 환경",
-        "desc": "Codex 전용 런타임 변수만 입력하세요. OPENAI_* 및 CODEX_* 설정에 사용합니다. Codex 자동 감지에 도움이 필요하면 이 공급자 섹션 대신 공유 PATH에 설치 디렉터리를 추가하세요."
+        "name": "Codex CLI 환경",
+        "desc": "Codex CLI 전용 런타임 변수만 입력하세요. OPENAI_* 및 CODEX_* 설정에 사용합니다. Codex CLI 자동 감지에 도움이 필요하면 이 공급자 섹션 대신 공유 PATH에 설치 디렉터리를 추가하세요."
       }
     },
     "agentSkills": {
@@ -837,8 +837,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Codex 스킬 편집",
-        "titleAdd": "Codex 스킬 추가",
+        "titleEdit": "Codex CLI 스킬 편집",
+        "titleAdd": "Codex CLI 스킬 추가",
         "directory": "디렉터리",
         "directoryDesc": "스킬을 저장할 위치",
         "skillName": "스킬 이름",
@@ -850,19 +850,19 @@
         "instructionsPlaceholder": "Analyze the code for..."
       },
       "instructionsRequired": "지침은 필수입니다",
-      "saveFailed": "Codex 스킬 저장 실패",
-      "header": "Codex 스킬",
-      "noSkills": "Vault에 Codex 스킬이 없습니다. +를 클릭해 만드세요.",
+      "saveFailed": "Codex CLI 스킬 저장 실패",
+      "header": "Codex CLI 스킬",
+      "noSkills": "Vault에 Codex CLI 스킬이 없습니다. +를 클릭해 만드세요.",
       "skillBadge": "스킬",
-      "deleted": "Codex 스킬 \"{name}\" 삭제됨",
-      "deleteFailed": "Codex 스킬 삭제 실패",
-      "created": "Codex 스킬 \"{name}\" 생성됨",
-      "updated": "Codex 스킬 \"{name}\" 업데이트됨"
+      "deleted": "Codex CLI 스킬 \"{name}\" 삭제됨",
+      "deleteFailed": "Codex CLI 스킬 삭제 실패",
+      "created": "Codex CLI 스킬 \"{name}\" 생성됨",
+      "updated": "Codex CLI 스킬 \"{name}\" 업데이트됨"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Codex 하위 에이전트 편집",
-        "titleAdd": "Codex 하위 에이전트 추가",
+        "titleEdit": "Codex CLI 하위 에이전트 편집",
+        "titleAdd": "Codex CLI 하위 에이전트 추가",
         "nameDesc": "Codex가 생성할 때 사용하는 에이전트 이름(소문자, 하이픈, 밑줄)",
         "descriptionDesc": "Codex가 이 에이전트를 사용해야 하는 시점",
         "modelDesc": "모델 재정의(비워 두면 상속)",
@@ -902,8 +902,8 @@
         "nicknameInvalid": "닉네임 후보는 ASCII 문자, 숫자, 공백, 하이픈, 밑줄만 포함할 수 있습니다",
         "nicknameDuplicate": "닉네임 후보는 고유해야 합니다"
       },
-      "header": "Codex 하위 에이전트",
-      "noAgents": "Vault에 Codex 하위 에이전트가 없습니다. +를 클릭해 만드세요."
+      "header": "Codex CLI 하위 에이전트",
+      "noAgents": "Vault에 Codex CLI 하위 에이전트가 없습니다. +를 클릭해 만드세요."
     },
     "providerArguments": {
       "name": "추가 CLI 인수",

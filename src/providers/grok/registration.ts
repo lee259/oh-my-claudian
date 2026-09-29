@@ -33,7 +33,7 @@ export const grokProviderRegistration: ProviderModule = {
       : '';
     return model && isGrokModelSelectionId(model) ? model : undefined;
   },
-  displayName: 'Grok',
+  displayName: 'Grok Build',
   environmentKeyPatterns: [/^GROK_/i, /^XAI_/i],
   historyService: new GrokConversationHistoryService(),
   isEnabled: settings => getGrokProviderSettings(settings).enabled,

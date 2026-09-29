@@ -328,7 +328,7 @@ describe('GrokModelCatalogCoordinator', () => {
 
     await expect(operation).rejects.toMatchObject({
       cause: failure,
-      message: 'Grok metadata operation failed',
+      message: 'Grok Build metadata operation failed',
     });
     coordinator.dispose();
   });
@@ -836,7 +836,7 @@ describe('GrokModelCatalogCoordinator', () => {
     const other = makeCatalog({ fingerprint: 'other-host-fingerprint' });
     const host = makeHost({ catalog: cached, otherHostCatalog: other });
     const service = makeService(completedResult({
-      diagnostics: 'Grok models timed out',
+      diagnostics: 'Grok Build models timed out',
       models: [],
     }));
     const coordinator = new GrokModelCatalogCoordinator(host, service);
@@ -844,7 +844,7 @@ describe('GrokModelCatalogCoordinator', () => {
     await expect(coordinator.refresh()).resolves.toMatchObject({
       catalog: cached,
       changed: false,
-      diagnostics: 'Grok models timed out',
+      diagnostics: 'Grok Build models timed out',
       persistedSettingsChanged: false,
     });
     expect(getCurrentGrokCatalog(host.settings)).toEqual(cached);

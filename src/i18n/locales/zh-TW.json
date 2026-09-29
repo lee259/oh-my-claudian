@@ -298,8 +298,8 @@
     },
     "tabs": {
       "general": "一般",
-      "claude": "Claude",
-      "codex": "Codex"
+      "claude": "Claude Code",
+      "codex": "Codex CLI"
     },
     "omp": {
       "setup": "設定",
@@ -338,10 +338,10 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
       "environment": {
-        "name": "Grok 環境變數",
-        "desc": "僅傳遞給 Grok 的環境變數。自訂模型的密鑰保留在此提供者範圍內，並在原生設定中透過 env_key 參照。"
+        "name": "Grok Build 環境變數",
+        "desc": "僅傳遞給 Grok Build 的環境變數。自訂模型的密鑰保留在此提供者範圍內，並在原生設定中透過 env_key 參照。"
       }
     },
     "opencode": {
@@ -479,7 +479,7 @@
     },
     "mediaFolder": {
       "name": "媒體資料夾",
-      "desc": "存放附件/圖片的資料夾。當筆記使用 ![[image.jpg]] 時，Claude 會在此查找。留空使用儲存庫根目錄。"
+      "desc": "存放附件/圖片的資料夾。當筆記使用 ![[image.jpg]] 時，Claude Code 會在此查找。留空使用儲存庫根目錄。"
     },
     "systemPrompt": {
       "name": "自訂系統提示詞",
@@ -604,7 +604,7 @@
     },
     "safety": "安全",
     "loadUserSettings": {
-      "name": "載入使用者 Claude 設定",
+      "name": "載入使用者 Claude Code 設定",
       "desc": "載入 ~/.claude/settings.json。啟用後，使用者的 Claude Code 權限規則可能繞過安全模式。"
     },
     "claudeSafeMode": {
@@ -618,7 +618,7 @@
     "environment": "環境",
     "customVariables": {
       "name": "自訂變數",
-      "desc": "Claude SDK 的環境變數（KEY=VALUE 格式，每行一個）。支援 export 前綴。"
+      "desc": "Claude Code SDK 的環境變數（KEY=VALUE 格式，每行一個）。支援 export 前綴。"
     },
     "envSnippets": {
       "name": "片段",
@@ -662,20 +662,20 @@
     },
     "customModels": {
       "name": "自訂模型",
-      "desc": "向選擇器追加額外的 Claude 模型 ID，每行一個。環境中的模型覆寫仍會取代選擇器。",
+      "desc": "向選擇器追加額外的 Claude Code 模型 ID，每行一個。環境中的模型覆寫仍會取代選擇器。",
       "placeholder": "claude-opus-4-6\nclaude-opus-4-5-20251101"
     },
     "enableChrome": {
       "name": "啟用 Chrome 擴充功能",
-      "desc": "允許 Claude 透過 claude-in-chrome 擴充功能與 Chrome 互動。需要安裝該擴充功能。需要重新啟動工作階段。"
+      "desc": "允許 Claude Code 透過 claude-in-chrome 擴充功能與 Chrome 互動。需要安裝該擴充功能。需要重新啟動工作階段。"
     },
     "promptSuggestions": {
       "name": "啟用提示建議",
-      "desc": "在 Claude 回覆後顯示建議的後續提示。需要重新啟動會話。"
+      "desc": "在 Claude Code 回覆後顯示建議的後續提示。需要重新啟動會話。"
     },
     "agentProgressSummaries": {
       "name": "顯示子代理即時進度",
-      "desc": "讓 Claude 定期產生執行中子代理的進度摘要，會增加額外模型呼叫。需要重新啟動會話。"
+      "desc": "讓 Claude Code 定期產生執行中子代理的進度摘要，會增加額外模型呼叫。需要重新啟動會話。"
     },
     "enableBangBash": {
       "name": "啟用 bash 模式 (!)",
@@ -690,7 +690,7 @@
     },
     "enableAutoScroll": {
       "name": "串流傳輸時自動捲動",
-      "desc": "在 Claude 串流傳輸回應時自動捲動到底部。停用後將停留在頂部，從頭開始閱讀。"
+      "desc": "在 Claude Code 串流傳輸回應時自動捲動到底部。停用後將停留在頂部，從頭開始閱讀。"
     },
     "showTabTitlesByDefault": {
       "name": "預設顯示分頁標題",
@@ -712,7 +712,7 @@
       "mainTab": "主編輯器分頁"
     },
     "cliPath": {
-      "name": "Claude CLI 路徑",
+      "name": "Claude Code CLI 路徑",
       "desc": "Claude Code CLI 的自訂路徑。留空使用自動檢測。",
       "descWindows": "對於原生安裝程式，使用 claude.exe。對於 npm/pnpm/yarn 或其他套件管理器安裝，使用 cli-wrapper.cjs 路徑（不是 claude.cmd）。",
       "descUnix": "貼上 \"which claude\" 的輸出 - 適用於原生安裝和 npm/pnpm/yarn 安裝。",
@@ -740,15 +740,15 @@
     "codex": {
       "installationMethod": {
         "name": "安裝方式",
-        "desc": "Oh My Claudian 在 Windows 上啟動 Codex 的方式。原生 Windows 使用 Windows 可執行檔路徑；WSL 會在所選發行版內啟動 Linux CLI。",
+        "desc": "Oh My Claudian 在 Windows 上啟動 Codex CLI 的方式。原生 Windows 使用 Windows 可執行檔路徑；WSL 會在所選發行版內啟動 Linux CLI。",
         "nativeWindows": "原生 Windows",
         "wsl": "WSL"
       },
       "cliPath": {
         "name": "Codex CLI 路徑",
-        "descUnix": "本機 Codex CLI 的自訂路徑。留空會優先使用已知 Codex 安裝，然後查找 PATH。",
+        "descUnix": "本機 Codex CLI 的自訂路徑。留空會優先使用已知 Codex CLI 安裝，然後查找 PATH。",
         "descWindows": "本機 Codex CLI 的自訂路徑。留空會從 PATH 自動偵測。請使用原生 Windows 可執行檔路徑，通常為 `codex.exe`。",
-        "descWsl": "在 WSL 內執行的 Linux 端 Codex 命令或絕對路徑。留空會在所選發行版內查找 PATH。",
+        "descWsl": "在 WSL 內執行的 Linux 端 Codex CLI 命令或絕對路徑。留空會在所選發行版內查找 PATH。",
         "validation": {
           "wslWindowsPath": "WSL 模式需要 Linux 命令或 Linux 絕對路徑，而不是 Windows 可執行檔路徑。"
         }
@@ -763,7 +763,7 @@
       },
       "customModels": {
         "name": "自訂模型",
-        "desc": "向選擇器追加額外的 Codex 模型 ID，每行一個。設定 `OPENAI_MODEL` 時仍優先生效。",
+        "desc": "向選擇器追加額外的 Codex CLI 模型 ID，每行一個。設定 `OPENAI_MODEL` 時仍優先生效。",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -776,27 +776,27 @@
       },
       "ultraEffort": {
         "name": "啟用 Ultra 推理強度",
-        "desc": "在支援 Ultra 的 Codex 模型的推理強度選擇器中顯示此選項。Ultra 使用最高推理強度並自動委派工作。"
+        "desc": "在支援 Ultra 的 Codex CLI 模型的推理強度選擇器中顯示此選項。Ultra 使用最高推理強度並自動委派工作。"
       },
       "skills": {
-        "name": "Codex 技能",
+        "name": "Codex CLI 技能",
         "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
         "hiddenName": "隱藏技能",
-        "hiddenDesc": "從下拉選單中隱藏特定 Codex 技能。每行輸入一個技能名稱，不帶前導 $。",
+        "hiddenDesc": "從下拉選單中隱藏特定 Codex CLI 技能。每行輸入一個技能名稱，不帶前導 $。",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex 子代理",
-        "desc": "管理儲存在 .codex/agents/ 中的 Vault 層級 Codex 子代理。每個 TOML 檔案定義一個自訂代理。"
+        "name": "Codex CLI 子代理",
+        "desc": "管理儲存在 .codex/agents/ 中的 Vault 層級 Codex CLI 子代理。每個 TOML 檔案定義一個自訂代理。"
       },
       "mcp": {
-        "descBeforeCommand": "Codex 透過自己的 CLI 管理 MCP 伺服器。請使用 ",
+        "descBeforeCommand": "Codex CLI 透過自己的 CLI 管理 MCP 伺服器。請使用 ",
         "descAfterCommand": " 進行設定，它們會在 Oh My Claudian 中可用。",
         "learnMore": "了解更多"
       },
       "environment": {
-        "name": "Codex 環境",
-        "desc": "僅限 Codex 擁有的執行階段變數。用於 OPENAI_* 和 CODEX_* 設定。如果 Codex 自動偵測需要協助，請把安裝目錄新增到共享 PATH，而不是此提供者環境。"
+        "name": "Codex CLI 環境",
+        "desc": "僅限 Codex CLI 擁有的執行階段變數。用於 OPENAI_* 和 CODEX_* 設定。如果 Codex CLI 自動偵測需要協助，請把安裝目錄新增到共享 PATH，而不是此提供者環境。"
       }
     },
     "agentSkills": {
@@ -837,8 +837,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "編輯 Codex 技能",
-        "titleAdd": "新增 Codex 技能",
+        "titleEdit": "編輯 Codex CLI 技能",
+        "titleAdd": "新增 Codex CLI 技能",
         "directory": "目錄",
         "directoryDesc": "技能的儲存位置",
         "skillName": "技能名稱",
@@ -850,21 +850,21 @@
         "instructionsPlaceholder": "Analyze the code for..."
       },
       "instructionsRequired": "指令為必填項",
-      "saveFailed": "儲存 Codex 技能失敗",
-      "header": "Codex 技能",
-      "noSkills": "Vault 中沒有 Codex 技能。點擊 + 建立一個。",
+      "saveFailed": "儲存 Codex CLI 技能失敗",
+      "header": "Codex CLI 技能",
+      "noSkills": "Vault 中沒有 Codex CLI 技能。點擊 + 建立一個。",
       "skillBadge": "技能",
-      "deleted": "已刪除 Codex 技能「{name}」",
-      "deleteFailed": "刪除 Codex 技能失敗",
-      "created": "已建立 Codex 技能「{name}」",
-      "updated": "已更新 Codex 技能「{name}」"
+      "deleted": "已刪除 Codex CLI 技能「{name}」",
+      "deleteFailed": "刪除 Codex CLI 技能失敗",
+      "created": "已建立 Codex CLI 技能「{name}」",
+      "updated": "已更新 Codex CLI 技能「{name}」"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "編輯 Codex 子代理",
-        "titleAdd": "新增 Codex 子代理",
-        "nameDesc": "Codex 衍生代理時使用的代理名稱（小寫、連字符、底線）",
-        "descriptionDesc": "Codex 應在何時使用該代理",
+        "titleEdit": "編輯 Codex CLI 子代理",
+        "titleAdd": "新增 Codex CLI 子代理",
+        "nameDesc": "Codex CLI 衍生代理時使用的代理名稱（小寫、連字符、底線）",
+        "descriptionDesc": "Codex CLI 應在何時使用該代理",
         "modelDesc": "模型覆寫（留空表示繼承）",
         "namePlaceholder": "code_reviewer"
       },
@@ -902,8 +902,8 @@
         "nicknameInvalid": "暱稱候選只能包含 ASCII 字母、數字、空格、連字符和底線",
         "nicknameDuplicate": "暱稱候選必須唯一"
       },
-      "header": "Codex 子代理",
-      "noAgents": "Vault 中沒有 Codex 子代理。點擊 + 建立一個。"
+      "header": "Codex CLI 子代理",
+      "noAgents": "Vault 中沒有 Codex CLI 子代理。點擊 + 建立一個。"
     },
     "providerArguments": {
       "name": "額外 CLI 參數",
