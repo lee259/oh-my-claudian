@@ -891,6 +891,26 @@
       "desc": "每行填写一个参数。每行会作为独立参数原样传递，不经过 shell 展开。",
       "placeholder": "--extension\n/扩展文件路径\n--verbose",
       "heading": "高级"
+    },
+    "diagnostics": {
+      "title": "诊断",
+      "desc": "用于排查 Provider 会话问题的本地日志。",
+      "logging": {
+        "name": "保存 Provider 调试日志",
+        "desc": "按日记录启动参数、Provider 标准错误输出和 Claudian 捕获到的错误。默认关闭；日志可能包含敏感内容。"
+      },
+      "directory": {
+        "name": "日志目录",
+        "desc": "留空使用 ~/.claudian/diagnostics。可填写绝对路径或相对于用户主目录的路径。",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "日志文件",
+        "desc": "打开配置的诊断日志目录。",
+        "button": "打开目录",
+        "error": "无法打开诊断日志目录。"
+      },
+      "openCommandName": "打开 Provider 诊断日志"
     }
   }
 }

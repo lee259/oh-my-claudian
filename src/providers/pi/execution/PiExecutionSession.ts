@@ -728,6 +728,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       enableTreeBridge: !this.shouldDisableNativePersistence(),
       noSession: this.shouldDisableNativePersistence(),
       noTools: toolProfile.noTools,
+      verbose: this.host.settings.providerDiagnosticLogsEnabled === true,
       tools: toolProfile.tools,
       providerState: getPiState(this.providerState),
       settings: {
@@ -834,6 +835,9 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     const kernel = this.options.createKernel(
       launchSpec,
       {
+        onDiagnostic: record => {
+          void this.host.diagnosticLog?.write(record).catch(() => undefined);
+        },
         onClose: error => this.handleKernelClose(kernel, generation, error),
         onEvent: event => this.handleRpcEvent(kernel, generation, event),
         onExtensionChunk: chunk =>
@@ -1403,6 +1407,11 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         : undefined),
       this.kernel?.getStderrSnapshot(),
     );
+    void this.host.diagnosticLog?.write({
+      event: 'execution-error',
+      message: error instanceof Error ? error.message : String(error),
+      source: 'pi',
+    }).catch(() => undefined);
     if (details.category === 'configuration') {
       this.setStatus('idle');
     } else {

@@ -57,6 +57,7 @@ export interface FeatureHost {
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void>;
+  openProviderDiagnosticLogDirectory(): Promise<void>;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
   getAgentSkillResourceGeneration(): number;
   notifyAgentSkillsChanged(): Promise<void>;

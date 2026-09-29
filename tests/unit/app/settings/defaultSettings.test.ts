@@ -8,4 +8,9 @@ describe('DEFAULT_CLAUDIAN_SETTINGS', () => {
   it('enables Claudian system instructions by default', () => {
     expect(DEFAULT_CLAUDIAN_SETTINGS.useClaudianSystemPrompt).toBe(true);
   });
+
+  it('keeps provider diagnostic logging disabled with a default log directory', () => {
+    expect(DEFAULT_CLAUDIAN_SETTINGS.providerDiagnosticLogsEnabled).toBe(false);
+    expect(DEFAULT_CLAUDIAN_SETTINGS.providerDiagnosticLogDirectory).toBe('');
+  });
 });

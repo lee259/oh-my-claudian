@@ -891,6 +891,26 @@
       "desc": "One argument per line. Each line is passed literally without shell expansion.",
       "placeholder": "--extension\n/path/to/extension\n--verbose",
       "heading": "Advanced"
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "desc": "Local troubleshooting logs for provider sessions.",
+      "logging": {
+        "name": "Save provider debug logs",
+        "desc": "Record launch arguments, provider stderr, and captured Claudian errors in daily files. Off by default; logs may contain sensitive content."
+      },
+      "directory": {
+        "name": "Log folder",
+        "desc": "Leave blank for ~/.claudian/diagnostics. Use an absolute path or a path relative to your home folder.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "Log files",
+        "desc": "Open the configured diagnostic log folder.",
+        "button": "Open folder",
+        "error": "Could not open the diagnostic log folder."
+      },
+      "openCommandName": "Open provider diagnostic logs"
     }
   }
 }

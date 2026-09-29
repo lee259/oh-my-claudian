@@ -891,6 +891,26 @@
       "desc": "Un argumento por línea. Cada línea se pasa literalmente, sin expansión de shell.",
       "placeholder": "--extension\n/ruta/a/la/extensión\n--verbose",
       "heading": "Avanzado"
+    },
+    "diagnostics": {
+      "title": "Diagnóstico",
+      "desc": "Registros locales para solucionar problemas de sesiones del proveedor.",
+      "logging": {
+        "name": "Guardar registros de depuración del proveedor",
+        "desc": "Registra diariamente los argumentos de inicio, la salida de error del proveedor y los errores capturados por Claudian. Está desactivado de forma predeterminada; los registros pueden contener datos sensibles."
+      },
+      "directory": {
+        "name": "Carpeta de registros",
+        "desc": "Déjalo vacío para usar ~/.claudian/diagnostics. Indica una ruta absoluta o relativa a tu carpeta personal.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "Archivos de registro",
+        "desc": "Abre la carpeta de diagnóstico configurada.",
+        "button": "Abrir carpeta",
+        "error": "No se pudo abrir la carpeta de registros de diagnóstico."
+      },
+      "openCommandName": "Abrir registros de diagnóstico del proveedor"
     }
   }
 }

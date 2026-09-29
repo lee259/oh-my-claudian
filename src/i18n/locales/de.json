@@ -891,6 +891,26 @@
       "desc": "Ein Argument pro Zeile. Jede Zeile wird ohne Shell-Erweiterung als einzelnes Argument übergeben.",
       "placeholder": "--extension\n/Pfad/zur/Erweiterung\n--verbose",
       "heading": "Erweitert"
+    },
+    "diagnostics": {
+      "title": "Diagnose",
+      "desc": "Lokale Protokolle zur Fehlersuche bei Provider-Sitzungen.",
+      "logging": {
+        "name": "Provider-Debugprotokolle speichern",
+        "desc": "Startargumente, Provider-Fehlerausgabe und von Claudian erfasste Fehler werden täglich protokolliert. Standardmäßig deaktiviert; Protokolle können sensible Inhalte enthalten."
+      },
+      "directory": {
+        "name": "Protokollordner",
+        "desc": "Leer lassen für ~/.claudian/diagnostics. Absoluten Pfad oder Pfad relativ zum Benutzerverzeichnis eingeben.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "Protokolldateien",
+        "desc": "Den konfigurierten Diagnoseordner öffnen.",
+        "button": "Ordner öffnen",
+        "error": "Der Diagnoseordner konnte nicht geöffnet werden."
+      },
+      "openCommandName": "Provider-Diagnoseprotokolle öffnen"
     }
   }
 }

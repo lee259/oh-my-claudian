@@ -891,6 +891,26 @@
       "desc": "Un argument par ligne. Chaque ligne est transmise telle quelle, sans expansion du shell.",
       "placeholder": "--extension\n/chemin/vers/extension\n--verbose",
       "heading": "Avancé"
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "desc": "Journaux locaux pour diagnostiquer les sessions des fournisseurs.",
+      "logging": {
+        "name": "Enregistrer les journaux de débogage des fournisseurs",
+        "desc": "Enregistre chaque jour les arguments de lancement, la sortie d’erreur du fournisseur et les erreurs détectées par Claudian. Désactivé par défaut ; les journaux peuvent contenir des données sensibles."
+      },
+      "directory": {
+        "name": "Dossier des journaux",
+        "desc": "Laisser vide pour utiliser ~/.claudian/diagnostics. Saisir un chemin absolu ou relatif au dossier personnel.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "Fichiers journaux",
+        "desc": "Ouvrir le dossier de journaux configuré.",
+        "button": "Ouvrir le dossier",
+        "error": "Impossible d’ouvrir le dossier des journaux de diagnostic."
+      },
+      "openCommandName": "Ouvrir les journaux de diagnostic des fournisseurs"
     }
   }
 }

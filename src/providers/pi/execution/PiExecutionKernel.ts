@@ -2,7 +2,12 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 
+import {
+  type ProviderDiagnosticLogRecord,
+  ProviderDiagnosticStreamBuffer,
+} from '../../../core/providers/ProviderDiagnosticLog';
 import type { StreamChunk } from '../../../core/types';
 import {
   PiExtensionUiBridge,
@@ -17,6 +22,7 @@ import { PiSubprocess } from '../runtime/PiSubprocess';
 import { isPiTreeResponse, PI_TREE_EXTENSION_SOURCE, requestPiTree } from '../runtime/PiTreeBridge';
 
 export interface PiExecutionKernelCallbacks {
+  onDiagnostic?(record: ProviderDiagnosticLogRecord): void;
   onClose(error?: Error): void;
   onEvent(event: PiRpcRecord): void;
   onExtensionChunk(chunk: StreamChunk): void;
@@ -52,6 +58,9 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
   private started = false;
   private shutdownPromise: Promise<void> | null = null;
   private treeExtensionDirectory: string | null = null;
+  private effectiveLaunchSpec: PiLaunchSpec;
+  private readonly stderrDecoder = new StringDecoder('utf8');
+  private readonly stderrLogBuffer = new ProviderDiagnosticStreamBuffer();
 
   constructor(
     readonly launchSpec: PiLaunchSpec,
@@ -71,6 +80,7 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
         throw error;
       }
     }
+    this.effectiveLaunchSpec = processSpec;
     this.subprocess = new PiSubprocess(processSpec);
     this.extensionUiRenderer = extensionUiRenderer;
   }
@@ -81,6 +91,28 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
     if (this.started) return;
     this.started = true;
     this.subprocess.start();
+    this.callbacks.onDiagnostic?.({
+      args: this.effectiveLaunchSpec.args,
+      command: this.effectiveLaunchSpec.command,
+      cwd: this.effectiveLaunchSpec.cwd,
+      event: 'process-started',
+      source: 'pi',
+    });
+    this.subprocess.stderr.on('data', (chunk: Buffer | string) => {
+      const message = this.stderrDecoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      this.writeStderrDiagnostics(this.stderrLogBuffer.write(message));
+    });
+    this.subprocess.onCloseState((state) => {
+      this.writeStderrDiagnostics(this.stderrLogBuffer.write(this.stderrDecoder.end()));
+      this.writeStderrDiagnostics(this.stderrLogBuffer.end());
+      this.callbacks.onDiagnostic?.({
+        event: 'process-exited',
+        exitCode: state.code,
+        ...(state.error ? { message: state.error.message } : {}),
+        signal: state.signal,
+        source: 'pi',
+      });
+    });
     const transport = new PiRpcTransport({
       input: this.subprocess.stdout,
       onClose: listener => this.subprocess.onClose(listener),
@@ -155,6 +187,16 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
       throw new Error('Pi execution kernel is not started');
     }
     return this.transport;
+  }
+
+  private writeStderrDiagnostics(messages: readonly string[]): void {
+    for (const message of messages) {
+      this.callbacks.onDiagnostic?.({
+        event: 'process-stderr',
+        message,
+        source: 'pi',
+      });
+    }
   }
 }
 

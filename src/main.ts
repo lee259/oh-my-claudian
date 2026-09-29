@@ -17,6 +17,7 @@ import {
   createConversationMetadataShell,
   SessionMetadataCoordinator,
 } from './app/conversations/SessionMetadataCoordinator';
+import { ProviderDiagnosticLogService } from './app/diagnostics/ProviderDiagnosticLogService';
 import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdapter';
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
@@ -37,6 +38,7 @@ import {
   ProviderExecutionLifecycleRegistry,
   type ProviderExecutionTransitionScope,
 } from './core/execution';
+import { stringifyDiagnosticError } from './core/providers/ProviderDiagnostics';
 import {
   getEnvironmentVariablesForScope as getScopedEnvironmentVariables,
   getRuntimeEnvironmentText,
@@ -71,7 +73,7 @@ import {
 import { registerFileMenu } from './features/chat/fileMenu';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
-import { resolveLocale, setLocale } from './i18n/i18n';
+import { resolveLocale, setLocale, t } from './i18n/i18n';
 import { buildCursorContext } from './utils/editor';
 import { getObsidianLanguage, revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
@@ -101,6 +103,7 @@ export default class ClaudianPlugin extends Plugin {
   storage!: SharedAppStorage;
   readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
   readonly executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
+  readonly diagnosticLog = new ProviderDiagnosticLogService(() => this.settings);
   readonly providerHost = new ClaudianProviderHost(this);
   readonly warmExecutionPool = new WarmExecutionPool(
     () => this.settings?.maxWarmAgentProcesses ?? DEFAULT_MAX_WARM_AGENT_PROCESSES,
@@ -150,6 +153,23 @@ export default class ClaudianPlugin extends Plugin {
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
       );
+      this.registerDomEvent(window, 'error', (event) => {
+        const location = event.filename
+          ? ` (${event.filename}:${event.lineno}:${event.colno})`
+          : '';
+        void this.diagnosticLog.write({
+          event: 'uncaught-exception',
+          message: `${event.error ? stringifyDiagnosticError(event.error) : event.message}${location}`,
+          source: 'claudian',
+        }).catch(() => undefined);
+      });
+      this.registerDomEvent(window, 'unhandledrejection', (event) => {
+        void this.diagnosticLog.write({
+          event: 'unhandled-rejection',
+          message: stringifyDiagnosticError(event.reason),
+          source: 'claudian',
+        }).catch(() => undefined);
+      });
       // Provider workspace services are initialized lazily on first use.
 
       this.registerView(
@@ -285,6 +305,16 @@ export default class ClaudianPlugin extends Plugin {
         },
       });
 
+      this.addCommand({
+        id: 'open-provider-diagnostic-logs',
+        name: t('settings.diagnostics.openCommandName'),
+        callback: () => {
+          void this.openProviderDiagnosticLogDirectory().catch(() => {
+            new Notice(t('settings.diagnostics.openFolder.error'));
+          });
+        },
+      });
+
       this.addSettingTab(new ClaudianSettingTab(this.app, this));
       this.scheduleRemainingSessionMetadataLoad();
     } finally {
@@ -299,11 +329,22 @@ export default class ClaudianPlugin extends Plugin {
       this.sessionMetadataLoadTimer = null;
     }
     StartupProfiler.freeze();
+    void this.diagnosticLog.flush();
     void Promise.all(
       this.getAllViews().map(view => view.flushCurrentTabState()),
     ).catch(() => undefined);
     void this.executionLifecycleRegistry.dispose();
     void ProviderWorkspaceRegistry.disposeInitialized();
+  }
+
+  async openProviderDiagnosticLogDirectory(): Promise<void> {
+    const directory = await this.diagnosticLog.ensureDirectory();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Electron is only available in Obsidian's renderer runtime.
+    const electron = require('electron') as {
+      shell: { openPath(path: string): Promise<string> };
+    };
+    const error = await electron.shell.openPath(directory);
+    if (error) throw new Error(error);
   }
 
   async activateView() {

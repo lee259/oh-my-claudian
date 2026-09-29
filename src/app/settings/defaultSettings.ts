@@ -51,6 +51,8 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   lastCustomModel: '',
 
   maxWarmAgentProcesses: 5,
+  providerDiagnosticLogsEnabled: false,
+  providerDiagnosticLogDirectory: '',
   enableAutoScroll: true,
   showTabTitlesByDefault: false,
   deferMathRenderingDuringStreaming: true,
