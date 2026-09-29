@@ -95,11 +95,10 @@ describe('transformSDKMessage', () => {
             inputTokens: 0,
             cacheCreationInputTokens: 0,
             cacheReadInputTokens: 0,
-            contextWindow: 200000,
-            contextWindowIsAuthoritative: true,
+            contextWindow: 0,
             contextUsageSnapshot: true,
             contextTokens: 95000,
-            percentage: 48,
+            percentage: 0,
           },
         },
       ]);
@@ -1447,6 +1446,42 @@ describe('transformSDKMessage', () => {
 
       expect(results).toEqual([
         { type: 'context_window', contextWindow: 200000, model: 'custom-main-model' },
+      ]);
+    });
+
+    it('matches provider-specific model keys through canonicalModel', () => {
+      const message = msg({
+        type: 'result',
+        modelUsage: {
+          'us.anthropic.claude-sonnet-4-5-v2:0': {
+            inputTokens: 1000,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            outputTokens: 300,
+            webSearchRequests: 0,
+            costUSD: 0.01,
+            contextWindow: 200000,
+            maxOutputTokens: 8192,
+            canonicalModel: 'claude-sonnet-4-5',
+          },
+          'claude-opus-4-6': {
+            inputTokens: 1000,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            outputTokens: 300,
+            webSearchRequests: 0,
+            costUSD: 0.02,
+            contextWindow: 1000000,
+            maxOutputTokens: 32000,
+            canonicalModel: 'claude-opus-4-6',
+          },
+        },
+      });
+
+      const results = [...transformSDKMessage(message, { intendedModel: 'claude-sonnet-4-5' })];
+
+      expect(results).toEqual([
+        { type: 'context_window', contextWindow: 200000, model: 'us.anthropic.claude-sonnet-4-5-v2:0' },
       ]);
     });
 
