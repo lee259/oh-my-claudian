@@ -161,7 +161,7 @@ export class ClaudianView extends ItemView {
         providerSettings,
       );
 
-      if (tab.state.usage) {
+      if (tab.state.usage?.model === model) {
         tab.state.usage = recalculateUsageForModel(
           tab.state.usage,
           model,

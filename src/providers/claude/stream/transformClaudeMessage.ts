@@ -157,6 +157,12 @@ export interface TransformUsageState {
 interface ContextWindowEntry {
   model: string;
   contextWindow: number;
+  canonicalModel?: string;
+}
+
+interface ModelUsageEntry {
+  contextWindow?: number;
+  canonicalModel?: string;
 }
 
 interface ClaudeModelSignature {
@@ -255,13 +261,13 @@ function matchClaudeModelSignature(
 }
 
 function selectContextWindowEntry(
-  modelUsage: Record<string, { contextWindow?: number }>,
+  modelUsage: Record<string, ModelUsageEntry>,
   intendedModel?: string
 ): ContextWindowEntry | null {
   const entries: ContextWindowEntry[] = Object.entries(modelUsage)
     .flatMap(([model, usage]) =>
       typeof usage?.contextWindow === 'number' && usage.contextWindow > 0
-        ? [{ model, contextWindow: usage.contextWindow }]
+        ? [{ model, contextWindow: usage.contextWindow, canonicalModel: usage.canonicalModel }]
         : []
     );
 
@@ -286,6 +292,15 @@ function selectContextWindowEntry(
   const exactMatch = findUniqueEntry(entries, (entry) => normalizeClaudeModelId(entry.model) === normalizedIntendedModel);
   if (exactMatch) {
     return exactMatch;
+  }
+
+  const canonicalMatch = findUniqueEntry(
+    entries,
+    (entry) => entry.canonicalModel !== undefined
+      && normalizeClaudeModelId(entry.canonicalModel) === normalizedIntendedModel,
+  );
+  if (canonicalMatch) {
+    return canonicalMatch;
   }
 
   if (!isDefaultClaudeModel(intendedModel)) {
@@ -396,11 +411,12 @@ function buildStructuredContextUsageInfo(
     inputTokens: promptUsage.inputTokens,
     cacheCreationInputTokens: promptUsage.cacheCreationInputTokens,
     cacheReadInputTokens: promptUsage.cacheReadInputTokens,
-    contextWindow: contextUsage.raw_max_tokens,
-    contextWindowIsAuthoritative: true,
+    // raw_max_tokens is the resolved auto-compaction window, which may be
+    // smaller than the model's actual context window. Wait for modelUsage.
+    contextWindow: 0,
     contextUsageSnapshot: true,
     contextTokens: contextUsage.total_tokens,
-    percentage: Math.min(100, Math.max(0, contextUsage.percentage)),
+    percentage: 0,
   };
 }
 
@@ -714,7 +730,7 @@ export function* transformSDKMessage(
       // Result message usage is aggregated across main + subagents, causing inaccurate spikes
 
       if ('modelUsage' in message && message.modelUsage) {
-        const modelUsage = message.modelUsage as Record<string, { contextWindow?: number }>;
+        const modelUsage = message.modelUsage as Record<string, ModelUsageEntry>;
         const selectedEntry = selectContextWindowEntry(modelUsage, options?.intendedModel);
         if (selectedEntry) {
           yield {
