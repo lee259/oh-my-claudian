@@ -41,6 +41,11 @@ export function initializeTabPresentationControllers(
       : undefined,
     options.getCapabilities,
     () => viewHost.getWelcomeHomeOptions?.(),
+    {
+      navigate: (messageId, branchMessageId) => tab.controllers.conversationController!
+        .navigateBranch(messageId, branchMessageId),
+      isBusy: () => tab.state.isStreaming || tab.state.isRewinding || tab.state.isSwitchingConversation,
+    },
   );
 
   tab.controllers.selectionController = new SelectionController(

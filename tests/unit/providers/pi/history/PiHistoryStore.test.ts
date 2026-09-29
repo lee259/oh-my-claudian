@@ -49,6 +49,24 @@ describe('PiHistoryStore', () => {
     });
   });
 
+  it('annotates visible prompts with their sibling Pi branches', () => {
+    const content = [
+      JSON.stringify({ id: 'u1', parentId: null, type: 'message', message: { role: 'user', content: 'First prompt' } }),
+      JSON.stringify({ id: 'a1', parentId: 'u1', type: 'message', message: { role: 'assistant', content: [{ type: 'text', text: 'First answer' }] } }),
+      JSON.stringify({ id: 'u2', parentId: 'a1', type: 'message', message: { role: 'user', content: 'Alternative A' } }),
+      JSON.stringify({ id: 'a2', parentId: 'u2', type: 'message', message: { role: 'assistant', content: [{ type: 'text', text: 'Answer A' }] } }),
+      JSON.stringify({ id: 'u3', parentId: 'a1', type: 'message', message: { role: 'user', content: 'Alternative B' } }),
+      JSON.stringify({ id: 'a3', parentId: 'u3', type: 'message', message: { role: 'assistant', content: [{ type: 'text', text: 'Answer B' }] } }),
+    ].join('\n');
+
+    expect(parsePiSessionContent(content, { leafEntryId: 'a3' })).toMatchObject([
+      { content: 'First prompt', userMessageId: 'u1' },
+      { content: 'First answer' },
+      { content: 'Alternative B', treeBranches: ['u2', 'u3'], userMessageId: 'u3' },
+      { content: 'Answer B' },
+    ]);
+  });
+
   it('preserves hidden XML context wrappers in raw user content', () => {
     const content = [
       JSON.stringify({

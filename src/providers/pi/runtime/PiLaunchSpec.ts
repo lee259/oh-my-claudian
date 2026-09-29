@@ -7,6 +7,7 @@ export interface BuildPiLaunchSpecParams {
   cwd: string;
   env?: NodeJS.ProcessEnv;
   envText?: string;
+  enableTreeBridge?: boolean;
   model?: string | null;
   noSession?: boolean;
   noTools?: boolean;
@@ -18,6 +19,7 @@ export interface BuildPiLaunchSpecParams {
 }
 
 export interface PiLaunchSpec {
+  enableTreeBridge?: boolean;
   args: string[];
   command: string;
   cwd: string;
@@ -65,6 +67,7 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
   }
 
   return {
+    ...(params.enableTreeBridge ? { enableTreeBridge: true } : {}),
     args,
     command: params.command,
     cwd: params.cwd,

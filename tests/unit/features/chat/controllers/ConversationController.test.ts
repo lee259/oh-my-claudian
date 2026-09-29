@@ -110,6 +110,42 @@ describe('ConversationController', () => {
     controller = new ConversationController(deps);
   });
 
+  describe('Pi branch preview', () => {
+    it('previews a saved prompt in the composer and restores the prior draft on Escape', async () => {
+      const inputEl = { value: '', focus: jest.fn() } as unknown as HTMLTextAreaElement;
+      const restoreMessageToComposer = jest.fn();
+      deps = createMockDeps({
+        getInputEl: () => inputEl,
+        getImageContextManager: () => ({ getAttachedImages: () => [], clearImages: jest.fn() }) as any,
+        restoreMessageToComposer,
+        getExecutionCoordinator: () => ({ supportsConversationBranches: true }) as any,
+      });
+      controller = new ConversationController(deps);
+      deps.state.currentConversationId = 'current';
+      deps.state.messages = [
+        { id: 'u1', role: 'user', content: 'first', timestamp: 1, userMessageId: 'pi-u1' },
+        { id: 'a1', role: 'assistant', content: 'reply', timestamp: 2 },
+        { id: 'u2', role: 'user', content: 'second', timestamp: 3, userMessageId: 'pi-u2' },
+      ];
+
+      await controller.navigateBranch('u2');
+
+      expect(deps.renderer.renderMessages).toHaveBeenLastCalledWith(
+        deps.state.messages.slice(0, 2),
+        expect.any(Function),
+      );
+      expect(restoreMessageToComposer).toHaveBeenCalledWith({ content: 'second', images: undefined });
+      expect(inputEl.focus).toHaveBeenCalled();
+      expect(controller.hasBranchPreview).toBe(true);
+
+      controller.cancelBranchPreview();
+
+      expect(restoreMessageToComposer).toHaveBeenLastCalledWith({ content: '', images: [] });
+      expect(deps.renderer.renderMessages).toHaveBeenLastCalledWith(deps.state.messages, expect.any(Function));
+      expect(controller.hasBranchPreview).toBe(false);
+    });
+  });
+
   describe('Queue Management', () => {
     describe('Creating new conversation', () => {
       it('should clear queued message on new conversation', async () => {

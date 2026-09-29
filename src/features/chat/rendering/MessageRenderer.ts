@@ -109,6 +109,10 @@ export class MessageRenderer {
     forkCallback?: (messageId: string) => Promise<void>,
     getCapabilities?: () => ProviderCapabilities,
     getWelcomeHomeOptions?: () => WelcomeHomeOptions | undefined,
+    private readonly branchActions?: {
+      navigate(messageId: string, branchMessageId?: string): Promise<void>;
+      isBusy(): boolean;
+    },
   ) {
     this.app = plugin.app;
     this.plugin = plugin;
@@ -197,7 +201,7 @@ export class MessageRenderer {
     // Skip empty bubble for image-only messages
     if (msg.role === 'user') {
       const textToShow = this.getUserMessageTextToShow(msg);
-      if (!textToShow) {
+      if (!textToShow && !(this.branchActions && this.getCapabilities().supportsConversationBranches)) {
         this.scrollToBottom();
         const lastChild = this.messagesEl.lastElementChild as HTMLElement;
         return lastChild ?? this.messagesEl;
@@ -223,10 +227,11 @@ export class MessageRenderer {
         this.addUserCopyButton(msgEl, textToShow);
         this.applyTocTitle(msgEl, textToShow);
       }
-      if (this.rewindCallback || this.forkCallback) {
+      if (this.rewindCallback || this.forkCallback || this.branchActions) {
         this.liveMessageEls.set(msg.id, msgEl);
       }
     }
+    if (msg.role === 'user') this.addBranchButtons(msgEl, msg, true);
 
     if (msg.role === 'user') {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
@@ -390,7 +395,7 @@ export class MessageRenderer {
     // Skip empty bubble for image-only messages
     if (msg.role === 'user') {
       const textToShow = this.getUserMessageTextToShow(msg);
-      if (!textToShow) {
+      if (!textToShow && !(this.branchActions && this.getCapabilities().supportsConversationBranches)) {
         return;
       }
     }
@@ -418,6 +423,7 @@ export class MessageRenderer {
         this.addUserCopyButton(msgEl, textToShow);
         this.applyTocTitle(msgEl, textToShow);
       }
+      this.addBranchButtons(msgEl, msg, false, allMessages, index);
       if (msg.userMessageId && !this.suppressConversationActions) {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
           this.addRewindButton(msgEl, msg.id);
@@ -1329,6 +1335,7 @@ export class MessageRenderer {
   }
 
   refreshActionButtons(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
+    this.refreshBranchButtons([msg]);
     if (!msg.userMessageId) return;
     const canRewind = this.isRewindEligible(allMessages, index);
     if (!canRewind) return;
@@ -1339,6 +1346,75 @@ export class MessageRenderer {
       this.addRewindButton(msgEl, msg.id);
     }
     this.cleanupLiveMessageEl(msg.id, msgEl, { canRewind, canFork: false });
+  }
+
+  refreshBranchButtons(messages: readonly ChatMessage[]): void {
+    if (!this.branchActions || !this.getCapabilities().supportsConversationBranches) return;
+    const elements = new Map(Array.from(this.messagesEl.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .map(element => [element.dataset.messageId, element]));
+    for (const message of messages) {
+      const element = this.liveMessageEls.get(message.id) ?? elements.get(message.id);
+      if (element) this.addBranchButtons(element, message, this.liveMessageEls.has(message.id));
+    }
+    this.refreshBranchButtonState();
+  }
+
+  refreshBranchButtonState(): void {
+    this.messagesEl.querySelectorAll<HTMLButtonElement>('[data-branch-action]').forEach(button => {
+      const busy = !!this.branchActions?.isBusy();
+      const unavailable = button.dataset.branchUnavailable === 'true';
+      button.disabled = busy || unavailable;
+      button.setAttribute('aria-description', busy ? 'Wait for the current response to finish.'
+        : unavailable ? button.dataset.branchUnavailableReason ?? '' : '');
+    });
+  }
+
+  private addBranchButtons(
+    element: HTMLElement,
+    message: ChatMessage,
+    pendingNativeIdentity = false,
+    allMessages?: readonly ChatMessage[],
+    index?: number,
+  ): void {
+    if (!this.branchActions || !this.getCapabilities().supportsConversationBranches
+      || message.role !== 'user' || (!message.treeBranches && !pendingNativeIdentity)) return;
+    element.querySelectorAll('.claudian-message-branch-btn').forEach(child => child.remove());
+    element.querySelectorAll('.claudian-branch-position').forEach(child => child.remove());
+    element.querySelectorAll('.claudian-branch-marker').forEach(child => child.remove());
+    if (element === this.messagesEl.querySelector('[data-role="user"]')) return;
+    const firstUser = allMessages?.find(item => item.role === 'user' && !item.isInterrupt && !item.isRebuiltContext);
+    if (firstUser === message || (index === undefined && this.messagesEl.querySelector('[data-role="user"]') === element)) return;
+    const toolbar = this.getOrCreateActionsToolbar(element);
+    const anchor = toolbar.querySelector('.claudian-user-msg-copy-btn, .claudian-message-timestamp');
+    const addButton = (label: string, icon: string, target?: string, unavailable = false, reason = '') => {
+      const button = toolbar.createEl('button', { cls: 'claudian-message-branch-btn', attr: {
+        type: 'button', 'aria-label': label, 'data-branch-action': 'true',
+        'data-branch-unavailable': String(unavailable), 'data-branch-unavailable-reason': reason,
+      } });
+      button.disabled = unavailable || !!this.branchActions?.isBusy();
+      toolbar.insertBefore(button, anchor);
+      setIcon(button, icon);
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        if (this.branchActions?.isBusy() || unavailable) return;
+        runRendererAction(() => this.branchActions!.navigate(message.id, target));
+      });
+    };
+    const branches = message.treeBranches ?? [];
+    const branchIndex = message.userMessageId ? branches.indexOf(message.userMessageId) : -1;
+    if (branches.length > 1 && branchIndex >= 0) {
+      element.classList.add('claudian-message-branched');
+      const marker = element.querySelector('.claudian-message-content')?.createSpan({
+        cls: 'claudian-branch-marker', attr: { 'aria-hidden': 'true' },
+      });
+      if (marker) setIcon(marker, 'git-branch');
+      addButton('Previous branch', 'chevron-left', branches[branchIndex - 1], branchIndex === 0, 'No previous branch.');
+      const position = toolbar.createSpan({ cls: 'claudian-branch-position', text: `${branchIndex + 1}/${branches.length}` });
+      toolbar.insertBefore(position, anchor);
+      addButton('Next branch', 'chevron-right', branches[branchIndex + 1], branchIndex === branches.length - 1, 'No next branch.');
+    }
+    addButton('Branch from this prompt', 'git-branch', undefined, !message.userMessageId,
+      'Branching is available after this prompt is saved.');
   }
 
   private cleanupLiveMessageEl(

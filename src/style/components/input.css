@@ -322,7 +322,9 @@
 }
 
 .claudian-input-toolbar-slot {
-  display: contents;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .claudian-input-toolbar-config-group {
@@ -491,6 +493,10 @@
 .claudian-context-action-section--external {
   min-height: 0;
   padding: 0;
+}
+
+.claudian-context-action-section--external > .claudian-input-toolbar-slot {
+  flex: 1 1 auto;
 }
 
 .claudian-context-action-section .claudian-external-context-selector,

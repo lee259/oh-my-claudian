@@ -1,4 +1,12 @@
 export {
+  type BranchableExecutionSession,
+  type ConversationBranchRecoveryRequest,
+  type ConversationBranchRequest,
+  type ConversationBranchResult,
+  type ConversationBranchState,
+  isBranchableExecutionSession,
+} from './BranchableExecutionSession';
+export {
   type ProviderExecutionBackend,
   type ProviderNativePersistence,
   type ProviderNativeResumeSeed,

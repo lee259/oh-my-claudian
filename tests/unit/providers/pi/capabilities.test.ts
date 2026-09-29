@@ -9,6 +9,7 @@ describe('PI_PROVIDER_CAPABILITIES', () => {
       supportsPlanMode: false,
       supportsRewind: false,
       supportsFork: true,
+      supportsConversationBranches: true,
       supportsProviderCommands: true,
       supportsImageAttachments: true,
       supportsInstructionMode: true,

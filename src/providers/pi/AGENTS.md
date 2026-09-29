@@ -26,11 +26,12 @@
 
 ## Session and History Rules
 
-- `PiProviderState` may store `sessionId`, `sessionFile`, `leafEntryId`, `parentSession`, `previousSessions`, and fork metadata. Do not infer these fields in feature code.
+- `PiProviderState` may store `sessionId`, `sessionFile`, `leafEntryId`, `treeCursor`, `treeSelections`, `parentSession`, `previousSessions`, and fork metadata. Do not infer these fields in feature code. `treeCursor` is the selected native branch and must be restored before execution; the cursor and native leaf must be persisted together after navigation.
 - Pi can resume by session ID or absolute session file. Absolute session files can be switched in a live process; other target changes require process restart.
 - History hydration reads Pi JSONL sessions from vault-local (`.pi/agent/sessions/`) and user-level (`~/.pi/agent/sessions/`) roots.
 - Forking creates a new Pi session file by copying the source branch up to `resumeAt` without altering or truncating the source. Keep fork materialization provider-owned.
 - Historical selected-model recovery walks the active JSONL branch to `leafEntryId` and preserves the last native provider/model pair. A missing persisted leaf must fail closed instead of using another branch; never promote `previousSessions` or a recovery-only locator into the live binding.
+- Pi branch navigation uses a temporary embedded RPC extension to call Pi's own tree API; keep its command private from user command catalogs and never rewrite a source session to switch branches. Uncertain navigation must be reconciled from the persisted cursor before more prompts are accepted.
 - Environment keys that affect Pi data or package locations invalidate existing Pi sessions.
 - The runtime fingerprint includes `PI_CODING_AGENT_DIR`, `PI_CODING_AGENT_SESSION_DIR`, `PI_PACKAGE_DIR`, `PI_OFFLINE`, `PI_SKIP_VERSION_CHECK`, `PI_TELEMETRY`, `PI_CACHE_RETENTION`, `PATH`, and explicit/host CLI-path inputs.
 

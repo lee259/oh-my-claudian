@@ -16,6 +16,7 @@ import {
   normalizePiToolInput,
   normalizePiToolName,
 } from '../normalizations/piToolNormalization';
+import type { PiTreeCursor } from '../types';
 import { decodePiRecoveryPrompt } from './PiRecoveryPromptCodec';
 
 export interface PiSessionEntry {
@@ -32,7 +33,8 @@ export interface ParsedPiSessionEntries {
 }
 
 export interface ParsePiSessionContentOptions {
-  leafEntryId?: string;
+  leafEntryId?: string | null;
+  includeBranches?: boolean;
   requireLeafEntryId?: boolean;
   syntheticIdNamespace?: string;
 }
@@ -67,6 +69,7 @@ export function parsePiSessionContent(
   options: ParsePiSessionContentOptions = {},
 ): ChatMessage[] {
   const parsed = parsePiSessionEntries(content);
+  if (options.leafEntryId === null) return [];
   const leafEntryId = options.leafEntryId?.trim();
   if (
     options.requireLeafEntryId
@@ -75,16 +78,100 @@ export function parsePiSessionContent(
     return [];
   }
 
-  return mapPiSessionEntries(
+  const messages = mapPiSessionEntries(
     resolvePiActivePath(parsed.entries, leafEntryId),
     options.syntheticIdNamespace,
   );
+  if (options.includeBranches !== false) {
+    const branches = getPiConversationBranches(parsed.entries);
+    for (const message of messages) {
+      if (message.userMessageId && branches[message.userMessageId]) {
+        message.treeBranches = branches[message.userMessageId];
+      }
+    }
+  }
+  return messages;
+}
+
+/** Returns native user prompts grouped by their nearest shared conversation parent. */
+export function getPiConversationBranches(entries: readonly PiSessionEntry[]): Record<string, string[]> {
+  const byId = new Map(entries.filter(entry => entry.id).map(entry => [entry.id!, entry]));
+  const groups = new Map<string | undefined, string[]>();
+  for (const entry of entries) {
+    if (!entry.id || entry.message?.role !== 'user') continue;
+    if (!entry.parentId && entry.raw.parentId !== null && entry.raw.parent_id !== null) continue;
+    let parent = entry.parentId;
+    const visited = new Set<string>();
+    while (parent && !visited.has(parent)) {
+      visited.add(parent);
+      const ancestor = byId.get(parent);
+      if (!ancestor || ancestor.message || ancestor.type === 'branch_summary') break;
+      parent = ancestor.parentId;
+    }
+    const group = groups.get(parent) ?? [];
+    group.push(entry.id);
+    groups.set(parent, group);
+  }
+  return Object.fromEntries([...groups.values()].flatMap(ids => ids.map(id => [id, ids])));
+}
+
+export function correlatePiUserMessages(live: readonly ChatMessage[], native: readonly ChatMessage[]): Record<string, string> {
+  const users = live.filter(message => message.role === 'user' && !message.isInterrupt && !message.isRebuiltContext);
+  const nativeUsers = native.filter(message => message.role === 'user' && message.userMessageId);
+  const nativeIndexes = new Map(nativeUsers.map((message, index) => [message.userMessageId!, index]));
+  const result: Record<string, string> = {};
+  let localStart = 0;
+  let nativeStart = 0;
+  const matchGap = (localEnd: number, nativeEnd: number) => {
+    const nativeCount = nativeEnd - nativeStart;
+    if (localEnd - localStart < nativeCount) return;
+    const gap = users.slice(localStart, localStart + nativeCount);
+    if (localEnd - localStart > nativeCount) {
+      if (!gap.every(message => message.executionInput)
+        || users.slice(localStart + nativeCount, localEnd).some(message => message.executionInput)) return;
+    }
+    if (!gap.every((message, offset) => {
+      const candidate = nativeUsers[nativeStart + offset];
+      const text = (item: ChatMessage) => extractUserQuery(item.displayContent ?? item.content);
+      return !message.userMessageId && text(message) === text(candidate)
+        && (message.images?.length ?? 0) === (candidate.images?.length ?? 0)
+        && (message.images ?? []).every((image, index) => image.data === candidate.images![index].data
+          && image.mediaType === candidate.images![index].mediaType);
+    })) return;
+    gap.forEach((message, offset) => { result[message.id] = nativeUsers[nativeStart + offset].userMessageId!; });
+  };
+  for (let index = 0; index < users.length; index++) {
+    const id = users[index].userMessageId;
+    if (!id) continue;
+    const nativeIndex = nativeIndexes.get(id);
+    if (nativeIndex === undefined) {
+      if (nativeStart === 0) localStart = index + 1;
+      continue;
+    }
+    if (nativeIndex < nativeStart) continue;
+    matchGap(index, nativeIndex);
+    result[users[index].id] = id;
+    localStart = index + 1;
+    nativeStart = nativeIndex + 1;
+  }
+  matchGap(users.length, nativeUsers.length);
+  return result;
+}
+
+export function resolvePiTreeCursor(entries: readonly PiSessionEntry[], cursor: PiTreeCursor): PiTreeCursor {
+  const latest = entries.at(-1)?.id;
+  if (!cursor.appendId || !latest || latest === cursor.appendId) return cursor;
+  if (!entries.some(entry => entry.id === cursor.appendId)) throw new Error('Pi branch history changed since navigation.');
+  const path = resolvePiActivePath(entries, latest);
+  if (cursor.leafId !== null && !path.some(entry => entry.id === cursor.leafId)) return cursor;
+  return { targetId: latest, leafId: latest, appendId: latest };
 }
 
 export function parsePiSessionModel(
   content: string,
-  leafEntryId?: string,
+  leafEntryId?: string | null,
 ): string | null {
+  if (leafEntryId === null) return null;
   const parsed = parsePiSessionEntries(content);
   const persistedLeafEntryId = leafEntryId?.trim();
   if (
@@ -175,15 +262,15 @@ export async function readPiSessionHeader(
   }
 }
 
-export function resolvePiActivePath(entries: PiSessionEntry[], leafId?: string): PiSessionEntry[] {
+export function resolvePiActivePath(entries: readonly PiSessionEntry[], leafId?: string): PiSessionEntry[] {
   const entriesWithIds = entries.filter((entry): entry is PiSessionEntry & { id: string } => !!entry.id);
   if (entriesWithIds.length === 0) {
-    return entries;
+    return [...entries];
   }
 
   const hasBranchGraph = hasPiBranchGraph(entriesWithIds);
   if (!leafId && !hasBranchGraph) {
-    return entries;
+    return [...entries];
   }
 
   const byId = new Map(entriesWithIds.map(entry => [entry.id, entry] as const));
@@ -191,14 +278,14 @@ export function resolvePiActivePath(entries: PiSessionEntry[], leafId?: string):
     ? leafId
     : entriesWithIds[entriesWithIds.length - 1]?.id;
   if (!targetLeafId) {
-    return entries;
+    return [...entries];
   }
 
   const activePath = hasBranchGraph
     ? resolvePiGraphEntryPath(byId, targetLeafId)
     : resolvePiLinearEntryPath(entries, targetLeafId);
   if (activePath.length === 0) {
-    return entries;
+    return [...entries];
   }
 
   return hasBranchGraph
@@ -249,7 +336,7 @@ function resolvePiGraphEntryPath(
   return activePath;
 }
 
-function resolvePiLinearEntryPath(entries: PiSessionEntry[], targetLeafId: string): PiSessionEntry[] {
+function resolvePiLinearEntryPath(entries: readonly PiSessionEntry[], targetLeafId: string): PiSessionEntry[] {
   const leafIndex = entries.findIndex(entry => entry.id === targetLeafId);
   if (leafIndex < 0) {
     return [];
@@ -258,7 +345,7 @@ function resolvePiLinearEntryPath(entries: PiSessionEntry[], targetLeafId: strin
 }
 
 function includePiGraphPathEntries(
-  entries: PiSessionEntry[],
+  entries: readonly PiSessionEntry[],
   activePath: PiSessionEntry[],
 ): PiSessionEntry[] {
   const activeIds = new Set(activePath.map(entry => entry.id).filter((id): id is string => !!id));
@@ -281,7 +368,7 @@ function includePiGraphPathEntries(
 }
 
 function includePiLinearPathEntries(
-  entries: PiSessionEntry[],
+  entries: readonly PiSessionEntry[],
   activePath: PiSessionEntry[],
 ): PiSessionEntry[] {
   const activeEntries = new Set(activePath);
