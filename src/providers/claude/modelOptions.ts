@@ -5,6 +5,7 @@ import {
   getModelsFromEnvironment,
 } from './env/claudeModelEnv';
 import { getClaudeUserSettingsModelEnvironment } from './env/claudeUserSettingsEnv';
+import type { ClaudeDiscoveredModel } from './modelCatalog';
 import { formatCustomModelLabel } from './modelLabels';
 import { encodeClaudeModelSelectionId, toClaudeRuntimeModelId } from './modelSelection';
 import { isClaudeModelTier } from './modelTiers';
@@ -13,6 +14,7 @@ import { DEFAULT_CLAUDE_MODELS, normalizeLegacyClaudeModelAlias } from './types/
 
 export interface ClaudeModelOption extends ProviderUIOption {
   environmentTypes?: readonly ClaudeModelEnvType[];
+  resolvedFromCatalog?: boolean;
 }
 
 function parseConfiguredCustomModelIds(value: string): string[] {
@@ -52,6 +54,72 @@ function normalizeCustomModelAliases(value: unknown): Record<string, string> {
   return aliases;
 }
 
+interface ParsedClaudeModelFamily {
+  tier: string;
+  version: number[];
+  oneMillion: boolean;
+}
+
+function parseClaudeModelFamily(model: string): ParsedClaudeModelFamily | undefined {
+  const runtimeModel = toClaudeRuntimeModelId(model).trim().toLowerCase();
+  const oneMillion = runtimeModel.endsWith('[1m]');
+  const baseModel = oneMillion ? runtimeModel.slice(0, -'[1m]'.length) : runtimeModel;
+  const match = /^(?:claude-)?(haiku|sonnet|opus|fable)(?:-(\d+(?:-\d+)*))?$/.exec(baseModel);
+  if (!match) return undefined;
+
+  const components = match[2]?.split('-') ?? [];
+  if (components.at(-1)?.length === 8) components.pop();
+  return {
+    tier: match[1],
+    version: components.map(Number),
+    oneMillion,
+  };
+}
+
+function compareClaudeVersions(left: readonly number[], right: readonly number[]): number {
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+/** Resolve a family selection to an identity currently reported by Claude's SDK. */
+function findDiscoveredFamilyModel(
+  discoveredModels: readonly ClaudeDiscoveredModel[],
+  model: string,
+): ClaudeDiscoveredModel | undefined {
+  const runtimeModel = toClaudeRuntimeModelId(model);
+  const exact = discoveredModels.find(candidate => candidate.value === runtimeModel);
+  if (exact) return exact;
+
+  const wanted = parseClaudeModelFamily(runtimeModel);
+  if (!wanted) return undefined;
+
+  const candidates = discoveredModels.flatMap(candidate => {
+    const identities = [candidate.resolvedModel, candidate.value]
+      .filter((identity): identity is string => Boolean(identity))
+      .map(parseClaudeModelFamily)
+      .filter((identity): identity is ParsedClaudeModelFamily => identity?.tier === wanted.tier);
+    if (identities.length === 0) return [];
+    const versioned = identities.find(identity => identity.version.length > 0);
+    return [{
+      candidate,
+      identity: versioned ?? identities[0],
+    }];
+  });
+
+  return candidates.reduce<typeof candidates[number] | undefined>((best, current) => {
+    if (!best) return current;
+    const versionOrder = compareClaudeVersions(current.identity.version, best.identity.version);
+    if (versionOrder > 0) return current;
+    if (versionOrder === 0 && best.identity.oneMillion && !current.identity.oneMillion) {
+      return current;
+    }
+    return best;
+  }, undefined)?.candidate;
+}
+
 export function getClaudeModelOptions(settings: Record<string, unknown>): ClaudeModelOption[] {
   const customModelAliases = normalizeCustomModelAliases(settings.customModelAliases);
   const userModelEnvironment = getClaudeUserSettingsModelEnvironment();
@@ -85,14 +153,15 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
 
   const models = DEFAULT_CLAUDE_MODELS.map(model => {
     const runtimeModel = toClaudeRuntimeModelId(model.value);
-    const discovered = discoveredModels.find(candidate => (
-      candidate.value === runtimeModel
-      || candidate.resolvedModel === runtimeModel
-      || normalizeLegacyClaudeModelAlias(candidate.value)
-        === normalizeLegacyClaudeModelAlias(runtimeModel)
-    ));
+    const discovered = findDiscoveredFamilyModel(discoveredModels, runtimeModel);
     return discovered
-      ? { ...model, label: customModelAliases[runtimeModel] ?? discovered.label,
+      ? {
+        ...model,
+        value: discovered.value === runtimeModel
+          ? model.value
+          : encodeClaudeModelSelectionId(discovered.value),
+        resolvedFromCatalog: discovered.value !== runtimeModel,
+        label: customModelAliases[runtimeModel] ?? discovered.label,
         description: discovered.description || model.description }
       : model;
   });
@@ -152,9 +221,18 @@ export function findClaudeModelOption(
     }
   }
 
-  return modelOptions.find(option =>
+  const aliasOption = modelOptions.find(option =>
     normalizeLegacyClaudeModelAlias(toClaudeRuntimeModelId(option.value)) === normalizedRuntimeModel
   );
+  if (aliasOption) return aliasOption;
+
+  const requestedFamily = parseClaudeModelFamily(runtimeModel);
+  return requestedFamily
+    ? modelOptions.find(option =>
+      option.resolvedFromCatalog
+      && parseClaudeModelFamily(option.value)?.tier === requestedFamily.tier
+    )
+    : undefined;
 }
 
 export function findClaudeModelOptionForEnvironmentType(

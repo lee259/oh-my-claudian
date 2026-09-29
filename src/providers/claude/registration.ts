@@ -13,6 +13,7 @@ import { ClaudeExecutionBackend } from './execution/ClaudeExecutionBackend';
 import { ClaudeConversationHistoryService } from './history/ClaudeConversationHistoryService';
 import { ClaudeSubagentHistoryService } from './history/ClaudeSubagentHistoryService';
 import {
+  findClaudeModelOption,
   getClaudeModelOptions,
   resolveClaudeModelSelection,
 } from './modelOptions';
@@ -85,8 +86,11 @@ export const claudeProviderRegistration: ProviderModule = {
   createSubagentHistoryService: plugin => new ClaudeSubagentHistoryService(plugin),
   resolveTitleGenerationModel: (plugin) => {
     const titleModel = plugin.settings.titleGenerationModel;
-    if (titleModel && claudeChatUIConfig.ownsModel(titleModel, plugin.settings)) {
-      return toClaudeRuntimeModelId(titleModel);
+    const titleOption = titleModel
+      ? findClaudeModelOption(getClaudeModelOptions(plugin.settings), titleModel)
+      : undefined;
+    if (titleOption) {
+      return toClaudeRuntimeModelId(titleOption.value);
     }
     const envVars = parseEnvironmentVariables(
       plugin.getActiveEnvironmentVariables('claude'),
