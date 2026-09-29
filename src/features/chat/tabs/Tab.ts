@@ -17,9 +17,6 @@ import {
 } from '../../../core/providers/conversationModel';
 import { getEnabledProviderForModel, getProviderForModel } from '../../../core/providers/modelRouting';
 import {
-  resolveProviderCustomContextLimit,
-} from '../../../core/providers/modelSelection';
-import {
   createProviderDiagnosticError,
   createProviderDiagnosticReport,
   formatProviderDiagnosticNotice,
@@ -79,7 +76,6 @@ import { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
 import { StatusPanel } from '../ui/StatusPanel';
 import { installTextareaSizing } from '../ui/textareaSizing';
-import { recalculateUsageForModel } from '../utils/usageInfo';
 import { InputHistoryController } from './InputHistoryController';
 import { getTabProviderId } from './providerResolution';
 import { initializeTabPresentationControllers } from './TabControllerFactory';
@@ -1403,26 +1399,6 @@ function initializeInputToolbar(
       tab.ui.serviceTierToggle?.updateDisplay();
       tab.ui.modelSelector?.updateDisplay();
       tab.ui.modelSelector?.renderOptions();
-
-      // Recalculate context usage percentage for the new model's context window
-      const currentUsage = tab.state.usage;
-      if (currentUsage) {
-        const newContextWindow = uiConfig.getContextWindowSize(
-          normalizedModel,
-          providerSettings.customContextLimits,
-          providerSettings,
-        );
-        tab.state.usage = recalculateUsageForModel(
-          currentUsage,
-          normalizedModel,
-          newContextWindow,
-          resolveProviderCustomContextLimit(
-            boundProvider,
-            normalizedModel,
-            providerSettings.customContextLimits,
-          ),
-        );
-      }
     },
     onModeChange: async (mode: string) => {
       await updateTabProviderSettings(tab, plugin, (settings) => {

@@ -1087,7 +1087,7 @@ export class ConversationController {
     state.currentConversationId = conversation.id;
     state.messages = [...conversation.messages];
     const persistedUsage = conversation.usage ?? null;
-    const usageModel = conversation.selectedModel ?? persistedUsage?.model;
+    const usageModel = persistedUsage?.model ?? conversation.selectedModel;
     const customContextLimit = usageModel
       ? resolveProviderCustomContextLimit(
           conversation.providerId,
