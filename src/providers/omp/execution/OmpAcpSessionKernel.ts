@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { ProviderSessionConfig } from '@/core/execution';
+import { sanitizeDiagnosticMessage } from '@/core/providers/ProviderDiagnostics';
 import { getRuntimeEnvironmentVariables } from '@/core/providers/providerEnvironment';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import { resolveAllowedFileOperationPath } from '@/core/storage/pathAccessPolicy';
@@ -87,7 +88,12 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
     });
     const subprocess = new AcpSubprocess(spec);
     subprocess.onClose((error) => {
-      if (!this.disposed) this.options.onClosed(error ?? new Error('OMP ACP process closed'));
+      if (this.disposed) return;
+      const processError = error ?? new Error('OMP ACP process closed');
+      const stderr = sanitizeDiagnosticMessage(subprocess.getStderrSnapshot().trim()).slice(-1_500);
+      this.options.onClosed(stderr
+        ? new Error(`${processError.message}\nOMP stderr: ${stderr}`, { cause: processError })
+        : processError);
     });
     subprocess.start();
     this.process = subprocess;
