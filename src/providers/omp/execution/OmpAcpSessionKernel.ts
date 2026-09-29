@@ -24,7 +24,8 @@ import {
 } from '@/providers/acp';
 
 import type { OmpApprovalMode } from '../runtime/OmpLaunchSpec';
-import { buildOmpEnvironment, buildOmpLaunchSpec } from '../runtime/OmpLaunchSpec';
+import { buildOmpLaunchSpec } from '../runtime/OmpLaunchSpec';
+import { resolveOmpRuntimeEnvironment } from '../runtime/OmpRuntimeEnvironment';
 import { getOmpProviderSettings } from '../settings';
 
 export interface OmpAcpSessionKernelOptions {
@@ -73,14 +74,15 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
 
     const command = await this.options.plugin.getResolvedProviderCliPath('omp') ?? 'omp';
     const settings = getOmpProviderSettings(this.options.plugin.settings);
+    const environment = await resolveOmpRuntimeEnvironment(
+      process.env,
+      getRuntimeEnvironmentVariables(this.options.plugin.settings, 'omp'),
+    );
     const spec = buildOmpLaunchSpec({
       approvalMode: this.options.approvalMode,
       command,
       cwd: this.options.config.vaultWorkingDirectory,
-      env: buildOmpEnvironment(
-        process.env,
-        getRuntimeEnvironmentVariables(this.options.plugin.settings, 'omp'),
-      ),
+      env: environment,
       settings,
     });
     const subprocess = new AcpSubprocess(spec);
