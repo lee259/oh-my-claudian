@@ -265,15 +265,33 @@ interface WebSearchLink {
   url: string;
 }
 
-interface WebSearchDisplayData {
+interface WebSearchActionDisplayData {
   actionType: string;
   query: string;
   queries: string[];
   url: string;
   pattern: string;
+  linkId: string;
+}
+
+interface WebSearchDisplayData extends WebSearchActionDisplayData {
+  actions: WebSearchActionDisplayData[];
 }
 
 function normalizeWebSearchDisplayData(input: Record<string, unknown>): WebSearchDisplayData {
+  const actionData = normalizeWebSearchActionDisplayData(input);
+  const actions = Array.isArray(input.actions)
+    ? input.actions
+        .filter((action): action is Record<string, unknown> => (
+          action !== null && typeof action === 'object' && !Array.isArray(action)
+        ))
+        .map(normalizeWebSearchActionDisplayData)
+    : [];
+
+  return { ...actionData, actions };
+}
+
+function normalizeWebSearchActionDisplayData(input: Record<string, unknown>): WebSearchActionDisplayData {
   const queries = Array.isArray(input.queries)
     ? input.queries
         .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
@@ -285,6 +303,7 @@ function normalizeWebSearchDisplayData(input: Record<string, unknown>): WebSearc
     : queries[0] ?? '';
   const url = typeof input.url === 'string' && input.url.trim() ? input.url.trim() : '';
   const pattern = typeof input.pattern === 'string' && input.pattern.trim() ? input.pattern.trim() : '';
+  const linkId = typeof input.linkId === 'string' && input.linkId.trim() ? input.linkId.trim() : '';
 
   const explicitActionType = typeof input.actionType === 'string' && input.actionType.trim()
     ? input.actionType.trim()
@@ -292,24 +311,31 @@ function normalizeWebSearchDisplayData(input: Record<string, unknown>): WebSearc
   const actionType = explicitActionType
     || (url && pattern ? 'find_in_page' : url ? 'open_page' : (query || queries.length > 0) ? 'search' : '');
 
-  return { actionType, query, queries, url, pattern };
+  return { actionType, query, queries, url, pattern, linkId };
 }
 
 function getWebSearchSummary(input: Record<string, unknown>, maxLength: number): string {
   const data = normalizeWebSearchDisplayData(input);
+  const summary = getWebSearchActionSummary(data);
+  const fullSummary = data.actions.length > 1
+    ? `${summary} +${data.actions.length - 1} actions`
+    : summary;
+  return truncateText(fullSummary, maxLength);
+}
 
+function getWebSearchActionSummary(data: WebSearchActionDisplayData): string {
   switch (data.actionType) {
     case 'open_page':
-      return truncateText(`Open ${data.url || 'page'}`, maxLength);
+      return `Open ${data.url || 'page'}`;
     case 'find_in_page': {
       const target = data.pattern ? `Find "${data.pattern}"` : 'Find in page';
       const suffix = data.url ? ` in ${data.url}` : '';
-      return truncateText(target + suffix, maxLength);
+      return target + suffix;
     }
     case 'search':
-      return truncateText(data.query || data.queries[0] || '', maxLength);
+      return data.query || data.queries[0] || '';
     default:
-      return truncateText(data.query || data.url || data.pattern || '', maxLength);
+      return data.query || data.url || data.pattern || data.actionType;
   }
 }
 
@@ -355,12 +381,26 @@ function parseWebSearchResult(result: string): { links: WebSearchLink[]; summary
 function renderWebSearchActionExpanded(container: HTMLElement, input: Record<string, unknown>): boolean {
   const data = normalizeWebSearchDisplayData(input);
   const hasStructuredData = Boolean(data.actionType || data.query || data.queries.length || data.url || data.pattern);
-  if (!hasStructuredData) {
+  if (!hasStructuredData && data.actions.length === 0) {
     return false;
   }
 
   const linesEl = container.createDiv({ cls: 'claudian-tool-lines' });
+  if (data.actions.length > 0) {
+    for (const action of data.actions) {
+      renderWebSearchActionLines(linesEl, action);
+    }
+    return true;
+  }
 
+  renderWebSearchActionLines(linesEl, data);
+  return true;
+}
+
+function renderWebSearchActionLines(
+  linesEl: HTMLElement,
+  data: WebSearchActionDisplayData,
+): void {
   switch (data.actionType) {
     case 'open_page':
       linesEl.createDiv({ cls: 'claudian-tool-line', text: 'Open page' });
@@ -369,7 +409,7 @@ function renderWebSearchActionExpanded(container: HTMLElement, input: Record<str
       } else {
         linesEl.createDiv({ cls: 'claudian-tool-line', text: 'URL unavailable' });
       }
-      return true;
+      return;
 
     case 'find_in_page':
       linesEl.createDiv({ cls: 'claudian-tool-line', text: 'Find in page' });
@@ -381,10 +421,18 @@ function renderWebSearchActionExpanded(container: HTMLElement, input: Record<str
       if (data.pattern) {
         linesEl.createDiv({ cls: 'claudian-tool-line', text: `Pattern: ${data.pattern}` });
       }
-      return true;
+      return;
+
+    case 'click':
+      linesEl.createDiv({
+        cls: 'claudian-tool-line',
+        text: data.linkId ? `Click link ${data.linkId}` : 'Click link',
+      });
+      if (data.url) appendToolLink(linesEl, data.url, data.url);
+      return;
 
     case 'search':
-    default: {
+    {
       const primaryQuery = data.query || data.queries[0];
       linesEl.createDiv({
         cls: 'claudian-tool-line',
@@ -401,8 +449,16 @@ function renderWebSearchActionExpanded(container: HTMLElement, input: Record<str
           text: `... ${alternateQueries.length - 4} more queries`,
         });
       }
-      return true;
+      return;
     }
+
+    default:
+      if (data.actionType) {
+        linesEl.createDiv({
+          cls: 'claudian-tool-line',
+          text: `${data.actionType.charAt(0).toUpperCase()}${data.actionType.slice(1)}`,
+        });
+      }
   }
 }
 
@@ -412,7 +468,11 @@ function renderWebSearchExpanded(
   result: string | undefined,
 ): void {
   const parsed = result ? parseWebSearchResult(result) : null;
+  const data = normalizeWebSearchDisplayData(input);
   if (parsed && parsed.links.length > 0) {
+    if (data.actions.length > 0) {
+      renderWebSearchActionExpanded(container, input);
+    }
     const linksEl = container.createDiv({ cls: 'claudian-tool-lines' });
     for (const link of parsed.links) {
       appendToolLink(linksEl, link.title, link.url);
@@ -425,7 +485,6 @@ function renderWebSearchExpanded(
     return;
   }
 
-  const data = normalizeWebSearchDisplayData(input);
   const shouldRenderAction = Boolean(data.actionType || data.query || data.queries.length || data.url || data.pattern)
     && (!result
       || isPlaceholderWebSearchResult(result)

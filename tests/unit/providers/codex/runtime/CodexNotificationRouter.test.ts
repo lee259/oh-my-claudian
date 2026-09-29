@@ -3740,6 +3740,118 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('webSearch tool', () => {
+    it.each([false, true])('updates the same-id native card with all raw actions (native first: %s)', nativeFirst => {
+      router.beginTurn({ isPlanTurn: false });
+      const native = {
+        type: 'webSearch',
+        id: 'web_mixed',
+        action: { type: 'open_page', url: 'https://example.com/one' },
+        status: 'completed',
+      };
+      if (nativeFirst) router.handleNotification('item/started', { item: native });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'web_mixed',
+          input: 'text(await tools.web__run({open:[{ref_id:"https://example.com/one"},{ref_id:"https://example.com/two"}]}));',
+        },
+      });
+      router.handleNotification('item/completed', { item: native });
+
+      const uses = chunks.filter(chunk => chunk.type === 'tool_use');
+      expect(uses.at(-1)).toMatchObject({
+        id: 'web_mixed',
+        name: 'WebSearch',
+        input: {
+          actions: [
+            { actionType: 'open_page', url: 'https://example.com/one' },
+            { actionType: 'open_page', url: 'https://example.com/two' },
+          ],
+        },
+      });
+    });
+
+    it.each([false, true])('correlates mixed raw actions across different native IDs (native first: %s)', nativeFirst => {
+      router.beginTurn({ isPlanTurn: false });
+      const native = {
+        type: 'webSearch',
+        id: 'exec_web_mixed',
+        action: { type: 'open_page', url: 'https://example.com/one' },
+        status: 'completed',
+      };
+      if (nativeFirst) router.handleNotification('item/started', { item: native });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'call_web_mixed',
+          input: 'text(await tools.web__run({open:[{ref_id:"https://example.com/one"},{ref_id:"https://example.com/two"}]}));',
+        },
+      });
+      router.handleNotification('item/completed', { item: native });
+      router.handleNotification('rawResponseItem/completed', {
+        item: { type: 'custom_tool_call_output', call_id: 'call_web_mixed', output: 'Opened pages' },
+      });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      const uses = chunks.filter(chunk => chunk.type === 'tool_use');
+      expect(new Set(uses.map(chunk => chunk.id))).toEqual(new Set(['exec_web_mixed']));
+      expect(uses.at(-1)).toMatchObject({
+        input: {
+          actions: [
+            { actionType: 'open_page', url: 'https://example.com/one' },
+            { actionType: 'open_page', url: 'https://example.com/two' },
+          ],
+        },
+      });
+    });
+
+    it('preserves mixed web operations in one normalized action list', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'call_mixed_web',
+          input: `text(await tools.web__run(${JSON.stringify({
+            search_query: [{ q: 'Codex app server' }, { q: 'Codex notifications' }],
+            open: [{ ref_id: 'https://example.com/one' }, { url: 'https://example.com/two' }],
+            find: [{ ref_id: 'turn2view0', pattern: 'webSearch' }],
+            click: [{ ref_id: 'turn2view0', id: 13 }],
+            screenshot: [{ ref_id: 'turn2view0' }],
+          })}));`,
+        },
+      });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks.find(chunk => chunk.type === 'tool_use')).toMatchObject({
+        type: 'tool_use',
+        name: 'WebSearch',
+        input: {
+          actionType: 'search',
+          query: 'Codex app server',
+          queries: ['Codex app server', 'Codex notifications'],
+          actions: [
+            {
+              actionType: 'search',
+              query: 'Codex app server',
+              queries: ['Codex app server', 'Codex notifications'],
+            },
+            { actionType: 'open_page', url: 'https://example.com/one' },
+            { actionType: 'open_page', url: 'https://example.com/two' },
+            { actionType: 'find_in_page', url: 'turn2view0', pattern: 'webSearch' },
+            { actionType: 'click', url: 'turn2view0', linkId: '13' },
+            { actionType: 'screenshot', requests: [{ ref_id: 'turn2view0' }] },
+          ],
+        },
+      });
+    });
+
     it.each([
       {
         label: 'multi-query summary',

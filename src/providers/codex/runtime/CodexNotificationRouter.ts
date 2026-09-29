@@ -1328,6 +1328,21 @@ export class CodexNotificationRouter {
     }
 
     const { deferredExec, expectedCall } = match;
+    if (
+      projectedName === 'WebSearch'
+      && canonicalItemId
+      && (Array.isArray(expectedCall.input.actions) || expectedCall.input.actionType === 'click')
+    ) {
+      this.rawToolInputsByCallId.set(canonicalItemId, expectedCall.input);
+      if (this.seenWebSearchIds.has(canonicalItemId)) {
+        this.emit({
+          type: 'tool_use',
+          id: canonicalItemId,
+          name: 'WebSearch',
+          input: expectedCall.input,
+        });
+      }
+    }
     if (expectedCall.fallbackId && canonicalItemId) {
       this.rawExecAliases.set(canonicalItemId, expectedCall.fallbackId);
     }
@@ -1616,7 +1631,7 @@ export class CodexNotificationRouter {
       type: 'tool_use',
       id: item.id,
       name: 'WebSearch',
-      input: normalizeCodexToolInput('web_search', {
+      input: this.rawToolInputsByCallId.get(item.id) ?? normalizeCodexToolInput('web_search', {
         query: item.query ?? '',
         queries: item.queries ?? [],
         url: item.url ?? '',
@@ -2156,37 +2171,55 @@ function projectRawSemanticToolCall(
 }
 
 function normalizeWebRunInput(input: Record<string, unknown>): Record<string, unknown> {
-  const regularQueries: unknown[] = Array.isArray(input.search_query)
-    ? input.search_query as unknown[]
+  const actions: Record<string, unknown>[] = [];
+  const records = (key: string): Record<string, unknown>[] => Array.isArray(input[key])
+    ? (input[key] as unknown[]).filter((value): value is Record<string, unknown> => {
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    })
     : [];
-  const imageQueries: unknown[] = Array.isArray(input.image_query)
-    ? input.image_query as unknown[]
-    : [];
-  const searchQueries = [...regularQueries, ...imageQueries];
-  const queries = searchQueries
-    .map(query => firstString(asRecord(query)?.q))
+  const queries = [...records('search_query'), ...records('image_query')]
+    .map(query => firstString(query.q))
     .filter(Boolean);
   if (queries.length > 0) {
-    return {
+    actions.push({
       actionType: 'search',
       query: queries[0],
       ...(queries.length > 1 ? { queries } : {}),
-    };
+    });
   }
 
-  const openRequest = asRecord(Array.isArray(input.open) ? input.open[0] : undefined);
-  const openUrl = firstString(openRequest?.ref_id, openRequest?.url);
-  if (openUrl) {
-    return { actionType: 'open_page', url: openUrl };
+  for (const request of records('open')) {
+    const url = firstString(request.ref_id, request.url);
+    if (url) actions.push({ actionType: 'open_page', url });
   }
 
-  const findRequest = asRecord(Array.isArray(input.find) ? input.find[0] : undefined);
-  const findUrl = firstString(findRequest?.ref_id, findRequest?.url);
-  const pattern = firstString(findRequest?.pattern);
-  if (findUrl && pattern) {
-    return { actionType: 'find_in_page', url: findUrl, pattern };
+  for (const request of records('find')) {
+    const url = firstString(request.ref_id, request.url);
+    const pattern = firstString(request.pattern);
+    if (url && pattern) actions.push({ actionType: 'find_in_page', url, pattern });
   }
-  return input;
+
+  for (const request of records('click')) {
+    const url = firstString(request.ref_id, request.url);
+    if (url) {
+      actions.push({
+        actionType: 'click',
+        url,
+        linkId: String(request.id ?? ''),
+      });
+    }
+  }
+
+  const knownOperations = new Set(['search_query', 'image_query', 'open', 'find', 'click']);
+  for (const [operation, requests] of Object.entries(input)) {
+    if (!knownOperations.has(operation) && Array.isArray(requests) && requests.length > 0) {
+      actions.push({ actionType: operation, requests });
+    }
+  }
+
+  return actions.length > 0
+    ? { ...actions[0], ...(actions.length > 1 ? { actions } : {}) }
+    : input;
 }
 
 function toolInputsCompatible(
@@ -2207,6 +2240,12 @@ function toolInputsCompatible(
   }
 
   if (name === 'WebSearch') {
+    if (Array.isArray(expected.actions) && expected.actions.length > 1) {
+      return expected.actions.some(action => {
+        const record = asRecord(action);
+        return record !== null && toolInputsCompatible(name, record, actual, workingDirectory);
+      });
+    }
     const expectedWeb = normalizeComparedWebInput(expected);
     const actualWeb = normalizeComparedWebInput(actual);
     // Native reference-based opens and clicks can expose only an `other` action.
@@ -2214,7 +2253,7 @@ function toolInputsCompatible(
     if (
       actualWeb.actionType === 'other'
       && (expectedWeb.actionType === 'open_page'
-        || (Array.isArray(expectedWeb.click) && expectedWeb.click.length > 0))
+        || expectedWeb.actionType === 'click')
     ) {
       return true;
     }
