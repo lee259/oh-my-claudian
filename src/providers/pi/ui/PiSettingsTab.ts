@@ -13,6 +13,7 @@ import { PI_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
+import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
   renderLastEnabledProviderWarning,
@@ -202,6 +203,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
+    renderProviderAdditionalArgumentsSetting(container, context.plugin, 'pi');
   },
 };
 

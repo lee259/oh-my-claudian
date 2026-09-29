@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 
 import {
+  createTextAreaComponent,
   createTextComponent,
   createToggleComponent,
   type MockTextComponent,
@@ -113,6 +114,13 @@ class MockSetting {
 
   addText(callback: (text: MockTextComponent) => void): this {
     const component = createTextComponent();
+    this.textComponents.push(component);
+    callback(component);
+    return this;
+  }
+
+  addTextArea(callback: (text: MockTextComponent) => void): this {
+    const component = createTextAreaComponent();
     this.textComponents.push(component);
     callback(component);
     return this;

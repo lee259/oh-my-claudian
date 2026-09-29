@@ -17,6 +17,7 @@ import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycle
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderNativeMcpSettingsSection } from '../../../shared/settings/NativeMcpSettingsSection';
+import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
   renderLastEnabledProviderWarning,
@@ -226,6 +227,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
+    renderProviderAdditionalArgumentsSetting(container, context.plugin, GROK_PROVIDER_ID);
   },
 };
 

@@ -11,6 +11,7 @@ import { t } from '../../../i18n/i18n';
 import { CURSOR_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
+import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import {
   type ProviderModelPickerModel,
@@ -118,6 +119,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
     new Setting(container).setName(t('settings.cursor.models')).setHeading();
     renderCursorModelPicker(container, context, settings);
+    renderProviderAdditionalArgumentsSetting(container, context.plugin, 'cursor');
   },
 };
 

@@ -885,6 +885,12 @@
       },
       "header": "Codex-Sub-Agenten",
       "noAgents": "Keine Codex-Sub-Agenten im Vault. Klicke auf +, um einen zu erstellen."
+    },
+    "providerArguments": {
+      "name": "Zusätzliche CLI-Argumente",
+      "desc": "Ein Argument pro Zeile. Jede Zeile wird ohne Shell-Erweiterung als einzelnes Argument übergeben.",
+      "placeholder": "--extension\n/Pfad/zur/Erweiterung\n--verbose",
+      "heading": "Erweitert"
     }
   }
 }

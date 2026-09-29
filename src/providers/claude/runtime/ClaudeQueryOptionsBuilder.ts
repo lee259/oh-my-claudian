@@ -10,6 +10,7 @@ import {
   computeSystemPromptKey,
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import type { AppPluginManager } from '../../../core/providers/types';
 import type { ClaudianSettings, PermissionMode } from '../../../core/types/settings';
 import { toClaudeRuntimeModelId } from '../modelSelection';
@@ -297,7 +298,10 @@ export class QueryOptionsBuilder {
     };
 
     QueryOptionsBuilder.applyExtraArgs(options, claudeSettings);
-    options.spawnClaudeCodeProcess = createCustomSpawnFunction(ctx.enhancedPath);
+    options.spawnClaudeCodeProcess = createCustomSpawnFunction(
+      ctx.enhancedPath,
+      getProviderAdditionalArguments(ctx.settings, 'claude'),
+    );
 
     return { options, claudeSettings };
   }

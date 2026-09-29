@@ -16,6 +16,22 @@ describe('createCustomSpawnFunction', () => {
     spawnMock.mockReset();
   });
 
+  it('appends configured arguments to the SDK process arguments', () => {
+    const mockProcess = createMockProcess();
+    spawnMock.mockReturnValue(mockProcess as unknown as ReturnType<typeof spawn>);
+
+    createCustomSpawnFunction('/enhanced/path', ['--debug', 'value with spaces'])({
+      command: 'claude',
+      args: ['--output-format', 'stream-json'],
+      cwd: '/tmp',
+      env: {},
+    } as SpawnOptions);
+
+    expect(spawnMock).toHaveBeenCalledWith('claude', [
+      '--output-format', 'stream-json', '--debug', 'value with spaces',
+    ], expect.any(Object));
+  });
+
   const createMockProcess = () => {
     const stderr = { on: jest.fn() } as unknown as NodeJS.ReadableStream;
     return {

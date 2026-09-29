@@ -885,6 +885,12 @@
       },
       "header": "Codex サブエージェント",
       "noAgents": "Vault に Codex サブエージェントがありません。+ をクリックして作成してください。"
+    },
+    "providerArguments": {
+      "name": "追加の CLI 引数",
+      "desc": "1 行に 1 つの引数を入力します。シェル展開を行わず、そのまま個別の引数として渡します。",
+      "placeholder": "--extension\n/拡張機能へのパス\n--verbose",
+      "heading": "詳細設定"
     }
   }
 }

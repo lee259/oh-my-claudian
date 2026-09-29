@@ -21,6 +21,7 @@ import {
   reportHistoryReplay,
   reportResolvedTurnPrompt,
 } from '../../../core/execution';
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { ChatMessage } from '../../../core/types';
 import { appendBrowserContext } from '../../../utils/browser';
@@ -548,6 +549,7 @@ RewindableExecutionSession {
     }
     const generation = ++this.nativeGeneration;
     const native = this.options.nativeFactory.create({
+      additionalArguments: getProviderAdditionalArguments(this.plugin.settings, 'grok'),
       command,
       cwd: this.config.vaultWorkingDirectory,
       env: buildGrokRuntimeEnv(this.plugin.settings, command),

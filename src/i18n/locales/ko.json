@@ -885,6 +885,12 @@
       },
       "header": "Codex 하위 에이전트",
       "noAgents": "Vault에 Codex 하위 에이전트가 없습니다. +를 클릭해 만드세요."
+    },
+    "providerArguments": {
+      "name": "추가 CLI 인수",
+      "desc": "한 줄에 인수 하나를 입력하세요. 셸 확장 없이 각 줄을 그대로 개별 인수로 전달합니다.",
+      "placeholder": "--extension\n/확장 경로\n--verbose",
+      "heading": "고급"
     }
   }
 }

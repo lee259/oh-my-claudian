@@ -885,6 +885,12 @@
       },
       "header": "Codex 子代理",
       "noAgents": "Vault 中没有 Codex 子代理。点击 + 创建一个。"
+    },
+    "providerArguments": {
+      "name": "额外 CLI 参数",
+      "desc": "每行填写一个参数。每行会作为独立参数原样传递，不经过 shell 展开。",
+      "placeholder": "--extension\n/扩展文件路径\n--verbose",
+      "heading": "高级"
     }
   }
 }

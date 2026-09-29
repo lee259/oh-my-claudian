@@ -10,7 +10,8 @@ import {
 } from '../../../utils/windowsCmdShim';
 
 export function createCustomSpawnFunction(
-  enhancedPath: string
+  enhancedPath: string,
+  additionalArguments: readonly string[] = [],
 ): (options: SpawnOptions) => SpawnedProcess {
   return (options: SpawnOptions): SpawnedProcess => {
     let { command } = options;
@@ -31,6 +32,8 @@ export function createCustomSpawnFunction(
         command = nodeFullPath ?? 'node';
       }
     }
+
+    args = [...args, ...additionalArguments];
 
     const resolvedSpawnSpec = resolveWindowsCmdShimSpawnSpec({ args, command });
 

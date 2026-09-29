@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
 import type { SubagentProgress } from '@/core/types';
 import type { AcpPromptRequest, AcpSessionConfigOption } from '@/providers/acp';
 
@@ -75,7 +76,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     this.databasePath = artifacts.databasePath;
     this.client = new OpencodeHttpClient(this.cliPath, this.options.config.vaultWorkingDirectory, {
       ...this.environment, OPENCODE_CONFIG: artifacts.configPath, OPENCODE_CONFIG_CONTENT: artifacts.configContent,
-    });
+    }, getProviderAdditionalArguments(this.options.plugin.settings, 'opencode'));
     await this.client.subscribe(event => this.handleEvent(event), error => this.fail(error));
     await this.client.waitForActivation(this.controller.signal);
     const deadline = Date.now() + 5000;
