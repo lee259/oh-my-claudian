@@ -687,6 +687,38 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('WebSearch expanded rendering', () => {
+    it('renders every operation from a mixed Codex web call', () => {
+      const parentEl = createMockEl();
+      const toolCall = createToolCall({
+        name: 'WebSearch',
+        status: 'completed',
+        input: {
+          actionType: 'search',
+          query: 'Codex app server',
+          actions: [
+            { actionType: 'search', query: 'Codex app server' },
+            { actionType: 'open_page', url: 'https://example.com/docs' },
+            { actionType: 'find_in_page', url: 'https://example.com/docs', pattern: 'webSearch' },
+            { actionType: 'click', url: 'https://example.com/docs', linkId: '13' },
+            { actionType: 'screenshot', requests: [{ ref_id: 'turn2view0' }] },
+          ],
+        },
+        result: 'Links: [{"title":"Result page","url":"https://example.com/result"}]\nSummary: Done',
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+      const lines = Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent);
+
+      expect(lines).toContain('Query: Codex app server');
+      expect(lines).toContain('Open page');
+      expect(lines).toContain('Pattern: webSearch');
+      expect(lines).toContain('Click link 13');
+      expect(lines).toContain('Screenshot');
+      expect(toolEl.querySelector('.claudian-tool-web-summary')?.textContent).toBe('Summary: Done');
+      expect(toolEl.querySelectorAll('.claudian-tool-link')).toHaveLength(4);
+    });
+
     it('renders Codex search actions instead of the placeholder result text', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
