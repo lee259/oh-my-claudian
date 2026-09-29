@@ -891,6 +891,26 @@
       "desc": "1 行に 1 つの引数を入力します。シェル展開を行わず、そのまま個別の引数として渡します。",
       "placeholder": "--extension\n/拡張機能へのパス\n--verbose",
       "heading": "詳細設定"
+    },
+    "diagnostics": {
+      "title": "診断",
+      "desc": "Provider セッションのトラブルシューティング用ローカルログです。",
+      "logging": {
+        "name": "Provider のデバッグログを保存",
+        "desc": "起動引数、Provider の標準エラー出力、Claudian が捕捉したエラーを日別ファイルに記録します。既定ではオフです。ログに機密情報が含まれる場合があります。"
+      },
+      "directory": {
+        "name": "ログフォルダー",
+        "desc": "空欄の場合は ~/.claudian/diagnostics を使用します。絶対パス、またはホームフォルダーからの相対パスを指定できます。",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "ログファイル",
+        "desc": "設定した診断ログフォルダーを開きます。",
+        "button": "フォルダーを開く",
+        "error": "診断ログフォルダーを開けませんでした。"
+      },
+      "openCommandName": "Provider 診断ログを開く"
     }
   }
 }

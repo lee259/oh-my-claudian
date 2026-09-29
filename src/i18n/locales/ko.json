@@ -891,6 +891,26 @@
       "desc": "한 줄에 인수 하나를 입력하세요. 셸 확장 없이 각 줄을 그대로 개별 인수로 전달합니다.",
       "placeholder": "--extension\n/확장 경로\n--verbose",
       "heading": "고급"
+    },
+    "diagnostics": {
+      "title": "진단",
+      "desc": "Provider 세션 문제 해결을 위한 로컬 로그입니다.",
+      "logging": {
+        "name": "Provider 디버그 로그 저장",
+        "desc": "실행 인자, Provider 표준 오류 출력, Claudian에서 감지한 오류를 날짜별 파일에 기록합니다. 기본값은 꺼짐이며 로그에 민감한 정보가 포함될 수 있습니다."
+      },
+      "directory": {
+        "name": "로그 폴더",
+        "desc": "비워 두면 ~/.claudian/diagnostics를 사용합니다. 절대 경로나 사용자 홈 폴더 기준 상대 경로를 입력하세요.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "로그 파일",
+        "desc": "설정된 진단 로그 폴더를 엽니다.",
+        "button": "폴더 열기",
+        "error": "진단 로그 폴더를 열 수 없습니다."
+      },
+      "openCommandName": "Provider 진단 로그 열기"
     }
   }
 }

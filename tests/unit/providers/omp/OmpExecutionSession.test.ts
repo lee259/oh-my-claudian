@@ -13,6 +13,43 @@ async function flush(): Promise<void> {
 }
 
 describe('OmpExecutionSession', () => {
+  it('records provider execution errors when diagnostic logging is available', async () => {
+    const write = jest.fn().mockResolvedValue(undefined);
+    const session = new OmpExecutionSession({
+      diagnosticLog: { write },
+      settings: {},
+    } as never, {
+      interactionPort: {} as never,
+      lifecycle: 'persistent',
+      nativePersistence: 'provider-default',
+      vaultWorkingDirectory: '/vault',
+    }, {
+      createKernel: () => ({
+        cancel: jest.fn(),
+        connect: jest.fn().mockResolvedValue(undefined),
+        dispose: jest.fn().mockResolvedValue(undefined),
+        openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'omp-session' }),
+        prompt: jest.fn().mockRejectedValue(new Error('ACP prompt failed')),
+        setConfigOption: jest.fn().mockResolvedValue(undefined),
+        setModel: jest.fn().mockResolvedValue(undefined),
+      }),
+    });
+
+    const run = session.execute({
+      configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ text: 'Hello', type: 'text' }],
+      signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' },
+    } as never);
+    for await (const event of run.events) void event;
+
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'execution-error',
+      message: 'ACP prompt failed',
+      source: 'omp',
+    }));
+  });
+
   it('restarts the ACP process with the selected native approval mode and resumes the same session', async () => {
     const createdOptions: any[] = [];
     const firstKernel = {

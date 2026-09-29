@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { isBranchableExecutionSession, isSteerableExecutionSession, type ProviderExecutionRequest, type ProviderExecutionSession } from '@/core/execution';
+import type { ProviderDiagnosticLogRecord } from '@/core/providers/ProviderDiagnosticLog';
 import type { ChatMessage } from '@/core/types';
 import { PiExecutionBackend } from '@/providers/pi/execution/PiExecutionBackend';
 import { PiRpcSessionKernel } from '@/providers/pi/execution/PiExecutionKernel';
@@ -16,8 +17,10 @@ it.each([false, true])('edits, switches and resumes native branches without losi
   await fs.mkdir(sessionDir, { recursive: true });
   const sessionFile = path.join(sessionDir, 'source.jsonl');
   await fs.writeFile(sessionFile, JSON.stringify({ type: 'session', version: 3, id: 'pi-source', cwd: root, timestamp: new Date().toISOString() }) + '\n');
+  const diagnosticRecords: ProviderDiagnosticLogRecord[] = [];
   const host = {
     getResolvedProviderCliPath: async () => process.execPath,
+    diagnosticLog: { write: jest.fn((record: ProviderDiagnosticLogRecord) => { diagnosticRecords.push(record); return Promise.resolve(); }) },
     settings: { model: configuration.model, effortLevel: 'off', systemPrompt: '', userName: '',
       providerConfigs: { pi: { enabled: true, toolMode: 'all', visibleModels: [configuration.model],
         discoveredModels: [{ encodedId: configuration.model, id: 'claude-sonnet-4', provider: 'anthropic', label: 'Sonnet', input: ['text', 'image'], reasoning: true, thinkingLevels: ['off', 'high'] }] } } },
@@ -53,6 +56,10 @@ it.each([false, true])('edits, switches and resumes native branches without losi
   };
   try {
     await send('A');
+    expect(diagnosticRecords).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event: 'process-started', source: 'pi' }),
+      expect.objectContaining({ event: 'process-stderr', source: 'pi', message: expect.stringContaining('Pi fixture started') }),
+    ]));
     if (!isBranchableExecutionSession(session)) throw new Error('Missing tree capability');
     const original = await fs.readFile(sessionFile, 'utf8');
     const edit = await session.navigateConversationBranch({ userMessageId: 'pi-user-1', configuration });

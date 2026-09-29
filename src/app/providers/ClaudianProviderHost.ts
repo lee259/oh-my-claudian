@@ -6,6 +6,7 @@ import type {
   ProviderExecutionTransitionScope,
 } from '../../core/execution';
 import type { ObsidianWorkspaceAdapter } from '../../core/obsidian/ObsidianWorkspaceAdapter';
+import type { ProviderDiagnosticLogSink } from '../../core/providers/ProviderDiagnosticLog';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type {
   ProviderCliResolutionContext,
@@ -20,6 +21,7 @@ interface ClaudianProviderHostDependencies {
   readonly executionLifecycleRegistry: ProviderExecutionLifecycleRegistry;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
+  readonly diagnosticLog: ProviderDiagnosticLogSink;
   readonly manifest?: { version?: string };
 
   saveSettings(): Promise<void>;
@@ -77,6 +79,10 @@ export class ClaudianProviderHost implements ProviderHost {
 
   get storage() {
     return this.plugin.storage;
+  }
+
+  get diagnosticLog(): ProviderDiagnosticLogSink {
+    return this.plugin.diagnosticLog;
   }
 
   get manifest() {

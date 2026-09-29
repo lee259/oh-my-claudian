@@ -12,6 +12,7 @@ export interface BuildPiLaunchSpecParams {
   model?: string | null;
   noSession?: boolean;
   noTools?: boolean;
+  verbose?: boolean;
   tools?: readonly string[];
   providerState?: PiProviderState | null;
   settings: PiProviderSettings;
@@ -33,6 +34,9 @@ const READONLY_TOOLS = 'read,grep,find,ls';
 
 export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec {
   const args = ['--mode', 'rpc'];
+  if (params.verbose && !(params.additionalArguments ?? []).includes('--verbose')) {
+    args.push('--verbose');
+  }
   let sessionFlagIndex: number | null = null;
   const sessionTarget = params.providerState?.sessionFile
     ?? params.providerState?.sessionId

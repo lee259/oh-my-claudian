@@ -293,6 +293,11 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private failRun(run: OmpExecutionRun, error: unknown): void {
     if (run.terminal) return;
     const message = formatOmpExecutionError(error);
+    void this.plugin.diagnosticLog?.write({
+      event: 'execution-error',
+      message,
+      source: 'omp',
+    }).catch(() => undefined);
     this.snapshot = {
       ...this.makeSnapshot('invalidated'),
       invalidation: { message, reason: 'provider-error', recoverable: true },

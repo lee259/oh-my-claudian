@@ -891,6 +891,26 @@
       "desc": "每行填寫一個參數。每行會作為獨立參數原樣傳遞，不經過 shell 展開。",
       "placeholder": "--extension\n/擴充檔案路徑\n--verbose",
       "heading": "進階"
+    },
+    "diagnostics": {
+      "title": "診斷",
+      "desc": "用於排查 Provider 工作階段問題的本機記錄。",
+      "logging": {
+        "name": "儲存 Provider 偵錯記錄",
+        "desc": "按日記錄啟動參數、Provider 標準錯誤輸出，以及 Claudian 擷取到的錯誤。預設關閉；記錄可能包含敏感內容。"
+      },
+      "directory": {
+        "name": "記錄資料夾",
+        "desc": "留空使用 ~/.claudian/diagnostics。可填寫絕對路徑或相對於使用者主目錄的路徑。",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "記錄檔",
+        "desc": "開啟設定的診斷記錄資料夾。",
+        "button": "開啟資料夾",
+        "error": "無法開啟診斷記錄資料夾。"
+      },
+      "openCommandName": "開啟 Provider 診斷記錄"
     }
   }
 }

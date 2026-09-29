@@ -464,6 +464,11 @@ export class ClaudianSettingTab extends PluginSettingTab {
       { id: 'input', title: t('settings.input') },
       { id: 'hotkeys', title: t('settings.hotkeys') },
       { id: 'environment', title: t('settings.environment') },
+      {
+        id: 'diagnostics',
+        title: t('settings.diagnostics.title'),
+        description: t('settings.diagnostics.desc'),
+      },
       { id: 'advanced', title: t('common.advanced') },
     ];
     const sectionContainers = new Map<string, HTMLElement>();
@@ -846,6 +851,51 @@ export class ClaudianSettingTab extends PluginSettingTab {
       usePreactEnvironmentField: true,
       usePreactSnippetList: true,
     });
+
+    // --- Diagnostics ---
+
+    const diagnostics = section('diagnostics');
+    this.mountGeneralControl(diagnostics.createDiv(), h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
+      items: [{
+        id: 'provider-diagnostic-logs-enabled',
+        name: t('settings.diagnostics.logging.name'),
+        description: t('settings.diagnostics.logging.desc'),
+        value: this.plugin.settings.providerDiagnosticLogsEnabled === true,
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'provider-diagnostic-logs-enabled') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.providerDiagnosticLogsEnabled = value;
+        });
+      },
+    }));
+    this.mountGeneralControl(diagnostics.createDiv(), h(SettingsTextFieldsView, {
+      saveLabels: this.getSettingsSaveLabels(),
+      items: [{
+        id: 'provider-diagnostic-log-directory',
+        name: t('settings.diagnostics.directory.name'),
+        description: t('settings.diagnostics.directory.desc'),
+        value: this.plugin.settings.providerDiagnosticLogDirectory ?? '',
+        placeholder: t('settings.diagnostics.directory.placeholder'),
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'provider-diagnostic-log-directory') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.providerDiagnosticLogDirectory = value.trim();
+        });
+      },
+    }));
+    new Setting(diagnostics)
+      .setName(t('settings.diagnostics.openFolder.name'))
+      .setDesc(t('settings.diagnostics.openFolder.desc'))
+      .addButton(button => button
+        .setButtonText(t('settings.diagnostics.openFolder.button'))
+        .onClick(() => {
+          void this.plugin.openProviderDiagnosticLogDirectory().catch(() => {
+            new Notice(t('settings.diagnostics.openFolder.error'));
+          });
+        }));
 
     // --- Advanced ---
 

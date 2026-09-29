@@ -891,6 +891,26 @@
       "desc": "Um argumento por linha. Cada linha é passada literalmente, sem expansão do shell.",
       "placeholder": "--extension\n/caminho/da/extensão\n--verbose",
       "heading": "Avançado"
+    },
+    "diagnostics": {
+      "title": "Diagnóstico",
+      "desc": "Registos locais para solucionar problemas das sessões do fornecedor.",
+      "logging": {
+        "name": "Guardar registos de depuração do fornecedor",
+        "desc": "Regista diariamente os argumentos de inicialização, a saída de erro do fornecedor e os erros capturados pelo Claudian. Desativado por predefinição; os registos podem conter dados sensíveis."
+      },
+      "directory": {
+        "name": "Pasta de registos",
+        "desc": "Deixe em branco para usar ~/.claudian/diagnostics. Indique um caminho absoluto ou relativo à pasta pessoal.",
+        "placeholder": "~/.claudian/diagnostics"
+      },
+      "openFolder": {
+        "name": "Ficheiros de registo",
+        "desc": "Abre a pasta de diagnóstico configurada.",
+        "button": "Abrir pasta",
+        "error": "Não foi possível abrir a pasta de registos de diagnóstico."
+      },
+      "openCommandName": "Abrir registos de diagnóstico do fornecedor"
     }
   }
 }

@@ -170,6 +170,8 @@ export interface ClaudianSettings {
 
   // UI preferences
   maxWarmAgentProcesses: number;
+  providerDiagnosticLogsEnabled: boolean;
+  providerDiagnosticLogDirectory: string;
   enableAutoScroll: boolean;
   showTabTitlesByDefault: boolean;
   deferMathRenderingDuringStreaming: boolean;

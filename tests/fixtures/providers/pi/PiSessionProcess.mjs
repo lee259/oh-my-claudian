@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 // A deterministic external Pi RPC peer. No application implementation is imported.
 const root = process.env.CLAUDIAN_TEST_PI_ROOT;
+process.stderr.write('Pi fixture started\n');
 const args = process.argv.slice(2);
 const sessionIndex = args.indexOf('--session');
 const noSession = args.includes('--no-session');

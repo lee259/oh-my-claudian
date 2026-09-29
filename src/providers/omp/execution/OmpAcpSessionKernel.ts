@@ -1,8 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 
 import type { ProviderSessionConfig } from '@/core/execution';
 import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
+import { ProviderDiagnosticStreamBuffer } from '@/core/providers/ProviderDiagnosticLog';
 import { sanitizeDiagnosticMessage } from '@/core/providers/ProviderDiagnostics';
 import { getRuntimeEnvironmentVariables } from '@/core/providers/providerEnvironment';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
@@ -89,6 +91,28 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       settings,
     });
     const subprocess = new AcpSubprocess(spec);
+    const stderrDecoder = new StringDecoder('utf8');
+    const stderrLogBuffer = new ProviderDiagnosticStreamBuffer();
+    const writeStderrDiagnostics = (messages: readonly string[]): void => {
+      for (const message of messages) {
+        writeOmpDiagnostic(this.options.plugin, {
+          event: 'process-stderr',
+          message,
+          source: 'omp',
+        });
+      }
+    };
+    subprocess.onCloseState((state) => {
+      writeStderrDiagnostics(stderrLogBuffer.write(stderrDecoder.end()));
+      writeStderrDiagnostics(stderrLogBuffer.end());
+      void writeOmpDiagnostic(this.options.plugin, {
+        event: 'process-exited',
+        exitCode: state.code,
+        ...(state.error ? { message: state.error.message } : {}),
+        signal: state.signal,
+        source: 'omp',
+      });
+    });
     subprocess.onClose((error) => {
       if (this.disposed) return;
       const processError = error ?? new Error('OMP ACP process closed');
@@ -98,6 +122,17 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
         : processError);
     });
     subprocess.start();
+    void writeOmpDiagnostic(this.options.plugin, {
+      args: spec.args,
+      command: spec.command,
+      cwd: spec.cwd,
+      event: 'process-started',
+      source: 'omp',
+    });
+    subprocess.stderr.on('data', (chunk: Buffer | string) => {
+      const message = stderrDecoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      writeStderrDiagnostics(stderrLogBuffer.write(message));
+    });
     this.process = subprocess;
     const transport = new AcpJsonRpcTransport({
       input: subprocess.stdout,
@@ -216,6 +251,13 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
     return this.interaction?.requestPermission(request)
       ?? Promise.resolve({ outcome: { outcome: 'cancelled' } });
   }
+}
+
+function writeOmpDiagnostic(
+  plugin: ProviderHost,
+  record: Parameters<NonNullable<ProviderHost['diagnosticLog']>['write']>[0],
+): void {
+  void plugin.diagnosticLog?.write(record).catch(() => undefined);
 }
 
 export function resolveWorkspacePath(
