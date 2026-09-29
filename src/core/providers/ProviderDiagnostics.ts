@@ -93,8 +93,8 @@ export function createProviderDiagnosticReport(
 
 const SECRET_PATTERNS = [
   /(bearer\s+)[^\s,;]+/gi,
-  /((?:api[\s_-]?key|auth(?:entication)?[\s_-]?token|access[\s_-]?token)\s*[:=]\s*)[^\s,;]+/gi,
-  /((?:ANTHROPIC|OPENAI|CODEX|GEMINI|XAI)[A-Z0-9_]*(?:KEY|TOKEN|SECRET)[A-Z0-9_]*\s*=\s*)[^\s,;]+/gi,
+  /((?:"?(?:api[\s_-]?key|auth(?:entication)?[\s_-]?token|access[\s_-]?token)"?)\s*[:=]\s*"?)[^\s,;"}]+/gi,
+  /((?:[A-Z][A-Z0-9_]*(?:API_KEY|_TOKEN|_SECRET))\s*[:=]\s*"?)[^\s,;"}]+/gi,
   /\b(?:sk|key|token)-[A-Za-z0-9_-]{12,}\b/g,
 ] as const;
 

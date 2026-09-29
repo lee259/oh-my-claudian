@@ -34,6 +34,7 @@ import {
   type OmpAcpSessionKernel,
   type OmpAcpSessionKernelOptions,
 } from './OmpAcpSessionKernel';
+import { formatOmpExecutionError } from './OmpExecutionError';
 
 class EventQueue<T> implements AsyncIterable<T>, AsyncIterator<T> {
   private closed = false;
@@ -291,7 +292,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
 
   private failRun(run: OmpExecutionRun, error: unknown): void {
     if (run.terminal) return;
-    const message = error instanceof Error ? error.message : String(error);
+    const message = formatOmpExecutionError(error);
     this.snapshot = {
       ...this.makeSnapshot('invalidated'),
       invalidation: { message, reason: 'provider-error', recoverable: true },
