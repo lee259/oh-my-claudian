@@ -11,7 +11,9 @@ import {
   markAsyncSubagentOrphaned,
   renderStoredAsyncSubagent,
   renderStoredSubagent,
+  updateAsyncSubagentProgress,
   updateAsyncSubagentRunning,
+  updateSubagentProgress,
   updateSubagentToolResult,
 } from '@/features/chat/rendering/SubagentRenderer';
 import { setLocale, t } from '@/i18n/i18n';
@@ -113,6 +115,31 @@ describe('Sync Subagent Renderer', () => {
       const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
 
       expect(getTextByClass(state.wrapperEl as any, 'claudian-subagent-count')).toEqual([]);
+    });
+
+    it('shows live progress details and merges fields from partial updates', () => {
+      const state = createSubagentBlock(parentEl as any, 'task-progress', { description: 'Test task' });
+
+      updateSubagentProgress(state, {
+        toolCallId: 'task-progress',
+        summary: 'Searching files',
+        lastToolName: 'Grep',
+        toolUses: 2,
+        totalTokens: 1250,
+        durationMs: 62_000,
+      });
+      updateSubagentProgress(state, { toolCallId: 'task-progress', toolUses: 3 });
+
+      expect(state.progressEl?.textContent).toBe('Searching files · Using Grep · 3 tool uses · 1.3k tokens · 1m 2s');
+    });
+
+    it('clears live progress when the task completes', () => {
+      const state = createSubagentBlock(parentEl as any, 'task-progress', { description: 'Test task' });
+      updateSubagentProgress(state, { toolCallId: 'task-progress', summary: 'Searching' });
+
+      finalizeSubagentBlock(state, 'Done', false);
+
+      expect(state.progressEl).toBeNull();
     });
   });
 
@@ -341,6 +368,21 @@ describe('Async Subagent Renderer', () => {
     expect(setIcon).toHaveBeenCalledWith(state.statusEl, 'loader-2');
     expect(state.statusEl.className).toContain('status-running');
     expect(state.statusEl.getAttribute('aria-label')).toBe('Status: running');
+  });
+
+  it('shows live progress details on async tasks', () => {
+    const state = createAsyncSubagentBlock(parentEl as any, 'task-progress', { description: 'Background job' });
+
+    updateAsyncSubagentProgress(state, {
+      toolCallId: 'task-progress',
+      summary: 'Reading files',
+      lastToolName: 'Read',
+      toolUses: 1,
+      totalTokens: 850,
+      durationMs: 45_000,
+    });
+
+    expect(state.progressEl?.textContent).toBe('Reading files · Using Read · 1 tool use · 850 tokens · 45s');
   });
 
   it('shows prompt in content and keeps label visible while running', () => {

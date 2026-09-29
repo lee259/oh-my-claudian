@@ -24,6 +24,7 @@ import {
   type SubagentState,
   updateAsyncSubagentProgress,
   updateAsyncSubagentRunning,
+  updateSubagentProgress,
   updateSubagentToolResult,
 } from '../rendering/SubagentRenderer';
 import type { PendingToolCall } from '../state/types';
@@ -416,6 +417,12 @@ export class SubagentManager {
   }
 
   public updateProgress(progress: SubagentProgress): void {
+    const syncState = this.syncSubagents.get(progress.toolCallId);
+    if (syncState) {
+      if (syncState.info.status === 'running') updateSubagentProgress(syncState, progress);
+      return;
+    }
+
     const record = this.asyncSubagents.get(progress.toolCallId);
     const state = this.asyncDomStates.get(progress.toolCallId);
     if (!record || !state || record.info.asyncStatus === 'completed'

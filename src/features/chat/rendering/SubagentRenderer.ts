@@ -4,6 +4,7 @@ import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_SUBAGENT } from '../../../core/tools/toolNames';
 import type { SubagentInfo, SubagentProgress, ToolCallInfo } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { formatDurationMmSs } from '../../../utils/date';
 import type { FileReference } from '../../../utils/FileReference';
 import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
 import { setupCollapsible } from './collapsible';
@@ -42,6 +43,8 @@ export interface SubagentState {
   resultSummaryEl: HTMLElement;
   statusTextEl: HTMLElement;
   statusEl: HTMLElement;
+  progressEl: HTMLElement | null;
+  progress?: SubagentProgress;
   promptSectionEl: HTMLElement;
   promptBodyEl: HTMLElement;
   toolsContainerEl: HTMLElement;
@@ -313,6 +316,7 @@ export function createSubagentBlock(
     resultSummaryEl,
     statusTextEl,
     statusEl,
+    progressEl: null,
     promptSectionEl: promptSection.wrapperEl,
     promptBodyEl: promptSection.bodyEl,
     toolsContainerEl,
@@ -387,6 +391,7 @@ export function finalizeSubagentBlock(
   result: string,
   isError: boolean
 ): void {
+  clearSubagentProgress(state);
   state.info.status = isError ? 'error' : 'completed';
   state.info.result = result;
 
@@ -434,7 +439,8 @@ export interface AsyncSubagentState {
   headerEl: HTMLElement;
   labelEl: HTMLElement;
   resultSummaryEl: HTMLElement;
-  progressEl: HTMLElement;
+  progressEl: HTMLElement | null;
+  progress?: SubagentProgress;
   statusTextEl: HTMLElement;  // Running / Completed / Error / Orphaned
   statusEl: HTMLElement;
   openTranscriptBtnEl?: HTMLElement | null;
@@ -722,15 +728,59 @@ export function updateAsyncSubagentProgress(
   progress: SubagentProgress,
 ): void {
   if (state.info.asyncStatus !== 'running' && state.info.asyncStatus !== 'pending') return;
-  const parts = [progress.summary, progress.lastToolName ? `Using ${progress.lastToolName}` : undefined]
-    .filter((part): part is string => Boolean(part));
+  updateSubagentProgress(state, progress);
+}
+
+export function updateSubagentProgress(
+  state: SubagentState | AsyncSubagentState,
+  update: SubagentProgress,
+): void {
+  state.progress = { ...state.progress, ...update };
+  const progress = state.progress;
+  const parts = [
+    progress.summary,
+    progress.lastToolName ? `Using ${progress.lastToolName}` : undefined,
+    formatSubagentProgressMeta(progress) || undefined,
+  ].filter((part): part is string => Boolean(part));
   if (parts.length === 0) {
-    state.progressEl.addClass('claudian-hidden');
-    state.progressEl.setText('');
+    clearSubagentProgress(state);
     return;
   }
-  state.progressEl.setText(parts.join(' · '));
-  state.progressEl.removeClass('claudian-hidden');
+  let progressEl = state.progressEl;
+  if (!progressEl) {
+    progressEl = state.wrapperEl.createDiv({ cls: 'claudian-subagent-progress' });
+    state.wrapperEl.insertBefore(progressEl, state.contentEl);
+    state.progressEl = progressEl;
+  }
+  progressEl.setText(parts.join(' · '));
+  progressEl.removeClass('claudian-hidden');
+}
+
+function formatSubagentProgressMeta(progress: SubagentProgress): string {
+  const parts: string[] = [];
+  if (typeof progress.toolUses === 'number' && Number.isFinite(progress.toolUses) && progress.toolUses >= 0) {
+    parts.push(`${progress.toolUses} ${progress.toolUses === 1 ? 'tool use' : 'tool uses'}`);
+  }
+  if (typeof progress.totalTokens === 'number' && Number.isFinite(progress.totalTokens) && progress.totalTokens > 0) {
+    parts.push(formatSubagentTokenCount(progress.totalTokens));
+  }
+  if (typeof progress.durationMs === 'number' && Number.isFinite(progress.durationMs) && progress.durationMs > 0) {
+    parts.push(formatDurationMmSs(Math.round(progress.durationMs / 1_000)));
+  }
+  return parts.join(' · ');
+}
+
+function formatSubagentTokenCount(tokens: number): string {
+  if (tokens < 1_000) return `${tokens} tokens`;
+  const thousands = tokens / 1_000;
+  const value = thousands >= 100 ? String(Math.round(thousands)) : thousands.toFixed(1).replace(/\.0$/, '');
+  return `${value}k tokens`;
+}
+
+function clearSubagentProgress(state: SubagentState | AsyncSubagentState): void {
+  state.progress = undefined;
+  state.progressEl?.remove();
+  state.progressEl = null;
 }
 
 export function updateAsyncSubagentRunning(
@@ -756,6 +806,7 @@ export function finalizeAsyncSubagent(
   result: string,
   isError: boolean
 ): void {
+  clearSubagentProgress(state);
   state.info.asyncStatus = isError ? 'error' : 'completed';
   state.info.status = isError ? 'error' : 'completed';
   state.info.result = result;
@@ -791,6 +842,7 @@ export function finalizeAsyncSubagent(
 }
 
 export function markAsyncSubagentOrphaned(state: AsyncSubagentState): void {
+  clearSubagentProgress(state);
   state.info.asyncStatus = 'orphaned';
   state.info.status = 'error';
   state.info.result = 'Conversation ended before task completed';
