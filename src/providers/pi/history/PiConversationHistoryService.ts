@@ -23,6 +23,7 @@ import {
   parsePiSessionEntries,
   parsePiSessionModel,
   readPiSessionHeader,
+  resolvePiTreeCursor,
 } from './PiHistoryStore';
 
 const PI_PROVIDER_STATE_KEYS = [
@@ -33,6 +34,8 @@ const PI_PROVIDER_STATE_KEYS = [
   'previousSessions',
   'sessionFile',
   'sessionId',
+  'treeCursor',
+  'treeSelections',
 ] as const;
 
 export class PiConversationHistoryService implements ProviderConversationHistoryService {
@@ -68,9 +71,13 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     if (!sessionFile) return null;
 
     try {
+      const content = await fs.readFile(sessionFile, 'utf8');
+      const cursor = state.treeCursor
+        ? resolvePiTreeCursor(parsePiSessionEntries(content).entries, state.treeCursor)
+        : null;
       return parsePiSessionModel(
-        await fs.readFile(sessionFile, 'utf8'),
-        isPendingFork ? state.forkSource!.resumeAt : state.leafEntryId,
+        content,
+        isPendingFork ? state.forkSource!.resumeAt : (cursor ? cursor.leafId : state.leafEntryId),
       );
     } catch {
       return null;
@@ -202,15 +209,35 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     }
 
     const messages: ChatMessage[] = [];
+    let readCurrent = false;
     for (const source of resolvedSources) {
       try {
         const content = await fs.readFile(source.sessionFile, 'utf-8');
+        const cursor = source.kind === 'current' && state.treeCursor
+          ? resolvePiTreeCursor(parsePiSessionEntries(content).entries, state.treeCursor)
+          : null;
         const sourceMessages = parsePiSessionContent(content, {
-          leafEntryId: source.leafEntryId,
-          requireLeafEntryId: source.kind === 'previous' && !!source.leafEntryId,
+          leafEntryId: cursor ? cursor.leafId : source.leafEntryId,
+          includeBranches: source.kind === 'current',
+          requireLeafEntryId: source.kind === 'previous'
+            ? !!source.leafEntryId
+            : !!source.leafEntryId || !!state.treeCursor,
           syntheticIdNamespace: source.sessionFile,
         });
         messages.push(...sourceMessages);
+        if (source.kind === 'current') {
+          readCurrent = true;
+          if (cursor) {
+            const nextState = { ...getPiState(conversation.providerState), treeCursor: cursor };
+            if (cursor.leafId) nextState.leafEntryId = cursor.leafId;
+            else delete nextState.leafEntryId;
+            conversation.providerState = mergePersistedProviderState(
+              conversation.providerState,
+              PI_PROVIDER_STATE_KEYS,
+              buildPersistedPiState(nextState) as Record<string, unknown> | undefined,
+            );
+          }
+        }
         if (
           source.kind === 'previous'
           && sourceMessages.length > 0
@@ -227,7 +254,7 @@ export class PiConversationHistoryService implements ProviderConversationHistory
         // One unavailable segment must not hide the remaining replayable history.
       }
     }
-    if (messages.length === 0) {
+    if (messages.length === 0 && !readCurrent) {
       this.hydratedKeys.delete(conversation.id);
       return;
     }

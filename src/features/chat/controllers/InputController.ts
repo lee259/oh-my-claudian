@@ -456,6 +456,12 @@ export class InputController {
       return;
     }
 
+    if (this.deps.conversationController.hasBranchPreview
+      && !await this.deps.conversationController.commitBranchPreview()) {
+      this.reportDeferredReviewableSettlement();
+      return;
+    }
+
     const streamGeneration = this.beginTurn(
       shouldUseInput,
       fileContextManager,

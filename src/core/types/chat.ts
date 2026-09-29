@@ -150,6 +150,8 @@ export interface ChatMessage {
   userMessageId?: string;
   /** Provider-native assistant message identifier used for rewind/fork checkpoints. */
   assistantMessageId?: string;
+  /** Provider-projected sibling prompt IDs for inline conversation-tree navigation. */
+  treeBranches?: readonly string[];
 }
 
 export function isCanonicalUserMessage(message: ChatMessage): boolean {

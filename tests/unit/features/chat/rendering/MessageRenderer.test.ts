@@ -708,6 +708,42 @@ describe('MessageRenderer', () => {
     expect(messagesEl.querySelector('.claudian-message-rewind-btn')).not.toBeNull();
   });
 
+  it('renders sibling branch navigation only on eligible Pi prompts', () => {
+    const messagesEl = createMockEl();
+    const navigate = jest.fn().mockResolvedValue(undefined);
+    const capabilities = { ...mockCapabilities('codex')(), providerId: 'pi', supportsConversationBranches: true };
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      undefined,
+      () => capabilities as any,
+      undefined,
+      { navigate, isBusy: () => false },
+    );
+    jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+    const messages: ChatMessage[] = [
+      { id: 'u1', role: 'user', content: 'first', timestamp: 1, userMessageId: 'pi-u1', treeBranches: ['pi-u1'] },
+      { id: 'a1', role: 'assistant', content: 'reply', timestamp: 2 },
+      { id: 'u2', role: 'user', content: 'second', timestamp: 3, userMessageId: 'pi-u2', treeBranches: ['pi-u2', 'pi-u3'] },
+      { id: 'a2', role: 'assistant', content: 'reply 2', timestamp: 4 },
+    ];
+
+    expect((renderer as any).getCapabilities().supportsConversationBranches).toBe(true);
+    expect((renderer as any).branchActions).toBeDefined();
+    renderer.renderMessages(messages, () => 'welcome');
+
+    const firstPrompt = messagesEl.children.find((child: any) => child.getAttribute('data-message-id') === 'u1');
+    expect(firstPrompt?.querySelector('.claudian-message-branch-btn')).toBeFalsy();
+    expect(messagesEl.querySelectorAll('.claudian-branch-position').some((item: any) => item.textContent === '1/2')).toBe(true);
+    const next = messagesEl.querySelectorAll('.claudian-message-branch-btn')
+      .find((button: any) => button.getAttribute('aria-label') === 'Next branch');
+    expect(next?.disabled).toBe(false);
+    next?.click();
+    expect(navigate).toHaveBeenCalledWith('u2', 'pi-u3');
+  });
+
   it('adds rewind but not fork for a completed first user message', () => {
     const messagesEl = createMockEl();
     const rewindCallback = jest.fn().mockResolvedValue(undefined);

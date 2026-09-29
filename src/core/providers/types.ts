@@ -38,6 +38,7 @@ export interface ProviderCapabilities {
   supportsPlanMode: boolean;
   supportsRewind: boolean;
   supportsFork: boolean;
+  supportsConversationBranches?: boolean;
   supportsResponseThroughput?: boolean;
   supportsEphemeralFork?: boolean;
   forkMode?: 'checkpoint' | 'full-session';

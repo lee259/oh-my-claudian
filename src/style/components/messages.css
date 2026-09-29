@@ -805,6 +805,25 @@ button.claudian-completed-work-header:focus-visible {
   white-space: nowrap;
 }
 
+.claudian-branch-marker {
+  display: inline-flex;
+  margin-inline-start: 6px;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.claudian-branch-marker svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-branch-position {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .claudian-message-actions button.claudian-text-copy-btn {
   position: static;
   opacity: 1;

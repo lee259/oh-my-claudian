@@ -8,6 +8,7 @@ export const PI_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Object.f
   supportsPlanMode: false,
   supportsRewind: false,
   supportsFork: true,
+  supportsConversationBranches: true,
   supportsProviderCommands: true,
   supportsImageAttachments: true,
   supportsInstructionMode: true,

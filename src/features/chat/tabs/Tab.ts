@@ -2083,6 +2083,12 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       return;
     }
 
+    if (e.key === 'Escape' && !e.isComposing && tab.controllers.conversationController?.hasBranchPreview) {
+      e.preventDefault();
+      tab.controllers.conversationController.cancelBranchPreview();
+      return;
+    }
+
     if (controllers.inputController?.handleResumeKeydown(e)) {
       return;
     }
