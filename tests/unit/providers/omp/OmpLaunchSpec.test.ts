@@ -34,6 +34,15 @@ describe('buildOmpLaunchSpec', () => {
     });
   });
 
+  it('appends configured literal arguments to the ACP launch', () => {
+    expect(buildOmpLaunchSpec({
+      additionalArguments: ['--extension', '/path with spaces/ext.ts'],
+      command: 'omp',
+      cwd: '/vault/project',
+      settings: DEFAULT_OMP_PROVIDER_SETTINGS,
+    }).args).toEqual(['acp', '--approval-mode', 'always-ask', '--extension', '/path with spaces/ext.ts']);
+  });
+
   it.each(['always-ask', 'write', 'yolo'] as const)(
     'passes the native %s approval mode to the ACP process',
     approvalMode => {

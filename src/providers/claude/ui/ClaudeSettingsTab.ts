@@ -10,6 +10,7 @@ import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycle
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { McpSettingsManager } from '../../../shared/settings/McpSettingsManager';
+import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
 import { renderLastEnabledProviderWarning } from '../../../shared/settings/ProviderModelEnablementWarning';
 import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
@@ -475,5 +476,6 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       },
     });
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
+    renderProviderAdditionalArgumentsSetting(container, context.plugin, 'claude');
   },
 };

@@ -885,6 +885,12 @@
       },
       "header": "Codex Subagents",
       "noAgents": "No Codex subagents in vault. Click + to create one."
+    },
+    "providerArguments": {
+      "name": "Additional CLI arguments",
+      "desc": "One argument per line. Each line is passed literally without shell expansion.",
+      "placeholder": "--extension\n/path/to/extension\n--verbose",
+      "heading": "Advanced"
     }
   }
 }

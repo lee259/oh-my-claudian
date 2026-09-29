@@ -1,9 +1,11 @@
 import * as path from 'node:path';
 
+
 export interface BuildCursorLaunchSpecParams {
   command: string;
   cwd: string;
   env?: NodeJS.ProcessEnv;
+  additionalArguments?: readonly string[];
 }
 
 export interface CursorLaunchSpec {
@@ -15,7 +17,7 @@ export interface CursorLaunchSpec {
 
 export function buildCursorLaunchSpec(params: BuildCursorLaunchSpecParams): CursorLaunchSpec {
   return {
-    args: ['acp'],
+    args: ['acp', ...(params.additionalArguments ?? [])],
     command: params.command,
     cwd: params.cwd,
     env: withCommandDirectoryOnPath(params.command, params.env ?? process.env),

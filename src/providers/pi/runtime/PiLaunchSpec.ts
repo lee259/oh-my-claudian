@@ -7,6 +7,7 @@ export interface BuildPiLaunchSpecParams {
   cwd: string;
   env?: NodeJS.ProcessEnv;
   envText?: string;
+  additionalArguments?: readonly string[];
   enableTreeBridge?: boolean;
   model?: string | null;
   noSession?: boolean;
@@ -65,6 +66,7 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
   if (thinkingLevel && thinkingLevel !== 'off') {
     args.push('--thinking', thinkingLevel);
   }
+  args.push(...(params.additionalArguments ?? []));
 
   return {
     ...(params.enableTreeBridge ? { enableTreeBridge: true } : {}),

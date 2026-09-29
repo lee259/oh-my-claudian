@@ -37,6 +37,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   locale: '',
 
   providerConfigs: getBuiltInProviderDefaultConfigs(),
+  providerAdditionalArguments: {},
 
   settingsProvider: 'claude',
   lastSelectedChatModel: null,

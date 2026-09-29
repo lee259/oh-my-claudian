@@ -25,6 +25,12 @@ describe('OpenCode ACP launch arguments', () => {
   it('uses the subprocess working directory instead of an unsupported ACP flag', () => {
     expect(buildOpencodeAcpArguments()).toEqual(['acp']);
   });
+
+  it('appends configured literal arguments after ACP mode', () => {
+    expect(buildOpencodeAcpArguments(['--flag', 'value with spaces'])).toEqual([
+      'acp', '--flag', 'value with spaces',
+    ]);
+  });
 });
 
 function permissionRequest(

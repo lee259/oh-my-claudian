@@ -11,6 +11,7 @@ import type {
   ProviderSystemInstructions,
 } from '@/core/execution';
 import type { SystemPromptSettings } from '@/core/prompt/mainAgent';
+import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import {
   AcpClientConnection,
@@ -112,8 +113,8 @@ export function classifyOpencodeSessionLoadError(
     : error;
 }
 
-export function buildOpencodeAcpArguments(): string[] {
-  return ['acp'];
+export function buildOpencodeAcpArguments(additionalArguments: readonly string[] = []): string[] {
+  return ['acp', ...additionalArguments];
 }
 
 const AUX_AGENT_IDS: Record<Exclude<OpencodeExecutionProfile, 'managed'>, string> = {
@@ -208,7 +209,9 @@ export class DefaultOpencodeAcpSessionKernel
         ),
       };
       const subprocess = new AcpSubprocess({
-        args: buildOpencodeAcpArguments(),
+        args: buildOpencodeAcpArguments(
+          getProviderAdditionalArguments(this.options.plugin.settings, 'opencode'),
+        ),
         command: cliPath,
         cwd: this.options.config.vaultWorkingDirectory,
         env: processEnv,

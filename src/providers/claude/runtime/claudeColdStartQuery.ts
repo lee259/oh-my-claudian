@@ -5,6 +5,7 @@ import type {
   SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import { getEnhancedPath, getMissingNodeError, parseEnvironmentVariables } from '../../../utils/env';
@@ -120,7 +121,10 @@ export async function runColdStartQuery(
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     settingSources: resolveClaudeSettingSources(claudeSettings.loadUserSettings),
-    spawnClaudeCodeProcess: createCustomSpawnFunction(enhancedPath),
+    spawnClaudeCodeProcess: createCustomSpawnFunction(
+      enhancedPath,
+      getProviderAdditionalArguments(config.plugin.settings, 'claude'),
+    ),
   };
 
   if (config.tools !== undefined) {

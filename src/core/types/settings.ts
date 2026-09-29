@@ -1,3 +1,5 @@
+import type { ProviderId } from '../providers/types';
+
 export type HiddenProviderCommands = Record<string, string[]>;
 
 export interface ApprovalSelectionDecision {
@@ -149,6 +151,7 @@ export interface ClaudianSettings {
 
   // Provider-owned settings
   providerConfigs: ProviderConfigMap;
+  providerAdditionalArguments?: Partial<Record<ProviderId, string>>;
 
   // Provider selection
   settingsProvider: string;  // ProviderId — which provider's model/effort/budget is projected to top-level fields

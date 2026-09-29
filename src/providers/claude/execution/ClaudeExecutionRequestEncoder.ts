@@ -17,6 +17,7 @@ import {
   buildSystemPromptSections,
   type SystemPromptSection,
 } from '../../../core/prompt/mainAgent';
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { AppPluginManager } from '../../../core/providers/types';
@@ -253,7 +254,10 @@ export class ClaudeExecutionRequestEncoder {
       settingSources: resolveClaudeSettingSources(
         claudeSettings.loadUserSettings,
       ),
-      spawnClaudeCodeProcess: createCustomSpawnFunction(enhancedPath),
+      spawnClaudeCodeProcess: createCustomSpawnFunction(
+        enhancedPath,
+        getProviderAdditionalArguments(settings, 'claude'),
+      ),
       // Auto mode stays available so safe-mode changes can remain live setters.
       extraArgs: {
         'enable-auto-mode': null,

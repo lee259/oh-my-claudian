@@ -20,9 +20,14 @@ export class OpencodeHttpClient {
   private readonly process: ManagedStdioProcess;
   private endpoint: Promise<string> | null = null;
 
-  constructor(cliPath: string, private readonly cwd: string, environment: NodeJS.ProcessEnv) {
+  constructor(
+    cliPath: string,
+    private readonly cwd: string,
+    environment: NodeJS.ProcessEnv,
+    additionalArguments: readonly string[] = [],
+  ) {
     this.process = new ManagedStdioProcess({
-      command: cliPath, args: ['serve', '--stdio', '--hostname', '127.0.0.1', '--port', '0'],
+      command: cliPath, args: buildOpencodeHttpArguments(additionalArguments),
       cwd, env: { ...environment, OPENCODE_PASSWORD: this.password },
     });
   }
@@ -178,6 +183,10 @@ export class OpencodeHttpClient {
       } catch { finish(new Error('Could not start the OpenCode server.')); }
     });
   }
+}
+
+export function buildOpencodeHttpArguments(additionalArguments: readonly string[] = []): string[] {
+  return ['serve', '--stdio', '--hostname', '127.0.0.1', '--port', '0', ...additionalArguments];
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

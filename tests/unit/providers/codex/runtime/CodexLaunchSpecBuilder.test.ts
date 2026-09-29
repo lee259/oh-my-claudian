@@ -17,6 +17,20 @@ describe('buildCodexLaunchSpec', () => {
     execFileSyncSpy.mockRestore();
   });
 
+  it('appends configured literal arguments after app-server protocol flags', () => {
+    const spec = buildCodexLaunchSpec({
+      settings: { providerAdditionalArguments: { codex: ['--config', 'model_reasoning_effort="high"'].join('\n') } },
+      resolvedCliCommand: 'codex',
+      hostVaultPath: '/repo',
+      env: {},
+      hostPlatform: 'linux',
+    });
+
+    expect(spec.args).toEqual([
+      'app-server', '--listen', 'stdio://', '--config', 'model_reasoning_effort="high"',
+    ]);
+  });
+
   it('builds a native Windows launch spec with a direct codex executable', () => {
     const spec = buildCodexLaunchSpec({
       settings: {

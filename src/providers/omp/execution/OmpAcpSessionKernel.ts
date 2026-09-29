@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { ProviderSessionConfig } from '@/core/execution';
+import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
 import { sanitizeDiagnosticMessage } from '@/core/providers/ProviderDiagnostics';
 import { getRuntimeEnvironmentVariables } from '@/core/providers/providerEnvironment';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
@@ -81,6 +82,7 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
     );
     const spec = buildOmpLaunchSpec({
       approvalMode: this.options.approvalMode,
+      additionalArguments: getProviderAdditionalArguments(this.options.plugin.settings, 'omp'),
       command,
       cwd: this.options.config.vaultWorkingDirectory,
       env: environment,

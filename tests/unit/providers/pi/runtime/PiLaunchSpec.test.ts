@@ -15,6 +15,15 @@ const baseSettings: PiProviderSettings = {
 };
 
 describe('PiLaunchSpec', () => {
+  it('appends configured literal arguments after Claudian-managed runtime flags', () => {
+    expect(buildPiLaunchSpec({
+      additionalArguments: ['--extension', '/path with spaces/ext.ts'],
+      command: 'pi',
+      cwd: '/vault',
+      settings: baseSettings,
+    }).args).toEqual(['--mode', 'rpc', '--extension', '/path with spaces/ext.ts']);
+  });
+
   it('builds main launch args with replacement system prompt and model flags', () => {
     expect(buildPiLaunchSpec({
       command: '/bin/pi',

@@ -30,6 +30,7 @@ import {
   buildSystemPrompt,
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type {
@@ -723,6 +724,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       cwd: this.config.vaultWorkingDirectory,
       env,
       envText,
+      additionalArguments: getProviderAdditionalArguments(this.host.settings, 'pi'),
       enableTreeBridge: !this.shouldDisableNativePersistence(),
       noSession: this.shouldDisableNativePersistence(),
       noTools: toolProfile.noTools,

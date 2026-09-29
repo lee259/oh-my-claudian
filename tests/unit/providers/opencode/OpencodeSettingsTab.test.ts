@@ -1,4 +1,5 @@
 import {
+  createTextAreaComponent,
   createTextComponent,
   createToggleComponent,
   type MockTextComponent,
@@ -101,6 +102,13 @@ jest.mock('obsidian', () => {
 
     addText(callback: (text: MockTextComponent) => void) {
       const component = createTextComponent();
+      this.textComponents.push(component);
+      callback(component);
+      return this;
+    }
+
+    addTextArea(callback: (text: MockTextComponent) => void) {
+      const component = createTextAreaComponent();
       this.textComponents.push(component);
       callback(component);
       return this;

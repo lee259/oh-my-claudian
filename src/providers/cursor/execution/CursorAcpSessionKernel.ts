@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { ProviderSessionConfig } from '@/core/execution';
+import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import { resolveAllowedFileOperationPath } from '@/core/storage/pathAccessPolicy';
 import { t } from '@/i18n/i18n';
@@ -76,6 +77,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
       command,
       cwd: this.options.config.vaultWorkingDirectory,
       env: { ...process.env },
+      additionalArguments: getProviderAdditionalArguments(this.options.plugin.settings, 'cursor'),
     });
     const subprocess = new AcpSubprocess(spec);
     subprocess.onClose((error) => {

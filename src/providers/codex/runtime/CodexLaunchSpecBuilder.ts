@@ -1,3 +1,4 @@
+import { getProviderAdditionalArguments } from '../../../core/providers/ProviderAdditionalArguments';
 import {
   inferWslDistroFromWindowsPath,
   resolveCodexExecutionTarget,
@@ -49,6 +50,10 @@ export function buildCodexLaunchSpec(
   }
 
   const targetCwd = pathMapper.toTargetPath(spawnCwd);
+  const appServerArgs = [
+    ...CODEX_APP_SERVER_ARGS,
+    ...getProviderAdditionalArguments(options.settings, 'codex'),
+  ];
 
   if (!targetCwd) {
     throw new Error('WSL mode only supports Windows drive paths and \\\\wsl$ workspace paths');
@@ -61,7 +66,7 @@ export function buildCodexLaunchSpec(
       '--cd',
       targetCwd,
       resolvedCliCommand,
-      ...CODEX_APP_SERVER_ARGS,
+      ...appServerArgs,
     ];
 
     return {
@@ -78,7 +83,7 @@ export function buildCodexLaunchSpec(
   return {
     target,
     command: resolvedCliCommand,
-    args: [...CODEX_APP_SERVER_ARGS],
+    args: appServerArgs,
     spawnCwd,
     targetCwd,
     env: options.env,

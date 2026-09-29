@@ -54,7 +54,7 @@ implements GrokExecutionNativeConnection {
 
   constructor(options: GrokExecutionNativeCreateOptions) {
     this.process = new AcpSubprocess({
-      args: ['agent', '--no-leader', 'stdio'],
+      args: buildGrokLaunchArguments(options.additionalArguments),
       command: options.command,
       cwd: options.cwd,
       env: options.env,
@@ -230,6 +230,10 @@ implements GrokExecutionNativeConnection {
   ): void {
     for (const listener of this.listeners) listener(notification, source);
   }
+}
+
+export function buildGrokLaunchArguments(additionalArguments: readonly string[] = []): string[] {
+  return ['agent', '--no-leader', 'stdio', ...additionalArguments];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
