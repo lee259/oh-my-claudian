@@ -440,7 +440,7 @@ body.mod-windows .claudian-message-assistant {
 
 .claudian-message-content {
   line-height: 1.5;
-  overflow-x: auto;
+  overflow-x: clip;
   user-select: text;
   -webkit-user-select: text;
   unicode-bidi: plaintext; /* Proper BiDi text handling for mixed RTL/LTR */

@@ -69,6 +69,7 @@ export interface ProviderQuestionReply {
  */
 export interface ProviderRegistration {
   displayName: string;
+  settingsTabLabel?: string;
   blankTabOrder: number;
   isEnabled: (settings: Record<string, unknown>) => boolean;
   setEnabled?: (settings: Record<string, unknown>, enabled: boolean) => void;
@@ -234,6 +235,8 @@ export interface ProviderPathIconSvg {
   kind?: 'path';
   viewBox: string;
   path: string;
+  /** Optional branded fill; otherwise the icon inherits its current text color. */
+  fill?: string;
 }
 
 export interface ProviderSvgPathChild {

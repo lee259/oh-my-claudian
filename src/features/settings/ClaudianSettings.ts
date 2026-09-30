@@ -169,12 +169,14 @@ function getHotkeyForCommand(app: App, commandId: string): string | null {
 export class ClaudianSettingTab extends PluginSettingTab {
   plugin: FeatureHost;
   private activeTab: SettingsTabId = 'general';
+  private activeProviderTab: ProviderId | null = null;
   private refreshTitleModelOptions: (() => void) | null = null;
   private displayGeneration = 0;
   private customContextLimitRefreshTimer: number | null = null;
   private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
+  private providerTabsRoot: PreactRoot | null = null;
   private generalSettingsRoot: PreactRoot | null = null;
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
@@ -237,6 +239,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
     this.settingsTabsRoot = null;
+    this.providerTabsRoot?.unmount();
+    this.providerTabsRoot = null;
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass('claudian-settings', 'oh-my-claudian-settings');
@@ -245,24 +249,33 @@ export class ClaudianSettingTab extends PluginSettingTab {
     setLocale(resolveLocale(this.plugin.settings.locale, getObsidianLanguage()));
 
     const providerTabs = ProviderRegistry.getRegisteredProviderIds();
-    const tabIds: SettingsTabId[] = ['general', ...providerTabs];
+    const tabIds: SettingsTabId[] = ['general', 'providers'];
     if (!tabIds.includes(this.activeTab)) {
       this.activeTab = 'general';
+    }
+    if (!this.activeProviderTab || !providerTabs.includes(this.activeProviderTab)) {
+      this.activeProviderTab = providerTabs[0] ?? null;
     }
 
     const tabBar = containerEl.createDiv({ cls: 'claudian-settings-tabs' });
     tabBar.setAttribute('role', 'tablist');
     tabBar.setAttribute('aria-label', t('settings.title'));
     const tabContents = new Map<SettingsTabId, HTMLDivElement>();
+    const providerContents = new Map<ProviderId, HTMLDivElement>();
     const renderedProviderTabs = new Set<ProviderId>();
 
-    const tabDefinitions: SettingsTabDefinition[] = tabIds.map(id => ({
-      id,
-      label: id === 'general'
-        ? t('settings.tabs.general')
-        : ProviderRegistry.getProviderDisplayName(id),
-      contentId: getSettingsTabContentId(id),
-    }));
+    const tabDefinitions: SettingsTabDefinition[] = [
+      {
+        id: 'general',
+        label: t('settings.tabs.general'),
+        contentId: getSettingsTabContentId('general'),
+      },
+      {
+        id: 'providers',
+        label: t('settings.tabs.providers'),
+        contentId: getSettingsTabContentId('providers'),
+      },
+    ];
 
     const activateTab = (id: SettingsTabId): void => {
       this.activeTab = id;
@@ -274,8 +287,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
           content.hidden = !isActive;
         }
       }
-      if (id !== 'general') {
-        void renderProviderTab(id);
+      if (id === 'providers' && this.activeProviderTab) {
+        void renderProviderTab(this.activeProviderTab);
       }
     };
 
@@ -292,7 +305,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       }
       renderedProviderTabs.add(providerId);
 
-      const content = tabContents.get(providerId);
+      const content = providerContents.get(providerId);
       if (!content) {
         return;
       }
@@ -387,7 +400,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       const content = containerEl.createDiv({
         cls: [
           'claudian-settings-tab-content',
-          id === 'general' ? 'claudian-settings-general' : 'claudian-settings-provider-content',
+          id === 'general' ? 'claudian-settings-general' : 'claudian-settings-providers',
           id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
         ].filter(Boolean).join(' '),
       });
@@ -398,10 +411,58 @@ export class ClaudianSettingTab extends PluginSettingTab {
       tabContents.set(id, content);
     }
 
+    const providersContent = tabContents.get('providers');
+    if (providersContent) {
+      const providerTabBar = providersContent.createDiv({
+        cls: 'claudian-settings-tabs claudian-settings-provider-tabs',
+      });
+      providerTabBar.setAttribute('role', 'tablist');
+      providerTabBar.setAttribute('aria-label', t('settings.tabs.providers'));
+
+      const providerTabDefinitions: SettingsTabDefinition[] = providerTabs.map(id => ({
+        id,
+        label: ProviderRegistry.getProviderSettingsTabLabel(id),
+        contentId: getSettingsTabContentId(`provider-${id}`),
+      }));
+
+      for (const providerId of providerTabs) {
+        const content = providersContent.createDiv({
+          cls: `claudian-settings-provider-content${providerId === this.activeProviderTab ? ' claudian-settings-provider-content--active' : ''}`,
+        });
+        content.id = getSettingsTabContentId(`provider-${providerId}`);
+        content.setAttribute('role', 'tabpanel');
+        content.setAttribute('aria-labelledby', `claudian-settings-tab-${providerId}`);
+        content.hidden = providerId !== this.activeProviderTab;
+        providerContents.set(providerId, content);
+      }
+
+      this.providerTabsRoot = createPreactRoot(providerTabBar);
+      this.providerTabsRoot.render(h(SettingsTabBar, {
+        tabs: providerTabDefinitions,
+        initialActiveTabId: this.activeProviderTab ?? '',
+        onTabChange: (providerId) => {
+          if (!providerTabs.includes(providerId)) {
+            return;
+          }
+          const selectedProviderId = providerId;
+          this.activeProviderTab = selectedProviderId;
+          for (const candidate of providerTabs) {
+            const content = providerContents.get(candidate);
+            const isActive = candidate === selectedProviderId;
+            content?.toggleClass('claudian-settings-provider-content--active', isActive);
+            if (content) {
+              content.hidden = !isActive;
+            }
+          }
+          void renderProviderTab(selectedProviderId);
+        },
+      }));
+    }
+
     this.renderGeneralTab(tabContents.get('general')!);
 
-    if (this.activeTab !== 'general') {
-      void renderProviderTab(this.activeTab);
+    if (this.activeTab === 'providers' && this.activeProviderTab) {
+      void renderProviderTab(this.activeProviderTab);
     }
   }
 

@@ -60,6 +60,42 @@ function createConnectionHarness(
 }
 
 describe('AcpClientConnection', () => {
+  it('uses the current ACP session/resume and session/close methods', async () => {
+    const harness = createConnectionHarness(transport => new AcpClientConnection({ transport }));
+
+    try {
+      const resumePromise = harness.connection.loadSession({
+        cwd: '/workspace',
+        mcpServers: [],
+        sessionId: 'persisted-session',
+      });
+      const resumeRequest = await harness.nextOutbound();
+      expect(resumeRequest).toMatchObject({
+        method: 'session/resume',
+        params: { cwd: '/workspace', mcpServers: [], sessionId: 'persisted-session' },
+      });
+      harness.sendInbound({
+        id: resumeRequest.id,
+        jsonrpc: '2.0',
+        result: { sessionId: 'persisted-session' },
+      });
+      await expect(resumePromise).resolves.toEqual({ sessionId: 'persisted-session' });
+
+      const closePromise = harness.connection.closeSession({ sessionId: 'persisted-session' });
+      const closeRequest = await harness.nextOutbound();
+      expect(closeRequest).toMatchObject({
+        method: 'session/close',
+        params: { sessionId: 'persisted-session' },
+      });
+      harness.sendInbound({ id: closeRequest.id, jsonrpc: '2.0', result: {} });
+      await expect(closePromise).resolves.toEqual({});
+    } finally {
+      harness.connection.dispose();
+      harness.transport.dispose();
+      harness.close();
+    }
+  });
+
   it('uses the standard session/fork ACP method', async () => {
     const harness = createConnectionHarness(transport => new AcpClientConnection({ transport }));
     try {
