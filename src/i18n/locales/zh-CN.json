@@ -270,8 +270,8 @@
     },
     "gettingStarted": {
       "title": "开始使用",
-      "desc": "按以下三个步骤发送第一条由 Provider 驱动的聊天消息。",
-      "stepProvider": "选择一个 Provider 标签页并启用 Provider。",
+      "desc": "按以下三个步骤发送第一条由提供商支持的聊天消息。",
+      "stepProvider": "选择一个提供商标签页并启用提供商。",
       "stepReadiness": "使用就绪状态面板确认 CLI、模型目录和模型选择均已准备好。",
       "stepChat": "打开聊天视图并发送第一条消息。",
       "openChat": {
@@ -282,15 +282,15 @@
     },
     "capabilityMatrix": {
       "title": "Oh My Claudian 接入能力",
-      "desc": "对比 Oh My Claudian 当前接入的能力。此处不是各 Provider 原生功能的完整清单。",
-      "provider": "Provider",
+      "desc": "对比 Oh My Claudian 当前接入的能力。此处不是各提供商原生功能的完整清单。",
+      "provider": "提供商",
       "supported": "支持",
       "unsupported": "—",
       "rows": {
         "planMode": "计划模式",
         "rewind": "回退",
         "fork": "分叉会话",
-        "providerCommands": "Provider 命令",
+        "providerCommands": "提供商命令",
         "imageAttachments": "图片附件",
         "mcpTools": "MCP 工具",
         "turnSteer": "回合控制"
@@ -300,7 +300,7 @@
       "general": "通用",
       "claude": "Claude Code",
       "codex": "Codex CLI",
-      "providers": "Providers"
+      "providers": "提供商"
     },
     "omp": {
       "setup": "配置",
@@ -332,7 +332,7 @@
       "loadingModels": "正在加载 Cursor 模型…",
       "discoveryFailed": "Cursor 模型发现失败：{error}",
       "workspaceNotInitialized": "Cursor 工作区尚未初始化",
-      "agent": "Agent",
+      "agent": "代理",
       "plan": "计划",
       "ask": "询问",
       "permissionRequest": "Cursor 请求使用 {tool}。",
@@ -409,10 +409,10 @@
     },
     "providerDiagnostics": {
       "kicker": "故障排查",
-      "title": "Provider 诊断",
+      "title": "提供商诊断",
       "whatHappened": "发生了什么",
       "readiness": "就绪检查",
-      "provider": "Provider",
+      "provider": "提供商",
       "category": "错误类型",
       "status": "运行状态",
       "platform": "平台",
@@ -422,8 +422,8 @@
       "details": "查看详情",
       "copy": "复制报告",
       "close": "关闭",
-      "copied": "Provider 诊断报告已复制。",
-      "copyFailed": "无法复制 Provider 诊断报告。",
+      "copied": "提供商诊断报告已复制。",
+      "copyFailed": "无法复制提供商诊断报告。",
       "statusValue": {
         "idle": "空闲",
         "starting": "启动中",
@@ -431,7 +431,7 @@
         "failed": "失败"
       },
       "check": {
-        "enabled": "Provider 已启用",
+        "enabled": "提供商已启用",
         "cli": "CLI 可用",
         "models": "模型目录可用",
         "selection": "已选择聊天模型"
@@ -443,7 +443,7 @@
         "ready": "已就绪"
       },
       "remediation": {
-        "enableProvider": "启用 Provider",
+        "enableProvider": "启用提供商",
         "configureCli": "配置 CLI",
         "refreshModels": "刷新模型",
         "selectModel": "选择模型"
@@ -460,7 +460,7 @@
         "protocol-error": "协议错误",
         "authentication": "认证失败",
         "not-configured": "未配置",
-        "provider": "Provider 错误"
+        "provider": "提供商错误"
       }
     },
     "display": "显示",
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Codex CLI 技能",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": "管理存储在 .agents/skills/ 中的共享技能。",
         "hiddenName": "隐藏技能",
         "hiddenDesc": "从下拉菜单中隐藏特定 Codex CLI 技能。每行输入一个技能名称，不带前导 $。",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "技能",
+      "fixedRoot": "在 .agents/skills 中管理",
       "sharedExpectation": "在 .agents/skills/ 中管理共享技能，供兼容的提供商使用。",
       "noSkills": "尚未配置共享技能。点击 + 创建一个。",
       "skillBadge": "技能",
       "diagnosticsTitle": "需要处理的技能问题",
       "loadFailed": "无法加载共享技能。",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "已保存，但刷新提供商失败。",
+      "validationFailed": "技能无效：{message}",
+      "collisionFailed": "名为“{name}”的技能已存在。",
+      "saveFailed": "保存共享技能失败：{message}",
+      "deleteFailed": "将共享技能移入回收站失败：{message}",
+      "staleConflict": "此技能已在其他位置更改；请刷新后再保存。",
+      "created": "已创建共享技能“{name}”。",
+      "updated": "已更新共享技能“{name}”。",
+      "deleted": "已将共享技能“{name}”移入回收站。",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "编辑共享技能",
+        "titleAdd": "添加共享技能",
+        "name": "技能名称",
+        "nameDesc": "使用小写字母和数字，以单个连字符分隔",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "描述",
+        "descriptionDesc": "必填的通用描述，供提供商选择技能时使用",
+        "descriptionPlaceholder": "检查代码的正确性和可维护性",
+        "instructions": "指令",
+        "instructionsDesc": "必填的 SKILL.md 指令",
+        "instructionsPlaceholder": "检查提供的代码并报告可执行的发现……"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "删除共享技能",
+        "description": "整个技能文件夹（包括脚本、参考资料和资源）将被移入回收站。",
+        "confirm": "移入回收站"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "下拉菜单中显示的可选描述",
         "instructions": "指令",
         "instructionsDesc": "技能指令（SKILL.md 内容）",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "分析代码并查找……"
       },
       "instructionsRequired": "指令为必填项",
       "saveFailed": "保存 Codex CLI 技能失败",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "开发者指令",
         "desc": "定义代理行为的核心指令",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "像代码负责人一样审查代码。\n优先关注正确性、安全性和测试覆盖缺口。",
         "required": "开发者指令为必填项"
       },
       "validation": {
@@ -914,10 +914,10 @@
     },
     "diagnostics": {
       "title": "诊断",
-      "desc": "用于排查 Provider 会话问题的本地日志。",
+      "desc": "用于排查提供商会话问题的本地日志。",
       "logging": {
-        "name": "保存 Provider 调试日志",
-        "desc": "按日记录启动参数、Provider 标准错误输出和 Claudian 捕获到的错误。默认关闭；日志可能包含敏感内容。"
+        "name": "保存提供商调试日志",
+        "desc": "按日记录启动参数、提供商标准错误输出和 Claudian 捕获到的错误。默认关闭；日志可能包含敏感内容。"
       },
       "directory": {
         "name": "日志目录",
@@ -930,7 +930,7 @@
         "button": "打开目录",
         "error": "无法打开诊断日志目录。"
       },
-      "openCommandName": "打开 Provider 诊断日志"
+      "openCommandName": "打开提供商诊断日志"
     },
     "providerSettings": {
       "unavailable": "提供商设置不可用。",

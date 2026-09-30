@@ -269,31 +269,31 @@
       "automaticPath": "Automatisch erkannt"
     },
     "gettingStarted": {
-      "title": "Get started",
-      "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
-      "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
-      "stepChat": "Open the chat view and send your first message.",
+      "title": "Loslegen",
+      "desc": "Folge diesen drei Schritten, um deinen ersten Chat mit einem Anbieter zu senden.",
+      "stepProvider": "Wähle einen Anbieter-Tab und aktiviere einen Anbieter.",
+      "stepReadiness": "Bestätige im Bereitschaftsbereich, dass CLI, Modellkatalog und Modellauswahl bereit sind.",
+      "stepChat": "Öffne die Chat-Ansicht und sende deine erste Nachricht.",
       "openChat": {
-        "name": "Open chat",
-        "desc": "Open the Oh My Claudian chat view whenever you are ready to start.",
-        "button": "Open chat"
+        "name": "Chat öffnen",
+        "desc": "Öffne die Oh My Claudian Chat-Ansicht, sobald du loslegen möchtest.",
+        "button": "Chat öffnen"
       }
     },
     "capabilityMatrix": {
-      "title": "Oh My Claudian integration capabilities",
-      "desc": "Compare the capabilities currently integrated by Oh My Claudian. This is not a complete list of each provider's native features.",
-      "provider": "Provider",
-      "supported": "Yes",
+      "title": "In Oh My Claudian integrierte Funktionen",
+      "desc": "Vergleiche die derzeit in Oh My Claudian integrierten Funktionen. Dies ist keine vollständige Liste der nativen Funktionen der einzelnen Anbieter.",
+      "provider": "Anbieter",
+      "supported": "Ja",
       "unsupported": "—",
       "rows": {
-        "planMode": "Plan mode",
-        "rewind": "Rewind",
-        "fork": "Fork",
-        "providerCommands": "Provider commands",
-        "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "planMode": "Planmodus",
+        "rewind": "Zurückspulen",
+        "fork": "Abzweigen",
+        "providerCommands": "Anbieterbefehle",
+        "imageAttachments": "Bildanhänge",
+        "mcpTools": "MCP-Werkzeuge",
+        "turnSteer": "Steuerung des Antwortverlaufs"
       }
     },
     "tabs": {
@@ -321,35 +321,35 @@
       "tool": "ein Tool"
     },
     "cursor": {
-      "setup": "Setup",
-      "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
-      "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
-      "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
-      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
-      "loadingModels": "Loading Cursor models...",
-      "discoveryFailed": "Cursor model discovery failed: {error}",
-      "workspaceNotInitialized": "Cursor workspace is not initialized",
+      "setup": "Einrichtung",
+      "enable": "Cursor aktivieren",
+      "enableDesc": "Aktiviere Cursor Agent über dessen ACP-CLI.",
+      "cliPath": "CLI-Pfad",
+      "cliPathDesc": "Absoluter Pfad zur Cursor Agent CLI. Füge die Ausgabe von „which agent“ ein (unter Windows „where agent“). Leer lassen für automatische Erkennung.",
+      "models": "Modelle",
+      "noModels": "Es wurden noch keine Cursor-Modelle gefunden. Führe agent login aus und klicke auf „Entdecken“.",
+      "catalogFailed": "Der Cursor-Modellkatalog konnte nicht geladen werden. Prüfe den CLI-Pfad und den Anmeldestatus.",
+      "loadingModels": "Cursor-Modelle werden geladen…",
+      "discoveryFailed": "Cursor-Modellerkennung fehlgeschlagen: {error}",
+      "workspaceNotInitialized": "Der Cursor-Arbeitsbereich ist nicht initialisiert.",
       "agent": "Agent",
       "plan": "Plan",
-      "ask": "Ask",
-      "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "ask": "Fragen",
+      "permissionRequest": "Cursor fordert die Berechtigung an, {tool} zu verwenden.",
+      "tool": "ein Werkzeug"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Optionaler absoluter Pfad zur Grok Build CLI. Leer lassen, um zuerst bekannte Installationen und danach PATH zu verwenden. Füge die Ausgabe von „which grok“ ein (unter Windows „where grok“).",
       "environment": {
         "name": "Grok Build-Umgebungsvariablen",
         "desc": "Umgebungsvariablen, die nur an Grok Build übergeben werden. Geheimnisse für benutzerdefinierte Modelle bleiben in diesem Anbieterbereich und werden in der nativen Konfiguration über env_key referenziert."
       }
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "Optionaler absoluter Pfad zur OpenCode CLI. Leer lassen, um PATH zu verwenden. Füge die Ausgabe von „which opencode“ ein (unter Windows „where opencode“)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "cliPathDesc": "Optionaler absoluter Pfad zur Pi CLI. Leer lassen, um PATH zu verwenden. Füge die Ausgabe von „which pi“ ein (unter Windows „where pi“).",
       "environment": {
         "name": "Pi-Umgebungsvariablen",
         "desc": "Umgebungsvariablen, die nur an Pi übergeben werden."
@@ -358,7 +358,7 @@
     "providerReadiness": {
       "title": "Bereitschaft",
       "desc": "Prüfen, ob {provider} für einen Chat bereit ist.",
-      "checking": "Provider-Bereitschaft wird geprüft…",
+      "checking": "Anbieterbereitschaft wird geprüft…",
       "refresh": "Erneut prüfen",
       "status": {
         "disabled": "Deaktiviert",
@@ -367,15 +367,15 @@
         "ready": "Bereit"
       },
       "check": {
-        "enabled": "Provider aktiviert",
+        "enabled": "Anbieter aktiviert",
         "cli": "CLI verfügbar",
         "models": "Modellkatalog verfügbar",
         "selection": "Chat-Modell ausgewählt"
       },
       "hint": {
-        "enableProvider": "Aktiviere diesen Provider, um ihn im Chat zu verwenden.",
+        "enableProvider": "Aktiviere diesen Anbieter, um ihn im Chat zu verwenden.",
         "configureCli": "Lege einen gültigen CLI-Pfad fest oder stelle sicher, dass Obsidian die CLI über PATH findet.",
-        "refreshModels": "Prüfe die Anmeldung oder Sitzung des Providers und prüfe erneut, um Modelle zu laden.",
+        "refreshModels": "Prüfe die Anmeldung oder Sitzung des Anbieters erneut, um Modelle zu laden.",
         "selectModel": "Wähle unten mindestens ein Chat-Modell aus."
       }
     },
@@ -409,10 +409,10 @@
     },
     "providerDiagnostics": {
       "kicker": "Fehlerbehebung",
-      "title": "Provider-Diagnose",
+      "title": "Anbieterdiagnose",
       "whatHappened": "Was ist passiert",
       "readiness": "Bereitschaftsprüfungen",
-      "provider": "Provider",
+      "provider": "Anbieter",
       "category": "Kategorie",
       "status": "Status",
       "platform": "Plattform",
@@ -431,7 +431,7 @@
         "failed": "Fehlgeschlagen"
       },
       "check": {
-        "enabled": "Provider aktiviert",
+        "enabled": "Anbieter aktiviert",
         "cli": "CLI verfügbar",
         "models": "Modellkatalog verfügbar",
         "selection": "Chat-Modell ausgewählt"
@@ -443,7 +443,7 @@
         "ready": "Bereit"
       },
       "remediation": {
-        "enableProvider": "Provider aktivieren",
+        "enableProvider": "Anbieter aktivieren",
         "configureCli": "CLI konfigurieren",
         "refreshModels": "Modelle aktualisieren",
         "selectModel": "Modell auswählen"
@@ -460,7 +460,7 @@
         "protocol-error": "Protokollfehler",
         "authentication": "Authentifizierung fehlgeschlagen",
         "not-configured": "Nicht konfiguriert",
-        "provider": "Provider-Fehler"
+        "provider": "Anbieterfehler"
       }
     },
     "display": "Anzeige",
@@ -592,7 +592,7 @@
         "advancedOptions": "Erweiterte Optionen",
         "model": "Modell",
         "modelDesc": "Modellüberschreibung für diesen Agenten",
-        "tools": "Tools",
+        "tools": "Werkzeuge",
         "toolsDesc": "Kommagetrennte Liste zulässiger Tools (leer = alle)",
         "disallowedTools": "Nicht erlaubte Tools",
         "disallowedToolsDesc": "Kommagetrennte Liste der zu verbietenden Tools",
@@ -622,7 +622,7 @@
       "desc": "Umgebungsvariablen für Claude Code SDK (KEY=VALUE-Format, eine pro Zeile). Export-Präfix unterstützt."
     },
     "envSnippets": {
-      "name": "Snippets",
+      "name": "Vorlagen",
       "addBtn": "Snippet hinzufügen",
       "insertBtn": "Einfügen",
       "editBtn": "Bearbeiten",
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Codex CLI-Fähigkeiten",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": "Gemeinsame Vault-weite Skills verwalten, die nur in .agents/skills/ gespeichert sind.",
         "hiddenName": "Ausgeblendete Fähigkeiten",
         "hiddenDesc": "Blende bestimmte Codex CLI-Fähigkeiten aus dem Dropdown aus. Gib Fähigkeitsnamen ohne führendes $ ein, einen pro Zeile.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "Fähigkeiten",
+      "fixedRoot": "Verwaltet in .agents/skills",
       "sharedExpectation": "Verwalte gemeinsame Skills in .agents/skills/ für kompatible Anbieter.",
       "noSkills": "Keine gemeinsamen Skills konfiguriert. Klicke auf +, um einen zu erstellen.",
       "skillBadge": "Skill",
       "diagnosticsTitle": "Skills mit Handlungsbedarf",
       "loadFailed": "Gemeinsame Skills konnten nicht geladen werden.",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "Gespeichert, aber die Anbieter konnten nicht aktualisiert werden.",
+      "validationFailed": "Ungültiger Skill: {message}",
+      "collisionFailed": "Ein Skill namens „{name}“ ist bereits vorhanden.",
+      "saveFailed": "Der gemeinsame Skill konnte nicht gespeichert werden: {message}",
+      "deleteFailed": "Der gemeinsame Skill konnte nicht in den Papierkorb verschoben werden: {message}",
+      "staleConflict": "Dieser Skill wurde an anderer Stelle geändert. Aktualisiere ihn vor dem Speichern.",
+      "created": "Gemeinsamer Skill „{name}“ erstellt.",
+      "updated": "Gemeinsamer Skill „{name}“ aktualisiert.",
+      "deleted": "Gemeinsamer Skill „{name}“ in den Papierkorb verschoben.",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "Gemeinsamen Skill bearbeiten",
+        "titleAdd": "Gemeinsamen Skill hinzufügen",
+        "name": "Skill-Name",
+        "nameDesc": "Kleinbuchstaben und Ziffern, durch einzelne Bindestriche getrennt",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "Beschreibung",
+        "descriptionDesc": "Erforderliche portable Beschreibung, anhand derer Anbieter den Skill auswählen",
+        "descriptionPlaceholder": "Prüft Code auf Korrektheit und Wartbarkeit",
+        "instructions": "Anweisungen",
+        "instructionsDesc": "Erforderliche Anweisungen in SKILL.md",
+        "instructionsPlaceholder": "Prüfe den angegebenen Code und nenne konkrete, umsetzbare Erkenntnisse…"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "Gemeinsamen Skill löschen",
+        "description": "Der gesamte Skill-Ordner einschließlich Skripten, Referenzen und Ressourcen wird in den Papierkorb verschoben.",
+        "confirm": "In den Papierkorb verschieben"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "Optionale Beschreibung im Dropdown",
         "instructions": "Anweisungen",
         "instructionsDesc": "Anweisungen der Fähigkeit (SKILL.md-Inhalt)",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "Analysiere den Code auf…"
       },
       "instructionsRequired": "Anweisungen sind erforderlich",
       "saveFailed": "Codex CLI-Fähigkeit konnte nicht gespeichert werden",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "Entwickleranweisungen",
         "desc": "Kernanweisungen, die das Verhalten des Agenten definieren",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "Prüfe Code wie ein verantwortlicher Maintainer.\nPriorisiere Korrektheit, Sicherheit und fehlende Testabdeckung.",
         "required": "Entwickleranweisungen sind erforderlich"
       },
       "validation": {
@@ -914,10 +914,10 @@
     },
     "diagnostics": {
       "title": "Diagnose",
-      "desc": "Lokale Protokolle zur Fehlersuche bei Provider-Sitzungen.",
+      "desc": "Lokale Protokolle zur Fehlersuche bei Anbietersitzungen.",
       "logging": {
-        "name": "Provider-Debugprotokolle speichern",
-        "desc": "Startargumente, Provider-Fehlerausgabe und von Claudian erfasste Fehler werden täglich protokolliert. Standardmäßig deaktiviert; Protokolle können sensible Inhalte enthalten."
+        "name": "Anbieter-Debugprotokolle speichern",
+        "desc": "Startargumente, Fehlerausgabe des Anbieters und von Claudian erfasste Fehler werden täglich protokolliert. Standardmäßig deaktiviert; Protokolle können sensible Inhalte enthalten."
       },
       "directory": {
         "name": "Protokollordner",
@@ -930,7 +930,7 @@
         "button": "Ordner öffnen",
         "error": "Der Diagnoseordner konnte nicht geöffnet werden."
       },
-      "openCommandName": "Provider-Diagnoseprotokolle öffnen"
+      "openCommandName": "Anbieter-Diagnoseprotokolle öffnen"
     },
     "providerSettings": {
       "unavailable": "Anbietereinstellungen sind nicht verfügbar.",
