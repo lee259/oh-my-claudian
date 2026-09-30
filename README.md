@@ -15,6 +15,7 @@ The built-in provider integrations are:
 - [Claude Code](https://code.claude.com/docs/en/overview)
 - [Codex CLI](https://github.com/openai/codex)
 - [Cursor Agent](https://cursor.com/docs/cli/overview)
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (preview)
 - [Grok Build](https://github.com/xai-org/grok-build)
 - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)
 - [OpenCode](https://github.com/anomalyco/opencode)

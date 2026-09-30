@@ -7,6 +7,8 @@
   --oh-my-claudian-brand-claude-rgb: 217, 119, 87;
   --oh-my-claudian-brand-codex: #d0d0d0;
   --oh-my-claudian-brand-codex-rgb: 208, 208, 208;
+  --oh-my-claudian-brand-dsh: #5786FE;
+  --oh-my-claudian-brand-dsh-rgb: 87, 134, 254;
   --oh-my-claudian-brand-opencode: #B8B8B8;
   --oh-my-claudian-brand-opencode-rgb: 184, 184, 184;
   --oh-my-claudian-brand-omp: #00B8D9;
@@ -23,6 +25,8 @@
   --claudian-brand-claude-rgb: 217, 119, 87;
   --claudian-brand-codex: #d0d0d0;
   --claudian-brand-codex-rgb: 208, 208, 208;
+  --claudian-brand-dsh: #5786FE;
+  --claudian-brand-dsh-rgb: 87, 134, 254;
   --claudian-brand-opencode: #B8B8B8;
   --claudian-brand-opencode-rgb: 184, 184, 184;
   --claudian-brand-omp: #00B8D9;
@@ -75,6 +79,13 @@ body.theme-light .claudian-settings {
   --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-codex-rgb);
   --claudian-brand: var(--claudian-brand-codex);
   --claudian-brand-rgb: var(--claudian-brand-codex-rgb);
+}
+
+.oh-my-claudian-root.claudian-container[data-provider="dsh"] {
+  --oh-my-claudian-brand: var(--oh-my-claudian-brand-dsh);
+  --oh-my-claudian-brand-rgb: var(--oh-my-claudian-brand-dsh-rgb);
+  --claudian-brand: var(--claudian-brand-dsh);
+  --claudian-brand-rgb: var(--claudian-brand-dsh-rgb);
 }
 
 .oh-my-claudian-root.claudian-container[data-provider="opencode"] {

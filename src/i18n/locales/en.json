@@ -969,6 +969,14 @@
       "emptyCatalog": "No {provider} models reported. Check your configuration and click Discover.",
       "loadingCatalog": "Loading {provider} models…",
       "stale": "{provider} model catalog is stale. Click Discover to refresh it."
+    },
+    "dsh": {
+      "setupIntro": "Install the Harness CLI once, add your DeepSeek API key, then discover models. Claudian manages the ACP launch settings.",
+      "previewNote": "DeepSeek Harness is in developer preview and its CLI may change between releases.",
+      "noModels": "No DeepSeek Harness models discovered yet. Check DSH credentials and click Discover.",
+      "catalogFailed": "Could not load the DeepSeek Harness model catalog. Check the dsh CLI and credentials.",
+      "loadingModels": "Loading DeepSeek Harness models...",
+      "workspaceNotInitialized": "DeepSeek Harness workspace is not initialized"
     }
   }
 }

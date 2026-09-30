@@ -969,6 +969,14 @@
       "emptyCatalog": "{provider} no ha informado de ningún modelo. Revisa tu configuración y haz clic en Descubrir.",
       "loadingCatalog": "Cargando modelos de {provider}…",
       "stale": "El catálogo de modelos de {provider} está desactualizado. Haz clic en Descubrir para actualizarlo."
+    },
+    "dsh": {
+      "setupIntro": "Instala la CLI de Harness una vez, añade tu clave de API de DeepSeek y descubre los modelos. Claudian administra la configuración de inicio ACP.",
+      "previewNote": "DeepSeek Harness está en vista previa para desarrolladores y su CLI puede cambiar entre versiones.",
+      "noModels": "Aún no se han descubierto modelos de DeepSeek Harness. Comprueba las credenciales de DSH y pulsa Descubrir.",
+      "catalogFailed": "No se pudo cargar el catálogo de modelos de DeepSeek Harness. Comprueba la CLI dsh y las credenciales.",
+      "loadingModels": "Cargando modelos de DeepSeek Harness…",
+      "workspaceNotInitialized": "El espacio de trabajo de DeepSeek Harness no está inicializado."
     }
   }
 }

@@ -969,6 +969,14 @@
       "emptyCatalog": "{provider} 未回報任何模型。請檢查設定並點擊「探索」。",
       "loadingCatalog": "正在載入 {provider} 模型…",
       "stale": "{provider} 模型目錄已過時。點擊「探索」以重新整理。"
+    },
+    "dsh": {
+      "setupIntro": "安裝一次 Harness CLI，設定 DeepSeek API Key 後探索模型。ACP 啟動參數由 Claudian 管理。",
+      "previewNote": "DeepSeek Harness 仍處於開發預覽階段，CLI 可能隨版本變動。",
+      "noModels": "尚未發現 DeepSeek Harness 模型。請檢查 DSH 憑證後點擊「發現」。",
+      "catalogFailed": "無法載入 DeepSeek Harness 模型目錄。請檢查 dsh 命令和憑證。",
+      "loadingModels": "正在載入 DeepSeek Harness 模型……",
+      "workspaceNotInitialized": "DeepSeek Harness 工作區尚未初始化"
     }
   }
 }

@@ -969,6 +969,14 @@
       "emptyCatalog": "보고된 {provider} 모델이 없습니다. 구성을 확인하고 검색을 클릭하세요.",
       "loadingCatalog": "{provider} 모델을 불러오는 중…",
       "stale": "{provider} 모델 카탈로그가 오래되었습니다. 검색을 클릭하여 새로 고치세요."
+    },
+    "dsh": {
+      "setupIntro": "Harness CLI를 한 번 설치하고 DeepSeek API 키를 추가한 뒤 모델을 검색하세요. ACP 실행 설정은 Claudian이 관리합니다.",
+      "previewNote": "DeepSeek Harness는 개발자 프리뷰이며 CLI는 버전마다 변경될 수 있습니다.",
+      "noModels": "아직 DeepSeek Harness 모델을 찾지 못했습니다. DSH 자격 증명을 확인하고 검색을 클릭하세요.",
+      "catalogFailed": "DeepSeek Harness 모델 카탈로그를 불러오지 못했습니다. dsh CLI와 자격 증명을 확인하세요.",
+      "loadingModels": "DeepSeek Harness 모델을 불러오는 중…",
+      "workspaceNotInitialized": "DeepSeek Harness 작업 공간이 초기화되지 않았습니다."
     }
   }
 }
