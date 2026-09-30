@@ -1,3 +1,6 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+
 import * as path from 'path';
 
 import {
@@ -7,12 +10,31 @@ import {
   parseCodexSessionContent,
   parseCodexSessionFile,
   parseCodexSessionTurns,
+  readCodexSessionModel,
 } from '@/providers/codex/history/CodexHistoryStore';
 import { formatCodexQuestionReply } from '@/providers/codex/normalization/codexQuestionNormalization';
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  it('reads the selected model from a transcript without loading the whole file', async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-history-model-'));
+    const filePath = path.join(directory, 'session.jsonl');
+    await fs.writeFile(filePath, [
+      JSON.stringify({ type: 'turn_context', payload: { turn_id: 'before', model: 'model-before' } }),
+      JSON.stringify({ type: 'turn_context', payload: { turn_id: 'selected', model: 'model-selected' } }),
+      JSON.stringify({ type: 'turn_context', payload: { turn_id: 'after', model: 'model-after' } }),
+    ].join('\n'));
+
+    try {
+      await expect(readCodexSessionModel(filePath)).resolves.toBe('model-after');
+      await expect(readCodexSessionModel(filePath, 'selected')).resolves.toBe('model-selected');
+      await expect(readCodexSessionModel(filePath, 'missing')).resolves.toBeNull();
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('settles lookup at the deadline when a directory read never resolves', async () => {
     jest.useFakeTimers();
     try {

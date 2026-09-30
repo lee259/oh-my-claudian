@@ -44,7 +44,7 @@ import {
 import {
   deriveCodexMemoriesDirFromSessionsRoot,
   deriveCodexSessionsRootFromSessionPath,
-  findCodexSessionFile,
+  findCodexSessionFileAsync,
 } from '../history/CodexHistoryStore';
 import { getCodexModelOptions } from '../modelOptions';
 import {
@@ -306,6 +306,7 @@ export class CodexExecutionSession
   private completionRecoveryInFlight = false;
   private disposed = false;
   private lifecycleGeneration = 0;
+  private sessionFileDiscoveryThreadId: string | null = null;
 
   private threadId: string | null;
   private loadedThreadId: string | null = null;
@@ -2130,15 +2131,39 @@ export class CodexExecutionSession
   }
 
   private discoverSessionFile(): void {
-    if (this.sessionFilePath || !this.threadId) return;
-    const found = findCodexSessionFile(
-      this.threadId,
+    const threadId = this.threadId;
+    if (
+      this.disposed
+      || this.config.lifecycle !== 'persistent'
+      || this.sessionFilePath
+      || !threadId
+      || this.sessionFileDiscoveryThreadId === threadId
+    ) return;
+
+    const generation = this.lifecycleGeneration;
+    this.sessionFileDiscoveryThreadId = threadId;
+    void findCodexSessionFileAsync(
+      threadId,
       this.resolveTranscriptRootHost() ?? undefined,
-    );
-    if (found) {
+    ).then(found => {
+      if (
+        !found
+        || this.disposed
+        || generation !== this.lifecycleGeneration
+        || this.threadId !== threadId
+        || this.sessionFilePath
+      ) return;
+
       this.sessionFilePath = found;
       this.updateSnapshot(this.snapshot.status);
-    }
+      this.emitSessionState();
+    }).catch(() => {
+      // Transcript discovery is best effort and must not affect turn completion.
+    }).finally(() => {
+      if (this.sessionFileDiscoveryThreadId === threadId) {
+        this.sessionFileDiscoveryThreadId = null;
+      }
+    });
   }
 
   private isRunCurrent(

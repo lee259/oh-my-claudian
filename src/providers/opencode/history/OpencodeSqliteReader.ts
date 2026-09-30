@@ -22,6 +22,7 @@ interface SqliteModule {
 type SpawnSqliteProcess = (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 
 export interface OpencodeSqliteReaderDependencies {
+  includeParts?: boolean;
   nativeVersion?: 1 | 2 | 'auto';
   environment?: NodeJS.ProcessEnv;
   findNodeExecutables?: () => string[];
@@ -69,7 +70,9 @@ export async function loadOpencodeSessionRows(
     sessionId,
     dependencies,
     buildOpencodeMessageRowsSql,
-    buildOpencodePartRowsSql,
+    dependencies.includeParts === false
+      ? id => `SELECT 1 WHERE ${id} IS NULL`
+      : buildOpencodePartRowsSql,
   );
 }
 

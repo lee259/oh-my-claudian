@@ -14,6 +14,7 @@ import type {
   SubagentInfo,
   ToolCallInfo,
 } from '../../../core/types';
+import { mapWithConcurrency } from '../../../utils/concurrency';
 import { extractHandbackResult } from '../normalization/claudeSubagentResult';
 import { omitToolResultImageData } from '../sdk/toolResultContent';
 import { isClaudeSubagentToolName } from '../subagentToolNames';
@@ -841,7 +842,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     const checkpointSessionId = resumableSessionId
       ?? (conversation.resumeAtMessageId ? allSessionIds[allSessionIds.length - 1] : null);
 
-    for (const sessionId of allSessionIds) {
+    const loadedSessions = await mapWithConcurrency(allSessionIds, async sessionId => {
       const relocatedSessionPath = relocatedSessionPaths.get(sessionId);
       const location = relocatedSessionPath
         ? { availability: 'relocated' as const, sessionPath: relocatedSessionPath }
@@ -852,7 +853,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
         } else {
           unknownSessionCount++;
         }
-        continue;
+          return null;
       }
 
       const isCheckpointSession = sessionId === checkpointSessionId;
@@ -872,6 +873,10 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
           ? await loadSDKSessionMessages(vaultPath, sessionId, truncateAt, sessionPathOverride)
           : await loadSDKSessionMessages(vaultPath, sessionId, truncateAt);
 
+      return result;
+    }, 4);
+    for (const result of loadedSessions) {
+      if (!result) continue;
       if (result.error) {
         errorCount++;
         continue;

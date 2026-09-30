@@ -6,6 +6,7 @@ import {
   createPiForkSessionFile,
   parsePiSessionContent,
   parsePiSessionEntries,
+  parsePiSessionModel,
   type PiSessionEntry,
   resolvePiActivePath,
   resolvePiEntryPath,
@@ -13,6 +14,20 @@ import {
 } from '@/providers/pi/history/PiHistoryStore';
 
 describe('PiHistoryStore', () => {
+  it('reuses parsed entries for message and model projections', () => {
+    const content = [
+      JSON.stringify({ type: 'session', id: 's1' }),
+      JSON.stringify({ id: 'u1', type: 'entry', message: { role: 'user', content: 'Hello' } }),
+      JSON.stringify({ id: 'a1', type: 'entry', message: { role: 'assistant', model: 'test/model', content: [{ type: 'text', text: 'Hi' }] } }),
+    ].join('\n');
+    const parsed = parsePiSessionEntries(content);
+
+    expect(parsePiSessionContent(parsed).map(message => [message.role, message.content])).toEqual(
+      parsePiSessionContent(content).map(message => [message.role, message.content]),
+    );
+    expect(parsePiSessionModel(parsed)).toBe(parsePiSessionModel(content));
+  });
+
   it('parses linear user and assistant messages', () => {
     const content = [
       JSON.stringify({ type: 'session', id: 's1' }),

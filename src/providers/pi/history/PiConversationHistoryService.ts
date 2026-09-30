@@ -71,9 +71,9 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     if (!sessionFile) return null;
 
     try {
-      const content = await fs.readFile(sessionFile, 'utf8');
+      const content = parsePiSessionEntries(await fs.readFile(sessionFile, 'utf8'));
       const cursor = state.treeCursor
-        ? resolvePiTreeCursor(parsePiSessionEntries(content).entries, state.treeCursor)
+        ? resolvePiTreeCursor(content.entries, state.treeCursor)
         : null;
       return parsePiSessionModel(
         content,
@@ -212,9 +212,9 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     let readCurrent = false;
     for (const source of resolvedSources) {
       try {
-        const content = await fs.readFile(source.sessionFile, 'utf-8');
+        const content = parsePiSessionEntries(await fs.readFile(source.sessionFile, 'utf-8'));
         const cursor = source.kind === 'current' && state.treeCursor
-          ? resolvePiTreeCursor(parsePiSessionEntries(content).entries, state.treeCursor)
+          ? resolvePiTreeCursor(content.entries, state.treeCursor)
           : null;
         const sourceMessages = parsePiSessionContent(content, {
           leafEntryId: cursor ? cursor.leafId : source.leafEntryId,

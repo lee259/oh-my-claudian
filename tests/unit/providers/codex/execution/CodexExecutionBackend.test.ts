@@ -10,6 +10,7 @@ import type {
 } from '@/core/execution';
 import { isSteerableExecutionSession } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
+import * as codexHistoryStore from '@/providers/codex/history/CodexHistoryStore';
 
 const mockTransportRequest = jest.fn();
 const mockTransportNotify = jest.fn();
@@ -495,6 +496,65 @@ describe('CodexExecutionBackend', () => {
       revision: expect.any(Number),
     }));
 
+    await session.dispose();
+  });
+
+  it('discovers missing transcript paths asynchronously after a persistent turn', async () => {
+    const lookup = createDeferred<string | null>();
+    const findSessionFile = jest.spyOn(
+      codexHistoryStore,
+      'findCodexSessionFileAsync',
+    ).mockReturnValue(lookup.promise);
+    const thread = createThreadResult('thread-discovery');
+    (thread.thread as { path: string | null }).path = null;
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') return thread;
+      if (method === 'turn/start') {
+        queueMicrotask(() => completeTurn('thread-discovery', 'turn-discovery'));
+        return createTurnResult('turn-discovery');
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+
+    const session = new CodexExecutionBackend(createPlugin())
+      .createSession(createSessionConfig());
+    const sessionEvents: ProviderSessionEvent[] = [];
+    session.onEvent(event => sessionEvents.push(event));
+
+    const events = await collectEvents(session.execute(createRequest()).events);
+    expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
+    expect(findSessionFile).toHaveBeenCalledWith(
+      'thread-discovery',
+      '/tmp/.codex/sessions',
+    );
+    expect(session.getSnapshot().providerState).not.toHaveProperty('sessionFilePath');
+
+    lookup.resolve('/tmp/sessions/2026/09/30/thread-discovery.jsonl');
+    await flushMicrotasks();
+
+    expect(session.getSnapshot().providerState).toMatchObject({
+      sessionFilePath: '/tmp/sessions/2026/09/30/thread-discovery.jsonl',
+    });
+    expect(sessionEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'session_state_changed',
+        snapshot: expect.objectContaining({
+          providerState: expect.objectContaining({
+            sessionFilePath: '/tmp/sessions/2026/09/30/thread-discovery.jsonl',
+          }),
+        }),
+      }),
+    ]));
+
+    findSessionFile.mockRestore();
     await session.dispose();
   });
 

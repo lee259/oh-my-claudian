@@ -19,8 +19,8 @@ import {
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFileAsync,
   parseCodexSessionFileAsync,
-  parseCodexSessionModel,
   parseCodexSessionTurns,
+  readCodexSessionModel,
 } from './CodexHistoryStore';
 import { hydrateCodexSubagentHistory } from './CodexSubagentHistory';
 
@@ -46,10 +46,7 @@ async function readSessionModel(
 ): Promise<string | null> {
   if (!sessionFilePath) return null;
   try {
-    return parseCodexSessionModel(
-      await fs.readFile(sessionFilePath, 'utf8'),
-      resumeAtTurnId,
-    );
+    return await readCodexSessionModel(sessionFilePath, resumeAtTurnId);
   } catch {
     return null;
   }

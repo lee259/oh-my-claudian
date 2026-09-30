@@ -41,6 +41,7 @@ import {
   type Conversation,
   isCanonicalUserMessage,
   type StreamChunk,
+  type SubagentInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
@@ -939,8 +940,17 @@ function enqueueTabSessionEvent(
 
   if (event.type === 'subagent_updated') {
     const streamController = tab.controllers.streamController;
-    if (!streamController) return undefined;
-    streamController.handleSessionSubagentUpdate(event.subagent);
+    const conversationController = tab.controllers.conversationController;
+    if (!streamController || !conversationController) return undefined;
+    const previousStatus = findSubagentStatus(tab.state.messages, event.subagent.id);
+    if (!streamController.handleSessionSubagentUpdate(event.subagent)) return undefined;
+    if (previousStatus === event.subagent.status) {
+      return conversationController.scheduleProgressSave(() => enqueueTabBackgroundWork(tab, async () => {
+        if (!isCurrent()) return;
+        await conversationController.save(true);
+        if (isCurrent()) coordinator?.notifyMayCool();
+      }));
+    }
     const pending = enqueueTabBackgroundWork(tab, async () => {
       if (!isCurrent()) return;
       await tab.controllers.conversationController?.save(true);
@@ -999,6 +1009,17 @@ function enqueueTabSessionEvent(
     discardBackgroundTurnBuffers(tab, context.bindingId);
   }
   return pending ?? undefined;
+}
+
+function findSubagentStatus(
+  messages: readonly ChatMessage[],
+  id: string,
+): SubagentInfo['status'] | undefined {
+  for (const message of messages) {
+    const tool = message.toolCalls?.find(candidate => candidate.id === id);
+    if (tool) return tool.subagent?.status;
+  }
+  return undefined;
 }
 
 function getBackgroundTurnBuffers(

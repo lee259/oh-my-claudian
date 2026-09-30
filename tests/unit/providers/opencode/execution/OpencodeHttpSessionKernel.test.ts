@@ -152,6 +152,91 @@ describe('OpencodeHttpSessionKernel', () => {
     await kernel.dispose();
   });
 
+  it('emits only the new suffix when tool progress contains cumulative output snapshots', async () => {
+    const outputs: Array<Record<string, unknown>> = [];
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      onNativeOutput: event => outputs.push(event as unknown as Record<string, unknown>),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const tool = { sessionID: session.sessionId, assistantMessageID: 'assistant_1', id: 'tool_1' };
+    emitEvent?.({ type: 'session.tool.input.started', data: { ...tool, name: 'bash' } });
+    emitEvent?.({ type: 'session.tool.called', data: { ...tool, input: { command: 'printf hello' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'hello' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'hello world' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'hello world' } } });
+
+    expect(outputs.filter(event => event.type === 'tool_output')).toEqual([
+      expect.objectContaining({ content: 'hello', toolCallId: 'tool_1' }),
+      expect.objectContaining({ content: ' world', toolCallId: 'tool_1' }),
+    ]);
+    await kernel.dispose();
+  });
+
+  it('streams native shell output while a tool is running and stops it on completion', async () => {
+    const outputs: Array<Record<string, unknown>> = [];
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      onNativeOutput: event => outputs.push(event as unknown as Record<string, unknown>),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const route = '/api/shell/shell_1/output?cursor=0&limit=65536';
+    mockRequest.mockImplementation(async requestedRoute => (
+      requestedRoute === route ? { data: { cursor: 8, output: 'progress' } } : undefined
+    ));
+    const tool = { sessionID: session.sessionId, assistantMessageID: 'assistant_1', id: 'tool_1' };
+    emitEvent?.({ type: 'session.tool.input.started', data: { ...tool, name: 'bash' } });
+    emitEvent?.({ type: 'session.tool.called', data: { ...tool, input: { command: 'sleep 1' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { shellID: 'shell_1' } } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mockRequest).toHaveBeenCalledWith(route, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(outputs.filter(event => event.type === 'tool_output')).toEqual([
+      expect.objectContaining({ content: 'progress', toolCallId: 'tool_1' }),
+    ]);
+    emitEvent?.({ type: 'session.tool.success', data: { ...tool, content: [] } });
+    await kernel.dispose();
+  });
+
+  it('stops appending when OpenCode progress output rolls and keeps the final tool result', async () => {
+    const outputs: Array<Record<string, unknown>> = [];
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      onNativeOutput: event => outputs.push(event as unknown as Record<string, unknown>),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const tool = { sessionID: session.sessionId, assistantMessageID: 'assistant_1', id: 'tool_rolling' };
+    emitEvent?.({ type: 'session.tool.input.started', data: { ...tool, name: 'bash' } });
+    emitEvent?.({ type: 'session.tool.called', data: { ...tool, input: { command: 'tail -n 2' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'line 1\nline 2\n' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'line 2\nline 3\n' } } });
+    emitEvent?.({ type: 'session.tool.progress', data: { ...tool, metadata: { output: 'line 2\nline 3\nline 4\n' } } });
+    emitEvent?.({ type: 'session.tool.success', data: { ...tool, content: [{ text: 'line 3\nline 4\n' }] } });
+
+    expect(outputs.filter(event => event.type === 'tool_output')).toEqual([
+      expect.objectContaining({ content: 'line 1\nline 2\n', toolCallId: 'tool_rolling' }),
+    ]);
+    expect(outputs.find(event => event.type === 'tool_completed')).toMatchObject({
+      content: 'line 3\nline 4\n', toolCallId: 'tool_rolling',
+    });
+    await kernel.dispose();
+  });
+
   it('selects the exact native provider and model IDs for a v2 model', async () => {
     const plugin = {
       settings: {},

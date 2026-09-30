@@ -287,6 +287,26 @@ describe('StreamController - Text Content', () => {
       );
     });
 
+    it('scans streaming render options only for the snapshot that is rendered', async () => {
+      deps.state.currentTextEl = createMockEl();
+      const markdownMath = await import('@/utils/markdownMath');
+      const scanMath = jest.spyOn(markdownMath, 'hasStreamingMathDelimiters');
+
+      await controller.appendText('First ');
+      await controller.appendText('Second');
+
+      expect(scanMath).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      expect(scanMath).toHaveBeenCalledTimes(1);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        deps.state.currentTextEl,
+        'First Second',
+      );
+      scanMath.mockRestore();
+    });
+
     it('appends background text incrementally without re-rendering Markdown', () => {
       const textEl = createMockEl();
       deps.state.currentTextEl = textEl;

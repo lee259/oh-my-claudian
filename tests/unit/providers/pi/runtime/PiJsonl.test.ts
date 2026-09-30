@@ -44,6 +44,17 @@ describe('PiJsonl', () => {
     expect(lines).toEqual(['{"text":"你好"}']);
   });
 
+  it('preserves CRLF split across chunks and emits each following record once', () => {
+    const stream = new PassThrough();
+    const lines: string[] = [];
+    subscribePiJsonlLines(stream, line => lines.push(line));
+
+    stream.write(Buffer.from('{"value":1}\r'));
+    stream.write(Buffer.from('\n{"value":2}\n'));
+
+    expect(lines).toEqual(['{"value":1}', '{"value":2}']);
+  });
+
   it('writes JSONL records', () => {
     const output = new PassThrough();
     const chunks: string[] = [];
