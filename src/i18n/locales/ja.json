@@ -969,6 +969,14 @@
       "emptyCatalog": "{provider} からモデルが報告されていません。設定を確認して「検出」をクリックしてください。",
       "loadingCatalog": "{provider} モデルを読み込んでいます…",
       "stale": "{provider} のモデルカタログが古くなっています。「検出」をクリックして更新してください。"
+    },
+    "dsh": {
+      "setupIntro": "Harness CLI を一度インストールし、DeepSeek API キーを設定してからモデルを検出してください。ACP の起動設定は Claudian が管理します。",
+      "previewNote": "DeepSeek Harness は開発者プレビュー版です。CLI はバージョン間で変更される場合があります。",
+      "noModels": "DeepSeek Harness のモデルがまだ見つかりません。DSH の認証情報を確認して「検出」をクリックしてください。",
+      "catalogFailed": "DeepSeek Harness のモデル一覧を読み込めませんでした。dsh CLI と認証情報を確認してください。",
+      "loadingModels": "DeepSeek Harness のモデルを読み込み中…",
+      "workspaceNotInitialized": "DeepSeek Harness ワークスペースが初期化されていません。"
     }
   }
 }

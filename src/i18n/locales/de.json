@@ -969,6 +969,14 @@
       "emptyCatalog": "Keine {provider}-Modelle gemeldet. Prüfen Sie Ihre Konfiguration und klicken Sie auf Erkennen.",
       "loadingCatalog": "{provider}-Modelle werden geladen…",
       "stale": "Der {provider}-Modellkatalog ist veraltet. Klicken Sie auf Erkennen, um ihn zu aktualisieren."
+    },
+    "dsh": {
+      "setupIntro": "Installiere die Harness-CLI einmal, füge deinen DeepSeek-API-Schlüssel hinzu und entdecke dann Modelle. Claudian verwaltet die ACP-Startparameter.",
+      "previewNote": "DeepSeek Harness befindet sich in der Entwickler-Vorschau; die CLI kann sich zwischen Versionen ändern.",
+      "noModels": "Noch keine DeepSeek-Harness-Modelle gefunden. Prüfe die DSH-Zugangsdaten und klicke auf „Entdecken“.",
+      "catalogFailed": "Der DeepSeek-Harness-Modellkatalog konnte nicht geladen werden. Prüfe die dsh-CLI und die Zugangsdaten.",
+      "loadingModels": "DeepSeek-Harness-Modelle werden geladen …",
+      "workspaceNotInitialized": "Der DeepSeek-Harness-Arbeitsbereich ist nicht initialisiert."
     }
   }
 }

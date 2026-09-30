@@ -969,6 +969,14 @@
       "emptyCatalog": "{provider} не сообщил ни одной модели. Проверьте конфигурацию и нажмите «Обнаружить».",
       "loadingCatalog": "Загрузка моделей {provider}…",
       "stale": "Каталог моделей {provider} устарел. Нажмите «Обнаружить», чтобы обновить его."
+    },
+    "dsh": {
+      "setupIntro": "Установите CLI Harness один раз, добавьте API-ключ DeepSeek и найдите модели. Claudian управляет параметрами запуска ACP.",
+      "previewNote": "DeepSeek Harness находится в предварительной версии для разработчиков; CLI может меняться между выпусками.",
+      "noModels": "Модели DeepSeek Harness пока не найдены. Проверьте учетные данные DSH и нажмите «Найти модели».",
+      "catalogFailed": "Не удалось загрузить каталог моделей DeepSeek Harness. Проверьте CLI dsh и учетные данные.",
+      "loadingModels": "Загрузка моделей DeepSeek Harness…",
+      "workspaceNotInitialized": "Рабочая область DeepSeek Harness не инициализирована."
     }
   }
 }
