@@ -36,11 +36,11 @@ describe('Single-pane history action styles', () => {
     expect(matchRule).toContain('color: inherit;');
   });
 
-  it('removes hover background from history rows without hiding their actions', () => {
+  it('highlights hovered history rows without hiding their actions', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
 
     expect(css).toMatch(
-      /\.claudian-history-menu \.claudian-history-item:hover\s*{[^}]*background:\s*transparent;/,
+      /\.claudian-history-menu \.claudian-history-item:hover\s*{[^}]*background:\s*var\(--background-modifier-hover\);/,
     );
     expect(css).toMatch(
       /\.claudian-history-menu \.claudian-history-item\.active:hover,[\s\S]*?\.claudian-history-menu \.claudian-history-item\.open:hover\s*{[^}]*background:\s*var\(--background-modifier-hover\);/,

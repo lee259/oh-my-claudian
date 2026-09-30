@@ -315,7 +315,7 @@
 }
 
 .claudian-history-menu .claudian-history-item:hover {
-  background: transparent;
+  background: var(--background-modifier-hover);
 }
 
 .claudian-history-menu .claudian-history-item.active:hover,
