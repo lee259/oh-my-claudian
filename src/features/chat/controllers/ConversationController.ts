@@ -57,6 +57,8 @@ function runConversationAction(action: () => Promise<void>, failureMessage: stri
 }
 
 const MAX_REWIND_CONFLICT_PATHS = 5;
+/** Maximum delay for coalescing progress-only persistence. */
+const PROGRESS_SAVE_DELAY_MS = 1_000;
 
 /** Poll interval for refreshing a running subagent's transcript overlay. */
 const SUBAGENT_TRANSCRIPT_REFRESH_MS = 1500;
@@ -220,6 +222,7 @@ export class ConversationController {
   private subagentTranscriptProviderSessionId: string | null = null;
   private subagentTranscriptOpenSeq = 0;
   private subagentTranscriptListenerAttached = false;
+  private pendingProgressSave: { supersede: () => void } | null = null;
 
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
@@ -830,6 +833,7 @@ export class ConversationController {
         inputEl.focus();
       }
 
+      state.writeEditStates.clear();
       const welcomeEl = renderer.renderMessages(state.messages, () => this.getGreeting());
       this.deps.setWelcomeEl(welcomeEl);
       this.updateWelcomeVisibility();
@@ -879,6 +883,8 @@ export class ConversationController {
    * only metadata is saved - the SDK handles message persistence.
    */
   async save(updateLastActivity = false, options?: SaveOptions): Promise<void> {
+    this.pendingProgressSave?.supersede();
+    this.pendingProgressSave = null;
     const { plugin, state } = this.deps;
 
     // Entry point with no messages - nothing to save
@@ -947,6 +953,29 @@ export class ConversationController {
     state.hasPendingConversationSave = false;
   }
 
+  /** Coalesces display-only progress saves; direct saves supersede this timer. */
+  scheduleProgressSave(
+    persist: () => Promise<void> | null | undefined,
+  ): Promise<void> | undefined {
+    if (this.pendingProgressSave) return undefined;
+    let pending!: { supersede: () => void };
+    const due = new Promise<boolean>(resolve => {
+      const timer = window.setTimeout(() => resolve(true), PROGRESS_SAVE_DELAY_MS);
+      pending = {
+        supersede: () => {
+          window.clearTimeout(timer);
+          resolve(false);
+        },
+      };
+    });
+    this.pendingProgressSave = pending;
+    return due.then(async shouldPersist => {
+      if (!shouldPersist) return;
+      if (this.pendingProgressSave === pending) this.pendingProgressSave = null;
+      await persist();
+    });
+  }
+
   async navigateBranch(messageId: string, branchMessageId?: string): Promise<void> {
     const { state, renderer } = this.deps;
     if (!this.getExecutionCoordinator()?.supportsConversationBranches) return;
@@ -978,6 +1007,7 @@ export class ConversationController {
       scrollTop: this.deps.getMessagesEl().scrollTop,
     };
     const content = message.displayContent ?? extractUserDisplayContent(message.content) ?? message.content;
+    state.writeEditStates.clear();
     this.deps.setWelcomeEl(renderer.renderMessages(
       state.messages.slice(0, state.messages.indexOf(message)), () => this.getGreeting(),
     ));
@@ -992,6 +1022,7 @@ export class ConversationController {
     const { state, renderer } = this.deps;
     if (this.deps.isDisposed?.() || state.currentConversationId !== preview.conversationId) return;
     this.deps.restoreMessageToComposer?.(preview.draft);
+    state.writeEditStates.clear();
     this.deps.setWelcomeEl(renderer.renderMessages(state.messages, () => this.getGreeting()));
     this.updateWelcomeVisibility();
     this.deps.getMessagesEl().scrollTop = preview.scrollTop;
@@ -1043,6 +1074,7 @@ export class ConversationController {
             : -1;
           const visible = result.status === 'cancelled' && preview && previewIndex >= 0
             ? state.messages.slice(0, previewIndex) : state.messages;
+          state.writeEditStates.clear();
           this.deps.setWelcomeEl(renderer.renderMessages(visible, () => this.getGreeting()));
           this.updateWelcomeVisibility();
           try { await this.save(); } catch (error) {
@@ -1131,6 +1163,7 @@ export class ConversationController {
       mcpServerSelector?.clearEnabled();
     }
 
+    state.writeEditStates.clear();
     const welcomeEl = renderer.renderMessages(
       state.messages,
       () => this.getGreeting()

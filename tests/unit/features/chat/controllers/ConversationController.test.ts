@@ -468,6 +468,45 @@ describe('ConversationController', () => {
   });
 
   describe('save edge cases', () => {
+    it('coalesces repeated progress saves into one persistence callback', async () => {
+      jest.useFakeTimers();
+      try {
+        const persist = jest.fn().mockResolvedValue(undefined);
+        const first = controller.scheduleProgressSave(persist);
+        const second = controller.scheduleProgressSave(persist);
+
+        expect(first).toBeDefined();
+        expect(second).toBeUndefined();
+        await jest.advanceTimersByTimeAsync(999);
+        expect(persist).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(1);
+        await first;
+        expect(persist).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('supersedes a delayed progress save when a direct save runs', async () => {
+      jest.useFakeTimers();
+      try {
+        deps.state.currentConversationId = 'conv-1';
+        deps.state.messages = [{ id: '1', role: 'user', content: 'test', timestamp: Date.now() }];
+        const persistProgress = jest.fn().mockResolvedValue(undefined);
+        const pendingProgress = controller.scheduleProgressSave(persistProgress);
+
+        await controller.save(true);
+        await pendingProgress;
+        await jest.runOnlyPendingTimersAsync();
+
+        expect(persistProgress).not.toHaveBeenCalled();
+        expect(deps.plugin.updateConversation).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('should return early when no conversationId and no messages', async () => {
       deps.state.currentConversationId = null;
       deps.state.messages = [];

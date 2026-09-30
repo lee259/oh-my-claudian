@@ -53,6 +53,43 @@ describe('Pi event normalization', () => {
     }]);
   });
 
+  it('emits only the new suffix when Pi reports cumulative tool-output snapshots', () => {
+    const state = createPiEventNormalizationState();
+    const update = (partialResult: string) => normalizePiRpcEvent({
+      partialResult: { content: [{ text: partialResult, type: 'text' }] },
+      toolCallId: 'bash-1',
+      toolName: 'bash',
+      type: 'tool_execution_update',
+    }, state);
+
+    expect(update('one')).toEqual([{ content: 'one', id: 'bash-1', type: 'tool_output' }]);
+    expect(update('one\ntwo')).toEqual([{ content: '\ntwo', id: 'bash-1', type: 'tool_output' }]);
+    expect(update('one\ntwo')).toEqual([]);
+  });
+
+  it('stops appending after a rolling snapshot changes and accepts the authoritative result', () => {
+    const state = createPiEventNormalizationState();
+    const update = (partialResult: string) => normalizePiRpcEvent({
+      partialResult: { content: [{ text: partialResult, type: 'text' }] },
+      toolCallId: 'bash-rolling',
+      toolName: 'bash',
+      type: 'tool_execution_update',
+    }, state);
+
+    expect(update('line 1\nline 2\n')).toEqual([{
+      content: 'line 1\nline 2\n', id: 'bash-rolling', type: 'tool_output',
+    }]);
+    expect(update('line 2\nline 3\n')).toEqual([]);
+    expect(update('line 2\nline 3\nline 4\n')).toEqual([]);
+    expect(normalizePiRpcEvent({
+      result: { content: [{ text: 'line 3\nline 4\nline 5\n', type: 'text' }] },
+      toolCallId: 'bash-rolling',
+      type: 'tool_execution_end',
+    }, state)).toEqual([expect.objectContaining({
+      content: 'line 3\nline 4\nline 5\n', id: 'bash-rolling', type: 'tool_result',
+    })]);
+  });
+
   it('normalizes Pi RPC toolName and args to shared renderer tool shapes', () => {
     const state = createPiEventNormalizationState();
 

@@ -79,6 +79,7 @@ export async function loadOpencodeSessionModel(
   }
 
   const rows = await loadOpencodeSessionRows(databasePath, sessionId, {
+    includeParts: false,
     environment,
     nativeVersion: providerState?.nativeVersion ?? 'auto',
   }).catch(() => null);

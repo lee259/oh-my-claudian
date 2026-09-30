@@ -349,15 +349,13 @@ describe('VaultFileAdapter', () => {
 
   describe('listFilesRecursive', () => {
     it('lists all files in nested structure', async () => {
-      const mockList = jest.fn();
-      mockList
-        .mockResolvedValueOnce({ files: ['root.md'], folders: ['folder1', 'folder2'] })
-        .mockResolvedValueOnce({ files: ['folder1/f1.md'], folders: ['folder1/sub'] })
-        .mockResolvedValueOnce({ files: ['folder1/sub/f2.md'], folders: [] })
-        .mockResolvedValueOnce({ files: ['folder2/f3.md'], folders: [] });
-
       mockAdapter.exists.mockResolvedValue(true);
-      mockAdapter.list.mockImplementation((path: string) => mockList(path));
+      mockAdapter.list.mockImplementation(async (folder: string) => ({
+        'root': { files: ['root.md'], folders: ['folder1', 'folder2'] },
+        'folder1': { files: ['folder1/f1.md'], folders: ['folder1/sub'] },
+        'folder1/sub': { files: ['folder1/sub/f2.md'], folders: [] },
+        'folder2': { files: ['folder2/f3.md'], folders: [] },
+      } as Record<string, { files: string[]; folders: string[] }>)[folder]);
 
       const result = await vaultAdapter.listFilesRecursive('root');
 
@@ -434,6 +432,35 @@ describe('VaultFileAdapter', () => {
       const result = await vaultAdapter.listFilesRecursive('root');
 
       expect(result).toHaveLength(4);
+    });
+
+    it('bounds sibling folder reads and preserves traversal order', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      let activeReads = 0;
+      let maximumReads = 0;
+      mockAdapter.list.mockImplementation(async (folder: string) => {
+        if (folder === 'root') {
+          return {
+            files: ['root.md'],
+            folders: Array.from({ length: 10 }, (_, index) => `root/folder-${index}`),
+          };
+        }
+
+        activeReads += 1;
+        maximumReads = Math.max(maximumReads, activeReads);
+        const index = Number(folder.slice(folder.lastIndexOf('-') + 1));
+        await new Promise(resolve => setTimeout(resolve, (10 - index) % 4));
+        activeReads -= 1;
+        return { files: [`${folder}/file.md`], folders: [] };
+      });
+
+      const result = await vaultAdapter.listFilesRecursive('root');
+
+      expect(maximumReads).toBeLessThanOrEqual(8);
+      expect(result).toEqual([
+        'root.md',
+        ...Array.from({ length: 10 }, (_, index) => `root/folder-${index}/file.md`),
+      ]);
     });
   });
 

@@ -122,6 +122,7 @@ export interface SubagentHistoryRecoveryRequest {
 interface StreamingContentSnapshot {
   el: HTMLElement;
   content: string;
+  getOptions?: () => RenderContentOptions | undefined;
   options?: RenderContentOptions;
 }
 
@@ -179,7 +180,9 @@ export class StreamController {
     return new StreamingRenderCoordinator({
       getOwnerWindow,
       minIntervalMs: STREAMING_RENDER_MIN_INTERVAL_MS,
-      render: async ({ el, content, options }) => {
+      maxIntervalMs: 500,
+      render: async ({ el, content, getOptions, options: explicitOptions }) => {
+        const options = getOptions ? getOptions() : explicitOptions;
         if (options) {
           await this.deps.renderer.renderContent(el, content, options);
         } else {
@@ -194,8 +197,11 @@ export class StreamController {
     el: HTMLElement,
     content: string
   ): StreamingContentSnapshot {
-    const options = this.getStreamingRenderOptions(content);
-    return options ? { el, content, options } : { el, content };
+    return {
+      el,
+      content,
+      getOptions: () => this.getStreamingRenderOptions(content),
+    };
   }
 
   private getActiveProviderId(): ProviderId {

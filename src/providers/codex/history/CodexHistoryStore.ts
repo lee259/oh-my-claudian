@@ -1,4 +1,6 @@
+import { createReadStream } from 'node:fs';
 import * as fsp from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 
 import * as fs from 'fs';
 import * as os from 'os';
@@ -1748,30 +1750,69 @@ export function parseCodexSessionModel(
   content: string,
   resumeAtTurnId?: string,
 ): string | null {
-  let model: string | null = null;
+  const reader = new SessionModelReader(resumeAtTurnId);
   for (const line of content.split(/\r?\n/)) {
-    if (!line.trim()) continue;
+    reader.accept(line);
+    if (reader.reached) break;
+  }
+  return reader.result();
+}
+
+class SessionModelReader {
+  model: string | null = null;
+  reached = false;
+
+  constructor(private readonly checkpoint?: string) {}
+
+  accept(line: string): void {
     try {
       const record = JSON.parse(line) as {
         type?: unknown;
         payload?: { model?: unknown; turn_id?: unknown };
-      };
-      if (record.type !== 'turn_context') continue;
+      } | null;
+      if (record?.type !== 'turn_context') return;
+
       const candidate = typeof record.payload?.model === 'string'
         ? record.payload.model.trim()
         : '';
-      if (candidate) model = candidate;
-      if (
-        resumeAtTurnId
-        && record.payload?.turn_id === resumeAtTurnId
-      ) {
-        return model;
+      if (candidate) this.model = candidate;
+      if (this.checkpoint && record.payload?.turn_id === this.checkpoint) {
+        this.reached = true;
       }
     } catch {
       // Ignore malformed provider-native transcript records.
     }
   }
-  return resumeAtTurnId ? null : model;
+
+  result(): string | null {
+    return this.checkpoint && !this.reached ? null : this.model;
+  }
+}
+
+/** Reads only the model metadata needed for recovery, stopping at a checkpoint. */
+export async function readCodexSessionModel(
+  filePath: string,
+  resumeAtTurnId?: string,
+  timeoutMs = 10_000,
+): Promise<string | null> {
+  const input = createReadStream(filePath, { encoding: 'utf8' });
+  const lines = createInterface({ input, crlfDelay: Infinity });
+  const timer = window.setTimeout(
+    () => input.destroy(new Error('Codex model recovery timed out.')),
+    timeoutMs,
+  );
+  const reader = new SessionModelReader(resumeAtTurnId);
+  try {
+    for await (const line of lines) {
+      reader.accept(line);
+      if (reader.reached) break;
+    }
+    return reader.result();
+  } finally {
+    window.clearTimeout(timer);
+    lines.close();
+    input.destroy();
+  }
 }
 
 export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {

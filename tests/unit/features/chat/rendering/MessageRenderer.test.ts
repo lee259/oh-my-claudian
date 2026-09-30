@@ -55,6 +55,10 @@ function createMockComponent() {
     registerDomEvent: jest.fn(),
     register: jest.fn(),
     addChild: jest.fn(),
+    removeChild: jest.fn((child: { unload: () => void }) => {
+      child.unload();
+      return child;
+    }),
     load: jest.fn(),
     unload: jest.fn(),
   };
@@ -2574,6 +2578,37 @@ describe('MessageRenderer', () => {
   // ============================================
 
   describe('renderContent - language label and copy', () => {
+    it('releases stale Markdown scopes and skips their post-render work', async () => {
+      const { MarkdownRenderer } = await import('obsidian');
+      const { processFileLinks } = await import('@/utils/fileLink');
+      const messagesEl = createMockEl();
+      const component = createMockComponent();
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        component as any,
+        messagesEl,
+      );
+      const contentEl = createMockEl();
+      let resolveFirstRender!: () => void;
+      (MarkdownRenderer.renderMarkdown as jest.Mock)
+        .mockImplementationOnce(() => new Promise<void>(resolve => {
+          resolveFirstRender = resolve;
+        }))
+        .mockResolvedValueOnce(undefined);
+
+      const staleRender = renderer.renderContent(contentEl, '[[stale link]]');
+      const staleScope = (component.addChild as jest.Mock).mock.calls[0][0];
+      const currentRender = renderer.renderContent(contentEl, '[[current link]]');
+      await currentRender;
+
+      expect(staleScope.isReleased).toBe(true);
+      resolveFirstRender();
+      await staleRender;
+
+      expect(processFileLinks).toHaveBeenCalledTimes(1);
+      expect(processFileLinks).toHaveBeenCalledWith({}, contentEl);
+    });
+
     it('renders fenced languages through inert placeholders and restores highlighting', async () => {
       const { loadPrism, MarkdownRenderer } = await import('obsidian');
       const { renderer } = createRenderer();

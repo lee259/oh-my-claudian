@@ -112,6 +112,18 @@ describe('loadOpencodeSessionRows', () => {
     });
   });
 
+  it('skips part rows when only recovering the selected model', async () => {
+    const dbPath = createFixtureDatabase(tmpRoot);
+
+    await expect(loadOpencodeSessionRows(dbPath, 'ses-child', {
+      includeParts: false,
+      requireSqliteModule: () => ({ DatabaseSync } as any),
+    })).resolves.toMatchObject({
+      messageRows: expect.any(Array),
+      partRows: [],
+    });
+  });
+
   it('opens an in-process SQLite database in read-only mode', async () => {
     const database = {
       close: jest.fn(),

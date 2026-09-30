@@ -46,6 +46,7 @@ import {
   prepareDisplayOnlyCodeFences,
   restoreDisplayOnlyCodeFences,
 } from './DisplayOnlyCodeFences';
+import { MarkdownRenderScope } from './MarkdownRenderScope';
 import { renderMermaidDiagram } from './MermaidRenderer';
 import { getOrCreateMessageActionRow } from './MessageActionRow';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
@@ -96,6 +97,8 @@ export class MessageRenderer {
   private getWelcomeHomeOptions?: () => WelcomeHomeOptions | undefined;
   private forkCallback?: (messageId: string) => Promise<void>;
   private liveMessageEls = new Map<string, HTMLElement>();
+  private readonly contentRenders = new Map<HTMLElement, MarkdownRenderScope>();
+  private contentRemovalObserver?: MutationObserver;
   private readonly imagePreviewModal = new ImagePreviewModal();
   private isDisposed = false;
   /** Set while rendering a read-only surface (e.g. subagent transcripts). */
@@ -137,17 +140,44 @@ export class MessageRenderer {
 
     // Register delegated click handler for file links
     registerFileLinkHandler(this.app, this.messagesEl, this.component);
+    this.observeRemovedContent(this.messagesEl.parentElement ?? this.messagesEl);
   }
 
   /** Sets the messages container element. */
   setMessagesEl(el: HTMLElement): void {
+    if (this.messagesEl === el) return;
+    this.releaseContentRenders();
     this.messagesEl = el;
+    this.observeRemovedContent(el.parentElement ?? el);
+  }
+
+  private observeRemovedContent(container: HTMLElement): void {
+    this.contentRemovalObserver?.disconnect();
+    const Observer = container.ownerDocument?.defaultView?.MutationObserver;
+    if (!Observer) {
+      this.contentRemovalObserver = undefined;
+      return;
+    }
+
+    this.contentRemovalObserver = new Observer(records => {
+      for (const record of records) {
+        for (const node of record.removedNodes) {
+          if (node.nodeType !== 1) continue;
+          const removed = node as HTMLElement;
+          this.cleanupRemovedElements(removed, container);
+        }
+      }
+    });
+    this.contentRemovalObserver.observe(container, { childList: true, subtree: true });
   }
 
   /** Releases renderer-owned resources (call on tab teardown). */
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.contentRemovalObserver?.disconnect();
+    this.contentRemovalObserver = undefined;
+    this.releaseContentRenders();
     this.imagePreviewModal.close();
     this.liveMessageEls.clear();
   }
@@ -290,6 +320,7 @@ export class MessageRenderer {
       return;
     }
 
+    this.releaseContentRenders(msgEl);
     msgEl.remove();
     this.liveMessageEls.delete(messageId);
   }
@@ -309,6 +340,7 @@ export class MessageRenderer {
     getGreeting: () => string
   ): HTMLElement {
     unmountWelcomeContent(this.messagesEl);
+    this.releaseContentRenders();
     this.messagesEl.empty();
     this.liveMessageEls.clear();
 
@@ -346,6 +378,7 @@ export class MessageRenderer {
   ): void {
     const mainMessagesEl = this.messagesEl;
     const previousSuppress = this.suppressConversationActions;
+    this.releaseContentRendersOutside(mainMessagesEl);
     this.messagesEl = containerEl;
     this.suppressConversationActions = options?.suppressConversationActions ?? true;
     try {
@@ -683,9 +716,13 @@ export class MessageRenderer {
       attr: { id: historyId },
     });
     history.hidden = true;
-    const contentBlock = history.createDiv();
-    void this.renderContent(contentBlock, content);
+    const contentBlock = history.createDiv({ text: content });
+    let rendered = false;
     header.addEventListener('click', () => {
+      if (!rendered && !this.isDisposed) {
+        rendered = true;
+        void this.renderContent(contentBlock, content);
+      }
       history.hidden = !history.hidden;
       header.setAttribute('aria-expanded', String(!history.hidden));
     });
@@ -1153,6 +1190,18 @@ export class MessageRenderer {
     markdown: string,
     options?: RenderContentOptions
   ): Promise<void> {
+    if (this.isDisposed) return;
+    this.releaseContentRender(el);
+    const scope = new MarkdownRenderScope();
+    this.contentRenders.set(el, scope);
+    scope.register(() => {
+      if (this.contentRenders.get(el) === scope) this.contentRenders.delete(el);
+    });
+    this.component.addChild(scope);
+    scope.load();
+    const isCurrent = () => !this.isDisposed
+      && !scope.isReleased
+      && this.contentRenders.get(el) === scope;
     el.empty();
 
     try {
@@ -1177,9 +1226,11 @@ export class MessageRenderer {
         processedMarkdown,
         el,
         '',
-        this.component
+        scope
       );
+      if (!isCurrent()) return;
       await restoreDisplayOnlyCodeFences(el, displayOnlyCodeFences.fences);
+      if (!isCurrent()) return;
 
       const diagramBlocks: Array<{ code: HTMLElement; host: HTMLElement }> = [];
       // Wrap pre elements and move buttons outside scroll area
@@ -1237,8 +1288,10 @@ export class MessageRenderer {
       });
 
       for (const block of diagramBlocks) {
+        if (!isCurrent()) return;
         try {
           await renderMermaidDiagram(block.code.textContent ?? '', block.host);
+          if (!isCurrent()) return;
           block.code.closest('pre')?.classList.add('claudian-diagram-source-hidden');
           block.host.parentElement?.classList.add('claudian-diagram-wrapper');
         } catch {
@@ -1248,13 +1301,17 @@ export class MessageRenderer {
 
       // Process vault links only when the source can contain file references.
       if (
-        processedMarkdown.includes('[[')
-        || processedMarkdown.includes('@')
-        || processedMarkdown.includes(':codex-file-citation')
+        isCurrent()
+        && (
+          processedMarkdown.includes('[[')
+          || processedMarkdown.includes('@')
+          || processedMarkdown.includes(':codex-file-citation')
+        )
       ) {
         processFileLinks(this.app, el);
       }
 
+      if (!isCurrent()) return;
       el.querySelectorAll<HTMLImageElement>('img').forEach((imageEl) => {
         imageEl.classList.add('claudian-message-image-previewable');
         imageEl.setAttribute('role', 'button');
@@ -1274,10 +1331,48 @@ export class MessageRenderer {
         });
       });
     } catch {
+      if (!isCurrent()) return;
+      this.releaseContentRender(el);
       el.createDiv({
         cls: 'claudian-render-error',
         text: 'Failed to render message content.',
       });
+    }
+  }
+
+  private releaseContentRender(el: HTMLElement): void {
+    const scope = this.contentRenders.get(el);
+    if (!scope) return;
+    this.contentRenders.delete(el);
+    this.component.removeChild(scope);
+  }
+
+  private releaseContentRenders(container?: HTMLElement): void {
+    for (const el of this.contentRenders.keys()) {
+      if (!container || container === el || container.contains(el)) {
+        this.releaseContentRender(el);
+      }
+    }
+  }
+
+  private cleanupRemovedElements(
+    removed: HTMLElement,
+    observedRoot: HTMLElement,
+  ): void {
+    const removedElements = [removed, ...removed.querySelectorAll<HTMLElement>('*')];
+    for (const el of removedElements) {
+      if (observedRoot.contains(el)) continue;
+      const messageId = el.dataset.messageId;
+      if (messageId && this.liveMessageEls.get(messageId) === el) {
+        this.liveMessageEls.delete(messageId);
+      }
+      this.releaseContentRender(el);
+    }
+  }
+
+  private releaseContentRendersOutside(container: HTMLElement): void {
+    for (const el of this.contentRenders.keys()) {
+      if (!container.contains(el)) this.releaseContentRender(el);
     }
   }
 

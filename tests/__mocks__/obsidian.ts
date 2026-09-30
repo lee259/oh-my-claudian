@@ -73,6 +73,53 @@ export class ItemView {
 
 export class WorkspaceLeaf {}
 
+export class Component {
+  private readonly children: Component[] = [];
+  private readonly cleanupCallbacks: Array<() => void> = [];
+  private isLoaded = false;
+
+  load(): void {
+    if (this.isLoaded) return;
+    this.isLoaded = true;
+    for (const child of this.children) child.load();
+  }
+
+  unload(): void {
+    if (!this.isLoaded && this.cleanupCallbacks.length === 0) return;
+    this.isLoaded = false;
+    for (const child of [...this.children].reverse()) child.unload();
+    this.children.length = 0;
+    for (const cleanup of this.cleanupCallbacks.splice(0).reverse()) cleanup();
+  }
+
+  register(callback: () => void): void {
+    this.cleanupCallbacks.push(callback);
+  }
+
+  addChild<T extends Component>(child: T): T {
+    this.children.push(child);
+    if (this.isLoaded) child.load();
+    return child;
+  }
+
+  removeChild<T extends Component>(child: T): T {
+    const index = this.children.indexOf(child);
+    if (index >= 0) this.children.splice(index, 1);
+    child.unload();
+    return child;
+  }
+
+  registerDomEvent(
+    target: EventTarget,
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    target.addEventListener(type, callback, options);
+    this.register(() => target.removeEventListener(type, callback, options));
+  }
+}
+
 export class Scope {
   static instances: Scope[] = [];
 
