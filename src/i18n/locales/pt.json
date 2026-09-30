@@ -299,7 +299,8 @@
     "tabs": {
       "general": "Geral",
       "claude": "Claude Code",
-      "codex": "Codex CLI"
+      "codex": "Codex CLI",
+      "providers": "Provedores"
     },
     "omp": {
       "setup": "Configuração",

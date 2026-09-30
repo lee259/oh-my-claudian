@@ -1,5 +1,6 @@
 /* Brand & semantic color tokens */
-.oh-my-claudian-root.claudian-container {
+.oh-my-claudian-root.claudian-container,
+.claudian-settings {
   --oh-my-claudian-brand: #D97757;
   --oh-my-claudian-brand-rgb: 217, 119, 87;
   --oh-my-claudian-brand-claude: #D97757;
@@ -37,7 +38,8 @@
   --claudian-compact: #5bc0de;
 }
 
-body.theme-light .oh-my-claudian-root.claudian-container {
+body.theme-light .oh-my-claudian-root.claudian-container,
+body.theme-light .claudian-settings {
   --oh-my-claudian-brand-codex: #000000;
   --oh-my-claudian-brand-codex-rgb: 0, 0, 0;
   --oh-my-claudian-brand-opencode: #707070;

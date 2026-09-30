@@ -250,6 +250,12 @@ export interface AcpListSessionsResponse {
   sessions: AcpSessionInfo[];
 }
 
+export interface AcpCloseSessionRequest {
+  sessionId: AcpSessionId;
+}
+
+export type AcpCloseSessionResponse = Record<string, never>;
+
 export interface AcpTextContent {
   type: 'text';
   text: string;

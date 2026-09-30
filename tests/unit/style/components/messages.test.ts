@@ -92,14 +92,17 @@ describe('Message styles', () => {
 });
 
 describe('Message table overflow', () => {
-  it('allows long table cells to wrap and keeps wider content scrollable', () => {
+  it('clips message overflow while keeping code blocks scrollable and table cells wrappable', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const codeCss = readFileSync(path.resolve('src/style/components/code.css'), 'utf8');
     const messageRule = [...css.matchAll(/\.claudian-message-content\s*{[^}]*}/g)]
       .map(match => match[0])
-      .find(rule => rule.includes('overflow-x: auto;'));
+      .find(rule => rule.includes('overflow-x: clip;'));
+    const codeBlockRule = codeCss.match(/\.claudian-message-content pre\s*{[^}]*}/)?.[0];
     const cellRule = css.match(/\.claudian-message-content th,\s*\.claudian-message-content td\s*{[^}]*}/)?.[0];
 
-    expect(messageRule).toContain('overflow-x: auto;');
+    expect(messageRule).toContain('overflow-x: clip;');
+    expect(codeBlockRule).toContain('overflow-x: auto;');
     expect(cellRule).toContain('overflow-wrap: anywhere;');
     expect(cellRule).toContain('white-space: normal;');
   });

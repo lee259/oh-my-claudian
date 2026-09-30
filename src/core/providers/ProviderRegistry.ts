@@ -244,6 +244,11 @@ export class ProviderRegistry {
     return this.getProviderRegistration(providerId).displayName;
   }
 
+  static getProviderSettingsTabLabel(providerId: ProviderId): string {
+    const registration = this.getProviderRegistration(providerId);
+    return registration.settingsTabLabel ?? registration.displayName;
+  }
+
   static isEnabled(providerId: ProviderId, settings: Record<string, unknown>): boolean {
     return this.getProviderRegistration(providerId).isEnabled(settings);
   }

@@ -69,6 +69,9 @@
   "overrides": {
     "@babel/core": "7.29.7",
     "@hono/node-server": "2.0.11",
+    "brace-expansion@^1.0.0": "1.1.20",
+    "brace-expansion@^2.0.0": "2.1.6",
+    "brace-expansion@^5.0.0": "5.0.11",
     "body-parser": "2.3.0",
     "fast-uri": "3.1.7",
     "hono": "4.13.7",
@@ -78,6 +81,9 @@
   },
   "pnpm": {
     "overrides": {
+      "brace-expansion@^1.0.0": "1.1.20",
+      "brace-expansion@^2.0.0": "2.1.6",
+      "brace-expansion@^5.0.0": "5.0.11",
       "fast-uri": "3.1.7",
       "hono": "4.13.7",
       "ip-address": "10.5.1",

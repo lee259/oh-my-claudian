@@ -4,6 +4,7 @@ export type AcpLogicalMethod =
   | 'newSession'
   | 'forkSession'
   | 'loadSession'
+  | 'closeSession'
   | 'listSessions'
   | 'prompt'
   | 'cancel'
@@ -19,7 +20,10 @@ const ACP_METHOD_CANDIDATES = {
   initialize: ['initialize'],
   forkSession: ['session/fork', 'forkSession'],
   listSessions: ['session/list', 'listSessions'],
-  loadSession: ['session/load', 'loadSession'],
+  // ACP agents use `session/resume` for persisted sessions; retain the legacy
+  // `session/load` alias for existing providers such as Cursor and OMP.
+  loadSession: ['session/resume', 'session/load', 'loadSession'],
+  closeSession: ['session/close', 'closeSession'],
   newSession: ['session/new', 'newSession'],
   prompt: ['session/prompt', 'prompt'],
   setConfigOption: ['session/set_config_option', 'setSessionConfigOption'],

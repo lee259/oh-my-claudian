@@ -12,6 +12,8 @@ import type {
   AcpAuthenticateResponse,
   AcpCancelNotification,
   AcpClientCapabilities,
+  AcpCloseSessionRequest,
+  AcpCloseSessionResponse,
   AcpCreateTerminalRequest,
   AcpCreateTerminalResponse,
   AcpForkSessionRequest,
@@ -169,6 +171,10 @@ export class AcpClientConnection {
 
   listSessions(request: AcpListSessionsRequest = {}): Promise<AcpListSessionsResponse> {
     return this.requestWithFallback<AcpListSessionsResponse>('listSessions', request);
+  }
+
+  closeSession(request: AcpCloseSessionRequest): Promise<AcpCloseSessionResponse> {
+    return this.requestWithFallback<AcpCloseSessionResponse>('closeSession', request);
   }
 
   prompt(request: AcpPromptRequest): Promise<AcpPromptResponse> {

@@ -299,7 +299,8 @@
     "tabs": {
       "general": "一般",
       "claude": "Claude Code",
-      "codex": "Codex CLI"
+      "codex": "Codex CLI",
+      "providers": "提供者"
     },
     "omp": {
       "setup": "設定",

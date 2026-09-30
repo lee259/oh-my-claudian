@@ -32,7 +32,8 @@ function createSettingsTab() {
   const tab = new ClaudianSettingTab({} as any, plugin as any);
   tab.containerEl = document.createElement('div') as any;
   (tab as any).renderGeneralTab = jest.fn();
-  (tab as any).activeTab = 'claude';
+  (tab as any).activeTab = 'providers';
+  (tab as any).activeProviderTab = 'claude';
   return { plugin, tab };
 }
 

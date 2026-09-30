@@ -24,14 +24,17 @@
 }
 
 
-.oh-my-claudian-root .claudian-provider-icon-variant--dark {
+.oh-my-claudian-root .claudian-provider-icon-variant--dark,
+.claudian-settings .claudian-provider-icon-variant--dark {
   display: none;
 }
 
-body.theme-dark .oh-my-claudian-root .claudian-provider-icon-variant--light {
+body.theme-dark .oh-my-claudian-root .claudian-provider-icon-variant--light,
+body.theme-dark .claudian-settings .claudian-provider-icon-variant--light {
   display: none;
 }
 
-body.theme-dark .oh-my-claudian-root .claudian-provider-icon-variant--dark {
+body.theme-dark .oh-my-claudian-root .claudian-provider-icon-variant--dark,
+body.theme-dark .claudian-settings .claudian-provider-icon-variant--dark {
   display: inline;
 }

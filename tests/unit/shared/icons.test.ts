@@ -10,7 +10,7 @@ import {
 } from '@/shared/icons';
 
 describe('createProviderIconSvg', () => {
-  it('renders path-based provider icons with currentColor fill', () => {
+  it('renders path-based provider icons with their configured brand fill', () => {
     const svg = createProviderIconSvg(OPENAI_PROVIDER_ICON, {
       className: 'test-icon',
       height: 12,
@@ -26,7 +26,7 @@ describe('createProviderIconSvg', () => {
 
     const path = svg.querySelector('path');
     expect(path).not.toBeNull();
-    expect(path?.getAttribute('fill')).toBe('currentColor');
+    expect(path?.getAttribute('fill')).toBe('var(--claudian-brand-codex, #d0d0d0)');
   });
 
   it('renders composite provider icons with theme variants', () => {
@@ -43,7 +43,7 @@ describe('createProviderIconSvg', () => {
     expect(svg.querySelector('.claudian-provider-icon-variant--dark')).not.toBeNull();
   });
 
-  it('renders the Pi provider icon as currentColor composite paths', () => {
+  it('renders the Pi provider icon with its brand fill on every composite path', () => {
     const svg = createProviderIconSvg(PI_PROVIDER_ICON, {
       dataProvider: 'pi',
       parent: document.body,
@@ -53,7 +53,7 @@ describe('createProviderIconSvg', () => {
     const paths = Array.from(svg.querySelectorAll('path'));
     expect(paths).toHaveLength(2);
     expect(paths[0].getAttribute('fill-rule')).toBe('evenodd');
-    expect(paths.every(path => path.getAttribute('fill') === 'currentColor')).toBe(true);
+    expect(paths.every(path => path.getAttribute('fill') === 'var(--claudian-brand-pi, #ffffff)')).toBe(true);
   });
 
   it.each([
