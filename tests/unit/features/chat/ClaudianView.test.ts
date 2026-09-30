@@ -6,9 +6,17 @@ import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCo
 import { ClaudianView } from '@/features/chat/ClaudianView';
 
 const mockRefreshWelcomeContent = jest.fn();
+const mockConversationRenameModalOpen = jest.fn();
+const mockConversationRenameModalConstructor = jest.fn();
 
 jest.mock('@/features/chat/rendering/WelcomeRenderer', () => ({
   refreshWelcomeContent: (...args: unknown[]) => mockRefreshWelcomeContent(...args),
+}));
+jest.mock('@/features/chat/ui/ConversationRenameModal', () => ({
+  ConversationRenameModal: jest.fn().mockImplementation((...args: unknown[]) => {
+    mockConversationRenameModalConstructor(...args);
+    return { open: mockConversationRenameModalOpen };
+  }),
 }));
 
 const mockTabManagerConstructor = jest.fn();
@@ -168,16 +176,29 @@ describe('ClaudianView chat surface state', () => {
       .toBeLessThan(openTabById.mock.invocationCallOrder[0]);
   });
 
-  it('renames the requested conversation from its header action', () => {
+  it('opens the rename modal for the requested conversation', async () => {
     const renameConversation = jest.fn().mockResolvedValue(undefined);
     const view = Object.create(ClaudianView.prototype) as any;
     view.plugin = {
+      app: { name: 'test-app' },
       getConversationList: jest.fn().mockReturnValue([]),
       renameConversation,
     };
 
-    view.getWelcomeHomeOptions().onRenameConversation('conversation-7', 'A clearer title');
+    await view.getWelcomeHomeOptions()
+      .onRequestRenameConversation('conversation-7', 'Current title');
 
+    expect(mockConversationRenameModalConstructor).toHaveBeenCalledWith(
+      view.plugin.app,
+      'Current title',
+      expect.any(Function),
+    );
+    expect(mockConversationRenameModalOpen).toHaveBeenCalledTimes(1);
+
+    const onSave = mockConversationRenameModalConstructor.mock.calls[0][2] as (
+      title: string,
+    ) => Promise<void>;
+    await onSave('A clearer title');
     expect(renameConversation).toHaveBeenCalledWith('conversation-7', 'A clearer title');
   });
 

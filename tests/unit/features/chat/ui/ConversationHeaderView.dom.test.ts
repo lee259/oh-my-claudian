@@ -4,15 +4,12 @@ import { h, render } from 'preact';
 
 import { ConversationHeaderView } from '@/features/chat/ui/ConversationHeaderView';
 
-jest.mock('obsidian', () => ({
-  setIcon: jest.fn(),
-}));
-
 describe('ConversationHeaderView', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
     container = document.createElement('div');
+    container.className = 'claudian-conversation-header-host';
     document.body.appendChild(container);
   });
 
@@ -21,52 +18,56 @@ describe('ConversationHeaderView', () => {
     container.remove();
   });
 
-  it('renames the current conversation from its header', async () => {
+  it('offers rename and archive actions from the conversation menu', async () => {
     const onRenameConversation = jest.fn();
+    const onArchiveConversation = jest.fn();
     render(h(ConversationHeaderView, {
       title: 'Current session',
       onRenameConversation,
+      onArchiveConversation,
     } as any), container);
 
+    expect(container.querySelector('.claudian-conversation-header-rename-action')).toBeNull();
     container.querySelector<HTMLButtonElement>(
-      '.claudian-conversation-header-rename-action',
+      '.claudian-conversation-header-menu-action',
     )?.click();
     await Promise.resolve();
-    const input = container.querySelector<HTMLInputElement>(
-      '.claudian-conversation-header-rename-input',
-    );
-    expect(input).not.toBeNull();
 
-    input!.value = 'Renamed session';
-    input!.dispatchEvent(new Event('input', { bubbles: true }));
-    await Promise.resolve();
-    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await Promise.resolve();
+    const menu = container.querySelector('.claudian-conversation-actions-menu')!;
+    expect(menu.querySelectorAll('.claudian-conversation-menu-item')).toHaveLength(2);
+    expect(menu.querySelector('[aria-label="Rename"]')).not.toBeNull();
+    expect(menu.querySelector('[aria-label="Archive"]')).not.toBeNull();
+    const actions = container.querySelector('.claudian-conversation-header-actions')!;
+    expect(actions.children[0].querySelector('.claudian-conversation-header-menu-action'))
+      .not.toBeNull();
+    expect(actions.children[1].getAttribute('aria-label')).toBe('Chat history');
+    menu.querySelector<HTMLButtonElement>('[aria-label="Rename"]')?.click();
+    menu.querySelector<HTMLButtonElement>('[aria-label="Archive"]')?.click();
 
-    expect(onRenameConversation).toHaveBeenCalledWith('Renamed session');
+    expect(onRenameConversation).toHaveBeenCalledTimes(1);
+    expect(onArchiveConversation).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels a current-title edit with Escape', async () => {
+  it('disables archive while the conversation is running', async () => {
     const onRenameConversation = jest.fn();
+    const onArchiveConversation = jest.fn();
     render(h(ConversationHeaderView, {
       title: 'Current session',
       onRenameConversation,
+      onArchiveConversation,
+      isRunning: true,
     } as any), container);
 
     container.querySelector<HTMLButtonElement>(
-      '.claudian-conversation-header-rename-action',
+      '.claudian-conversation-header-menu-action',
     )?.click();
     await Promise.resolve();
-    const input = container.querySelector<HTMLInputElement>(
-      '.claudian-conversation-header-rename-input',
-    )!;
-    input.value = 'Discard this';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await Promise.resolve();
 
-    expect(onRenameConversation).not.toHaveBeenCalled();
-    expect(container.querySelector('.claudian-conversation-header-title')?.textContent)
-      .toBe('Current session');
+    container.querySelector<HTMLButtonElement>(
+      '.claudian-conversation-header-menu-action',
+    )?.click();
+
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Archive"]')?.disabled)
+      .toBe(true);
   });
 });

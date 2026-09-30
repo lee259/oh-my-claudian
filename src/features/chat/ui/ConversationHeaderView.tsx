@@ -1,3 +1,4 @@
+import { setIcon } from 'obsidian';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { t } from '../../../i18n/i18n';
@@ -10,7 +11,9 @@ export interface ConversationHeaderViewProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onNewConversation?: () => void;
-  onRenameConversation?: (title: string) => void;
+  onRenameConversation?: () => void;
+  onArchiveConversation?: () => void;
+  isRunning?: boolean;
 }
 
 export function ConversationHeaderView({
@@ -21,34 +24,35 @@ export function ConversationHeaderView({
   onOpenSettings,
   onNewConversation,
   onRenameConversation,
+  onArchiveConversation,
+  isRunning = false,
 }: ConversationHeaderViewProps) {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [draftTitle, setDraftTitle] = useState(title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isRenamingRef = useRef(false);
+  const [isConversationMenuOpen, setIsConversationMenuOpen] = useState(false);
+  const conversationMenuAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isRenaming) setDraftTitle(title);
-  }, [isRenaming, title]);
+    if (!isConversationMenuOpen) return undefined;
 
-  useEffect(() => {
-    if (!isRenaming) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [isRenaming]);
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (!conversationMenuAnchorRef.current?.contains(event.target as Node)) {
+        setIsConversationMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setIsConversationMenuOpen(false);
+    };
 
-  const cancelRename = (): void => {
-    isRenamingRef.current = false;
-    setDraftTitle(title);
-    setIsRenaming(false);
-  };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isConversationMenuOpen]);
 
-  const saveRename = (): void => {
-    if (!isRenamingRef.current) return;
-    isRenamingRef.current = false;
-    setIsRenaming(false);
-    const nextTitle = (inputRef.current?.value ?? draftTitle).trim();
-    if (nextTitle && nextTitle !== title) onRenameConversation?.(nextTitle);
+  const openConversationMenu = (event: MouseEvent): void => {
+    event.stopPropagation();
+    setIsConversationMenuOpen(open => !open);
   };
 
   if (isHome) {
@@ -90,45 +94,26 @@ export function ConversationHeaderView({
           onClick={onBack}
         />
         <div className="claudian-conversation-header-title-wrap">
-          {isRenaming ? (
-            <input
-              ref={inputRef}
-              className="claudian-conversation-header-rename-input"
-              aria-label={t('chat.history.rename')}
-              value={draftTitle}
-              onInput={(event) => setDraftTitle(event.currentTarget.value)}
-              onBlur={saveRename}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.isComposing) {
-                  event.preventDefault();
-                  saveRename();
-                } else if (event.key === 'Escape') {
-                  event.preventDefault();
-                  cancelRename();
-                }
-              }}
-            />
-          ) : (
-            <div className="claudian-conversation-header-title">
-              {title}
-            </div>
-          )}
-          {!isRenaming && onRenameConversation && (
-            <IconButton
-              className="claudian-conversation-header-action claudian-conversation-header-rename-action"
-              icon="pencil"
-              iconClassName="claudian-conversation-header-icon"
-              label={t('chat.history.rename')}
-              onClick={() => {
-                isRenamingRef.current = true;
-                setDraftTitle(title);
-                setIsRenaming(true);
-              }}
-            />
-          )}
+          <div className="claudian-conversation-header-title">
+            {title}
+          </div>
         </div>
       </div>
-      <div className="claudian-conversation-header-actions">
+      <div
+        className="claudian-conversation-header-actions"
+        ref={conversationMenuAnchorRef}
+      >
+        {(onRenameConversation || onArchiveConversation) && (
+          <div className="claudian-conversation-menu-anchor">
+            <IconButton
+              className="claudian-conversation-header-action claudian-conversation-header-menu-action"
+              icon="more-horizontal"
+              iconClassName="claudian-conversation-header-icon"
+              label={t('chat.history.options')}
+              onClick={openConversationMenu}
+            />
+          </div>
+        )}
         <IconButton
           className="claudian-conversation-header-action"
           icon="history"
@@ -150,6 +135,56 @@ export function ConversationHeaderView({
           label={t('chat.header.newConversation')}
           onClick={onNewConversation}
         />
+        {isConversationMenuOpen && (
+          <div
+            className="claudian-conversation-actions-menu"
+            role="menu"
+          >
+            {onRenameConversation && (
+              <button
+                className="claudian-conversation-menu-item"
+                type="button"
+                role="menuitem"
+                aria-label={t('chat.history.rename')}
+                onClick={() => {
+                  setIsConversationMenuOpen(false);
+                  onRenameConversation();
+                }}
+              >
+                <span
+                  className="claudian-conversation-menu-item-icon"
+                  aria-hidden="true"
+                  ref={element => {
+                    if (element) setIcon(element, 'pencil');
+                  }}
+                />
+                <span>{t('chat.history.rename')}</span>
+              </button>
+            )}
+            {onArchiveConversation && (
+              <button
+                className="claudian-conversation-menu-item"
+                type="button"
+                role="menuitem"
+                aria-label={t('chat.history.archive')}
+                disabled={isRunning}
+                onClick={() => {
+                  setIsConversationMenuOpen(false);
+                  onArchiveConversation();
+                }}
+              >
+                <span
+                  className="claudian-conversation-menu-item-icon"
+                  aria-hidden="true"
+                  ref={element => {
+                    if (element) setIcon(element, 'archive');
+                  }}
+                />
+                <span>{t('chat.history.archive')}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );
