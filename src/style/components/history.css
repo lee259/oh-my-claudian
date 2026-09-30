@@ -96,7 +96,8 @@
   position: relative;
   min-height: 30px;
   gap: 0;
-  padding: 4px 8px;
+  margin-inline-start: 4px;
+  padding: 4px 8px 4px 4px;
   border-bottom: 0;
   border-radius: 8px;
 }
@@ -108,7 +109,7 @@
 .claudian-history-menu .claudian-history-item.active,
 .claudian-history-menu .claudian-history-item.open {
   border-inline-start: 0;
-  padding-inline-start: 8px;
+  padding-inline-start: 4px;
 }
 
 .claudian-history-menu .claudian-history-item.active,
