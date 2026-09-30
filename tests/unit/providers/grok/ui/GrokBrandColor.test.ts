@@ -15,7 +15,7 @@ describe('Grok brand color', () => {
     expect(variablesCss).toContain('--claudian-brand-grok: #ffffff;');
     expect(variablesCss).toContain('--claudian-brand-grok-rgb: 255, 255, 255;');
     expect(variablesCss).toMatch(
-      /body\.theme-light \.oh-my-claudian-root\.claudian-container \{[\s\S]*?--claudian-brand-grok: #000000;[\s\S]*?--claudian-brand-grok-rgb: 0, 0, 0;[\s\S]*?\}/,
+      /body\.theme-light \.oh-my-claudian-root\.claudian-container,\s*body\.theme-light \.claudian-settings\s*\{[\s\S]*?--claudian-brand-grok: #000000;[\s\S]*?--claudian-brand-grok-rgb: 0, 0, 0;[\s\S]*?\}/,
     );
   });
 
