@@ -37,6 +37,7 @@ import {
 } from './tabs/Tab';
 import { TabManager } from './tabs/TabManager';
 import type { TabData, TabId } from './tabs/types';
+import { ConversationRenameModal } from './ui/ConversationRenameModal';
 import { HistorySearchView } from './ui/HistorySearchView';
 import { recalculateUsageForModel } from './utils/usageInfo';
 
@@ -379,10 +380,12 @@ export class ClaudianView extends ItemView {
           new Notice(t('chat.errors.openConversation'));
         });
       },
-      onRenameConversation: (conversationId: string, title: string) => {
-        void this.plugin.renameConversation(conversationId, title).catch(() => {
-          new Notice(t('chat.errors.renameConversation'));
-        });
+      onRequestRenameConversation: (conversationId: string, title: string) => {
+        new ConversationRenameModal(
+          this.plugin.app,
+          title,
+          nextTitle => this.plugin.renameConversation(conversationId, nextTitle),
+        ).open();
       },
       onArchiveConversation: (conversationId: string) => {
         void this.setConversationArchived(conversationId, true).catch(() => {

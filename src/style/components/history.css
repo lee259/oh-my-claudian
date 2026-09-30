@@ -94,6 +94,7 @@
 
 .claudian-history-menu .claudian-history-item {
   position: relative;
+  box-sizing: border-box;
   min-height: 30px;
   gap: 0;
   margin-inline-start: 4px;
@@ -127,15 +128,16 @@
 .claudian-history-menu .claudian-history-item-title {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
+  line-height: 1.4;
 }
 
 .claudian-history-menu .claudian-history-item-date {
   flex: 0 0 auto;
   margin-top: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   transition: opacity 0.15s ease;
 }

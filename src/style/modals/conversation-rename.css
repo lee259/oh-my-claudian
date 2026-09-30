@@ -1,0 +1,11 @@
+.claudian-conversation-rename-modal .setting-item:first-child {
+  border-top: 0;
+}
+
+.claudian-conversation-rename-modal .setting-item:first-child .setting-item-control {
+  width: 100%;
+}
+
+.claudian-conversation-rename-modal .setting-item:first-child input {
+  width: 100%;
+}

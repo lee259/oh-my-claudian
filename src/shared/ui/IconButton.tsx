@@ -5,7 +5,7 @@ export interface IconButtonProps {
   icon: string;
   iconClassName?: string;
   label: string;
-  onClick?: () => void;
+  onClick?: (event: MouseEvent) => void;
 }
 
 /**
@@ -26,7 +26,7 @@ export function IconButton({
       aria-label={label}
       onClick={(event) => {
         event.stopPropagation();
-        onClick?.();
+        onClick?.(event);
       }}
     >
       <span

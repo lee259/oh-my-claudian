@@ -170,11 +170,14 @@ function buildTabDOM(
       onOpenHistory: homeOptions?.onOpenHistory,
       onOpenSettings: homeOptions?.onOpenSettings,
       onNewConversation: homeOptions?.onNewConversation,
-      onRenameConversation: currentConversationId
-        ? (nextTitle: string) => homeOptions?.onRenameConversation?.(
-          currentConversationId,
-          nextTitle,
-        )
+      onRenameConversation: currentConversationId && homeOptions?.onRequestRenameConversation
+        ? () => homeOptions.onRequestRenameConversation?.(currentConversationId, title)
+        : undefined,
+      onArchiveConversation: currentConversationId && homeOptions?.onArchiveConversation
+        ? () => homeOptions.onArchiveConversation?.(currentConversationId)
+        : undefined,
+      isRunning: currentConversationId
+        ? homeOptions?.isConversationRunning?.(currentConversationId) ?? false
         : undefined,
     }));
   };
