@@ -269,31 +269,31 @@
       "automaticPath": "自動検出"
     },
     "gettingStarted": {
-      "title": "Get started",
-      "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
-      "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
-      "stepChat": "Open the chat view and send your first message.",
+      "title": "使い始める",
+      "desc": "次の 3 つの手順で、プロバイダーを使った最初のチャットを送信できます。",
+      "stepProvider": "プロバイダーのタブを選び、プロバイダーを有効にします。",
+      "stepReadiness": "準備状況パネルで CLI、モデルカタログ、モデル選択が準備できていることを確認します。",
+      "stepChat": "チャットビューを開いて最初のメッセージを送信します。",
       "openChat": {
-        "name": "Open chat",
-        "desc": "Open the Oh My Claudian chat view whenever you are ready to start.",
-        "button": "Open chat"
+        "name": "チャットを開く",
+        "desc": "準備ができたら Oh My Claudian のチャットビューを開きます。",
+        "button": "チャットを開く"
       }
     },
     "capabilityMatrix": {
-      "title": "Oh My Claudian integration capabilities",
-      "desc": "Compare the capabilities currently integrated by Oh My Claudian. This is not a complete list of each provider's native features.",
-      "provider": "Provider",
-      "supported": "Yes",
+      "title": "Oh My Claudian に統合されている機能",
+      "desc": "Oh My Claudian に現在統合されている機能を比較します。各プロバイダーが標準で備える機能をすべて網羅した一覧ではありません。",
+      "provider": "プロバイダー",
+      "supported": "はい",
       "unsupported": "—",
       "rows": {
-        "planMode": "Plan mode",
-        "rewind": "Rewind",
-        "fork": "Fork",
-        "providerCommands": "Provider commands",
-        "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "planMode": "計画モード",
+        "rewind": "巻き戻し",
+        "fork": "分岐",
+        "providerCommands": "プロバイダーコマンド",
+        "imageAttachments": "画像添付",
+        "mcpTools": "MCP ツール",
+        "turnSteer": "ターン制御"
       }
     },
     "tabs": {
@@ -321,35 +321,35 @@
       "tool": "ツール"
     },
     "cursor": {
-      "setup": "Setup",
-      "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
-      "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
-      "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
-      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
-      "loadingModels": "Loading Cursor models...",
-      "discoveryFailed": "Cursor model discovery failed: {error}",
-      "workspaceNotInitialized": "Cursor workspace is not initialized",
-      "agent": "Agent",
-      "plan": "Plan",
-      "ask": "Ask",
-      "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "setup": "設定",
+      "enable": "Cursor を有効化",
+      "enableDesc": "ACP CLI を使って Cursor Agent を有効にします。",
+      "cliPath": "CLI のパス",
+      "cliPathDesc": "Cursor Agent CLI の絶対パスです。「which agent」の出力を貼り付けてください（Windows では「where agent」）。空欄の場合は自動検出します。",
+      "models": "モデル",
+      "noModels": "Cursor のモデルはまだ見つかっていません。agent login を実行し、「検出」をクリックしてください。",
+      "catalogFailed": "Cursor のモデルカタログを読み込めませんでした。CLI のパスとログイン状態を確認してください。",
+      "loadingModels": "Cursor のモデルを読み込み中…",
+      "discoveryFailed": "Cursor のモデル検出に失敗しました: {error}",
+      "workspaceNotInitialized": "Cursor のワークスペースが初期化されていません。",
+      "agent": "エージェント",
+      "plan": "計画",
+      "ask": "質問",
+      "permissionRequest": "Cursor が {tool} の使用許可を求めています。",
+      "tool": "ツール"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Grok Build CLI の絶対パス（任意）。空欄の場合は既知のインストール先、次に PATH を検索します。「which grok」の出力を貼り付けてください（Windows では「where grok」）。",
       "environment": {
         "name": "Grok Build 環境変数",
         "desc": "Grok Build にのみ渡す環境変数。カスタムモデルのシークレットはこのプロバイダーのスコープ内に留まり、ネイティブ設定からは env_key で参照されます。"
       }
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "OpenCode CLI の絶対パス（任意）。空欄の場合は PATH を使用します。「which opencode」の出力を貼り付けてください（Windows では「where opencode」）。"
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "cliPathDesc": "Pi CLI の絶対パス（任意）。空欄の場合は PATH を使用します。「which pi」の出力を貼り付けてください（Windows では「where pi」）。",
       "environment": {
         "name": "Pi 環境変数",
         "desc": "Pi にのみ渡す環境変数。"
@@ -409,10 +409,10 @@
     },
     "providerDiagnostics": {
       "kicker": "トラブルシューティング",
-      "title": "Provider 診断",
+      "title": "プロバイダー診断",
       "whatHappened": "発生した問題",
       "readiness": "準備状況チェック",
-      "provider": "Provider",
+      "provider": "プロバイダー",
       "category": "カテゴリ",
       "status": "状態",
       "platform": "プラットフォーム",
@@ -431,7 +431,7 @@
         "failed": "失敗"
       },
       "check": {
-        "enabled": "Provider が有効",
+        "enabled": "プロバイダーが有効",
         "cli": "CLI が利用可能",
         "models": "モデルカタログが利用可能",
         "selection": "チャットモデルを選択済み"
@@ -443,7 +443,7 @@
         "ready": "準備完了"
       },
       "remediation": {
-        "enableProvider": "Provider を有効化",
+        "enableProvider": "プロバイダーを有効化",
         "configureCli": "CLI を設定",
         "refreshModels": "モデルを更新",
         "selectModel": "モデルを選択"
@@ -460,7 +460,7 @@
         "protocol-error": "プロトコルエラー",
         "authentication": "認証に失敗",
         "not-configured": "未設定",
-        "provider": "Provider エラー"
+        "provider": "プロバイダーエラー"
       }
     },
     "display": "表示",
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Codex CLI スキル",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": ".agents/skills/ のみに保存される共有 vault スキルを管理します。",
         "hiddenName": "非表示のスキル",
         "hiddenDesc": "特定の Codex CLI スキルをドロップダウンから非表示にします。先頭の $ なしでスキル名を1行に1つ入力してください。",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "スキル",
+      "fixedRoot": ".agents/skills/ で管理",
       "sharedExpectation": "互換性のあるプロバイダーで使う共有スキルを .agents/skills/ で管理します。",
       "noSkills": "共有スキルはまだありません。+ をクリックして作成します。",
       "skillBadge": "スキル",
       "diagnosticsTitle": "確認が必要なスキル",
       "loadFailed": "共有スキルを読み込めませんでした。",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "保存しましたが、プロバイダーの更新に失敗しました。",
+      "validationFailed": "無効なスキルです: {message}",
+      "collisionFailed": "「{name}」という名前のスキルはすでに存在します。",
+      "saveFailed": "共有スキルの保存に失敗しました: {message}",
+      "deleteFailed": "共有スキルをゴミ箱に移動できませんでした: {message}",
+      "staleConflict": "このスキルは別の場所で変更されています。更新してから保存してください。",
+      "created": "共有スキル「{name}」を作成しました。",
+      "updated": "共有スキル「{name}」を更新しました。",
+      "deleted": "共有スキル「{name}」をゴミ箱に移動しました。",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "共有スキルを編集",
+        "titleAdd": "共有スキルを追加",
+        "name": "スキル名",
+        "nameDesc": "小文字と数字を単一のハイフンで区切ります",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "説明",
+        "descriptionDesc": "プロバイダーがスキルを選ぶために使用する必須の汎用説明",
+        "descriptionPlaceholder": "コードの正確性と保守性を確認します",
+        "instructions": "指示",
+        "instructionsDesc": "必須の SKILL.md 指示",
+        "instructionsPlaceholder": "提示されたコードを確認し、対応可能な問題を報告してください…"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "共有スキルを削除",
+        "description": "スクリプト、参照資料、アセットを含むスキルフォルダー全体がゴミ箱に移動します。",
+        "confirm": "ゴミ箱に移動"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "ドロップダウンに表示される任意の説明",
         "instructions": "指示",
         "instructionsDesc": "スキルの指示（SKILL.md の内容）",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "コードを分析し、次の点を確認してください…"
       },
       "instructionsRequired": "指示は必須です",
       "saveFailed": "Codex CLI スキルの保存に失敗しました",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "開発者指示",
         "desc": "エージェントの動作を定義する中核の指示",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "コードの責任者としてレビューしてください。\n正確性、安全性、テストカバレッジの不足を優先してください。",
         "required": "開発者指示は必須です"
       },
       "validation": {
@@ -914,10 +914,10 @@
     },
     "diagnostics": {
       "title": "診断",
-      "desc": "Provider セッションのトラブルシューティング用ローカルログです。",
+      "desc": "プロバイダーセッションのトラブルシューティング用ローカルログです。",
       "logging": {
-        "name": "Provider のデバッグログを保存",
-        "desc": "起動引数、Provider の標準エラー出力、Claudian が捕捉したエラーを日別ファイルに記録します。既定ではオフです。ログに機密情報が含まれる場合があります。"
+        "name": "プロバイダーのデバッグログを保存",
+        "desc": "起動引数、プロバイダーの標準エラー出力、Claudian が捕捉したエラーを日別ファイルに記録します。既定ではオフです。ログに機密情報が含まれる場合があります。"
       },
       "directory": {
         "name": "ログフォルダー",
@@ -930,7 +930,7 @@
         "button": "フォルダーを開く",
         "error": "診断ログフォルダーを開けませんでした。"
       },
-      "openCommandName": "Provider 診断ログを開く"
+      "openCommandName": "プロバイダー診断ログを開く"
     },
     "providerSettings": {
       "unavailable": "プロバイダー設定を利用できません。",

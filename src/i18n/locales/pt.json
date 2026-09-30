@@ -269,31 +269,31 @@
       "automaticPath": "Detectado automaticamente"
     },
     "gettingStarted": {
-      "title": "Get started",
-      "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
-      "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
-      "stepChat": "Open the chat view and send your first message.",
+      "title": "Começar",
+      "desc": "Siga estas três etapas para enviar seu primeiro chat com um provedor.",
+      "stepProvider": "Escolha a aba de um provedor e ative-o.",
+      "stepReadiness": "Use o painel de prontidão para confirmar que a CLI, o catálogo de modelos e a seleção de modelo estão prontos.",
+      "stepChat": "Abra a visualização de chat e envie sua primeira mensagem.",
       "openChat": {
-        "name": "Open chat",
-        "desc": "Open the Oh My Claudian chat view whenever you are ready to start.",
-        "button": "Open chat"
+        "name": "Abrir chat",
+        "desc": "Abra a visualização de chat do Oh My Claudian quando quiser começar.",
+        "button": "Abrir chat"
       }
     },
     "capabilityMatrix": {
-      "title": "Oh My Claudian integration capabilities",
-      "desc": "Compare the capabilities currently integrated by Oh My Claudian. This is not a complete list of each provider's native features.",
-      "provider": "Provider",
-      "supported": "Yes",
+      "title": "Recursos integrados ao Oh My Claudian",
+      "desc": "Compare os recursos atualmente integrados ao Oh My Claudian. Esta não é uma lista completa dos recursos nativos de cada provedor.",
+      "provider": "Provedor",
+      "supported": "Sim",
       "unsupported": "—",
       "rows": {
-        "planMode": "Plan mode",
-        "rewind": "Rewind",
-        "fork": "Fork",
-        "providerCommands": "Provider commands",
-        "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "planMode": "Modo de planejamento",
+        "rewind": "Retroceder",
+        "fork": "Criar ramificação",
+        "providerCommands": "Comandos do provedor",
+        "imageAttachments": "Anexos de imagem",
+        "mcpTools": "Ferramentas MCP",
+        "turnSteer": "Controle de turno"
       }
     },
     "tabs": {
@@ -321,35 +321,35 @@
       "tool": "uma ferramenta"
     },
     "cursor": {
-      "setup": "Setup",
-      "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
-      "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
-      "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
-      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
-      "loadingModels": "Loading Cursor models...",
-      "discoveryFailed": "Cursor model discovery failed: {error}",
-      "workspaceNotInitialized": "Cursor workspace is not initialized",
-      "agent": "Agent",
+      "setup": "Configuração",
+      "enable": "Ativar Cursor",
+      "enableDesc": "Ative o Cursor Agent pela CLI ACP.",
+      "cliPath": "Caminho da CLI",
+      "cliPathDesc": "Caminho absoluto para a CLI do Cursor Agent. Cole a saída de “which agent” (ou “where agent” no Windows). Deixe em branco para detecção automática.",
+      "models": "Modelos",
+      "noModels": "Nenhum modelo do Cursor foi descoberto ainda. Execute agent login e clique em Descobrir.",
+      "catalogFailed": "Não foi possível carregar o catálogo de modelos do Cursor. Verifique o caminho da CLI e o estado do login.",
+      "loadingModels": "Carregando modelos do Cursor…",
+      "discoveryFailed": "Falha ao descobrir modelos do Cursor: {error}",
+      "workspaceNotInitialized": "O espaço de trabalho do Cursor não foi inicializado.",
+      "agent": "Agente",
       "plan": "Plan",
-      "ask": "Ask",
-      "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "ask": "Perguntar",
+      "permissionRequest": "O Cursor solicita permissão para usar {tool}.",
+      "tool": "uma ferramenta"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Caminho absoluto opcional para a CLI do Grok Build. Deixe em branco para priorizar instalações conhecidas e depois usar o PATH. Cole a saída de “which grok” (ou “where grok” no Windows).",
       "environment": {
         "name": "Variáveis de ambiente do Grok Build",
         "desc": "Variáveis de ambiente passadas somente ao Grok Build. Os segredos de modelos personalizados permanecem no escopo deste provedor e são referenciados na configuração nativa por env_key."
       }
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "Caminho absoluto opcional para a CLI do OpenCode. Deixe em branco para usar o PATH. Cole a saída de “which opencode” (ou “where opencode” no Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "cliPathDesc": "Caminho absoluto opcional para a CLI do Pi. Deixe em branco para usar o PATH. Cole a saída de “which pi” (ou “where pi” no Windows).",
       "environment": {
         "name": "Variáveis de ambiente do Pi",
         "desc": "Variáveis de ambiente passadas somente ao Pi."
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Habilidades Codex CLI",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": "Gerencie habilidades compartilhadas do vault armazenadas somente em .agents/skills/.",
         "hiddenName": "Habilidades ocultas",
         "hiddenDesc": "Oculte habilidades Codex CLI específicas do menu. Insira nomes sem o $ inicial, um por linha.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "Habilidades",
+      "fixedRoot": "Gerenciado em .agents/skills",
       "sharedExpectation": "Gerencie skills compartilhadas em .agents/skills/ para provedores compatíveis.",
       "noSkills": "Nenhuma skill compartilhada configurada. Clique em + para criar uma.",
       "skillBadge": "habilidade",
       "diagnosticsTitle": "Skills que precisam de atenção",
       "loadFailed": "Não foi possível carregar as skills compartilhadas.",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "Salvo, mas não foi possível atualizar os provedores.",
+      "validationFailed": "Habilidade inválida: {message}",
+      "collisionFailed": "Já existe uma habilidade chamada “{name}”.",
+      "saveFailed": "Falha ao salvar a habilidade compartilhada: {message}",
+      "deleteFailed": "Falha ao mover a habilidade compartilhada para a lixeira: {message}",
+      "staleConflict": "Esta habilidade foi alterada em outro lugar; atualize-a antes de salvar.",
+      "created": "Habilidade compartilhada “{name}” criada.",
+      "updated": "Habilidade compartilhada “{name}” atualizada.",
+      "deleted": "Habilidade compartilhada “{name}” movida para a lixeira.",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "Editar habilidade compartilhada",
+        "titleAdd": "Adicionar habilidade compartilhada",
+        "name": "Nome da habilidade",
+        "nameDesc": "Letras minúsculas e números separados por hífens simples",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "Descrição",
+        "descriptionDesc": "Descrição portátil obrigatória usada pelos provedores para selecionar a habilidade",
+        "descriptionPlaceholder": "Analisa a correção e a facilidade de manutenção do código",
+        "instructions": "Instruções",
+        "instructionsDesc": "Instruções obrigatórias do SKILL.md",
+        "instructionsPlaceholder": "Revise o código fornecido e relate problemas que possam ser corrigidos…"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "Excluir habilidade compartilhada",
+        "description": "A pasta inteira da habilidade, incluindo scripts, referências e recursos, será movida para a lixeira.",
+        "confirm": "Mover para a lixeira"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "Descrição opcional exibida no menu",
         "instructions": "Instruções",
         "instructionsDesc": "Instruções da habilidade (conteúdo de SKILL.md)",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "Analise o código em busca de…"
       },
       "instructionsRequired": "Instruções são obrigatórias",
       "saveFailed": "Falha ao salvar habilidade Codex CLI",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "Instruções de desenvolvedor",
         "desc": "Instruções centrais que definem o comportamento do agente",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "Revise o código como responsável por ele.\nPriorize correção, segurança e lacunas na cobertura de testes.",
         "required": "Instruções de desenvolvedor são obrigatórias"
       },
       "validation": {

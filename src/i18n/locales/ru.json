@@ -269,31 +269,31 @@
       "automaticPath": "Обнаружено автоматически"
     },
     "gettingStarted": {
-      "title": "Get started",
-      "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
-      "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
-      "stepChat": "Open the chat view and send your first message.",
+      "title": "Начало работы",
+      "desc": "Выполните три шага, чтобы отправить первое сообщение через провайдера.",
+      "stepProvider": "Выберите вкладку провайдера и включите его.",
+      "stepReadiness": "Убедитесь на панели готовности, что CLI, каталог моделей и выбранная модель готовы к работе.",
+      "stepChat": "Откройте чат и отправьте первое сообщение.",
       "openChat": {
-        "name": "Open chat",
-        "desc": "Open the Oh My Claudian chat view whenever you are ready to start.",
-        "button": "Open chat"
+        "name": "Открыть чат",
+        "desc": "Откройте чат Oh My Claudian, когда будете готовы начать.",
+        "button": "Открыть чат"
       }
     },
     "capabilityMatrix": {
-      "title": "Oh My Claudian integration capabilities",
-      "desc": "Compare the capabilities currently integrated by Oh My Claudian. This is not a complete list of each provider's native features.",
-      "provider": "Provider",
-      "supported": "Yes",
+      "title": "Возможности, интегрированные в Oh My Claudian",
+      "desc": "Сравните возможности, интегрированные в Oh My Claudian. Это не полный список встроенных функций каждого провайдера.",
+      "provider": "Провайдер",
+      "supported": "Да",
       "unsupported": "—",
       "rows": {
-        "planMode": "Plan mode",
-        "rewind": "Rewind",
-        "fork": "Fork",
-        "providerCommands": "Provider commands",
-        "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "planMode": "Режим планирования",
+        "rewind": "Перемотка",
+        "fork": "Ветвление",
+        "providerCommands": "Команды провайдера",
+        "imageAttachments": "Изображения во вложениях",
+        "mcpTools": "Инструменты MCP",
+        "turnSteer": "Управление ходом ответа"
       }
     },
     "tabs": {
@@ -321,35 +321,35 @@
       "tool": "инструмент"
     },
     "cursor": {
-      "setup": "Setup",
-      "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
-      "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
-      "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
-      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
-      "loadingModels": "Loading Cursor models...",
-      "discoveryFailed": "Cursor model discovery failed: {error}",
-      "workspaceNotInitialized": "Cursor workspace is not initialized",
-      "agent": "Agent",
-      "plan": "Plan",
-      "ask": "Ask",
-      "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "setup": "Настройка",
+      "enable": "Включить Cursor",
+      "enableDesc": "Включите Cursor Agent через его ACP CLI.",
+      "cliPath": "Путь к CLI",
+      "cliPathDesc": "Абсолютный путь к Cursor Agent CLI. Вставьте вывод «which agent» (или «where agent» в Windows). Оставьте пустым для автоматического обнаружения.",
+      "models": "Модели",
+      "noModels": "Модели Cursor ещё не обнаружены. Выполните agent login и нажмите «Обнаружить».",
+      "catalogFailed": "Не удалось загрузить каталог моделей Cursor. Проверьте путь к CLI и состояние входа.",
+      "loadingModels": "Загрузка моделей Cursor…",
+      "discoveryFailed": "Не удалось обнаружить модели Cursor: {error}",
+      "workspaceNotInitialized": "Рабочая область Cursor не инициализирована.",
+      "agent": "Агент",
+      "plan": "План",
+      "ask": "Спросить",
+      "permissionRequest": "Cursor запрашивает разрешение на использование {tool}.",
+      "tool": "инструмент"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Необязательный абсолютный путь к Grok Build CLI. Оставьте поле пустым, чтобы сначала использовать известные установки, затем искать в PATH. Вставьте вывод «which grok» (или «where grok» в Windows).",
       "environment": {
         "name": "Переменные окружения Grok Build",
         "desc": "Переменные окружения, передаваемые только в Grok Build. Секреты пользовательских моделей остаются в области этого провайдера, а нативная конфигурация ссылается на них через env_key."
       }
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "Необязательный абсолютный путь к OpenCode CLI. Оставьте поле пустым, чтобы использовать PATH. Вставьте вывод «which opencode» (или «where opencode» в Windows)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "cliPathDesc": "Необязательный абсолютный путь к Pi CLI. Оставьте поле пустым, чтобы использовать PATH. Вставьте вывод «which pi» (или «where pi» в Windows).",
       "environment": {
         "name": "Переменные окружения Pi",
         "desc": "Переменные окружения, передаваемые только в Pi."
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Навыки Codex CLI",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": "Управляйте общими навыками vault, которые хранятся только в .agents/skills/.",
         "hiddenName": "Скрытые навыки",
         "hiddenDesc": "Скрыть отдельные навыки Codex CLI из списка. Введите имена навыков без начального $, по одному на строку.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "Навыки",
+      "fixedRoot": "Управляется в .agents/skills",
       "sharedExpectation": "Управляйте общими навыками в .agents/skills/ для совместимых провайдеров.",
       "noSkills": "Общие навыки не настроены. Нажмите +, чтобы создать навык.",
       "skillBadge": "навык",
       "diagnosticsTitle": "Навыки, требующие внимания",
       "loadFailed": "Не удалось загрузить общие навыки.",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "Сохранено, но не удалось обновить провайдеры.",
+      "validationFailed": "Недопустимый навык: {message}",
+      "collisionFailed": "Навык «{name}» уже существует.",
+      "saveFailed": "Не удалось сохранить общий навык: {message}",
+      "deleteFailed": "Не удалось переместить общий навык в корзину: {message}",
+      "staleConflict": "Этот навык был изменён в другом месте. Обновите его перед сохранением.",
+      "created": "Общий навык «{name}» создан.",
+      "updated": "Общий навык «{name}» обновлён.",
+      "deleted": "Общий навык «{name}» перемещён в корзину.",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "Изменить общий навык",
+        "titleAdd": "Добавить общий навык",
+        "name": "Название навыка",
+        "nameDesc": "Строчные латинские буквы и цифры, разделённые одиночными дефисами",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "Описание",
+        "descriptionDesc": "Обязательное переносимое описание, по которому провайдеры выбирают навык",
+        "descriptionPlaceholder": "Проверяет корректность и удобство сопровождения кода",
+        "instructions": "Инструкции",
+        "instructionsDesc": "Обязательные инструкции SKILL.md",
+        "instructionsPlaceholder": "Проверьте предоставленный код и укажите конкретные проблемы, требующие внимания…"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "Удалить общий навык",
+        "description": "Вся папка навыка, включая скрипты, справочные материалы и ресурсы, будет перемещена в корзину.",
+        "confirm": "Переместить в корзину"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "Необязательное описание, отображаемое в списке",
         "instructions": "Инструкции",
         "instructionsDesc": "Инструкции навыка (содержимое SKILL.md)",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "Проанализируйте код и найдите…"
       },
       "instructionsRequired": "Инструкции обязательны",
       "saveFailed": "Не удалось сохранить навык Codex CLI",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "Инструкции разработчика",
         "desc": "Основные инструкции, определяющие поведение агента",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "Проверяйте код как ответственный за него разработчик.\nВ первую очередь оценивайте корректность, безопасность и пробелы в покрытии тестами.",
         "required": "Инструкции разработчика обязательны"
       },
       "validation": {

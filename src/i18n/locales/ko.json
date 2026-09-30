@@ -269,31 +269,31 @@
       "automaticPath": "자동 검색됨"
     },
     "gettingStarted": {
-      "title": "Get started",
-      "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
-      "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
-      "stepChat": "Open the chat view and send your first message.",
+      "title": "시작하기",
+      "desc": "다음 세 단계를 따라 첫 번째 프로바이더 기반 채팅을 보내세요.",
+      "stepProvider": "프로바이더 탭을 선택하고 프로바이더를 활성화하세요.",
+      "stepReadiness": "준비 상태 패널에서 CLI, 모델 카탈로그, 모델 선택이 준비되었는지 확인하세요.",
+      "stepChat": "채팅 화면을 열고 첫 메시지를 보내세요.",
       "openChat": {
-        "name": "Open chat",
-        "desc": "Open the Oh My Claudian chat view whenever you are ready to start.",
-        "button": "Open chat"
+        "name": "채팅 열기",
+        "desc": "시작할 준비가 되면 Oh My Claudian 채팅 화면을 여세요.",
+        "button": "채팅 열기"
       }
     },
     "capabilityMatrix": {
-      "title": "Oh My Claudian integration capabilities",
-      "desc": "Compare the capabilities currently integrated by Oh My Claudian. This is not a complete list of each provider's native features.",
-      "provider": "Provider",
-      "supported": "Yes",
+      "title": "Oh My Claudian에 통합된 기능",
+      "desc": "Oh My Claudian에 현재 통합된 기능을 비교합니다. 각 프로바이더의 기본 기능 전체 목록은 아닙니다.",
+      "provider": "제공자",
+      "supported": "예",
       "unsupported": "—",
       "rows": {
-        "planMode": "Plan mode",
-        "rewind": "Rewind",
-        "fork": "Fork",
-        "providerCommands": "Provider commands",
-        "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "planMode": "계획 모드",
+        "rewind": "되돌리기",
+        "fork": "분기",
+        "providerCommands": "프로바이더 명령",
+        "imageAttachments": "이미지 첨부",
+        "mcpTools": "MCP 도구",
+        "turnSteer": "턴 제어"
       }
     },
     "tabs": {
@@ -321,35 +321,35 @@
       "tool": "도구"
     },
     "cursor": {
-      "setup": "Setup",
-      "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
-      "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI on this computer.",
-      "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
-      "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
-      "loadingModels": "Loading Cursor models...",
-      "discoveryFailed": "Cursor model discovery failed: {error}",
-      "workspaceNotInitialized": "Cursor workspace is not initialized",
-      "agent": "Agent",
-      "plan": "Plan",
-      "ask": "Ask",
-      "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "setup": "설정",
+      "enable": "Cursor 활성화",
+      "enableDesc": "ACP CLI를 통해 Cursor Agent를 활성화합니다.",
+      "cliPath": "CLI 경로",
+      "cliPathDesc": "Cursor Agent CLI의 절대 경로입니다. “which agent” 출력을 붙여 넣으세요(Windows에서는 “where agent”). 비워 두면 자동으로 검색합니다.",
+      "models": "모델",
+      "noModels": "아직 Cursor 모델을 찾지 못했습니다. agent login을 실행한 뒤 검색을 클릭하세요.",
+      "catalogFailed": "Cursor 모델 카탈로그를 불러오지 못했습니다. CLI 경로와 로그인 상태를 확인하세요.",
+      "loadingModels": "Cursor 모델을 불러오는 중…",
+      "discoveryFailed": "Cursor 모델 검색 실패: {error}",
+      "workspaceNotInitialized": "Cursor 작업 공간이 초기화되지 않았습니다.",
+      "agent": "에이전트",
+      "plan": "계획",
+      "ask": "질문",
+      "permissionRequest": "Cursor에서 {tool} 사용 권한을 요청했습니다.",
+      "tool": "도구"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Grok Build CLI의 선택적 절대 경로입니다. 비워 두면 알려진 설치 위치를 우선 사용한 다음 PATH를 검색합니다. “which grok” 출력 내용을 붙여 넣으세요(Windows에서는 “where grok”).",
       "environment": {
         "name": "Grok Build 환경 변수",
         "desc": "Grok에만 전달되는 환경 변수입니다. 사용자 지정 모델의 비밀 값은 이 제공자 범위에 남아 있으며 네이티브 구성에서 env_key로 참조됩니다."
       }
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "OpenCode CLI의 선택적 절대 경로입니다. 비워 두면 PATH를 사용합니다. “which opencode” 출력 내용을 붙여 넣으세요(Windows에서는 “where opencode”)."
     },
     "pi": {
-      "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
+      "cliPathDesc": "Pi CLI의 선택적 절대 경로입니다. 비워 두면 PATH를 사용합니다. “which pi” 출력 내용을 붙여 넣으세요(Windows에서는 “where pi”).",
       "environment": {
         "name": "Pi 환경 변수",
         "desc": "Pi에만 전달되는 환경 변수입니다."
@@ -409,10 +409,10 @@
     },
     "providerDiagnostics": {
       "kicker": "문제 해결",
-      "title": "Provider 진단",
+      "title": "제공자 진단",
       "whatHappened": "발생한 문제",
       "readiness": "준비 상태 확인",
-      "provider": "Provider",
+      "provider": "제공자",
       "category": "분류",
       "status": "상태",
       "platform": "플랫폼",
@@ -431,7 +431,7 @@
         "failed": "실패"
       },
       "check": {
-        "enabled": "Provider 활성화됨",
+        "enabled": "제공자 활성화됨",
         "cli": "CLI 사용 가능",
         "models": "모델 카탈로그 사용 가능",
         "selection": "채팅 모델 선택됨"
@@ -443,7 +443,7 @@
         "ready": "준비됨"
       },
       "remediation": {
-        "enableProvider": "Provider 활성화",
+        "enableProvider": "제공자 활성화",
         "configureCli": "CLI 설정",
         "refreshModels": "모델 새로고침",
         "selectModel": "모델 선택"
@@ -460,7 +460,7 @@
         "protocol-error": "프로토콜 오류",
         "authentication": "인증 실패",
         "not-configured": "구성되지 않음",
-        "provider": "Provider 오류"
+        "provider": "제공자 오류"
       }
     },
     "display": "표시",
@@ -781,7 +781,7 @@
       },
       "skills": {
         "name": "Codex CLI 스킬",
-        "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
+        "desc": ".agents/skills/에만 저장되는 공유 스킬을 관리합니다.",
         "hiddenName": "숨긴 스킬",
         "hiddenDesc": "드롭다운에서 특정 Codex CLI 스킬을 숨깁니다. 앞의 $ 없이 스킬 이름을 한 줄에 하나씩 입력하세요.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
@@ -801,39 +801,39 @@
       }
     },
     "agentSkills": {
-      "sectionTitle": "Skills",
-      "fixedRoot": "Managed in .agents/skills",
+      "sectionTitle": "스킬",
+      "fixedRoot": ".agents/skills/에서 관리",
       "sharedExpectation": "호환되는 제공업체에서 사용할 공유 스킬을 .agents/skills/에서 관리하세요.",
       "noSkills": "구성된 공유 스킬이 없습니다. +를 눌러 새로 만드세요.",
       "skillBadge": "스킬",
       "diagnosticsTitle": "확인이 필요한 스킬",
       "loadFailed": "공유 스킬을 불러오지 못했습니다.",
-      "savedRefreshFailed": "Saved, but provider refresh failed.",
-      "validationFailed": "Invalid skill: {message}",
-      "collisionFailed": "A skill named \"{name}\" already exists.",
-      "saveFailed": "Failed to save shared skill: {message}",
-      "deleteFailed": "Failed to move shared skill to trash: {message}",
-      "staleConflict": "This skill changed elsewhere; refresh before saving.",
-      "created": "Shared skill \"{name}\" created.",
-      "updated": "Shared skill \"{name}\" updated.",
-      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "savedRefreshFailed": "저장했지만 프로바이더를 새로 고치지 못했습니다.",
+      "validationFailed": "잘못된 스킬: {message}",
+      "collisionFailed": "“{name}” 스킬이 이미 있습니다.",
+      "saveFailed": "공유 스킬 저장 실패: {message}",
+      "deleteFailed": "공유 스킬을 휴지통으로 이동하지 못했습니다: {message}",
+      "staleConflict": "이 스킬이 다른 곳에서 변경되었습니다. 새로 고친 후 저장하세요.",
+      "created": "공유 스킬 “{name}”을 만들었습니다.",
+      "updated": "공유 스킬 “{name}”을 업데이트했습니다.",
+      "deleted": "공유 스킬 “{name}”을 휴지통으로 이동했습니다.",
       "modal": {
-        "titleEdit": "Edit Shared Skill",
-        "titleAdd": "Add Shared Skill",
-        "name": "Skill name",
-        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "titleEdit": "공유 스킬 편집",
+        "titleAdd": "공유 스킬 추가",
+        "name": "스킬 이름",
+        "nameDesc": "소문자와 숫자를 단일 하이픈으로 구분",
         "namePlaceholder": "code-reviewer",
-        "description": "Description",
-        "descriptionDesc": "Required portable description used by providers to select the skill",
-        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
-        "instructions": "Instructions",
-        "instructionsDesc": "Required SKILL.md instructions",
-        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+        "description": "설명",
+        "descriptionDesc": "프로바이더가 스킬을 선택하는 데 사용하는 필수 이식 가능 설명",
+        "descriptionPlaceholder": "코드의 정확성과 유지 관리성을 검토합니다",
+        "instructions": "지침",
+        "instructionsDesc": "필수 SKILL.md 지침",
+        "instructionsPlaceholder": "제공된 코드를 검토하고 조치 가능한 결과를 보고하세요…"
       },
       "delete": {
-        "title": "Delete Shared Skill",
-        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
-        "confirm": "Move to trash"
+        "title": "공유 스킬 삭제",
+        "description": "스크립트, 참고 자료, 에셋을 포함한 스킬 폴더 전체가 휴지통으로 이동합니다.",
+        "confirm": "휴지통으로 이동"
       }
     },
     "codexSkills": {
@@ -848,7 +848,7 @@
         "descriptionDesc": "드롭다운에 표시할 선택적 설명",
         "instructions": "지침",
         "instructionsDesc": "스킬 지침(SKILL.md 내용)",
-        "instructionsPlaceholder": "Analyze the code for..."
+        "instructionsPlaceholder": "코드를 분석하고 다음 항목을 확인하세요…"
       },
       "instructionsRequired": "지침은 필수입니다",
       "saveFailed": "Codex CLI 스킬 저장 실패",
@@ -893,7 +893,7 @@
       "developerInstructions": {
         "name": "개발자 지침",
         "desc": "에이전트 동작을 정의하는 핵심 지침",
-        "placeholder": "Review code like an owner.\nPrioritize correctness, security, and missing test coverage.",
+        "placeholder": "코드 담당자의 관점에서 검토하세요.\n정확성, 보안, 테스트 커버리지 부족을 우선 확인하세요.",
         "required": "개발자 지침은 필수입니다"
       },
       "validation": {
@@ -914,10 +914,10 @@
     },
     "diagnostics": {
       "title": "진단",
-      "desc": "Provider 세션 문제 해결을 위한 로컬 로그입니다.",
+      "desc": "제공자 세션 문제 해결을 위한 로컬 로그입니다.",
       "logging": {
-        "name": "Provider 디버그 로그 저장",
-        "desc": "실행 인자, Provider 표준 오류 출력, Claudian에서 감지한 오류를 날짜별 파일에 기록합니다. 기본값은 꺼짐이며 로그에 민감한 정보가 포함될 수 있습니다."
+        "name": "제공자 디버그 로그 저장",
+        "desc": "실행 인자, 제공자의 표준 오류 출력, Claudian에서 감지한 오류를 날짜별 파일에 기록합니다. 기본값은 꺼짐이며 로그에 민감한 정보가 포함될 수 있습니다."
       },
       "directory": {
         "name": "로그 폴더",
@@ -930,7 +930,7 @@
         "button": "폴더 열기",
         "error": "진단 로그 폴더를 열 수 없습니다."
       },
-      "openCommandName": "Provider 진단 로그 열기"
+      "openCommandName": "제공자 진단 로그 열기"
     },
     "providerSettings": {
       "unavailable": "제공자 설정을 사용할 수 없습니다.",
