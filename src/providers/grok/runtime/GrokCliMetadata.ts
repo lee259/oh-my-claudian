@@ -3,7 +3,7 @@ import type { CliProviderMetadata } from '../../../core/providers/cli/CliProvide
 /** Grok Build CLI lifecycle metadata. */
 export const grokCliMetadata: CliProviderMetadata = {
   binaryName: 'grok',
-  displayName: 'Grok',
+  displayName: 'Grok Build',
   install: {
     command: 'bash',
     args: ['-lc', 'curl -fsSL https://x.ai/cli/install.sh | bash'],

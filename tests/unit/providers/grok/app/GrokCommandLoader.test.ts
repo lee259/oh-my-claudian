@@ -81,7 +81,7 @@ describe('GrokCommandLoader', () => {
     }))).rejects.toBe(failure);
   });
 
-  it('maps native discovery failures to the Grok retryable error', async () => {
+  it('maps native discovery failures to the Grok Build retryable error', async () => {
     const metadataProbe = {
       load: jest.fn(async () => { throw new Error('native failure'); }),
     };
@@ -90,7 +90,7 @@ describe('GrokCommandLoader', () => {
     await expect(loader.loadCommands(createContext({
       allowIsolatedMetadataCreation: true,
     }))).resolves.toEqual({
-      message: 'Could not load Grok skills and commands.',
+      message: 'Could not load Grok Build skills and commands.',
       retryable: true,
       status: 'error',
     });

@@ -1190,7 +1190,7 @@ describe('ClaudeExecutionBackend', () => {
     }));
   });
 
-  it('switches Claude safe mode on the same persistent query', async () => {
+  it('switches Claude Code safe mode on the same persistent query', async () => {
     sdkMock.setMockMessages([
       { type: 'system', subtype: 'init', session_id: 'session-1' },
       { type: 'result', subtype: 'success' },
@@ -1649,7 +1649,7 @@ describe('ClaudeExecutionBackend', () => {
     const conversation: Conversation = {
       id: 'claude-recovery',
       providerId: 'claude',
-      title: 'Claude recovery',
+      title: 'Claude Code recovery',
       createdAt: 1,
       lastActivityAt: 1,
       sessionId: 'missing-session',
@@ -1695,7 +1695,7 @@ describe('ClaudeExecutionBackend', () => {
   it('retains a provider-session deletion until a later native init sets the key again', async () => {
     const failedQuery = createFailingPersistentQuery([
       { type: 'system', subtype: 'init', session_id: 'stale-session' },
-    ], new Error('Claude transport closed'));
+    ], new Error('Claude Code transport closed'));
     const recoveredQuery = createScriptedPersistentQuery([[
       { type: 'system', subtype: 'init', session_id: 'current-session' },
       { type: 'result', subtype: 'success' },
@@ -1925,7 +1925,7 @@ describe('ClaudeExecutionBackend', () => {
     const eventsPromise = collectEvents(run.events);
 
     expect(() => session.execute(createRequest())).toThrow(
-      'Claude execution session already has an active run',
+      'Claude Code execution session already has an active run',
     );
     await waitFor(() => query.supportedCommands.mock.calls.length > 0);
     run.cancel();
@@ -1940,7 +1940,7 @@ describe('ClaudeExecutionBackend', () => {
     await session.dispose();
     await session.dispose();
     expect(() => session.execute(createRequest())).toThrow(
-      'Claude execution session is disposed',
+      'Claude Code execution session is disposed',
     );
   });
 
@@ -2410,7 +2410,7 @@ describe('ClaudeExecutionBackend', () => {
     const query = createFailingPersistentQuery([
       { type: 'system', subtype: 'init', session_id: 'session-1' },
       nativeFailureBarrier.promise,
-    ], new Error('Claude transport closed'));
+    ], new Error('Claude Code transport closed'));
     jest.spyOn(
       await import('@/providers/claude/loadClaudeAgentSdk'),
       'loadClaudeAgentQuery',
@@ -2448,7 +2448,7 @@ describe('ClaudeExecutionBackend', () => {
   });
 });
 
-describe('Claude provider execution contract', () => {
+describe('Claude Code provider execution contract', () => {
   it.each(createProviderExecutionContractCases({
     createRequest: signal => signal ? createRequest({ signal }) : createRequest(),
     createSession: () => {
@@ -2573,7 +2573,7 @@ describe('ClaudeExecutionSession steering', () => {
     }
   });
 
-  it('keeps the requested run open when Claude runs a late steer as the next turn', async () => {
+  it('keeps the requested run open when Claude Code runs a late steer as the next turn', async () => {
     const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
       const prompt = await nextInput();
       yield { type: 'system', subtype: 'init', session_id: 'session-1' };

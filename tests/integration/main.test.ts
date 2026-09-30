@@ -428,7 +428,7 @@ describe('ClaudianPlugin', () => {
       const metadata = {
         id: 'codex-model-before-invalidation',
         providerId: 'codex' as const,
-        title: 'Codex model before invalidation',
+        title: 'Codex CLI model before invalidation',
         createdAt: 1,
         lastActivityAt: 2,
         sessionId: 'thread-before-invalidation',
@@ -1533,7 +1533,7 @@ describe('ClaudianPlugin', () => {
       expect(initialize).not.toHaveBeenCalled();
     });
 
-    it('refreshes an initialized Grok catalog through its owned CLI path while gated', async () => {
+    it('refreshes an initialized Grok Build catalog through its owned CLI path while gated', async () => {
       await plugin.onload();
       updateGrokProviderSettings(plugin.settings, {
         cliPath: process.execPath,
@@ -1572,7 +1572,7 @@ describe('ClaudianPlugin', () => {
       await refresh;
     });
 
-    it('computes an initialized Codex catalog fingerprint through owned CLI while gated', async () => {
+    it('computes an initialized Codex CLI catalog fingerprint through owned CLI while gated', async () => {
       await plugin.onload();
       const discoveredModel = {
         defaultReasoningEffort: 'medium',
@@ -1791,7 +1791,7 @@ describe('ClaudianPlugin', () => {
       }
     });
 
-    it('restores the committed Grok context before releasing a failed settings transition', async () => {
+    it('restores the committed Grok Build context before releasing a failed settings transition', async () => {
       await plugin.onload();
       updateGrokProviderSettings(plugin.settings, {
         enabled: true,
@@ -1846,7 +1846,7 @@ describe('ClaudianPlugin', () => {
       unregister();
     });
 
-    it('does not leak failed Claude invalidation into live or deferred conversations', async () => {
+    it('does not leak failed Claude Code invalidation into live or deferred conversations', async () => {
       await plugin.onload();
       const live = await plugin.createConversation({
         providerId: 'claude',
@@ -2153,7 +2153,7 @@ describe('ClaudianPlugin', () => {
       expect(second.getTabManager).not.toHaveBeenCalled();
     });
 
-    it('invalidates Claude conversation metadata without inspecting tab execution state', async () => {
+    it('invalidates Claude Code conversation metadata without inspecting tab execution state', async () => {
       await plugin.onload();
 
       const conversation = await plugin.createConversation({
@@ -2244,7 +2244,7 @@ describe('ClaudianPlugin', () => {
       expect(getTabManager).not.toHaveBeenCalled();
     });
 
-    it('does not touch an initialized blank Grok tab during an environment transition', async () => {
+    it('does not touch an initialized blank Grok Build tab during an environment transition', async () => {
       await plugin.onload();
       const initialGeneration = plugin.executionLifecycleRegistry
         .getProviderGeneration('grok');
@@ -2266,7 +2266,7 @@ describe('ClaudianPlugin', () => {
       expect(mockView.getTabManager).not.toHaveBeenCalled();
     });
 
-    it('does not coordinate environment changes through open Grok tabs', async () => {
+    it('does not coordinate environment changes through open Grok Build tabs', async () => {
       await plugin.onload();
       const conversation = await plugin.createConversation({ providerId: 'grok' });
       const initialGeneration = plugin.executionLifecycleRegistry
@@ -2379,7 +2379,7 @@ describe('ClaudianPlugin', () => {
       expect(invalidationWrites).toHaveLength(1);
     });
 
-    it('advances the Grok fingerprint while preserving reload-policy sessions', async () => {
+    it('advances the Grok Build fingerprint while preserving reload-policy sessions', async () => {
       await plugin.onload();
       const conversation = await plugin.createConversation({
         providerId: 'grok',
@@ -2736,7 +2736,7 @@ describe('ClaudianPlugin', () => {
       expect(result).toBeNull();
     });
 
-    it('should preserve a conversation when local Claude history is missing', async () => {
+    it('should preserve a conversation when local Claude Code history is missing', async () => {
       await plugin.onload();
       const conversation = await plugin.createConversation({
         sessionId: 'session-removed-after-startup',
@@ -2754,7 +2754,7 @@ describe('ClaudianPlugin', () => {
       availabilitySpy.mockRestore();
     });
 
-    it('should preserve a conversation whose Claude session belongs to a previous vault path', async () => {
+    it('should preserve a conversation whose Claude Code session belongs to a previous vault path', async () => {
       await plugin.onload();
       const conversation = await plugin.createConversation({
         sessionId: 'session-from-previous-vault-path',
@@ -3198,25 +3198,25 @@ describe('ClaudianPlugin', () => {
       const conv = await plugin.createConversation();
       await plugin.updateConversation(conv.id, {
         messages: [
-          { id: 'msg-1', role: 'user', content: 'Hello Claude', timestamp: Date.now() },
+          { id: 'msg-1', role: 'user', content: 'Hello Claude Code', timestamp: Date.now() },
         ],
       });
 
       const list = plugin.getConversationList();
       const meta = list.find(c => c.id === conv.id);
 
-      expect(meta?.preview).toContain('Hello Claude');
+      expect(meta?.preview).toContain('Hello Claude Code');
     });
   });
 
   describe('loadSettings with conversations', () => {
-    it('migrates a legacy Codex fingerprint before reconciling persisted sessions', async () => {
+    it('migrates a legacy Codex CLI fingerprint before reconciling persisted sessions', async () => {
       const timestamp = Date.now();
       const metadataPath = '.claudian/sessions/conv-codex-legacy.meta.json';
       const sessionMetadata = {
         id: 'conv-codex-legacy',
         providerId: 'codex',
-        title: 'Legacy Codex Chat',
+        title: 'Legacy Codex CLI Chat',
         createdAt: timestamp,
         lastActivityAt: timestamp,
         sessionId: 'codex-thread-123',
@@ -3271,7 +3271,7 @@ describe('ClaudianPlugin', () => {
       );
     });
 
-    it('should preserve Claude metadata during startup when local native history is missing', async () => {
+    it('should preserve Claude Code metadata during startup when local native history is missing', async () => {
       const timestamp = Date.now();
       const sessionMeta = JSON.stringify({
         id: 'conv-stale-1',
@@ -3518,7 +3518,7 @@ describe('ClaudianPlugin', () => {
   });
 
   describe('loadSdkMessagesForConversation - fork branch', () => {
-    it('should repair blank image data from Claude SDK history during hydration', async () => {
+    it('should repair blank image data from Claude Code SDK history during hydration', async () => {
       await plugin.onload();
 
       const conv = await plugin.createConversation();

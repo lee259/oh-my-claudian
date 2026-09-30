@@ -15,29 +15,29 @@ export async function probeClaudeModels(
   host: ProviderHost,
   signal?: AbortSignal,
 ): Promise<ClaudeDiscoveredModel[]> {
-  throwIfAborted(signal, 'Claude model discovery cancelled');
+  throwIfAborted(signal, 'Claude Code model discovery cancelled');
   const controller = new AbortController();
   const cancel = (): void => controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });
   const timeout = window.setTimeout(
-    () => controller.abort(new Error('Claude model discovery timed out')),
+    () => controller.abort(new Error('Claude Code model discovery timed out')),
     30_000,
   );
   let conversation: Query | undefined;
   let onAbort: (() => void) | undefined;
   const aborted = new Promise<never>((_resolve, reject) => {
-    onAbort = () => reject(toAbortError(controller.signal, 'Claude model discovery cancelled'));
+    onAbort = () => reject(toAbortError(controller.signal, 'Claude Code model discovery cancelled'));
     controller.signal.addEventListener('abort', onAbort, { once: true });
   });
 
   const discover = async (): Promise<ClaudeDiscoveredModel[]> => {
     const cwd = getVaultPath(host.app);
-    if (!cwd) throw new Error('Claude model discovery requires a local vault');
+    if (!cwd) throw new Error('Claude Code model discovery requires a local vault');
     const cliPath = await host.getResolvedProviderCliPath('claude');
-    throwIfAborted(controller.signal, 'Claude model discovery cancelled');
+    throwIfAborted(controller.signal, 'Claude Code model discovery cancelled');
     if (!cliPath) throw new Error('Claude Code installation not found');
     const query = await loadClaudeAgentQuery();
-    throwIfAborted(controller.signal, 'Claude model discovery cancelled');
+    throwIfAborted(controller.signal, 'Claude Code model discovery cancelled');
     const customEnv = parseEnvironmentVariables(host.getActiveEnvironmentVariables('claude'));
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
     const config = getClaudeProviderSettings(host.settings);

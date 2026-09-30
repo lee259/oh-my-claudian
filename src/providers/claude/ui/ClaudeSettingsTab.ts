@@ -44,7 +44,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const readinessPanel = renderProviderReadinessPanel({
       container,
       icon: CLAUDE_PROVIDER_ICON,
-      providerName: 'Claude',
+      providerName: 'Claude Code',
       async getSnapshot() {
         const current = getClaudeProviderSettings(settingsBag);
         const modelOptions = getClaudeModelOptions(settingsBag);
@@ -67,7 +67,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         }
         const modelCatalogResult = await claudeWorkspace.refreshModelCatalog?.();
         if (modelCatalogResult?.diagnostics) {
-          new Notice(`Claude model refresh failed: ${modelCatalogResult.diagnostics}`);
+          new Notice(`Claude Code model refresh failed: ${modelCatalogResult.diagnostics}`);
         }
         refreshDefaultModelOptions();
         context.notifyProviderModelOptionsChanged('claude');
@@ -93,9 +93,9 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: readinessPanel.enablement,
-      description: t('settings.providerEnablement.desc', { provider: 'Claude' }),
+      description: t('settings.providerEnablement.desc', { provider: 'Claude Code' }),
       getValue: () => getClaudeProviderSettings(settingsBag).enabled,
-      name: t('settings.providerEnablement.name', { provider: 'Claude' }),
+      name: t('settings.providerEnablement.name', { provider: 'Claude Code' }),
       onChange: async (value) => {
         if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
           settingsBag,
@@ -187,7 +187,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container)
       .setName('Default model')
-      .setDesc('Used when a new conversation needs a Claude fallback model.')
+      .setDesc('Used when a new conversation needs a Claude Code fallback model.')
       .addDropdown((dropdown) => {
         const populateOptions = (): void => {
           dropdown.selectEl.replaceChildren();

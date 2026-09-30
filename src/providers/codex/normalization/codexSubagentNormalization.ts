@@ -176,8 +176,8 @@ function getCodexSubagentDescription(
 ): string {
   if (nickname && model) return `${nickname} (${model})`;
   if (nickname) return nickname;
-  if (model) return `Codex subagent (${model})`;
-  return 'Codex subagent';
+  if (model) return `Codex CLI subagent (${model})`;
+  return 'Codex CLI subagent';
 }
 
 function resolveCodexWaitCompletion(

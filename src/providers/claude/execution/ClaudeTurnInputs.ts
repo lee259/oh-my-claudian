@@ -25,7 +25,7 @@ export class ClaudeTurnInputs {
   }
 
   addSteer(id: string): void {
-    if (this.#settled) throw new Error('Claude turn inputs are already settled');
+    if (this.#settled) throw new Error('Claude Code turn inputs are already settled');
     this.#ids.push(id);
     this.#unconsumed.add(id);
     this.#undeliveredSteers.add(id);

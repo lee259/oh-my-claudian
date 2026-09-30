@@ -161,7 +161,7 @@ describe('GrokModelCatalogService', () => {
       models: nativeModels,
     });
     const probeRequest = probe.discover.mock.calls[0]?.[0];
-    if (!probeRequest) throw new Error('Expected a native Grok catalog probe request');
+    if (!probeRequest) throw new Error('Expected a native Grok Build catalog probe request');
     expect(probeRequest.command).toBe('/opt/grok/bin/grok');
     expect(probeRequest.cwd).toBe('/vault');
     expect(probeRequest.env.XAI_API_KEY).toBe('super-secret');
@@ -180,7 +180,7 @@ describe('GrokModelCatalogService', () => {
     const result = await service.discoverCatalog();
 
     if (result.kind !== 'completed') {
-      throw new Error('Expected completed Grok model discovery');
+      throw new Error('Expected completed Grok Build model discovery');
     }
     expect(result).toMatchObject({
       defaultModelId: 'kimi-coding',
@@ -204,7 +204,7 @@ describe('GrokModelCatalogService', () => {
     });
   });
 
-  it('skips without resolving or launching when Grok is disabled', async () => {
+  it('skips without resolving or launching when Grok Build is disabled', async () => {
     const host = makeHost(false);
     const runner = makeRunner({ exitCode: 0, stdout: '' });
 
@@ -223,7 +223,7 @@ describe('GrokModelCatalogService', () => {
     const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
-      diagnostics: 'Grok models returned no available models',
+      diagnostics: 'Grok Build models returned no available models',
       kind: 'completed',
       models: [],
     });
@@ -240,7 +240,7 @@ describe('GrokModelCatalogService', () => {
     const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
-      diagnostics: 'Grok models exited with code 17',
+      diagnostics: 'Grok Build models exited with code 17',
       kind: 'completed',
       models: [],
     });
@@ -257,7 +257,7 @@ describe('GrokModelCatalogService', () => {
     const result = await new GrokModelCatalogService(makeHost(), { runner, probe: unavailableProbe }).discoverCatalog();
 
     expect(result).toMatchObject({
-      diagnostics: 'Grok models timed out',
+      diagnostics: 'Grok Build models timed out',
       kind: 'completed',
       models: [],
     });

@@ -85,7 +85,7 @@ export async function runColdStartQuery(
 
   const resolvedClaudePath = await config.plugin.getResolvedProviderCliPath('claude');
   if (!resolvedClaudePath) {
-    throw new Error('Claude CLI not found');
+    throw new Error('Claude Code CLI not found');
   }
 
   const customEnv = parseEnvironmentVariables(

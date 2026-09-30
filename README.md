@@ -13,9 +13,9 @@ This project started as a fork of [Claudian](https://github.com/YishenTu/claudia
 The built-in provider integrations are:
 
 - [Claude Code](https://code.claude.com/docs/en/overview)
-- [Codex](https://github.com/openai/codex)
+- [Codex CLI](https://github.com/openai/codex)
 - [Cursor Agent](https://cursor.com/docs/cli/overview)
-- [Grok](https://github.com/xai-org/grok-build)
+- [Grok Build](https://github.com/xai-org/grok-build)
 - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)
 - [OpenCode](https://github.com/anomalyco/opencode)
 - [Pi](https://github.com/earendil-works/pi)

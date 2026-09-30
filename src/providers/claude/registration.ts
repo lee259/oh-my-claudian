@@ -27,7 +27,7 @@ const LEGACY_CLAUDE_1M_SETTINGS = ['enableOpus1M', 'enableSonnet1M'] as const;
 
 export const claudeProviderRegistration: ProviderModule = {
   id: 'claude',
-  displayName: 'Claude',
+  displayName: 'Claude Code',
   blankTabOrder: 20,
   isEnabled: settings => getClaudeProviderSettings(settings).enabled,
   setEnabled: (settings, enabled) => updateClaudeProviderSettings(settings, { enabled }),

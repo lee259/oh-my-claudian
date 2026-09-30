@@ -375,7 +375,7 @@ describe('ClaudeSettingsTab', () => {
     expect(cliPathSetting.placeholder).not.toContain('cli.js');
   });
 
-  it('persists Claude enablement inside its execution transition and refreshes model options', async () => {
+  it('persists Claude Code enablement inside its execution transition and refreshes model options', async () => {
     let transitionActive = false;
     const plugin = createPlugin();
     plugin.runProviderExecutionTransition.mockImplementation(async (
@@ -407,7 +407,7 @@ describe('ClaudeSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('claude');
   });
 
-  it('warns when disabling Claude would leave no enabled provider', async () => {
+  it('warns when disabling Claude Code would leave no enabled provider', async () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
     const coordinator = jest.requireMock('@/core/providers/ProviderSettingsCoordinator')
@@ -425,7 +425,7 @@ describe('ClaudeSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
   });
 
-  it('persists and applies a CLI path inside the Claude execution transition', async () => {
+  it('persists and applies a CLI path inside the Claude Code execution transition', async () => {
     mockedExistsSync.mockImplementation((filePath: fs.PathLike) => (
       String(filePath) === '/custom/claude'
     ));
@@ -497,7 +497,7 @@ describe('ClaudeSettingsTab', () => {
     });
   });
 
-  it('reloads Claude MCP state inside the execution transition', async () => {
+  it('reloads Claude Code MCP state inside the execution transition', async () => {
     let transitionActive = false;
     const plugin = createPlugin();
     plugin.runProviderExecutionTransition.mockImplementation(async (
@@ -525,7 +525,7 @@ describe('ClaudeSettingsTab', () => {
     expect(mockMcpManagerLoadServers).toHaveBeenCalledTimes(1);
   });
 
-  it('invalidates Claude plugin and agent configuration inside the execution transition', async () => {
+  it('invalidates Claude Code plugin and agent configuration inside the execution transition', async () => {
     let transitionActive = false;
     const plugin = createPlugin();
     plugin.runProviderExecutionTransition.mockImplementation(async (
@@ -572,7 +572,7 @@ describe('ClaudeSettingsTab', () => {
     );
   });
 
-  it('renders and persists the Claude provider default from dynamic model options', async () => {
+  it('renders and persists the Claude Code provider default from dynamic model options', async () => {
     const plugin = createPlugin();
     plugin.settings.providerConfigs.claude.defaultModel = 'claude-code/claude-opus-4-6';
     const context = createContext(plugin);
@@ -594,7 +594,7 @@ describe('ClaudeSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
   });
 
-  it('stores an unambiguous Claude environment slot as the provider default', async () => {
+  it('stores an unambiguous Claude Code environment slot as the provider default', async () => {
     const plugin = createPlugin();
     plugin.settings.providerConfigs.claude.environmentVariables = [
       'ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-enterprise',
@@ -612,7 +612,7 @@ describe('ClaudeSettingsTab', () => {
     expect(plugin.settings.providerConfigs.claude.defaultModel).toBe('sonnet');
   });
 
-  it('keeps Claude CRUD on its explicit vault repository without the shared manager', () => {
+  it('keeps Claude Code CRUD on its explicit vault repository without the shared manager', () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
 
@@ -626,7 +626,7 @@ describe('ClaudeSettingsTab', () => {
     );
   });
 
-  it('scopes custom model overrides to the Claude environment section', () => {
+  it('scopes custom model overrides to the Claude Code environment section', () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
     const target = createContainer();
@@ -661,7 +661,7 @@ describe('ClaudeSettingsTab', () => {
     expect(context.notifyProviderModelOptionsChanged).not.toHaveBeenCalled();
   });
 
-  it('offers auto as a Claude safe mode and persists it', async () => {
+  it('offers auto as a Claude Code safe mode and persists it', async () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
 

@@ -34,13 +34,13 @@ async function awaitWithAbort<T>(
   if (!signal) {
     return await promise;
   }
-  throwIfAborted(signal, 'Claude command discovery aborted');
+  throwIfAborted(signal, 'Claude Code command discovery aborted');
 
   let onAbort: (() => void) | null = null;
   const aborted = new Promise<never>((_resolve, reject) => {
     onAbort = () => reject(toAbortError(
       signal,
-      'Claude command discovery aborted',
+      'Claude Code command discovery aborted',
     ));
     signal.addEventListener('abort', onAbort, { once: true });
   });
@@ -64,7 +64,7 @@ export async function probeRuntimeCommands(
   plugin: ProviderHost,
   signal?: AbortSignal,
 ): Promise<SlashCommand[]> {
-  throwIfAborted(signal, 'Claude command discovery aborted');
+  throwIfAborted(signal, 'Claude Code command discovery aborted');
   const abortController = new AbortController();
   const onAbort = (): void => abortController.abort();
   signal?.addEventListener('abort', onAbort, { once: true });
@@ -115,7 +115,7 @@ export async function probeRuntimeCommands(
     while (true) {
       const next = await awaitWithAbort(conversation.next(), signal);
       if (next.done) {
-        throw new Error('Claude command discovery ended before initialization');
+        throw new Error('Claude Code command discovery ended before initialization');
       }
       const event = next.value;
       if (event.type === 'system' && event.subtype === 'init') {
@@ -127,7 +127,7 @@ export async function probeRuntimeCommands(
       }
     }
   } catch (error) {
-    throwIfAborted(signal, 'Claude command discovery aborted');
+    throwIfAborted(signal, 'Claude Code command discovery aborted');
     throw error;
   } finally {
     signal?.removeEventListener('abort', onAbort);

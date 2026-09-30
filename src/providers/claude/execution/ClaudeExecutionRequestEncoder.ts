@@ -133,7 +133,7 @@ export class ClaudeExecutionRequestEncoder {
     await this.deps.mcpManager.ensureLoaded();
     const cliPath = await this.deps.host.getResolvedProviderCliPath('claude');
     if (!cliPath) {
-      throw new Error('Claude CLI not found');
+      throw new Error('Claude Code CLI not found');
     }
 
     const customEnv = parseEnvironmentVariables(

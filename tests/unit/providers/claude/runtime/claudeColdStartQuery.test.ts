@@ -116,7 +116,7 @@ describe('runColdStartQuery', () => {
 
       await expect(
         runColdStartQuery(createConfig({ plugin }), 'hi')
-      ).rejects.toThrow('Claude CLI not found');
+      ).rejects.toThrow('Claude Code CLI not found');
     });
 
     it('throws when node is missing', async () => {

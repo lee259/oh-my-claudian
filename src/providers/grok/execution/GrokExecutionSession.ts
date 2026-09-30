@@ -269,8 +269,8 @@ RewindableExecutionSession {
   }
 
   execute(request: ProviderExecutionRequest): ProviderExecutionRun {
-    if (this.disposed) throw new Error('Grok execution session is disposed.');
-    if (this.active) throw new Error('Grok execution session is already executing.');
+    if (this.disposed) throw new Error('Grok Build execution session is disposed.');
+    if (this.active) throw new Error('Grok Build execution session is already executing.');
     this.blockedToolCallIds.clear();
     const run = new GrokExecutionRunState(
       randomUUID(),
@@ -430,14 +430,14 @@ RewindableExecutionSession {
   private async performExecution(active: ActiveExecution): Promise<void> {
     if (active.request.toolPolicy.kind === 'allow-list') {
       this.updateSnapshot('invalidated', {
-        message: 'Exact Grok tool allow-list enforcement is unavailable.',
+        message: 'Exact Grok Build tool allow-list enforcement is unavailable.',
         reason: 'configuration-changed',
         recoverable: false,
       });
       this.emitCurrentSnapshot();
       active.run.finish({
         category: 'configuration',
-        message: 'Grok does not support reliable exact allow-list enforcement.',
+        message: 'Grok Build does not support reliable exact allow-list enforcement.',
         recoverable: false,
         scope: this.nextScope(active),
         type: 'execution_error',
@@ -465,7 +465,7 @@ RewindableExecutionSession {
       reportResolvedTurnPrompt(active.request, getPromptCharacters(prompt));
       const closed = new Promise<never>((_resolve, reject) => {
         unsubscribeClose = native.onClose?.(error => {
-          reject(new Error('Grok transport closed', { cause: error }));
+          reject(new Error('Grok Build transport closed', { cause: error }));
         });
       });
       const response = await Promise.race([closed, native.prompt({
@@ -545,7 +545,7 @@ RewindableExecutionSession {
     };
     const command = await host.getResolvedProviderCliPath?.('grok') ?? 'grok';
     if (quarantineGeneration !== this.quarantineGeneration || this.disposed) {
-      throw new Error('Grok native startup was cancelled.');
+      throw new Error('Grok Build native startup was cancelled.');
     }
     const generation = ++this.nativeGeneration;
     const native = this.options.nativeFactory.create({
@@ -609,7 +609,7 @@ RewindableExecutionSession {
         || this.disposed
         || !this.isCurrentNativeOwner(owner)
       ) {
-        throw new Error('Grok native startup was cancelled.');
+        throw new Error('Grok Build native startup was cancelled.');
       }
       owner.initialized = true;
       return native;
@@ -670,7 +670,7 @@ RewindableExecutionSession {
     const state = parseGrokProviderState(this.providerState);
     if (state.forkSource && !this.forkApplied) {
       if (!native.fork || !state.forkSourceSessionDirectory) {
-        throw new Error('Grok fork metadata is incomplete.');
+        throw new Error('Grok Build fork metadata is incomplete.');
       }
       const targetPromptIndex = await this.options.resolvePromptIndex?.(
         state.forkSourceSessionDirectory,
@@ -679,7 +679,7 @@ RewindableExecutionSession {
       );
       this.throwIfCancellationRequested(active);
       if (targetPromptIndex === null || targetPromptIndex === undefined) {
-        throw new Error('The Grok fork checkpoint could not be located.');
+        throw new Error('The Grok Build fork checkpoint could not be located.');
       }
       const sessionId = await this.createForkSession(
         native,
@@ -949,7 +949,7 @@ RewindableExecutionSession {
       } finally {
         if (!this.disposed) {
           this.updateSnapshot('invalidated', {
-            message: 'The cancelled Grok process was quarantined and will be replaced.',
+            message: 'The cancelled Grok Build process was quarantined and will be replaced.',
             reason: 'cancelled',
             recoverable: true,
           });
@@ -1021,16 +1021,16 @@ RewindableExecutionSession {
   ): Promise<string> {
     if (this.forkCreationFlight) return this.forkCreationFlight;
     const fork = native.fork?.bind(native);
-    if (!fork) return Promise.reject(new Error('Grok fork metadata is incomplete.'));
+    if (!fork) return Promise.reject(new Error('Grok Build fork metadata is incomplete.'));
 
     const flight = (async () => {
       const response = await fork(request);
       if (!response.newSessionId.trim()) {
-        throw new Error('Grok returned a fork without a child session.');
+        throw new Error('Grok Build returned a fork without a child session.');
       }
       this.adoptForkSession(response.newSessionId);
       if (response.parentSessionId !== sourceSessionId) {
-        throw new Error('Grok returned a fork for an unexpected parent session.');
+        throw new Error('Grok Build returned a fork for an unexpected parent session.');
       }
       return response.newSessionId;
     })();
@@ -1110,7 +1110,7 @@ RewindableExecutionSession {
   ): GrokNativeOwner {
     const owner = this.nativeOwner;
     if (!owner || owner.native !== native) {
-      throw new Error('Grok native connection ownership changed.');
+      throw new Error('Grok Build native connection ownership changed.');
     }
     return owner;
   }
@@ -1122,10 +1122,10 @@ RewindableExecutionSession {
   ): Promise<ChatRewindPreview> {
     const state = parseGrokProviderState(this.providerState);
     if (!this.providerSessionId || !assistantMessageId || !state.sessionDirectory) {
-      return { canRewind: false, error: 'Grok rewind metadata is unavailable.' };
+      return { canRewind: false, error: 'Grok Build rewind metadata is unavailable.' };
     }
     if (!this.options.resolvePromptIndex) {
-      return { canRewind: false, error: 'Grok prompt index resolution is unavailable.' };
+      return { canRewind: false, error: 'Grok Build prompt index resolution is unavailable.' };
     }
     const promptIndex = await this.options.resolvePromptIndex(
       state.sessionDirectory,
@@ -1133,11 +1133,11 @@ RewindableExecutionSession {
       assistantMessageId,
     );
     if (promptIndex === null) {
-      return { canRewind: false, error: 'The Grok prompt could not be located.' };
+      return { canRewind: false, error: 'The Grok Build prompt could not be located.' };
     }
     const native = await this.ensureNative();
     await this.ensureSession(native, undefined);
-    if (!native.rewind) return { canRewind: false, error: 'Grok rewind is unavailable.' };
+    if (!native.rewind) return { canRewind: false, error: 'Grok Build rewind is unavailable.' };
     const response = await native.rewind({
       force,
       mode: mode === 'code-and-conversation' ? 'all' : 'conversation_only',
@@ -1343,7 +1343,7 @@ RewindableExecutionSession {
 
 class GrokExecutionCancellationError extends Error {
   constructor() {
-    super('Grok execution was cancelled.');
+    super('Grok Build execution was cancelled.');
     this.name = 'GrokExecutionCancellationError';
   }
 }

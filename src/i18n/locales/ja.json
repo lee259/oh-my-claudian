@@ -298,8 +298,8 @@
     },
     "tabs": {
       "general": "一般",
-      "claude": "Claude",
-      "codex": "Codex"
+      "claude": "Claude Code",
+      "codex": "Codex CLI"
     },
     "omp": {
       "setup": "セットアップ",
@@ -338,10 +338,10 @@
       "tool": "a tool"
     },
     "grok": {
-      "cliPathDesc": "Optional absolute path to the Grok CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
+      "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
       "environment": {
-        "name": "Grok 環境変数",
-        "desc": "Grok にのみ渡す環境変数。カスタムモデルのシークレットはこのプロバイダーのスコープ内に留まり、ネイティブ設定からは env_key で参照されます。"
+        "name": "Grok Build 環境変数",
+        "desc": "Grok Build にのみ渡す環境変数。カスタムモデルのシークレットはこのプロバイダーのスコープ内に留まり、ネイティブ設定からは env_key で参照されます。"
       }
     },
     "opencode": {
@@ -479,7 +479,7 @@
     },
     "mediaFolder": {
       "name": "メディアフォルダ",
-      "desc": "添付ファイル/画像を格納するフォルダ。ノートが ![[image.jpg]] を使用する場合、Claude はここで探します。空欄でリポジトリのルートを使用。"
+      "desc": "添付ファイル/画像を格納するフォルダ。ノートが ![[image.jpg]] を使用する場合、Claude Code はここで探します。空欄でリポジトリのルートを使用。"
     },
     "systemPrompt": {
       "name": "カスタムシステムプロンプト",
@@ -618,7 +618,7 @@
     "environment": "環境",
     "customVariables": {
       "name": "カスタム変数",
-      "desc": "Claude SDKの環境変数（KEY=VALUE形式、1行に1つ）。exportプレフィックス対応。"
+      "desc": "Claude Code SDKの環境変数（KEY=VALUE形式、1行に1つ）。exportプレフィックス対応。"
     },
     "envSnippets": {
       "name": "スニペット",
@@ -662,7 +662,7 @@
     },
     "customModels": {
       "name": "カスタムモデル",
-      "desc": "追加の Claude モデル ID を1行に1つずつピッカーに追加します。環境変数によるモデル上書きは引き続きピッカーを置き換えます。",
+      "desc": "追加の Claude Code モデル ID を1行に1つずつピッカーに追加します。環境変数によるモデル上書きは引き続きピッカーを置き換えます。",
       "placeholder": "claude-opus-4-6\nclaude-opus-4-5-20251101"
     },
     "enableChrome": {
@@ -671,11 +671,11 @@
     },
     "promptSuggestions": {
       "name": "プロンプト候補を有効化",
-      "desc": "Claude の応答後に次のプロンプト候補を表示します。セッションの再起動が必要です。"
+      "desc": "Claude Code の応答後に次のプロンプト候補を表示します。セッションの再起動が必要です。"
     },
     "agentProgressSummaries": {
       "name": "サブエージェントの進行状況をリアルタイム表示",
-      "desc": "実行中のサブエージェントについて、Claude が定期的に進行状況を要約します。追加のモデル処理が発生します。セッションの再起動が必要です。"
+      "desc": "実行中のサブエージェントについて、Claude Code が定期的に進行状況を要約します。追加のモデル処理が発生します。セッションの再起動が必要です。"
     },
     "enableBangBash": {
       "name": "bash モード (!) を有効化",
@@ -712,7 +712,7 @@
       "mainTab": "メインエディタタブ"
     },
     "cliPath": {
-      "name": "Claude CLI パス",
+      "name": "Claude Code CLI パス",
       "desc": "Claude Code CLI のカスタムパス。空欄で自動検出を使用。",
       "descWindows": "ネイティブインストーラーの場合は claude.exe を使用。npm/pnpm/yarn やその他のパッケージマネージャーでのインストールの場合は cli-wrapper.cjs パスを使用（claude.cmd ではない）。",
       "descUnix": "\"which claude\" の出力を貼り付けてください - ネイティブと npm/pnpm/yarn インストールの両方で動作します。",
@@ -740,15 +740,15 @@
     "codex": {
       "installationMethod": {
         "name": "インストール方式",
-        "desc": "Windows で Oh My Claudian が Codex を起動する方法。ネイティブ Windows は Windows 実行ファイルパスを使い、WSL は選択したディストリビューション内で Linux CLI を起動します。",
+        "desc": "Windows で Oh My Claudian が Codex CLI を起動する方法。ネイティブ Windows は Windows 実行ファイルパスを使い、WSL は選択したディストリビューション内で Linux CLI を起動します。",
         "nativeWindows": "ネイティブ Windows",
         "wsl": "WSL"
       },
       "cliPath": {
         "name": "Codex CLI パス",
-        "descUnix": "ローカル Codex CLI のカスタムパス。空欄の場合は既知の Codex インストール、次に PATH を優先します。",
+        "descUnix": "ローカル Codex CLI のカスタムパス。空欄の場合は既知の Codex CLI インストール、次に PATH を優先します。",
         "descWindows": "ローカル Codex CLI のカスタムパス。空欄の場合は PATH から自動検出します。通常は `codex.exe` のネイティブ Windows 実行ファイルパスを使用してください。",
-        "descWsl": "WSL 内で実行する Linux 側の Codex コマンドまたは絶対パス。空欄の場合は選択したディストリビューション内の PATH を検索します。",
+        "descWsl": "WSL 内で実行する Linux 側の Codex CLI コマンドまたは絶対パス。空欄の場合は選択したディストリビューション内の PATH を検索します。",
         "validation": {
           "wslWindowsPath": "WSL モードでは Windows 実行ファイルパスではなく、Linux コマンドまたは Linux 絶対パスが必要です。"
         }
@@ -763,7 +763,7 @@
       },
       "customModels": {
         "name": "カスタムモデル",
-        "desc": "追加の Codex モデル ID を1行に1つずつピッカーに追加します。`OPENAI_MODEL` が設定されている場合は引き続き優先されます。",
+        "desc": "追加の Codex CLI モデル ID を1行に1つずつピッカーに追加します。`OPENAI_MODEL` が設定されている場合は引き続き優先されます。",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -776,27 +776,27 @@
       },
       "ultraEffort": {
         "name": "Ultra 推論レベルを有効化",
-        "desc": "Ultra をサポートする Codex モデルの推論レベル選択に表示します。Ultra は最大限の推論とタスクの自動委任を使用します。"
+        "desc": "Ultra をサポートする Codex CLI モデルの推論レベル選択に表示します。Ultra は最大限の推論とタスクの自動委任を使用します。"
       },
       "skills": {
-        "name": "Codex スキル",
+        "name": "Codex CLI スキル",
         "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
         "hiddenName": "非表示のスキル",
-        "hiddenDesc": "特定の Codex スキルをドロップダウンから非表示にします。先頭の $ なしでスキル名を1行に1つ入力してください。",
+        "hiddenDesc": "特定の Codex CLI スキルをドロップダウンから非表示にします。先頭の $ なしでスキル名を1行に1つ入力してください。",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex サブエージェント",
-        "desc": ".codex/agents/ に保存された Vault レベルの Codex サブエージェントを管理します。各 TOML ファイルがカスタムエージェントを1つ定義します。"
+        "name": "Codex CLI サブエージェント",
+        "desc": ".codex/agents/ に保存された Vault レベルの Codex CLI サブエージェントを管理します。各 TOML ファイルがカスタムエージェントを1つ定義します。"
       },
       "mcp": {
-        "descBeforeCommand": "Codex は独自の CLI で MCP サーバーを管理します。",
+        "descBeforeCommand": "Codex CLI は独自の CLI で MCP サーバーを管理します。",
         "descAfterCommand": " で設定すると Oh My Claudian で利用できます。",
         "learnMore": "詳しく見る"
       },
       "environment": {
-        "name": "Codex 環境",
-        "desc": "Codex が所有するランタイム変数のみ。OPENAI_* と CODEX_* 設定に使用します。Codex の自動検出に補助が必要な場合は、このプロバイダー環境ではなく共有 PATH にインストールディレクトリを追加してください。"
+        "name": "Codex CLI 環境",
+        "desc": "Codex CLI が所有するランタイム変数のみ。OPENAI_* と CODEX_* 設定に使用します。Codex CLI の自動検出に補助が必要な場合は、このプロバイダー環境ではなく共有 PATH にインストールディレクトリを追加してください。"
       }
     },
     "agentSkills": {
@@ -837,8 +837,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Codex スキルを編集",
-        "titleAdd": "Codex スキルを追加",
+        "titleEdit": "Codex CLI スキルを編集",
+        "titleAdd": "Codex CLI スキルを追加",
         "directory": "ディレクトリ",
         "directoryDesc": "スキルの保存先",
         "skillName": "スキル名",
@@ -850,21 +850,21 @@
         "instructionsPlaceholder": "Analyze the code for..."
       },
       "instructionsRequired": "指示は必須です",
-      "saveFailed": "Codex スキルの保存に失敗しました",
-      "header": "Codex スキル",
-      "noSkills": "Vault に Codex スキルがありません。+ をクリックして作成してください。",
+      "saveFailed": "Codex CLI スキルの保存に失敗しました",
+      "header": "Codex CLI スキル",
+      "noSkills": "Vault に Codex CLI スキルがありません。+ をクリックして作成してください。",
       "skillBadge": "スキル",
-      "deleted": "Codex スキル「{name}」を削除しました",
-      "deleteFailed": "Codex スキルの削除に失敗しました",
-      "created": "Codex スキル「{name}」を作成しました",
-      "updated": "Codex スキル「{name}」を更新しました"
+      "deleted": "Codex CLI スキル「{name}」を削除しました",
+      "deleteFailed": "Codex CLI スキルの削除に失敗しました",
+      "created": "Codex CLI スキル「{name}」を作成しました",
+      "updated": "Codex CLI スキル「{name}」を更新しました"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Codex サブエージェントを編集",
-        "titleAdd": "Codex サブエージェントを追加",
-        "nameDesc": "Codex が起動時に使用するエージェント名（小文字、ハイフン、アンダースコア）",
-        "descriptionDesc": "Codex がこのエージェントを使うべきタイミング",
+        "titleEdit": "Codex CLI サブエージェントを編集",
+        "titleAdd": "Codex CLI サブエージェントを追加",
+        "nameDesc": "Codex CLI が起動時に使用するエージェント名（小文字、ハイフン、アンダースコア）",
+        "descriptionDesc": "Codex CLI がこのエージェントを使うべきタイミング",
         "modelDesc": "モデル上書き（空欄で継承）",
         "namePlaceholder": "code_reviewer"
       },
@@ -902,8 +902,8 @@
         "nicknameInvalid": "ニックネーム候補には ASCII 文字、数字、スペース、ハイフン、アンダースコアのみ使用できます",
         "nicknameDuplicate": "ニックネーム候補は一意である必要があります"
       },
-      "header": "Codex サブエージェント",
-      "noAgents": "Vault に Codex サブエージェントがありません。+ をクリックして作成してください。"
+      "header": "Codex CLI サブエージェント",
+      "noAgents": "Vault に Codex CLI サブエージェントがありません。+ をクリックして作成してください。"
     },
     "providerArguments": {
       "name": "追加の CLI 引数",
