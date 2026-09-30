@@ -1774,6 +1774,48 @@ describe('ConversationController - MCP Server Persistence', () => {
 
       expect(ensureExecutionForConversation).toHaveBeenCalledWith(switchedConversation);
     });
+
+    it('should restore the conversation before provider binding cleanup completes', async () => {
+      let startBinding!: () => void;
+      let finishBinding!: () => void;
+      const bindingStarted = new Promise<void>((resolve) => {
+        startBinding = resolve;
+      });
+      const bindingPending = new Promise<void>((resolve) => {
+        finishBinding = resolve;
+      });
+      const switchedConversation = {
+        id: 'new-conv',
+        providerId: 'codex',
+        messages: [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: 1 }],
+        sessionId: null,
+      };
+
+      deps = createMockDeps({
+        ensureExecutionForConversation: () => {
+          startBinding();
+          return bindingPending;
+        },
+        plugin: {
+          ...createMockDeps().plugin,
+          switchConversation: jest.fn().mockResolvedValue(switchedConversation),
+        } as any,
+      });
+      controller = new ConversationController(deps);
+      deps.state.currentConversationId = 'old-conv';
+      const historyDropdown = deps.getHistoryDropdown!()!;
+      historyDropdown.addClass('visible');
+
+      const switching = controller.switchTo('new-conv');
+      await bindingStarted;
+
+      expect(deps.state.currentConversationId).toBe('new-conv');
+      expect(deps.state.messages).toEqual(switchedConversation.messages);
+      expect(historyDropdown.hasClass('visible')).toBe(false);
+
+      finishBinding();
+      await switching;
+    });
   });
 
   describe('createNew', () => {

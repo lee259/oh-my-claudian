@@ -654,16 +654,17 @@ export class ConversationController {
         return;
       }
 
-      await this.deps.ensureExecutionForConversation?.(conversation);
-      if (this.deps.isDisposed?.()) return;
+      const executionBindingChange = this.deps.ensureExecutionForConversation?.(conversation);
 
       this.deps.getInputEl().value = '';
       this.deps.clearQueuedMessage();
 
       this.restoreConversation(conversation);
-
       this.deps.getHistoryDropdown()?.removeClass('visible');
       this.updateWelcomeVisibility();
+
+      await executionBindingChange;
+      if (this.deps.isDisposed?.()) return;
     } finally {
       state.isSwitchingConversation = false;
     }
