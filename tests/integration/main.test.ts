@@ -1106,7 +1106,7 @@ describe('ClaudianPlugin', () => {
       );
 
       plugin.onunload();
-      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 1));
 
       expect(disposeSpy).toHaveBeenCalledTimes(1);
     });

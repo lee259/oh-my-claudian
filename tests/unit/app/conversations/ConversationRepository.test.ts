@@ -774,6 +774,48 @@ describe('ConversationRepository hydration', () => {
     expect(conversation).toMatchObject({ isArchived: false, isPinned: false });
   });
 
+  it('archives only current eligible conversations and clears their pin state', async () => {
+    const eligible = createConversation('eligible');
+    const pinned = createConversation('pinned');
+    pinned.isPinned = true;
+    const alreadyArchived = createConversation('archived');
+    alreadyArchived.isArchived = true;
+    const { repository, persistence } = createRepository(eligible);
+    repository.mergeMetadataConversations([pinned, alreadyArchived]);
+
+    const count = await repository.archiveConversationsIf(
+      ['eligible', 'pinned', 'archived', 'missing'],
+      conversation => !conversation.isArchived && !conversation.isPinned,
+    );
+
+    expect(count).toEqual(['eligible']);
+    expect(eligible).toMatchObject({ isArchived: true, isPinned: false });
+    expect(pinned.isArchived).toBeUndefined();
+    expect(alreadyArchived.isArchived).toBe(true);
+    expect(persistence.saveMetadata).toHaveBeenCalledTimes(1);
+    expect(persistence.saveMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'eligible',
+      isArchived: true,
+    }));
+  });
+
+  it('rechecks current metadata before archiving a candidate', async () => {
+    const candidate = createConversation('candidate');
+    const { repository, persistence } = createRepository(candidate);
+
+    const count = await repository.archiveConversationsIf(
+      ['candidate'],
+      () => {
+        candidate.isPinned = true;
+        return !candidate.isPinned;
+      },
+    );
+
+    expect(count).toEqual([]);
+    expect(candidate.isArchived).toBeUndefined();
+    expect(persistence.saveMetadata).not.toHaveBeenCalled();
+  });
+
   it('rewrites linked note paths without changing session activity timestamps', async () => {
     const fileConversation = createConversation('file');
     fileConversation.currentNote = 'Notes/Old.md';

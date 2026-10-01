@@ -696,6 +696,29 @@ export class ClaudianSettingTab extends PluginSettingTab {
       },
     }));
 
+    this.mountGeneralControl(conversations.createDiv(), h(SettingsSelectListView, {
+      saveLabels: this.getSettingsSaveLabels(),
+      items: [{
+        id: 'session-auto-archive-after',
+        name: t('settings.sessionAutoArchive.name'),
+        description: t('settings.sessionAutoArchive.desc'),
+        value: this.plugin.settings.sessionAutoArchiveAfter,
+        options: [
+          { value: 'off', label: t('settings.sessionAutoArchive.off') },
+          { value: '7d', label: t('settings.sessionAutoArchive.days', { count: 7 }) },
+          { value: '14d', label: t('settings.sessionAutoArchive.days', { count: 14 }) },
+          { value: '30d', label: t('settings.sessionAutoArchive.days', { count: 30 }) },
+        ],
+      }],
+      onChange: async (id, value) => {
+        if (id !== 'session-auto-archive-after') return;
+        await this.plugin.mutateSettings((settings) => {
+          settings.sessionAutoArchiveAfter = value as typeof settings.sessionAutoArchiveAfter;
+        });
+        await this.plugin.runInactiveSessionArchive();
+      },
+    }));
+
     if (this.plugin.settings.enableAutoTitleGeneration) {
       this.mountGeneralControl(conversations.createDiv(), h(SettingsSelectListView, {
         saveLabels: this.getSettingsSaveLabels(),

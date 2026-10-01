@@ -1058,6 +1058,51 @@ describe('ConversationController', () => {
           .toBe('Release');
       });
 
+      it('allows bulk selection only for closed active sessions and emits the archive callback', () => {
+        const container = createMockEl();
+        const onToggleSelection = jest.fn();
+        const onArchiveSelected = jest.fn().mockResolvedValue(undefined);
+        const selectedConversationIds = new Set<string>();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'closed', title: 'Closed session', createdAt: 1000, lastActivityAt: 1000 },
+          { id: 'open', title: 'Open session', createdAt: 1000, lastActivityAt: 1000 },
+          { id: 'archived', title: 'Archived session', createdAt: 1000, lastActivityAt: 1000, isArchived: true },
+        ]);
+
+        const options = {
+          onSelectConversation: jest.fn(),
+          getConversationStatus: (id: string) => ({
+            openState: id === 'closed' ? 'closed' as const : 'open' as const,
+            isRunning: false,
+          }),
+          sessionActionMode: 'mixed' as const,
+          bulkArchive: {
+            selectedConversationIds,
+            onToggleSelection,
+            onArchiveSelected,
+          },
+        };
+        controller.renderHistoryDropdown(container, options);
+
+        const historyItems = container.querySelectorAll('.claudian-history-item');
+        const findItem = (id: string) => historyItems.find((item: HTMLElement) => (
+          item.getAttribute('data-conversation-id') === id
+        ))!;
+        const closedItem = findItem('closed');
+        const openItem = findItem('open');
+        const archivedItem = findItem('archived');
+        const selectButton = closedItem.querySelector('.claudian-history-bulk-select')!;
+        expect(openItem.querySelector('.claudian-history-bulk-select')).toBeNull();
+        expect(archivedItem.querySelector('.claudian-history-bulk-select')).toBeNull();
+        selectButton.click();
+        expect(onToggleSelection).toHaveBeenCalledWith('closed', true);
+        selectedConversationIds.add('closed');
+        controller.renderHistoryDropdown(container, options);
+
+        container.querySelector('.claudian-history-bulk-archive')!.click();
+        expect(onArchiveSelected).toHaveBeenCalledTimes(1);
+      });
+
       it('highlights search terms literally and case-insensitively in conversation titles', () => {
         const container = createMockEl();
         (deps.plugin.getConversationList as jest.Mock).mockReturnValue([

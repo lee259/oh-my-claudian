@@ -215,7 +215,14 @@
       "pinLinkedNote": "Fixar nota vinculada",
       "unpinLinkedNote": "Desafixar nota vinculada",
       "newForNote": "Novo chat para {note}",
-      "cannotArchiveRunning": "Não é possível arquivar uma sessão em execução"
+      "cannotArchiveRunning": "Não é possível arquivar uma sessão em execução",
+      "autoArchived": "{count} conversa(s) inativa(s) arquivada(s).",
+      "selectedCount": "{count} selecionada(s)",
+      "archiveSelected": "Arquivar selecionadas",
+      "archiveSelectedCount": "Arquivar {count} conversas selecionadas",
+      "selectForArchive": "Selecionar {title} para arquivar",
+      "nativeArchiveFailed": "{provider} não conseguiu arquivar ou restaurar as sessões: {reason}",
+      "archivedCount": "{count} conversa(s) arquivada(s)."
     },
     "status": {
       "loadingConversation": "Carregando conversa…",
@@ -969,6 +976,12 @@
       "emptyCatalog": "Nenhum modelo {provider} informado. Verifique sua configuração e clique em Descobrir.",
       "loadingCatalog": "Carregando modelos {provider}…",
       "stale": "O catálogo de modelos {provider} está desatualizado. Clique em Descobrir para atualizá-lo."
+    },
+    "sessionAutoArchive": {
+      "name": "Arquivar conversas inativas automaticamente",
+      "desc": "Arquiva automaticamente conversas fechadas e desafixadas sem atividade durante o período selecionado.",
+      "off": "Desativado",
+      "days": "{count} dias"
     }
   }
 }
