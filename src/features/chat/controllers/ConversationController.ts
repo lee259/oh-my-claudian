@@ -163,6 +163,11 @@ export type HistoryConversationStatus = {
   searchQuery?: string;
   onSetConversationPinned?: (id: string, isPinned: boolean) => Promise<void>;
   onSetConversationArchived?: (id: string, isArchived: boolean) => Promise<void>;
+  bulkArchive?: {
+    selectedConversationIds: ReadonlySet<string>;
+    onToggleSelection: (id: string, selected: boolean) => void;
+    onArchiveSelected: () => Promise<void>;
+  };
   onBeforeRestoreListState?: (container: HTMLElement) => void;
   onRequestInlineRename?: (request: {
     beginRename: (item: HTMLElement) => void;
@@ -1293,6 +1298,34 @@ export class ConversationController {
 
     this.historyViewport.setVisibleCount(list, visibleCount);
 
+    if (options.bulkArchive) {
+      const toolbar = list.createDiv({ cls: 'claudian-history-bulk-toolbar' });
+      const selectedCount = options.bulkArchive.selectedConversationIds.size;
+      toolbar.createSpan({
+        cls: 'claudian-history-bulk-count',
+        text: t('chat.history.selectedCount', { count: selectedCount }),
+      });
+      const archiveSelectedButton = toolbar.createEl('button', {
+        cls: 'claudian-history-bulk-archive',
+        text: t('chat.history.archiveSelected'),
+      });
+      archiveSelectedButton.disabled = selectedCount === 0;
+      archiveSelectedButton.setAttribute('aria-label', t('chat.history.archiveSelectedCount', {
+        count: selectedCount,
+      }));
+      archiveSelectedButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (selectedCount === 0) return;
+        runConversationAction(
+          () => this.runHistoryAction(
+            () => options.bulkArchive!.onArchiveSelected(),
+            t('chat.errors.archiveSession'),
+          ),
+          t('chat.errors.archiveSession'),
+        );
+      });
+    }
+
     if (filteredConversations.length === 0) {
       list.createDiv({
         cls: 'claudian-history-empty',
@@ -1364,12 +1397,20 @@ export class ConversationController {
     const isCurrent = openState === 'current';
     const isOpen = openState === 'open';
     const isSelectable = !isCurrent && options.allowConversationSelection !== false;
+    const isBulkSelectable = Boolean(
+      options.bulkArchive
+      && sessionActionMode === 'active'
+      && openState === 'closed'
+      && !isRunning,
+    );
+    const isBulkSelected = options.bulkArchive?.selectedConversationIds.has(conversation.id) ?? false;
     const item = list.createDiv({
       cls: [
         'claudian-history-item',
         showOpenStateIndicators && isCurrent ? 'active' : '',
         showOpenStateIndicators && isOpen ? 'open' : '',
         isRunning ? 'running' : '',
+        isBulkSelected ? 'claudian-history-item--bulk-selected' : '',
         options.allowConversationSelection === false
           ? 'claudian-history-item--noninteractive'
           : '',
@@ -1395,11 +1436,27 @@ export class ConversationController {
       sessionActionMode: sessionActionMode ?? null,
       showOpenStateLabels: options.showOpenStateLabels !== false,
       allowConversationSelection: options.allowConversationSelection !== false,
+      isBulkSelected,
     }));
     item.setAttribute('data-running', isRunning ? 'true' : 'false');
     item.setAttribute('data-tab-location', conversationStatus.location ?? 'current-view');
     if (typeof conversationStatus.tabIndex === 'number') {
       item.setAttribute('data-tab-index', String(conversationStatus.tabIndex));
+    }
+
+    if (isBulkSelectable && options.bulkArchive) {
+      const selectButton = item.createEl('button', {
+        cls: 'claudian-action-btn claudian-history-bulk-select',
+      });
+      setIcon(selectButton, isBulkSelected ? 'check-square' : 'square');
+      selectButton.setAttribute('aria-pressed', String(isBulkSelected));
+      selectButton.setAttribute('aria-label', t('chat.history.selectForArchive', {
+        title: conversation.title,
+      }));
+      selectButton.addEventListener('click', event => {
+        event.stopPropagation();
+        options.bulkArchive?.onToggleSelection(conversation.id, !isBulkSelected);
+      });
     }
 
     const iconEl = item.createDiv({ cls: 'claudian-history-item-icon' });

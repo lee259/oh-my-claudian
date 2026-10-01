@@ -556,19 +556,41 @@ export class ConversationRepository {
     await this.save(conversation);
   }
 
-  async setArchived(id: string, isArchived: boolean): Promise<void> {
+  async setArchived(id: string, isArchived: boolean): Promise<boolean> {
     const conversation = this.getSync(id);
-    if (!conversation) return;
+    if (!conversation) return false;
     if (
       conversation.isArchived === isArchived
       && (!isArchived || conversation.isPinned === false)
-    ) return;
+    ) return false;
 
+    const changed = conversation.isArchived !== isArchived;
     conversation.isArchived = isArchived;
     if (isArchived) {
       conversation.isPinned = false;
     }
     await this.save(conversation);
+    return changed;
+  }
+
+  /** Archive the still-eligible members of a candidate batch, rechecking before each write. */
+  async archiveConversationsIf(
+    ids: readonly string[],
+    isEligible: (conversation: Readonly<ConversationMeta>) => boolean,
+  ): Promise<string[]> {
+    const archivedIds: string[] = [];
+    for (const id of new Set(ids)) {
+      const conversation = this.getSync(id);
+      if (!conversation || conversation.isArchived === true) continue;
+      const metadata = this.getMetadata(id);
+      if (!metadata || !isEligible(metadata)) continue;
+
+      conversation.isArchived = true;
+      conversation.isPinned = false;
+      await this.save(conversation);
+      archivedIds.push(id);
+    }
+    return archivedIds;
   }
 
   async persistConversations(

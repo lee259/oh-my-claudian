@@ -42,6 +42,7 @@ export {
   type InstructionRefineResult,
   type KeyboardNavigationSettings,
   type PermissionMode,
+  type SessionAutoArchiveAfter,
   type SlashCommand,
   type StoredChatModelSelection,
 } from './settings';

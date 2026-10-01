@@ -215,7 +215,14 @@
       "pinLinkedNote": "연결된 노트 고정",
       "unpinLinkedNote": "연결된 노트 고정 해제",
       "newForNote": "{note}의 새 채팅",
-      "cannotArchiveRunning": "실행 중인 세션은 보관할 수 없습니다"
+      "cannotArchiveRunning": "실행 중인 세션은 보관할 수 없습니다",
+      "autoArchived": "비활성 대화 {count}개를 보관했습니다.",
+      "selectedCount": "{count}개 선택됨",
+      "archiveSelected": "선택 항목 보관",
+      "archiveSelectedCount": "선택한 대화 {count}개 보관",
+      "selectForArchive": "보관할 항목 선택: {title}",
+      "nativeArchiveFailed": "{provider} 세션을 보관하거나 복원할 수 없습니다: {reason}",
+      "archivedCount": "대화 {count}개를 보관했습니다."
     },
     "status": {
       "loadingConversation": "대화 로드 중…",
@@ -969,6 +976,12 @@
       "emptyCatalog": "보고된 {provider} 모델이 없습니다. 구성을 확인하고 검색을 클릭하세요.",
       "loadingCatalog": "{provider} 모델을 불러오는 중…",
       "stale": "{provider} 모델 카탈로그가 오래되었습니다. 검색을 클릭하여 새로 고치세요."
+    },
+    "sessionAutoArchive": {
+      "name": "비활성 대화 자동 보관",
+      "desc": "선택한 기간 동안 활동이 없고 고정되거나 열려 있지 않은 대화를 자동으로 보관합니다.",
+      "off": "사용 안 함",
+      "days": "{count}일"
     }
   }
 }

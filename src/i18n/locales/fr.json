@@ -215,7 +215,14 @@
       "pinLinkedNote": "Épingler la note liée",
       "unpinLinkedNote": "Désépingler la note liée",
       "newForNote": "Nouvelle conversation pour {note}",
-      "cannotArchiveRunning": "Impossible d’archiver une session en cours"
+      "cannotArchiveRunning": "Impossible d’archiver une session en cours",
+      "autoArchived": "{count} conversation(s) inactive(s) archivée(s).",
+      "selectedCount": "{count} sélectionnée(s)",
+      "archiveSelected": "Archiver la sélection",
+      "archiveSelectedCount": "Archiver {count} conversation(s) sélectionnée(s)",
+      "selectForArchive": "Sélectionner {title} pour archivage",
+      "nativeArchiveFailed": "{provider} n’a pas pu archiver ou restaurer ses sessions : {reason}",
+      "archivedCount": "{count} conversation(s) archivée(s)."
     },
     "status": {
       "loadingConversation": "Chargement de la conversation…",
@@ -969,6 +976,12 @@
       "emptyCatalog": "Aucun modèle {provider} signalé. Vérifiez votre configuration et cliquez sur Découvrir.",
       "loadingCatalog": "Chargement des modèles {provider}…",
       "stale": "Le catalogue de modèles {provider} est obsolète. Cliquez sur Découvrir pour l'actualiser."
+    },
+    "sessionAutoArchive": {
+      "name": "Archiver automatiquement les conversations inactives",
+      "desc": "Archive automatiquement les conversations fermées et non épinglées restées inactives pendant la période choisie.",
+      "off": "Désactivé",
+      "days": "{count} jours"
     }
   }
 }

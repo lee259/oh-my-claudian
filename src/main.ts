@@ -9,6 +9,7 @@ import type { Editor, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import { MarkdownView, Notice, Plugin, TFolder } from 'obsidian';
 
 import { ConversationRepository } from './app/conversations/ConversationRepository';
+import { NativeSessionArchiveSync } from './app/conversations/NativeSessionArchiveSync';
 import {
   type ProviderSessionInvalidationStatus,
   SessionInvalidationCoordinator,
@@ -71,6 +72,7 @@ import {
   WarmExecutionPool,
 } from './features/chat/execution/WarmExecutionPool';
 import { registerFileMenu } from './features/chat/fileMenu';
+import { InactiveSessionArchiver } from './features/chat/session-manager/InactiveSessionArchiver';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { resolveLocale, setLocale, t } from './i18n/i18n';
@@ -111,6 +113,8 @@ export default class ClaudianPlugin extends Plugin {
   private settingsCoordinator!: SettingsCoordinator<ClaudianSettings>;
   private chatModelSelectionCoordinator!: ChatModelSelectionCoordinator;
   private conversationRepository!: ConversationRepository;
+  private nativeSessionArchives!: NativeSessionArchiveSync;
+  private inactiveSessionArchiver!: InactiveSessionArchiver;
   private sessionMetadataCoordinator!: SessionMetadataCoordinator;
   private sessionInvalidationCoordinator!: SessionInvalidationCoordinator;
   private providerRuntimeSettingsCoordinator!: ProviderRuntimeSettingsCoordinator;
@@ -119,6 +123,7 @@ export default class ClaudianPlugin extends Plugin {
   private agentSkillResourceGeneration = 0;
   private hasLoadedAllSessionMetadata = false;
   private sessionMetadataLoadTimer: number | null = null;
+  private sessionArchiveTimer: number | null = null;
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private providerChatOptionsChangeTail: Promise<void> = Promise.resolve();
   private isUnloading = false;
@@ -328,13 +333,20 @@ export default class ClaudianPlugin extends Plugin {
       window.clearTimeout(this.sessionMetadataLoadTimer);
       this.sessionMetadataLoadTimer = null;
     }
+    if (this.sessionArchiveTimer !== null) {
+      window.clearTimeout(this.sessionArchiveTimer);
+      this.sessionArchiveTimer = null;
+    }
     StartupProfiler.freeze();
     void this.diagnosticLog.flush();
     void Promise.all(
       this.getAllViews().map(view => view.flushCurrentTabState()),
     ).catch(() => undefined);
-    void this.executionLifecycleRegistry.dispose();
-    void ProviderWorkspaceRegistry.disposeInitialized();
+    void (async () => {
+      await this.nativeSessionArchives?.dispose();
+      await this.executionLifecycleRegistry.dispose();
+      await ProviderWorkspaceRegistry.disposeInitialized();
+    })();
   }
 
   async openProviderDiagnosticLogDirectory(): Promise<void> {
@@ -443,6 +455,13 @@ export default class ClaudianPlugin extends Plugin {
       ...DEFAULT_CLAUDIAN_SETTINGS,
       ...claudian,
     };
+    const archiveSetting = this.settings.sessionAutoArchiveAfter;
+    const didNormalizeSessionAutoArchiveAfter = ![
+      'off', '7d', '14d', '30d',
+    ].includes(String(archiveSetting));
+    if (didNormalizeSessionAutoArchiveAfter) {
+      this.settings.sessionAutoArchiveAfter = 'off';
+    }
     const normalizedWarmExecutionLimit = normalizeWarmExecutionLimit(
       this.settings.maxWarmAgentProcesses,
     );
@@ -471,6 +490,39 @@ export default class ClaudianPlugin extends Plugin {
       getVaultPath: () => getVaultPath(this.app),
       persistence: sharedStorage.conversationPersistence,
       onConversationDeleted: (conversationId) => this.resetDeletedConversationTabs(conversationId),
+    });
+    this.nativeSessionArchives = new NativeSessionArchiveSync({
+      getConversation: (id) => this.conversationRepository.getSync(id),
+      getSessionArchive: async (providerId) => {
+        if (!ProviderWorkspaceRegistry.providesSessionArchive(providerId)) return null;
+        await ProviderWorkspaceRegistry.ensureInitialized(
+          this.providerHost,
+          providerId,
+          'session-archive',
+        );
+        return ProviderWorkspaceRegistry.getIfInitialized(providerId)?.sessionArchive ?? null;
+      },
+      onFailure: (providerId, error) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        new Notice(t('chat.history.nativeArchiveFailed', {
+          provider: ProviderRegistry.getProviderDisplayName(providerId),
+          reason,
+        }));
+      },
+    });
+    this.inactiveSessionArchiver = new InactiveSessionArchiver({
+      getSettings: () => this.settings,
+      getConversationList: () => this.conversationRepository.list(),
+      getWorkspaceConversationIds: () => new Set(
+        this.getAllViews().flatMap(view => view.getTabManager()?.getAllTabs() ?? [])
+          .map(tab => tab.conversationId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+      archiveConversationsIf: (ids, isEligible) => this.archiveConversationsIf(ids, isEligible),
+      onArchived: (count) => {
+        this.notifyConversationViewsChanged();
+        new Notice(t('chat.history.autoArchived', { count }));
+      },
     });
     this.providerRuntimeSettingsCoordinator = new ProviderRuntimeSettingsCoordinator({
       repository: this.conversationRepository,
@@ -579,6 +631,7 @@ export default class ClaudianPlugin extends Plugin {
       || didNormalizeProviderSelection
       || didNormalizePendingSessionInvalidations
       || didNormalizeWarmExecutionLimit
+      || didNormalizeSessionAutoArchiveAfter
     ) {
       await this.saveSettings();
     }
@@ -593,6 +646,9 @@ export default class ClaudianPlugin extends Plugin {
     await this.sessionInvalidationCoordinator.complete(completedInvalidationGenerations);
     this.hasLoadedAllSessionMetadata = initialMetadataScan.complete;
     this.pendingSessionMetadataScan = deferRemainingMetadata;
+    if (this.hasLoadedAllSessionMetadata) {
+      this.scheduleInactiveSessionArchive();
+    }
   }
 
   private async loadCurrentTabSessionMetadata(): Promise<SessionMetadataReadResult[]> {
@@ -652,6 +708,33 @@ export default class ClaudianPlugin extends Plugin {
   private async loadRemainingSessionMetadata(): Promise<void> {
     this.hasLoadedAllSessionMetadata = await this.sessionMetadataCoordinator
       .loadRemainingSessionMetadata();
+    if (this.hasLoadedAllSessionMetadata) {
+      this.scheduleInactiveSessionArchive();
+    }
+  }
+
+  private scheduleInactiveSessionArchive(): void {
+    if (this.isUnloading || !this.hasLoadedAllSessionMetadata) return;
+    if (this.sessionArchiveTimer !== null) {
+      window.clearTimeout(this.sessionArchiveTimer);
+    }
+    this.sessionArchiveTimer = window.setTimeout(() => {
+      this.sessionArchiveTimer = null;
+      void this.inactiveSessionArchiver.run()
+        .catch((error: unknown) => {
+          new Notice(error instanceof Error ? error.message : t('chat.errors.archiveSession'));
+        })
+        .finally(() => this.scheduleInactiveSessionArchive());
+    }, 24 * 60 * 60 * 1000);
+    void this.inactiveSessionArchiver.run().catch((error: unknown) => {
+      new Notice(error instanceof Error ? error.message : t('chat.errors.archiveSession'));
+    });
+  }
+
+  async runInactiveSessionArchive(): Promise<void> {
+    if (this.hasLoadedAllSessionMetadata) {
+      await this.inactiveSessionArchiver.run();
+    }
   }
 
   normalizeModelVariantSettings(): boolean {
@@ -961,8 +1044,21 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async setConversationArchived(id: string, isArchived: boolean): Promise<void> {
-    await this.conversationRepository.setArchived(id, isArchived);
+    const changed = await this.conversationRepository.setArchived(id, isArchived);
     this.notifyConversationViewsChanged();
+    if (changed) await this.nativeSessionArchives.sync([id]);
+  }
+
+  async archiveConversationsIf(
+    ids: readonly string[],
+    isEligible: (conversation: Readonly<ConversationMeta>) => boolean,
+  ): Promise<readonly string[]> {
+    const archivedIds = await this.conversationRepository.archiveConversationsIf(ids, isEligible);
+    if (archivedIds.length > 0) {
+      this.notifyConversationViewsChanged();
+      await this.nativeSessionArchives.sync(archivedIds);
+    }
+    return archivedIds;
   }
 
   private async handleLinkedNoteRename(

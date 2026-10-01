@@ -11,6 +11,7 @@ import type {
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
 import { CodexAgentMentionProvider } from '../agents/CodexAgentMentionProvider';
 import { CodexSkillCatalog } from '../commands/CodexSkillCatalog';
+import { CodexThreadArchiveService } from '../history/CodexThreadArchiveService';
 import { CodexCliResolver } from '../runtime/CodexCliResolver';
 import { CodexModelCatalogCoordinator } from '../runtime/CodexModelCatalogCoordinator';
 import { CodexModelDiscoveryService } from '../runtime/CodexModelDiscoveryService';
@@ -56,19 +57,23 @@ export async function createCodexWorkspaceServices(
       new CodexModelDiscoveryService(plugin),
     );
   const commandCatalog = new CodexSkillCatalog(skillListProvider);
+  const sessionArchive = new CodexThreadArchiveService(plugin);
   const unregisterTransitionHook = plugin.executionLifecycleRegistry
     .registerTransitionHook('codex', {
       beforeTransition: async () => {
         modelCatalogCoordinator.beginEnvironmentTransition();
         skillListProvider.beginEnvironmentTransition();
+        sessionArchive.beginEnvironmentTransition();
         await Promise.all([
           modelCatalogCoordinator.quiesceForEnvironmentChange(),
           skillListProvider.quiesceForEnvironmentChange(),
+          sessionArchive.quiesceForEnvironmentChange(),
         ]);
       },
       afterTransition: () => {
         modelCatalogCoordinator.endEnvironmentTransition();
         skillListProvider.endEnvironmentTransition();
+        sessionArchive.endEnvironmentTransition();
       },
     });
   let disposePromise: Promise<void> | null = null;
@@ -82,6 +87,7 @@ export async function createCodexWorkspaceServices(
   return {
     subagentStorage,
     commandCatalog,
+    sessionArchive,
     agentMentionProvider,
     cliResolver: createCodexCliResolver(),
     modelCatalogCoordinator,
@@ -97,6 +103,7 @@ export async function createCodexWorkspaceServices(
       disposePromise = Promise.all([
         modelCatalogCoordinator.dispose(),
         skillListProvider.dispose(),
+        sessionArchive.dispose(),
       ]).then(() => undefined);
       return disposePromise;
     },
@@ -104,6 +111,7 @@ export async function createCodexWorkspaceServices(
 }
 
 export const codexWorkspaceRegistration: ProviderWorkspaceRegistration<CodexWorkspaceServices> = {
+  providesSessionArchive: true,
   initialize: async ({ plugin, vaultAdapter }) => createCodexWorkspaceServices(
     plugin,
     vaultAdapter,
