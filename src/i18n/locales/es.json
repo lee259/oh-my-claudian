@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Esta carpeta ya se añadió como contexto externo.",
       "externalContextNestedPath": "No se puede añadir «{path}» porque está dentro de la ruta existente «{existing}».",
       "externalContextContainsExistingPath": "No se puede añadir «{path}» porque contiene la ruta existente «{existing}».",
-      "externalContextAdded": "Contexto externo añadido: {path}"
+      "externalContextAdded": "Contexto externo añadido: {path}",
+      "modeGrokAuto": "Automático",
+      "modeGrokAutoDescription": "Grok puede realizar las acciones que considere seguras y preguntar antes de las más arriesgadas.",
+      "modeGrokAcceptEdits": "Aceptar ediciones",
+      "modeGrokAcceptEditsDescription": "Acepta automáticamente las ediciones de archivos y sigue preguntando antes de otras acciones."
     },
     "history": {
       "newTab": "Nueva pestaña",
@@ -215,7 +219,14 @@
       "pinLinkedNote": "Fijar nota vinculada",
       "unpinLinkedNote": "Desfijar nota vinculada",
       "newForNote": "Nuevo chat para {note}",
-      "cannotArchiveRunning": "No se puede archivar una sesión en ejecución"
+      "cannotArchiveRunning": "No se puede archivar una sesión en ejecución",
+      "autoArchived": "Se archivaron {count} conversaciones inactivas.",
+      "selectedCount": "{count} seleccionadas",
+      "archiveSelected": "Archivar seleccionadas",
+      "archiveSelectedCount": "Archivar {count} conversaciones seleccionadas",
+      "selectForArchive": "Seleccionar {title} para archivar",
+      "nativeArchiveFailed": "{provider} no pudo archivar ni restaurar sus sesiones: {reason}",
+      "archivedCount": "Se archivaron {count} conversaciones."
     },
     "status": {
       "loadingConversation": "Cargando conversación…",
@@ -969,6 +980,12 @@
       "emptyCatalog": "{provider} no ha informado de ningún modelo. Revisa tu configuración y haz clic en Descubrir.",
       "loadingCatalog": "Cargando modelos de {provider}…",
       "stale": "El catálogo de modelos de {provider} está desactualizado. Haz clic en Descubrir para actualizarlo."
+    },
+    "sessionAutoArchive": {
+      "name": "Archivar conversaciones inactivas automáticamente",
+      "desc": "Archiva automáticamente las conversaciones cerradas y sin fijar que no hayan tenido actividad durante el período seleccionado.",
+      "off": "Desactivado",
+      "days": "{count} días"
     }
   }
 }

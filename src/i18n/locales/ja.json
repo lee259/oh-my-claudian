@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "このフォルダーはすでに外部コンテキストとして追加されています。",
       "externalContextNestedPath": "既存のパス「{existing}」内にあるため、「{path}」を追加できません。",
       "externalContextContainsExistingPath": "既存のパス「{existing}」を含むため、「{path}」を追加できません。",
-      "externalContextAdded": "外部コンテキストを追加しました：{path}"
+      "externalContextAdded": "外部コンテキストを追加しました：{path}",
+      "modeGrokAuto": "自動",
+      "modeGrokAutoDescription": "Grok が安全と判断した操作は自動で実行し、リスクの高い操作は確認します。",
+      "modeGrokAcceptEdits": "編集を承認",
+      "modeGrokAcceptEditsDescription": "ファイル編集を自動で承認し、その他の操作は引き続き確認します。"
     },
     "history": {
       "newTab": "新しいタブ",
@@ -215,7 +219,14 @@
       "pinLinkedNote": "リンク先ノートをピン留め",
       "unpinLinkedNote": "リンク先ノートのピン留めを解除",
       "newForNote": "{note} の新しいチャット",
-      "cannotArchiveRunning": "実行中のセッションはアーカイブできません"
+      "cannotArchiveRunning": "実行中のセッションはアーカイブできません",
+      "autoArchived": "{count} 件の非アクティブな会話をアーカイブしました。",
+      "selectedCount": "{count} 件選択中",
+      "archiveSelected": "選択項目をアーカイブ",
+      "archiveSelectedCount": "選択した {count} 件の会話をアーカイブ",
+      "selectForArchive": "アーカイブ対象に選択：{title}",
+      "nativeArchiveFailed": "{provider} のセッションをアーカイブまたは復元できませんでした：{reason}",
+      "archivedCount": "{count} 件の会話をアーカイブしました。"
     },
     "status": {
       "loadingConversation": "会話を読み込み中…",
@@ -969,6 +980,12 @@
       "emptyCatalog": "{provider} からモデルが報告されていません。設定を確認して「検出」をクリックしてください。",
       "loadingCatalog": "{provider} モデルを読み込んでいます…",
       "stale": "{provider} のモデルカタログが古くなっています。「検出」をクリックして更新してください。"
+    },
+    "sessionAutoArchive": {
+      "name": "非アクティブな会話を自動アーカイブ",
+      "desc": "選択した期間、操作がなく、ピン留めも開いてもいない会話を自動的にアーカイブします。",
+      "off": "オフ",
+      "days": "{count} 日"
     }
   }
 }

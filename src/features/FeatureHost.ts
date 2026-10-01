@@ -61,6 +61,7 @@ export interface FeatureHost {
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
   getAgentSkillResourceGeneration(): number;
   notifyAgentSkillsChanged(): Promise<void>;
+  runInactiveSessionArchive(): Promise<void>;
   notifyProviderChatOptionsChanged(providerId: ProviderId): void;
 
   createConversation(options?: {
@@ -78,6 +79,10 @@ export interface FeatureHost {
   renameConversation(id: string, title: string): Promise<void>;
   setConversationPinned(id: string, isPinned: boolean): Promise<void>;
   setConversationArchived(id: string, isArchived: boolean): Promise<void>;
+  archiveConversationsIf(
+    ids: readonly string[],
+    isEligible: (conversation: Readonly<ConversationMeta>) => boolean,
+  ): Promise<readonly string[]>;
   updateConversation(id: string, updates: Partial<Conversation>): Promise<void>;
   getConversationById(id: string): Promise<Conversation | null>;
   getCachedConversation(id: string): Conversation | null;

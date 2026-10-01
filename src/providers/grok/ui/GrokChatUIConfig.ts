@@ -5,7 +5,6 @@ import type {
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
-import { t } from '../../../i18n/i18n';
 import { GROK_PROVIDER_ICON } from '../../../shared/icons';
 import {
   decodeGrokModelId,
@@ -18,19 +17,16 @@ import {
   resolveGrokDefaultReasoningEffort,
 } from '../models';
 import {
+  getGrokPermissionModeOptions,
+  getGrokPermissionModeToggle,
+  GROK_PERMISSION_MODE_TOGGLE_VALUES,
+  isGrokPermissionMode,
+} from '../permissionModes';
+import {
   getGrokProviderSettings,
   getOrderedGrokVisibleModelIds,
   updateGrokProviderSettings,
 } from '../settings';
-
-const GROK_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
-  inactiveValue: 'normal',
-  inactiveLabel: t('chat.composer.modeGrokAsk'),
-  activeValue: 'yolo',
-  activeLabel: t('chat.composer.modeGrokAlwaysApprove'),
-  planValue: 'plan',
-  planLabel: t('chat.composer.plan'),
-};
 
 export const grokChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings): ProviderUIOption[] {
@@ -164,61 +160,35 @@ export const grokChatUIConfig: ProviderChatUIConfig = {
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
-    return {
-      ...GROK_PERMISSION_MODE_TOGGLE,
-      inactiveDescription: t('chat.composer.modeGrokAskDescription'),
-      inactiveIcon: 'hand',
-      activeDescription: t('chat.composer.modeGrokAlwaysApproveDescription'),
-      activeIcon: 'zap',
-      activeIsDangerous: true,
-      planDescription: t('chat.composer.modePlanGenericDescription'),
-      planIcon: 'clipboard-list',
-    };
+    return getGrokPermissionModeToggle();
   },
 
   getPermissionModeOptions(): ProviderPermissionModeOption[] {
-    return [
-      {
-        value: 'normal',
-        label: t('chat.composer.modeGrokAsk'),
-        description: t('chat.composer.modeGrokAskDescription'),
-        icon: 'hand',
-      },
-      {
-        value: 'plan',
-        label: t('chat.composer.plan'),
-        description: t('chat.composer.modePlanGenericDescription'),
-        icon: 'clipboard-list',
-        isPlanMode: true,
-      },
-      {
-        value: 'yolo',
-        label: t('chat.composer.modeGrokAlwaysApprove'),
-        description: t('chat.composer.modeGrokAlwaysApproveDescription'),
-        icon: 'zap',
-        isDangerous: true,
-      },
-    ];
+    return getGrokPermissionModeOptions();
   },
 
   resolvePermissionMode(settings): string {
     if (settings.permissionMode === 'plan') return 'plan';
-    return settings.permissionMode === 'yolo' ? 'yolo' : 'normal';
+    return typeof settings.permissionMode === 'string'
+      && (isGrokPermissionMode(settings.permissionMode)
+        || GROK_PERMISSION_MODE_TOGGLE_VALUES.includes(settings.permissionMode))
+      ? settings.permissionMode
+      : 'normal';
   },
 
   applyPermissionMode(value, settings): void {
     if (isRecord(settings)) {
       const currentMode = settings.permissionMode;
       if (value === 'plan') {
-        if (currentMode === 'normal' || currentMode === 'yolo') {
+        if (typeof currentMode === 'string' && isGrokPermissionMode(currentMode)) {
           updateGrokProviderSettings(settings, { planBasePermissionMode: currentMode });
         }
         settings.permissionMode = 'plan';
         return;
       }
-      const baseMode = value === 'yolo' ? 'yolo' : 'normal';
-      updateGrokProviderSettings(settings, { planBasePermissionMode: baseMode });
-      settings.permissionMode = baseMode;
+      const selectedMode = isGrokPermissionMode(value) ? value : 'normal';
+      updateGrokProviderSettings(settings, { planBasePermissionMode: selectedMode });
+      settings.permissionMode = selectedMode;
     }
   },
 

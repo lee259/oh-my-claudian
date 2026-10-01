@@ -142,7 +142,7 @@ function persistGrok45Catalog(
 }
 
 function featurePermissionRequest(
-  permissionMode: 'normal' | 'plan' | 'yolo',
+  permissionMode: string,
   explicitMode?: string,
 ): ProviderExecutionRequest {
   const base = executionRequest(permissionMode);
@@ -965,6 +965,54 @@ describe('GrokExecutionBackend', () => {
       });
     },
   );
+
+  it.each([
+    ['auto', { autoMode: true, yoloMode: false }],
+    ['acceptEdits', { autoMode: false, yoloMode: false }],
+  ])('applies the native %s mode without broadening tool permission', async (permissionMode, expectedMeta) => {
+    const native = new FakeNativeConnection();
+    const session = new GrokExecutionBackend(
+      { settings: {} } as ProviderHost,
+      { nativeFactory: { create: () => native } },
+    ).createSession(sessionConfig);
+
+    await collect(session.execute(featurePermissionRequest(String(permissionMode))).events);
+
+    expect(native.loadRequests[0]?._meta).toMatchObject(expectedMeta);
+    expect(native.modeRequests).toEqual([
+      { modeId: 'default', sessionId: 'session-existing' },
+    ]);
+  });
+
+  it('automatically accepts only Grok edit permission prompts in Accept edits mode', async () => {
+    const native = new FakeNativeConnection();
+    native.promptImplementation = () => new Promise(() => {});
+    let nativeOptions: GrokExecutionNativeCreateOptions | undefined;
+    const session = new GrokExecutionBackend(
+      { settings: {} } as ProviderHost,
+      {
+        nativeFactory: {
+          create: options => {
+            nativeOptions = options;
+            return native;
+          },
+        },
+      },
+    ).createSession(sessionConfig);
+    const run = session.execute(featurePermissionRequest('acceptEdits'));
+    while (native.promptRequests.length === 0) await Promise.resolve();
+
+    await expect(nativeOptions?.requestPermission({
+      options: [{ kind: 'allow_once', name: 'Allow', optionId: 'allow' }],
+      sessionId: 'session-existing',
+      toolCall: { kind: 'edit', title: 'Edit file', toolCallId: 'tool-edit' },
+    })).resolves.toEqual({
+      outcome: { optionId: 'allow', outcome: 'selected' },
+    });
+    expect(interactionPort.requestApproval).not.toHaveBeenCalled();
+    run.cancel();
+    await collect(run.events);
+  });
 
   it('enters native Plan mode from permission selection when explicit mode is absent', async () => {
     const native = new FakeNativeConnection();

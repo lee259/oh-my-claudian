@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "This folder is already added as an external context.",
       "externalContextNestedPath": "Cannot add \"{path}\" because it is inside existing path \"{existing}\".",
       "externalContextContainsExistingPath": "Cannot add \"{path}\" because it contains existing path \"{existing}\".",
-      "externalContextAdded": "Added external context: {path}"
+      "externalContextAdded": "Added external context: {path}",
+      "modeGrokAuto": "Auto",
+      "modeGrokAutoDescription": "Grok may perform actions it judges safe and asks about riskier actions.",
+      "modeGrokAcceptEdits": "Accept edits",
+      "modeGrokAcceptEditsDescription": "Automatically accept file edits; continue asking before other actions."
     },
     "history": {
       "newTab": "New tab",
@@ -215,7 +219,14 @@
       "pinLinkedNote": "Pin linked note",
       "unpinLinkedNote": "Unpin linked note",
       "newForNote": "New chat for {note}",
-      "cannotArchiveRunning": "Cannot archive a running session"
+      "cannotArchiveRunning": "Cannot archive a running session",
+      "autoArchived": "Archived {count} inactive conversation(s).",
+      "selectedCount": "{count} selected",
+      "archiveSelected": "Archive selected",
+      "archiveSelectedCount": "Archive {count} selected conversations",
+      "selectForArchive": "Select {title} for archiving",
+      "nativeArchiveFailed": "{provider} could not archive or restore its sessions: {reason}",
+      "archivedCount": "Archived {count} conversation(s)."
     },
     "status": {
       "loadingConversation": "Loading conversation…",
@@ -969,6 +980,12 @@
       "emptyCatalog": "No {provider} models reported. Check your configuration and click Discover.",
       "loadingCatalog": "Loading {provider} models…",
       "stale": "{provider} model catalog is stale. Click Discover to refresh it."
+    },
+    "sessionAutoArchive": {
+      "name": "Automatically archive inactive conversations",
+      "desc": "Automatically archive closed, unpinned conversations after they have been inactive for the selected period.",
+      "off": "Off",
+      "days": "{count} days"
     }
   }
 }

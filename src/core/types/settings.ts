@@ -177,6 +177,7 @@ export interface ClaudianSettings {
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
+  sessionAutoArchiveAfter: SessionAutoArchiveAfter;
 
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
@@ -184,3 +185,6 @@ export interface ClaudianSettings {
   // Allow provider-specific extension fields
   [key: string]: unknown;
 }
+
+/** Idle duration before closed, unpinned sessions may be archived automatically. */
+export type SessionAutoArchiveAfter = 'off' | '7d' | '14d' | '30d';

@@ -47,6 +47,10 @@ export class ProviderInitializationBoundary {
     this.registrations[providerId] = registration;
   }
 
+  providesSessionArchive(providerId: ProviderId): boolean {
+    return this.registrations[providerId]?.providesSessionArchive === true;
+  }
+
   async ensureInitialized(
     plugin: ProviderHost,
     providerId: ProviderId,
