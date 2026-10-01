@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "このフォルダーはすでに外部コンテキストとして追加されています。",
       "externalContextNestedPath": "既存のパス「{existing}」内にあるため、「{path}」を追加できません。",
       "externalContextContainsExistingPath": "既存のパス「{existing}」を含むため、「{path}」を追加できません。",
-      "externalContextAdded": "外部コンテキストを追加しました：{path}"
+      "externalContextAdded": "外部コンテキストを追加しました：{path}",
+      "modeGrokAuto": "自動",
+      "modeGrokAutoDescription": "Grok が安全と判断した操作は自動で実行し、リスクの高い操作は確認します。",
+      "modeGrokAcceptEdits": "編集を承認",
+      "modeGrokAcceptEditsDescription": "ファイル編集を自動で承認し、その他の操作は引き続き確認します。"
     },
     "history": {
       "newTab": "新しいタブ",

@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Esta pasta já foi adicionada como contexto externo.",
       "externalContextNestedPath": "Não é possível adicionar \"{path}\" porque está dentro do caminho existente \"{existing}\".",
       "externalContextContainsExistingPath": "Não é possível adicionar \"{path}\" porque contém o caminho existente \"{existing}\".",
-      "externalContextAdded": "Contexto externo adicionado: {path}"
+      "externalContextAdded": "Contexto externo adicionado: {path}",
+      "modeGrokAuto": "Automático",
+      "modeGrokAutoDescription": "O Grok pode executar ações que considerar seguras e pedir confirmação para as mais arriscadas.",
+      "modeGrokAcceptEdits": "Aceitar edições",
+      "modeGrokAcceptEditsDescription": "Aceita edições de arquivos automaticamente e continua pedindo confirmação para outras ações."
     },
     "history": {
       "newTab": "Nova aba",

@@ -11,6 +11,7 @@ import {
   type GrokDiscoveredModel,
   normalizeGrokDiscoveredModels,
 } from './models';
+import { type GrokPermissionMode,isGrokPermissionMode } from './permissionModes';
 
 export interface GrokCatalogSnapshot {
   models: GrokDiscoveredModel[];
@@ -28,7 +29,7 @@ export interface PersistedGrokProviderSettings {
   environmentHash: string;
   visibleModels: string[] | null;
   modelAliases: Record<string, string>;
-  planBasePermissionMode: 'normal' | 'yolo';
+  planBasePermissionMode: GrokPermissionMode;
   preferredReasoningByModel: Record<string, string>;
 }
 
@@ -430,8 +431,8 @@ function readTrimmedString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeGrokBasePermissionMode(value: unknown): 'normal' | 'yolo' {
-  return value === 'yolo' ? 'yolo' : 'normal';
+function normalizeGrokBasePermissionMode(value: unknown): GrokPermissionMode {
+  return typeof value === 'string' && isGrokPermissionMode(value) ? value : 'normal';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

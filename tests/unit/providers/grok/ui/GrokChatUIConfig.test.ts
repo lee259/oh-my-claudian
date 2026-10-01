@@ -372,15 +372,17 @@ describe('GrokChatUIConfig', () => {
     expect(grokChatUIConfig.normalizeModelVariant('claude', settings)).toBe('claude');
   });
 
-  it('exposes xAI Ask, Plan, and Always approve semantics', () => {
+  it('exposes Grok native permission modes while preserving the Ask default', () => {
     expect(grokChatUIConfig.getPermissionModeOptions?.({}).map((option) => ({
       value: option.value,
       label: option.label,
       isPlanMode: option.isPlanMode ?? false,
       isDangerous: option.isDangerous ?? false,
     }))).toEqual([
+      { value: 'auto', label: 'Auto', isPlanMode: false, isDangerous: false },
       { value: 'normal', label: 'Ask', isPlanMode: false, isDangerous: false },
       { value: 'plan', label: 'Plan', isPlanMode: true, isDangerous: false },
+      { value: 'acceptEdits', label: 'Accept edits', isPlanMode: false, isDangerous: false },
       { value: 'yolo', label: 'Always approve', isPlanMode: false, isDangerous: true },
     ]);
 
@@ -392,6 +394,7 @@ describe('GrokChatUIConfig', () => {
       activeIsDangerous: true,
       inactiveLabel: 'Ask',
       inactiveValue: 'normal',
+      values: ['auto', 'acceptEdits'],
       inactiveDescription: 'Grok asks before taking actions.',
       inactiveIcon: 'hand',
       planLabel: 'Plan',
@@ -413,5 +416,13 @@ describe('GrokChatUIConfig', () => {
     grokChatUIConfig.applyPermissionMode?.('yolo', settings);
     expect(settings.permissionMode).toBe('yolo');
     expect(getGrokProviderSettings(settings).planBasePermissionMode).toBe('yolo');
+
+    grokChatUIConfig.applyPermissionMode?.('plan', settings);
+    grokChatUIConfig.applyPermissionMode?.('auto', settings);
+    expect(settings.permissionMode).toBe('auto');
+    expect(getGrokProviderSettings(settings).planBasePermissionMode).toBe('auto');
+    grokChatUIConfig.applyPermissionMode?.('plan', settings);
+    expect(settings.permissionMode).toBe('plan');
+    expect(getGrokProviderSettings(settings).planBasePermissionMode).toBe('auto');
   });
 });

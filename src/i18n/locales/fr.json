@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Ce dossier a déjà été ajouté comme contexte externe.",
       "externalContextNestedPath": "Impossible d’ajouter « {path} » : il se trouve dans le chemin existant « {existing} ».",
       "externalContextContainsExistingPath": "Impossible d’ajouter « {path} » : il contient le chemin existant « {existing} ».",
-      "externalContextAdded": "Contexte externe ajouté : {path}"
+      "externalContextAdded": "Contexte externe ajouté : {path}",
+      "modeGrokAuto": "Automatique",
+      "modeGrokAutoDescription": "Grok peut effectuer les actions qu’il juge sûres et demander confirmation pour les plus risquées.",
+      "modeGrokAcceptEdits": "Accepter les modifications",
+      "modeGrokAcceptEditsDescription": "Accepte automatiquement les modifications de fichiers et demande toujours confirmation pour les autres actions."
     },
     "history": {
       "newTab": "Nouvel onglet",

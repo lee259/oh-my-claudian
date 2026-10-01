@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "This folder is already added as an external context.",
       "externalContextNestedPath": "Cannot add \"{path}\" because it is inside existing path \"{existing}\".",
       "externalContextContainsExistingPath": "Cannot add \"{path}\" because it contains existing path \"{existing}\".",
-      "externalContextAdded": "Added external context: {path}"
+      "externalContextAdded": "Added external context: {path}",
+      "modeGrokAuto": "Auto",
+      "modeGrokAutoDescription": "Grok may perform actions it judges safe and asks about riskier actions.",
+      "modeGrokAcceptEdits": "Accept edits",
+      "modeGrokAcceptEditsDescription": "Automatically accept file edits; continue asking before other actions."
     },
     "history": {
       "newTab": "New tab",

@@ -699,7 +699,7 @@ function createTabExecutionCoordinator(
     createId: generateMessageId,
     onRequestedEvent: async event => {
       if (event.type === 'mode_changed') {
-        await applyProviderModeChange(tab, plugin, normalizeProviderMode(event.mode));
+        await applyProviderModeChange(tab, plugin, normalizeProviderMode(tab, plugin, event.mode));
         return;
       }
       await tab.controllers.inputController?.handleExecutionEvent(event);
@@ -881,7 +881,7 @@ async function handleTabSessionEvent(
     return;
   }
   if (event.type === 'mode_changed') {
-    await applyProviderModeChange(tab, plugin, normalizeProviderMode(event.mode));
+    await applyProviderModeChange(tab, plugin, normalizeProviderMode(tab, plugin, event.mode));
     if (!isCurrent()) return;
     return;
   }
@@ -1056,7 +1056,10 @@ function discardBackgroundTurnBuffers(tab: TabData, bindingId: string): void {
   if (bindings?.size === 0) backgroundTurnBuffers.delete(tab);
 }
 
-function normalizeProviderMode(mode: string): string {
+function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string): string {
+  const uiConfig = ProviderRegistry.getChatUIConfig(getTabProviderId(tab, plugin));
+  const options = uiConfig.getPermissionModeOptions?.(getTabSettingsSnapshot(tab, plugin)) ?? [];
+  if (options.some(option => option.value === mode)) return mode;
   if (mode === 'bypassPermissions' || mode === 'yolo') return 'yolo';
   if (mode === 'plan') return 'plan';
   return 'normal';
