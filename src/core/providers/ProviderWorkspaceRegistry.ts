@@ -37,6 +37,10 @@ export class ProviderWorkspaceRegistry {
     this.boundary.register(providerId, registration);
   }
 
+  static providesSessionArchive(providerId: ProviderId): boolean {
+    return this.boundary.providesSessionArchive(providerId);
+  }
+
   static async initializeAll(plugin: ProviderHost): Promise<void> {
     await Promise.all(this.boundary.getRegisteredProviderIds().map(async (providerId) => {
       try {

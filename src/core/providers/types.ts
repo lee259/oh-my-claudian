@@ -480,12 +480,23 @@ export interface ProviderWorkspaceServices {
   tabWarmupPolicy?: ProviderTabWarmupPolicy | null;
   mcpServerManager?: McpServerManager | null;
   settingsTabRenderer?: ProviderSettingsTabRenderer | null;
+  sessionArchive?: ProviderSessionArchive | null;
   refreshAgentMentions?(context?: ProviderTransitionOwnerContext): Promise<void>;
   refreshModelCatalog?(
     context?: ProviderTransitionOwnerContext,
   ): Promise<ProviderModelCatalogRefreshResult>;
   prepareSettings?(): Promise<void>;
   dispose?(): Promise<void> | void;
+}
+
+export interface ProviderSessionArchiveChange {
+  conversation: Conversation;
+  isArchived: boolean;
+}
+
+/** Explicit provider-native archive operation; application archive state stays authoritative. */
+export interface ProviderSessionArchive {
+  setSessionsArchived(changes: readonly ProviderSessionArchiveChange[]): Promise<void>;
 }
 
 export interface ProviderModelCatalogRefreshResult {
@@ -526,6 +537,8 @@ export interface ProviderWorkspaceInitContext {
 export interface ProviderWorkspaceRegistration<
   TServices extends ProviderWorkspaceServices = ProviderWorkspaceServices,
 > {
+  /** Lets callers skip initializing providers without native archive support. */
+  providesSessionArchive?: boolean;
   initialize(context: ProviderWorkspaceInitContext): Promise<TServices>;
 }
 

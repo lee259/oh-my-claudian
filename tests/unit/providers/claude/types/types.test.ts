@@ -100,6 +100,7 @@ describe('types.ts', () => {
         userName: '',
         model: 'haiku',
         enableAutoTitleGeneration: true,
+        sessionAutoArchiveAfter: 'off',
         titleGenerationLocale: '',
         titleGenerationModel: '',
         thinkingBudget: 'off',
@@ -159,6 +160,7 @@ describe('types.ts', () => {
         userName: '',
         model: 'anthropic/custom-model-v1',
         enableAutoTitleGeneration: true,
+        sessionAutoArchiveAfter: 'off',
         titleGenerationLocale: 'zh-CN',
         titleGenerationModel: '',
         thinkingBudget: 'medium',
@@ -253,6 +255,7 @@ describe('types.ts', () => {
         deferMathRenderingDuringStreaming: true,
         expandFileEditsByDefault: true,
         chatViewPlacement: 'right-sidebar',
+        sessionAutoArchiveAfter: 'off',
         hiddenProviderCommands: {
           claude: [],
           codex: [],

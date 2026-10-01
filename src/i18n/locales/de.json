@@ -219,7 +219,14 @@
       "pinLinkedNote": "Verknüpfte Notiz anheften",
       "unpinLinkedNote": "Verknüpfte Notiz nicht mehr anheften",
       "newForNote": "Neuer Chat für {note}",
-      "cannotArchiveRunning": "Eine laufende Sitzung kann nicht archiviert werden"
+      "cannotArchiveRunning": "Eine laufende Sitzung kann nicht archiviert werden",
+      "autoArchived": "{count} inaktive Unterhaltung(en) archiviert.",
+      "selectedCount": "{count} ausgewählt",
+      "archiveSelected": "Auswahl archivieren",
+      "archiveSelectedCount": "{count} ausgewählte Unterhaltungen archivieren",
+      "selectForArchive": "{title} zum Archivieren auswählen",
+      "nativeArchiveFailed": "{provider} konnte Sitzungen nicht archivieren oder wiederherstellen: {reason}",
+      "archivedCount": "{count} Unterhaltung(en) archiviert."
     },
     "status": {
       "loadingConversation": "Unterhaltung wird geladen…",
@@ -973,6 +980,12 @@
       "emptyCatalog": "Keine {provider}-Modelle gemeldet. Prüfen Sie Ihre Konfiguration und klicken Sie auf Erkennen.",
       "loadingCatalog": "{provider}-Modelle werden geladen…",
       "stale": "Der {provider}-Modellkatalog ist veraltet. Klicken Sie auf Erkennen, um ihn zu aktualisieren."
+    },
+    "sessionAutoArchive": {
+      "name": "Inaktive Unterhaltungen automatisch archivieren",
+      "desc": "Archiviert geschlossene, nicht angeheftete Unterhaltungen automatisch, wenn sie im ausgewählten Zeitraum inaktiv waren.",
+      "off": "Aus",
+      "days": "{count} Tage"
     }
   }
 }

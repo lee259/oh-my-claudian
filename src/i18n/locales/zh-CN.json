@@ -219,7 +219,14 @@
       "pinLinkedNote": "置顶关联笔记",
       "unpinLinkedNote": "取消置顶关联笔记",
       "newForNote": "为 {note} 新建聊天",
-      "cannotArchiveRunning": "运行中的会话无法归档"
+      "cannotArchiveRunning": "运行中的会话无法归档",
+      "autoArchived": "已归档 {count} 个闲置对话。",
+      "selectedCount": "已选 {count} 个",
+      "archiveSelected": "归档所选",
+      "archiveSelectedCount": "归档所选的 {count} 个对话",
+      "selectForArchive": "选择归档：{title}",
+      "nativeArchiveFailed": "{provider} 无法归档或恢复会话：{reason}",
+      "archivedCount": "已归档 {count} 个对话。"
     },
     "status": {
       "loadingConversation": "正在加载对话…",
@@ -973,6 +980,12 @@
       "emptyCatalog": "{provider} 未报告任何模型。请检查配置并点击“发现”。",
       "loadingCatalog": "正在加载 {provider} 模型…",
       "stale": "{provider} 模型目录已过期。点击“发现”以刷新。"
+    },
+    "sessionAutoArchive": {
+      "name": "自动归档闲置对话",
+      "desc": "在所选时长内无活动、未固定且未打开的对话会自动归档。",
+      "off": "关闭",
+      "days": "{count} 天"
     }
   }
 }

@@ -219,7 +219,14 @@
       "pinLinkedNote": "Закрепить связанную заметку",
       "unpinLinkedNote": "Открепить связанную заметку",
       "newForNote": "Новый чат для {note}",
-      "cannotArchiveRunning": "Нельзя архивировать выполняющийся сеанс"
+      "cannotArchiveRunning": "Нельзя архивировать выполняющийся сеанс",
+      "autoArchived": "Архивировано бесед: {count}.",
+      "selectedCount": "Выбрано: {count}",
+      "archiveSelected": "Архивировать выбранное",
+      "archiveSelectedCount": "Архивировать выбранные беседы: {count}",
+      "selectForArchive": "Выбрать для архивации: {title}",
+      "nativeArchiveFailed": "{provider} не удалось архивировать или восстановить сеансы: {reason}",
+      "archivedCount": "Архивировано бесед: {count}."
     },
     "status": {
       "loadingConversation": "Загрузка разговора…",
@@ -973,6 +980,12 @@
       "emptyCatalog": "{provider} не сообщил ни одной модели. Проверьте конфигурацию и нажмите «Обнаружить».",
       "loadingCatalog": "Загрузка моделей {provider}…",
       "stale": "Каталог моделей {provider} устарел. Нажмите «Обнаружить», чтобы обновить его."
+    },
+    "sessionAutoArchive": {
+      "name": "Автоматически архивировать неактивные беседы",
+      "desc": "Автоматически архивировать закрытые и не закреплённые беседы, в которых не было активности в течение выбранного периода.",
+      "off": "Выкл.",
+      "days": "{count} дн."
     }
   }
 }

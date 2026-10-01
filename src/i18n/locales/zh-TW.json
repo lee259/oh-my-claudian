@@ -219,7 +219,14 @@
       "pinLinkedNote": "釘選連結筆記",
       "unpinLinkedNote": "取消釘選連結筆記",
       "newForNote": "為 {note} 新增聊天",
-      "cannotArchiveRunning": "執行中的工作階段無法封存"
+      "cannotArchiveRunning": "執行中的工作階段無法封存",
+      "autoArchived": "已封存 {count} 個閒置對話。",
+      "selectedCount": "已選取 {count} 個",
+      "archiveSelected": "封存所選項目",
+      "archiveSelectedCount": "封存所選的 {count} 個對話",
+      "selectForArchive": "選取以封存：{title}",
+      "nativeArchiveFailed": "{provider} 無法封存或還原工作階段：{reason}",
+      "archivedCount": "已封存 {count} 個對話。"
     },
     "status": {
       "loadingConversation": "正在載入對話…",
@@ -973,6 +980,12 @@
       "emptyCatalog": "{provider} 未回報任何模型。請檢查設定並點擊「探索」。",
       "loadingCatalog": "正在載入 {provider} 模型…",
       "stale": "{provider} 模型目錄已過時。點擊「探索」以重新整理。"
+    },
+    "sessionAutoArchive": {
+      "name": "自動封存閒置對話",
+      "desc": "在所選期間內沒有活動、未釘選且未開啟的對話會自動封存。",
+      "off": "關閉",
+      "days": "{count} 天"
     }
   }
 }
