@@ -958,6 +958,27 @@ describe('ProviderSettingsCoordinator', () => {
 
       expect(settings.permissionMode).toBe('normal');
     });
+
+    it.each(['auto', 'acceptEdits'])('preserves the Grok %s selection across provider projection', (mode) => {
+      const settings: Record<string, unknown> = {
+        settingsProvider: 'claude',
+        permissionMode: 'yolo',
+        providerConfigs: { grok: { enabled: true } },
+        model: 'haiku',
+        effortLevel: 'high',
+        serviceTier: 'default',
+        thinkingBudget: 'off',
+        savedProviderModel: {},
+        savedProviderEffort: {},
+        savedProviderServiceTier: {},
+        savedProviderThinkingBudget: {},
+        savedProviderPermissionMode: { grok: mode },
+      };
+
+      ProviderSettingsCoordinator.projectProviderState(settings, 'grok');
+
+      expect(settings.permissionMode).toBe(mode);
+    });
   });
 
   describe('provider-scoped reconciliation', () => {

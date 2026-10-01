@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "该文件夹已作为外部上下文添加。",
       "externalContextNestedPath": "无法添加“{path}”：它位于已有路径“{existing}”内。",
       "externalContextContainsExistingPath": "无法添加“{path}”：它包含已有路径“{existing}”。",
-      "externalContextAdded": "已添加外部上下文：{path}"
+      "externalContextAdded": "已添加外部上下文：{path}",
+      "modeGrokAuto": "自动",
+      "modeGrokAutoDescription": "Grok 会自行执行其判断为安全的操作，并对风险较高的操作请求确认。",
+      "modeGrokAcceptEdits": "接受编辑",
+      "modeGrokAcceptEditsDescription": "自动接受文件编辑，其他操作仍会请求确认。"
     },
     "history": {
       "newTab": "新标签页",

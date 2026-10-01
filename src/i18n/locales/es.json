@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Esta carpeta ya se añadió como contexto externo.",
       "externalContextNestedPath": "No se puede añadir «{path}» porque está dentro de la ruta existente «{existing}».",
       "externalContextContainsExistingPath": "No se puede añadir «{path}» porque contiene la ruta existente «{existing}».",
-      "externalContextAdded": "Contexto externo añadido: {path}"
+      "externalContextAdded": "Contexto externo añadido: {path}",
+      "modeGrokAuto": "Automático",
+      "modeGrokAutoDescription": "Grok puede realizar las acciones que considere seguras y preguntar antes de las más arriesgadas.",
+      "modeGrokAcceptEdits": "Aceptar ediciones",
+      "modeGrokAcceptEditsDescription": "Acepta automáticamente las ediciones de archivos y sigue preguntando antes de otras acciones."
     },
     "history": {
       "newTab": "Nueva pestaña",

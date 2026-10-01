@@ -45,6 +45,7 @@ import {
   type AcpUsage,
   type AcpUsageUpdate,
   buildAcpUsageInfo,
+  mapAcpApprovalDecision,
 } from '../../acp';
 import type { GrokCommandCatalog } from '../commands/GrokCommandCatalog';
 import { computeGrokEnvironmentHash } from '../env/GrokSettingsReconciler';
@@ -67,6 +68,7 @@ import {
   resolveGrokRawToolName,
 } from '../normalization/grokToolNormalization';
 import { parseGrokPromptUsage, parseGrokUsage } from '../normalization/grokUsage';
+import { shouldAutoApproveGrokPermission } from '../permissionModes';
 import { waitForGrokCancelDelivery } from '../runtime/GrokCancelDelivery';
 import type { GrokModelCatalogCoordinator } from '../runtime/GrokModelCatalogCoordinator';
 import { buildGrokRuntimeEnv } from '../runtime/GrokRuntimeEnvironment';
@@ -237,6 +239,8 @@ RewindableExecutionSession {
   private providerSessionId: string | undefined;
   private providerState: Readonly<Record<string, unknown>>;
   private forkApplied = false;
+  private nativeAlwaysApproveOverride = false;
+  private selectedPermissionMode = 'normal';
   private revision = 0;
   private snapshot: ProviderSessionSnapshot;
 
@@ -393,14 +397,25 @@ RewindableExecutionSession {
 
   async setMode(mode: string): Promise<boolean> {
     if (this.disposed) return false;
-    if (mode !== 'plan' && mode !== 'default' && mode !== 'normal') return false;
+    if (
+      mode !== 'plan'
+      && mode !== 'default'
+      && mode !== 'normal'
+      && mode !== 'auto'
+      && mode !== 'acceptEdits'
+      && mode !== 'yolo'
+    ) return false;
     try {
       const native = await this.ensureNative();
       const sessionId = await this.ensureSession(native, undefined);
       const normalized = mode === 'plan' ? 'plan' : 'default';
       await native.setMode({ modeId: normalized, sessionId });
+      if (mode !== 'default') {
+        this.selectedPermissionMode = mode;
+        this.nativeAlwaysApproveOverride = false;
+      }
       this.updateSnapshot(this.active ? 'executing' : 'idle');
-      this.emitSessionMode(normalized);
+      this.emitSessionMode(normalized === 'plan' ? 'plan' : this.selectedPermissionMode);
       return true;
     } catch {
       return false;
@@ -558,6 +573,17 @@ RewindableExecutionSession {
         if (policy === 'passive' || policy === 'read-only') {
           return Promise.resolve({ outcome: { outcome: 'cancelled' } });
         }
+        const active = this.active;
+        if (active && shouldAutoApproveGrokPermission(
+          active.request.configuration.permissionMode,
+          request.toolCall.kind,
+        )) {
+          return Promise.resolve(
+            signal?.aborted || this.isCancellationRequested(active)
+              ? { outcome: { outcome: 'cancelled' } }
+              : mapAcpApprovalDecision('allow', request.options),
+          );
+        }
         return this.interactionController.requestPermission(
           request,
           signal ?? this.active?.abortController.signal,
@@ -594,8 +620,10 @@ RewindableExecutionSession {
       }) ?? (() => {});
       owner.modeUnsubscribe = native.onModeChanged?.(mode => {
         if (!this.isCurrentNativeOwner(owner)) return;
+        const permissionMode = this.resolveNativeAlwaysApproveChange(mode === 'yolo');
+        if (!permissionMode) return;
         this.updateSnapshot(this.active ? 'executing' : 'idle');
-        this.emitSessionMode(mode);
+        this.emitSessionMode(permissionMode);
       }) ?? (() => {});
       owner.modelsUnsubscribe = native.onModelsChanged?.(models => {
         if (!this.isCurrentNativeOwner(owner)) return;
@@ -724,6 +752,8 @@ RewindableExecutionSession {
     request: ProviderExecutionRequest,
     active: ActiveExecution,
   ): Promise<void> {
+    this.selectedPermissionMode = request.configuration.permissionMode ?? 'normal';
+    this.nativeAlwaysApproveOverride = false;
     const rawModel = request.configuration.model
       ? decodeGrokModelId(request.configuration.model)
       : null;
@@ -821,7 +851,9 @@ RewindableExecutionSession {
       return;
     }
     if (result.metadata?.type === 'current_mode') {
-      this.emitSessionMode(result.metadata.currentModeId === 'plan' ? 'plan' : 'default');
+      this.emitSessionMode(
+        result.metadata.currentModeId === 'plan' ? 'plan' : this.selectedPermissionMode,
+      );
       return;
     }
     if (!active.acceptingLiveOutput) return;
@@ -1320,6 +1352,20 @@ RewindableExecutionSession {
     }
   }
 
+  /** Grok's extension only reports always-approve changes; restore the chosen mode when it turns off. */
+  private resolveNativeAlwaysApproveChange(alwaysApprove: boolean): string | null {
+    const selectedMode = this.selectedPermissionMode;
+    if (alwaysApprove) {
+      this.nativeAlwaysApproveOverride = selectedMode !== 'yolo';
+      return 'yolo';
+    }
+    if (this.nativeAlwaysApproveOverride) {
+      this.nativeAlwaysApproveOverride = false;
+      return selectedMode;
+    }
+    return selectedMode === 'yolo' ? 'normal' : null;
+  }
+
   private emitSessionMode(mode: string): void {
     const event: ProviderSessionEvent = {
       mode,
@@ -1428,11 +1474,12 @@ function buildSessionMeta(
     ? decodeGrokModelId(request.configuration.model)
     : null;
   const systemPromptOverride = buildGrokSystemPromptOverride(request);
+  const { autoMode, yoloMode } = resolveGrokPermissionMeta(request);
   return {
     ...(rawModel ? { modelId: rawModel } : {}),
     ...(systemPromptOverride ? { systemPromptOverride } : {}),
-    yoloMode: request.configuration.permissionMode === 'yolo'
-      || request.toolPolicy.kind === 'unrestricted',
+    autoMode,
+    yoloMode,
   };
 }
 
@@ -1441,9 +1488,21 @@ function buildSessionConfigurationKey(
 ): string {
   const meta = buildSessionMeta(request);
   return JSON.stringify({
+    autoMode: meta.autoMode === true,
     systemPromptOverride: meta.systemPromptOverride ?? null,
     yoloMode: meta.yoloMode === true,
   });
+}
+
+function resolveGrokPermissionMeta(
+  request: ProviderExecutionRequest,
+): { autoMode: boolean; yoloMode: boolean } {
+  const yoloMode = request.configuration.permissionMode === 'yolo'
+    || request.toolPolicy.kind === 'unrestricted';
+  return {
+    autoMode: !yoloMode && request.configuration.permissionMode === 'auto',
+    yoloMode,
+  };
 }
 
 const GROK_PASSIVE_TOOL_INSTRUCTION = [
@@ -1476,7 +1535,12 @@ function resolveGrokNativeMode(
   }
   const permissionMode = request.configuration.permissionMode;
   if (permissionMode === 'plan') return 'plan';
-  if (permissionMode === 'normal' || permissionMode === 'yolo') return 'default';
+  if (
+    permissionMode === 'normal'
+    || permissionMode === 'auto'
+    || permissionMode === 'acceptEdits'
+    || permissionMode === 'yolo'
+  ) return 'default';
   return null;
 }
 

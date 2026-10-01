@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "此資料夾已新增為外部上下文。",
       "externalContextNestedPath": "無法新增「{path}」：它位於既有路徑「{existing}」內。",
       "externalContextContainsExistingPath": "無法新增「{path}」：它包含既有路徑「{existing}」。",
-      "externalContextAdded": "已新增外部上下文：{path}"
+      "externalContextAdded": "已新增外部上下文：{path}",
+      "modeGrokAuto": "自動",
+      "modeGrokAutoDescription": "Grok 會自行執行其判斷為安全的操作，並對風險較高的操作詢問確認。",
+      "modeGrokAcceptEdits": "接受編輯",
+      "modeGrokAcceptEditsDescription": "自動接受檔案編輯，其他操作仍會詢問確認。"
     },
     "history": {
       "newTab": "新分頁",

@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Dieser Ordner wurde bereits als externer Kontext hinzugefügt.",
       "externalContextNestedPath": "„{path}“ kann nicht hinzugefügt werden, da der Pfad innerhalb des vorhandenen Pfads „{existing}“ liegt.",
       "externalContextContainsExistingPath": "„{path}“ kann nicht hinzugefügt werden, da der Pfad den vorhandenen Pfad „{existing}“ enthält.",
-      "externalContextAdded": "Externer Kontext hinzugefügt: {path}"
+      "externalContextAdded": "Externer Kontext hinzugefügt: {path}",
+      "modeGrokAuto": "Automatisch",
+      "modeGrokAutoDescription": "Grok kann als sicher eingestufte Aktionen ausführen und fragt bei riskanteren Aktionen nach.",
+      "modeGrokAcceptEdits": "Änderungen akzeptieren",
+      "modeGrokAcceptEditsDescription": "Dateiänderungen automatisch akzeptieren; bei anderen Aktionen weiterhin nachfragen."
     },
     "history": {
       "newTab": "Neuer Tab",

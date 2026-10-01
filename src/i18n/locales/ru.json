@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "Эта папка уже добавлена как внешний контекст.",
       "externalContextNestedPath": "Не удалось добавить «{path}»: он находится внутри существующего пути «{existing}».",
       "externalContextContainsExistingPath": "Не удалось добавить «{path}»: он содержит существующий путь «{existing}».",
-      "externalContextAdded": "Добавлен внешний контекст: {path}"
+      "externalContextAdded": "Добавлен внешний контекст: {path}",
+      "modeGrokAuto": "Автоматически",
+      "modeGrokAutoDescription": "Grok может выполнять действия, которые считает безопасными, и запрашивать подтверждение для рискованных.",
+      "modeGrokAcceptEdits": "Принимать правки",
+      "modeGrokAcceptEditsDescription": "Автоматически принимать изменения файлов, продолжая запрашивать подтверждение для других действий."
     },
     "history": {
       "newTab": "Новая вкладка",

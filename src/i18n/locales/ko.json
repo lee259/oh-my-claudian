@@ -172,7 +172,11 @@
       "externalContextAlreadyAdded": "이 폴더는 이미 외부 컨텍스트로 추가되어 있습니다.",
       "externalContextNestedPath": "기존 경로 \"{existing}\" 안에 있으므로 \"{path}\"을(를) 추가할 수 없습니다.",
       "externalContextContainsExistingPath": "기존 경로 \"{existing}\"을(를) 포함하므로 \"{path}\"을(를) 추가할 수 없습니다.",
-      "externalContextAdded": "외부 컨텍스트 추가됨: {path}"
+      "externalContextAdded": "외부 컨텍스트 추가됨: {path}",
+      "modeGrokAuto": "자동",
+      "modeGrokAutoDescription": "Grok이 안전하다고 판단한 작업은 자동으로 수행하고 위험한 작업은 확인을 요청합니다.",
+      "modeGrokAcceptEdits": "편집 허용",
+      "modeGrokAcceptEditsDescription": "파일 편집은 자동으로 허용하고 다른 작업은 계속 확인을 요청합니다."
     },
     "history": {
       "newTab": "새 탭",

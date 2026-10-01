@@ -802,6 +802,45 @@ describe('Tab provider execution ownership', () => {
     expect(tab.state.prePlanPermissionMode).toBeNull();
   });
 
+  it('preserves Grok native permission modes from provider events', async () => {
+    const conversation = {
+      ...createConversation(),
+      providerId: 'grok',
+      selectedModel: 'grok/grok-4',
+    };
+    const plugin = createPlugin({
+      getConversationSync: jest.fn().mockReturnValue(conversation),
+    });
+    const getChatUIConfig = jest.mocked(ProviderRegistry.getChatUIConfig);
+    const originalGetChatUIConfig = getChatUIConfig.getMockImplementation();
+    const grokUiConfig = getChatUIConfig('claude');
+    getChatUIConfig.mockReturnValue({
+      ...grokUiConfig,
+      applyPermissionMode: (mode: string, settings: Record<string, unknown>) => {
+        settings.permissionMode = mode;
+      },
+      getPermissionModeOptions: () => [{ value: 'auto', label: 'Auto' }],
+    } as any);
+    const tab = createTab({ plugin, containerEl: createMockEl() as any, conversation });
+    expect(tab.conversationId).toBe(conversation.id);
+
+    await coordinatorDeps[0].onRequestedEvent?.({
+      mode: 'auto',
+      scope: {
+        executionId: 'execution-1',
+        kind: 'requested',
+        sequence: 1,
+        sessionInstanceId: 'session-instance-1',
+        turnId: 'turn-1',
+      },
+      snapshot: { permissionMode: 'auto' },
+      type: 'mode_changed',
+    } as any, {} as any);
+    if (originalGetChatUIConfig) getChatUIConfig.mockImplementation(originalGetChatUIConfig);
+
+    expect(plugin.settings.permissionMode).toBe('auto');
+  });
+
   it('routes provider interactions through the current input controller', async () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });
