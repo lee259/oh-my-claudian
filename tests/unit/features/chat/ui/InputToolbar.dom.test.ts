@@ -384,7 +384,7 @@ describe('createInputToolbar', () => {
     ['Claude Code', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto'], []],
     ['Codex CLI', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
     ['Cursor', 'cursor', cursorChatUIConfig, ['Agent', 'Ask', 'Plan'], []],
-    ['Grok Build', 'grok', grokChatUIConfig, ['Ask', 'Plan', 'Always approve'], ['Always approve']],
+    ['Grok Build', 'grok', grokChatUIConfig, ['Auto', 'Ask', 'Plan', 'Accept edits', 'Always approve'], ['Always approve']],
     ['OMP', 'omp', ompChatUIConfig, ['Always ask', 'Write', 'YOLO'], ['YOLO']],
     ['OpenCode', 'opencode', opencodeChatUIConfig, ['Build', 'Plan'], []],
     ['Pi', 'pi', piChatUIConfig, ['Read only', 'All tools'], ['All tools']],
