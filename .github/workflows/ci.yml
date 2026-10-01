@@ -46,7 +46,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Audit dependencies
-        run: pnpm audit --audit-level high
+        run: pnpm audit --audit-level moderate
 
   lint:
     runs-on: ubuntu-latest
