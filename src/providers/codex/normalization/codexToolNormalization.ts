@@ -35,6 +35,83 @@ const NATIVE_TOOLS = new Set([
   'close_agent',
 ]);
 
+const INTERNAL_TOOL_NAMESPACES = new Set(['history', 'notes']);
+const INTERNAL_TOOL_NAMES = new Set(['new_context', 'get_context_remaining']);
+
+/** Returns whether an app-server tool call belongs to Codex's private context machinery. */
+export function isCodexInternalToolCall(rawName: string | undefined, namespace?: unknown): boolean {
+  if (typeof namespace === 'string' && INTERNAL_TOOL_NAMESPACES.has(namespace)) return true;
+  return INTERNAL_TOOL_NAMES.has(rawName ?? '');
+}
+
+/** Compares a decoded script request with the native app-server item that completes it. */
+export function codexToolRequestsMatch(
+  name: string,
+  requested: Record<string, unknown>,
+  native: Record<string, unknown>,
+): boolean {
+  if (name !== 'WebSearch') return stableValueKey(requested) === stableValueKey(native);
+  if (Array.isArray(requested.actions) && requested.actions.length > 1) {
+    return requested.actions.some(action => (
+      action !== null && typeof action === 'object' && !Array.isArray(action)
+      && codexToolRequestsMatch(name, action as Record<string, unknown>, native)
+    ));
+  }
+
+  const requestedWeb = normalizeComparedWebInput(requested);
+  const nativeWeb = normalizeComparedWebInput(native);
+  if (nativeWeb.actionType === 'other'
+    && (requestedWeb.actionType === 'open_page' || requestedWeb.actionType === 'click')) return true;
+  if (nativeWeb.actionType === 'find_in_page' && !nativeWeb.url) delete requestedWeb.url;
+  return stableValueKey(requestedWeb) === stableValueKey(nativeWeb);
+}
+
+function normalizeComparedWebInput(input: Record<string, unknown>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = { ...input };
+  if (normalized.actionType === 'open_page' || normalized.actionType === 'find_in_page') {
+    delete normalized.query;
+    delete normalized.queries;
+  } else if (Array.isArray(normalized.queries) && normalized.queries.length > 0) {
+    normalized.query = normalized.queries[0];
+    if (normalized.queries.length === 1) delete normalized.queries;
+  }
+  return normalized;
+}
+
+function stableValueKey(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableValueKey).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${stableValueKey(record[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** Formats safe native web search sources for the existing tool-result link renderer. */
+export function formatCodexWebSearchResults(results: unknown): string | undefined {
+  if (!Array.isArray(results)) return undefined;
+
+  const links = results.flatMap(result => {
+    if (result === null || typeof result !== 'object' || Array.isArray(result)) return [];
+    const item = result as Record<string, unknown>;
+    if (typeof item.title !== 'string' || typeof item.url !== 'string') return [];
+
+    const title = item.title.trim();
+    const url = item.url.trim();
+    if (!title || !url) return [];
+
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return [];
+      return [{ title, url }];
+    } catch {
+      return [];
+    }
+  });
+
+  return links.length > 0 ? `Links: ${JSON.stringify(links)}` : undefined;
+}
+
 export function normalizeCodexToolName(rawName: string | undefined): string {
   if (!rawName) return 'tool';
   if (NATIVE_TOOLS.has(rawName)) return rawName;
@@ -590,7 +667,14 @@ function normalizeWebSearchInput(input: Record<string, unknown>): Record<string,
     ? input.action as Record<string, unknown>
     : {};
 
-  const queries = normalizeStringArray(action.queries ?? input.queries);
+  const searchQueries = Array.isArray(input.search_query)
+    ? input.search_query.flatMap(entry => (
+      entry && typeof entry === 'object' && !Array.isArray(entry)
+        ? [firstNonEmptyString((entry as Record<string, unknown>).q)]
+        : []
+    ))
+    : [];
+  const queries = normalizeStringArray(action.queries ?? input.queries ?? searchQueries);
   const query = firstNonEmptyString(action.query, input.query, queries[0]);
   const url = firstNonEmptyString(action.url, input.url);
   const pattern = firstNonEmptyString(action.pattern, input.pattern);

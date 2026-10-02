@@ -17,6 +17,187 @@ import { formatCodexQuestionReply } from '@/providers/codex/normalization/codexQ
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  it('does not restore Codex internal context calls or their private output', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'function_call',
+          name: 'get_context_remaining',
+          call_id: 'private-context',
+          arguments: '{}',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'function_call_output',
+          call_id: 'private-context',
+          output: '{"tokens_left":100}',
+        },
+      }),
+    ].join('\n');
+
+    expect(parseCodexSessionContent(content)).toEqual([]);
+  });
+
+  it('does not restore private output from an exec wrapper around a context tool', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'private-script',
+          input: 'text(await tools.get_context_remaining({}));',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'private-script',
+          output: 'Script completed\nOutput:\n{"tokens_left":100}',
+        },
+      }),
+    ].join('\n');
+
+    expect(JSON.stringify(parseCodexSessionContent(content))).not.toMatch(/get_context_remaining|tokens_left/);
+  });
+
+  it('does not restore yielded internal output or its wait continuation', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'private-yield',
+          input: 'text(await tools.get_context_remaining({}));',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'private-yield',
+          output: 'Script running with cell ID 42\nWall time 0.1 seconds\nOutput:\n',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: { type: 'function_call', name: 'wait', call_id: 'private-wait', arguments: '{"cell_id":"42"}' },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'function_call_output',
+          call_id: 'private-wait',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}',
+        },
+      }),
+    ].join('\n');
+
+    expect(parseCodexSessionContent(content)).toEqual([]);
+  });
+
+  it('does not attach aggregate private output to visible calls in a mixed exec wrapper', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'mixed-script',
+          input: 'text(await tools.get_context_remaining({})); text(await tools.exec_command({cmd:"pwd"}));',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'mixed-script',
+          output: 'Script completed\nOutput:\n{"tokens_left":100}\n/workspace',
+        },
+      }),
+    ].join('\n');
+
+    const messages = parseCodexSessionContent(content);
+    const rendered = JSON.stringify(messages);
+    expect(rendered).not.toMatch(/get_context_remaining|tokens_left/);
+    expect(rendered).toContain('"name":"Bash"');
+    expect(rendered).toContain('"command":"pwd"');
+    expect(rendered).not.toContain('/workspace');
+  });
+
+  it('hides a yielded mixed-script continuation in history', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'mixed-yield',
+          input: 'text(await tools.get_context_remaining({})); text(await tools.exec_command({cmd:"pwd"}));',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'mixed-yield',
+          output: 'Script running with cell ID 42\nWall time 0.1 seconds\nOutput:\n',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: { type: 'function_call', name: 'wait', call_id: 'mixed-wait', arguments: '{"cell_id":"42"}' },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'function_call_output',
+          call_id: 'mixed-wait',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}\n/workspace',
+        },
+      }),
+    ].join('\n');
+
+    const rendered = JSON.stringify(parseCodexSessionContent(content));
+    expect(rendered).not.toMatch(/get_context_remaining|tokens_left|mixed-wait/);
+    expect(rendered).toContain('"name":"Bash"');
+  });
+
+  it('keeps a separately framed visible result from a mixed exec wrapper', () => {
+    const content = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'split-script',
+          input: 'text(await tools.get_context_remaining({})); text(await tools.exec_command({cmd:"pwd"}));',
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'split-script',
+          output: [
+            { type: 'text', text: 'Script completed\nOutput:\n' },
+            { type: 'text', text: '{"tokens_left":100}' },
+            { type: 'text', text: '/workspace' },
+          ],
+        },
+      }),
+    ].join('\n');
+
+    const rendered = JSON.stringify(parseCodexSessionContent(content));
+    expect(rendered).not.toMatch(/get_context_remaining|tokens_left/);
+    expect(rendered).toContain('/workspace');
+  });
+
   it('reads the selected model from a transcript without loading the whole file', async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-history-model-'));
     const filePath = path.join(directory, 'session.jsonl');
@@ -1800,7 +1981,7 @@ describe('CodexHistoryStore', () => {
       expect(searchTool!.status).toBe('completed');
     });
 
-    it('keeps distinct persisted web_search_call entries when call_id is missing', () => {
+  it('keeps distinct persisted web_search_call entries when call_id is missing', () => {
       const content = [
         JSON.stringify({
           timestamp: '2026-03-27T00:00:00.000Z',
@@ -1843,6 +2024,71 @@ describe('CodexHistoryStore', () => {
         input: { actionType: 'open_page', url: 'https://docs.obsidian.md' },
         result: 'Search complete',
       });
+    });
+
+    it('restores native web search result links from an extension item', () => {
+      const content = [
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:00.000Z',
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call',
+            name: 'exec',
+          call_id: 'search-call-a',
+          input: 'text(await tools.web__run({search_query:[{q:"Claudian docs"}]}));',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-03-27T00:00:00.500Z',
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'search-call-b',
+          input: 'text(await tools.web__run({search_query:[{q:"Codex docs"},{q:"Codex API"}]}));',
+          },
+        }),
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:01.000Z',
+          type: 'event_msg',
+          payload: {
+            type: 'item_completed',
+            item: {
+              type: 'Extension',
+              kind: 'web.search',
+              id: 'native-search',
+              query: 'Codex docs ...',
+              action: { type: 'search', queries: ['Codex docs', 'Codex API'] },
+              results: [{ type: 'text_result', title: 'Codex guide', url: 'https://example.com/docs', snippet: 'private excerpt' }],
+            },
+          },
+        }),
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:02.000Z',
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call_output',
+            call_id: 'search-call-a',
+            output: 'Search complete',
+          },
+        }),
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:02.500Z',
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call_output',
+            call_id: 'search-call-b',
+            output: 'Search complete',
+          },
+        }),
+      ].join('\n');
+
+      const tools = parseCodexSessionContent(content)
+        .flatMap(message => message.toolCalls ?? [])
+        .filter(call => call.name === 'WebSearch');
+      expect(tools.find(call => call.input.query === 'Codex docs')?.result)
+        .toBe('Links: [{"title":"Codex guide","url":"https://example.com/docs"}]');
+      expect(tools.find(call => call.input.query === 'Claudian docs')?.result).toBe('Search complete');
     });
   });
 

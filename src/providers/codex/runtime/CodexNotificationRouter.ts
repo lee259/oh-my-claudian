@@ -11,6 +11,8 @@ import {
   appendCodexCommandOutput,
   decodeCodexExecEnvelopeCalls,
   extractCodexExecCellId,
+  formatCodexWebSearchResults,
+  isCodexInternalToolCall,
   isCodexToolOutputError,
   normalizeCodexToolCall,
   normalizeCodexToolInput,
@@ -97,6 +99,7 @@ interface DeferredRawExecCall {
   }>;
   hasRawOutput?: boolean;
   rawOutput?: unknown;
+  withholdsRawOutput?: boolean;
 }
 
 const COLLAB_AGENT_TOOL_MAP: Record<string, string> = {
@@ -153,6 +156,8 @@ export class CodexNotificationRouter {
   private deferredOwnedCanonicalItemIds = new Set<string>();
   private ignoredLateRawOutputCallIds = new Set<string>();
   private suppressedRawCallIds = new Set<string>();
+  private withheldExecCellIds = new Set<string>();
+  private withheldOutputCallIds = new Set<string>();
   private fileChangeInputsById = new Map<string, Record<string, unknown>>();
 
   constructor(
@@ -252,6 +257,8 @@ export class CodexNotificationRouter {
     this.wrappedCommandCallIdsByCellId.clear();
     this.wrappedCommandOutputByCallId.clear();
     this.wrappedWaitCallsByCallId.clear();
+    this.withheldExecCellIds.clear();
+    this.withheldOutputCallIds.clear();
     this.pendingWrappedWaitCallsByCallId.clear();
     this.canonicalCommandOutputByItemId.clear();
     this.pendingCanonicalToolOutputByItemId.clear();
@@ -293,6 +300,8 @@ export class CodexNotificationRouter {
     this.wrappedCommandCallIdsByCellId.clear();
     this.wrappedCommandOutputByCallId.clear();
     this.wrappedWaitCallsByCallId.clear();
+    this.withheldExecCellIds.clear();
+    this.withheldOutputCallIds.clear();
     this.pendingWrappedWaitCallsByCallId.clear();
     this.canonicalCommandOutputByItemId.clear();
     this.pendingCanonicalToolOutputByItemId.clear();
@@ -654,9 +663,17 @@ export class CodexNotificationRouter {
       this.ignoredLateRawOutputCallIds.add(callId);
       return;
     }
+    if (isCodexInternalToolCall(rawName, item.namespace)) {
+      this.suppressedRawCallIds.add(callId);
+      return;
+    }
     const rawArguments = parseRawArguments(item);
     if (rawName === 'wait') {
       const cellId = readCodexExecCellIdArgument(rawArguments);
+      if (cellId && this.withheldExecCellIds.delete(cellId)) {
+        this.withheldOutputCallIds.add(callId);
+        return;
+      }
       const commandCallId = cellId
         ? this.wrappedCommandCallIdsByCellId.get(cellId)
         : undefined;
@@ -699,6 +716,11 @@ export class CodexNotificationRouter {
       return;
     }
 
+    if (isCodexInternalToolCall(rawName, item.namespace)) {
+      this.suppressedRawCallIds.add(callId);
+      return;
+    }
+
     const rawArguments = parseRawArguments(item);
     if (rawName === 'apply_patch') {
       const input = normalizeCodexToolInput(rawName, rawArguments);
@@ -715,14 +737,25 @@ export class CodexNotificationRouter {
 
     if (rawName === 'exec') {
       const expectedCalls = decodeCodexExecEnvelopeCalls(rawArguments);
+      const internalCalls = expectedCalls?.filter(call => isCodexInternalToolCall(call.rawName)) ?? [];
+      const visibleCalls = expectedCalls?.filter(call => !isCodexInternalToolCall(call.rawName)) ?? [];
       const isSingleCommand = expectedCalls?.length === 1
         && expectedCalls[0]?.name === 'Bash';
-      if (!isSingleCommand) {
+      if (internalCalls.length > 0 && visibleCalls.length === 0) {
+        this.withheldOutputCallIds.add(callId);
+        const pendingOutput = this.pendingRawOutputItemsByCallId.get(callId);
+        if (pendingOutput) {
+          this.pendingRawOutputItemsByCallId.delete(callId);
+          this.handleRawToolOutput(pendingOutput);
+        }
+        return;
+      }
+      if (!isSingleCommand || internalCalls.length > 0) {
         this.deferredRawExecCalls.set(callId, {
           callId,
           item,
           rawArguments,
-          expectedCalls: (expectedCalls ?? []).map((call) => {
+          expectedCalls: visibleCalls.map((call) => {
             const semanticCall = projectRawSemanticToolCall(
               call.name,
               call.input,
@@ -732,6 +765,7 @@ export class CodexNotificationRouter {
             );
             return { ...semanticCall, claimed: false };
           }),
+          ...(internalCalls.length > 0 ? { withholdsRawOutput: true } : {}),
         });
         this.claimActiveCanonicalProjections();
         if (this.streamRawExecCalls) {
@@ -846,6 +880,11 @@ export class CodexNotificationRouter {
       return;
     }
 
+    if (this.withheldOutputCallIds.delete(callId)) {
+      this.withholdExecCell(item.output);
+      return;
+    }
+
     if (this.suppressedRawCallIds.delete(callId)) {
       return;
     }
@@ -862,8 +901,15 @@ export class CodexNotificationRouter {
     if (deferredExec) {
       if (deferredExec.expectedCalls.length > 0) {
         deferredExec.hasRawOutput = true;
-        deferredExec.rawOutput = item.output;
-        if (this.streamRawExecCalls) this.emitDeferredRawExecFallback(deferredExec, item.output, true);
+        if (!deferredExec.withholdsRawOutput) deferredExec.rawOutput = item.output;
+        if (deferredExec.withholdsRawOutput) this.withholdExecCell(item.output);
+        if (this.streamRawExecCalls) {
+          this.emitDeferredRawExecFallback(
+            deferredExec,
+            deferredExec.withholdsRawOutput ? undefined : item.output,
+            true,
+          );
+        }
         if (deferredExec.expectedCalls.every(call => (
           call.claimed && call.canonicalCompleted
         ))) {
@@ -983,6 +1029,12 @@ export class CodexNotificationRouter {
         this.handleRawToolOutput(pendingOutput);
       }
     }
+  }
+
+  /** Tracks hidden continuations so their following wait calls cannot expose output. */
+  private withholdExecCell(rawOutput: unknown): void {
+    const cellId = extractCodexExecCellId(stringifyCodexToolOutput(rawOutput));
+    if (cellId) this.withheldExecCellIds.add(cellId);
   }
 
   private appendWrappedCommandOutput(callId: string, content: string): void {
@@ -1155,6 +1207,8 @@ export class CodexNotificationRouter {
     this.wrappedCommandCallIdsByCellId.clear();
     this.wrappedCommandOutputByCallId.clear();
     this.wrappedWaitCallsByCallId.clear();
+    this.withheldExecCellIds.clear();
+    this.withheldOutputCallIds.clear();
     this.pendingWrappedWaitCallsByCallId.clear();
     this.inFlightRawFunctionCallIds.clear();
     this.immediateRawOutputCallIds.clear();
@@ -1642,10 +1696,11 @@ export class CodexNotificationRouter {
   }
 
   private emitToolResultFromWebSearch(item: WebSearchItem): void {
+    const result = formatCodexWebSearchResults(item.results);
     this.emit({
       type: 'tool_result',
       id: item.id,
-      content: 'Search complete',
+      content: result ?? 'Search complete',
       isError: item.status === 'failed' || item.status === 'error',
     });
   }
