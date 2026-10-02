@@ -42,7 +42,6 @@ import {
   DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import {
-  deriveCodexMemoriesDirFromSessionsRoot,
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFileAsync,
 } from '../history/CodexHistoryStore';
@@ -59,6 +58,8 @@ import {
   resolveCodexAppServerLaunchSpec,
 } from '../runtime/codexAppServerSupport';
 import type {
+  ConfigReadParams,
+  ConfigReadResult,
   ItemCompletedNotification,
   SandboxPolicy,
   ServerRequestResolvedNotification,
@@ -130,7 +131,7 @@ const JSON_RPC_PRE_HANDOFF_REJECTION_CODES = new Set([
 interface CodexPolicy {
   readonly approvalPolicy: string;
   readonly sandbox: string;
-  readonly sandboxPolicy: SandboxPolicy;
+  readonly sandboxPolicy?: SandboxPolicy;
 }
 
 interface CodexInputBundle {
@@ -310,6 +311,8 @@ export class CodexExecutionSession
 
   private threadId: string | null;
   private loadedThreadId: string | null = null;
+  private loadedThreadSandbox: string | null = null;
+  private loadedThreadSandboxRevision = 0;
   private sessionFilePath: string | null;
   private workspaceDependencyToolVersion: number | null;
   private pendingFork: CodexProviderState['forkSource'];
@@ -615,6 +618,12 @@ export class CodexExecutionSession
         },
       };
 
+      const sandboxPolicy = await this.resolveTurnSandboxPolicy(policy);
+      if (!this.isRunCurrent(run, generation)) return;
+      // A turn override may take effect before, or without, its acknowledgement.
+      const sandboxRevision = sandboxPolicy
+        ? this.setLoadedThreadSandbox(null)
+        : null;
       const result = await this.transport!.request<TurnStartResult>('turn/start', {
         threadId: thread.threadId,
         input: bundle.input,
@@ -623,9 +632,12 @@ export class CodexExecutionSession
         serviceTier,
         effort,
         summary: getEffectiveCodexReasoningSummary(settings, model),
-        sandboxPolicy: this.buildTurnSandboxPolicy(request, policy),
+        ...(sandboxPolicy ? { sandboxPolicy } : {}),
         collaborationMode,
       });
+      if (sandboxRevision === this.loadedThreadSandboxRevision) {
+        this.setLoadedThreadSandbox(policy.sandbox);
+      }
       this.markNativeConversationContextEstablished(run);
       if (!this.isRunCurrent(run, generation)) return;
       this.observeNativeTurn(thread.threadId, result.turn.id);
@@ -1144,6 +1156,7 @@ export class CodexExecutionSession
       );
       this.subagents.seed(result.thread);
       this.loadedThreadId = result.thread.id;
+      this.setLoadedThreadSandbox(sandboxModeOf(result.sandbox));
       return {
         threadId: result.thread.id,
         sessionFilePath: this.toHostSessionPath(result.thread.path),
@@ -1187,6 +1200,7 @@ export class CodexExecutionSession
     );
     this.subagents.seed(result.thread);
     this.loadedThreadId = result.thread.id;
+    this.setLoadedThreadSandbox(sandboxModeOf(result.sandbox));
     this.workspaceDependencyToolVersion = dynamicTools.some(spec =>
       spec.namespace === CODEX_WORKSPACE_DEPENDENCY_TOOL_NAMESPACE
       && spec.name === CODEX_WORKSPACE_DEPENDENCY_TOOL_NAME
@@ -1288,6 +1302,7 @@ export class CodexExecutionSession
     }
 
     this.loadedThreadId = target.threadId;
+    this.setLoadedThreadSandbox(sandboxModeOf(resumeResult.sandbox));
     const checkpointIndex = resumeResult.thread.turns.findIndex(
       turn => turn.id === fork.resumeAt,
     );
@@ -1333,6 +1348,7 @@ export class CodexExecutionSession
       'thread/fork',
       { threadId: fork.sessionId },
     ).then((forkResult) => {
+      this.setLoadedThreadSandbox(sandboxModeOf(forkResult.sandbox));
       const threadId = normalizeString(forkResult.thread.id);
       if (!threadId) {
         throw new Error('Codex CLI fork did not return a child thread ID.');
@@ -1618,6 +1634,7 @@ export class CodexExecutionSession
     this.launchSpec = null;
     this.runtimeContext = null;
     this.loadedThreadId = null;
+    this.setLoadedThreadSandbox(null);
     this.dynamicToolRegistry = new CodexDynamicToolRegistry();
     this.serverRequestRouter.setDynamicToolRegistry(null);
 
@@ -1917,47 +1934,38 @@ export class CodexExecutionSession
       ?? 'normal';
     const safeMode = getCodexProviderSettings(settings).safeMode;
     const sandboxConfig = resolveCodexSandboxConfig(permissionMode, safeMode);
-    return {
-      ...sandboxConfig,
-      sandboxPolicy: sandboxConfig.sandbox === 'danger-full-access'
-        ? { type: 'dangerFullAccess' }
-        : sandboxConfig.sandbox === 'read-only'
-          ? strictReadOnlySandbox()
-          : this.buildWorkspaceWriteSandboxPolicy([]),
-    };
+    if (sandboxConfig.sandbox === 'danger-full-access') {
+      return { ...sandboxConfig, sandboxPolicy: { type: 'dangerFullAccess' } };
+    }
+    if (sandboxConfig.sandbox === 'read-only') {
+      return { ...sandboxConfig, sandboxPolicy: strictReadOnlySandbox() };
+    }
+    return sandboxConfig;
   }
 
-  private buildTurnSandboxPolicy(
-    request: ProviderExecutionRequest,
+  private setLoadedThreadSandbox(mode: string | null): number {
+    this.loadedThreadSandbox = mode;
+    return ++this.loadedThreadSandboxRevision;
+  }
+
+  private async resolveTurnSandboxPolicy(
     policy: CodexPolicy,
-  ): SandboxPolicy {
-    if (policy.sandbox !== 'workspace-write') return policy.sandboxPolicy;
-    // External context remains readable through the sandbox's read-only
-    // access. It must never be promoted to a writable root for a turn.
-    return this.buildWorkspaceWriteSandboxPolicy([]);
-  }
+  ): Promise<SandboxPolicy | undefined> {
+    if (policy.sandboxPolicy) return policy.sandboxPolicy;
+    if (this.loadedThreadSandbox === policy.sandbox) return undefined;
+    if (policy.sandbox !== 'workspace-write') return strictReadOnlySandbox();
 
-  private buildWorkspaceWriteSandboxPolicy(
-    externalPaths: readonly string[],
-  ): SandboxPolicy {
-    const transcriptRoot = this.resolveTranscriptRootTarget();
-    const memoriesDir = deriveCodexMemoriesDirFromSessionsRoot(transcriptRoot)
-      ?? this.runtimeContext?.memoriesDirTarget
-      ?? null;
-    const roots = [
-      this.resolveTargetWorkingDirectory(),
-      ...externalPaths.map(hostPath => this.mapRequiredHostPath(hostPath)),
-      memoriesDir,
-      this.mapHostPathToTarget(os.tmpdir()),
-      this.launchSpec?.target.platformFamily === 'unix' ? '/tmp' : null,
-    ].filter((value): value is string => Boolean(value?.trim()));
+    const { config } = await this.transport!.request<ConfigReadResult>('config/read', {
+      cwd: this.resolveTargetWorkingDirectory(),
+    } satisfies ConfigReadParams);
+    const configured = config.sandbox_workspace_write;
     return {
       type: 'workspaceWrite',
-      writableRoots: [...new Set(roots)],
+      writableRoots: configured?.writable_roots ?? [],
       readOnlyAccess: { type: 'fullAccess' },
-      networkAccess: false,
-      excludeTmpdirEnvVar: false,
-      excludeSlashTmp: false,
+      networkAccess: configured?.network_access ?? false,
+      excludeTmpdirEnvVar: configured?.exclude_tmpdir_env_var ?? false,
+      excludeSlashTmp: configured?.exclude_slash_tmp ?? false,
     };
   }
 
@@ -2121,15 +2129,6 @@ export class CodexExecutionSession
       ?? deriveCodexSessionsRootFromSessionPath(this.sessionFilePath);
   }
 
-  private resolveTranscriptRootTarget(): string | null {
-    if (this.runtimeContext?.sessionsDirTarget) {
-      return this.runtimeContext.sessionsDirTarget;
-    }
-    if (!this.sessionFilePath) return null;
-    const targetPath = this.mapHostPathToTarget(this.sessionFilePath);
-    return deriveCodexSessionsRootFromSessionPath(targetPath);
-  }
-
   private discoverSessionFile(): void {
     const threadId = this.threadId;
     if (
@@ -2221,6 +2220,15 @@ function resolveCodexSandboxConfig(
     return { approvalPolicy: 'on-request', sandbox: 'workspace-write' };
   }
   return { approvalPolicy: 'on-request', sandbox: safeMode };
+}
+
+function sandboxModeOf(policy: SandboxPolicy | undefined): string | null {
+  switch (policy?.type) {
+    case 'dangerFullAccess': return 'danger-full-access';
+    case 'workspaceWrite': return 'workspace-write';
+    case 'readOnly': return 'read-only';
+    default: return null;
+  }
 }
 
 function strictReadOnlySandbox(): SandboxPolicy {
