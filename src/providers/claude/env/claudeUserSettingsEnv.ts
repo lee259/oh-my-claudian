@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { resolveClaudeConfigDir } from '../config/ClaudeConfigDir';
+import { CLAUDE_MODEL_TIER_DEFINITIONS, type ClaudeModelTier } from '../modelTiers';
 import { CLAUDE_MODEL_ENV_KEYS } from './claudeModelEnv';
 
 /**
@@ -14,11 +15,14 @@ export interface ClaudeUserSettingsModelEnvironment {
   env: Record<string, string>;
   /** Display names (ANTHROPIC_DEFAULT_*_MODEL_NAME) keyed by their model id. */
   displayNames: Record<string, string>;
+  /** Tier-specific names stay distinct even when several tiers target one model id. */
+  tierDisplayNames: Partial<Record<ClaudeModelTier, string>>;
 }
 
 const EMPTY_ENVIRONMENT: ClaudeUserSettingsModelEnvironment = {
   env: {},
   displayNames: {},
+  tierDisplayNames: {},
 };
 
 /**
@@ -50,6 +54,7 @@ export function readClaudeUserSettingsModelFile(
     : {};
   const result: Record<string, string> = {};
   const displayNames: Record<string, string> = {};
+  const tierDisplayNames: Partial<Record<ClaudeModelTier, string>> = {};
 
   for (const envKey of CLAUDE_MODEL_ENV_KEYS) {
     const value = env[envKey];
@@ -63,10 +68,16 @@ export function readClaudeUserSettingsModelFile(
     const name = env[envKey + '_NAME'];
     if (typeof name === 'string' && name.length > 0) {
       displayNames[value] = name;
+      const tier = CLAUDE_MODEL_TIER_DEFINITIONS.find(
+        definition => definition.environmentKey === envKey,
+      );
+      if (tier) {
+        tierDisplayNames[tier.id] = name;
+      }
     }
   }
 
-  return { env: result, displayNames };
+  return { env: result, displayNames, tierDisplayNames };
 }
 
 /**
@@ -79,7 +90,7 @@ export function getClaudeUserSettingsModelEnvironment(
   configDir?: string,
 ): ClaudeUserSettingsModelEnvironment {
   if (process.env.NODE_ENV === 'test') {
-    return { ...EMPTY_ENVIRONMENT };
+    return { ...EMPTY_ENVIRONMENT, env: {}, displayNames: {}, tierDisplayNames: {} };
   }
   const directory = configDir ?? resolveClaudeConfigDir();
   return readClaudeUserSettingsModelFile(path.join(directory, 'settings.json'));

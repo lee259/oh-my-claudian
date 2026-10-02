@@ -27,6 +27,7 @@ export interface ClaudeProviderSettings {
   enableBangBash: boolean;
   promptSuggestions: boolean;
   agentProgressSummaries: boolean;
+  visibleModels: string[] | null;
   customModels: string;
   discoveredModels: ClaudeDiscoveredModel[];
   defaultModel: string;
@@ -47,6 +48,7 @@ export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> 
   enableBangBash: false,
   promptSuggestions: false,
   agentProgressSummaries: false,
+  visibleModels: null,
   customModels: '',
   discoveredModels: [],
   defaultModel: 'opus',
@@ -79,6 +81,20 @@ function normalizeClaudeModelEnvironmentType(
   return typeof value === 'string' && isClaudeModelEnvironmentType(value)
     ? value
     : '';
+}
+
+function normalizeClaudeVisibleModels(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return [...new Set(value.flatMap((model) => {
+    if (typeof model !== 'string') {
+      return [];
+    }
+    const normalized = model.trim();
+    return normalized ? [normalized] : [];
+  }))];
 }
 
 export function getClaudeProviderSettings(
@@ -129,6 +145,7 @@ export function getClaudeProviderSettings(
       config.agentProgressSummaries,
       DEFAULT_CLAUDE_PROVIDER_SETTINGS.agentProgressSummaries,
     ),
+    visibleModels: normalizeClaudeVisibleModels(config.visibleModels),
     customModels: readStoredString(
       config.customModels,
       DEFAULT_CLAUDE_PROVIDER_SETTINGS.customModels,

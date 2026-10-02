@@ -8,7 +8,11 @@ import { getClaudeUserSettingsModelEnvironment } from './env/claudeUserSettingsE
 import type { ClaudeDiscoveredModel } from './modelCatalog';
 import { formatCustomModelLabel } from './modelLabels';
 import { encodeClaudeModelSelectionId, toClaudeRuntimeModelId } from './modelSelection';
-import { isClaudeModelTier } from './modelTiers';
+import {
+  CLAUDE_MODEL_TIER_DEFINITIONS,
+  type ClaudeModelTier,
+  isClaudeModelTier,
+} from './modelTiers';
 import { getClaudeProviderSettings } from './settings';
 import { DEFAULT_CLAUDE_MODELS, normalizeLegacyClaudeModelAlias } from './types/models';
 
@@ -138,17 +142,104 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
   const discoveredModels = claudeSettings.discoveredModels;
   if (customModels.length > 0) {
     const settingsConfiguredModelIds = new Set(Object.values(userModelEnvironment.env));
-    return customModels.map((model) => ({
-      ...model,
-      label: customModelAliases[toClaudeRuntimeModelId(model.value)]
-        ?? userModelEnvironment.displayNames[model.value]
-        ?? discoveredModels.find(discovered => (
-          discovered.value === toClaudeRuntimeModelId(model.value)
-          || discovered.resolvedModel === toClaudeRuntimeModelId(model.value)
-        ))?.label
-        ?? (settingsConfiguredModelIds.has(model.value) ? model.value : model.label),
-      value: encodeClaudeModelSelectionId(model.value),
-    }));
+    const tierTargets = new Map<string, ClaudeModelTier[]>();
+    for (const [tier, modelId] of Object.entries(userModelEnvironment.env)) {
+      const definition = CLAUDE_MODEL_TIER_DEFINITIONS.find(
+        candidate => candidate.environmentKey === tier,
+      );
+      if (!definition || !modelId) {
+        continue;
+      }
+      const tiers = tierTargets.get(modelId) ?? [];
+      tiers.push(definition.id);
+      tierTargets.set(modelId, tiers);
+    }
+    const sharedTierTargets = new Map<string, ClaudeModelTier[]>();
+    for (const [modelId, tiers] of tierTargets) {
+      if (tiers.length > 1) {
+        sharedTierTargets.set(modelId, tiers);
+      }
+    }
+    const options: ClaudeModelOption[] = [];
+    for (const model of customModels) {
+      const sharedTiers = sharedTierTargets.get(model.value);
+      if (sharedTiers) {
+        for (const tier of sharedTiers) {
+          const definition = CLAUDE_MODEL_TIER_DEFINITIONS.find(candidate => candidate.id === tier);
+          if (!definition) {
+            continue;
+          }
+          options.push({
+            value: encodeClaudeModelSelectionId(tier),
+            label: userModelEnvironment.tierDisplayNames[tier]
+              ?? customModelAliases[model.value]
+              ?? definition.label,
+            description: `${model.description} (${tier})`,
+            environmentTypes: [tier],
+          });
+        }
+        continue;
+      }
+
+      options.push({
+        ...model,
+        label: customModelAliases[toClaudeRuntimeModelId(model.value)]
+          ?? userModelEnvironment.displayNames[model.value]
+          ?? discoveredModels.find(discovered => (
+            discovered.value === toClaudeRuntimeModelId(model.value)
+            || discovered.resolvedModel === toClaudeRuntimeModelId(model.value)
+          ))?.label
+          ?? (settingsConfiguredModelIds.has(model.value) ? model.value : model.label),
+        value: encodeClaudeModelSelectionId(model.value),
+      });
+    }
+
+    const seenModelIds = new Set(options.map(option =>
+      normalizeLegacyClaudeModelAlias(toClaudeRuntimeModelId(option.value))
+    ));
+    const visibleModelIds = claudeSettings.visibleModels?.map(toClaudeRuntimeModelId) ?? null;
+    for (const discovered of discoveredModels) {
+      const modelId = toClaudeRuntimeModelId(discovered.value);
+      const discoveredIdentities = [modelId, discovered.resolvedModel]
+        .filter((identity): identity is string => Boolean(identity))
+        .map(toClaudeRuntimeModelId);
+      const isVisible = visibleModelIds === null || visibleModelIds.some(visibleId =>
+        discoveredIdentities.includes(visibleId)
+        || findDiscoveredFamilyModel(discoveredModels, visibleId)?.value === discovered.value
+      );
+      if (!isVisible) {
+        continue;
+      }
+
+      const normalizedModelId = normalizeLegacyClaudeModelAlias(modelId);
+      if (seenModelIds.has(normalizedModelId)) {
+        continue;
+      }
+
+      seenModelIds.add(normalizedModelId);
+      options.push({
+        value: encodeClaudeModelSelectionId(modelId),
+        label: customModelAliases[modelId] ?? discovered.label,
+        description: discovered.description || 'Claude Code model',
+      });
+    }
+
+    for (const configuredModelId of parseConfiguredCustomModelIds(claudeSettings.customModels)) {
+      const modelId = toClaudeRuntimeModelId(configuredModelId);
+      const normalizedModelId = normalizeLegacyClaudeModelAlias(modelId);
+      if (seenModelIds.has(normalizedModelId)) {
+        continue;
+      }
+
+      seenModelIds.add(normalizedModelId);
+      options.push({
+        value: encodeClaudeModelSelectionId(modelId),
+        label: customModelAliases[modelId] ?? formatCustomModelLabel(modelId),
+        description: 'Custom model',
+      });
+    }
+
+    return options;
   }
 
   const models = DEFAULT_CLAUDE_MODELS.map(model => {

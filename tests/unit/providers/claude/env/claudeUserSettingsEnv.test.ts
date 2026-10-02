@@ -29,14 +29,25 @@ describe('readClaudeUserSettingsModelFile', () => {
       displayNames: {
         'claude-sonnet-4-7': 'Claude Sonnet 4.7 Custom',
       },
+      tierDisplayNames: {
+        sonnet: 'Claude Sonnet 4.7 Custom',
+      },
     });
   });
 
   it('returns an empty model environment for missing or malformed settings', () => {
     (fs.readFileSync as jest.Mock).mockImplementation(() => { throw new Error('missing'); });
-    expect(readClaudeUserSettingsModelFile('/missing.json')).toEqual({ env: {}, displayNames: {} });
+    expect(readClaudeUserSettingsModelFile('/missing.json')).toEqual({
+      env: {},
+      displayNames: {},
+      tierDisplayNames: {},
+    });
 
     (fs.readFileSync as jest.Mock).mockReturnValue('{invalid');
-    expect(readClaudeUserSettingsModelFile('/invalid.json')).toEqual({ env: {}, displayNames: {} });
+    expect(readClaudeUserSettingsModelFile('/invalid.json')).toEqual({
+      env: {},
+      displayNames: {},
+      tierDisplayNames: {},
+    });
   });
 });
