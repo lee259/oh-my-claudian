@@ -1691,6 +1691,27 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Thinking indicator - edge cases', () => {
+    it('shows the waiting indicator at the original deadline during continued tool activity', async () => {
+      const msg = createTestMessage();
+
+      await controller.handleStreamChunk({
+        type: 'tool_use',
+        id: 'read-1',
+        name: 'Read',
+        input: { file_path: 'a.md' },
+      }, msg);
+      jest.advanceTimersByTime(300);
+      await controller.handleStreamChunk({
+        type: 'tool_use',
+        id: 'read-2',
+        name: 'Read',
+        input: { file_path: 'b.md' },
+      }, msg);
+      jest.advanceTimersByTime(100);
+
+      expect(deps.state.thinkingEl).not.toBeNull();
+    });
+
     it('should not show indicator when no currentContentEl', () => {
       deps.state.currentContentEl = null;
 
