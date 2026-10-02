@@ -15,11 +15,11 @@ export type NavigationScrollIntent = 'away' | 'bottom';
  */
 export class NavigationSidebar {
   private container: HTMLElement;
-  private topBtn: HTMLElement;
-  private prevBtn: HTMLElement;
-  private tocBtn: HTMLElement;
-  private nextBtn: HTMLElement;
-  private bottomBtn: HTMLElement;
+  private topBtn: HTMLButtonElement;
+  private prevBtn: HTMLButtonElement;
+  private tocBtn: HTMLButtonElement;
+  private nextBtn: HTMLButtonElement;
+  private bottomBtn: HTMLButtonElement;
   private tocPopover: HTMLElement | null = null;
   private scrollHandler: () => void = () => {};
   private outsideClickHandler: ((event: MouseEvent) => void) | null = null;
@@ -38,6 +38,7 @@ export class NavigationSidebar {
     this.topBtn = this.createButton('claudian-nav-btn-top', 'chevrons-up', 'Scroll to top');
     this.prevBtn = this.createButton('claudian-nav-btn-prev', 'chevron-up', 'Previous message');
     this.tocBtn = this.createButton('claudian-nav-btn-toc', 'list-tree', 'Conversation directory');
+    this.tocBtn.setAttribute('aria-expanded', 'false');
     this.nextBtn = this.createButton('claudian-nav-btn-next', 'chevron-down', 'Next message');
     this.bottomBtn = this.createButton('claudian-nav-btn-bottom', 'chevrons-down', 'Scroll to bottom');
 
@@ -45,10 +46,12 @@ export class NavigationSidebar {
     this.applyVisibility();
   }
 
-  private createButton(cls: string, icon: string, label: string): HTMLElement {
-    const btn = this.container.createDiv({ cls: `claudian-nav-btn ${cls}` });
+  private createButton(cls: string, icon: string, label: string): HTMLButtonElement {
+    const btn = this.container.createEl('button', {
+      cls: `claudian-nav-btn claudian-nav-btn--surface ${cls}`,
+      attr: { type: 'button', 'aria-label': label },
+    });
     setIcon(btn, icon);
-    btn.setAttribute('aria-label', label);
     return btn;
   }
 
@@ -192,6 +195,7 @@ export class NavigationSidebar {
   private openDirectory(): void {
     const entries = this.getDirectoryEntries();
     this.closeDirectory();
+    this.tocBtn.setAttribute('aria-expanded', 'true');
     this.tocPopover = this.parentEl.createDiv({ cls: 'claudian-nav-toc-popover' });
     this.tocPopover.createDiv({ cls: 'claudian-nav-toc-title', text: 'Conversation directory' });
     const listEl = this.tocPopover.createDiv({ cls: 'claudian-nav-toc-list' });
@@ -205,23 +209,14 @@ export class NavigationSidebar {
     }
 
     entries.forEach((entry, index) => {
-      const itemEl = listEl.createDiv({
+      const itemEl = listEl.createEl('button', {
         cls: 'claudian-nav-toc-item',
         text: `${index + 1}. ${entry.title}`,
+        attr: { type: 'button', title: entry.title },
       });
-      itemEl.setAttribute('role', 'button');
-      itemEl.setAttribute('tabindex', '0');
-      itemEl.setAttribute('title', entry.title);
-
-      const selectEntry = () => {
+      itemEl.addEventListener('click', () => {
         this.scrollToElement(entry.el);
         this.closeDirectory();
-      };
-      itemEl.addEventListener('click', selectEntry);
-      itemEl.addEventListener('keydown', (event: KeyboardEvent) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        selectEntry();
       });
     });
   }
@@ -234,6 +229,7 @@ export class NavigationSidebar {
   private closeDirectory(): void {
     this.tocPopover?.remove();
     this.tocPopover = null;
+    this.tocBtn?.setAttribute('aria-expanded', 'false');
   }
 
   private scrollToElement(el: HTMLElement): void {

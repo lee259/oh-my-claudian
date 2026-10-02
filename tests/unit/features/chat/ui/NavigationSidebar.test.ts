@@ -160,8 +160,8 @@ class MockElement {
     this.textContent = '';
   }
 
-  createDiv(options?: { cls?: string; text?: string; attr?: Record<string, string> }): MockElement {
-    const el = new MockElement('div');
+  createEl(tagName: string, options?: { cls?: string; text?: string; attr?: Record<string, string> }): MockElement {
+    const el = new MockElement(tagName);
     if (options?.cls) el.className = options.cls;
     if (options?.text) el.textContent = options.text;
     if (options?.attr) {
@@ -171,6 +171,10 @@ class MockElement {
     }
     this.appendChild(el);
     return el;
+  }
+
+  createDiv(options?: { cls?: string; text?: string; attr?: Record<string, string> }): MockElement {
+    return this.createEl('div', options);
   }
 
   querySelector(selector: string): MockElement | null {
