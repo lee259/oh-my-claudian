@@ -63,6 +63,24 @@ describe('normalizeOpencodeToolInput', () => {
       ],
     });
   });
+
+  it('preserves an explicitly empty edit replacement string', () => {
+    expect(normalizeOpencodeToolInput('edit', {
+      old_string: 'existing text',
+      new_string: '',
+    })).toEqual({
+      old_string: 'existing text',
+      new_string: '',
+    });
+
+    expect(normalizeOpencodeToolInput('edit', {
+      oldString: 'existing text',
+      newString: '',
+    })).toEqual({
+      old_string: 'existing text',
+      new_string: '',
+    });
+  });
 });
 
 describe('createOpencodeToolStreamAdapter', () => {
