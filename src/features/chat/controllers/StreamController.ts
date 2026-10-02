@@ -2052,8 +2052,9 @@ export class StreamController {
     // Early return if no content element
     if (!state.currentContentEl) return;
 
-    // Clear any existing timeout
+    // Keep the first pending deadline unless a caller supplies an explicit status.
     if (state.thinkingIndicatorTimeout) {
+      if (!overrideText) return;
       const timerWindow = state.currentContentEl.ownerDocument.defaultView ?? window;
       state.clearThinkingIndicatorTimeout(timerWindow);
     }
