@@ -11,6 +11,7 @@ import type {
 import { isSteerableExecutionSession } from '@/core/execution';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import * as codexHistoryStore from '@/providers/codex/history/CodexHistoryStore';
+import type { SandboxPolicy } from '@/providers/codex/runtime/codexAppServerTypes';
 
 const mockTransportRequest = jest.fn();
 const mockTransportNotify = jest.fn();
@@ -118,7 +119,18 @@ function emitNotification(method: string, params: unknown): void {
   notificationHandlers.get(method)?.(params);
 }
 
-function createThreadResult(threadId: string, turns: Array<{ id: string }> = []) {
+function createThreadResult(
+  threadId: string,
+  turns: Array<{ id: string }> = [],
+  sandbox: SandboxPolicy = {
+    type: 'workspaceWrite',
+    writableRoots: ['/vault'],
+    readOnlyAccess: { type: 'fullAccess' },
+    networkAccess: false,
+    excludeTmpdirEnvVar: false,
+    excludeSlashTmp: false,
+  },
+) {
   return {
     thread: {
       id: threadId,
@@ -149,7 +161,7 @@ function createThreadResult(threadId: string, turns: Array<{ id: string }> = [])
     cwd: '/vault',
     approvalPolicy: 'never',
     approvalsReviewer: 'user',
-    sandbox: { type: 'readOnly', access: { type: 'fullAccess' }, networkAccess: false },
+    sandbox,
     reasoningEffort: 'medium',
   };
 }
@@ -1949,7 +1961,13 @@ describe('CodexExecutionBackend', () => {
             platformOs: 'macos',
           };
         }
-        if (method === 'thread/start') return createThreadResult('thread-ephemeral');
+        if (method === 'thread/start') {
+          return createThreadResult('thread-ephemeral', [], {
+            type: 'readOnly',
+            access: { type: 'fullAccess' },
+            networkAccess: false,
+          });
+        }
         if (method === 'turn/start') {
           queueMicrotask(() => completeTurn('thread-ephemeral', 'turn-ephemeral'));
           return createTurnResult('turn-ephemeral');
@@ -1997,6 +2015,113 @@ describe('CodexExecutionBackend', () => {
       await session.dispose();
     },
   );
+
+  it('lets Codex apply its configured workspace-write sandbox to interactive sessions', async () => {
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') {
+        return {
+          ...createThreadResult('thread-configured-sandbox'),
+          sandbox: {
+            type: 'workspaceWrite',
+            writableRoots: ['/configured/workspace'],
+            readOnlyAccess: { type: 'fullAccess' },
+            networkAccess: true,
+            excludeTmpdirEnvVar: true,
+            excludeSlashTmp: true,
+          },
+        };
+      }
+      if (method === 'turn/start') {
+        queueMicrotask(() => completeTurn('thread-configured-sandbox', 'turn-configured-sandbox'));
+        return createTurnResult('turn-configured-sandbox');
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+
+    const session = new CodexExecutionBackend(createPlugin()).createSession(createSessionConfig());
+    await collectEvents(session.execute(createRequest()).events);
+
+    expect(mockTransportRequest).toHaveBeenCalledWith(
+      'thread/start',
+      expect.objectContaining({ sandbox: 'workspace-write' }),
+    );
+    const turnStartParams = mockTransportRequest.mock.calls.find(
+      call => call[0] === 'turn/start',
+    )?.[1] as Record<string, unknown>;
+    expect(turnStartParams.sandboxPolicy).toBeUndefined();
+
+    await session.dispose();
+  });
+
+  it('restores Codex workspace-write settings when an interactive thread changes sandbox mode', async () => {
+    let turnIndex = 0;
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') return createThreadResult('thread-sandbox-transition');
+      if (method === 'config/read') {
+        return {
+          config: {
+            sandbox_workspace_write: {
+              writable_roots: ['/user/configured/root'],
+              network_access: true,
+              exclude_tmpdir_env_var: true,
+              exclude_slash_tmp: false,
+            },
+          },
+        };
+      }
+      if (method === 'turn/start') {
+        turnIndex += 1;
+        const turnId = `turn-sandbox-transition-${turnIndex}`;
+        queueMicrotask(() => completeTurn('thread-sandbox-transition', turnId));
+        return createTurnResult(turnId);
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+
+    const plugin = createPlugin();
+    const codexSettings = (plugin.settings.providerConfigs as Record<string, Record<string, unknown>>).codex;
+    codexSettings.safeMode = 'read-only';
+    const session = new CodexExecutionBackend(plugin).createSession(createSessionConfig());
+    await collectEvents(session.execute(createRequest()).events);
+
+    codexSettings.safeMode = 'workspace-write';
+    await collectEvents(session.execute(createRequest()).events);
+
+    expect(mockTransportRequest).toHaveBeenCalledWith(
+      'config/read',
+      { cwd: '/vault' },
+    );
+    const turnStartParams = mockTransportRequest.mock.calls
+      .filter(call => call[0] === 'turn/start')
+      .map(call => call[1] as Record<string, unknown>);
+    expect(turnStartParams[0].sandboxPolicy).toMatchObject({ type: 'readOnly' });
+    expect(turnStartParams[1].sandboxPolicy).toEqual({
+      type: 'workspaceWrite',
+      writableRoots: ['/user/configured/root'],
+      readOnlyAccess: { type: 'fullAccess' },
+      networkAccess: true,
+      excludeTmpdirEnvVar: true,
+      excludeSlashTmp: false,
+    });
+
+    await session.dispose();
+  });
 
   it('fails closed before native startup when exact allow-list enforcement is unavailable', async () => {
     mockTransportRequest.mockImplementation(async (method: string) => {

@@ -375,6 +375,26 @@ export interface ModelListResult {
 }
 
 // ---------------------------------------------------------------------------
+// config/read
+// ---------------------------------------------------------------------------
+
+export interface ConfigReadParams {
+  cwd?: string | null;
+  includeLayers?: boolean;
+}
+
+export interface ConfigReadResult {
+  config: {
+    sandbox_workspace_write?: {
+      writable_roots?: string[];
+      network_access?: boolean;
+      exclude_tmpdir_env_var?: boolean;
+      exclude_slash_tmp?: boolean;
+    } | null;
+  };
+}
+
+// ---------------------------------------------------------------------------
 // thread/start
 // ---------------------------------------------------------------------------
 
