@@ -1,4 +1,5 @@
 import { setLocale } from '@/i18n/i18n';
+import * as claudeUserSettingsEnv from '@/providers/claude/env/claudeUserSettingsEnv';
 import { DEFAULT_CLAUDE_PROVIDER_SETTINGS } from '@/providers/claude/settings';
 import { claudeChatUIConfig } from '@/providers/claude/ui/ClaudeChatUIConfig';
 
@@ -202,7 +203,7 @@ describe('claudeChatUIConfig', () => {
       });
     });
 
-    it('keeps environment-defined custom models as a full override', () => {
+    it('replaces defaults with environment models and preserves configured custom models', () => {
       const options = claudeChatUIConfig.getModelOptions({
         providerConfigs: {
           claude: {
@@ -219,6 +220,59 @@ describe('claudeChatUIConfig', () => {
           description: 'Custom model (model)',
           environmentTypes: ['model'],
         },
+        {
+          value: 'claude-code/claude-opus-4-6',
+          label: 'Opus 4.6',
+          description: 'Custom model',
+        },
+      ]);
+    });
+
+    it('keeps locally configured custom models alongside the active environment model', () => {
+      const options = claudeChatUIConfig.getModelOptions({
+        providerConfigs: {
+          claude: {
+            customModels: 'kimi-k3\nmodel-two\nmodel-three\nmodel-four',
+            environmentVariables: 'ANTHROPIC_MODEL=kimi-k3',
+          },
+        },
+      });
+
+      expect(options.map(option => option.value)).toEqual([
+        'claude-code/kimi-k3',
+        'claude-code/model-two',
+        'claude-code/model-three',
+        'claude-code/model-four',
+      ]);
+    });
+
+    it('keeps discovered local catalog models alongside the active environment model', () => {
+      const options = claudeChatUIConfig.getModelOptions({
+        providerConfigs: {
+          claude: {
+            environmentVariables: 'ANTHROPIC_MODEL=kimi-k3',
+            visibleModels: [
+              'gpt-5.6-luna',
+              'deepseek-flash',
+              'deepseek-v4-pro',
+              'kimi-k3',
+            ],
+            discoveredModels: [
+              { value: 'gpt-5.6-luna', label: 'gpt-5.6-luna', description: 'Haiku slot' },
+              { value: 'deepseek-flash', label: 'deepseek-flash', description: 'Sonnet slot' },
+              { value: 'deepseek-v4-pro', label: 'deepseek-v4-pro', description: 'Opus slot' },
+              { value: 'kimi-k3', label: 'kimi-k3', description: 'Fable slot' },
+              { value: 'hidden-model', label: 'hidden-model', description: 'Not selected' },
+            ],
+          },
+        },
+      });
+
+      expect(options.map(option => option.value)).toEqual([
+        'claude-code/kimi-k3',
+        'claude-code/gpt-5.6-luna',
+        'claude-code/deepseek-flash',
+        'claude-code/deepseek-v4-pro',
       ]);
     });
 
@@ -242,6 +296,41 @@ describe('claudeChatUIConfig', () => {
           environmentTypes: ['model'],
         },
       ]);
+    });
+
+    it('keeps tier display names distinct when local Claude settings route every tier to one model', () => {
+      jest.spyOn(claudeUserSettingsEnv, 'getClaudeUserSettingsModelEnvironment')
+        .mockReturnValue({
+          env: {
+            ANTHROPIC_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_HAIKU_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_SONNET_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_OPUS_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_FABLE_MODEL: 'newapi/deepseek-flash[1m]',
+          },
+          displayNames: {
+            'newapi/deepseek-flash[1m]': 'kimi-k3',
+          },
+          tierDisplayNames: {
+            haiku: 'gpt-5.6-luna',
+            sonnet: 'deepseek-flash',
+            opus: 'deepseek-v4-pro',
+            fable: 'kimi-k3',
+          },
+        });
+
+      const options = claudeChatUIConfig.getModelOptions({});
+
+      expect(options.map(({ value, label }) => [value, label])).toEqual([
+        ['claude-code/haiku', 'gpt-5.6-luna'],
+        ['claude-code/sonnet', 'deepseek-flash'],
+        ['claude-code/opus', 'deepseek-v4-pro'],
+        ['claude-code/fable', 'kimi-k3'],
+      ]);
+      const selectedSettings: Record<string, unknown> = {};
+      claudeChatUIConfig.applyModelDefaults('claude-code/sonnet', selectedSettings);
+      expect((selectedSettings.providerConfigs as Record<string, Record<string, unknown>>)
+        .claude.modelEnvironmentType).toBe('sonnet');
     });
   });
 

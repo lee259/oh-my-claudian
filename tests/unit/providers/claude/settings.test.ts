@@ -49,4 +49,13 @@ describe('Claude settings normalization', () => {
       providerConfigs: { claude: { cliPathsByHost: ['/array/claude'] } },
     }).cliPathsByHost).toEqual({});
   });
+
+  it('normalizes the explicitly visible model list from provider settings', () => {
+    expect(getClaudeProviderSettings({
+      providerConfigs: {
+        claude: { visibleModels: [' haiku ', 'sonnet', 'haiku', 42] },
+      },
+    }).visibleModels).toEqual(['haiku', 'sonnet']);
+    expect(getClaudeProviderSettings({}).visibleModels).toBeNull();
+  });
 });
