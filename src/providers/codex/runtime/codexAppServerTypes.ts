@@ -216,6 +216,7 @@ export interface WebSearchItem {
     url?: string;
     pattern?: string;
   };
+  results?: unknown[] | null;
   status?: string;
 }
 

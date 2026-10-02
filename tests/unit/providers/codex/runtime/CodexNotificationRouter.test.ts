@@ -488,6 +488,188 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('tool use', () => {
+    it('does not expose Codex internal history, notes, or context calls in the transcript', () => {
+      router.beginTurn({ isPlanTurn: false });
+      const internalCalls = [
+        { type: 'function_call', name: 'history_query', namespace: 'history', id: 'history' },
+        { type: 'function_call', name: 'read_note', namespace: 'notes', id: 'notes' },
+        { type: 'function_call', name: 'new_context', id: 'new-context' },
+        { type: 'custom_tool_call', name: 'get_context_remaining', id: 'context' },
+      ];
+
+      for (const call of internalCalls) {
+        router.handleNotification('rawResponseItem/completed', {
+          item: { ...call, call_id: call.id, arguments: '{}' },
+        });
+        router.handleNotification('rawResponseItem/completed', {
+          item: {
+            type: call.type === 'function_call' ? 'function_call_output' : 'custom_tool_call_output',
+            call_id: call.id,
+            output: `private-${call.id}-payload`,
+          },
+        });
+      }
+
+      expect(chunks).toEqual([]);
+    });
+
+    it('does not expose output from an exec wrapper that only calls a private context tool', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'private-script',
+          input: 'text(await tools.get_context_remaining({}));',
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call_output',
+          call_id: 'private-script',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}',
+        },
+      });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      expect(JSON.stringify(chunks)).not.toMatch(/get_context_remaining|tokens_left/);
+    });
+
+    it('hides yielded output and the wait continuation from an internal-only exec wrapper', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'private-yield',
+          input: 'text(await tools.get_context_remaining({}));',
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call_output',
+          call_id: 'private-yield',
+          output: 'Script running with cell ID 42\nWall time 0.1 seconds\nOutput:\n',
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: { type: 'function_call', name: 'wait', call_id: 'private-wait', arguments: '{"cell_id":"42"}' },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'function_call_output',
+          call_id: 'private-wait',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}',
+        },
+      });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks.filter(chunk => chunk.type !== 'done')).toEqual([]);
+    });
+
+    it('keeps native command output while withholding a mixed script result containing private context data', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'mixed-script',
+          input: [
+            'const context = await tools.get_context_remaining({});',
+            'const command = await tools.exec_command({cmd:"check"});',
+            'text(context); text(command.output);',
+          ].join(' '),
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call_output',
+          call_id: 'mixed-script',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}\ncheck failed',
+        },
+      });
+
+      const commandItem = {
+        type: 'commandExecution',
+        id: 'native-check',
+        command: 'check',
+        cwd: '/workspace',
+        processId: '123',
+        source: 'unifiedExecStartup',
+        status: 'completed',
+        commandActions: [{ type: 'unknown', command: 'check' }],
+        aggregatedOutput: 'native public output\n',
+        exitCode: 1,
+        durationMs: 10,
+      };
+      router.handleNotification('item/started', { item: { ...commandItem, status: 'inProgress' } });
+      router.handleNotification('item/completed', { item: commandItem });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_use')).toEqual([expect.objectContaining({
+        name: 'Bash',
+        input: { command: 'check' },
+      })]);
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([expect.objectContaining({
+        content: 'native public output\n',
+        isError: true,
+      })]);
+      expect(JSON.stringify(chunks)).not.toContain('tokens_left');
+    });
+
+    it('keeps native command output while hiding the yielded mixed-script continuation', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'mixed-yield',
+          input: 'const context = await tools.get_context_remaining({}); const command = await tools.exec_command({cmd:"check"}); text(context); text(command.output);',
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'custom_tool_call_output',
+          call_id: 'mixed-yield',
+          output: 'Script running with cell ID 42\nWall time 0.1 seconds\nOutput:\n',
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: { type: 'function_call', name: 'wait', call_id: 'mixed-wait', arguments: '{"cell_id":"42"}' },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        item: {
+          type: 'function_call_output',
+          call_id: 'mixed-wait',
+          output: 'Script completed\nWall time 0.1 seconds\nOutput:\n{"tokens_left":100}\ncheck failed',
+        },
+      });
+      const commandItem = {
+        type: 'commandExecution',
+        id: 'native-yielded-check',
+        command: 'check',
+        cwd: '/workspace',
+        processId: '456',
+        source: 'unifiedExecStartup',
+        status: 'completed',
+        commandActions: [{ type: 'unknown', command: 'check' }],
+        aggregatedOutput: 'native public output\n',
+        exitCode: 1,
+        durationMs: 10,
+      };
+      router.handleNotification('item/started', { item: { ...commandItem, status: 'inProgress' } });
+      router.handleNotification('item/completed', { item: commandItem });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([expect.objectContaining({
+        content: 'native public output\n',
+        isError: true,
+      })]);
+      expect(JSON.stringify(chunks)).not.toMatch(/get_context_remaining|tokens_left/);
+    });
+
     it('maps commandExecution item/started to tool_use chunk', () => {
       router.handleNotification('item/started', {
         item: {
@@ -4021,6 +4203,28 @@ describe('CodexNotificationRouter', () => {
       expect(chunks[1]).toMatchObject({
         type: 'tool_result',
         id: 'ws_abc',
+        isError: false,
+      });
+    });
+
+    it('renders safe native search results as links without exposing snippets', () => {
+      router.handleNotification('item/completed', {
+        item: {
+          type: 'webSearch',
+          id: 'ws_results',
+          status: 'completed',
+          results: [
+            { title: 'Claudian docs', url: 'https://example.com/docs', snippet: 'private excerpt' },
+            { title: 'Unsafe', url: 'javascript:alert(1)', snippet: 'must not render' },
+            { title: 'No URL', snippet: 'must not render' },
+          ],
+        },
+      });
+
+      expect(chunks[1]).toEqual({
+        type: 'tool_result',
+        id: 'ws_results',
+        content: 'Links: [{"title":"Claudian docs","url":"https://example.com/docs"}]',
         isError: false,
       });
     });
