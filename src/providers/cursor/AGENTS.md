@@ -21,4 +21,7 @@
 - Agent, Ask, and Plan map to ACP session modes `agent`, `ask`, and `plan`.
 - Models come from the ACP session model state and only explicitly selected models appear in chat.
 - MCP remains Cursor-owned through `.cursor/mcp.json`; Claudian does not duplicate its configuration.
-- Fork, rewind, native history hydration, provider commands, and turn steering are intentionally unsupported.
+- Runtime `/` commands come from ACP `available_commands_update` on a short-lived metadata session. Cursor advertises them ~4s after `session/new` (~12s with startup), so the catalog uses a provider-owned discovery deadline and tabs warm commands on creation.
+- Cursor has no session-directory override or `session/close`; metadata probes (model and command discovery) must remove their prompt-less `~/.cursor/acp-sessions/<id>` folder, and only when it contains nothing but `meta.json`.
+- Cursor runs a slash command only when the prompt is the bare command; prompts starting with a slash command must be sent without appended note, selection, or file context.
+- Fork, rewind, native history hydration, and turn steering are intentionally unsupported.

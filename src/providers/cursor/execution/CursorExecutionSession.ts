@@ -307,15 +307,20 @@ export class CursorExecutionSession implements ProviderExecutionSession {
   }
 }
 
+const CURSOR_SLASH_COMMAND_PATTERN = /^\/[A-Za-z][\w:.-]*(?:\s|$)/u;
+
 export function buildCursorPrompt(request: ProviderExecutionRequest): AcpContentBlock[] {
   let text = request.input.filter(block => block.type === 'text').map(block => block.text).join('\n');
-  if (request.context?.currentNote?.path) {
+  // Cursor only runs a slash command when the prompt is the bare command;
+  // appended note/file context turns it into an ordinary model prompt.
+  const isSlashCommand = CURSOR_SLASH_COMMAND_PATTERN.test(text);
+  if (!isSlashCommand && request.context?.currentNote?.path) {
     text = appendCurrentNote(text, request.context.currentNote.path);
   }
-  if (request.context?.editorSelection) {
+  if (!isSlashCommand && request.context?.editorSelection) {
     text = appendEditorContext(text, request.context.editorSelection);
   }
-  if (request.context?.contextFiles?.length) {
+  if (!isSlashCommand && request.context?.contextFiles?.length) {
     text = appendContextFiles(text, [...request.context.contextFiles]);
   }
   const blocks: AcpContentBlock[] = [{ type: 'text', text }];
