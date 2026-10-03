@@ -300,11 +300,13 @@ describe('MessageRenderer', () => {
 
       renderer.finalizeCompletedWork({
         id: 'assistant-compact', role: 'assistant', content: 'Final answer', timestamp: Date.now(),
+        durationSeconds: 65,
         contentBlocks: [{ type: 'context_compacted' }, { type: 'text', content: 'Final answer' }],
       } as ChatMessage);
 
       const workEl = contentEl.querySelector('.claudian-completed-work');
       expect(workEl).toBeTruthy();
+      expect(workEl?.querySelector('.claudian-completed-work-label')?.textContent).toContain('1m 5s');
       expect(workEl?.querySelector('.claudian-completed-work-history')?.children)
         .toContainEqual(expect.objectContaining({ className: 'claudian-compact-boundary' }));
     });
