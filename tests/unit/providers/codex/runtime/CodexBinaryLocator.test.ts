@@ -145,6 +145,27 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
 
+  it('falls back to the nested ChatGPT Codex CLI runtime', () => {
+    process.env.HOME = tempDir;
+    process.env.PATH = '';
+    const runtimeDir = path.join(
+      tempDir,
+      'Applications',
+      'ChatGPT.app',
+      'Contents',
+      'Resources',
+      'codex-cli',
+      'CodexCLI.app',
+      'Contents',
+      'MacOS',
+    );
+    const runtimeBinary = path.join(runtimeDir, 'codex');
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    fs.writeFileSync(runtimeBinary, '');
+
+    expect(findCodexBinaryPath('', 'darwin')).toBe(runtimeBinary);
+  });
+
   it('prefers a user-local Codex binary over the ChatGPT app fallback', () => {
     process.env.HOME = tempDir;
     process.env.PATH = '';
