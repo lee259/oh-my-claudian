@@ -64,6 +64,11 @@ describe('resolveCliUpdateCommand', () => {
     expect(resolveCliUpdateCommand(piCliMetadata)).toEqual({ command: 'pi', args: ['update'] });
   });
 
+  it('uses OMP native self-update and checks its published package version', () => {
+    expect(resolveCliUpdateCommand(ompCliMetadata)).toEqual({ command: 'omp', args: ['update'] });
+    expect(ompCliMetadata.npmPackage).toBe('@oh-my-pi/pi-coding-agent');
+  });
+
   it('falls back to npm install -g @latest when only an npm package is known', () => {
     expect(resolveCliUpdateCommand({ ...baseMetadata, npmPackage: '@openai/codex' }))
       .toEqual({ command: 'npm', args: ['install', '-g', '@openai/codex@latest'] });

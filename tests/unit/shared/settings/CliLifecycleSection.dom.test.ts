@@ -66,4 +66,29 @@ describe('renderCliLifecycleSection', () => {
     destroyCliLifecycleSections(container);
     expect(container.childElementCount).toBe(0);
   });
+
+  it('does not claim the CLI is up to date when the latest version is unknown', async () => {
+    jest.mocked(resolveCliVersionInfo).mockResolvedValue({
+      version: '18.5.0',
+      latestVersion: null,
+      error: null,
+      installedButBroken: false,
+    });
+    const container = document.createElement('div');
+
+    renderCliLifecycleSection({
+      container,
+      metadata: { binaryName: 'test-cli', displayName: 'Test CLI' },
+      resolveCliPath: async () => '/usr/local/bin/test-cli',
+      getRuntimeEnvText: () => '',
+      app: {} as never,
+    });
+
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    expect(container.textContent).toContain('18.5.0');
+    expect(container.querySelector('.claudian-cli-lifecycle-ready')).toBeNull();
+
+    destroyCliLifecycleSections(container);
+  });
 });
