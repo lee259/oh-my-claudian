@@ -72,4 +72,36 @@ describe('MentionTextHighlighter', () => {
     highlighter.destroy();
     wrapper.remove();
   });
+
+  it('mirrors values assigned programmatically without an input event', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const highlighter = new MentionTextHighlighter(input, highlights);
+    input.value = '/eff';
+    input.dispatchEvent(new Event('input'));
+
+    // Slash command selection, new conversations, and mode resets assign value directly.
+    input.value = '/effort ';
+    expect(highlights.textContent).toBe('/effort ');
+
+    input.value = '';
+    expect(highlights.textContent).toBe('');
+    expect(highlights.classList.contains('claudian-input-mention-highlights--empty')).toBe(true);
+
+    highlighter.destroy();
+    input.value = 'after destroy';
+    expect(input.value).toBe('after destroy');
+    wrapper.remove();
+  });
+
+  it('mirrors text inserted with setRangeText', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const highlighter = new MentionTextHighlighter(input, highlights);
+    input.value = 'Review ';
+    input.setRangeText('@', 7, 7, 'end');
+
+    expect(highlights.textContent).toBe('Review @');
+
+    highlighter.destroy();
+    wrapper.remove();
+  });
 });
