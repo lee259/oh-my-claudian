@@ -20,6 +20,7 @@ import {
   findCodexModel,
   getCodexDefaultReasoningEffort,
   getCodexFastServiceTier,
+  getCodexFastServiceTierForModelId,
   getCodexReasoningEffortOptions,
   getDefaultCodexModel,
   isCodexModelAvailable,
@@ -212,15 +213,16 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
   },
 
   getServiceTierToggle(settings): ProviderServiceTierToggleConfig | null {
+    const modelId = typeof settings.model === 'string' ? settings.model : undefined;
     const model = findCodexModel(
       getCodexProviderSettings(settings).discoveredModels,
-      typeof settings.model === 'string' ? settings.model : undefined,
+      modelId,
     );
-    if (!model) {
-      return null;
-    }
-
-    const tier = getCodexFastServiceTier(model);
+    const tier = model
+      ? getCodexFastServiceTier(model)
+      : modelId
+        ? getCodexFastServiceTierForModelId(modelId)
+        : null;
     if (!tier) {
       return null;
     }
@@ -230,7 +232,7 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       inactiveLabel: DEFAULT_SERVICE_TIER_LABEL,
       activeValue: tier.id,
       activeLabel: tier.name,
-      isActive: resolveCodexModelServiceTier(model, settings.serviceTier) === tier.id,
+      isActive: resolveCodexModelServiceTier(model, settings.serviceTier, modelId) === tier.id,
       description: tier.description || undefined,
     };
   },

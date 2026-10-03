@@ -36,6 +36,23 @@ export const CODEX_FALLBACK_REASONING_EFFORT_VALUES = [
   'max',
 ] as const;
 
+const CODEX_FAST_SERVICE_TIER_ID = 'priority';
+const CODEX_FAST_SERVICE_TIER_MODEL_IDS = new Set([
+  'gpt-6.1-sol',
+  'gpt-6-astra',
+  'gpt-6-sol',
+  'gpt-6-luna',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.5',
+]);
+const CODEX_FAST_SERVICE_TIER_FALLBACK: CodexModelServiceTier = {
+  id: CODEX_FAST_SERVICE_TIER_ID,
+  name: 'Fast',
+  description: '',
+};
+
 const DEFAULT_INPUT_MODALITIES: Array<'text' | 'image'> = ['text', 'image'];
 const ULTRA_REASONING_EFFORT = 'ultra';
 export const CODEX_DEFAULT_SERVICE_TIER = 'default';
@@ -254,19 +271,41 @@ export function resolveCodexReasoningEffort(
 export function getCodexFastServiceTier(
   model: CodexDiscoveredModel,
 ): CodexModelServiceTier | null {
-  return model.serviceTiers.find(tier => tier.name.trim().toLowerCase() === 'fast') ?? null;
+  const advertisedTier = model.serviceTiers.find(tier => tier.name.trim().toLowerCase() === 'fast');
+  if (advertisedTier || model.serviceTiers.length > 0) {
+    return advertisedTier ?? null;
+  }
+
+  return getCodexFastServiceTierForModelId(model.model);
+}
+
+export function getCodexFastServiceTierForModelId(modelId: string): CodexModelServiceTier | null {
+  return CODEX_FAST_SERVICE_TIER_MODEL_IDS.has(toCodexRuntimeModelId(modelId).toLowerCase())
+    ? CODEX_FAST_SERVICE_TIER_FALLBACK
+    : null;
 }
 
 export function resolveCodexModelServiceTier(
   model: CodexDiscoveredModel | null,
   selectedServiceTier: unknown,
+  fallbackModelId?: string,
 ): string | null {
-  if (!model) return null;
   if (selectedServiceTier === CODEX_DEFAULT_SERVICE_TIER) {
     return CODEX_DEFAULT_SERVICE_TIER;
   }
+  if (!model) {
+    if (typeof selectedServiceTier === 'string') {
+      return getCodexFastServiceTierForModelId(fallbackModelId ?? '')?.id === selectedServiceTier
+        ? selectedServiceTier
+        : null;
+    }
+    return null;
+  }
   if (typeof selectedServiceTier === 'string') {
     if (model.serviceTiers.some(tier => tier.id === selectedServiceTier)) {
+      return selectedServiceTier;
+    }
+    if (getCodexFastServiceTier(model)?.id === selectedServiceTier) {
       return selectedServiceTier;
     }
     if (selectedServiceTier === 'fast') {

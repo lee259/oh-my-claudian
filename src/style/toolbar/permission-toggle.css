@@ -3,7 +3,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .claudian-permission-mode-trigger {
@@ -14,7 +15,7 @@
   gap: 6px;
   min-height: 28px;
   min-width: 0;
-  max-width: 160px;
+  max-width: min(160px, calc(100cqi - 16px));
   padding: 4px 8px;
   border: 0;
   border-radius: 6px;
@@ -90,8 +91,11 @@
   bottom: calc(100% + 8px);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   gap: 5px;
-  width: min(332px, calc(100vw - 24px));
+  width: max-content;
+  min-width: 0;
+  max-width: min(332px, calc(100cqi - 16px));
   max-height: min(440px, calc(100vh - 32px));
   padding: 7px;
   border: 1px solid var(--background-modifier-border);
@@ -102,6 +106,14 @@
   font-size: var(--font-ui-small);
   line-height: 1.35;
   overflow-y: auto;
+}
+
+@container (max-width: 300px) {
+  .oh-my-claudian-root .claudian-permission-mode-popover {
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    width: min(332px, calc(100cqi - 16px));
+  }
 }
 
 .claudian-permission-mode-popover[hidden] {

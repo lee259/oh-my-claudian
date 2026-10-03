@@ -2248,7 +2248,7 @@ function resolveCodexServiceTier(
     getCodexProviderSettings(settings).discoveredModels,
     modelId,
   );
-  return resolveCodexModelServiceTier(model, serviceTier);
+  return resolveCodexModelServiceTier(model, serviceTier, modelId);
 }
 
 function shouldExposeDynamicTools(policy: ProviderToolPolicy): boolean {

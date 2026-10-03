@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Notice, setIcon } from 'obsidian';
+import { Notice } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
 import { h } from 'preact';
@@ -10,8 +10,6 @@ import type {
   ProviderChatUIConfig,
   ProviderId,
   ProviderModeSelectorConfig,
-  ProviderReasoningOption,
-  ProviderServiceTierToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
 import type {
@@ -19,7 +17,7 @@ import type {
   UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
-import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
+import { appendCheckIcon, appendMcpIcon } from '../../../shared/icons';
 import { createPreactRoot, type PreactRoot } from '../../../shared/ui/PreactRoot';
 import {
   cancelScheduledAnimationFrame,
@@ -32,6 +30,7 @@ import { toggleServiceTier } from '../actions/toggleServiceTier';
 import type { ComposerContextTray } from './ComposerContextTray';
 import { ExternalContextSelectorView } from './ExternalContextSelectorView';
 import { type InputToolbarSlot, InputToolbarView } from './InputToolbarView';
+import { ModelSelectorView } from './ModelSelectorView';
 import type { PermissionModeMenuOption } from './PermissionModeMenuView';
 
 interface ElectronOpenDialogResult {
@@ -117,126 +116,83 @@ function normalizeModelReference(modelId: string): string {
 }
 
 export class ModelSelector {
-  private container: HTMLElement;
-  private buttonEl: HTMLElement | null = null;
-  private dropdownEl: HTMLElement | null = null;
-  private callbacks: ToolbarCallbacks;
+  private readonly root: PreactRoot;
+  private readonly callbacks: ToolbarCallbacks;
+  private readonly menuId = `claudian-model-menu-${++nextPermissionModeMenuId}`;
+
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-model-selector' });
-    this.render();
-    this.container.addEventListener('mouseenter', () => {
-      this.updateDisplay();
-      this.renderOptions();
-    });
+    this.root = createPreactRoot(parentEl);
+    this.updateDisplay();
   }
 
-  private getAvailableModels() {
+  destroy(): void {
+    this.root.unmount();
+  }
+
+  updateDisplay(): void {
     const settings = this.callbacks.getSettings();
     const uiConfig = this.callbacks.getUIConfig();
-    return uiConfig.getModelOptions({
+    const models = uiConfig.getModelOptions({
       ...settings,
       environmentVariables: this.callbacks.getEnvironmentVariables?.(),
     });
-  }
-
-  private render() {
-    this.container.empty();
-
-    this.buttonEl = this.container.createDiv({ cls: 'claudian-model-btn' });
-    this.updateDisplay();
-
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-model-dropdown' });
-    this.renderOptions();
-  }
-
-  updateDisplay() {
-    if (!this.buttonEl) return;
-    const currentModel = this.callbacks.getSettings().model;
-    const models = this.getAvailableModels();
-    const modelInfo = models.find(m => m.value === currentModel);
-
-    const displayModel = modelInfo || models[0];
-    const icon = displayModel?.providerIcon
-      ?? this.callbacks.getUIConfig().getProviderIcon?.();
-
-    this.buttonEl.empty();
-
-    if (icon) {
-      createProviderIconSvg(icon, {
-        className: 'claudian-model-provider-icon',
-        height: 12,
-        parent: this.buttonEl,
-        width: 12,
-      });
-    }
-    const displayLabel = displayModel?.label || 'Unknown';
+    const currentModel = settings.model;
+    const displayModel = models.find(model => model.value === currentModel) ?? models[0];
     const runtimeModel = this.callbacks.getRuntimeModel?.()?.trim() || null;
-    let label = displayLabel;
+    let displayModelLabel = displayModel?.label ?? (currentModel ? 'Model unavailable' : 'Choose a model');
     if (runtimeModel && displayModel) {
-      const runtimeRef = normalizeModelReference(runtimeModel);
-      const optionRef = normalizeModelReference(displayModel.value);
-      if (runtimeRef && runtimeRef !== optionRef) {
-        const runtimeOption = models.find(model => normalizeModelReference(model.value) === runtimeRef);
-        label = runtimeOption?.label ?? displayLabel;
+      const runtimeReference = normalizeModelReference(runtimeModel);
+      if (runtimeReference && runtimeReference !== normalizeModelReference(displayModel.value)) {
+        const runtimeOption = models.find(model => normalizeModelReference(model.value) === runtimeReference);
+        displayModelLabel = runtimeOption?.label ?? displayModelLabel;
       }
     }
-    const labelEl = this.buttonEl.createSpan({ cls: 'claudian-model-label' });
-    labelEl.setText(label);
-    this.buttonEl.removeAttribute('title');
-    if (runtimeModel) {
-      this.buttonEl.setAttribute('title', label === displayLabel ? runtimeModel : displayLabel);
-    }
+
+    const adaptiveReasoning = uiConfig.isAdaptiveReasoningModel(currentModel, settings);
+    const reasoningOptions = this.callbacks.getCapabilities().reasoningControl === 'none'
+      ? []
+      : uiConfig.getReasoningOptions(currentModel, settings);
+    const reasoningValue = adaptiveReasoning ? settings.effortLevel : settings.thinkingBudget;
+    const serviceTier = uiConfig.getServiceTierToggle?.(settings) ?? null;
+    const serviceTierActive = serviceTier
+      ? serviceTier.isActive ?? settings.serviceTier === serviceTier.activeValue
+      : false;
+
+    this.root.render(h(ModelSelectorView, {
+      id: this.menuId,
+      models,
+      currentModel,
+      displayModelLabel,
+      providerIcon: displayModel?.providerIcon ?? uiConfig.getProviderIcon?.() ?? undefined,
+      runtimeModelTitle: runtimeModel && displayModelLabel === displayModel?.label ? runtimeModel : '',
+      reasoningOptions,
+      reasoningValue,
+      reasoningDefaultValue: uiConfig.getDefaultReasoningValue(currentModel, settings),
+      reasoningLabel: adaptiveReasoning ? 'Effort' : 'Thinking budget',
+      serviceTier,
+      serviceTierActive,
+      onModelChange: model => runToolbarAction(async () => {
+        await this.callbacks.onModelChange(model.value, model.providerId);
+        this.updateDisplay();
+      }, 'Failed to change model'),
+      onReasoningChange: value => runToolbarAction(async () => {
+        try {
+          if (adaptiveReasoning) await this.callbacks.onEffortLevelChange(value);
+          else await this.callbacks.onThinkingBudgetChange(value);
+        } finally {
+          this.updateDisplay();
+        }
+      }, adaptiveReasoning ? 'Failed to change effort level' : 'Failed to change thinking budget'),
+      onServiceTierToggle: () => runToolbarAction(async () => {
+        await toggleServiceTier(this.callbacks);
+        this.updateDisplay();
+      }, 'Failed to change service tier'),
+    }));
   }
 
-  renderOptions() {
-    if (!this.dropdownEl) return;
-    this.dropdownEl.empty();
-
-    const currentModel = this.callbacks.getSettings().model;
-    const models = this.getAvailableModels();
-    const reversed = [...models].reverse();
-
-    let lastGroup: string | undefined;
-    for (const model of reversed) {
-      if (model.group && model.group !== lastGroup) {
-        const separator = this.dropdownEl.createDiv({ cls: 'claudian-model-group' });
-        separator.setText(model.group);
-        lastGroup = model.group;
-      }
-
-      const option = this.dropdownEl.createDiv({ cls: 'claudian-model-option' });
-      if (model.value === currentModel) {
-        option.addClass('selected');
-      }
-
-      const icon = model.providerIcon ?? this.callbacks.getUIConfig().getProviderIcon?.();
-      if (icon) {
-        createProviderIconSvg(icon, {
-          className: 'claudian-model-provider-icon',
-          height: 12,
-          parent: option,
-          width: 12,
-        });
-      }
-      option.createSpan({ text: model.label });
-      if (model.description) {
-        option.setAttribute('title', model.description);
-      }
-
-      option.addEventListener('click', (e) => {
-        e.stopPropagation();
-        runToolbarAction(async () => {
-          if (model.providerId) {
-            await this.callbacks.onModelChange(model.value, model.providerId);
-          } else {
-            await this.callbacks.onModelChange(model.value);
-          }
-          this.updateDisplay();
-          this.renderOptions();
-        }, 'Failed to change model');
-      });
-    }
+  renderOptions(): void {
+    this.updateDisplay();
   }
 }
 
@@ -331,267 +287,39 @@ export class ModeSelector {
 }
 
 export class ThinkingBudgetSelector {
-  private container: HTMLElement;
-  private effortEl: HTMLElement | null = null;
-  private effortGearsEl: HTMLElement | null = null;
-  private budgetEl: HTMLElement | null = null;
-  private budgetGearsEl: HTMLElement | null = null;
-  private callbacks: ToolbarCallbacks;
-  private readonly handleDocumentClick = (event: MouseEvent): void => {
-    if (!this.container.contains(event.target as Node)) {
-      this.closeOpenGears();
-    }
-  };
-  private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || !this.container.querySelector('.claudian-thinking-gears.is-open')) return;
-    this.closeOpenGears();
-    event.preventDefault();
-    event.stopPropagation();
-  };
+  private disposed = false;
 
-  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
-    this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-thinking-selector' });
-    this.container.ownerDocument.addEventListener('click', this.handleDocumentClick, true);
-    this.container.ownerDocument.addEventListener('keydown', this.handleDocumentKeydown, true);
-    this.render();
-  }
+  constructor(
+    _parentEl: HTMLElement,
+    _callbacks: ToolbarCallbacks,
+    private readonly modelSelector?: ModelSelector,
+  ) {}
 
   destroy(): void {
-    this.container.ownerDocument.removeEventListener('click', this.handleDocumentClick, true);
-    this.container.ownerDocument.removeEventListener('keydown', this.handleDocumentKeydown, true);
+    this.disposed = true;
   }
 
-  private render() {
-    this.container.empty();
-
-    // Effort selector (for adaptive thinking models)
-    this.effortEl = this.container.createDiv({ cls: 'claudian-thinking-effort' });
-    const effortLabel = this.effortEl.createSpan({ cls: 'claudian-thinking-label-text' });
-    effortLabel.setText('Effort:');
-    this.effortGearsEl = this.effortEl.createDiv({ cls: 'claudian-thinking-gears' });
-
-    // Legacy budget selector (for custom models)
-    this.budgetEl = this.container.createDiv({ cls: 'claudian-thinking-budget' });
-    const budgetLabel = this.budgetEl.createSpan({ cls: 'claudian-thinking-label-text' });
-    budgetLabel.setText('Thinking:');
-    this.budgetGearsEl = this.budgetEl.createDiv({ cls: 'claudian-thinking-gears' });
-
-    this.updateDisplay();
-  }
-
-  private renderEffortGears() {
-    if (!this.effortGearsEl) return;
-    this.effortGearsEl.empty();
-
-    const currentEffort = this.callbacks.getSettings().effortLevel;
-    const uiConfig = this.callbacks.getUIConfig();
-    const settings = this.callbacks.getSettings();
-    const model = settings.model;
-    const options = uiConfig.getReasoningOptions(model, settings);
-    const currentInfo = options.find(e => e.value === currentEffort);
-
-    const currentEl = this.effortGearsEl.createEl('button', {
-      cls: 'claudian-thinking-current',
-      type: 'button',
-    });
-    currentEl.setText(currentInfo?.label || options[0]?.label || 'High');
-    currentEl.setAttribute('aria-expanded', 'false');
-    currentEl.setAttribute('aria-haspopup', 'listbox');
-    currentEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.toggleGears(this.effortGearsEl, currentEl);
-    });
-
-    const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-options' });
-
-    for (const effort of [...options].reverse()) {
-      const gearEl = optionsEl.createDiv({ cls: 'claudian-thinking-gear' });
-      gearEl.setText(effort.label);
-      if (effort.description) {
-        gearEl.setAttribute('title', effort.description);
-      }
-
-      if (effort.value === currentEffort) {
-        gearEl.addClass('selected');
-      }
-
-      gearEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.closeOpenGears();
-        runToolbarAction(async () => {
-          await this.callbacks.onEffortLevelChange(effort.value);
-          this.updateDisplay();
-        }, 'Failed to change effort level');
-      });
-    }
-  }
-
-  private renderBudgetGears() {
-    if (!this.budgetGearsEl) return;
-    this.budgetGearsEl.empty();
-
-    const currentBudget = this.callbacks.getSettings().thinkingBudget;
-    const uiConfig = this.callbacks.getUIConfig();
-    const settings = this.callbacks.getSettings();
-    const model = settings.model;
-    const options: ProviderReasoningOption[] = uiConfig.getReasoningOptions(model, settings);
-    const currentBudgetInfo = options.find(b => b.value === currentBudget);
-
-    const currentEl = this.budgetGearsEl.createEl('button', {
-      cls: 'claudian-thinking-current',
-      type: 'button',
-    });
-    currentEl.setText(currentBudgetInfo?.label || options[0]?.label || 'Off');
-    currentEl.setAttribute('aria-expanded', 'false');
-    currentEl.setAttribute('aria-haspopup', 'listbox');
-    currentEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.toggleGears(this.budgetGearsEl, currentEl);
-    });
-
-    const optionsEl = this.budgetGearsEl.createDiv({ cls: 'claudian-thinking-options' });
-
-    for (const budget of [...options].reverse()) {
-      const gearEl = optionsEl.createDiv({ cls: 'claudian-thinking-gear' });
-      gearEl.setText(budget.label);
-      const tokens = budget.tokens ?? 0;
-      gearEl.setAttribute('title', tokens > 0 ? `${tokens.toLocaleString()} tokens` : 'Disabled');
-
-      if (budget.value === currentBudget) {
-        gearEl.addClass('selected');
-      }
-
-      gearEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.closeOpenGears();
-        runToolbarAction(async () => {
-          await this.callbacks.onThinkingBudgetChange(budget.value);
-          this.updateDisplay();
-        }, 'Failed to change thinking budget');
-      });
-    }
-  }
-
-  updateDisplay() {
-    this.closeOpenGears();
-    const capabilities = this.callbacks.getCapabilities();
-    if (capabilities.reasoningControl === 'none') {
-      this.effortEl?.addClass('claudian-hidden');
-      this.budgetEl?.addClass('claudian-hidden');
-      return;
-    }
-
-    const settings = this.callbacks.getSettings();
-    const model = settings.model;
-    const uiConfig = this.callbacks.getUIConfig();
-    const options = uiConfig.getReasoningOptions(model, settings);
-    const defaultValue = uiConfig.getDefaultReasoningValue(model, settings);
-    const shouldHide = options.length === 0
-      || (options.length === 1 && options[0]?.value === defaultValue);
-
-    if (shouldHide) {
-      this.effortEl?.addClass('claudian-hidden');
-      this.budgetEl?.addClass('claudian-hidden');
-      return;
-    }
-
-    const adaptive = uiConfig.isAdaptiveReasoningModel(model, settings);
-
-    if (this.effortEl) {
-      this.effortEl.toggleClass('claudian-hidden', !adaptive);
-    }
-    if (this.budgetEl) {
-      this.budgetEl.toggleClass('claudian-hidden', adaptive);
-    }
-
-    if (adaptive) {
-      this.renderEffortGears();
-    } else {
-      this.renderBudgetGears();
-    }
-  }
-
-  private toggleGears(gearsEl: HTMLElement | null, currentEl: HTMLElement): void {
-    if (!gearsEl) return;
-    const isOpen = !gearsEl.hasClass('is-open');
-    this.closeOpenGears();
-    gearsEl.toggleClass('is-open', isOpen);
-    currentEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-  }
-
-  private closeOpenGears(): void {
-    for (const gearsEl of [this.effortGearsEl, this.budgetGearsEl]) {
-      gearsEl?.removeClass('is-open');
-    }
-    for (const currentEl of Array.from(this.container.querySelectorAll('.claudian-thinking-current'))) {
-      currentEl.setAttribute('aria-expanded', 'false');
-    }
+  updateDisplay(): void {
+    if (!this.disposed) this.modelSelector?.updateDisplay();
   }
 }
 
 export class ServiceTierToggle {
-  private container: HTMLElement;
-  private buttonEl: HTMLElement | null = null;
-  private iconEl: HTMLElement | null = null;
-  private callbacks: ToolbarCallbacks;
+  private disposed = false;
 
-  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
-    this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-service-tier-toggle' });
-    this.render();
-  }
+  constructor(
+    _parentEl: HTMLElement,
+    private readonly callbacks: ToolbarCallbacks,
+    private readonly modelSelector?: ModelSelector,
+  ) {}
 
-  private render() {
-    this.container.empty();
-
-    this.buttonEl = this.container.createDiv({ cls: 'claudian-service-tier-button' });
-    this.iconEl = this.buttonEl.createSpan({ cls: 'claudian-service-tier-icon' });
-    setIcon(this.iconEl, 'zap');
-
-    this.updateDisplay();
-
-    this.buttonEl.addEventListener('click', () => {
-      runToolbarAction(async () => {
-        await this.toggle();
-      }, 'Failed to change service tier');
-    });
-  }
-
-  private getToggleConfig(): ProviderServiceTierToggleConfig | null {
-    const uiConfig = this.callbacks.getUIConfig();
-    return uiConfig.getServiceTierToggle?.(this.callbacks.getSettings()) ?? null;
-  }
-
-  updateDisplay() {
-    if (!this.buttonEl || !this.iconEl) return;
-
-    const toggleConfig = this.getToggleConfig();
-    if (!toggleConfig) {
-      this.container.addClass('claudian-hidden');
-      return;
-    }
-
-    this.container.removeClass('claudian-hidden');
-    const current = this.callbacks.getSettings().serviceTier;
-    const isActive = toggleConfig.isActive ?? current === toggleConfig.activeValue;
-    if (isActive) {
-      this.buttonEl.addClass('active');
-    } else {
-      this.buttonEl.removeClass('active');
-    }
-
-    const currentLabel = isActive
-      ? toggleConfig.activeLabel
-      : toggleConfig.inactiveLabel;
-    this.container.setAttribute('title', `Fast mode: ${currentLabel}`);
+  updateDisplay(): void {
+    if (!this.disposed) this.modelSelector?.updateDisplay();
   }
 
   async toggle(): Promise<boolean> {
     const toggled = await toggleServiceTier(this.callbacks);
-    if (toggled) {
-      this.updateDisplay();
-    }
+    if (toggled) this.updateDisplay();
     return toggled;
   }
 }
@@ -1613,8 +1341,16 @@ export function createInputToolbar(
   );
   const mcpServerSelector = new McpServerSelector(getSlot('context-mcp'));
   const modelSelector = new ModelSelector(getSlot('model'), callbacks);
-  const thinkingBudgetSelector = new ThinkingBudgetSelector(getSlot('reasoning'), callbacks);
-  const serviceTierToggle = new ServiceTierToggle(getSlot('service-tier'), callbacks);
+  const thinkingBudgetSelector = new ThinkingBudgetSelector(
+    getSlot('model'),
+    callbacks,
+    modelSelector,
+  );
+  const serviceTierToggle = new ServiceTierToggle(
+    getSlot('model'),
+    callbacks,
+    modelSelector,
+  );
   const contextUsageMeter = new ContextUsageMeter(getSlot('status'));
   const permissionToggle: PermissionModeMenuHandle = {
     updateDisplay: render,
@@ -1642,6 +1378,7 @@ export function createInputToolbar(
   const layoutController = new InputToolbarLayoutController(parentEl);
   const refreshLocale = (): void => {
     render();
+    modelSelector.updateDisplay();
     externalContextSelector?.refreshLocale();
   };
 
@@ -1652,6 +1389,7 @@ export function createInputToolbar(
     mcpServerSelector.destroy();
     layoutController.destroy();
     thinkingBudgetSelector.destroy();
+    modelSelector.destroy();
     root.unmount();
   };
 

@@ -87,6 +87,20 @@
 }
 
 /* Bridge the gap between icon and dropdown to prevent hover breaks */
+@container (max-width: 300px) {
+  .oh-my-claudian-root .claudian-mcp-selector-dropdown {
+    left: auto;
+    right: auto;
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    box-sizing: border-box;
+    width: min(280px, calc(100cqi - 16px));
+    min-width: min(200px, calc(100cqi - 16px));
+    max-width: min(280px, calc(100cqi - 16px));
+    transform: none;
+  }
+}
+
 .claudian-mcp-selector-dropdown::after {
   content: '';
   position: absolute;
