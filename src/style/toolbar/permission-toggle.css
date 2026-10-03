@@ -108,11 +108,15 @@
   overflow-y: auto;
 }
 
-@container (max-width: 300px) {
+@container (max-width: 400px) {
+  .oh-my-claudian-root .claudian-permission-mode-menu {
+    position: static;
+  }
+
   .oh-my-claudian-root .claudian-permission-mode-popover {
-    inset-inline-start: 0;
-    inset-inline-end: auto;
-    width: min(332px, calc(100cqi - 16px));
+    inset-inline: 8px;
+    width: auto;
+    max-width: none;
   }
 }
 

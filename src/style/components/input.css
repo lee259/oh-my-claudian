@@ -591,9 +591,9 @@
   flex: 1 1 auto;
 }
 
-.oh-my-claudian-root .claudian-input-toolbar-execution-group {
+.oh-my-claudian-root .claudian-input-toolbar > .claudian-input-toolbar-execution-group {
   flex: 0 0 auto;
-  margin-inline-start: 0;
+  margin-inline-start: 4px;
   flex-wrap: nowrap;
   white-space: nowrap;
 }
@@ -601,7 +601,7 @@
 .oh-my-claudian-root .claudian-input-toolbar > .claudian-input-toolbar-slot:last-child {
   flex: 0 0 clamp(32px, 18cqi, 36px);
   min-width: 0;
-  margin: 0;
+  margin-inline-start: auto;
 }
 
 .oh-my-claudian-root .claudian-input-toolbar > .claudian-input-toolbar-slot:last-child > .claudian-input-send-button {

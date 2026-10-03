@@ -117,12 +117,16 @@
   display: none;
 }
 
-@container (max-width: 300px) {
-  .claudian-model-dropdown {
-    inset-inline-start: 0;
-    width: min(280px, calc(100cqi - 16px));
-    min-width: min(160px, calc(100cqi - 16px));
-    max-width: min(280px, calc(100cqi - 16px));
+@container (max-width: 360px) {
+  .oh-my-claudian-root .claudian-model-selector {
+    position: static;
+  }
+
+  .oh-my-claudian-root .claudian-model-dropdown {
+    inset-inline: 8px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
   }
 }
 
