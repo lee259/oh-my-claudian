@@ -688,6 +688,28 @@ describe('CodexChatUIConfig', () => {
       });
     });
 
+    it('offers Fast mode from the selected model id when app-server omits tier metadata', () => {
+      const settings = withDiscoveredModels({ model: 'gpt-5.6-luna', serviceTier: 'priority' });
+      const config = settings.providerConfigs as { codex: { discoveredModels: any[] } };
+      config.codex.discoveredModels.push({
+        model: 'gpt-5.6-luna',
+        displayName: 'GPT-5.6 Luna',
+        description: 'Latest',
+        supportedReasoningEfforts: [{ value: 'medium', description: 'Balanced' }],
+        defaultReasoningEffort: 'medium',
+        serviceTiers: [],
+        defaultServiceTier: null,
+        inputModalities: ['text', 'image'],
+        isDefault: false,
+      });
+
+      expect(codexChatUIConfig.getServiceTierToggle!(settings)).toMatchObject({
+        activeValue: 'priority',
+        activeLabel: 'Fast',
+        isActive: true,
+      });
+    });
+
     it('uses the selected model service tier metadata from app-server', () => {
       const settings = withDiscoveredModels({ model: TEST_CODEX_MODEL });
       const config = settings.providerConfigs as { codex: { discoveredModels: any[] } };

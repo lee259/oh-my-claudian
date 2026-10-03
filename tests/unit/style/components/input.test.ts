@@ -18,7 +18,7 @@ describe('Chat input toolbar styles', () => {
 
   it('keeps context actions in a compact, consistently interactive popover', () => {
     expect(css).toMatch(
-      /\.claudian-context-actions-menu\s*\{[\s\S]*?width:\s*max-content;[\s\S]*?min-width:\s*min\(184px, calc\(100vw - 24px\)\);[\s\S]*?padding:\s*4px;[\s\S]*?border-radius:\s*8px;/,
+      /\.claudian-context-actions-menu\s*\{[\s\S]*?width:\s*max-content;[\s\S]*?min-width:\s*min\(184px, calc\(100cqi - 24px\)\);[\s\S]*?padding:\s*4px;[\s\S]*?border-radius:\s*8px;/,
     );
     expect(css).toMatch(
       /\.claudian-context-actions-menu\s*\{[\s\S]*?background:\s*var\(--background-secondary\);/,
@@ -65,7 +65,22 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-send-button\s*\{[\s\S]*?position:\s*static;[\s\S]*?margin-inline-start:\s*8px;/,
     );
     expect(css).toMatch(
-      /\.oh-my-claudian-root \.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;/,
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*\{[\s\S]*?flex-wrap:\s*nowrap;/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;[\s\S]*?white-space:\s*nowrap;/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-slot:last-child\s*\{[\s\S]*?margin:\s*0;/,
+    );
+  });
+
+  it('keeps the context usage gauge visible while the composer narrows', () => {
+    expect(css).not.toMatch(
+      /\.claudian-input-toolbar-status-group\s*\{[^}]*display:\s*none;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-toolbar \.claudian-context-meter-percent\s*\{\s*display:\s*none;/,
     );
   });
 
