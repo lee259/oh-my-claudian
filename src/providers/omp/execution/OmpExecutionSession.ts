@@ -324,15 +324,20 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   }
 }
 
+const OMP_SLASH_COMMAND_PATTERN = /^\/[A-Za-z][\w:.-]*(?:\s|$)/u;
+
 export function buildOmpPrompt(request: ProviderExecutionRequest): AcpContentBlock[] {
   let text = request.input.filter(block => block.type === 'text').map(block => block.text).join('\n');
-  if (request.context?.currentNote?.path) {
+  // OMP parses everything after a slash command as its argument, so appended
+  // note/file context would corrupt commands such as `/effort high`.
+  const isSlashCommand = OMP_SLASH_COMMAND_PATTERN.test(text);
+  if (!isSlashCommand && request.context?.currentNote?.path) {
     text = appendCurrentNote(text, request.context.currentNote.path);
   }
-  if (request.context?.editorSelection) {
+  if (!isSlashCommand && request.context?.editorSelection) {
     text = appendEditorContext(text, request.context.editorSelection);
   }
-  if (request.context?.contextFiles?.length) {
+  if (!isSlashCommand && request.context?.contextFiles?.length) {
     text = appendContextFiles(text, [...request.context.contextFiles]);
   }
   const blocks: AcpContentBlock[] = [{ type: 'text', text }];
@@ -343,6 +348,7 @@ export function buildOmpPrompt(request: ProviderExecutionRequest): AcpContentBlo
   }
   return blocks;
 }
+
 
 function getTextCharacters(prompt: readonly AcpContentBlock[]): number {
   return prompt

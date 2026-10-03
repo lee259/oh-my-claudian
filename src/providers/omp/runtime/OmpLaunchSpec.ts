@@ -22,6 +22,8 @@ export interface BuildOmpLaunchSpecParams {
   env?: NodeJS.ProcessEnv;
   approvalMode?: OmpApprovalMode;
   additionalArguments?: readonly string[];
+  /** Stores native sessions here instead of the user's OMP session directory. */
+  sessionDirectory?: string;
   settings: OmpProviderSettings;
 }
 
@@ -38,6 +40,7 @@ export function buildOmpLaunchSpec(params: BuildOmpLaunchSpecParams): OmpLaunchS
   return {
     args: [
       'acp', '--approval-mode', params.approvalMode ?? 'always-ask',
+      ...(params.sessionDirectory ? ['--session-dir', params.sessionDirectory] : []),
       ...(params.additionalArguments ?? []),
     ],
     command: params.command,

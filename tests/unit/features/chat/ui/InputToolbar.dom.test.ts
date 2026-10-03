@@ -528,42 +528,71 @@ describe('createInputToolbar', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('closes the reasoning option list on Escape without opening permission modes', () => {
-    const reasoningTrigger = toolbarEl.querySelector<HTMLButtonElement>(
-      '.claudian-thinking-current',
-    );
+  it('opens model options from the keyboard without opening permission modes', async () => {
+    const modelTrigger = toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn');
+    modelTrigger?.dispatchEvent(new KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'ArrowDown',
+      cancelable: true,
+    }));
+    await Promise.resolve();
+
+    const modelDropdown = toolbarEl.querySelector<HTMLElement>('.claudian-model-dropdown');
     const permissionMenu = toolbarEl.querySelector<HTMLElement>(
       '.claudian-permission-mode-popover',
     );
-    reasoningTrigger?.click();
-    expect(toolbarEl.querySelector('.claudian-thinking-gears.is-open')).not.toBeNull();
-
-    reasoningTrigger?.dispatchEvent(new KeyboardEvent('keydown', {
-      bubbles: true,
-      key: 'Escape',
-    }));
-
-    expect(toolbarEl.querySelector('.claudian-thinking-gears.is-open')).toBeNull();
+    expect(modelDropdown?.hasAttribute('hidden')).toBe(false);
     expect(permissionMenu?.hasAttribute('hidden')).toBe(true);
   });
 
-  it('keeps the provider reasoning selector in the toolbar configuration group', () => {
+  it('keeps model and reasoning controls together in the toolbar configuration group', () => {
     const popover = toolbarEl.querySelector('.claudian-permission-mode-popover');
+    const modelSelector = toolbarEl.querySelector('.claudian-model-selector');
     const reasoningSelector = toolbarEl.querySelector('.claudian-thinking-selector');
     const configurationGroup = toolbarEl.querySelector('.claudian-input-toolbar-config-group');
 
-    expect(configurationGroup?.contains(reasoningSelector)).toBe(true);
+    expect(configurationGroup?.contains(modelSelector)).toBe(true);
+    expect(modelSelector?.contains(reasoningSelector)).toBe(true);
     expect(popover?.contains(reasoningSelector)).toBe(false);
-    expect(popover?.querySelector('.claudian-permission-mode-reasoning')).toBeNull();
 
-    reasoningSelector?.querySelector<HTMLButtonElement>(
-      '.claudian-thinking-current',
-    )?.click();
-    Array.from(reasoningSelector?.querySelectorAll<HTMLElement>(
-      '.claudian-thinking-gear',
-    ) ?? []).find(option => option.textContent === 'Low')?.click();
+    toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn')?.click();
+    const slider = toolbarEl.querySelector<HTMLInputElement>('.claudian-model-slider-input');
+    expect(slider).not.toBeNull();
+    if (slider) {
+      slider.value = '0';
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 
     expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+  });
+
+  it('toggles provider Fast mode from the model menu', async () => {
+    const getUIConfig = callbacks.getUIConfig;
+    callbacks.getUIConfig = () => ({
+      ...getUIConfig(),
+      getServiceTierToggle: () => ({
+        inactiveValue: 'default',
+        inactiveLabel: 'Standard',
+        activeValue: 'priority',
+        activeLabel: 'Fast',
+      }),
+    });
+    toolbar?.modelSelector.updateDisplay();
+
+    const modelTrigger = toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn');
+    modelTrigger?.dispatchEvent(new KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'ArrowDown',
+      cancelable: true,
+    }));
+    await Promise.resolve();
+
+    const fastToggle = toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-service-tier');
+    expect(fastToggle?.getAttribute('aria-checked')).toBe('false');
+    fastToggle?.click();
+    await Promise.resolve();
+
+    expect(callbacks.onServiceTierChange).toHaveBeenCalledWith('priority');
   });
 
   it('unmounts the mode menu with the toolbar root', () => {

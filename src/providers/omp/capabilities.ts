@@ -7,7 +7,7 @@ export const OMP_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Object.
   supportsPlanMode: false,
   supportsRewind: false,
   supportsFork: true,
-  supportsProviderCommands: false,
+  supportsProviderCommands: true,
   supportsImageAttachments: true,
   supportsInstructionMode: true,
   supportsMcpTools: false,
