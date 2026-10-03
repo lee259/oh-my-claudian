@@ -136,12 +136,12 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
-  it('styles mirrored mentions as theme-aware links without changing text metrics', () => {
+  it('shows link underlines on hover and preserves unresolved mention styling', () => {
     expect(css).toMatch(
-      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\[data-mention-kind="file"\]\s*\{[\s\S]*?color:\s*var\(--link-color\);[\s\S]*?box-shadow:\s*inset 0 -1px/,
+      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\s*\{[\s\S]*?color:\s*var\(--link-color\);[\s\S]*?text-decoration-line:\s*none;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\[data-mention-kind="folder"\]\s*\{[\s\S]*?background:\s*var\(--background-modifier-hover\);/,
+      /\.claudian-input-mention-highlight--clickable\[data-mention-state="resolved"\]:hover\s*\{[\s\S]*?text-decoration-line:\s*underline;/,
     );
     expect(css).toMatch(
       /\.claudian-input-mention-highlight\[data-mention-state="missing"\]\s*\{[\s\S]*?color:\s*var\(--link-unresolved-color/,

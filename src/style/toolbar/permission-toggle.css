@@ -93,9 +93,9 @@
   flex-direction: column;
   box-sizing: border-box;
   gap: 5px;
-  width: min(420px, calc(100cqi - 16px));
+  width: min(320px, calc(100cqi - 16px));
   min-width: min(160px, calc(100cqi - 16px));
-  max-width: min(420px, calc(100cqi - 16px));
+  max-width: min(320px, calc(100cqi - 16px));
   max-height: min(440px, calc(100vh - 32px));
   padding: 7px;
   border: 1px solid var(--background-modifier-border);
@@ -116,9 +116,9 @@
   .oh-my-claudian-root .claudian-permission-mode-popover {
     inset-inline-start: auto;
     inset-inline-end: 8px;
-    width: min(420px, calc(100cqi - 16px));
+    width: min(320px, calc(100cqi - 16px));
     min-width: min(160px, calc(100cqi - 16px));
-    max-width: min(420px, calc(100cqi - 16px));
+    max-width: min(320px, calc(100cqi - 16px));
   }
 }
 

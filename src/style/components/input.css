@@ -257,16 +257,10 @@
 }
 
 /* Mirror metrics must match the transparent textarea, so link styling cannot add box space. */
-.claudian-input-mention-highlight[data-mention-state="resolved"][data-mention-kind="file"] {
+.claudian-input-mention-highlight[data-mention-state="resolved"] {
   background: transparent;
   color: var(--link-color);
-  box-shadow: inset 0 -1px color-mix(in srgb, var(--link-color) 45%, transparent);
-}
-
-.claudian-input-mention-highlight[data-mention-state="resolved"][data-mention-kind="folder"] {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+  text-decoration-line: none;
 }
 
 .claudian-input-mention-highlight[data-mention-state="missing"] {
@@ -283,13 +277,11 @@
   cursor: pointer;
 }
 
-.claudian-input-mention-highlight--clickable[data-mention-kind="file"]:hover {
+.claudian-input-mention-highlight--clickable[data-mention-state="resolved"]:hover {
   color: var(--link-color-hover);
-  box-shadow: inset 0 -1px currentColor;
-}
-
-.claudian-input-mention-highlight--clickable[data-mention-kind="folder"]:hover {
-  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-modifier-hover));
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
 }
 
 .claudian-input-send-button {
