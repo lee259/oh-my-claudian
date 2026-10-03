@@ -100,7 +100,7 @@ export function CliLifecycleView({
                 : t('settings.cliLifecycle.update')}
             </button>
           )}
-          {info?.version && !info.installedButBroken && !isUpdateAvailable && (
+          {info?.version && info.latestVersion && !info.installedButBroken && !isUpdateAvailable && (
             <span className="claudian-cli-lifecycle-ready">
               {t('settings.cliLifecycle.ready')}
             </span>
