@@ -1751,6 +1751,25 @@ describe('InputController coordinator execution', () => {
     }
   });
 
+  it('keeps response duration when compaction continues the completed turn', async () => {
+    let currentTime = 1000;
+    const nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => currentTime);
+    try {
+      const fixture = createFixture();
+      fixture.coordinator.execute.mockImplementationOnce(async (submission: ChatTurnSubmission) => {
+        currentTime += 1500;
+        submission.messages?.assistant.contentBlocks?.push({ type: 'context_compacted' });
+        return { accepted: true, planCompleted: false, status: 'completed' };
+      });
+
+      await fixture.controller.sendMessage({ content: 'continue after compaction' });
+
+      expect(fixture.state.messages[1].durationSeconds).toBe(1);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('suppresses response duration and DOM footer on catch-path rejections when elapsed time exceeds one second', async () => {
     let currentTime = 1000;
     const nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => currentTime);

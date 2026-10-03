@@ -99,16 +99,20 @@ export class MentionTextHighlighter {
   private appendMention(mention: string): void {
     const linkPath = mention.slice(1);
     const normalizedPath = linkPath.replace(/\/$/, '');
-    const file = this.app?.metadataCache.getFirstLinkpathDest(linkPath, '')
-      ?? this.app?.vault.getAbstractFileByPath(normalizedPath);
+    const isFolder = mention.endsWith('/');
+    const file = isFolder
+      ? this.app?.vault.getAbstractFileByPath(normalizedPath)
+      : this.app?.metadataCache.getFirstLinkpathDest(linkPath, '')
+        ?? this.app?.vault.getAbstractFileByPath(normalizedPath);
     const mentionEl = this.contentEl.createSpan({
       cls: file ? 'claudian-input-mention-highlight internal-link' : 'claudian-input-mention-highlight',
       text: mention,
     });
+    mentionEl.dataset.mentionKind = isFolder ? 'folder' : 'file';
+    if (this.app) mentionEl.dataset.mentionState = file ? 'resolved' : 'missing';
     if (!file || !this.app) return;
 
     mentionEl.addClass('claudian-input-mention-highlight--clickable');
-    const isFolder = mention.endsWith('/');
     mentionEl.setAttribute('data-href', normalizedPath);
     mentionEl.setAttribute('href', normalizedPath);
     if (isFolder) mentionEl.setAttribute('data-claudian-folder-link', 'true');

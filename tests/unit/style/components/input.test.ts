@@ -136,6 +136,19 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
+  it('styles mirrored mentions as theme-aware links without changing text metrics', () => {
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\[data-mention-kind="file"\]\s*\{[\s\S]*?color:\s*var\(--link-color\);[\s\S]*?box-shadow:\s*inset 0 -1px/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\[data-mention-kind="folder"\]\s*\{[\s\S]*?background:\s*var\(--background-modifier-hover\);/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-mention-highlight\[data-mention-state="missing"\]\s*\{[\s\S]*?color:\s*var\(--link-unresolved-color/,
+    );
+    expect(css).not.toMatch(/\.claudian-input-mention-highlight[^{]*\{[^}]*(?:margin|border-width|letter-spacing)\s*:/);
+  });
+
   it('uses the same composer styling on home and conversation surfaces', () => {
     expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-footer\s*\{/);
     expect(css).not.toMatch(/\.claudian-home-state \.claudian-input-wrapper\s*\{/);
