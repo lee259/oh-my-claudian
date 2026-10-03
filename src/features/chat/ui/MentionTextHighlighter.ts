@@ -7,6 +7,7 @@ export class MentionTextHighlighter {
   private readonly contentEl: HTMLElement;
   private readonly syncHandler = () => this.sync();
   private readonly scrollHandler = () => this.syncScroll();
+  private readonly restoreProgrammaticWrites: () => void;
 
   constructor(
     private readonly inputEl: HTMLTextAreaElement,
@@ -18,14 +19,61 @@ export class MentionTextHighlighter {
     this.inputEl.addEventListener('input', this.syncHandler);
     this.inputEl.addEventListener('scroll', this.scrollHandler);
     this.inputEl.addEventListener('claudian:mention-inserted', this.syncHandler);
+    this.restoreProgrammaticWrites = this.observeProgrammaticWrites();
     this.sync();
   }
 
   destroy(): void {
+    this.restoreProgrammaticWrites();
     this.inputEl.removeEventListener('input', this.syncHandler);
     this.inputEl.removeEventListener('scroll', this.scrollHandler);
     this.inputEl.removeEventListener('claudian:mention-inserted', this.syncHandler);
     this.highlightEl.remove();
+  }
+
+  /**
+   * The textarea text is transparent and this mirror draws it, so programmatic
+   * writes (slash command selection, conversation resets, mode exits) must also
+   * resync; they do not fire `input`. Instance-level overrides keep every
+   * current and future caller covered without per-call-site events.
+   */
+  private observeProgrammaticWrites(): () => void {
+    const input = this.inputEl;
+    const valueDescriptor = findPropertyDescriptor(input, 'value');
+    const rangeDescriptor = findPropertyDescriptor(input, 'setRangeText');
+    const ownValue = Object.getOwnPropertyDescriptor(input, 'value');
+    const ownSetRangeText = Object.getOwnPropertyDescriptor(input, 'setRangeText');
+    const getValue: unknown = valueDescriptor && Reflect.get(valueDescriptor, 'get');
+    const setValue: unknown = valueDescriptor && Reflect.get(valueDescriptor, 'set');
+    const setRangeText: unknown = rangeDescriptor && Reflect.get(rangeDescriptor, 'value');
+
+    if (typeof getValue === 'function' && typeof setValue === 'function') {
+      Object.defineProperty(input, 'value', {
+        configurable: true,
+        enumerable: valueDescriptor?.enumerable ?? true,
+        get: (): unknown => Reflect.apply(getValue, input, []),
+        set: (value: string) => {
+          Reflect.apply(setValue, input, [value]);
+          this.sync();
+        },
+      });
+    }
+
+    if (typeof setRangeText === 'function') {
+      Object.defineProperty(input, 'setRangeText', {
+        configurable: true,
+        value: (...args: unknown[]) => {
+          Reflect.apply(setRangeText, input, args);
+          this.sync();
+        },
+        writable: true,
+      });
+    }
+
+    return () => {
+      restoreOwnProperty(input, 'value', ownValue);
+      restoreOwnProperty(input, 'setRangeText', ownSetRangeText);
+    };
   }
 
   private sync(): void {
@@ -76,5 +124,25 @@ export class MentionTextHighlighter {
         void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
       }
     });
+  }
+}
+
+function findPropertyDescriptor(target: object, key: string): PropertyDescriptor | undefined {
+  for (let current: object | null = target; current; current = Object.getPrototypeOf(current) as object | null) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, key);
+    if (descriptor) return descriptor;
+  }
+  return undefined;
+}
+
+function restoreOwnProperty(
+  target: object,
+  key: string,
+  descriptor: PropertyDescriptor | undefined,
+): void {
+  if (descriptor) {
+    Object.defineProperty(target, key, descriptor);
+  } else {
+    Reflect.deleteProperty(target, key);
   }
 }
