@@ -59,6 +59,31 @@ describe('MentionTextHighlighter', () => {
     wrapper.remove();
   });
 
+  it('classifies resolved files, resolved folders, and missing targets for distinct styling', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const app = {
+      metadataCache: {
+        getFirstLinkpathDest: jest.fn((path: string) => path === 'notes/plan.md' ? { path } : null),
+      },
+      vault: { getAbstractFileByPath: jest.fn((path: string) => path === 'src' ? { path } : null) },
+      workspace: { getLeavesOfType: jest.fn().mockReturnValue([]), openLinkText: jest.fn() },
+    } as any;
+    input.value = '@notes/plan.md @src/ @missing.md';
+    const highlighter = new MentionTextHighlighter(input, highlights, app);
+
+    const [file, folder, missing] = [...highlights.querySelectorAll<HTMLElement>('.claudian-input-mention-highlight')];
+    expect(file.dataset.mentionKind).toBe('file');
+    expect(file.dataset.mentionState).toBe('resolved');
+    expect(folder.dataset.mentionKind).toBe('folder');
+    expect(folder.dataset.mentionState).toBe('resolved');
+    expect(missing.dataset.mentionKind).toBe('file');
+    expect(missing.dataset.mentionState).toBe('missing');
+    expect(highlights.textContent).toBe(input.value);
+
+    highlighter.destroy();
+    wrapper.remove();
+  });
+
   it('keeps its mirrored text aligned with textarea scrolling', () => {
     const { highlights, input, wrapper } = createFixture();
     const highlighter = new MentionTextHighlighter(input, highlights);
