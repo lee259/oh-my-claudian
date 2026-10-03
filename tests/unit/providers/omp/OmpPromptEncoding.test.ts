@@ -29,4 +29,23 @@ describe('OMP prompt encoding', () => {
       type: 'text',
     }]);
   });
+
+  it('sends an OMP slash command without appended context so native arguments stay intact', () => {
+    expect(buildOmpPrompt({
+      context: {
+        contextFiles: ['notes/design.md'],
+        currentNote: { path: 'Projects/OMP.md' },
+      },
+      input: [{ text: '/effort high', type: 'text' }],
+    } as never)).toEqual([{ text: '/effort high', type: 'text' }]);
+  });
+
+  it('keeps note context for ordinary prompts that merely mention a slash', () => {
+    expect(buildOmpPrompt({
+      context: { currentNote: { path: 'Projects/OMP.md' } },
+      input: [{ text: 'Explain /effort', type: 'text' }],
+    } as never)[0]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('<linked_note path="Projects/OMP.md" />'),
+    }));
+  });
 });

@@ -20,6 +20,9 @@
 - Live output comes from ACP notifications and is normalized through the shared ACP execution normalizer plus OMP's tool presentation adapter.
 - OMP ACP titles such as `Reading ... for context` must be mapped to shared tool names before reaching feature renderers; keep provider-specific mappings here.
 - Model discovery runs in an independent metadata subprocess. It must not reuse a conversation session or mutate provider-native history.
+- Metadata subprocesses (model and command discovery) must set `isolateNativeSessions`; `omp acp` ignores `--no-session` and otherwise writes an empty session into the user's OMP history for every probe.
+- Runtime `/` commands come from ACP `available_commands_update` on an isolated metadata session; OMP advertises skills as `skill:<name>` commands.
+- OMP parses all text after a slash command as its argument, so prompts that start with a slash command must be sent without appended note, selection, or file context.
 
 ## Verification
 
