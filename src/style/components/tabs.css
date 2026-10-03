@@ -135,6 +135,7 @@
 .claudian-conversation-header-host {
   display: block;
   flex: 0 0 auto;
+  container-type: inline-size;
 }
 
 .claudian-conversation-header--home .claudian-home-actions {
@@ -309,4 +310,43 @@
 .claudian-conversation-header-icon svg {
   width: 18px;
   height: 18px;
+}
+
+@container (max-width: 360px) {
+  .claudian-conversation-header {
+    gap: 4px;
+    padding-inline: 4px;
+  }
+
+  .claudian-conversation-header-leading {
+    gap: 4px;
+  }
+
+  .claudian-conversation-header-actions {
+    gap: 0;
+  }
+
+  .claudian-conversation-header-action {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@container (max-width: 220px) {
+  .claudian-conversation-header-title-wrap {
+    display: none;
+  }
+
+  .claudian-conversation-header-leading {
+    flex: 0 0 auto;
+  }
+}
+
+@container (max-width: 260px) {
+  .claudian-conversation-actions-menu {
+    right: auto;
+    inset-inline-end: 0;
+    width: min(220px, calc(100cqi - 16px));
+  }
 }

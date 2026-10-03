@@ -6,7 +6,7 @@ describe('Claudian view container styles', () => {
     const css = readFileSync(path.resolve('src/style/base/container.css'), 'utf8');
 
     expect(css).toMatch(
-      /\.oh-my-claudian-root\.claudian-container\s*{[^}]*padding:\s*12px 12px 32px;/,
+      /\.oh-my-claudian-root\.claudian-container\s*{[^}]*padding:\s*12px min\(12px, 4%\) 32px;/,
     );
     expect(css).not.toMatch(
       /\.workspace-leaf-content \.view-content\.claudian-container\s*{[^}]*padding:/,

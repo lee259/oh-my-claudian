@@ -11,10 +11,22 @@
 .claudian-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 12px 0;
+  padding: 16px min(12px, 5%) 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  container-type: inline-size;
+}
+
+@container (max-width: 300px) {
+  .claudian-welcome:not(.claudian-welcome--home) {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .claudian-welcome:not(.claudian-welcome--home) .claudian-welcome-text {
+    font-size: 22px;
+  }
 }
 
 .claudian-message-quote-btn {

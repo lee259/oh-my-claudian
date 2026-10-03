@@ -1,107 +1,236 @@
-/* Model selector */
+/* The model chip owns one menu for model, reasoning, and service-tier choices. */
 .claudian-model-selector {
   position: relative;
+  min-width: 0;
 }
 
-.claudian-model-btn {
-  display: flex;
+.claudian-model-btn,
+.claudian-model-btn:is(:hover, :focus, :focus-visible, :active) {
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
-  border-radius: 7px;
-  cursor: pointer;
-  color: var(--claudian-brand);
+  min-width: 0;
+  max-width: min(360px, calc(100cqi - 24px));
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
   font-size: 12px;
-  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.claudian-model-btn:hover {
-  background: var(--background-modifier-hover);
+.claudian-model-btn:is(:hover, :focus-visible, [aria-expanded='true']) {
+  color: var(--text-normal);
+}
+
+.claudian-model-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.claudian-model-provider-slot,
+.claudian-model-chevron,
+.claudian-model-secondary {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.claudian-model-provider-slot:empty,
+.claudian-model-secondary.claudian-hidden {
+  display: none;
+}
+
+.claudian-model-provider-icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
 }
 
 .claudian-model-label {
-  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-weight: 500;
+  text-overflow: ellipsis;
 }
 
-.claudian-model-chevron {
-  display: flex;
+.claudian-model-details {
+  display: inline-flex;
   align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.claudian-model-secondary {
+  font-size: 11px;
+}
+
+.claudian-thinking-current::before {
+  content: '\00B7';
+  margin-inline-end: 5px;
+}
+
+.claudian-service-tier-indicator svg {
+  width: 12px;
+  height: 12px;
 }
 
 .claudian-model-chevron svg {
   width: 12px;
   height: 12px;
+  opacity: 0.6;
+}
+
+.claudian-model-btn[aria-expanded='true'] .claudian-model-chevron {
+  transform: rotate(180deg);
 }
 
 .claudian-model-dropdown {
   position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 0;
+  inset-inline-start: 0;
+  bottom: calc(100% + 8px);
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  width: max-content;
+  box-sizing: border-box;
+  width: min(280px, calc(100cqi - 48px));
+  min-width: 0;
+  max-width: min(280px, calc(100cqi - 48px));
+  max-height: min(420px, 50vh);
+  overflow: hidden;
   padding: 4px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
 }
 
-.claudian-model-selector:hover .claudian-model-dropdown {
-  opacity: 1;
-  visibility: visible;
+.claudian-model-dropdown[hidden] {
+  display: none;
 }
 
-.claudian-model-group {
-  padding: 3px 8px;
-  font-size: 8px;
-  font-weight: 600;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  pointer-events: none;
+@container (max-width: 360px) {
+  .oh-my-claudian-root .claudian-model-selector {
+    position: static;
+  }
+
+  .oh-my-claudian-root .claudian-model-dropdown {
+    inset-inline-start: 8px;
+    inset-inline-end: auto;
+    width: min(280px, calc(100cqi - 16px));
+    min-width: 0;
+    max-width: none;
+  }
 }
 
-.claudian-model-group:not(:first-child) {
+.claudian-model-options {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.claudian-model-menu-footer {
+  flex: 0 0 auto;
+  min-width: 0;
   margin-top: 4px;
   border-top: 1px solid var(--background-modifier-border);
-  padding-top: 6px;
 }
 
-.claudian-model-provider-icon {
-  flex-shrink: 0;
+.claudian-model-empty {
+  max-width: 100%;
+  padding: 7px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.claudian-model-group + .claudian-model-group,
+.claudian-model-menu-section + .claudian-model-menu-section,
+.claudian-model-menu-section:not(:first-child) {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.claudian-model-group-label {
+  padding: 5px 8px 3px;
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.claudian-model-option,
+.claudian-model-option:is(:hover, :focus, :focus-visible, :active) {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 12px;
+  text-align: start;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.claudian-model-option:is(:hover, :focus-visible) {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-model-option:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
 }
 
 .claudian-model-option .claudian-model-provider-icon {
-  opacity: 0.7;
-}
-
-.claudian-model-option {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-muted);
-  border-radius: 3px;
-  transition: background 0.1s ease, color 0.1s ease;
-  white-space: nowrap;
-}
-
-.claudian-model-option:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.claudian-model-option.selected {
-  background: rgba(var(--claudian-brand-rgb), 0.15);
   color: var(--claudian-brand);
-  font-weight: 500;
+}
+
+.claudian-model-option-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.claudian-model-option-check {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--color-green);
+}
+
+@container (max-width: 300px) {
+  .claudian-model-secondary {
+    display: none;
+  }
+
+  .claudian-model-secondary.claudian-service-tier-indicator {
+    display: inline-flex;
+  }
 }

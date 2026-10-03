@@ -8,8 +8,6 @@ export type InputToolbarSlot =
   | 'context-external'
   | 'context-mcp'
   | 'model'
-  | 'reasoning'
-  | 'service-tier'
   | 'status'
   | 'provider-mode'
   | 'send';
@@ -101,8 +99,6 @@ export function InputToolbarView({
       </div>
       <div className="claudian-input-toolbar-group claudian-input-toolbar-config-group">
         <Slot name="model" onSlot={onSlot} />
-        <Slot name="reasoning" onSlot={onSlot} />
-        <Slot name="service-tier" onSlot={onSlot} />
       </div>
       <div className="claudian-input-toolbar-group claudian-input-toolbar-status-group">
         <Slot name="status" onSlot={onSlot} />
