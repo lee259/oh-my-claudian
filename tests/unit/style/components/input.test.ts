@@ -68,7 +68,10 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-toolbar\s*\{[\s\S]*?flex-wrap:\s*nowrap;/,
     );
     expect(css).toMatch(
-      /\.oh-my-claudian-root \.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*0;[\s\S]*?white-space:\s*nowrap;/,
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;[\s\S]*?white-space:\s*nowrap;/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-slot:last-child\s*\{[\s\S]*?margin:\s*0;/,
     );
   });
 
