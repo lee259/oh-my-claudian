@@ -119,6 +119,12 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
     new Setting(container).setName(t('settings.omp.models')).setHeading();
     renderOmpModelPicker(container, context, settings);
+    new Setting(container).setName(t('settings.omp.commands')).setHeading();
+    context.renderHiddenProviderCommandSetting(container, 'omp', {
+      name: t('settings.hiddenSlashCommands.name'),
+      desc: t('settings.omp.hiddenCommandsDesc'),
+      placeholder: 'skill:review\ncompact',
+    });
     renderProviderAdditionalArgumentsSetting(container, context.plugin, 'omp');
   },
 };

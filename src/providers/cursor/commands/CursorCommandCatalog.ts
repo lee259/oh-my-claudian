@@ -2,6 +2,21 @@ import type { ProviderCommandEntry } from '@/core/providers/commands/ProviderCom
 import { RuntimeCommandCatalog } from '@/core/providers/commands/RuntimeCommandCatalog';
 import type { SlashCommand } from '@/core/types';
 
+/**
+ * Cursor advertises CLI builtins and builtin skills over ACP. These are hidden
+ * from the dropdown because they act on the CLI process, terminal, Cursor
+ * account, or chat identity rather than the Claudian conversation; users can
+ * still type them, and can hide more through the provider settings.
+ */
+export const CURSOR_HIDDEN_RUNTIME_COMMANDS: ReadonlySet<string> = new Set([
+  // Act on the headless CLI process or terminal.
+  'copy-request-id', 'statusline', 'update-cli-config', 'shell',
+  // Change the native chat identity or schedule work outside the turn.
+  'rename-chat', 'loop',
+  // Create, move, or publish workspaces outside the vault conversation.
+  'worktree', 'apply-worktree', 'delete-worktree', 'origin', 'new-repo', 'share',
+]);
+
 function slashCommandToEntry(command: SlashCommand): ProviderCommandEntry {
   return {
     agent: command.agent,
@@ -39,6 +54,7 @@ export class CursorCommandCatalog extends RuntimeCommandCatalog {
         skillPrefix: '/',
         triggerChars: ['/'],
       },
+      isHidden: command => CURSOR_HIDDEN_RUNTIME_COMMANDS.has(command.name.toLowerCase()),
       projectEntry: slashCommandToEntry,
     });
   }

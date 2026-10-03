@@ -23,6 +23,7 @@
 - Metadata subprocesses (model and command discovery) must set `isolateNativeSessions`; `omp acp` ignores `--no-session` and otherwise writes an empty session into the user's OMP history for every probe.
 - Runtime `/` commands come from ACP `available_commands_update` on an isolated metadata session; OMP advertises skills as `skill:<name>` commands.
 - OMP parses all text after a slash command as its argument, so prompts that start with a slash command must be sent without appended note, selection, or file context.
+- `OMP_HIDDEN_RUNTIME_COMMANDS` hides advertised builtins that conflict with Claudian controls (per-turn model/reasoning, native session identity, terminal or dashboard surfaces, directory built-ins); skills are never hidden by default. Users can hide more through the provider settings.
 
 ## Verification
 

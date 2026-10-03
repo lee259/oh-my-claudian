@@ -3,7 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { AcpSessionNotification } from '@/providers/acp';
-import { CursorCommandMetadataProbe } from '@/providers/cursor/app/CursorCommandMetadataProbe';
+import {
+  CursorCommandMetadataProbe,
+  normalizeCursorRuntimeCommands,
+} from '@/providers/cursor/app/CursorCommandMetadataProbe';
 import type {
   CursorAcpSessionKernel,
   CursorAcpSessionKernelOptions,
@@ -113,5 +116,23 @@ describe('removeUnusedCursorProbeSession', () => {
     await removeUnusedCursorProbeSession('../probe-session', home);
 
     await expect(fs.readdir(dir)).resolves.toEqual(['meta.json']);
+  });
+});
+
+describe('normalizeCursorRuntimeCommands', () => {
+  it('classifies Cursor skill scopes from the advertised description suffix', () => {
+    expect(normalizeCursorRuntimeCommands([
+      { description: 'Copy the last request ID to clipboard', name: 'copy-request-id' },
+      { description: 'Find low-info comments. (global)', name: 'simplify' },
+      { description: 'Set a goal. (builtin skill)', name: 'goal' },
+      { description: 'Make a cover. (project skill)', name: 'baoyu-cover-image' },
+      { description: 'Maintain a wiki. (user skill)', name: 'llm-wiki' },
+    ]).map(command => [command.name, command.kind, command.description])).toEqual([
+      ['copy-request-id', 'command', 'Copy the last request ID to clipboard'],
+      ['simplify', 'command', 'Find low-info comments. (global)'],
+      ['goal', 'skill', 'Set a goal.'],
+      ['baoyu-cover-image', 'skill', 'Make a cover.'],
+      ['llm-wiki', 'skill', 'Maintain a wiki.'],
+    ]);
   });
 });

@@ -24,4 +24,5 @@
 - Runtime `/` commands come from ACP `available_commands_update` on a short-lived metadata session. Cursor advertises them ~4s after `session/new` (~12s with startup), so the catalog uses a provider-owned discovery deadline and tabs warm commands on creation.
 - Cursor has no session-directory override or `session/close`; metadata probes (model and command discovery) must remove their prompt-less `~/.cursor/acp-sessions/<id>` folder, and only when it contains nothing but `meta.json`.
 - Cursor runs a slash command only when the prompt is the bare command; prompts starting with a slash command must be sent without appended note, selection, or file context.
+- Cursor marks skills only through a trailing `(builtin|project|user skill)` description suffix; normalize it into `kind: 'skill'`. `CURSOR_HIDDEN_RUNTIME_COMMANDS` hides entries that act on the headless CLI, terminal, chat identity, or external workspaces. Users can hide more through the provider settings.
 - Fork, rewind, native history hydration, and turn steering are intentionally unsupported.

@@ -8,6 +8,8 @@ import type { ProviderCommandEntry } from './ProviderCommandEntry';
 
 export interface RuntimeCommandCatalogOptions {
   readonly dropdownConfig: ProviderCommandDropdownConfig;
+  /** Provider-owned policy for runtime commands that do not work inside Claudian. */
+  readonly isHidden?: (command: SlashCommand) => boolean;
   readonly projectEntry: (command: SlashCommand) => ProviderCommandEntry;
 }
 
@@ -28,9 +30,12 @@ export class RuntimeCommandCatalog implements ProviderCommandCatalog {
   ): Promise<ProviderCommandEntry[]> {
     const commands = context.commandSnapshot
       ?? (context.allowCachedCommandSnapshot === false ? [] : this.commandSnapshot);
-    return commands.map((command) => cloneProviderCommandEntry(
-      this.options.projectEntry(cloneSlashCommand(command)),
-    ));
+    const isHidden = this.options.isHidden;
+    return commands
+      .filter(command => !isHidden?.(command))
+      .map((command) => cloneProviderCommandEntry(
+        this.options.projectEntry(cloneSlashCommand(command)),
+      ));
   }
 
   getDropdownConfig(): ProviderCommandDropdownConfig {

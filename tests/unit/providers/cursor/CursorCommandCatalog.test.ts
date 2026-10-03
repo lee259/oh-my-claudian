@@ -25,4 +25,23 @@ describe('CursorCommandCatalog', () => {
       triggerChars: ['/'],
     });
   });
+
+  it.each([
+    'copy-request-id', 'rename-chat', 'statusline', 'update-cli-config', 'shell',
+    'worktree', 'apply-worktree', 'delete-worktree', 'loop', 'origin', 'new-repo', 'share',
+  ])('hides the %s command by default', async (name) => {
+    const catalog = new CursorCommandCatalog();
+    catalog.setCommandSnapshot([{ content: '', id: `acp:${name}`, name, source: 'sdk' }]);
+
+    await expect(catalog.listDropdownEntries({ includeBuiltIns: false })).resolves.toEqual([]);
+  });
+
+  it('keeps useful Cursor commands and user skills', async () => {
+    const names = ['simplify', 'multi-model-review', 'goal', 'create-skill', 'tdd'];
+    const catalog = new CursorCommandCatalog();
+    catalog.setCommandSnapshot(names.map(name => ({ content: '', id: `acp:${name}`, name, source: 'sdk' })));
+
+    const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
+    expect(entries.map(entry => entry.name)).toEqual(names);
+  });
 });
