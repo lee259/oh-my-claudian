@@ -22,12 +22,17 @@ describe('CursorModelDiscoveryService', () => {
       setModel: jest.fn(),
     };
     const plugin = { app: { vault: { adapter: { basePath: '/vault' } } } } as never;
-    const service = new CursorModelDiscoveryService(plugin, { createKernel: () => kernel });
+    const removeProbeSession = jest.fn().mockResolvedValue(undefined);
+    const service = new CursorModelDiscoveryService(plugin, {
+      createKernel: () => kernel,
+      removeProbeSession,
+    });
 
     await expect(service.discover()).resolves.toEqual([
       { label: 'Claude 4 Sonnet', rawId: 'claude-4-sonnet' },
       { label: 'GPT-5', rawId: 'gpt-5' },
     ]);
     expect(kernel.dispose).toHaveBeenCalledTimes(1);
+    expect(removeProbeSession).toHaveBeenCalledWith('metadata-session');
   });
 });

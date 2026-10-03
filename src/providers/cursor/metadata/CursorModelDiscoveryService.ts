@@ -1,4 +1,3 @@
-import type { ProviderInteractionPort, ProviderSessionConfig } from '../../../core/execution';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import {
   type CursorAcpSessionKernel,
@@ -9,6 +8,10 @@ import {
   type CursorDiscoveredModel,
   normalizeCursorDiscoveredModels,
 } from '../models';
+import {
+  getCursorMetadataSessionConfig,
+  removeUnusedCursorProbeSession,
+} from './CursorMetadataSession';
 
 export interface CursorModelCatalog {
   models: CursorDiscoveredModel[];
@@ -16,10 +19,12 @@ export interface CursorModelCatalog {
 
 export interface CursorModelDiscoveryServiceOptions {
   readonly createKernel?: (options: CursorAcpSessionKernelOptions) => CursorAcpSessionKernel;
+  readonly removeProbeSession?: (sessionId: string) => Promise<void>;
 }
 
 export class CursorModelDiscoveryService {
   private readonly createKernel: (options: CursorAcpSessionKernelOptions) => CursorAcpSessionKernel;
+  private readonly removeProbeSession: (sessionId: string) => Promise<void>;
 
   constructor(
     private readonly plugin: ProviderHost,
@@ -27,6 +32,8 @@ export class CursorModelDiscoveryService {
   ) {
     this.createKernel = options.createKernel
       ?? (kernelOptions => new DefaultCursorAcpSessionKernel(kernelOptions));
+    this.removeProbeSession = options.removeProbeSession
+      ?? (sessionId => removeUnusedCursorProbeSession(sessionId));
   }
 
   async discover(signal?: AbortSignal): Promise<CursorDiscoveredModel[]> {
@@ -36,43 +43,27 @@ export class CursorModelDiscoveryService {
   async discoverCatalog(signal?: AbortSignal): Promise<CursorModelCatalog> {
     signal?.throwIfAborted();
     const kernel = this.createKernel({
-      config: getMetadataSessionConfig(this.plugin),
+      config: getCursorMetadataSessionConfig(this.plugin),
       getActiveTurnId: () => null,
       onClosed: () => undefined,
       onNotification: () => undefined,
       plugin: this.plugin,
       sessionInstanceId: 'cursor-metadata',
     });
+    let sessionId: string | null = null;
     try {
       await kernel.connect();
       signal?.throwIfAborted();
       const session = await kernel.openSession();
+      sessionId = session.sessionId;
       signal?.throwIfAborted();
       return {
         models: normalizeCursorDiscoveredModels(session.models?.availableModels),
       };
     } finally {
       await kernel.dispose();
+      if (sessionId) await this.removeProbeSession(sessionId);
     }
   }
 
 }
-
-function getMetadataSessionConfig(plugin: ProviderHost): ProviderSessionConfig {
-  const adapter = plugin.app.vault.adapter as { basePath?: unknown };
-  return {
-    interactionPort: DENY_INTERACTION_PORT,
-    lifecycle: 'ephemeral',
-    nativePersistence: 'disabled-if-supported',
-    vaultWorkingDirectory: typeof adapter.basePath === 'string' && adapter.basePath
-      ? adapter.basePath
-      : process.cwd(),
-  };
-}
-
-const DENY_INTERACTION_PORT: ProviderInteractionPort = {
-  askUserQuestion: async ({ interactionId }) => ({ answers: null, interactionId }),
-  dismissInteraction: () => undefined,
-  requestApproval: async ({ interactionId }) => ({ decision: 'deny', interactionId }),
-  requestPlanDecision: async ({ interactionId }) => ({ decision: null, interactionId }),
-};

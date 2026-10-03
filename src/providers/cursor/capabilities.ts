@@ -7,7 +7,7 @@ export const CURSOR_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Obje
   supportsPlanMode: true,
   supportsRewind: false,
   supportsFork: false,
-  supportsProviderCommands: false,
+  supportsProviderCommands: true,
   supportsImageAttachments: true,
   supportsInstructionMode: true,
   supportsMcpTools: true,
