@@ -1,7 +1,7 @@
 import { RuntimeCommandCatalog } from '@/core/providers/commands/RuntimeCommandCatalog';
 import type { SlashCommand } from '@/core/types';
 
-function createCatalog(): RuntimeCommandCatalog {
+function createCatalog(isHidden?: (command: SlashCommand) => boolean): RuntimeCommandCatalog {
   return new RuntimeCommandCatalog({
     dropdownConfig: {
       builtInPrefix: '/',
@@ -10,6 +10,7 @@ function createCatalog(): RuntimeCommandCatalog {
       skillPrefix: '/',
       triggerChars: ['/'],
     },
+    ...(isHidden ? { isHidden } : {}),
     projectEntry: (command) => ({
       content: command.content,
       displayPrefix: '/',
@@ -28,6 +29,22 @@ function createCatalog(): RuntimeCommandCatalog {
 }
 
 describe('RuntimeCommandCatalog', () => {
+  it('omits provider-hidden commands from dropdown entries', async () => {
+    const catalog = createCatalog(command => command.name === 'session');
+    catalog.setCommandSnapshot([
+      { content: '', id: 'a', name: 'session', source: 'sdk' },
+      { content: '', id: 'b', name: 'compact', source: 'sdk' },
+    ]);
+
+    await expect(catalog.listDropdownEntries({ includeBuiltIns: false })).resolves.toEqual([
+      expect.objectContaining({ name: 'compact' }),
+    ]);
+    await expect(catalog.listDropdownEntries({
+      commandSnapshot: [{ content: '', id: 'c', name: 'session', source: 'sdk' }],
+      includeBuiltIns: false,
+    })).resolves.toEqual([]);
+  });
+
   it('defensively clones snapshots on input and output', async () => {
     const catalog = createCatalog();
     const command: SlashCommand = {

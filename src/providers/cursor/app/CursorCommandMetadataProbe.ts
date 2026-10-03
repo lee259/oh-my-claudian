@@ -15,6 +15,8 @@ import {
 } from '../metadata/CursorMetadataSession';
 
 const ABORT_MESSAGE = 'Cursor command metadata probe aborted';
+// Cursor appends the entry scope to descriptions, e.g. `(builtin skill)`.
+const SKILL_SCOPE_SUFFIX = /\s*\((?:builtin|project|user|team|plugin) skill\)\s*$/u;
 const DISPOSED_MESSAGE = 'Cursor command metadata probe is disposed.';
 // Cursor advertises commands several seconds after session/new (~4s locally).
 const DEFAULT_COMMAND_TIMEOUT_MS = 20_000;
@@ -117,7 +119,7 @@ export class CursorCommandMetadataProbe {
         if (notification.update.sessionUpdate !== 'available_commands_update') return;
         advertised.set(
           notification.sessionId,
-          normalizeAcpAvailableCommands(notification.update.availableCommands),
+          normalizeCursorRuntimeCommands(notification.update.availableCommands),
         );
         for (const wake of [...waiters]) wake();
       },
@@ -158,4 +160,20 @@ export class CursorCommandMetadataProbe {
 
     return { kernel, sessionId: null, waitForCommands };
   }
+}
+
+/** Marks Cursor skill entries as skills and strips the scope suffix from their descriptions. */
+export function normalizeCursorRuntimeCommands(
+  commands: Parameters<typeof normalizeAcpAvailableCommands>[0],
+): SlashCommand[] {
+  return normalizeAcpAvailableCommands(commands).map((command) => {
+    const description = command.description ?? '';
+    if (!SKILL_SCOPE_SUFFIX.test(description)) return { ...command, kind: 'command' };
+    const stripped = description.replace(SKILL_SCOPE_SUFFIX, '');
+    return {
+      ...command,
+      ...(stripped ? { description: stripped } : { description: undefined }),
+      kind: 'skill',
+    };
+  });
 }

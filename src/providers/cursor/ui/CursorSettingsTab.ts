@@ -119,6 +119,12 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
     refreshCliInstallationSummary = cliLifecycle?.refresh ?? refreshCliInstallationSummary;
     new Setting(container).setName(t('settings.cursor.models')).setHeading();
     renderCursorModelPicker(container, context, settings);
+    new Setting(container).setName(t('settings.cursor.commands')).setHeading();
+    context.renderHiddenProviderCommandSetting(container, 'cursor', {
+      name: t('settings.hiddenSlashCommands.name'),
+      desc: t('settings.cursor.hiddenCommandsDesc'),
+      placeholder: 'simplify\ngoal',
+    });
     renderProviderAdditionalArgumentsSetting(container, context.plugin, 'cursor');
   },
 };
