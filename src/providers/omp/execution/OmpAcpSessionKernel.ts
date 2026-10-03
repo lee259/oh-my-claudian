@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 
@@ -36,6 +37,12 @@ export interface OmpAcpSessionKernelOptions {
   readonly approvalMode: OmpApprovalMode;
   readonly config: ProviderSessionConfig;
   readonly getActiveTurnId: () => string | null;
+  /**
+   * Metadata probes must not leave empty sessions in the user's OMP history.
+   * When set, native sessions live in a private temporary directory that is
+   * removed on dispose.
+   */
+  readonly isolateNativeSessions?: boolean;
   readonly onClosed: (error: Error) => void;
   readonly onNotification: (notification: AcpSessionNotification) => void;
   readonly onPermissionDenied?: (toolCallId: string) => void;
@@ -68,6 +75,7 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
   private process: AcpSubprocess | null = null;
   private transport: AcpJsonRpcTransport | null = null;
   private interaction: AcpInteractionController | null = null;
+  private isolatedSessionDirectory: string | null = null;
   private disposed = false;
 
   constructor(private readonly options: OmpAcpSessionKernelOptions) {}
@@ -82,12 +90,22 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       process.env,
       getRuntimeEnvironmentVariables(this.options.plugin.settings, 'omp'),
     );
+    if (this.options.isolateNativeSessions) {
+      this.isolatedSessionDirectory = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'claudian-omp-metadata-'),
+      );
+      if (this.disposed) {
+        await this.removeIsolatedSessionDirectory();
+        throw new Error('OMP ACP kernel is disposed');
+      }
+    }
     const spec = buildOmpLaunchSpec({
       approvalMode: this.options.approvalMode,
       additionalArguments: getProviderAdditionalArguments(this.options.plugin.settings, 'omp'),
       command,
       cwd: this.options.config.vaultWorkingDirectory,
       env: environment,
+      ...(this.isolatedSessionDirectory ? { sessionDirectory: this.isolatedSessionDirectory } : {}),
       settings,
     });
     const subprocess = new AcpSubprocess(spec);
@@ -228,6 +246,14 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
     this.connection = null;
     this.transport = null;
     this.process = null;
+    await this.removeIsolatedSessionDirectory();
+  }
+
+  private async removeIsolatedSessionDirectory(): Promise<void> {
+    const directory = this.isolatedSessionDirectory;
+    this.isolatedSessionDirectory = null;
+    if (!directory) return;
+    await fs.rm(directory, { force: true, recursive: true }).catch(() => undefined);
   }
 
   private async readTextFile(request: AcpReadTextFileRequest): Promise<{ content: string }> {

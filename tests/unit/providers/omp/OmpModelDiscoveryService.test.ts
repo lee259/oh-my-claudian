@@ -66,8 +66,12 @@ describe('OmpModelDiscoveryService', () => {
       setConfigOption: jest.fn(),
     };
     const plugin = { app: { vault: { adapter: { basePath: '/vault' } } } } as never;
+    const kernelOptions: any[] = [];
     const service = new OmpModelDiscoveryService(plugin, {
-      createKernel: () => kernel,
+      createKernel: (options) => {
+        kernelOptions.push(options);
+        return kernel;
+      },
       runner: createCatalogRunner(),
     });
 
@@ -82,6 +86,7 @@ describe('OmpModelDiscoveryService', () => {
         ],
       },
     });
+    expect(kernelOptions[0]?.isolateNativeSessions).toBe(true);
   });
 
   it('returns models advertised through OMP ACP config options', async () => {

@@ -73,8 +73,9 @@ export class OmpModelDiscoveryService {
     signal?.throwIfAborted();
     const kernel = this.createKernel({
       approvalMode: 'always-ask',
-      config: getMetadataSessionConfig(this.plugin),
+      config: getOmpMetadataSessionConfig(this.plugin),
       getActiveTurnId: () => null,
+      isolateNativeSessions: true,
       onClosed: () => undefined,
       onNotification: () => undefined,
       plugin: this.plugin,
@@ -159,7 +160,7 @@ export class SpawnOmpCatalogCommandRunner implements OmpCatalogCommandRunner {
   }
 }
 
-function getMetadataSessionConfig(plugin: ProviderHost): ProviderSessionConfig {
+export function getOmpMetadataSessionConfig(plugin: ProviderHost): ProviderSessionConfig {
   const adapter = plugin.app.vault.adapter as { basePath?: unknown };
   return {
     interactionPort: DENY_INTERACTION_PORT,

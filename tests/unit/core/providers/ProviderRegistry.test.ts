@@ -142,6 +142,10 @@ describe('ProviderRegistry', () => {
     expect(caps.supportsFork).toBe(true);
   });
 
+  it('returns OMP capabilities with runtime provider commands', () => {
+    expect(ProviderRegistry.getCapabilities('omp').supportsProviderCommands).toBe(true);
+  });
+
   it('lists registered provider ids', () => {
     const ids = ProviderRegistry.getRegisteredProviderIds();
     expect(ids).toContain('claude');

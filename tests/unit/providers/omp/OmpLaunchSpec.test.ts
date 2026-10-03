@@ -43,6 +43,17 @@ describe('buildOmpLaunchSpec', () => {
     }).args).toEqual(['acp', '--approval-mode', 'always-ask', '--extension', '/path with spaces/ext.ts']);
   });
 
+  it('stores isolated metadata sessions outside the user session directory', () => {
+    expect(buildOmpLaunchSpec({
+      command: 'omp',
+      cwd: '/vault/project',
+      sessionDirectory: '/tmp/claudian-omp-metadata',
+      settings: DEFAULT_OMP_PROVIDER_SETTINGS,
+    }).args).toEqual([
+      'acp', '--approval-mode', 'always-ask', '--session-dir', '/tmp/claudian-omp-metadata',
+    ]);
+  });
+
   it.each(['always-ask', 'write', 'yolo'] as const)(
     'passes the native %s approval mode to the ACP process',
     approvalMode => {
