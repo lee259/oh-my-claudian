@@ -101,9 +101,9 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(420px, calc(100cqi - 16px));
+  width: min(320px, calc(100cqi - 16px));
   min-width: min(160px, calc(100cqi - 16px));
-  max-width: min(420px, calc(100cqi - 16px));
+  max-width: min(320px, calc(100cqi - 16px));
   max-height: min(420px, 50vh);
   overflow: hidden;
   padding: 4px;
@@ -125,9 +125,9 @@
   .oh-my-claudian-root .claudian-model-dropdown {
     inset-inline-start: 8px;
     inset-inline-end: auto;
-    width: min(420px, calc(100cqi - 16px));
+    width: min(320px, calc(100cqi - 16px));
     min-width: min(160px, calc(100cqi - 16px));
-    max-width: min(420px, calc(100cqi - 16px));
+    max-width: min(320px, calc(100cqi - 16px));
   }
 }
 
