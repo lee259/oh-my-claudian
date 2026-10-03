@@ -72,6 +72,15 @@ describe('Chat input toolbar styles', () => {
     );
   });
 
+  it('keeps the context usage gauge visible while the composer narrows', () => {
+    expect(css).not.toMatch(
+      /\.claudian-input-toolbar-status-group\s*\{[^}]*display:\s*none;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-toolbar \.claudian-context-meter-percent\s*\{\s*display:\s*none;/,
+    );
+  });
+
   it('uses Oh My Claudian-owned brand variables for the send button', () => {
     expect(css).toContain('background: var(--oh-my-claudian-brand);');
   });

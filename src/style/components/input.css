@@ -610,10 +610,6 @@
 }
 
 @container (max-width: 300px) {
-  .oh-my-claudian-root .claudian-input-toolbar-status-group {
-    display: none;
-  }
-
   .oh-my-claudian-root .claudian-input-toolbar-config-group {
     flex: 0 1 auto;
     width: auto;
