@@ -4,10 +4,14 @@ import type { CliProviderMetadata } from '../../../core/providers/cli/CliProvide
 export const ompCliMetadata: CliProviderMetadata = {
   binaryName: 'omp',
   displayName: 'OMP',
+  // Used only for the latest-version check; installs keep the official
+  // installer because it ships the native binary rather than an npm global.
+  npmPackage: '@oh-my-pi/pi-coding-agent',
   install: {
     command: 'bash',
     args: ['-lc', 'curl -fsSL https://omp.sh/install | bash'],
   },
+  update: { command: 'omp', args: ['update'] },
   platform: {
     win32: {
       install: {
