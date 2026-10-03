@@ -177,9 +177,14 @@ function getChatGptAppCodexDirs(platform: NodeJS.Platform): string[] {
   }
 
   const home = getHomeDir();
+  const userResources = path.join(home, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
+  const systemResources = '/Applications/ChatGPT.app/Contents/Resources';
+  const nestedRuntime = path.join('codex-cli', 'CodexCLI.app', 'Contents', 'MacOS');
   return [
-    path.join(home, 'Applications', 'ChatGPT.app', 'Contents', 'Resources'),
-    '/Applications/ChatGPT.app/Contents/Resources',
+    userResources,
+    systemResources,
+    path.join(userResources, nestedRuntime),
+    path.join(systemResources, nestedRuntime),
   ];
 }
 
