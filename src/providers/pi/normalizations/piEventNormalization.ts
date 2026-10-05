@@ -4,6 +4,7 @@ import {
   getPiToolId,
   getPiToolName,
   normalizePiToolInput,
+  normalizePiToolUseResult,
 } from './piToolNormalization';
 
 export interface PiEventNormalizationState {
@@ -161,12 +162,13 @@ function normalizeToolResult(
     return [];
   }
 
-  const content = extractPiToolTextContent(event.result ?? event.output ?? event.content)
+  const result = event.result ?? event.output ?? event.content;
+  const content = extractPiToolTextContent(result)
     || state.toolOutputs.get(id)
     || '';
   state.toolOutputs.delete(id);
   state.divergedToolOutputIds.delete(id);
-  const toolUseResult = getNestedRecord(event, 'result');
+  const toolUseResult = normalizePiToolUseResult(getPiToolName(event), result);
   return [{
     type: 'tool_result',
     content,

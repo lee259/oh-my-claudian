@@ -1225,6 +1225,12 @@ export class StreamController {
         existingToolCall.status = 'completed';
       }
       existingToolCall.result = normalizedContent;
+      if (chunk.toolUseResult?.resultFormat === 'plain') {
+        existingToolCall.resultFormat = 'plain';
+      }
+      if (Array.isArray(chunk.toolUseResult?.resultImages)) {
+        existingToolCall.resultImages = chunk.toolUseResult.resultImages;
+      }
 
       if (existingToolCall.name === TOOL_ASK_USER_QUESTION) {
         const answers =

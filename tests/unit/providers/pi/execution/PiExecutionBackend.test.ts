@@ -585,6 +585,27 @@ describe('PiExecutionBackend', () => {
     expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
   });
 
+  it('finishes a handled Pi prompt without reusing the previous checkpoint', async () => {
+    const harness = createHarness();
+    harness.responses.set('prompt', { disposition: 'handled' });
+    const run = harness.session.execute(createRequest({
+      input: [{ text: '/extension-command', type: 'text' }],
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+    const kernel = harness.kernels[0];
+    await waitFor(() => kernel.requests.some(({ type }) => type === 'prompt'));
+
+    const events = await eventsPromise;
+
+    expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
+    expect(events.at(-1)).not.toHaveProperty('nativeCheckpointId');
+    expect(kernel.requests).toContainEqual({
+      payload: { message: '/extension-command' },
+      type: 'prompt',
+    });
+  });
+
   it('keeps one execution open across native Pi retries and commits the recovered answer', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest());

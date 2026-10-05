@@ -9,6 +9,7 @@ import {
   TOOL_WEB_SEARCH,
   TOOL_WRITE,
 } from '../../../core/tools/toolNames';
+import type { ToolResultImage } from '../../../core/types';
 
 const PI_BUILT_IN_TOOL_NAMES: Record<string, string> = {
   bash: TOOL_BASH,
@@ -70,6 +71,34 @@ export function normalizePiToolInput(value: unknown, toolName?: string): Record<
   }
 
   return input;
+}
+
+export function normalizePiToolUseResult(
+  toolName: string,
+  result: unknown,
+): Record<string, unknown> | undefined {
+  const normalized: Record<string, unknown> = isPlainObject(result) ? { ...result } : {};
+  if (normalizePiToolName(toolName) === TOOL_READ) normalized.resultFormat = 'plain';
+
+  const content = Array.isArray(result)
+    ? result
+    : isPlainObject(result) && Array.isArray(result.content)
+      ? result.content
+      : [];
+  const resultImages = content.flatMap((part): ToolResultImage[] => {
+    if (
+      !isPlainObject(part)
+      || part.type !== 'image'
+      || typeof part.data !== 'string'
+      || !part.data
+      || typeof part.mimeType !== 'string'
+      || !part.mimeType.startsWith('image/')
+    ) return [];
+    return [{ kind: 'data', data: part.data, mediaType: part.mimeType }];
+  });
+  if (resultImages.length > 0) normalized.resultImages = resultImages;
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 export function getPiToolId(value: Record<string, unknown>): string {

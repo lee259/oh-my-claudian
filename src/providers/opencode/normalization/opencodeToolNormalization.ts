@@ -394,6 +394,8 @@ export function normalizeOpencodeToolUseResult(
   const metadata = extractToolMetadata(rawOutput);
   const normalized: SDKToolUseResult = {};
 
+  if (knownName === 'read') normalized.resultFormat = 'plain';
+
   if (
     (knownName === 'write' || knownName === 'edit')
     && firstString(input.file_path, input.filePath, metadata?.filepath, metadata?.filePath)

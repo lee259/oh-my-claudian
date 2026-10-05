@@ -109,10 +109,11 @@ export function mapOpencodeMessages(
       if (mappedMessage) {
         if (mappedMessage.role === 'user') previousAssistant = undefined;
         else {
-          if (previousAssistant) previousAssistant.turnStats = undefined;
+          if (previousAssistant) delete previousAssistant.turnStats;
           previousAssistant = mappedMessage;
         }
-        mappedMessage.turnStats = turnStats.add(message.info);
+        const messageTurnStats = turnStats.add(message.info);
+        if (messageTurnStats) mappedMessage.turnStats = messageTurnStats;
         mappedMessages.push(mappedMessage);
       }
     } catch (error) {
@@ -492,6 +493,7 @@ function buildAssistantToolCalls(parts: StoredRow[]): ToolCallInfo[] {
       name,
       result,
       status,
+      ...(toolUseResult?.resultFormat === 'plain' ? { resultFormat: 'plain' as const } : {}),
     };
 
     if (name === TOOL_ASK_USER_QUESTION) {

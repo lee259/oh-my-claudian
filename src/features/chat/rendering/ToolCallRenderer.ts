@@ -1,4 +1,4 @@
-import { setIcon } from 'obsidian';
+import { Platform, setIcon } from 'obsidian';
 
 import type { TodoItem } from '../../../core/tools/todo';
 import { getToolIcon, MCP_ICON_MARKER } from '../../../core/tools/toolIcons';
@@ -23,7 +23,7 @@ import {
   TOOL_WRITE,
   TOOL_WRITE_STDIN,
 } from '../../../core/tools/toolNames';
-import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo } from '../../../core/types';
+import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo, ToolResultImage } from '../../../core/types';
 import type { DiffStats } from '../../../core/types/diff';
 import { appendMcpIcon } from '../../../shared/icons';
 import { parseApplyPatchDiffs, parseFileUpdateChangeDiffs } from '../../../utils/diff';
@@ -522,7 +522,8 @@ function renderLinesExpanded(
   container: HTMLElement,
   result: string,
   maxLines: number,
-  hoverable = false
+  hoverable = false,
+  stripLineNumberGutters = true,
 ): void {
   const displayLines = result.split(/\r?\n/, maxLines);
   let lineCount = 1;
@@ -531,7 +532,7 @@ function renderLinesExpanded(
 
   const linesEl = container.createDiv({ cls: 'claudian-tool-lines' });
   for (const line of displayLines) {
-    const stripped = line.replace(/^\s*\d+→/, '');
+    const stripped = stripLineNumberGutters ? line.replace(/^\s*\d+→/, '') : line;
     const lineEl = linesEl.createDiv({ cls: 'claudian-tool-line claudian-tool-line-wrap' });
     if (hoverable) lineEl.addClass('hoverable');
     lineEl.setText(stripped || ' ');
@@ -734,49 +735,74 @@ export function renderExpandedContent(
   toolName: string,
   result: string | undefined,
   input: Record<string, unknown> = {},
+  resultFormat?: ToolCallInfo['resultFormat'],
+  resultImages: ToolResultImage[] = [],
 ): void {
-  if (!result && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH) {
+  const hasImages = resultImages.length > 0;
+  if (!result && !hasImages && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH) {
     container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
     return;
   }
 
   const resolvedResult = result ?? '';
 
-  if (isAgentLifecycleTool(toolName)) {
+  if (!resolvedResult && hasImages) {
+    // Image-only results are rendered below without a text placeholder.
+  } else if (isAgentLifecycleTool(toolName)) {
     renderAgentLifecycleExpanded(container, resolvedResult);
-    return;
+  } else {
+    switch (toolName) {
+      case TOOL_BASH:
+        renderBashContent(container, input, resolvedResult);
+        break;
+      case TOOL_WRITE_STDIN:
+        renderLinesExpanded(container, resolvedResult, 20);
+        break;
+      case TOOL_READ:
+        renderLinesExpanded(container, resolvedResult, 15, false, resultFormat !== 'plain');
+        break;
+      case TOOL_GLOB:
+      case TOOL_GREP:
+      case TOOL_LS:
+        renderFileSearchExpanded(container, resolvedResult);
+        break;
+      case TOOL_WEB_SEARCH:
+        renderWebSearchExpanded(container, input, result);
+        break;
+      case TOOL_WEB_FETCH:
+        renderWebFetchExpanded(container, resolvedResult);
+        break;
+      case TOOL_TOOL_SEARCH:
+        renderToolSearchExpanded(container, resolvedResult);
+        break;
+      case TOOL_APPLY_PATCH:
+        renderApplyPatchExpanded(container, input, result);
+        break;
+      default:
+        renderLinesExpanded(container, resolvedResult, 20);
+        break;
+    }
   }
 
-  switch (toolName) {
-    case TOOL_BASH:
-      renderBashContent(container, input, resolvedResult);
-      break;
-    case TOOL_WRITE_STDIN:
-      renderLinesExpanded(container, resolvedResult, 20);
-      break;
-    case TOOL_READ:
-      renderLinesExpanded(container, resolvedResult, 15);
-      break;
-    case TOOL_GLOB:
-    case TOOL_GREP:
-    case TOOL_LS:
-      renderFileSearchExpanded(container, resolvedResult);
-      break;
-    case TOOL_WEB_SEARCH:
-      renderWebSearchExpanded(container, input, result);
-      break;
-    case TOOL_WEB_FETCH:
-      renderWebFetchExpanded(container, resolvedResult);
-      break;
-    case TOOL_TOOL_SEARCH:
-      renderToolSearchExpanded(container, resolvedResult);
-      break;
-    case TOOL_APPLY_PATCH:
-      renderApplyPatchExpanded(container, input, result);
-      break;
-    default:
-      renderLinesExpanded(container, resolvedResult, 20);
-      break;
+  if (hasImages) renderResultImages(container, resultImages);
+}
+
+function resultImageSource(image: ToolResultImage): string {
+  if (image.kind === 'data') return `data:${image.mediaType};base64,${image.data}`;
+  const segments = image.path.replace(/\\/g, '/').replace(/^\/+/, '').split('/');
+  return Platform.resourcePathPrefix + segments
+    .map((segment, index) => (index === 0 && /^[A-Za-z]:$/.test(segment) ? segment : encodeURIComponent(segment)))
+    .join('/');
+}
+
+function renderResultImages(container: HTMLElement, images: ToolResultImage[]): void {
+  const imagesEl = container.createDiv({ cls: 'claudian-tool-result-images' });
+  for (const image of images) {
+    const alt = image.alt ?? (image.kind === 'file' ? image.path.split(/[\\/]/).pop() ?? image.path : image.mediaType);
+    imagesEl.createEl('img', {
+      cls: 'claudian-tool-result-image',
+      attr: { alt, loading: 'lazy', src: resultImageSource(image) },
+    });
   }
 }
 
@@ -1065,6 +1091,7 @@ function renderBashContent(
   input: Record<string, unknown>,
   result: string,
   initialText?: string,
+  hasResultImages = false,
 ): void {
   const command = (input.command as string) || '';
   if (command) {
@@ -1075,7 +1102,7 @@ function renderBashContent(
     contentFallback(container, initialText);
   } else if (result) {
     renderLinesExpanded(container, result, 20);
-  } else {
+  } else if (!hasResultImages) {
     container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
   }
 }
@@ -1132,11 +1159,12 @@ function renderToolContent(
       renderAskUserQuestionFallback(content, toolCall);
     }
   } else if (toolCall.name === TOOL_BASH) {
-    renderBashContent(content, toolCall.input, toolCall.result ?? '', initialText);
+    renderBashContent(content, toolCall.input, toolCall.result ?? '', initialText, !!toolCall.resultImages?.length);
+    if (toolCall.resultImages?.length) renderResultImages(content, toolCall.resultImages);
   } else if (initialText) {
     contentFallback(content, initialText);
   } else {
-    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input);
+    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input, toolCall.resultFormat, toolCall.resultImages);
   }
 }
 
@@ -1219,7 +1247,7 @@ export function updateToolCallResult(
   const content = toolEl.querySelector('.claudian-tool-content') as HTMLElement;
   if (content) {
     content.empty();
-    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input);
+    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input, toolCall.resultFormat, toolCall.resultImages);
   }
 }
 

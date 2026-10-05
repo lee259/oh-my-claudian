@@ -74,6 +74,7 @@ export interface OpencodeAcpSessionKernelOptions {
 export interface OpencodeAcpSessionKernel {
   connect(options: OpencodeKernelConnectOptions): Promise<void>;
   openSession(resumeSessionId?: string): Promise<OpencodeNativeSessionInfo>;
+  setAutoApprove?(enabled: boolean): void;
   setConfigOption(request: Record<string, unknown>): Promise<{
     configOptions?: AcpSessionConfigOption[] | null;
   }>;
@@ -137,11 +138,16 @@ export class DefaultOpencodeAcpSessionKernel
   private interactionController: AcpInteractionController | null = null;
   private databasePath: string | null = null;
   private profile: OpencodeExecutionProfile = 'managed';
+  private autoApprove = false;
   private disposed = false;
   private connectPromise: Promise<void> | null = null;
   private disposePromise: Promise<void> | null = null;
 
   constructor(private readonly options: OpencodeAcpSessionKernelOptions) {}
+
+  setAutoApprove(enabled: boolean): void {
+    this.autoApprove = enabled && this.profile === 'managed';
+  }
 
   connect(options: OpencodeKernelConnectOptions): Promise<void> {
     if (this.disposed) {
@@ -430,6 +436,12 @@ export class DefaultOpencodeAcpSessionKernel
   ): Promise<AcpRequestPermissionResponse> {
     if (this.profile !== 'managed') {
       return Promise.resolve(selectDeniedPermission(request));
+    }
+    if (this.autoApprove) {
+      const allowed = request.options.find(({ kind }) => kind === 'allow_once');
+      if (allowed) {
+        return Promise.resolve({ outcome: { optionId: allowed.optionId, outcome: 'selected' } });
+      }
     }
     return this.interactionController?.requestPermission(request)
       ?? Promise.resolve({ outcome: { outcome: 'cancelled' } });

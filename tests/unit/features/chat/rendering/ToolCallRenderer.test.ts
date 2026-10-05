@@ -186,6 +186,33 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('renderStoredToolCall', () => {
+    it('renders plain Read text without stripping arrow-prefixed content', () => {
+      const toolCall = createToolCall({
+        name: 'Read',
+        result: '1→ actual file content',
+        resultFormat: 'plain',
+        status: 'completed',
+      });
+      const toolEl = renderStoredToolCall(createMockEl(), toolCall, { initiallyExpanded: true });
+
+      expect(toolEl.querySelector('.claudian-tool-line')?.textContent).toBe('1→ actual file content');
+    });
+
+    it('renders image-only tool results without a no-result placeholder', () => {
+      const toolCall = createToolCall({
+        name: 'Bash',
+        input: { command: 'generate-image' },
+        resultImages: [{ data: 'aW1hZ2U=', kind: 'data', mediaType: 'image/png' }],
+        status: 'completed',
+      });
+      const toolEl = renderStoredToolCall(createMockEl(), toolCall, { initiallyExpanded: true });
+      const content = toolEl.querySelector('.claudian-tool-content');
+
+      expect(content?.querySelector('.claudian-tool-empty')).toBeNull();
+      expect(content?.querySelector('.claudian-tool-result-image')?.getAttribute('src'))
+        .toBe('data:image/png;base64,aW1hZ2U=');
+    });
+
     it('should show completed status icon', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({ status: 'completed' });
