@@ -160,6 +160,21 @@
   word-break: break-word;
 }
 
+.claudian-tool-result-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.claudian-tool-result-image {
+  max-width: min(100%, 480px);
+  max-height: 360px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  object-fit: contain;
+}
+
 /* Hover highlight for file search results */
 .claudian-tool-line.hoverable:hover {
   background: var(--background-modifier-hover);

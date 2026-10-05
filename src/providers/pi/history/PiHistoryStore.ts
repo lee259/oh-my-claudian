@@ -15,6 +15,7 @@ import {
   extractPiToolTextContent,
   normalizePiToolInput,
   normalizePiToolName,
+  normalizePiToolUseResult,
 } from '../normalizations/piToolNormalization';
 import type { PiTreeCursor } from '../types';
 import { decodePiRecoveryPrompt } from './PiRecoveryPromptCodec';
@@ -916,6 +917,14 @@ function applyToolResult(messages: ChatMessage[], entry: PiSessionEntry): void {
     const resultMessage = entry.message ?? entry.raw;
     toolCall.status = resultMessage.error === true || resultMessage.isError === true ? 'error' : 'completed';
     toolCall.result = extractPiToolTextContent(resultMessage.result ?? resultMessage.content ?? resultMessage.output);
+    const resultDetails = normalizePiToolUseResult(
+      toolCall.name,
+      resultMessage.result ?? resultMessage.content ?? resultMessage.output,
+    );
+    if (resultDetails?.resultFormat === 'plain') toolCall.resultFormat = 'plain';
+    if (Array.isArray(resultDetails?.resultImages)) {
+      toolCall.resultImages = resultDetails.resultImages as ToolCallInfo['resultImages'];
+    }
     if (toolCall.status === 'completed' && isWriteEditTool(toolCall.name)) {
       const diffData = extractDiffData(resultMessage, toolCall);
       if (diffData) {

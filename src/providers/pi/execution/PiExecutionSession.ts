@@ -145,6 +145,9 @@ interface ActiveRun {
   turnStats?: TurnStats;
   nativeUserMessageId?: string;
   pendingTerminalError: Error | null;
+  settlesOnAgentEnd: boolean;
+  endedWithoutRetry: boolean;
+  runStarted: boolean;
   sequence: number;
   terminal: boolean;
   terminalSignal: Deferred<void>;
@@ -495,10 +498,11 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       return false;
     }
     const prompt = encodePrompt(request, false);
-    await kernel.request('steer', {
+    const response = await kernel.request<{ disposition?: string } | undefined>('steer', {
       ...(prompt.images.length > 0 ? { images: prompt.images } : {}),
       message: prompt.text,
     }, undefined, request.signal);
+    if (response?.disposition === 'handled') return true;
     if (this.activeRun === active && !this.disposed && this.kernel === kernel) {
       this.emitRequested(active, {
         content: getInputText(request),
@@ -591,6 +595,9 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       assistantStarted: false,
       nativeRequestDispatched: false,
       pendingTerminalError: null,
+      settlesOnAgentEnd: false,
+      endedWithoutRetry: false,
+      runStarted: false,
       sequence: 0,
       terminal: false,
       terminalSignal: createDeferred<void>(),
@@ -613,6 +620,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       if (!this.isActive(active) || !this.kernel) return;
       const previousLeafId = getPiState(this.providerState).leafEntryId ?? null;
       const compactInstructions = getCompactInstructions(encoded.prompt);
+      let promptHandled = false;
       if (compactInstructions !== null) {
         active.nativeRequestDispatched = true;
         await this.kernel.request(
@@ -625,7 +633,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         this.emitRequested(active, { type: 'context_compacted' });
       } else {
         active.nativeRequestDispatched = true;
-        const promptRequest = this.kernel.request(
+        const response = await this.kernel.request<{ disposition?: string } | undefined>(
           'prompt',
           {
             ...(encoded.images.length > 0 ? { images: encoded.images } : {}),
@@ -634,15 +642,26 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
           undefined,
           active.abortController.signal,
         );
-        await promptRequest;
         this.ensureAccepted(active);
-        await active.terminalSignal.promise;
+        promptHandled = response?.disposition === 'handled';
+        if (typeof response?.disposition !== 'string') {
+          active.settlesOnAgentEnd = true;
+          if (active.endedWithoutRetry) this.settleRun(active);
+        }
+        if (!promptHandled) await active.terminalSignal.promise;
       }
       if (!this.isActive(active)) return;
 
       await this.refreshState(active.abortController.signal);
       if (!this.isActive(active)) return;
-      await this.refreshNativeMessageIds(active, previousLeafId);
+      if (promptHandled && active.runStarted) {
+        await active.terminalSignal.promise;
+        if (!this.isActive(active)) return;
+        await this.refreshState(active.abortController.signal);
+        if (!this.isActive(active)) return;
+      }
+      const hasCheckpoint = !promptHandled || active.runStarted;
+      if (hasCheckpoint) await this.refreshNativeMessageIds(active, previousLeafId);
       const usage = await this.fetchUsage(
         encoded.model,
         active.abortController.signal,
@@ -657,7 +676,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       this.emitRequestedState(active);
       this.finishRequested(active, {
         nativeAssistantId: active.nativeAssistantId,
-        nativeCheckpointId: getPiState(this.providerState).leafEntryId,
+        ...(hasCheckpoint ? { nativeCheckpointId: getPiState(this.providerState).leafEntryId } : {}),
         ...(active.turnStats ? { turnStats: active.turnStats } : {}),
         reason: 'completed',
         type: 'turn_completed',
@@ -935,33 +954,22 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       return;
     }
     if (event.type === 'agent_start') {
+      active.pendingTerminalError = null;
+      active.runStarted = true;
       this.ensureAccepted(active);
       return;
     }
     if (event.type === 'agent_end') {
-      this.ensureAccepted(active);
       if (event.willRetry === true) {
         active.pendingTerminalError = null;
         return;
       }
-      const pendingTerminalError = active.pendingTerminalError;
-      active.pendingTerminalError = null;
-      if (pendingTerminalError) {
-        active.terminalSignal.reject(pendingTerminalError);
-        return;
-      }
-      active.terminalSignal.resolve();
+      active.endedWithoutRetry = true;
+      if (active.settlesOnAgentEnd) this.settleRun(active);
       return;
     }
     if (event.type === 'agent_settled') {
-      this.ensureAccepted(active);
-      const pendingTerminalError = active.pendingTerminalError;
-      active.pendingTerminalError = null;
-      if (pendingTerminalError) {
-        active.terminalSignal.reject(pendingTerminalError);
-        return;
-      }
-      active.terminalSignal.resolve();
+      this.settleRun(active);
       return;
     }
     if (event.type === 'error') {
@@ -983,6 +991,17 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     for (const chunk of chunks) {
       this.handleStreamChunk(kernel, generation, chunk);
     }
+  }
+
+  private settleRun(active: ActiveRun): void {
+    this.ensureAccepted(active);
+    const pendingTerminalError = active.pendingTerminalError;
+    active.pendingTerminalError = null;
+    if (pendingTerminalError) {
+      active.terminalSignal.reject(pendingTerminalError);
+      return;
+    }
+    active.terminalSignal.resolve();
   }
 
   private handleStreamChunk(

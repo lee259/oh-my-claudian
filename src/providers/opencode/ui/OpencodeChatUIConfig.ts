@@ -1,5 +1,6 @@
 import type {
   ProviderChatUIConfig,
+  ProviderModeSelectorConfig,
   ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
@@ -28,7 +29,7 @@ import { getOpencodeProviderSettings, updateOpencodeProviderSettings } from '../
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 const OPENCODE_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
-  inactiveLabel: 'Safe',
+  inactiveLabel: 'Ask',
   activeValue: 'yolo',
   activeLabel: 'YOLO',
   planValue: 'plan',
@@ -196,8 +197,32 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     return new Set<string>();
   },
 
-  getModeSelector(): null {
-    return null;
+  getModeSelector(settings: Record<string, unknown>): ProviderModeSelectorConfig | null {
+    const opencodeSettings = getOpencodeProviderSettings(settings);
+    if (settings.permissionMode === 'plan' || isOpencodePlanModeId(opencodeSettings.selectedMode)) return null;
+    return {
+      label: 'Permissions',
+      options: [
+        {
+          description: t('chat.composer.modeApprovalDescription'),
+          label: t('chat.composer.modeGrokAsk'),
+          value: 'normal',
+        },
+        {
+          description: t('chat.composer.modeFullAccessDescription'),
+          label: 'YOLO',
+          value: 'yolo',
+        },
+      ],
+      value: settings.permissionMode === 'yolo' ? 'yolo' : 'normal',
+    };
+  },
+
+  applyModeSelection(value: string, settings: unknown): void {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
+    if (value === 'normal' || value === 'yolo') {
+      (settings as Record<string, unknown>).permissionMode = value;
+    }
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
@@ -205,9 +230,9 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
       ...OPENCODE_PERMISSION_MODE_TOGGLE,
       inactiveDescription: t('chat.composer.modeApprovalDescription'),
       inactiveIcon: 'hand',
-      activeDescription: t('chat.composer.modeConfiguredPermissionsDescription'),
+      activeDescription: t('chat.composer.modeFullAccessDescription'),
       activeIcon: 'zap',
-      activeIsDangerous: false,
+      activeIsDangerous: true,
       planDescription: t('chat.composer.modePlanGenericDescription'),
       planIcon: 'clipboard-list',
     };
@@ -235,8 +260,9 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
   },
 
   resolvePermissionMode(settings: Record<string, unknown>): string | null {
-    const selectedMode = getOpencodeProviderSettings(settings).selectedMode;
-    return isOpencodePlanModeId(selectedMode) ? 'plan' : 'normal';
+    const opencodeSettings = getOpencodeProviderSettings(settings);
+    if (isOpencodePlanModeId(opencodeSettings.selectedMode)) return 'plan';
+    return resolveOpencodePermissionMode(opencodeSettings.selectedMode);
   },
 
   applyPermissionMode(value: string, settings: unknown): void {
@@ -247,10 +273,9 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     const settingsBag = settings as Record<string, unknown>;
     const opencodeSettings = getOpencodeProviderSettings(settingsBag);
     if (!opencodeSettings.availableModes.some(mode => mode.id === value)) return;
-    settingsBag.permissionMode = resolveOpencodePermissionMode(value) ?? 'normal';
-    updateOpencodeProviderSettings(settingsBag, {
-      selectedMode: value,
-    });
+    if (isOpencodePlanModeId(value)) settingsBag.permissionMode = 'plan';
+    else if (settingsBag.permissionMode === 'plan') settingsBag.permissionMode = 'normal';
+    updateOpencodeProviderSettings(settingsBag, { selectedMode: value });
   },
 
   getProviderIcon() {

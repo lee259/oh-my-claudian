@@ -27,7 +27,7 @@ let queueNextSteer = false;
 const commands = new Map();
 const extensionIndex = args.indexOf('--extension');
 if (extensionIndex >= 0) {
-  const sdkDir = path.join(path.dirname(args[extensionIndex + 1]), 'node_modules', '@mariozechner', 'pi-coding-agent');
+  const sdkDir = path.join(path.dirname(args[extensionIndex + 1]), 'node_modules', '@earendil-works', 'pi-coding-agent');
   fs.mkdirSync(sdkDir, { recursive: true });
   fs.writeFileSync(path.join(sdkDir, 'package.json'), JSON.stringify({ type: 'module', main: 'index.js' }));
   fs.copyFileSync(new URL('./PiSessionManager.mjs', import.meta.url), path.join(sdkDir, 'index.js'));

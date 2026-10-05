@@ -679,6 +679,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
     }
 
     const profile = resolveProfile(request, getOpencodeProviderSettings(this.plugin.settings));
+    kernel.setAutoApprove?.(request.configuration.permissionMode === 'yolo' && profile === 'managed');
     const mode = profile === 'passive'
       ? 'claudian-execution-passive'
       : profile === 'readonly'
@@ -688,7 +689,6 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
           native,
           getOpencodeProviderSettings(this.plugin.settings),
         )
-          ?? request.configuration.mode
           ?? resolveOpencodeModeForPermissionMode(
             request.configuration.permissionMode,
             extractAcpSessionModeState({
@@ -1056,10 +1056,19 @@ function resolveSelectedNativeMode(
     configOptions: native.configOptions,
     modes: native.modes,
   }).availableModes;
+  const planRequested = request.configuration.permissionMode === 'plan';
   const preferred = settings.selectedMode;
-  if (availableModes.some(mode => mode.id === preferred)) return preferred;
+  if (
+    availableModes.some(mode => mode.id === preferred)
+    && isOpencodePlanModeId(preferred) === planRequested
+  ) return preferred;
   const requested = request.configuration.mode;
-  return requested && availableModes.some(mode => mode.id === requested) ? requested : null;
+  if (
+    requested
+    && availableModes.some(mode => mode.id === requested)
+    && isOpencodePlanModeId(requested) === planRequested
+  ) return requested;
+  return availableModes.find(mode => isOpencodePlanModeId(mode.id) === planRequested)?.id ?? null;
 }
 
 function resolveProfile(
@@ -1071,13 +1080,9 @@ function resolveProfile(
     || request.toolPolicy.kind === 'allow-list'
   ) return 'passive';
   if (request.toolPolicy.kind === 'read-only') {
-    const selectedNativeMode = settings.availableModes.find(mode =>
-      mode.id === settings.selectedMode || mode.id === request.configuration.mode
-    );
     if (
       request.configuration.permissionMode === 'plan'
-      && selectedNativeMode
-      && isOpencodePlanModeId(selectedNativeMode.id)
+      && settings.availableModes.some(mode => isOpencodePlanModeId(mode.id))
     ) return 'managed';
     return 'readonly';
   }

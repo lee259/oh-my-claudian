@@ -44,6 +44,7 @@ export interface OpencodeSessionKernelOptions {
 export interface OpencodeSessionKernel {
   connect(options: OpencodeKernelConnectOptions): Promise<void>;
   openSession(resumeSessionId?: string): Promise<OpencodeNativeSessionInfo>;
+  setAutoApprove?(enabled: boolean): void;
   setConfigOption(request: Record<string, unknown>): Promise<{
     configOptions?: AcpSessionConfigOption[] | null;
   }>;

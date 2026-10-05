@@ -53,6 +53,29 @@ describe('Pi event normalization', () => {
     }]);
   });
 
+  it('retains generated tool-result images in normalized stream details', () => {
+    const state = createPiEventNormalizationState();
+    expect(normalizePiRpcEvent({
+      result: {
+        content: [
+          { data: 'aW1hZ2U=', mimeType: 'image/png', type: 'image' },
+        ],
+      },
+      toolCallId: 'image-1',
+      toolName: 'draw',
+      type: 'tool_execution_end',
+    }, state)).toEqual([{
+      content: '',
+      id: 'image-1',
+      isError: false,
+      toolUseResult: {
+        content: [{ data: 'aW1hZ2U=', mimeType: 'image/png', type: 'image' }],
+        resultImages: [{ data: 'aW1hZ2U=', kind: 'data', mediaType: 'image/png' }],
+      },
+      type: 'tool_result',
+    }]);
+  });
+
   it('emits only the new suffix when Pi reports cumulative tool-output snapshots', () => {
     const state = createPiEventNormalizationState();
     const update = (partialResult: string) => normalizePiRpcEvent({

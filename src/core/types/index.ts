@@ -72,6 +72,7 @@ export {
   type ToolCallInfo,
   type ToolDiffData,
   type ToolProviderPayload,
+  type ToolResultImage,
 } from './tools';
 
 // Agent types

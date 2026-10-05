@@ -35,6 +35,11 @@ export interface ToolProviderPayload {
   rawOutput?: unknown;
 }
 
+/** Image data returned by a provider tool. */
+export type ToolResultImage =
+  | { kind: 'file'; path: string; alt?: string }
+  | { kind: 'data'; mediaType: string; data: string; alt?: string };
+
 /** Tool call tracking with status and result. */
 export interface ToolCallInfo {
   id: string;
@@ -42,6 +47,9 @@ export interface ToolCallInfo {
   input: Record<string, unknown>;
   status: 'running' | 'completed' | 'error' | 'blocked';
   result?: string;
+  /** Provider-declared result presentation; plain results must not be parsed as numbered output. */
+  resultFormat?: 'plain';
+  resultImages?: ToolResultImage[];
   providerPayload?: ToolProviderPayload;
   isExpanded?: boolean;
   diffData?: ToolDiffData;

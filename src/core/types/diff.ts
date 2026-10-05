@@ -27,5 +27,10 @@ export interface StructuredPatchHunk {
 export interface SDKToolUseResult {
   structuredPatch?: StructuredPatchHunk[];
   filePath?: string;
+  resultFormat?: 'plain';
+  resultImages?: Array<
+    | { kind: 'file'; path: string; alt?: string }
+    | { kind: 'data'; mediaType: string; data: string; alt?: string }
+  >;
   [key: string]: unknown;
 }

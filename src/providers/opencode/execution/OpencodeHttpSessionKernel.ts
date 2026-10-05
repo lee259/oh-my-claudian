@@ -49,6 +49,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private modes: OpencodeMode[] = [];
   private commands = new Set<string>();
   private profile: OpencodeKernelConnectOptions['profile'] = 'managed';
+  private autoApprove = false;
   private readonly text = new Map<string, string>();
   private readonly children = new Map<string, NativeChild>();
   private readonly tools = new Map<string, NativeTool>();
@@ -60,6 +61,10 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
   private cancellation: Promise<unknown> | null = null;
 
   constructor(private readonly options: OpencodeSessionKernelOptions, private readonly cliPath: string, private readonly environment: NodeJS.ProcessEnv) {}
+
+  setAutoApprove(enabled: boolean): void {
+    this.autoApprove = enabled && this.profile === 'managed';
+  }
 
   async connect(options: OpencodeKernelConnectOptions): Promise<void> {
     this.profile = options.profile;
@@ -428,6 +433,10 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     this.interactions.set(id, controller);
     const identity = { interactionId: id, sessionInstanceId: this.options.sessionInstanceId, turnId };
     const route = `/api/session/${encodeURIComponent(String(data.sessionID))}/${question ? 'form' : 'permission'}/${encodeURIComponent(id)}`;
+    if (!question && this.autoApprove) {
+      await this.requireClient().request(`${route}/reply`, { method: 'POST', body: { decision: 'once' } });
+      return;
+    }
     let projectionError: unknown;
     try {
       if (question) {

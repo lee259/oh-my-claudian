@@ -129,8 +129,8 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
     ]);
   });
 
-  it('exposes the shared Safe/YOLO/Plan toggle instead of a provider-owned mode selector', () => {
-    expect(opencodeChatUIConfig.getModeSelector?.({
+  it('keeps native agent selection separate from the Ask/YOLO permission toggle', () => {
+    const modeSelector = opencodeChatUIConfig.getModeSelector?.({
       providerConfigs: {
         opencode: {
           availableModes: [
@@ -140,17 +140,19 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
           selectedMode: 'build',
         },
       },
-    }) ?? null).toBeNull();
+    });
+    expect(modeSelector?.options.map(({ value }) => value)).toEqual(['normal', 'yolo']);
+    expect(modeSelector?.value).toBe('normal');
 
     expect(opencodeChatUIConfig.getPermissionModeToggle?.()).toEqual({
-      activeDescription: "Use tools according to OpenCode's configured permissions.",
+      activeDescription: 'Run with full access without approval. Use with care.',
       activeIcon: 'zap',
       activeLabel: 'YOLO',
-      activeIsDangerous: false,
+      activeIsDangerous: true,
       activeValue: 'yolo',
       inactiveDescription: 'Ask before running commands or making file changes.',
       inactiveIcon: 'hand',
-      inactiveLabel: 'Safe',
+      inactiveLabel: 'Ask',
       inactiveValue: 'normal',
       planDescription: 'Explore the workspace and prepare a plan before editing.',
       planIcon: 'clipboard-list',
