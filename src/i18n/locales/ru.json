@@ -221,12 +221,7 @@
       "newForNote": "Новый чат для {note}",
       "cannotArchiveRunning": "Нельзя архивировать выполняющийся сеанс",
       "autoArchived": "Архивировано бесед: {count}.",
-      "selectedCount": "Выбрано: {count}",
-      "archiveSelected": "Архивировать выбранное",
-      "archiveSelectedCount": "Архивировать выбранные беседы: {count}",
-      "selectForArchive": "Выбрать для архивации: {title}",
-      "nativeArchiveFailed": "{provider} не удалось архивировать или восстановить сеансы: {reason}",
-      "archivedCount": "Архивировано бесед: {count}."
+      "nativeArchiveFailed": "{provider} не удалось архивировать или восстановить сеансы: {reason}"
     },
     "status": {
       "loadingConversation": "Загрузка разговора…",

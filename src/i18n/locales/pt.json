@@ -221,12 +221,7 @@
       "newForNote": "Novo chat para {note}",
       "cannotArchiveRunning": "Não é possível arquivar uma sessão em execução",
       "autoArchived": "{count} conversa(s) inativa(s) arquivada(s).",
-      "selectedCount": "{count} selecionada(s)",
-      "archiveSelected": "Arquivar selecionadas",
-      "archiveSelectedCount": "Arquivar {count} conversas selecionadas",
-      "selectForArchive": "Selecionar {title} para arquivar",
-      "nativeArchiveFailed": "{provider} não conseguiu arquivar ou restaurar as sessões: {reason}",
-      "archivedCount": "{count} conversa(s) arquivada(s)."
+      "nativeArchiveFailed": "{provider} não conseguiu arquivar ou restaurar as sessões: {reason}"
     },
     "status": {
       "loadingConversation": "Carregando conversa…",

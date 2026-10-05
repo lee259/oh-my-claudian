@@ -71,7 +71,6 @@ export class ClaudianView extends ItemView {
   private historyListHostEl: HTMLElement | null = null;
   private historySearchRoot: PreactRoot | null = null;
   private historySearchQuery = '';
-  private readonly selectedHistoryConversationIds = new Set<string>();
   private historyRenderAbortController: AbortController | null = null;
   private isArchiveSectionExpanded = false;
   private archivedHistoryVisibleCount: number | undefined;
@@ -675,7 +674,6 @@ export class ClaudianView extends ItemView {
       this.cancelHistoryRendering();
       this.destroyHistorySurface();
       this.historySearchQuery = '';
-      this.selectedHistoryConversationIds.clear();
     } else {
       this.historyDropdown.addClass('visible');
       this.renderHistoryDropdown();
@@ -791,9 +789,6 @@ export class ClaudianView extends ItemView {
     this.historySearchRoot.render(h(HistorySearchView, {
       initialQuery: this.historySearchQuery,
       onQueryChange: (query) => {
-        if (query !== this.historySearchQuery) {
-          this.selectedHistoryConversationIds.clear();
-        }
         this.historySearchQuery = query;
         this.historyDropdownDirty = true;
         this.renderHistoryDropdown();
@@ -864,15 +859,6 @@ export class ClaudianView extends ItemView {
         onSetConversationArchived: (id: string, isArchived: boolean) => (
           this.setConversationArchived(id, isArchived)
         ),
-        bulkArchive: {
-          selectedConversationIds: this.selectedHistoryConversationIds,
-          onToggleSelection: (id, selected) => {
-            if (selected) this.selectedHistoryConversationIds.add(id);
-            else this.selectedHistoryConversationIds.delete(id);
-            this.updateHistoryDropdown();
-          },
-          onArchiveSelected: () => this.archiveSelectedHistoryConversations(),
-        },
         signal,
       });
       return;
@@ -912,15 +898,6 @@ export class ClaudianView extends ItemView {
       onSetConversationArchived: (id: string, isArchived: boolean) => (
         this.setConversationArchived(id, isArchived)
       ),
-      bulkArchive: {
-        selectedConversationIds: this.selectedHistoryConversationIds,
-        onToggleSelection: (id, selected) => {
-          if (selected) this.selectedHistoryConversationIds.add(id);
-          else this.selectedHistoryConversationIds.delete(id);
-          this.updateHistoryDropdown();
-        },
-        onArchiveSelected: () => this.archiveSelectedHistoryConversations(),
-      },
       onBeforeRestoreListState: (target: HTMLElement) => this.buildHistoryArchiveSection(
         target,
         (archiveSection) => conversationController.renderHistoryDropdown(archiveSection, {
@@ -1046,21 +1023,6 @@ export class ClaudianView extends ItemView {
       }
     }
     await this.plugin.setConversationArchived(conversationId, true);
-  }
-
-  private async archiveSelectedHistoryConversations(): Promise<void> {
-    const ids = [...this.selectedHistoryConversationIds];
-    if (ids.length === 0) return;
-    const archivedIds = await this.plugin.archiveConversationsIf(ids, conversation => (
-      conversation.isArchived !== true
-      && conversation.isPinned !== true
-      && this.getOpenConversationTabs(conversation.id).length === 0
-    ));
-    for (const id of ids) this.selectedHistoryConversationIds.delete(id);
-    this.updateHistoryDropdown();
-    if (archivedIds.length > 0) {
-      new Notice(t('chat.history.archivedCount', { count: archivedIds.length }));
-    }
   }
 
   private getOpenConversationTabs(conversationId: string): Array<{

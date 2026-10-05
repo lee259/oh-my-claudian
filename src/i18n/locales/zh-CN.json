@@ -221,12 +221,7 @@
       "newForNote": "为 {note} 新建聊天",
       "cannotArchiveRunning": "运行中的会话无法归档",
       "autoArchived": "已归档 {count} 个闲置对话。",
-      "selectedCount": "已选 {count} 个",
-      "archiveSelected": "归档所选",
-      "archiveSelectedCount": "归档所选的 {count} 个对话",
-      "selectForArchive": "选择归档：{title}",
-      "nativeArchiveFailed": "{provider} 无法归档或恢复会话：{reason}",
-      "archivedCount": "已归档 {count} 个对话。"
+      "nativeArchiveFailed": "{provider} 无法归档或恢复会话：{reason}"
     },
     "status": {
       "loadingConversation": "正在加载对话…",

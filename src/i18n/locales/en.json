@@ -221,12 +221,7 @@
       "newForNote": "New chat for {note}",
       "cannotArchiveRunning": "Cannot archive a running session",
       "autoArchived": "Archived {count} inactive conversation(s).",
-      "selectedCount": "{count} selected",
-      "archiveSelected": "Archive selected",
-      "archiveSelectedCount": "Archive {count} selected conversations",
-      "selectForArchive": "Select {title} for archiving",
-      "nativeArchiveFailed": "{provider} could not archive or restore its sessions: {reason}",
-      "archivedCount": "Archived {count} conversation(s)."
+      "nativeArchiveFailed": "{provider} could not archive or restore its sessions: {reason}"
     },
     "status": {
       "loadingConversation": "Loading conversation…",

@@ -221,12 +221,7 @@
       "newForNote": "Nouvelle conversation pour {note}",
       "cannotArchiveRunning": "Impossible d’archiver une session en cours",
       "autoArchived": "{count} conversation(s) inactive(s) archivée(s).",
-      "selectedCount": "{count} sélectionnée(s)",
-      "archiveSelected": "Archiver la sélection",
-      "archiveSelectedCount": "Archiver {count} conversation(s) sélectionnée(s)",
-      "selectForArchive": "Sélectionner {title} pour archivage",
-      "nativeArchiveFailed": "{provider} n’a pas pu archiver ou restaurer ses sessions : {reason}",
-      "archivedCount": "{count} conversation(s) archivée(s)."
+      "nativeArchiveFailed": "{provider} n’a pas pu archiver ou restaurer ses sessions : {reason}"
     },
     "status": {
       "loadingConversation": "Chargement de la conversation…",
