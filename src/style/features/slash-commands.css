@@ -30,7 +30,11 @@
 }
 
 .claudian-slash-item {
-  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 10px 12px;
   cursor: pointer;
   transition: background 0.1s ease;
   border-bottom: 1px solid var(--background-modifier-border);
@@ -45,23 +49,55 @@
   background: var(--background-modifier-hover);
 }
 
+.claudian-slash-item.selected {
+  border-inline-start: 2px solid var(--interactive-accent);
+  padding-inline-start: 10px;
+}
+
 .claudian-slash-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-normal);
   font-family: var(--font-monospace);
 }
 
+.claudian-slash-kind {
+  grid-column: 3;
+  grid-row: 1;
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.claudian-slash-kind--skill {
+  color: var(--interactive-accent);
+}
+
 .claudian-slash-hint {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--text-muted);
-  margin-left: 8px;
 }
 
 .claudian-slash-desc {
+  grid-column: 1 / -1;
+  grid-row: 2;
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

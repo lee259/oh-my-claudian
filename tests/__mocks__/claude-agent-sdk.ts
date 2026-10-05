@@ -197,7 +197,7 @@ export function resetMockMessages() {
 }
 
 export function setMockSupportedCommands(
-  commands: Array<{ name: string; description: string; argumentHint?: string }>
+  commands: Array<{ name: string; description: string; argumentHint?: string; builtin?: boolean }>
 ) {
   mockSupportedCommands = commands;
 }
@@ -207,6 +207,7 @@ export function setMockSupportedCommandsImplementation(
     name: string;
     description: string;
     argumentHint?: string;
+    builtin?: boolean;
   }>>,
 ) {
   mockSupportedCommandsImplementation = implementation;

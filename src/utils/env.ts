@@ -160,6 +160,15 @@ function getExtraBinaryPaths(): string[] {
     }
 
     if (home) {
+      // GUI apps may not inherit fnm's shell-injected multishell PATH. The
+      // default alias is stable across launches and points to the user's
+      // selected Node.js installation.
+      const fnmRoot = fnmDir
+        ?? (process.env.XDG_DATA_HOME
+          ? path.join(process.env.XDG_DATA_HOME, 'fnm')
+          : path.join(home, '.local', 'share', 'fnm'));
+      paths.push(path.join(fnmRoot, 'aliases', 'default', 'bin'));
+
       paths.push(path.join(home, 'bin'));
       paths.push(path.join(home, '.local', 'bin'));
       paths.push(path.join(home, '.bun', 'bin'));

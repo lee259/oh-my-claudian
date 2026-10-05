@@ -1,7 +1,6 @@
 import type {
   Query,
   SDKMessage,
-  SlashCommand as SDKSlashCommand,
 } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'crypto';
 
@@ -25,12 +24,13 @@ import {
   type SteerableExecutionSession,
 } from '../../../core/execution';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
-import type { PermissionMode, SlashCommand, TurnStats } from '../../../core/types';
+import type { PermissionMode, TurnStats } from '../../../core/types';
 import {
   getMissingSessionId,
   isSessionMissingError,
 } from '../../../utils/session';
 import type { ClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
+import { mapClaudeSdkCommand } from '../commands/ClaudeSdkCommand';
 import { loadClaudeTurnStats } from '../history/ClaudeTurnStats';
 import { executeClaudeRewind } from '../runtime/ClaudeRewindService';
 import { buildClaudeSDKUserMessage } from '../runtime/ClaudeUserMessageFactory';
@@ -824,7 +824,7 @@ ClaudeExecutionStrategySink {
           return;
         }
         this.services.commandCatalog.setCommandSnapshot(
-          commands.map(mapSdkCommand),
+          commands.map(mapClaudeSdkCommand),
         );
       })
       .catch(() => undefined);
@@ -1595,17 +1595,6 @@ function normalizeSdkPermissionMode(
     return 'normal';
   }
   return null;
-}
-
-function mapSdkCommand(command: SDKSlashCommand): SlashCommand {
-  return {
-    id: `sdk:${command.name}`,
-    name: command.name,
-    description: command.description,
-    argumentHint: command.argumentHint,
-    content: '',
-    source: 'sdk',
-  };
 }
 
 function createRewindPreparationRequest(): ProviderExecutionRequest {

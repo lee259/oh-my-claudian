@@ -70,6 +70,22 @@ describe('ClaudeCommandCatalog', () => {
       expect(names).not.toContain('cost');
     });
 
+    it('does not label runtime SDK entries whose kinds are ambiguous', async () => {
+      const adapter = createMockAdapter({});
+      const commands = new SlashCommandStorage(adapter);
+      const skills = new SkillStorage(adapter);
+      const catalog = new ClaudeCommandCatalog(commands, skills);
+
+      catalog.setCommandSnapshot([
+        { id: 'sdk:remote-workflow', name: 'remote-workflow', description: 'Run workflow', content: '', source: 'sdk' },
+        { id: 'sdk:agent-reach', name: 'agent-reach', description: 'Search the web', content: '', source: 'sdk', kind: 'skill' },
+      ]);
+
+      const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
+
+      expect(entries.map(entry => entry.showKind)).toEqual([false, false]);
+    });
+
     it('probes SDK on cold start when cache is empty', async () => {
       const adapter = createMockAdapter({});
       const commands = new SlashCommandStorage(adapter);

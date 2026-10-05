@@ -85,6 +85,14 @@ function getDiscoveryState(containerEl: any): { text: string; retry: any | null 
   return { text: messageEl?.textContent ?? '', retry };
 }
 
+function getEmptyText(containerEl: any): string | null {
+  const dropdownEl = containerEl.children.find(
+    (c: any) => c.hasClass('claudian-slash-dropdown'),
+  );
+  const emptyEl = dropdownEl?.querySelectorAll('.claudian-slash-empty')[0];
+  return emptyEl?.textContent ?? null;
+}
+
 function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(finish => { resolve = finish; });
@@ -200,6 +208,76 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
+    it('sorts commands before skills when both use the / prefix', async () => {
+      const command: ProviderCommandEntry = {
+        ...CLAUDE_ENTRIES[0],
+        name: 'z-command',
+      };
+      const skill: ProviderCommandEntry = {
+        ...CLAUDE_ENTRIES[1],
+        name: 'a-skill',
+      };
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CLAUDE_CONFIG,
+          providerDiscovery: createEntryDiscovery(async () => [skill, command]),
+        },
+      );
+
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const names = getRenderedCommandNames(containerEl);
+      expect(names.indexOf('/z-command')).toBeGreaterThanOrEqual(0);
+      expect(names.indexOf('/a-skill')).toBeGreaterThanOrEqual(0);
+      expect(names.indexOf('/z-command')).toBeLessThan(names.indexOf('/a-skill'));
+
+      dropdown.destroy();
+    });
+
+    it('omits the type badge for Claude SDK entries with unknown kinds', async () => {
+      const unknownEntry: ProviderCommandEntry = {
+        ...CLAUDE_ENTRIES[0],
+        id: 'sdk:unknown-kind',
+        name: 'unknown-kind',
+        source: 'sdk',
+        scope: 'runtime',
+        isEditable: false,
+        isDeletable: false,
+        showKind: false,
+      };
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CLAUDE_CONFIG,
+          providerDiscovery: createEntryDiscovery(async () => [unknownEntry]),
+        },
+      );
+
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const dropdownEl = containerEl.children.find((el: any) =>
+        el.hasClass('claudian-slash-dropdown'),
+      );
+      const unknownItem = dropdownEl.querySelectorAll('.claudian-slash-item').find((item: any) =>
+        item.children.some((child: any) => child.textContent === '/unknown-kind'),
+      );
+      expect(unknownItem).toBeDefined();
+      expect(unknownItem.querySelectorAll('.claudian-slash-kind')).toHaveLength(0);
+
+      dropdown.destroy();
+    });
+
     it('shows /fast when the provider catalog advertises it', async () => {
       const fastCommand: ProviderCommandEntry = {
         ...CLAUDE_ENTRIES[0],
@@ -281,7 +359,7 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
-    it('shows built-ins + skills on / trigger at position 0', async () => {
+    it('shows provider entries on / while preserving Codex skill prefixes', async () => {
       const getProviderEntries = jest.fn().mockResolvedValue([CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES]);
       const dropdown = new SlashCommandDropdown(
         containerEl,
@@ -301,7 +379,13 @@ describe('SlashCommandDropdown - provider catalog', () => {
       const names = getRenderedCommandNames(containerEl);
       expect(names).toContain('/clear');
       expect(names).toContain('/compact');
-      expect(names).not.toContain('$analyze');
+      expect(names).toContain('$analyze');
+      expect(names.indexOf('/compact')).toBeLessThan(names.indexOf('$analyze'));
+      const dropdownEl = containerEl.children.find((el: any) => el.hasClass('claudian-slash-dropdown'));
+      const skillItem = dropdownEl.querySelectorAll('.claudian-slash-item').find((item: any) =>
+        item.children.some((child: any) => child.hasClass('claudian-slash-kind--skill')),
+      );
+      expect(skillItem).toBeDefined();
 
       dropdown.destroy();
     });
@@ -355,6 +439,133 @@ describe('SlashCommandDropdown - provider catalog', () => {
 
       // Input should now contain $analyze
       expect(inputEl.value).toContain('$analyze');
+
+      dropdown.destroy();
+    });
+
+    it('inserts the native skill invocation when selected from the slash picker', async () => {
+      const getProviderEntries = jest.fn().mockResolvedValue([CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES]);
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: createEntryDiscovery(getProviderEntries),
+        },
+      );
+
+      inputEl.value = '/an';
+      inputEl.selectionStart = inputEl.value.length;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      dropdown.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+
+      expect(inputEl.value).toBe('$analyze ');
+      expect(callbacks.onSelect).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'skill',
+        name: 'analyze',
+      }));
+
+      dropdown.destroy();
+    });
+
+    it('shows skill-specific loading and empty states for discovery', async () => {
+      const response = deferred<ProviderCommandDiscoveryResult<ProviderCommandEntry>>();
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: new ProviderCommandDiscoveryStore(() => response.promise),
+        },
+      );
+
+      inputEl.value = '$';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      expect(getDiscoveryState(containerEl)?.text).toBe('Loading provider skills…');
+
+      response.resolve({ status: 'empty' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(getDiscoveryState(containerEl)?.text).toBe('No skills available');
+      expect(getEmptyText(containerEl)).toBeNull();
+
+      dropdown.destroy();
+    });
+
+    it('offers retry when Codex skill discovery fails', async () => {
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: new ProviderCommandDiscoveryStore(async () => ({
+            status: 'error',
+            message: 'Codex skill discovery failed',
+            retryable: true,
+          })),
+        },
+      );
+
+      inputEl.value = '$';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      const state = getDiscoveryState(containerEl);
+      expect(state?.text).toBe('Codex skill discovery failed');
+      expect(state?.retry?.textContent).toBe('Retry skill discovery');
+
+      dropdown.destroy();
+    });
+
+    it('uses shared command discovery status on the slash trigger', async () => {
+      const response = deferred<ProviderCommandDiscoveryResult<ProviderCommandEntry>>();
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: new ProviderCommandDiscoveryStore(() => response.promise),
+        },
+      );
+
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+
+      expect(getDiscoveryState(containerEl)?.text).toBe('Loading provider commands…');
+
+      response.resolve({ status: 'ready', items: [CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES] });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      dropdown.destroy();
+    });
+
+    it('keeps an empty result visible when no Codex skills match', async () => {
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: new ProviderCommandDiscoveryStore(async () => ({
+            status: 'ready',
+            items: [CODEX_COMPACT_ENTRY],
+          })),
+        },
+      );
+
+      inputEl.value = '$missing';
+      inputEl.selectionStart = inputEl.value.length;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(dropdown.isVisible()).toBe(true);
+      expect(getEmptyText(containerEl)).toBe('No matching skills');
 
       dropdown.destroy();
     });

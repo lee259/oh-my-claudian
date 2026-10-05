@@ -717,6 +717,40 @@ describe('CodexExecutionBackend', () => {
     }
   });
 
+  it('forwards a native Codex skill invocation in the turn request', async () => {
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') {
+        return {
+          userAgent: 'test',
+          codexHome: '/tmp/.codex',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        };
+      }
+      if (method === 'thread/start') return createThreadResult('thread-skill');
+      if (method === 'turn/start') {
+        queueMicrotask(() => completeTurn('thread-skill', 'turn-skill'));
+        return createTurnResult('turn-skill');
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+    const session = new CodexExecutionBackend(createPlugin())
+      .createSession(createSessionConfig());
+
+    await collectEvents(session.execute(createRequest(
+      new AbortController().signal,
+      { input: [{ type: 'text', text: '$analyze' }] },
+    )).events);
+
+    const turnParams = mockTransportRequest.mock.calls
+      .find(([method]) => method === 'turn/start')?.[1] as {
+        input: Array<{ text?: string; type: string }>;
+      };
+    expect(turnParams.input.find(block => block.type === 'text')?.text).toContain('$analyze');
+
+    await session.dispose();
+  });
+
   it('sends all attached context using canonical escaped XML', async () => {
     mockTransportRequest.mockImplementation(async (method: string) => {
       if (method === 'initialize') {

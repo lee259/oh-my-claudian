@@ -12,7 +12,19 @@ describe('Chat input toolbar styles', () => {
       /\.claudian-input-send-button\s*\{[\s\S]*?position:\s*absolute;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-toolbar\s*\{[\s\S]*?padding:\s*4px 56px 8px 10px;/,
+      /\.claudian-input-toolbar\s*\{[\s\S]*?padding:\s*4px 56px 4px 10px;/,
+    );
+  });
+
+  it('uses a subtle focus border and compact bottom spacing for the composer', () => {
+    expect(css).toMatch(
+      /\.claudian-input-wrapper:focus-within\s*\{[^}]*--claudian-input-wrapper-border-color:\s*var\(--background-modifier-border-hover\);[^}]*--claudian-input-wrapper-box-shadow:\s*none;/,
+    );
+    expect(css).toMatch(
+      /\.claudian-input-toolbar\s*\{[^}]*padding:\s*4px 56px 4px 10px;/,
+    );
+    expect(css).toMatch(
+      /\.oh-my-claudian-root \.claudian-input-toolbar\s*\{[^}]*padding:\s*4px 6px 4px;/,
     );
   });
 
@@ -68,7 +80,7 @@ describe('Chat input toolbar styles', () => {
       /\.oh-my-claudian-root \.claudian-input-toolbar\s*\{[\s\S]*?flex-wrap:\s*nowrap;/,
     );
     expect(css).toMatch(
-      /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;[\s\S]*?white-space:\s*nowrap;/,
+      /\.oh-my-claudian-root \.claudian-input-toolbar-execution-group\s*\{[\s\S]*?margin-inline-start:\s*auto;[\s\S]*?white-space:\s*nowrap;/,
     );
     expect(css).toMatch(
       /\.oh-my-claudian-root \.claudian-input-toolbar\s*>\s*\.claudian-input-toolbar-slot:last-child\s*\{[\s\S]*?margin:\s*0;/,

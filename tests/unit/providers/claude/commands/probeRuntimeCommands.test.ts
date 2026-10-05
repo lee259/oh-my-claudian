@@ -8,12 +8,13 @@ const sdkMock = sdkModule as unknown as {
     supportedCommands: jest.Mock;
   } | null;
   setMockMessages: (messages: any[], options?: { appendResult?: boolean }) => void;
-  setMockSupportedCommands: (commands: Array<{ name: string; description: string; argumentHint?: string }>) => void;
+  setMockSupportedCommands: (commands: Array<{ name: string; description: string; argumentHint?: string; builtin?: boolean }>) => void;
   setMockSupportedCommandsImplementation: (
     implementation: () => Promise<Array<{
       name: string;
       description: string;
       argumentHint?: string;
+      builtin?: boolean;
     }>>,
   ) => void;
   resetMockMessages: () => void;
@@ -50,6 +51,7 @@ describe('probeRuntimeCommands', () => {
     ], { appendResult: false });
     sdkMock.setMockSupportedCommands([
       { name: 'commit', description: 'Create a commit', argumentHint: '' },
+      { name: 'compact', description: 'Compact the conversation', argumentHint: '', builtin: true },
     ]);
 
     const commands = await probeRuntimeCommands(createMockPlugin({
@@ -63,6 +65,14 @@ describe('probeRuntimeCommands', () => {
       argumentHint: '',
       content: '',
       source: 'sdk',
+    }, {
+      id: 'sdk:compact',
+      name: 'compact',
+      description: 'Compact the conversation',
+      argumentHint: '',
+      content: '',
+      source: 'sdk',
+      kind: 'command',
     }]);
     expect(sdkMock.getLastOptions()?.settingSources).toEqual(['project', 'local']);
   });
