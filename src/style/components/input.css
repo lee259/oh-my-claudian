@@ -83,17 +83,16 @@
 
 /* Input wrapper (border container) - flex column so textarea expands when no chips */
 .claudian-input-wrapper {
-  --claudian-input-wrapper-border-color: color-mix(in srgb, var(--background-modifier-border) 85%, var(--text-normal));
+  --claudian-input-wrapper-border-color: var(--background-modifier-border);
   --claudian-input-wrapper-box-shadow: none;
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 144px;
   border: 1px solid var(--claudian-input-wrapper-border-color);
   border-radius: 16px;
   background: var(--background-primary);
   box-shadow: var(--claudian-input-wrapper-box-shadow);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition: border-color 0.18s ease;
 
   /* Popovers size against the composer, which can be much narrower than the app viewport. */
   container-type: inline-size;
@@ -194,7 +193,7 @@
   min-height: 64px;
   max-height: var(--claudian-textarea-max-height, none);
   resize: none;
-  padding: 13px 15px;
+  padding: 13px 15px 4px;
   border: none;
   border-radius: 15px;
   background: transparent;
@@ -374,6 +373,7 @@
   flex-shrink: 0;
   row-gap: 8px;
   padding: 4px 56px 4px 10px;
+  padding-top: 0;
 }
 
 .claudian-input-toolbar-group {
@@ -620,9 +620,21 @@
 .oh-my-claudian-root .claudian-input-toolbar {
   box-sizing: border-box;
   flex-wrap: nowrap;
-  column-gap: 4px;
+  column-gap: 2px;
   row-gap: 0;
   padding: 4px 6px 4px;
+  padding-top: 0;
+}
+
+.oh-my-claudian-root .claudian-context-actions {
+  margin-inline-end: -2px;
+}
+
+.oh-my-claudian-root .claudian-context-actions-trigger {
+  flex: 0 0 26px;
+  width: 26px;
+  justify-content: flex-end;
+  padding-inline-end: 2px;
 }
 
 .oh-my-claudian-root .claudian-input-toolbar-config-group {
