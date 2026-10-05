@@ -1,8 +1,12 @@
 import type { App } from 'obsidian';
+import { setIcon } from 'obsidian';
+
+import type { ProviderCommandKind } from '../../../core/providers/commands/ProviderCommandEntry';
 
 const FILE_MENTION_PATTERN = /@(?:[^\s@]+\.[^\s@]+|[^\s@/]+(?:\/[^\s@]+)*\/)/g;
+const COMMAND_TOKEN_PATTERN = /(^|\s)([/$][^\s]+)(?=\s)/g;
 
-/** Mirrors composer text beneath its textarea and emphasizes file-like @mentions. */
+/** Mirrors composer text and emphasizes file mentions plus known provider command tokens. */
 export class MentionTextHighlighter {
   private readonly contentEl: HTMLElement;
   private readonly syncHandler = () => this.sync();
@@ -13,6 +17,7 @@ export class MentionTextHighlighter {
     private readonly inputEl: HTMLTextAreaElement,
     private readonly highlightEl: HTMLElement,
     private readonly app?: App,
+    private readonly resolveCommandKind?: (token: string, atInputStart: boolean) => ProviderCommandKind | null,
   ) {
     this.highlightEl.addClass('claudian-input-mention-highlights');
     this.contentEl = this.highlightEl.createDiv({ cls: 'claudian-input-mention-highlights-content' });
@@ -81,12 +86,30 @@ export class MentionTextHighlighter {
     this.highlightEl.classList.toggle('claudian-input-mention-highlights--empty', text.length === 0);
     this.contentEl.textContent = '';
 
-    let cursor = 0;
+    const highlights: Array<{ start: number; end: number; kind: 'mention' | ProviderCommandKind }> = [];
     for (const match of text.matchAll(FILE_MENTION_PATTERN)) {
       const start = match.index ?? 0;
-      if (start > cursor) this.contentEl.createSpan({ text: text.slice(cursor, start) });
-      this.appendMention(match[0]);
-      cursor = start + match[0].length;
+      highlights.push({ start, end: start + match[0].length, kind: 'mention' });
+    }
+    for (const match of text.matchAll(COMMAND_TOKEN_PATTERN)) {
+      const prefix = match[1] ?? '';
+      const token = match[2] ?? '';
+      const start = (match.index ?? 0) + prefix.length;
+      const kind = this.resolveCommandKind?.(token, start === 0);
+      if (kind) highlights.push({ start, end: start + token.length, kind });
+    }
+
+    highlights.sort((left, right) => left.start - right.start);
+    let cursor = 0;
+    for (const highlight of highlights) {
+      if (highlight.start < cursor) continue;
+      if (highlight.start > cursor) this.contentEl.createSpan({ text: text.slice(cursor, highlight.start) });
+      if (highlight.kind === 'mention') {
+        this.appendMention(text.slice(highlight.start, highlight.end));
+      } else {
+        this.appendCommand(text.slice(highlight.start, highlight.end), highlight.kind);
+      }
+      cursor = highlight.end;
     }
     if (cursor < text.length) this.contentEl.createSpan({ text: text.slice(cursor) });
     this.syncScroll();
@@ -128,6 +151,22 @@ export class MentionTextHighlighter {
         void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
       }
     });
+  }
+
+  private appendCommand(token: string, kind: ProviderCommandKind): void {
+    const commandEl = this.contentEl.createSpan({
+      cls: `claudian-input-command-highlight claudian-input-command-highlight--${kind}`,
+    });
+    commandEl.dataset.commandKind = kind;
+    const prefixEl = commandEl.createSpan({
+      cls: `claudian-input-command-highlight-prefix claudian-input-command-highlight-prefix--${kind}`,
+      text: token[0],
+    });
+    if (kind === 'skill') {
+      const iconEl = prefixEl.createSpan({ cls: 'claudian-input-command-highlight-icon' });
+      setIcon(iconEl, 'zap');
+    }
+    commandEl.append(this.inputEl.ownerDocument.createTextNode(token.slice(1)));
   }
 }
 

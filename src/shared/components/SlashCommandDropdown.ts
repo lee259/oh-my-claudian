@@ -4,7 +4,10 @@ import type {
   ProviderCommandDiscoverySnapshot,
   ProviderCommandDiscoverySource,
 } from '../../core/providers/commands/ProviderCommandDiscoveryStore';
-import type { ProviderCommandEntry } from '../../core/providers/commands/ProviderCommandEntry';
+import type {
+  ProviderCommandEntry,
+  ProviderCommandKind,
+} from '../../core/providers/commands/ProviderCommandEntry';
 import type { ProviderId } from '../../core/providers/types';
 import type { SlashCommand } from '../../core/types';
 import { normalizeArgumentHint } from '../../utils/slashCommand';
@@ -119,6 +122,23 @@ export class SlashCommandDropdown {
     this.providerConfig = null;
     this.resetProviderViewState();
     this.bindProviderDiscovery(null);
+  }
+
+  /** Returns the kind of an exact command token using the same precedence as the dropdown. */
+  resolveCommandKind(token: string, atInputStart: boolean): ProviderCommandKind | null {
+    const key = token.toLocaleLowerCase();
+    if (this.includeBuiltIns && atInputStart && key.startsWith('/')) {
+      const name = key.slice(1);
+      if (getBuiltInCommandsForDropdown(this.providerId ?? undefined).some(command =>
+        command.name.toLocaleLowerCase() === name)) {
+        return 'command';
+      }
+    }
+
+    const entry = this.cachedProviderEntries.find(candidate =>
+      !this.hiddenCommands.has(candidate.name.toLocaleLowerCase())
+      && `${candidate.insertPrefix}${candidate.name}`.toLocaleLowerCase() === key);
+    return entry?.kind ?? null;
   }
 
   handleInputChange(): void {
@@ -293,12 +313,20 @@ export class SlashCommandDropdown {
         item.name.toLowerCase().includes(searchLower)
         || item.description?.toLowerCase().includes(searchLower)
       )
-      .sort((a, b) => this.compareSearchResults(a, b, searchLower));
-  }
-
-  private compareSearchResults(a: DropdownItem, b: DropdownItem, searchLower: string): number {
-    const rankDiff = this.getSearchRank(a, searchLower) - this.getSearchRank(b, searchLower);
-    return rankDiff !== 0 ? rankDiff : a.name.localeCompare(b.name);
+      .sort((a, b) => {
+        const kindRank = (item: DropdownItem): number => {
+          if (item.providerEntry?.showKind === false) return 1;
+          return item.providerEntry?.kind === 'skill' ? 2 : 0;
+        };
+        const kindDiff = kindRank(a) - kindRank(b);
+        if (kindDiff !== 0) return kindDiff;
+        const prefixDiff = a.displayPrefix.localeCompare(b.displayPrefix);
+        if (prefixDiff !== 0) return prefixDiff;
+        const rankDiff = this.getSearchRank(a, searchLower) - this.getSearchRank(b, searchLower);
+        return rankDiff !== 0
+          ? rankDiff
+          : `${a.displayPrefix}${a.name}`.localeCompare(`${b.displayPrefix}${b.name}`);
+      });
   }
 
   private getSearchRank(item: DropdownItem, searchLower: string): number {
@@ -314,7 +342,12 @@ export class SlashCommandDropdown {
   private finishRender(searchText: string): void {
     const hasProviderState = this.providerDiscoveryState?.status !== 'ready'
       && this.providerDiscoveryState !== null;
-    if (searchText.length > 0 && this.filteredItems.length === 0 && !hasProviderState) {
+    if (
+      searchText.length > 0
+      && this.filteredItems.length === 0
+      && !hasProviderState
+      && !this.isSkillOnlyTrigger()
+    ) {
       this.hide();
       return;
     }
@@ -348,9 +381,6 @@ export class SlashCommandDropdown {
     }
 
     for (const entry of this.cachedProviderEntries) {
-      if (entry.displayPrefix !== this.activeTriggerChar) {
-        continue;
-      }
       const nameLower = entry.name.toLowerCase();
       if (seenNames.has(nameLower) || this.hiddenCommands.has(nameLower)) {
         continue;
@@ -392,7 +422,11 @@ export class SlashCommandDropdown {
       this.dropdownEl = this.createDropdownElement();
     }
 
-    if (this.filteredItems.length > 0 || !this.providerDiscoveryState) {
+    if (
+      this.filteredItems.length > 0
+      || !this.providerDiscoveryState
+      || (this.isSkillOnlyTrigger() && this.providerDiscoveryState.status === 'ready')
+    ) {
       this.commandList ??= new SelectableDropdown(this.dropdownEl, {
         listClassName: 'claudian-slash-list',
         itemClassName: 'claudian-slash-item',
@@ -401,10 +435,18 @@ export class SlashCommandDropdown {
       this.commandList.render({
         items: this.filteredItems,
         selectedIndex: this.selectedIndex,
-        emptyText: 'No matching commands',
+        emptyText: this.isSkillOnlyTrigger() ? 'No matching skills' : 'No matching commands',
         renderItem: (item, itemEl) => {
           const nameEl = itemEl.createSpan({ cls: 'claudian-slash-name' });
           nameEl.setText(`${item.displayPrefix}${item.name}`);
+
+          if (item.providerEntry?.showKind !== false) {
+            const kind = item.providerEntry?.kind ?? 'command';
+            const kindEl = itemEl.createSpan({
+              cls: `claudian-slash-kind claudian-slash-kind--${kind}`,
+            });
+            kindEl.setText(kind === 'skill' ? 'Skill' : 'Command');
+          }
 
           if (item.argumentHint) {
             const hintEl = itemEl.createSpan({ cls: 'claudian-slash-hint' });
@@ -462,10 +504,14 @@ export class SlashCommandDropdown {
 
     switch (state.status) {
       case 'loading':
-        messageEl.setText('Loading provider commands…');
+        messageEl.setText(this.isSkillOnlyTrigger()
+          ? 'Loading provider skills…'
+          : 'Loading provider commands…');
         break;
       case 'empty':
-        messageEl.setText('No provider commands advertised');
+        messageEl.setText(this.isSkillOnlyTrigger()
+          ? 'No skills available'
+          : 'No provider commands advertised');
         break;
       case 'requires-session':
         messageEl.setText(state.message);
@@ -474,7 +520,9 @@ export class SlashCommandDropdown {
         messageEl.setText(state.message);
         const retryEl = stateEl.createEl('button', {
           cls: 'claudian-slash-provider-retry',
-          text: 'Retry',
+          text: this.isSkillOnlyTrigger()
+            ? 'Retry skill discovery'
+            : 'Retry',
           attr: { type: 'button' },
         });
         retryEl.addEventListener('click', () => {
@@ -483,6 +531,11 @@ export class SlashCommandDropdown {
         break;
       }
     }
+  }
+
+  private isSkillOnlyTrigger(): boolean {
+    return this.providerConfig?.skillPrefix === this.activeTriggerChar
+      && this.providerConfig.commandPrefix !== this.activeTriggerChar;
   }
 
   private createDropdownElement(): HTMLElement {

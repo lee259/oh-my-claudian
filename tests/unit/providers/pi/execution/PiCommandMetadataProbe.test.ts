@@ -72,6 +72,7 @@ describe('PiCommandMetadataProbe', () => {
       request: jest.fn(async () => {
         throw new Error('Request timeout: get_commands (10000ms)');
       }),
+      getStderrSnapshot: jest.fn(() => ''),
       shutdown: jest.fn(async () => undefined),
       start: jest.fn(),
     };
@@ -117,6 +118,7 @@ describe('PiCommandMetadataProbe', () => {
       request: jest.fn(async () => {
         throw new Error('Request timeout: get_commands (10000ms)');
       }),
+      getStderrSnapshot: jest.fn(() => ''),
       shutdown: jest.fn(async () => undefined),
       start: jest.fn(),
     };

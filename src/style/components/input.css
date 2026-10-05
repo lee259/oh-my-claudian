@@ -100,8 +100,8 @@
 }
 
 .claudian-input-wrapper:focus-within {
-  --claudian-input-wrapper-border-color: var(--text-muted);
-  --claudian-input-wrapper-box-shadow: 0 0 0 1px var(--background-modifier-border);
+  --claudian-input-wrapper-border-color: var(--background-modifier-border-hover);
+  --claudian-input-wrapper-box-shadow: none;
 }
 
 /* Nav row (tab badges start, action icons end) - above input wrapper */
@@ -256,6 +256,41 @@
   line-height: inherit;
 }
 
+.claudian-input-command-highlight {
+  padding-inline: 0.2em;
+  margin-inline: -0.2em;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: var(--text-normal);
+  line-height: inherit;
+}
+
+.claudian-input-command-highlight-prefix {
+  color: var(--interactive-accent);
+}
+
+.claudian-input-command-highlight-prefix--skill {
+  position: relative;
+  color: transparent;
+}
+
+.claudian-input-command-highlight-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.claudian-input-command-highlight-icon svg {
+  width: 1em;
+  height: 1em;
+}
+
 /* Mirror metrics must match the transparent textarea, so link styling cannot add box space. */
 .claudian-input-mention-highlight[data-mention-state="resolved"] {
   background: transparent;
@@ -338,7 +373,7 @@
   flex-wrap: wrap;
   flex-shrink: 0;
   row-gap: 8px;
-  padding: 4px 56px 8px 10px;
+  padding: 4px 56px 4px 10px;
 }
 
 .claudian-input-toolbar-group {
@@ -587,7 +622,7 @@
   flex-wrap: nowrap;
   column-gap: 4px;
   row-gap: 0;
-  padding: 4px 6px 6px;
+  padding: 4px 6px 4px;
 }
 
 .oh-my-claudian-root .claudian-input-toolbar-config-group {
@@ -614,7 +649,7 @@
   flex: 1 1 auto;
 }
 
-.oh-my-claudian-root .claudian-input-toolbar > .claudian-input-toolbar-execution-group {
+.oh-my-claudian-root .claudian-input-toolbar-execution-group {
   flex: 0 0 auto;
   margin-inline-start: auto;
   flex-wrap: nowrap;

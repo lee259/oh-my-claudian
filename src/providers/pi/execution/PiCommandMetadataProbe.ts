@@ -69,6 +69,9 @@ export class PiCommandMetadataProbe {
         const kernel = this.createKernel(
           launchSpec,
           {
+            onDiagnostic: record => {
+              void this.host.diagnosticLog?.write(record).catch(() => undefined);
+            },
             onClose: () => undefined,
             onEvent: (event) => {
               const record = getRecord(event);
@@ -97,7 +100,15 @@ export class PiCommandMetadataProbe {
         } catch (error) {
           // Pi pushes an available_commands_update event with the runtime
           // command catalog; fall back to it when the get_commands RPC
-          // fails (e.g. an older Pi that does not support the request).
+          // fails (e.g. an older Pi that does not support the request). The
+          // failure details and stderr help diagnose CLI-specific failures.
+          const message = error instanceof Error ? error.message : String(error);
+          const stderr = probe.kernel.getStderrSnapshot();
+          void this.host.diagnosticLog?.write({
+            event: 'execution-error',
+            message: [message, stderr].filter(Boolean).join('\n\n'),
+            source: 'pi',
+          }).catch(() => undefined);
           const pushedCommands = probe.getPushedCommands();
           if (pushedCommands) return pushedCommands;
           throw error;

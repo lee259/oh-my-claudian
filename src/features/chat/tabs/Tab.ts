@@ -1564,6 +1564,7 @@ export function initializeTabUI(
     dom.inputEl,
     dom.inputMentionHighlightsEl,
     plugin.app,
+    (token, atInputStart) => tab.ui.slashCommandDropdown?.resolveCommandKind(token, atInputStart) ?? null,
   );
   dom.eventCleanups.push(() => mentionTextHighlighter.destroy());
   initializeContextManagers(tab, plugin, onUserModified);

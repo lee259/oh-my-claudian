@@ -8,6 +8,8 @@ export interface ProviderCommandEntry {
   id: string;
   providerId: ProviderId;
   kind: ProviderCommandKind;
+  /** Hide the kind badge when the provider cannot reliably distinguish it. */
+  showKind?: boolean;
   name: string;
   description?: string;
   content: string;

@@ -11,21 +11,11 @@ import {
   getClaudeProviderSettings,
   resolveClaudeSettingSources,
 } from '../settings';
+import { mapClaudeSdkCommand } from './ClaudeSdkCommand';
 
 // Claude emits system/init only after MCP servers connect; cap that wait so
 // one slow server cannot stall command discovery.
 const PROBE_MCP_TIMEOUT_MS = '5000';
-
-function mapSdkCommands(sdkCommands: SDKSlashCommand[]): SlashCommand[] {
-  return sdkCommands.map((cmd) => ({
-    id: `sdk:${cmd.name}`,
-    name: cmd.name,
-    description: cmd.description,
-    argumentHint: cmd.argumentHint,
-    content: '',
-    source: 'sdk' as const,
-  }));
-}
 
 async function awaitWithAbort<T>(
   promise: Promise<T>,
@@ -123,7 +113,7 @@ export async function probeRuntimeCommands(
           conversation.supportedCommands(),
           signal,
         );
-        return mapSdkCommands(sdkCommands);
+        return sdkCommands.map(mapClaudeSdkCommand);
       }
     }
   } catch (error) {

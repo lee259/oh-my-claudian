@@ -10,12 +10,15 @@ import { isSkill } from '../../../utils/slashCommand';
 import type { SkillStorage } from '../storage/SkillStorage';
 import type { SlashCommandStorage } from '../storage/SlashCommandStorage';
 
-function slashCommandToEntry(cmd: SlashCommand): ProviderCommandEntry {
+function slashCommandToEntry(
+  cmd: SlashCommand,
+): ProviderCommandEntry {
   const skill = isSkill(cmd);
   return {
     id: cmd.id,
     providerId: 'claude',
     kind: skill ? 'skill' : 'command',
+    showKind: cmd.source !== 'sdk',
     name: cmd.name,
     description: cmd.description,
     content: cmd.content,
@@ -173,7 +176,7 @@ export class ClaudeCommandCatalog implements ProviderCommandCatalog, ProviderVau
     signal?.throwIfAborted();
     const skills = await this.skillStorage.loadAll();
     signal?.throwIfAborted();
-    return [...commands, ...skills].map(slashCommandToEntry);
+    return [...commands, ...skills].map(command => slashCommandToEntry(command));
   }
 
   async saveVaultEntry(entry: ProviderCommandEntry): Promise<void> {
