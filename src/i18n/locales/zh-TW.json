@@ -221,12 +221,7 @@
       "newForNote": "為 {note} 新增聊天",
       "cannotArchiveRunning": "執行中的工作階段無法封存",
       "autoArchived": "已封存 {count} 個閒置對話。",
-      "selectedCount": "已選取 {count} 個",
-      "archiveSelected": "封存所選項目",
-      "archiveSelectedCount": "封存所選的 {count} 個對話",
-      "selectForArchive": "選取以封存：{title}",
-      "nativeArchiveFailed": "{provider} 無法封存或還原工作階段：{reason}",
-      "archivedCount": "已封存 {count} 個對話。"
+      "nativeArchiveFailed": "{provider} 無法封存或還原工作階段：{reason}"
     },
     "status": {
       "loadingConversation": "正在載入對話…",

@@ -221,12 +221,7 @@
       "newForNote": "{note} の新しいチャット",
       "cannotArchiveRunning": "実行中のセッションはアーカイブできません",
       "autoArchived": "{count} 件の非アクティブな会話をアーカイブしました。",
-      "selectedCount": "{count} 件選択中",
-      "archiveSelected": "選択項目をアーカイブ",
-      "archiveSelectedCount": "選択した {count} 件の会話をアーカイブ",
-      "selectForArchive": "アーカイブ対象に選択：{title}",
-      "nativeArchiveFailed": "{provider} のセッションをアーカイブまたは復元できませんでした：{reason}",
-      "archivedCount": "{count} 件の会話をアーカイブしました。"
+      "nativeArchiveFailed": "{provider} のセッションをアーカイブまたは復元できませんでした：{reason}"
     },
     "status": {
       "loadingConversation": "会話を読み込み中…",

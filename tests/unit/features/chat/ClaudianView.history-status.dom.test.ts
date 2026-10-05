@@ -96,7 +96,6 @@ function createHistoryHarness() {
     historyDropdownDirty: true,
     historySurfaceRendered: true,
     historySearchQuery: '',
-    selectedHistoryConversationIds: new Set<string>(),
     historyRenderAbortController: null,
     pendingHistorySurfaceUpdate: null,
     isArchiveSessionView: false,

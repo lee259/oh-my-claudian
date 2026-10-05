@@ -221,12 +221,7 @@
       "newForNote": "Neuer Chat für {note}",
       "cannotArchiveRunning": "Eine laufende Sitzung kann nicht archiviert werden",
       "autoArchived": "{count} inaktive Unterhaltung(en) archiviert.",
-      "selectedCount": "{count} ausgewählt",
-      "archiveSelected": "Auswahl archivieren",
-      "archiveSelectedCount": "{count} ausgewählte Unterhaltungen archivieren",
-      "selectForArchive": "{title} zum Archivieren auswählen",
-      "nativeArchiveFailed": "{provider} konnte Sitzungen nicht archivieren oder wiederherstellen: {reason}",
-      "archivedCount": "{count} Unterhaltung(en) archiviert."
+      "nativeArchiveFailed": "{provider} konnte Sitzungen nicht archivieren oder wiederherstellen: {reason}"
     },
     "status": {
       "loadingConversation": "Unterhaltung wird geladen…",

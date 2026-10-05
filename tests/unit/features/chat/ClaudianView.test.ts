@@ -645,7 +645,6 @@ describe('ClaudianView tab controls', () => {
     const view = Object.create(ClaudianView.prototype) as any;
 
     view.historyDropdown = historyDropdown;
-    view.selectedHistoryConversationIds = new Set<string>();
     view.tabManager = {
       getActiveTab: jest.fn().mockReturnValue(null),
     };
@@ -858,7 +857,6 @@ describe('ClaudianView tab controls', () => {
     const view = Object.create(ClaudianView.prototype) as any;
 
     view.historyDropdown = historyDropdown;
-    view.selectedHistoryConversationIds = new Set<string>();
     view.historyDropdownDirty = true;
     view.historySurfaceRendered = false;
     view.tabManager = {
@@ -1641,7 +1639,6 @@ describe('ClaudianView Escape handling', () => {
     view.app = { scope: parentScope };
     view.containerEl = createMockEl();
     view.historyDropdown = createMockEl();
-    view.selectedHistoryConversationIds = new Set<string>();
     view.registerDomEvent = jest.fn();
     view.registerEvent = jest.fn();
     view.eventRefs = eventRefs;
