@@ -1,3 +1,4 @@
+import { OBSIDIAN_WORKSPACE_MCP_SERVER_NAME } from '@/core/obsidian/ObsidianWorkspaceTool';
 import type { SystemPromptSettings } from '@/core/prompt/mainAgent';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 
@@ -18,6 +19,7 @@ const READ_PERMISSION = Object.freeze({
 
 export function buildAgentConfig(
   profile: Exclude<OpencodeExecutionProfile, 'managed'>,
+  enableObsidianWorkspaceTool = false,
 ): OpencodeManagedAgentConfig {
   return profile === 'readonly'
     ? {
@@ -34,6 +36,7 @@ export function buildAgentConfig(
           read: READ_PERMISSION,
           webfetch: 'allow',
           websearch: 'allow',
+          ...(enableObsidianWorkspaceTool ? { [`${OBSIDIAN_WORKSPACE_MCP_SERVER_NAME}_*`]: 'allow' } : {}),
         },
       },
       id: AUX_AGENT_IDS.readonly,
@@ -45,6 +48,7 @@ export function buildAgentConfig(
         permission: {
           '*': 'deny',
           external_directory: 'deny',
+          ...(enableObsidianWorkspaceTool ? { [`${OBSIDIAN_WORKSPACE_MCP_SERVER_NAME}_*`]: 'allow' } : {}),
         },
       },
       id: AUX_AGENT_IDS.passive,

@@ -20,6 +20,7 @@ import {
 } from './app/conversations/SessionMetadataCoordinator';
 import { ProviderDiagnosticLogService } from './app/diagnostics/ProviderDiagnosticLogService';
 import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdapter';
+import { ObsidianWorkspaceToolBridgeServer } from './app/obsidian/ObsidianWorkspaceToolBridgeServer';
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
 import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
@@ -104,6 +105,7 @@ export default class ClaudianPlugin extends Plugin {
   settings!: ClaudianSettings;
   storage!: SharedAppStorage;
   readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
+  readonly obsidianWorkspaceToolBridge = new ObsidianWorkspaceToolBridgeServer(this.obsidianWorkspace);
   readonly executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
   readonly diagnosticLog = new ProviderDiagnosticLogService(() => this.settings);
   readonly providerHost = new ClaudianProviderHost(this);
@@ -346,6 +348,7 @@ export default class ClaudianPlugin extends Plugin {
       await this.nativeSessionArchives?.dispose();
       await this.executionLifecycleRegistry.dispose();
       await ProviderWorkspaceRegistry.disposeInitialized();
+      await this.obsidianWorkspaceToolBridge.dispose();
     })();
   }
 

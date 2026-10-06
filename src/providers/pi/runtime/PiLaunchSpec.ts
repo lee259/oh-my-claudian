@@ -9,6 +9,7 @@ export interface BuildPiLaunchSpecParams {
   envText?: string;
   additionalArguments?: readonly string[];
   enableTreeBridge?: boolean;
+  enableObsidianWorkspaceTool?: boolean;
   model?: string | null;
   noSession?: boolean;
   noTools?: boolean;
@@ -22,6 +23,7 @@ export interface BuildPiLaunchSpecParams {
 
 export interface PiLaunchSpec {
   enableTreeBridge?: boolean;
+  enableObsidianWorkspaceTool?: boolean;
   args: string[];
   command: string;
   cwd: string;
@@ -30,7 +32,8 @@ export interface PiLaunchSpec {
   sessionTarget: string | null;
 }
 
-const READONLY_TOOLS = 'read,grep,find,ls';
+const READONLY_TOOLS = ['read', 'grep', 'find', 'ls'];
+const OBSIDIAN_WORKSPACE_TOOL = 'mcp__claudian_obsidian__vault';
 
 export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec {
   const args = ['--mode', 'rpc'];
@@ -58,7 +61,10 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
   } else if (params.tools) {
     args.push('--tools', params.tools.join(','));
   } else if (params.settings.toolMode === 'readonly') {
-    args.push('--tools', READONLY_TOOLS);
+    args.push('--tools', [
+      ...READONLY_TOOLS,
+      ...(params.enableObsidianWorkspaceTool ? [OBSIDIAN_WORKSPACE_TOOL] : []),
+    ].join(','));
   }
 
   const decodedModel = typeof params.model === 'string' ? decodePiModelId(params.model) : null;
@@ -74,6 +80,7 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
 
   return {
     ...(params.enableTreeBridge ? { enableTreeBridge: true } : {}),
+    ...(params.enableObsidianWorkspaceTool ? { enableObsidianWorkspaceTool: true } : {}),
     args,
     command: params.command,
     cwd: params.cwd,
@@ -83,6 +90,7 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
       command: params.command,
       cwd: params.cwd,
       envText: params.envText ?? params.settings.environmentVariables,
+      enableObsidianWorkspaceTool: params.enableObsidianWorkspaceTool === true,
     }),
     sessionTarget: params.noSession ? null : sessionTarget,
   };

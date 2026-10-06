@@ -26,6 +26,7 @@ import {
   resolveProviderSystemInstructions,
   type SteerableExecutionSession,
 } from '../../../core/execution';
+import { ObsidianWorkspaceToolSession } from '../../../core/obsidian/ObsidianWorkspaceToolSession';
 import {
   buildSystemPrompt,
   type SystemPromptSettings,
@@ -180,6 +181,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
   private disposed = false;
   private forkMaterializationFlight: Promise<void> | null = null;
   private kernel: PiExecutionKernel | null = null;
+  private readonly obsidianWorkspaceToolSession: ObsidianWorkspaceToolSession;
   private kernelGeneration = 0;
   private processKey: string | null = null;
   private readonly protectedResumeSessionTarget: string | null;
@@ -209,6 +211,9 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     private readonly config: ProviderSessionConfig,
     private readonly options: PiExecutionSessionOptions,
   ) {
+    this.obsidianWorkspaceToolSession = new ObsidianWorkspaceToolSession(
+      host.obsidianWorkspaceToolBridge,
+    );
     const rawState = isRecord(config.resumeSeed?.providerState)
       ? cloneRecord(config.resumeSeed.providerState)
       : {};
@@ -305,7 +310,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     executionRequest: ProviderExecutionRequest,
     request: ConversationBranchRequest | ConversationBranchRecoveryRequest,
   ): Promise<ConversationBranchResult> {
-    const encoded = await this.encodeRequest(active, executionRequest);
+    const encoded = await this.encodeRequest(active, executionRequest, false);
     await this.ensureKernel(encoded.launchSpec, active);
     if (!this.isActive(active) || !this.kernel) throw new Error('Pi navigation was cancelled.');
     await this.refreshState(active.abortController.signal);
@@ -565,6 +570,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       } catch (error) {
         lifecycleError ??= toError(error);
       }
+      this.obsidianWorkspaceToolSession.dispose();
       this.setStatus('disposed');
       this.emitSession({
         snapshot: this.getSnapshot(),
@@ -712,12 +718,15 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       if (!active.terminal) {
         this.finishError(active, error);
       }
+    } finally {
+      this.obsidianWorkspaceToolSession.deactivateTurn();
     }
   }
 
   private async encodeRequest(
     active: ActiveRun,
     request: ProviderExecutionRequest,
+    enableObsidianWorkspaceTool = true,
   ): Promise<EncodedPiRequest> {
     const settings = getPiProviderSettings(this.host.settings);
     if (!settings.enabled) {
@@ -738,6 +747,18 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     };
     this.validateResumeSeed(env);
     const toolProfile = resolveToolProfile(request.toolPolicy, settings);
+    const toolPolicy = request.toolPolicy.kind === 'provider-default' && toolProfile.toolMode === 'readonly'
+      ? { kind: 'read-only' as const }
+      : request.toolPolicy;
+    const bridgeConnection = await this.obsidianWorkspaceToolSession.activateForTurn(
+      toolPolicy,
+      enableObsidianWorkspaceTool,
+      toolProfile.toolMode === 'readonly' ? ['backlinks'] : undefined,
+    );
+    if (bridgeConnection) {
+      env.CLAUDIAN_OBSIDIAN_TOOL_ENDPOINT = bridgeConnection.endpoint;
+      env.CLAUDIAN_OBSIDIAN_TOOL_TOKEN = bridgeConnection.token;
+    }
     const launchSpec = buildPiLaunchSpec({
       command: await this.host.getResolvedProviderCliPath('pi') ?? 'pi',
       cwd: this.config.vaultWorkingDirectory,
@@ -745,6 +766,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       envText,
       additionalArguments: getProviderAdditionalArguments(this.host.settings, 'pi'),
       enableTreeBridge: !this.shouldDisableNativePersistence(),
+      enableObsidianWorkspaceTool: Boolean(bridgeConnection),
       noSession: this.shouldDisableNativePersistence(),
       noTools: toolProfile.noTools,
       verbose: this.host.settings.providerDiagnosticLogsEnabled === true,
@@ -758,6 +780,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         request,
         this.host.settings,
         this.config.vaultWorkingDirectory,
+        Boolean(bridgeConnection),
       ),
     });
     const state = getPiState(this.providerState);
@@ -1800,6 +1823,7 @@ function resolveSystemPrompt(
   request: ProviderExecutionRequest,
   settings: Record<string, unknown>,
   vaultPath: string,
+  obsidianWorkspaceToolEnabled: boolean,
 ): string | undefined {
   return resolveProviderSystemInstructions(
     request.configuration.systemInstructions,
@@ -1809,6 +1833,7 @@ function resolveSystemPrompt(
       userName: getString(settings.userName) ?? undefined,
       vaultPath,
     } satisfies SystemPromptSettings, {
+      capabilities: { obsidianVaultTool: obsidianWorkspaceToolEnabled },
       toolGuidanceProfile: 'provider-native',
     }),
   );

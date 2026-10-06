@@ -6,6 +6,7 @@ import type {
   ProviderExecutionTransitionScope,
 } from '../../core/execution';
 import type { ObsidianWorkspaceAdapter } from '../../core/obsidian/ObsidianWorkspaceAdapter';
+import type { ObsidianWorkspaceToolBridge } from '../../core/obsidian/ObsidianWorkspaceToolBridge';
 import type { ProviderDiagnosticLogSink } from '../../core/providers/ProviderDiagnosticLog';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type {
@@ -18,6 +19,7 @@ import type { EnvironmentScope } from '../../core/types/settings';
 interface ClaudianProviderHostDependencies {
   readonly app: App;
   readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
+  readonly obsidianWorkspaceToolBridge?: ObsidianWorkspaceToolBridge;
   readonly executionLifecycleRegistry: ProviderExecutionLifecycleRegistry;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
@@ -67,6 +69,10 @@ export class ClaudianProviderHost implements ProviderHost {
 
   get obsidianWorkspace(): ObsidianWorkspaceAdapter {
     return this.plugin.obsidianWorkspace;
+  }
+
+  get obsidianWorkspaceToolBridge(): ObsidianWorkspaceToolBridge | undefined {
+    return this.plugin.obsidianWorkspaceToolBridge;
   }
 
   get executionLifecycleRegistry() {

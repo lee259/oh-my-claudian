@@ -14,6 +14,7 @@ import {
   type PiExtensionUiRenderer,
 } from '../runtime/PiExtensionUiBridge';
 import type { PiLaunchSpec } from '../runtime/PiLaunchSpec';
+import { PI_OBSIDIAN_MCP_EXTENSION_SOURCE } from '../runtime/PiObsidianMcpExtension';
 import {
   type PiRpcRecord,
   PiRpcTransport,
@@ -57,7 +58,7 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
   private removeEventListener: (() => void) | null = null;
   private started = false;
   private shutdownPromise: Promise<void> | null = null;
-  private treeExtensionDirectory: string | null = null;
+  private extensionDirectory: string | null = null;
   private effectiveLaunchSpec: PiLaunchSpec;
   private readonly stderrDecoder = new StringDecoder('utf8');
   private readonly stderrLogBuffer = new ProviderDiagnosticStreamBuffer();
@@ -68,13 +69,25 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
     extensionUiRenderer: PiExtensionUiRenderer | null,
   ) {
     let processSpec = launchSpec;
-    if (launchSpec.enableTreeBridge) {
-      const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-pi-tree-'));
+    if (launchSpec.enableTreeBridge || launchSpec.enableObsidianWorkspaceTool) {
+      const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-pi-extension-'));
       try {
-        const extension = path.join(directory, 'extension.ts');
-        fs.writeFileSync(extension, PI_TREE_EXTENSION_SOURCE, 'utf8');
-        processSpec = { ...launchSpec, args: [...launchSpec.args, '--extension', extension] };
-        this.treeExtensionDirectory = directory;
+        const extensions: string[] = [];
+        if (launchSpec.enableTreeBridge) {
+          const extension = path.join(directory, 'tree-extension.ts');
+          fs.writeFileSync(extension, PI_TREE_EXTENSION_SOURCE, 'utf8');
+          extensions.push(extension);
+        }
+        if (launchSpec.enableObsidianWorkspaceTool) {
+          const extension = path.join(directory, 'obsidian-mcp-extension.ts');
+          fs.writeFileSync(extension, PI_OBSIDIAN_MCP_EXTENSION_SOURCE, 'utf8');
+          extensions.push(extension);
+        }
+        processSpec = {
+          ...launchSpec,
+          args: [...launchSpec.args, ...extensions.flatMap(extension => ['--extension', extension])],
+        };
+        this.extensionDirectory = directory;
       } catch (error) {
         fs.rmSync(directory, { recursive: true, force: true });
         throw error;
@@ -176,9 +189,9 @@ export class PiRpcSessionKernel implements PiExecutionKernel {
     this.transport = null;
     this.extensionBridge = null;
     await this.subprocess.shutdown();
-    if (this.treeExtensionDirectory) {
-      await fsp.rm(this.treeExtensionDirectory, { recursive: true, force: true });
-      this.treeExtensionDirectory = null;
+    if (this.extensionDirectory) {
+      await fsp.rm(this.extensionDirectory, { recursive: true, force: true });
+      this.extensionDirectory = null;
     }
   }
 

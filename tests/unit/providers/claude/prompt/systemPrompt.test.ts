@@ -70,7 +70,7 @@ describe('systemPrompt', () => {
       );
 
       expect(prompt).toContain('## Obsidian Vault');
-      expect(prompt).toContain('obsidian.vault');
+      expect(prompt).toContain('Use the exposed Obsidian vault tool');
       expect(prompt).toContain('Use vault-relative paths.');
       expect(prompt.slice(prompt.indexOf('## Obsidian Vault'))).not.toContain('http');
     });
@@ -79,7 +79,7 @@ describe('systemPrompt', () => {
       const prompt = buildSystemPrompt({}, { toolGuidanceProfile: 'provider-native' });
 
       expect(prompt).not.toContain('## Obsidian Vault');
-      expect(prompt).not.toContain('obsidian.vault');
+      expect(prompt).not.toContain('Use the exposed Obsidian vault tool');
     });
 
     it('should append custom prompt section when provided', () => {

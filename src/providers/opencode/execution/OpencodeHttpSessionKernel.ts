@@ -68,10 +68,16 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
 
   async connect(options: OpencodeKernelConnectOptions): Promise<void> {
     this.profile = options.profile;
+    const bridgeConnection = options.obsidianWorkspaceToolBridgeConnection;
+    const runtimeEnv = {
+      ...this.environment,
+      ...(bridgeConnection ? { CLAUDIAN_OBSIDIAN_TOOL_TOKEN: bridgeConnection.token } : {}),
+    };
     const artifacts = await prepareOpencodeLaunchArtifacts({
       artifactsSubdir: this.options.artifactsSubdir ?? `opencode/execution/${this.options.sessionInstanceId}`,
-      ...(options.profile === 'managed' ? {} : { defaultAgentId: AUX_AGENT_IDS[options.profile], managedAgents: [buildAgentConfig(options.profile)] }),
-      runtimeEnv: this.environment,
+      ...(options.profile === 'managed' ? {} : { defaultAgentId: AUX_AGENT_IDS[options.profile], managedAgents: [buildAgentConfig(options.profile, Boolean(bridgeConnection))] }),
+      runtimeEnv,
+      obsidianWorkspaceToolEndpoint: bridgeConnection?.endpoint,
       systemPrompt: options.systemInstructions.kind === 'none'
         ? { kind: 'none' }
         : options.systemInstructions.kind === 'explicit'
@@ -82,7 +88,7 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
     this.controller.signal.throwIfAborted();
     this.databasePath = artifacts.databasePath;
     this.client = new OpencodeHttpClient(this.cliPath, this.options.config.vaultWorkingDirectory, {
-      ...this.environment, OPENCODE_CONFIG: artifacts.configPath, OPENCODE_CONFIG_CONTENT: artifacts.configContent,
+      ...runtimeEnv, OPENCODE_CONFIG: artifacts.configPath, OPENCODE_CONFIG_CONTENT: artifacts.configContent,
     }, getProviderAdditionalArguments(this.options.plugin.settings, 'opencode'));
     await this.client.subscribe(event => this.handleEvent(event), error => this.fail(error));
     await this.client.waitForActivation(this.controller.signal);

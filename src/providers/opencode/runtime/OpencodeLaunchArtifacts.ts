@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { CLAUDIAN_STORAGE_PATH } from '../../../core/bootstrap/storagePaths';
+import { OBSIDIAN_WORKSPACE_MCP_SERVER_NAME } from '../../../core/obsidian/ObsidianWorkspaceTool';
 import {
   buildSystemPrompt,
   computeSystemPromptKey,
@@ -53,6 +54,7 @@ export interface PrepareOpencodeLaunchArtifactsParams {
   runtimeEnv: NodeJS.ProcessEnv;
   systemPrompt: OpencodeSystemPrompt;
   userName?: string;
+  obsidianWorkspaceToolEndpoint?: string;
   workspaceRoot: string;
 }
 
@@ -66,7 +68,10 @@ export async function prepareOpencodeLaunchArtifacts(
   );
   const systemPromptPath = path.join(artifactsDir, 'system.md');
   const configPath = path.join(artifactsDir, 'config.json');
-  const systemPrompt = resolveSystemPrompt(params.systemPrompt);
+  const systemPrompt = resolveSystemPrompt(
+    params.systemPrompt,
+    Boolean(params.obsidianWorkspaceToolEndpoint),
+  );
   const systemPromptPathForConfig = systemPrompt ? systemPromptPath : undefined;
   const promptKey = resolveSystemPromptKey(params.systemPrompt);
   const baseConfig = await loadOpencodeBaseConfig(
@@ -83,6 +88,7 @@ export async function prepareOpencodeLaunchArtifacts(
           : undefined),
       params.managedAgents,
       params.defaultAgentId,
+      params.obsidianWorkspaceToolEndpoint,
     ),
     null,
     2,
@@ -110,14 +116,19 @@ export async function prepareOpencodeLaunchArtifacts(
   };
 }
 
-function resolveSystemPrompt(systemPrompt: OpencodeSystemPrompt): string {
+function resolveSystemPrompt(
+  systemPrompt: OpencodeSystemPrompt,
+  obsidianWorkspaceToolEnabled: boolean,
+): string {
   switch (systemPrompt.kind) {
     case 'none':
       return '';
     case 'explicit':
       return normalizeSystemPrompt(systemPrompt.text);
     case 'default':
-      return normalizeSystemPrompt(buildSystemPrompt(systemPrompt.settings));
+      return normalizeSystemPrompt(buildSystemPrompt(systemPrompt.settings, {
+        capabilities: { obsidianVaultTool: obsidianWorkspaceToolEnabled },
+      }));
   }
 }
 
@@ -146,6 +157,7 @@ export function buildOpencodeManagedConfig(
   userName?: string,
   managedAgents: readonly OpencodeManagedAgentConfig[] = DEFAULT_OPENCODE_MANAGED_AGENT_CONFIGS,
   defaultAgentId?: string,
+  obsidianWorkspaceToolEndpoint?: string,
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {
     ...baseConfig,
@@ -182,6 +194,21 @@ export function buildOpencodeManagedConfig(
   const trimmedUserName = userName?.trim();
   if (trimmedUserName) {
     config.username = trimmedUserName;
+  }
+
+  if (obsidianWorkspaceToolEndpoint) {
+    const existingMcp = isPlainObject(baseConfig.mcp) ? baseConfig.mcp : {};
+    config.mcp = {
+      ...existingMcp,
+      [OBSIDIAN_WORKSPACE_MCP_SERVER_NAME]: {
+        type: 'remote',
+        url: obsidianWorkspaceToolEndpoint,
+        enabled: true,
+        headers: {
+          Authorization: 'Bearer {env:CLAUDIAN_OBSIDIAN_TOOL_TOKEN}',
+        },
+      },
+    };
   }
 
   return config;
