@@ -6,6 +6,7 @@ import type {
   ProviderExecutionTransitionScope,
 } from '../execution';
 import type { ObsidianWorkspaceAdapter } from '../obsidian/ObsidianWorkspaceAdapter';
+import type { ObsidianWorkspaceToolBridge } from '../obsidian/ObsidianWorkspaceToolBridge';
 import type { ClaudianSettings } from '../types';
 import type { EnvironmentScope } from '../types/settings';
 import type { ProviderDiagnosticLogSink } from './ProviderDiagnosticLog';
@@ -21,6 +22,7 @@ import type { ProviderCliResolutionContext, ProviderId } from './types';
 export interface ProviderHost {
   readonly app: App;
   readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
+  readonly obsidianWorkspaceToolBridge?: ObsidianWorkspaceToolBridge;
   readonly executionLifecycleRegistry: ProviderExecutionLifecycleRegistry;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;

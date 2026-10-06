@@ -129,7 +129,7 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
     ]);
   });
 
-  it('keeps native agent selection separate from the Ask/YOLO permission toggle', () => {
+  it('does not render the legacy Ask/YOLO toggle alongside native mode selection', () => {
     const modeSelector = opencodeChatUIConfig.getModeSelector?.({
       providerConfigs: {
         opencode: {
@@ -141,24 +141,7 @@ describe('opencodeChatUIConfig permission mode wiring', () => {
         },
       },
     });
-    expect(modeSelector?.options.map(({ value }) => value)).toEqual(['normal', 'yolo']);
-    expect(modeSelector?.value).toBe('normal');
-
-    expect(opencodeChatUIConfig.getPermissionModeToggle?.()).toEqual({
-      activeDescription: 'Run with full access without approval. Use with care.',
-      activeIcon: 'zap',
-      activeLabel: 'YOLO',
-      activeIsDangerous: true,
-      activeValue: 'yolo',
-      inactiveDescription: 'Ask before running commands or making file changes.',
-      inactiveIcon: 'hand',
-      inactiveLabel: 'Ask',
-      inactiveValue: 'normal',
-      planDescription: 'Explore the workspace and prepare a plan before editing.',
-      planIcon: 'clipboard-list',
-      planLabel: 'Plan',
-      planValue: 'plan',
-    });
+    expect(modeSelector).toBeNull();
   });
 
   it('derives execution policy from the saved native OpenCode mode', () => {

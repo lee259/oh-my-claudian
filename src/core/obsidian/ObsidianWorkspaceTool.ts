@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import type {
   ObsidianPropertyValue,
   ObsidianWorkspaceAdapter,
@@ -6,6 +8,56 @@ import type {
 
 export const OBSIDIAN_VAULT_TOOL_NAMESPACE = 'obsidian';
 export const OBSIDIAN_VAULT_TOOL_NAME = 'vault';
+export const OBSIDIAN_WORKSPACE_MCP_SERVER_NAME = 'claudian_obsidian';
+export const OBSIDIAN_WORKSPACE_MCP_TOOL_NAME = `mcp__${OBSIDIAN_WORKSPACE_MCP_SERVER_NAME}__${OBSIDIAN_VAULT_TOOL_NAME}`;
+export const OBSIDIAN_WORKSPACE_TOOL_DESCRIPTION = 'Inspect backlinks, update properties, move, or trash files in the currently open Obsidian vault. Use vault-relative paths. Ask for confirmation before destructive operations when the user has not explicitly requested them.';
+export const OBSIDIAN_WORKSPACE_OPERATIONS = [
+  'backlinks',
+  'move',
+  'set-property',
+  'trash',
+] as const satisfies readonly ObsidianWorkspaceOperation[];
+export const OBSIDIAN_WORKSPACE_TOOL_INPUT_SCHEMA = {
+  operation: z.enum(OBSIDIAN_WORKSPACE_OPERATIONS),
+  path: z.string().optional(),
+  name: z.string().optional(),
+  value: z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(z.string()),
+    z.null(),
+  ]).optional(),
+  destination: z.string().optional(),
+};
+export const OBSIDIAN_WORKSPACE_TOOL_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    operation: {
+      type: 'string',
+      enum: OBSIDIAN_WORKSPACE_OPERATIONS,
+    },
+    path: {
+      type: 'string',
+      description: 'Vault-relative file path; required for all operations.',
+    },
+    name: {
+      type: 'string',
+      description: 'Frontmatter property name; required for set-property.',
+    },
+    value: {
+      description: 'Frontmatter value; use null to delete the property.',
+      type: ['string', 'number', 'boolean', 'array', 'null'],
+      items: { type: 'string' },
+    },
+    destination: {
+      type: 'string',
+      description: 'Vault-relative destination path; required for move.',
+    },
+  },
+  required: ['operation'],
+  additionalProperties: false,
+} as const;
 
 const MAX_OUTPUT_CHARS = 16_000;
 

@@ -16,6 +16,7 @@ import {
   reportResolvedTurnPrompt,
   type SteerableExecutionSession,
 } from '@/core/execution';
+import { ObsidianWorkspaceToolSession } from '@/core/obsidian/ObsidianWorkspaceToolSession';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { ChatMessage } from '@/core/types';
 import {
@@ -44,10 +45,8 @@ import { buildOpencodePromptBlocks } from '../runtime/buildOpencodePrompt';
 import { ensureOpencodeModelAvailable } from '../runtime/OpencodeModelAvailability';
 import { getOpencodeProviderSettings } from '../settings';
 import { getOpencodeState } from '../types';
-import {
-  type OpencodeExecutionProfile,
-} from './OpencodeAcpSessionKernel';
 import type {
+  OpencodeExecutionProfile,
   OpencodeNativeOutput,
   OpencodeNativeSessionInfo,
   OpencodeSessionKernel,
@@ -187,6 +186,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
   private kernelGeneration = 0;
   private kernelConfigurationKey: string | null = null;
   private kernelDisposalPromise: Promise<void> | null = null;
+  private readonly obsidianWorkspaceToolSession: ObsidianWorkspaceToolSession;
   private nativeInfo: OpencodeNativeSessionInfo | null = null;
   private nativeVersion: 1 | 2 | undefined;
   private nativeSessionId: string | null;
@@ -204,6 +204,9 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
     private readonly config: ProviderSessionConfig,
     private readonly options: OpencodeExecutionSessionOptions = {},
   ) {
+    this.obsidianWorkspaceToolSession = new ObsidianWorkspaceToolSession(
+      plugin.obsidianWorkspaceToolBridge,
+    );
     this.createKernel = options.createKernel
       ?? ((kernelOptions) => new DefaultOpencodeSessionKernel(kernelOptions));
     const providerState = getOpencodeState(config.resumeSeed?.providerState);
@@ -305,7 +308,10 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
     this.activeRun = null;
     this.listeners.clear();
     this.snapshot = this.createSnapshot('disposed');
-    this.disposePromise = this.disposeKernel();
+    this.disposePromise = (async () => {
+      await this.disposeKernel();
+      this.obsidianWorkspaceToolSession.dispose();
+    })();
     return this.disposePromise;
   }
 
@@ -317,6 +323,10 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
     let phase: 'connect' | 'open' | 'run' = 'connect';
     let resumeAttempt: string | null = null;
     try {
+      const bridgeConnection = this.plugin.obsidianWorkspaceToolBridge
+        ? await this.obsidianWorkspaceToolSession.activateForTurn(request.toolPolicy)
+        : null;
+      const enableObsidianWorkspaceTool = bridgeConnection !== null;
       const initialAvailabilityCheck = this.ensureModelAvailable(request);
       if (initialAvailabilityCheck) await initialAvailabilityCheck;
       const pendingDisposal = this.kernelDisposalPromise;
@@ -325,7 +335,11 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
         if (!this.isRunCurrent(run, generation)) return;
       }
       const providerSettings = getOpencodeProviderSettings(this.plugin.settings);
-      const kernelConfigurationKey = buildKernelConfigurationKey(request, providerSettings);
+      const kernelConfigurationKey = buildKernelConfigurationKey(
+        request,
+        providerSettings,
+        enableObsidianWorkspaceTool,
+      );
       let kernel = this.kernel;
       let native = this.nativeInfo;
       if (
@@ -431,6 +445,7 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
         await kernel.connect({
           profile: resolveProfile(request, providerSettings),
           systemInstructions: request.configuration.systemInstructions,
+          ...(bridgeConnection ? { obsidianWorkspaceToolBridgeConnection: bridgeConnection } : {}),
         });
         if (this.kernel === kernel) {
           this.kernelConfigurationKey = kernelConfigurationKey;
@@ -522,6 +537,8 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
       });
       this.activeRun = null;
       await this.disposeKernel();
+    } finally {
+      this.obsidianWorkspaceToolSession.deactivateTurn();
     }
   }
 
@@ -1092,10 +1109,12 @@ function resolveProfile(
 function buildKernelConfigurationKey(
   request: ProviderExecutionRequest,
   settings: ReturnType<typeof getOpencodeProviderSettings>,
+  enableObsidianWorkspaceTool: boolean,
 ): string {
   const instructions = request.configuration.systemInstructions;
   return JSON.stringify([
     resolveProfile(request, settings),
+    enableObsidianWorkspaceTool,
     instructions.kind,
     instructions.kind === 'explicit' ? instructions.instructions : null,
   ]);

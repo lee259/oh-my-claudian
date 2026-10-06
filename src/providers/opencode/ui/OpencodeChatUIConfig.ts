@@ -1,6 +1,5 @@
 import type {
   ProviderChatUIConfig,
-  ProviderModeSelectorConfig,
   ProviderPermissionModeOption,
   ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
@@ -197,32 +196,8 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     return new Set<string>();
   },
 
-  getModeSelector(settings: Record<string, unknown>): ProviderModeSelectorConfig | null {
-    const opencodeSettings = getOpencodeProviderSettings(settings);
-    if (settings.permissionMode === 'plan' || isOpencodePlanModeId(opencodeSettings.selectedMode)) return null;
-    return {
-      label: 'Permissions',
-      options: [
-        {
-          description: t('chat.composer.modeApprovalDescription'),
-          label: t('chat.composer.modeGrokAsk'),
-          value: 'normal',
-        },
-        {
-          description: t('chat.composer.modeFullAccessDescription'),
-          label: 'YOLO',
-          value: 'yolo',
-        },
-      ],
-      value: settings.permissionMode === 'yolo' ? 'yolo' : 'normal',
-    };
-  },
-
-  applyModeSelection(value: string, settings: unknown): void {
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
-    if (value === 'normal' || value === 'yolo') {
-      (settings as Record<string, unknown>).permissionMode = value;
-    }
+  getModeSelector(): null {
+    return null;
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {

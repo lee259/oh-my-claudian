@@ -50,7 +50,7 @@ function getFileOperations(): string {
 function getObsidianVaultGuidance(): string {
     return `## Obsidian Vault
 
-- Use \`obsidian.vault\` for backlinks, frontmatter properties, moves, and trash operations.
+- Use the exposed Obsidian vault tool for backlinks, frontmatter properties, moves, and trash operations.
 - Use vault-relative paths. Preserve Obsidian's link and trash semantics.
 - Ask for confirmation before destructive operations unless the user explicitly requested them.`;
 }

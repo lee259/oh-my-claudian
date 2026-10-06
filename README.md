@@ -20,7 +20,7 @@ The built-in provider integrations are:
 - [OpenCode](https://github.com/anomalyco/opencode)
 - [Pi](https://github.com/earendil-works/pi)
 
-Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude and Codex.
+Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude, Codex, OpenCode, and Pi.
 
 ## What it provides
 

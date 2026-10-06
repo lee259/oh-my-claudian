@@ -1,4 +1,5 @@
 import type { ProviderAsyncSubagentCompletedEvent, ProviderBackgroundOutputEvent, ProviderSessionConfig, ProviderSystemInstructions } from '@/core/execution';
+import type { ObsidianWorkspaceToolBridgeConnection } from '@/core/obsidian/ObsidianWorkspaceToolBridge';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { SubagentProgress } from '@/core/types';
 import type { AcpPromptRequest, AcpPromptResponse, AcpSessionConfigOption, AcpSessionModelState, AcpSessionModeState, AcpSessionNotification } from '@/providers/acp';
@@ -11,6 +12,7 @@ export type OpencodeExecutionProfile = 'managed' | 'passive' | 'readonly';
 export interface OpencodeKernelConnectOptions {
   readonly profile: OpencodeExecutionProfile;
   readonly systemInstructions: ProviderSystemInstructions;
+  readonly obsidianWorkspaceToolBridgeConnection?: ObsidianWorkspaceToolBridgeConnection;
 }
 
 export interface OpencodeNativeSessionInfo {

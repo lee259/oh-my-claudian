@@ -67,6 +67,25 @@ describe('PiLaunchSpec', () => {
     ]);
   });
 
+  it('allows the Obsidian MCP tool in read-only mode when its bridge is enabled', () => {
+    expect(buildPiLaunchSpec({
+      command: 'pi',
+      cwd: '/vault',
+      enableObsidianWorkspaceTool: true,
+      noSession: true,
+      settings: {
+        ...baseSettings,
+        toolMode: 'readonly',
+      },
+    }).args).toEqual([
+      '--mode',
+      'rpc',
+      '--no-session',
+      '--tools',
+      'read,grep,find,ls,mcp__claudian_obsidian__vault',
+    ]);
+  });
+
   it('does not resume from detached previous sessions', () => {
     expect(buildPiLaunchSpec({
       command: 'pi',
@@ -111,6 +130,24 @@ describe('PiLaunchSpec', () => {
       '--no-session',
       '--no-tools',
     ]);
+  });
+
+  it('marks a process that needs the session-scoped Obsidian MCP extension', () => {
+    const withoutExtension = buildPiLaunchSpec({
+      command: 'pi',
+      cwd: '/vault',
+      settings: baseSettings,
+    });
+    const withExtension = buildPiLaunchSpec({
+      command: 'pi',
+      cwd: '/vault',
+      enableObsidianWorkspaceTool: true,
+      settings: baseSettings,
+    });
+
+    expect(withExtension.enableObsidianWorkspaceTool).toBe(true);
+    expect(withExtension.processKey).not.toBe(withoutExtension.processKey);
+    expect(withExtension.args).toEqual(withoutExtension.args);
   });
 
   it('includes full runtime environment text in the process key', () => {

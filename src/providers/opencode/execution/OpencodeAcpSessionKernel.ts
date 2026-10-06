@@ -34,22 +34,19 @@ import {
 } from '@/providers/acp';
 import { getEnhancedPath } from '@/utils/env';
 
+import { AUX_AGENT_IDS, buildAgentConfig } from '../runtime/OpencodeExecutionAgents';
 import {
-  type OpencodeManagedAgentConfig,
   type OpencodeSystemPrompt,
   prepareOpencodeLaunchArtifacts,
 } from '../runtime/OpencodeLaunchArtifacts';
 import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
-import { OpencodeSessionMissingError } from './OpencodeSessionContract';
+import {
+  type OpencodeExecutionProfile,
+  type OpencodeKernelConnectOptions,
+  OpencodeSessionMissingError,
+} from './OpencodeSessionContract';
 
 export { OpencodeSessionMissingError } from './OpencodeSessionContract';
-
-export type OpencodeExecutionProfile = 'managed' | 'passive' | 'readonly';
-
-export interface OpencodeKernelConnectOptions {
-  readonly profile: OpencodeExecutionProfile;
-  readonly systemInstructions: ProviderSystemInstructions;
-}
 
 export interface OpencodeNativeSessionInfo {
   readonly sessionId: string;
@@ -118,18 +115,6 @@ export function buildOpencodeAcpArguments(additionalArguments: readonly string[]
   return ['acp', ...additionalArguments];
 }
 
-const AUX_AGENT_IDS: Record<Exclude<OpencodeExecutionProfile, 'managed'>, string> = {
-  passive: 'claudian-execution-passive',
-  readonly: 'claudian-execution-readonly',
-};
-
-const READ_PERMISSION = Object.freeze({
-  '*': 'allow',
-  '*.env': 'deny',
-  '*.env.*': 'deny',
-  '*.env.example': 'allow',
-});
-
 export class DefaultOpencodeAcpSessionKernel
   implements OpencodeAcpSessionKernel {
   private connection: AcpClientConnection | null = null;
@@ -184,6 +169,10 @@ export class DefaultOpencodeAcpSessionKernel
         cliPath,
         this.options.databasePath,
       );
+      const bridgeConnection = options.obsidianWorkspaceToolBridgeConnection;
+      if (bridgeConnection) {
+        runtimeEnv.CLAUDIAN_OBSIDIAN_TOOL_TOKEN = bridgeConnection.token;
+      }
       const artifacts = await prepareOpencodeLaunchArtifacts({
         artifactsSubdir: this.options.artifactsSubdir
           ?? `opencode/execution/${this.options.sessionInstanceId}`,
@@ -191,9 +180,10 @@ export class DefaultOpencodeAcpSessionKernel
           ? {}
           : {
             defaultAgentId: AUX_AGENT_IDS[options.profile],
-            managedAgents: [buildAgentConfig(options.profile)],
+            managedAgents: [buildAgentConfig(options.profile, Boolean(bridgeConnection))],
           }),
         runtimeEnv,
+        obsidianWorkspaceToolEndpoint: bridgeConnection?.endpoint,
         systemPrompt: toOpencodeSystemPrompt(
           options.systemInstructions,
           this.options.plugin,
@@ -747,41 +737,6 @@ function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
     && error !== null
     && 'code' in error
     && error.code === 'ENOENT';
-}
-
-function buildAgentConfig(
-  profile: Exclude<OpencodeExecutionProfile, 'managed'>,
-): OpencodeManagedAgentConfig {
-  return profile === 'readonly'
-    ? {
-      definition: {
-        description: 'Oh My Claudian read-only execution agent.',
-        mode: 'primary',
-        permission: {
-          '*': 'deny',
-          codesearch: 'allow',
-          external_directory: 'deny',
-          glob: 'allow',
-          grep: 'allow',
-          lsp: 'allow',
-          read: READ_PERMISSION,
-          webfetch: 'allow',
-          websearch: 'allow',
-        },
-      },
-      id: AUX_AGENT_IDS.readonly,
-    }
-    : {
-      definition: {
-        description: 'Oh My Claudian passive execution agent.',
-        mode: 'primary',
-        permission: {
-          '*': 'deny',
-          external_directory: 'deny',
-        },
-      },
-      id: AUX_AGENT_IDS.passive,
-    };
 }
 
 function selectDeniedPermission(

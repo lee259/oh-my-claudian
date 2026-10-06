@@ -65,6 +65,23 @@ describe('buildOpencodeManagedConfig', () => {
     });
   });
 
+  it('adds the session-scoped Obsidian MCP server without persisting its credential', () => {
+    const config = buildOpencodeManagedConfig({
+      mcp: { existing: { type: 'local', command: ['existing-mcp'] } },
+    }, undefined, undefined, undefined, undefined, 'http://127.0.0.1:43127/mcp');
+
+    expect(config.mcp).toEqual({
+      existing: { type: 'local', command: ['existing-mcp'] },
+      claudian_obsidian: {
+        type: 'remote',
+        url: 'http://127.0.0.1:43127/mcp',
+        enabled: true,
+        headers: { Authorization: 'Bearer {env:CLAUDIAN_OBSIDIAN_TOOL_TOKEN}' },
+      },
+    });
+    expect(JSON.stringify(config)).not.toContain('CLAUDIAN_OBSIDIAN_TOOL_TOKEN_VALUE');
+  });
+
   it('merges the user config instead of replacing it', () => {
     expect(buildOpencodeManagedConfig({
       agent: {
