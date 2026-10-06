@@ -61,6 +61,7 @@ import type { ConversationController } from './ConversationController';
 import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
 import { InputContainerVisibility } from './InputContainerVisibility';
 import { InstructionSubmissionController } from './InstructionSubmissionController';
+import { formatSelectionQuote } from './MessageQuoteController';
 import {
   type PendingProviderUserMessage,
   PendingSteerRegistry,
@@ -131,6 +132,8 @@ export interface InputControllerDeps {
   canvasSelectionController: CanvasSelectionController;
   conversationController: ConversationController;
   getInputEl: () => HTMLTextAreaElement;
+  getQuotedMessageTexts?: () => string[];
+  clearQuotedMessages?: () => void;
   getWelcomeEl: () => HTMLElement | null;
   getMessagesEl: () => HTMLElement;
   getFileContextManager: () => FileContextManager | null;
@@ -409,7 +412,12 @@ export class InputController {
 
     const contentOverride = options?.content;
     const shouldUseInput = contentOverride === undefined;
-    const content = (contentOverride ?? inputEl.value).trim();
+    const rawContent = (contentOverride ?? inputEl.value).trim();
+    const quotedMessageTexts = shouldUseInput ? this.deps.getQuotedMessageTexts?.() ?? [] : [];
+    const formattedQuotes = quotedMessageTexts.map(formatSelectionQuote).join('\n\n');
+    const content = formattedQuotes
+      ? `${formattedQuotes}\n\n${rawContent}`.trim()
+      : rawContent;
     const imageOverride = options?.images;
     const hasImages = imageOverride !== undefined
       ? imageOverride.length > 0
@@ -453,6 +461,7 @@ export class InputController {
     // If agent is working, queue the message instead of dropping it
     if (state.isStreaming) {
       this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options);
+      if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
       return;
     }
 
@@ -466,6 +475,7 @@ export class InputController {
       shouldUseInput,
       fileContextManager,
     );
+    if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
 
     // Slash commands are passed directly to SDK for handling
     // SDK handles expansion, $ARGUMENTS, @file references, and frontmatter options

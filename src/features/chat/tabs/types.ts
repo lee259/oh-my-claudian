@@ -141,6 +141,7 @@ export interface TabServices {
  */
 export interface TabUIComponents {
   contextTray: ComposerContextTray | null;
+  quotedMessages: Array<{ id: string; text: string }>;
   scopePreview: ScopePreview | null;
   fileContextManager: FileContextManager | null;
   imageContextManager: ImageContextManager | null;

@@ -39,6 +39,13 @@ export function createTabInputController(
     canvasSelectionController: controllers.canvasSelectionController!,
     conversationController: controllers.conversationController!,
     getInputEl: () => dom.inputEl,
+    getQuotedMessageTexts: () => ui.quotedMessages.map(quote => quote.text),
+    clearQuotedMessages: () => {
+      ui.quotedMessages = [];
+      ui.contextTray?.clearItems('message-quotes');
+      const EventConstructor = dom.inputEl.ownerDocument.defaultView?.Event ?? Event;
+      dom.inputEl.dispatchEvent(new EventConstructor('input', { bubbles: true }));
+    },
     getInputContainerEl: () => dom.inputContainerEl,
     getWelcomeEl: () => dom.welcomeEl,
     getMessagesEl: () => dom.messagesEl,

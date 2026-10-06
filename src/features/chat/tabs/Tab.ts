@@ -51,8 +51,6 @@ import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { toggleServiceTier } from '../actions/toggleServiceTier';
 import {
-  appendQuoteToComposer,
-  formatSelectionQuote,
   MessageQuoteController,
 } from '../controllers/MessageQuoteController';
 import {
@@ -1068,7 +1066,7 @@ function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string):
 export function updateSendButton(tab: TabData): void {
   const { inputEl, sendButtonEl } = tab.dom;
   const isStreaming = tab.state.isStreaming;
-  const canSend = inputEl.value.trim().length > 0;
+  const canSend = inputEl.value.trim().length > 0 || tab.ui.quotedMessages.length > 0;
 
   sendButtonEl.disabled = !isStreaming && !canSend;
   sendButtonEl.toggleClass('is-streaming', isStreaming);
@@ -2016,12 +2014,51 @@ export function initializeTabRuntimeControllers(
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
   });
 
+  let quoteSequence = 0;
+  const updateQuotedMessageContext = (): void => {
+    const quotes = tab.ui.quotedMessages;
+    if (quotes.length === 0) {
+      tab.ui.contextTray?.clearItems('message-quotes');
+      return;
+    }
+    tab.ui.contextTray?.setItems('message-quotes', quotes.map(quote => {
+      const preview = quote.text.trim().replace(/\s+/g, ' ');
+      return {
+        id: quote.id,
+        kind: 'selection' as const,
+        label: preview.length > 48 ? `${preview.slice(0, 47)}…` : preview,
+        icon: 'quote',
+        title: quote.text,
+        ariaLabel: t('chat.quote.buttonLabel'),
+        removeLabel: t('common.remove'),
+        preview: {
+          heading: `${t('chat.quote.buttonLabel')}:`,
+          content: quote.text,
+          deleteLabel: t('common.delete'),
+          onDelete: () => {
+            tab.ui.quotedMessages = tab.ui.quotedMessages.filter(item => item.id !== quote.id);
+            updateQuotedMessageContext();
+            updateSendButton(tab);
+          },
+        },
+        onRemove: () => {
+          tab.ui.quotedMessages = tab.ui.quotedMessages.filter(item => item.id !== quote.id);
+          updateQuotedMessageContext();
+          updateSendButton(tab);
+        },
+      };
+    }));
+  };
+
   const messageQuoteController = new MessageQuoteController({
     messagesEl: dom.messagesEl,
     label: t('chat.quote.buttonLabel'),
     onQuote: (text) => {
       commitProvisionalTab(tab);
-      appendQuoteToComposer(dom.inputEl, formatSelectionQuote(text));
+      const quoteId = `message-quote-${++quoteSequence}`;
+      tab.ui.quotedMessages.push({ id: quoteId, text });
+      updateQuotedMessageContext();
+      updateSendButton(tab);
     },
   });
   dom.eventCleanups.push(() => messageQuoteController.dispose());
