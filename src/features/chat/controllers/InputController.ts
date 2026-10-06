@@ -37,7 +37,6 @@ import {
   ChatExecutionPreHandoffError,
 } from '../execution/ChatExecutionCoordinator';
 import { AsyncQuestionPrompts } from '../rendering/AsyncQuestionPrompts';
-import { formatSelectionQuote } from './MessageQuoteController';
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../rendering/InlineAskUserQuestion';
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
 import { InlinePlanApproval, type PlanApprovalDecision } from '../rendering/InlinePlanApproval';
@@ -62,6 +61,7 @@ import type { ConversationController } from './ConversationController';
 import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
 import { InputContainerVisibility } from './InputContainerVisibility';
 import { InstructionSubmissionController } from './InstructionSubmissionController';
+import { formatSelectionQuote } from './MessageQuoteController';
 import {
   type PendingProviderUserMessage,
   PendingSteerRegistry,
