@@ -10,12 +10,20 @@ export type ComposerContextSlot =
   | 'current-note'
   | 'files'
   | 'external-contexts'
+  | 'message-quotes'
   | 'editor-selection'
   | 'browser-selection'
   | 'canvas-selection'
   | 'images';
 
 export type ComposerContextItemKind = 'note' | 'file' | 'folder' | 'selection' | 'image';
+
+export interface ComposerContextPreview {
+  heading: string;
+  content: string;
+  deleteLabel: string;
+  onDelete: () => void;
+}
 
 export interface ComposerContextItem {
   id: string;
@@ -25,6 +33,7 @@ export interface ComposerContextItem {
   title?: string;
   ariaLabel?: string;
   removeLabel?: string;
+  preview?: ComposerContextPreview;
   onActivate?: () => void;
   onRemove?: () => void;
 }
@@ -37,6 +46,7 @@ const SLOT_ORDER: readonly ComposerContextSlot[] = [
   'current-note',
   'files',
   'external-contexts',
+  'message-quotes',
   'editor-selection',
   'browser-selection',
   'canvas-selection',
@@ -187,6 +197,24 @@ export class ComposerContextTray {
     const chipEl = this.containerEl.createDiv({
       cls: `claudian-context-chip claudian-context-chip--${item.kind}`,
     });
+    if (item.preview) {
+      chipEl.addClass('claudian-context-chip--preview');
+      chipEl.setAttribute('tabindex', '0');
+      chipEl.setAttribute('role', 'group');
+      chipEl.setAttribute('aria-label', item.ariaLabel ?? item.label);
+      this.renderPreview(chipEl, item.preview);
+      const alignPreview = (): void => {
+        const trayRect = this.containerEl.getBoundingClientRect();
+        const chipRect = chipEl.getBoundingClientRect();
+        const previewWidth = Math.min(760, Math.max(0, trayRect.width - 20));
+        const centeredLeft = chipRect.left - trayRect.left + chipRect.width / 2 - previewWidth / 2;
+        const left = Math.min(Math.max(centeredLeft, 10), Math.max(10, trayRect.width - previewWidth - 10));
+        const chipOffset = chipRect.left - trayRect.left;
+        chipEl.style.setProperty('--claudian-context-preview-left', `${Math.round(left - chipOffset)}px`);
+      };
+      chipEl.addEventListener('mouseenter', alignPreview);
+      chipEl.addEventListener('focusin', alignPreview);
+    }
     chipEl.dataset.contextSlot = slot;
     chipEl.dataset.contextId = item.id;
 
@@ -197,7 +225,7 @@ export class ComposerContextTray {
       })
       : chipEl.createSpan({ cls: 'claudian-context-chip-main' });
 
-    if (item.title) {
+    if (item.title && !item.preview) {
       contentEl.setAttribute('title', item.title);
     }
     contentEl.setAttribute('aria-label', item.ariaLabel ?? item.label);
@@ -224,6 +252,23 @@ export class ComposerContextTray {
       });
       removeButton.addEventListener('click', item.onRemove);
     }
+  }
+
+  private renderPreview(chipEl: HTMLElement, preview: ComposerContextPreview): void {
+    const previewEl = chipEl.createDiv({ cls: 'claudian-context-chip-preview' });
+    const headerEl = previewEl.createDiv({ cls: 'claudian-context-chip-preview-header' });
+    headerEl.createSpan({ cls: 'claudian-context-chip-preview-heading', text: preview.heading });
+
+    const actionsEl = headerEl.createDiv({ cls: 'claudian-context-chip-preview-actions' });
+    const deleteButton = actionsEl.createEl('button', {
+      cls: 'claudian-context-chip-preview-action claudian-context-chip-preview-action--delete',
+      attr: { type: 'button', 'aria-label': preview.deleteLabel, title: preview.deleteLabel },
+    });
+    setIcon(deleteButton, 'trash-2');
+    deleteButton.addEventListener('click', preview.onDelete);
+
+    const contentEl = previewEl.createDiv({ cls: 'claudian-context-chip-preview-content', text: preview.content });
+    contentEl.setAttribute('aria-live', 'polite');
   }
 
   private getRows(chips: readonly HTMLElement[]): ContextTrayRow[] {

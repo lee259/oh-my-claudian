@@ -113,6 +113,7 @@ export function createTabRuntime(
     },
     ui: {
       contextTray: null,
+      quotedMessages: [],
       scopePreview: null,
       fileContextManager: null,
       imageContextManager: null,
