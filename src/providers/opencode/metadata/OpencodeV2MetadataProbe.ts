@@ -3,9 +3,11 @@ import { type IncomingMessage, request } from 'node:http';
 
 import { ManagedStdioProcess } from '@/core/process/ManagedStdioProcess';
 import { formatReasoningValueLabel } from '@/core/providers/reasoning';
+import type { SlashCommand } from '@/core/types';
 import { normalizeAcpAvailableCommands } from '@/providers/acp';
 import { toAbortError } from '@/utils/abort';
 
+import { OpencodeHttpError } from '../http/OpencodeHttpClient';
 import { normalizeOpencodeAgentModes } from '../modes';
 import type {
   OpencodeMetadataCatalogResult,
@@ -36,14 +38,11 @@ export class OpencodeV2MetadataProbe implements OpencodeMetadataProbe {
   async loadCatalog(signal?: AbortSignal): Promise<OpencodeMetadataCatalogResult> {
     const ownedSignal = this.client.signal(signal);
     const models = this.models = await this.loadModels(ownedSignal);
-    const commands = await this.read('command', ownedSignal);
+    const commands = await this.readCommands(ownedSignal);
     const agents = await this.read('agent', ownedSignal);
     const availableModes = normalizeOpencodeAgentModes(agents);
     return {
-      commands: normalizeAcpAvailableCommands(commands.filter(isNamedRecord).map(command => ({
-        name: command.name,
-        ...(typeof command.description === 'string' ? { description: command.description } : {}),
-      }))),
+      commands,
       models: modelState(models),
       modes: {
         availableModes,
@@ -102,7 +101,47 @@ export class OpencodeV2MetadataProbe implements OpencodeMetadataProbe {
     }
   }
 
-  private async read(resource: 'model' | 'command' | 'agent', signal: AbortSignal): Promise<unknown[]> {
+  private async readCommands(signal: AbortSignal): Promise<SlashCommand[]> {
+    const [commands, skills] = await Promise.all([
+      this.readCommandsWhenReady(signal),
+      this.read('skill', signal).catch((error: unknown): unknown[] => {
+        if (error instanceof OpencodeHttpError && error.status === 404) return [];
+        throw error;
+      }),
+    ]);
+    const commandNames = new Set(commands.map(command => command.name));
+    return [
+      ...normalizeAcpAvailableCommands(commands.map(command => ({
+        name: command.name,
+        ...(typeof command.description === 'string' ? { description: command.description } : {}),
+      }))).map(command => ({ ...command, kind: 'command' as const })),
+      ...skills.filter(isRecord).flatMap((skill): SlashCommand[] => (
+        typeof skill.id !== 'string' || commandNames.has(skill.id)
+          ? []
+          : [{
+              id: `opencode-skill:${skill.id}`,
+              name: skill.id,
+              content: '',
+              kind: 'skill',
+              source: 'sdk',
+              ...(typeof skill.description === 'string' ? { description: skill.description } : {}),
+            }]
+      )),
+    ];
+  }
+
+  private async readCommandsWhenReady(signal: AbortSignal): Promise<Array<Record<string, unknown> & { name: string }>> {
+    // V2 always exposes built-in commands after startup; a fresh server may need time to load them.
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      signal.throwIfAborted();
+      const commands = (await this.read('command', signal)).filter(isNamedRecord);
+      if (commands.length > 0 || Date.now() >= deadline) return commands;
+      await wait(25, signal);
+    }
+  }
+
+  private async read(resource: 'model' | 'command' | 'agent' | 'skill', signal: AbortSignal): Promise<unknown[]> {
     const result: unknown = await this.client.request<unknown>(`/api/${resource}`, { signal });
     if (Array.isArray(result)) return result as unknown[];
     if (!isRecord(result) || !Array.isArray(result.data)) throw new Error('Invalid OpenCode catalog response.');

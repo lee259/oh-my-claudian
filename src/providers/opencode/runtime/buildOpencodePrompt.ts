@@ -31,11 +31,30 @@ export interface OpencodePromptRequest {
   contextFiles?: string[];
 }
 
+/** The span of the composed prompt that came directly from the user's input. */
+export interface OpencodeTextRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface OpencodePrompt {
+  readonly blocks: AcpContentBlock[];
+  readonly userText: OpencodeTextRange | null;
+}
+
 export function buildOpencodePromptText(
   request: OpencodePromptRequest,
   conversationHistory: ChatMessage[] = [],
   historyContextOverride?: string,
 ): string {
+  return composeOpencodePromptText(request, conversationHistory, historyContextOverride).text;
+}
+
+function composeOpencodePromptText(
+  request: OpencodePromptRequest,
+  conversationHistory: ChatMessage[],
+  historyContextOverride?: string,
+): { text: string; userText: OpencodeTextRange | null } {
   let prompt = request.text;
 
   if (request.currentNotePath) {
@@ -63,9 +82,10 @@ export function buildOpencodePromptText(
     prompt = appendContextFiles(prompt, request.contextFiles);
   }
 
+  let text = prompt;
   if (conversationHistory.length > 0) {
     const historyContext = historyContextOverride ?? buildContextFromHistory(conversationHistory);
-    prompt = buildPromptWithHistoryContext(
+    text = buildPromptWithHistoryContext(
       historyContext,
       prompt,
       prompt,
@@ -73,18 +93,30 @@ export function buildOpencodePromptText(
     );
   }
 
-  return prompt;
+  let start: number;
+  if (text === prompt) {
+    start = 0;
+  } else if (text.endsWith(`\n\nUser: ${prompt}`)) {
+    start = text.length - prompt.length;
+  } else {
+    return { text, userText: null };
+  }
+  return {
+    text,
+    userText: { start, end: start + request.text.length },
+  };
 }
 
-export function buildOpencodePromptBlocks(
+export function buildOpencodePrompt(
   request: OpencodePromptRequest,
   conversationHistory: ChatMessage[] = [],
   historyContextOverride?: string,
-): AcpContentBlock[] {
+): OpencodePrompt {
+  const composed = composeOpencodePromptText(request, conversationHistory, historyContextOverride);
   const blocks: AcpContentBlock[] = [
     {
       type: 'text',
-      text: buildOpencodePromptText(request, conversationHistory, historyContextOverride),
+      text: composed.text,
     },
   ];
 
@@ -100,5 +132,13 @@ export function buildOpencodePromptBlocks(
     });
   }
 
-  return blocks;
+  return { blocks, userText: composed.userText };
+}
+
+export function buildOpencodePromptBlocks(
+  request: OpencodePromptRequest,
+  conversationHistory: ChatMessage[] = [],
+  historyContextOverride?: string,
+): AcpContentBlock[] {
+  return buildOpencodePrompt(request, conversationHistory, historyContextOverride).blocks;
 }
