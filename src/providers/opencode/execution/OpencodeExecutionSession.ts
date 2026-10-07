@@ -41,7 +41,7 @@ import {
   resolveOpencodeModeForPermissionMode,
 } from '../modes';
 import { createOpencodeToolStreamAdapter } from '../normalization/opencodeToolNormalization';
-import { buildOpencodePromptBlocks } from '../runtime/buildOpencodePrompt';
+import { buildOpencodePrompt } from '../runtime/buildOpencodePrompt';
 import { ensureOpencodeModelAvailable } from '../runtime/OpencodeModelAvailability';
 import { getOpencodeProviderSettings } from '../settings';
 import { getOpencodeState } from '../types';
@@ -277,7 +277,8 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
       || !native
       || request.signal.aborted
     ) return false;
-    return kernel.steer({ prompt: buildPromptBlocks(request, false), sessionId: native.sessionId });
+    const prompt = buildPromptBlocks(request, false);
+    return kernel.steer({ prompt: prompt.blocks, sessionId: native.sessionId }, prompt.userText);
   }
 
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void {
@@ -474,12 +475,12 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
         request,
         !this.nativeConversationContextEstablished,
       );
-      reportResolvedTurnPrompt(request, getPromptCharacters(prompt));
+      reportResolvedTurnPrompt(request, getPromptCharacters(prompt.blocks));
       const promptStartedAt = Date.now();
       const response = await kernel.prompt({
-        prompt,
+        prompt: prompt.blocks,
         sessionId: native.sessionId,
-      });
+      }, prompt.userText);
       this.markNativeConversationContextEstablished(run);
       if (!this.isRunCurrent(run, generation)) return;
       run.nativeCompleted = response.stopReason !== 'cancelled';
@@ -1145,7 +1146,7 @@ function buildPromptBlocks(
     reportHistoryReplay(request, compiledHistory.stats);
   }
   const currentNote = request.context?.currentNote;
-  return buildOpencodePromptBlocks({
+  return buildOpencodePrompt({
     browserSelection: request.context?.browserSelection,
     canvasSelection: request.context?.canvasSelection,
     currentNoteContent: currentNote?.content,
@@ -1158,7 +1159,7 @@ function buildPromptBlocks(
 }
 
 function getPromptCharacters(
-  prompt: ReturnType<typeof buildPromptBlocks>,
+  prompt: ReturnType<typeof buildPromptBlocks>['blocks'],
 ): number {
   return prompt.reduce(
     (total, block) => total + (block.type === 'text' ? block.text.length : 0),

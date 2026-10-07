@@ -26,6 +26,14 @@ describe('OpencodeCommandCatalog', () => {
         content: '',
         source: 'sdk',
       },
+      {
+        id: 'opencode-skill:project.review',
+        name: 'project.review',
+        description: 'Review the current project',
+        content: '',
+        source: 'sdk',
+        kind: 'skill',
+      },
     ]);
 
     await expect(catalog.listDropdownEntries({ includeBuiltIns: false })).resolves.toEqual([
@@ -64,6 +72,20 @@ describe('OpencodeCommandCatalog', () => {
         kind: 'command',
         name: 'fix',
         description: 'Apply a fix',
+        content: '',
+        scope: 'runtime',
+        source: 'sdk',
+        isEditable: false,
+        isDeletable: false,
+        displayPrefix: '/',
+        insertPrefix: '/',
+      },
+      {
+        id: 'opencode-skill:project.review',
+        providerId: 'opencode',
+        kind: 'skill',
+        name: 'project.review',
+        description: 'Review the current project',
         content: '',
         scope: 'runtime',
         source: 'sdk',

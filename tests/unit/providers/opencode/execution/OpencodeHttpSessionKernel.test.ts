@@ -53,7 +53,7 @@ describe('OpencodeHttpSessionKernel', () => {
           }],
         };
       }
-      if (route === '/api/command') return { data: [] };
+      if (route === '/api/command') return { data: [{ name: 'init' }] };
       if (route === '/api/agent') return { data: [
         { mode: 'primary', name: 'Build' },
         { mode: 'primary', name: 'Plan' },
@@ -61,6 +61,98 @@ describe('OpencodeHttpSessionKernel', () => {
       if (route === '/api/session') return { data: { id: 'ses_test' } };
       return undefined;
     });
+  });
+
+  it('resolves slash commands against the live v2 catalog', async () => {
+    mockRequest.mockImplementation(async (route: string) => {
+      if (route === '/api/model') return { data: [{ enabled: true, id: 'm', name: 'Model', providerID: 'test' }] };
+      if (route === '/api/command') return { data: [{ name: 'review' }] };
+      if (route === '/api/agent') return { data: [] };
+      if (route === '/api/session') return { data: { id: 'ses_test' } };
+      if (route === '/api/session/ses_test/message?order=desc&limit=1') return { data: [] };
+      return undefined;
+    });
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    await kernel.prompt({
+      sessionId: session.sessionId,
+      prompt: [{ text: '/review please', type: 'text' }],
+    } as any);
+
+    expect(mockRequest).toHaveBeenCalledWith('/api/session/ses_test/command', expect.objectContaining({
+      method: 'POST',
+      body: expect.objectContaining({ name: 'review', text: 'please' }),
+    }));
+    await kernel.dispose();
+  });
+
+  it('attaches explicit skill mentions from inline prompts and steered input', async () => {
+    mockRequest.mockImplementation(async (route: string) => {
+      if (route === '/api/model') return { data: [{ enabled: true, id: 'm', name: 'Model', providerID: 'test' }] };
+      if (route === '/api/command') return { data: [{ name: 'init' }] };
+      if (route === '/api/agent') return { data: [] };
+      if (route === '/api/session') return { data: { id: 'ses_test' } };
+      if (route === '/api/skill') return { data: [{ id: 'project.review' }] };
+      return undefined;
+    });
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const input = 'Use /project.review, please.';
+    const completion = kernel.prompt({
+      sessionId: session.sessionId,
+      prompt: [{ text: input, type: 'text' }],
+    } as any, { start: 0, end: input.length });
+    void completion.catch(() => undefined);
+    for (let index = 0; index < 8; index++) await Promise.resolve();
+
+    const promptCall = mockRequest.mock.calls.find(([route, options]) => (
+      route === '/api/session/ses_test/prompt' && options?.method === 'POST'
+    ));
+    expect(promptCall?.[1].body).toMatchObject({
+      skills: [{
+        id: 'project.review',
+        mention: { start: input.indexOf('/project.review'), text: '/project.review' },
+      }],
+    });
+
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: session.sessionId } });
+    const steerInput = 'Also apply /project.review!';
+    const steer = kernel.steer({
+      sessionId: session.sessionId,
+      prompt: [{ text: steerInput, type: 'text' }],
+    } as any, { start: 0, end: steerInput.length });
+    for (let index = 0; index < 8; index++) await Promise.resolve();
+    const steerCall = mockRequest.mock.calls.find(([route, options]) => (
+      route === '/api/session/ses_test/prompt'
+      && options?.method === 'POST'
+      && (options.body as { delivery?: string }).delivery === 'steer'
+    ));
+    expect(steerCall).toBeDefined();
+    expect(steerCall?.[1].body).toMatchObject({
+      skills: [{
+        id: 'project.review',
+        mention: { start: steerInput.indexOf('/project.review'), text: '/project.review' },
+      }],
+    });
+    emitEvent?.({
+      type: 'session.inbox.delivered',
+      data: { inboxID: (steerCall?.[1].body as { id: string }).id, sessionID: session.sessionId },
+    });
+    await expect(steer).resolves.toBe(true);
+    await kernel.dispose();
   });
 
   it('switches the active v2 session to the selected native agent before prompting', async () => {
@@ -294,11 +386,9 @@ describe('OpencodeHttpSessionKernel', () => {
     await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
     const session = await kernel.openSession();
     const prompt = kernel.prompt({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Review this' }] } as any);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
     const steer = kernel.steer({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Also check tests' }] } as any);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
     const steerRequest = mockRequest.mock.calls.find(([, options]) => options?.body?.delivery === 'steer');
     expect(steerRequest).toBeDefined();
     const inboxId = steerRequest[1].body.id;
@@ -324,11 +414,9 @@ describe('OpencodeHttpSessionKernel', () => {
     await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
     const session = await kernel.openSession();
     const prompt = kernel.prompt({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Review this' }] } as any);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
     const steer = kernel.steer({ sessionId: session.sessionId, prompt: [{ type: 'text', text: 'Also check tests' }] } as any);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
     const steerRequest = mockRequest.mock.calls.find(([, options]) => options?.body?.delivery === 'steer');
     const inboxId = steerRequest[1].body.id;
 
