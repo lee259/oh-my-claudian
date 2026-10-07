@@ -1,4 +1,6 @@
-import { buildOpencodePromptBlocks, buildOpencodePromptText } from '../../../../src/providers/opencode/runtime/buildOpencodePrompt';
+import type { ChatMessage } from '@/core/types';
+
+import { buildOpencodePrompt, buildOpencodePromptBlocks, buildOpencodePromptText } from '../../../../src/providers/opencode/runtime/buildOpencodePrompt';
 
 describe('buildOpencodePromptText', () => {
   it('appends Claudian XML context to the user query', () => {
@@ -106,5 +108,36 @@ describe('buildOpencodePromptBlocks', () => {
       { type: 'text', text: 'Inspect this image' },
       { type: 'image', mimeType: 'image/png', data: 'base64-image' },
     ]);
+  });
+});
+
+describe('buildOpencodePrompt', () => {
+  it('locates typed text before appended context and in replayed history', () => {
+    const text = 'Please run /project.review.';
+    const history: ChatMessage[] = [
+      { content: 'Earlier question', id: 'user-1', role: 'user', timestamp: 1 },
+      { content: 'Earlier answer', id: 'assistant-1', role: 'assistant', timestamp: 2 },
+    ];
+    const prompt = buildOpencodePrompt({
+      currentNotePath: 'notes/current.md',
+      text,
+    }, history);
+    const composedText = prompt.blocks[0].type === 'text' ? prompt.blocks[0].text : '';
+
+    expect(prompt.userText).toEqual({
+      start: composedText.indexOf(text),
+      end: composedText.indexOf(text) + text.length,
+    });
+    expect(composedText.slice(prompt.userText!.start, prompt.userText!.end)).toBe(text);
+  });
+
+  it('does not report typed text when replay history already contains the same query', () => {
+    const history: ChatMessage[] = [
+      { content: 'Already submitted', id: 'user-1', role: 'user', timestamp: 1 },
+    ];
+
+    const prompt = buildOpencodePrompt({ text: 'Already submitted' }, history);
+
+    expect(prompt.userText).toBeNull();
   });
 });

@@ -4,6 +4,8 @@ import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { SubagentProgress } from '@/core/types';
 import type { AcpPromptRequest, AcpPromptResponse, AcpSessionConfigOption, AcpSessionModelState, AcpSessionModeState, AcpSessionNotification } from '@/providers/acp';
 
+import type { OpencodeTextRange } from '../runtime/buildOpencodePrompt';
+
 type WithoutScope<T> = T extends unknown ? Omit<T, 'scope'> : never;
 export type OpencodeNativeOutput = WithoutScope<ProviderBackgroundOutputEvent>;
 
@@ -50,12 +52,13 @@ export interface OpencodeSessionKernel {
   setConfigOption(request: Record<string, unknown>): Promise<{
     configOptions?: AcpSessionConfigOption[] | null;
   }>;
-  prompt(request: AcpPromptRequest): Promise<Pick<
+  /** `userText` locates typed input whose native skill mentions may be resolved. */
+  prompt(request: AcpPromptRequest, userText?: OpencodeTextRange | null): Promise<Pick<
     AcpPromptResponse,
     'usage' | 'userMessageId'
   > & Partial<Pick<AcpPromptResponse, 'stopReason'>> & { readonly nativeAssistantId?: string }>;
   /** Native protocols without an inbox decline running-turn input. */
-  steer?(request: AcpPromptRequest): Promise<boolean>;
+  steer?(request: AcpPromptRequest, userText?: OpencodeTextRange | null): Promise<boolean>;
   cancel(sessionId: string): void;
   dispose(): Promise<void>;
 }
