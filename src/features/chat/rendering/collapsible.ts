@@ -11,6 +11,47 @@ export interface CollapsibleOptions {
   baseAriaLabel?: string;
 }
 
+const contentAnimations = new WeakMap<HTMLElement, Animation>();
+
+/** Applies the transcript fold transition to a disclosure content region. */
+export function setCollapsibleContentExpanded(
+  contentEl: HTMLElement,
+  expanded: boolean,
+  setHidden: (hidden: boolean) => void,
+): void {
+  const previousAnimation = contentAnimations.get(contentEl);
+  const wasHidden = contentEl.hidden || contentEl.classList.contains('claudian-hidden');
+  const currentHeight = wasHidden ? 0 : contentEl.getBoundingClientRect().height;
+  previousAnimation?.cancel();
+  contentAnimations.delete(contentEl);
+
+  setHidden(false);
+  const view = contentEl.ownerDocument?.defaultView;
+  const reducedMotion = view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  if (reducedMotion || typeof contentEl.animate !== 'function') {
+    setHidden(!expanded);
+    return;
+  }
+
+  const targetHeight = expanded ? contentEl.scrollHeight : 0;
+  const animation = contentEl.animate(
+    [
+      { height: `${currentHeight}px`, opacity: expanded ? 0 : 1 },
+      { height: `${targetHeight}px`, opacity: expanded ? 1 : 0 },
+    ],
+    {
+      duration: 280,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    },
+  );
+  contentAnimations.set(contentEl, animation);
+  animation.onfinish = () => {
+    if (contentAnimations.get(contentEl) !== animation) return;
+    contentAnimations.delete(contentEl);
+    setHidden(!expanded);
+  };
+}
+
 /**
  * Setup collapsible behavior on a header/content pair.
  *
@@ -61,13 +102,15 @@ export function setupCollapsible(
     state.isExpanded = !state.isExpanded;
     if (state.isExpanded) {
       wrapperEl.addClass('expanded');
-      contentEl.removeClass('claudian-hidden');
       headerEl.setAttribute('aria-expanded', 'true');
     } else {
       wrapperEl.removeClass('expanded');
-      contentEl.addClass('claudian-hidden');
       headerEl.setAttribute('aria-expanded', 'false');
     }
+    setCollapsibleContentExpanded(contentEl, state.isExpanded, hidden => {
+      if (hidden) contentEl.addClass('claudian-hidden');
+      else contentEl.removeClass('claudian-hidden');
+    });
     updateAriaLabel(state.isExpanded);
     onToggle?.(state.isExpanded);
   };

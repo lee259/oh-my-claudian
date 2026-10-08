@@ -1576,8 +1576,57 @@ describe('MessageRenderer', () => {
     expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
     expect(work?.querySelectorAll('.claudian-tool-call')).toEqual([firstTool, secondTool]);
     expect(work?.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Explored the project');
+    expect(first.parentElement).toBeNull();
     expect(secondContent.children).toContain(answer);
     expect(work?.contains(answer)).toBe(false);
+  });
+
+  it('removes an intermediate run after its narrated work is folded away', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'folded-empty-user');
+    user.createDiv({ cls: 'claudian-message-content' }).createDiv({ cls: 'claudian-text-block', text: 'Inspect these files.' });
+
+    const first = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    first.setAttribute('data-message-id', 'folded-empty-run-one');
+    const firstContent = first.createDiv({ cls: 'claudian-message-content' });
+    const firstTool = firstContent.createDiv({ cls: 'claudian-tool-call' });
+    firstTool.setAttribute('data-tool-id', 'folded-empty-read-one');
+
+    const intermediate = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    intermediate.setAttribute('data-message-id', 'folded-empty-run-two');
+    const intermediateContent = intermediate.createDiv({ cls: 'claudian-message-content' });
+    const intermediateTool = intermediateContent.createDiv({ cls: 'claudian-tool-call' });
+    intermediateTool.setAttribute('data-tool-id', 'folded-empty-read-two');
+    intermediate.createDiv({ cls: 'claudian-message-actions' })
+      .createEl('button', { cls: 'claudian-message-fork-btn' });
+
+    const messages: ChatMessage[] = [
+      { id: 'folded-empty-user', role: 'user', content: 'Inspect these files.', timestamp: 1 },
+      {
+        id: 'folded-empty-run-one', role: 'assistant', content: '', timestamp: 2,
+        contentBlocks: [{ type: 'tool_use', toolId: 'folded-empty-read-one' }],
+        toolCalls: [{ id: 'folded-empty-read-one', name: 'Read', input: {}, status: 'completed' }],
+      },
+      {
+        id: 'folded-empty-run-two', role: 'assistant', content: 'I found another relevant file.', timestamp: 3,
+        contentBlocks: [{ type: 'tool_use', toolId: 'folded-empty-read-two' }],
+        toolCalls: [{ id: 'folded-empty-read-two', name: 'Read', input: {}, status: 'completed' }],
+      },
+    ];
+    const turn = projectTranscript(messages)[0];
+
+    (renderer as any).groupRenderedTranscriptTurns(messages, false);
+    (renderer as any).finalizeTranscriptTurn(turn);
+
+    const turnEl = messagesEl.querySelector('.claudian-transcript-turn');
+    const work = turnEl?.querySelector('.claudian-completed-work');
+    expect(work?.querySelectorAll('.claudian-tool-call')).toEqual([firstTool, intermediateTool]);
+    expect(turnEl?.querySelector('[data-message-id="folded-empty-run-two"]')).toBeNull();
+    expect(turnEl?.querySelector('.claudian-message-fork-btn')).toBeNull();
+    expect(turnEl?.querySelectorAll('.claudian-message-assistant')).toHaveLength(0);
   });
 
   it('folds an OMP-style multi-message response once at the user-turn boundary', () => {
@@ -1651,7 +1700,7 @@ describe('MessageRenderer', () => {
     (renderer as any).finalizeTranscriptTurn(turn);
 
     const turnEl = messagesEl.querySelector('.claudian-transcript-turn');
-    expect(turnEl?.querySelectorAll('.claudian-message-assistant')).toHaveLength(3);
+    expect(turnEl?.querySelectorAll('.claudian-message-assistant')).toHaveLength(1);
     expect(turnEl?.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
     const work = turnEl?.querySelector('.claudian-completed-work');
     expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
@@ -2380,6 +2429,56 @@ describe('MessageRenderer', () => {
       (c: any) => c.hasClass('claudian-message')
     );
     expect(bubbles.length).toBe(0);
+  });
+
+  it('renders a leading quoted selection separately from the user prompt', () => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    jest.spyOn(renderer, 'renderContent').mockImplementation(async (element, content) => {
+      element.textContent = content;
+    });
+
+    const quotedMessage: ChatMessage = {
+      id: 'quoted-user-message',
+      role: 'user',
+      content: '> Selected passage\n> second line\n\nWhat does this mean?',
+      timestamp: 1,
+    };
+    renderer.renderStoredMessage(quotedMessage);
+
+    const message = (messagesEl as MockElement).children
+      .find((element: MockElement) => element.hasClass('claudian-message-user'));
+    const quote = message?.children.find((element: MockElement) => element.hasClass('claudian-message-quote-context'));
+    const content = message?.children.find((element: MockElement) => element.hasClass('claudian-message-content'));
+    expect(quote?.textContent).toBe('Selected passage\nsecond line');
+    expect(content?.children[0]?.textContent).toBe('What does this mean?');
+  });
+
+  it('does not render an empty branch prompt as a message bubble', () => {
+    const messagesEl = createMockEl();
+    const capabilities = { ...mockCapabilities('codex')(), providerId: 'pi', supportsConversationBranches: true };
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      undefined,
+      () => capabilities as any,
+      undefined,
+      { navigate: jest.fn().mockResolvedValue(undefined), isBusy: () => false },
+    );
+    const message: ChatMessage = {
+      id: 'empty-branch-prompt',
+      role: 'user',
+      content: '',
+      timestamp: 1,
+      userMessageId: 'pi-empty-prompt',
+      treeBranches: ['pi-empty-prompt', 'pi-sibling-prompt'],
+    };
+
+    renderer.renderStoredMessage(message, [message], 0);
+
+    expect(messagesEl.querySelector('[data-message-id="empty-branch-prompt"]')).toBeNull();
   });
 
   it('renders user message with images above bubble', () => {
