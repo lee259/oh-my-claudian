@@ -726,6 +726,7 @@ button.claudian-work-header:focus-visible {
 
 .claudian-completed-work-status.claudian-streaming-work-fold {
   display: block;
+  border-bottom: 0;
 }
 
 button.claudian-completed-work-header {
