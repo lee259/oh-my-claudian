@@ -813,6 +813,8 @@ button.claudian-completed-work-header:focus-visible {
 
 .claudian-activity-narration {
   margin-block: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
 
 .claudian-activity-phase {
