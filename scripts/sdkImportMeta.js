@@ -36,17 +36,13 @@ function patchSdkImportMetaUrl(contents) {
   );
 
   for (const alias of getNamedImportAliases(patched, 'createRequire', ['module', 'node:module'])) {
-    patched = patched.replace(
-      new RegExp(`\\b${escapeRegExp(alias)}\\(import\\.meta\\.url\\)`, 'g'),
-      `${alias}(__filename)`,
-    );
+    const callPattern = new RegExp(`(^|[^\\w$])${escapeRegExp(alias)}\\(import\\.meta\\.url\\)`, 'g');
+    patched = patched.replace(callPattern, (_match, prefix) => `${prefix}${alias}(__filename)`);
   }
 
   for (const alias of getNamedImportAliases(patched, 'fileURLToPath', ['url', 'node:url'])) {
-    patched = patched.replace(
-      new RegExp(`\\b${escapeRegExp(alias)}\\(import\\.meta\\.url\\)`, 'g'),
-      '__filename',
-    );
+    const callPattern = new RegExp(`(^|[^\\w$])${escapeRegExp(alias)}\\(import\\.meta\\.url\\)`, 'g');
+    patched = patched.replace(callPattern, (_match, prefix) => `${prefix}__filename`);
   }
 
   return patched;

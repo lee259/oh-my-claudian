@@ -36,6 +36,15 @@ describe('SDK import.meta build patch', () => {
     expect(patched).not.toContain('import.meta.url');
   });
 
+  it('rewrites minified SDK aliases that start with a dollar sign', () => {
+    const input = 'import{createRequire as $Z}from"node:module";var HZ=$Z(import.meta.url);';
+
+    const patched = patchSdkImportMetaUrl(input);
+
+    expect(patched).toContain('$Z(__filename)');
+    expect(patched).not.toContain('import.meta.url');
+  });
+
   it('removes every import.meta.url use from bundled Claude SDK entry chunks', () => {
     const entries = readdirSync(claudeSdkDir)
       .filter(file => SDK_IMPORT_META_FILTER.test(path.join(claudeSdkDir, file)));
