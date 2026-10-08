@@ -14,7 +14,7 @@ export interface ModelSelectorViewProps {
   currentModel: string;
   displayModelLabel: string;
   providerIcon?: ProviderIconSvg;
-  runtimeModelTitle: string;
+  modelTitle: string;
   reasoningOptions: ProviderReasoningOption[];
   reasoningValue: string;
   reasoningDefaultValue: string;
@@ -54,7 +54,7 @@ export function ModelSelectorView({
   currentModel,
   displayModelLabel,
   providerIcon,
-  runtimeModelTitle,
+  modelTitle,
   reasoningOptions,
   reasoningValue,
   reasoningDefaultValue,
@@ -211,7 +211,7 @@ export function ModelSelectorView({
         ].filter(Boolean).join(', ')}
         className="claudian-model-btn"
         ref={triggerRef}
-        title={runtimeModelTitle}
+        title={modelTitle}
         type="button"
         onClick={() => {
           openFromKeyboardRef.current = false;

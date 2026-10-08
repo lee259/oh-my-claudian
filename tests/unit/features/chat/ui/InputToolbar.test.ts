@@ -166,7 +166,6 @@ function createMockCallbacks(overrides: Record<string, any> = {}) {
       enableSonnet1M: false,
     }),
     getEnvironmentVariables: jest.fn().mockReturnValue(''),
-    getRuntimeModel: jest.fn().mockReturnValue(null),
     getUIConfig: jest.fn().mockReturnValue(createMockUIConfig()),
     getCapabilities: jest.fn().mockReturnValue({
       providerId: 'claude',

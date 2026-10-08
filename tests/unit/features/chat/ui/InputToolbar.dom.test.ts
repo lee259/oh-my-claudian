@@ -139,6 +139,29 @@ describe('createInputToolbar', () => {
     toolbar = createInputToolbar(toolbarEl, callbacks);
   });
 
+  it('keeps the selected catalog label when runtime metadata reports another model', () => {
+    const uiConfig = callbacks.getUIConfig();
+    Object.assign(callbacks, {
+      getRuntimeModel: () => 'deepseek-v4',
+      getUIConfig: () => ({
+        ...uiConfig,
+        getModelOptions: () => [
+          { value: 'claude-sonnet', label: 'SDK Sonnet' },
+          { value: 'deepseek-v4', label: 'DeepSeek V4' },
+        ],
+      }),
+    });
+    toolbar!.modelSelector.updateDisplay();
+    expect(toolbarEl.querySelector('.claudian-model-label')?.textContent).toBe('SDK Sonnet');
+  });
+
+  it('shows an unavailable selection instead of displaying the first model', () => {
+    Object.assign(callbacks.getSettings(), { model: 'missing-model' });
+    toolbar!.modelSelector.updateDisplay();
+    expect(toolbarEl.querySelector('.claudian-model-label')?.textContent).toBe('Model unavailable');
+    expect(callbacks.onModelChange).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     toolbar?.destroy();
     toolbarEl.remove();
