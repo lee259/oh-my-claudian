@@ -124,9 +124,12 @@ export interface SubagentHistoryRecoveryRequest {
 interface StreamingContentSnapshot {
   el: HTMLElement;
   content: string;
+  shouldFollowScroll: boolean;
   getOptions?: () => RenderContentOptions | undefined;
   options?: RenderContentOptions;
 }
+
+const AUTO_SCROLL_THRESHOLD = 100;
 
 /**
  * Narrowing guard for the mixed subagent-state map. Kept as an explicit
@@ -197,14 +200,15 @@ export class StreamController {
       getOwnerWindow,
       minIntervalMs: STREAMING_RENDER_MIN_INTERVAL_MS,
       maxIntervalMs: 500,
-      render: async ({ el, content, getOptions, options: explicitOptions }) => {
+      render: async (snapshot) => {
+        const { el, content, getOptions, options: explicitOptions } = snapshot;
         const options = getOptions ? getOptions() : explicitOptions;
         if (options) {
           await this.deps.renderer.renderContent(el, content, options);
         } else {
           await this.deps.renderer.renderContent(el, content);
         }
-        this.scrollToBottom();
+        if (snapshot.shouldFollowScroll) this.scrollToBottom();
       },
     });
   }
@@ -216,8 +220,18 @@ export class StreamController {
     return {
       el,
       content,
+      shouldFollowScroll: this.shouldFollowScroll(),
       getOptions: () => this.getStreamingRenderOptions(content),
     };
+  }
+
+  private shouldFollowScroll(): boolean {
+    const { state, plugin } = this.deps;
+    if (!(plugin.settings.enableAutoScroll ?? true) || !state.autoScrollEnabled) return false;
+
+    const messagesEl = this.deps.getMessagesEl();
+    return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight
+      <= AUTO_SCROLL_THRESHOLD;
   }
 
   private getActiveProviderId(): ProviderId {
@@ -276,6 +290,7 @@ export class StreamController {
 
   async handleStreamChunk(chunk: StreamChunk, msg: ChatMessage): Promise<void> {
     const { state } = this.deps;
+    const shouldFollowScroll = this.shouldFollowScroll();
 
     switch (chunk.type) {
       case 'thinking':
@@ -438,7 +453,7 @@ export class StreamController {
         ? { type: 'thinking' as const, content: state.currentThinkingState.content }
         : undefined;
     this.deps.renderer.syncStreamingActivity?.(msg, state.currentContentEl, liveBlock, state.messages);
-    this.scrollToBottom();
+    if (shouldFollowScroll) this.scrollToBottom();
   }
 
   updateUsage(usage: UsageInfo, sessionId?: string): void {
@@ -1385,7 +1400,11 @@ export class StreamController {
       );
     } else {
       if (textEl && this.getStreamingRenderOptions(content)) {
-        this.textRenderCoordinator.request({ el: textEl, content });
+        this.textRenderCoordinator.request({
+          el: textEl,
+          content,
+          shouldFollowScroll: this.shouldFollowScroll(),
+        });
       }
       await this.textRenderCoordinator.flush();
     }
@@ -1476,6 +1495,7 @@ export class StreamController {
       this.thinkingRenderCoordinator.request({
         el: thinkingState.contentEl,
         content: thinkingState.content,
+        shouldFollowScroll: this.shouldFollowScroll(),
       });
     }
     await this.thinkingRenderCoordinator.flush();

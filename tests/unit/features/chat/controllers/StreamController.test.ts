@@ -1799,6 +1799,20 @@ describe('StreamController - Text Content', () => {
 
       expect(messagesEl.scrollTop).toBe(0);
     });
+
+    it('should preserve the current position when a stream update starts away from the bottom', async () => {
+      const messagesEl = deps.getMessagesEl();
+      Object.defineProperty(messagesEl, 'scrollHeight', { value: 1600, configurable: true });
+      Object.defineProperty(messagesEl, 'clientHeight', { value: 500, configurable: true });
+      messagesEl.scrollTop = 420;
+
+      const msg = createTestMessage();
+      deps.state.currentTextEl = createMockEl();
+      await controller.handleStreamChunk({ type: 'text', content: 'More content' }, msg);
+      jest.runOnlyPendingTimers();
+
+      expect(messagesEl.scrollTop).toBe(420);
+    });
   });
 
   describe('Subagent chunk handling', () => {

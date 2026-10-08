@@ -256,6 +256,23 @@ describe('ToolCallRenderer', () => {
       expect(content?.querySelector('.claudian-tool-line')?.textContent).toBe('stored output');
     });
 
+    it('renders deferred tool content before measuring the first expansion transition', () => {
+      const toolCall = createToolCall({ status: 'completed', result: 'stored output' });
+      const toolEl = renderStoredToolCall(createMockEl(), toolCall);
+      const content = toolEl.querySelector('.claudian-tool-content') as HTMLElement;
+      const header = toolEl.querySelector('.claudian-tool-header') as HTMLElement;
+      const animation = { cancel: jest.fn(), onfinish: null as (() => void) | null };
+      const animate = jest.fn(() => {
+        expect(content.querySelector('.claudian-tool-line')?.textContent).toBe('stored output');
+        return animation as unknown as Animation;
+      });
+      Object.defineProperty(content, 'animate', { value: animate });
+
+      header.click();
+
+      expect(animate).toHaveBeenCalledTimes(1);
+    });
+
     it('renders stored content immediately when requested expanded', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
