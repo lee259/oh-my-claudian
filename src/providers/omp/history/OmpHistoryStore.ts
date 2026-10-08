@@ -2,19 +2,24 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import type { ChatMessage, ContentBlock } from '../../../core/types';
+import type { ToolCallInfo } from '../../../core/types/tools';
+import { normalizeOmpToolInput, normalizeOmpToolName } from '../normalization/ompToolNormalization';
 
 export function parseOmpSessionContent(content: string): ChatMessage[] {
-  const messages: ChatMessage[] = [];
+  const entries: Record<string, unknown>[] = [];
   for (const line of content.split(/\r?\n/u)) {
     if (!line.trim()) continue;
-    let entry: Record<string, unknown>;
     try {
       const parsed = JSON.parse(line) as unknown;
-      if (!isRecord(parsed)) continue;
-      entry = parsed;
+      if (isRecord(parsed)) entries.push(parsed);
     } catch {
       continue;
     }
+  }
+
+  const toolResults = getToolResults(entries);
+  const messages: ChatMessage[] = [];
+  for (const entry of entries) {
     if (entry.type !== 'message' || !isRecord(entry.message)) continue;
     const message = entry.message;
     const role = typeof message.role === 'string' ? message.role : '';
@@ -31,17 +36,18 @@ export function parseOmpSessionContent(content: string): ChatMessage[] {
       continue;
     }
     if (role === 'assistant') {
-      const contentBlocks = getAssistantContentBlocks(message.content);
+      const assistantContent = getAssistantContent(message.content, toolResults);
       messages.push({
         assistantMessageId: id,
-        content: contentBlocks
+        content: assistantContent.contentBlocks
           .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
           .map(block => block.content)
           .join(''),
-        ...(contentBlocks.length > 0 ? { contentBlocks } : {}),
+        ...(assistantContent.contentBlocks.length > 0 ? { contentBlocks: assistantContent.contentBlocks } : {}),
         id,
         role: 'assistant',
         timestamp,
+        ...(assistantContent.toolCalls.length > 0 ? { toolCalls: assistantContent.toolCalls } : {}),
       });
     }
   }
@@ -71,9 +77,34 @@ function findRecursively(root: string, sessionId: string): string | null {
   return null;
 }
 
-function getAssistantContentBlocks(value: unknown): ContentBlock[] {
+interface OmpToolResult {
+  content: string;
+  isError: boolean;
+  details?: unknown;
+}
+
+function getToolResults(entries: Record<string, unknown>[]): Map<string, OmpToolResult> {
+  const results = new Map<string, OmpToolResult>();
+  for (const entry of entries) {
+    if (entry.type !== 'message' || !isRecord(entry.message)) continue;
+    const message = entry.message;
+    if (message.role !== 'toolResult' || typeof message.toolCallId !== 'string') continue;
+    results.set(message.toolCallId, {
+      content: getText(message.content),
+      isError: message.isError === true,
+      ...(message.details !== undefined ? { details: message.details } : {}),
+    });
+  }
+  return results;
+}
+
+function getAssistantContent(
+  value: unknown,
+  toolResults: ReadonlyMap<string, OmpToolResult>,
+): { contentBlocks: ContentBlock[]; toolCalls: ToolCallInfo[] } {
   const parts = Array.isArray(value) ? value : [];
   const blocks: ContentBlock[] = [];
+  const toolCalls: ToolCallInfo[] = [];
   for (const part of parts) {
     if (!isRecord(part)) continue;
     if (part.type === 'thinking') {
@@ -82,9 +113,26 @@ function getAssistantContentBlocks(value: unknown): ContentBlock[] {
     } else if (part.type === 'text') {
       const content = getText(part.text ?? part.content);
       if (content) blocks.push({ content, type: 'text' });
+    } else if (part.type === 'toolCall' && typeof part.id === 'string' && part.id) {
+      const rawName = typeof part.name === 'string' ? part.name : 'tool';
+      const rawInput = isRecord(part.arguments) ? part.arguments : {};
+      const result = toolResults.get(part.id);
+      blocks.push({ toolId: part.id, type: 'tool_use' });
+      toolCalls.push({
+        id: part.id,
+        input: normalizeOmpToolInput(rawName, rawInput),
+        name: normalizeOmpToolName(rawName),
+        ...(result ? { result: result.content } : {}),
+        status: result ? (result.isError ? 'error' : 'completed') : 'running',
+        providerPayload: {
+          rawName,
+          rawInput,
+          ...(result?.details !== undefined ? { rawOutput: result.details } : {}),
+        },
+      });
     }
   }
-  return blocks;
+  return { contentBlocks: blocks, toolCalls };
 }
 
 function getText(value: unknown): string {

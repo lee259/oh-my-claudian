@@ -32,7 +32,7 @@ export function normalizeOmpToolName(rawName: string | undefined): string {
   return mapOmpToolName(rawName) ?? rawName?.trim() ?? 'tool';
 }
 
-function normalizeOmpToolInput(
+export function normalizeOmpToolInput(
   rawName: string | undefined,
   input: Record<string, unknown>,
 ): Record<string, unknown> {
