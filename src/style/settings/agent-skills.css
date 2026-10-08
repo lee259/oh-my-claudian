@@ -17,6 +17,50 @@
   flex-shrink: 0;
 }
 
+.claudian-agent-skills-view button.claudian-agent-skill-item-link,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:active,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.claudian-agent-skills-view button.claudian-agent-skill-item-link {
+  color: var(--link-color) !important;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
+  color: var(--link-color-hover) !important;
+  text-decoration: underline;
+}
+
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus {
+  outline: none;
+}
+
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled,
+.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled:hover {
+  color: var(--text-faint);
+  cursor: default;
+  text-decoration: none;
+}
+
 .claudian-agent-skill-instructions {
   box-sizing: border-box;
   width: 100%;
@@ -63,4 +107,14 @@
 
 .claudian-agent-skill-delete-description {
   color: var(--text-warning);
+}
+
+.claudian-agent-skill-preview-modal {
+  width: min(760px, calc(100vw - 48px));
+  max-width: min(760px, calc(100vw - 48px));
+}
+
+.claudian-agent-skill-preview {
+  max-height: min(72vh, 900px);
+  overflow-y: auto;
 }

@@ -11,6 +11,7 @@ export interface AgentSkillSettingsViewProps {
   diagnostics: readonly AgentSkillDiagnostic[];
   onRefresh: () => void;
   onAdd: () => void;
+  onOpen: (skill: AgentSkillDocument) => void;
   onEdit: (skill: AgentSkillDocument) => void;
   onDelete: (skill: AgentSkillDocument) => void;
 }
@@ -21,6 +22,7 @@ export function AgentSkillSettingsView({
   diagnostics,
   onRefresh,
   onAdd,
+  onOpen,
   onEdit,
   onDelete,
 }: AgentSkillSettingsViewProps) {
@@ -59,7 +61,16 @@ export function AgentSkillSettingsView({
                 <div className="claudian-sp-item" key={`${skill.name}:${skill.revision}`}>
                   <div className="claudian-sp-info">
                     <div className="claudian-sp-item-header">
-                      <span className="claudian-sp-item-name">{skill.name}</span>
+                      <button
+                        type="button"
+                        className="claudian-sp-item-name claudian-agent-skill-item-link"
+                        onClick={event => {
+                          event.stopPropagation();
+                          onOpen(skill);
+                        }}
+                      >
+                        {skill.name}
+                      </button>
                       <span className="claudian-slash-item-badge">
                         {t('settings.agentSkills.skillBadge')}
                       </span>

@@ -1,6 +1,15 @@
 /** @jest-environment jsdom */
 
+jest.mock('@/utils/obsidianCompat', () => ({
+  isExternalTextFilePath: (filePath: string) => (
+    filePath.startsWith('/') && /\.(?:md|txt)$/u.test(filePath)
+  ),
+  openAgentSkillByName: jest.fn().mockResolvedValue(true),
+  openVaultFile: jest.fn().mockResolvedValue(true),
+}));
+
 import { MentionTextHighlighter } from '@/features/chat/ui/MentionTextHighlighter';
+import { openAgentSkillByName, openVaultFile } from '@/utils/obsidianCompat';
 
 describe('MentionTextHighlighter', () => {
   function createFixture() {
@@ -54,6 +63,48 @@ describe('MentionTextHighlighter', () => {
     expect(mention.classList.contains('internal-link')).toBe(true);
     mention.click();
     expect(app.workspace.openLinkText).toHaveBeenCalledWith('notes/plan.md', '', 'tab');
+
+    highlighter.destroy();
+    wrapper.remove();
+  });
+
+  it('opens external text-file mentions through the file compatibility handler', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const app = {
+      metadataCache: { getFirstLinkpathDest: jest.fn().mockReturnValue(null) },
+      vault: { getAbstractFileByPath: jest.fn().mockReturnValue(null) },
+    } as any;
+    input.value = 'Review @/Users/lee/notes/plan.md';
+    const highlighter = new MentionTextHighlighter(input, highlights, app);
+
+    const mention = highlights.querySelector('.claudian-input-mention-highlight') as HTMLElement;
+    expect(mention.dataset.mentionState).toBe('resolved');
+    expect(mention.classList.contains('claudian-input-mention-highlight--clickable')).toBe(true);
+    mention.click();
+
+    expect(openVaultFile).toHaveBeenCalledWith(app, '/Users/lee/notes/plan.md');
+
+    highlighter.destroy();
+    wrapper.remove();
+  });
+
+  it('opens a referenced skill when its command token is clicked', () => {
+    const { highlights, input, wrapper } = createFixture();
+    const app = {} as any;
+    input.value = '/release-notes ';
+    const highlighter = new MentionTextHighlighter(
+      input,
+      highlights,
+      app,
+      () => 'skill',
+    );
+
+    const command = highlights.querySelector('.claudian-input-command-highlight') as HTMLElement;
+    expect(command.title).toBe('Open skill: release-notes');
+    expect(command.classList.contains('claudian-input-command-highlight--clickable')).toBe(true);
+    command.click();
+
+    expect(openAgentSkillByName).toHaveBeenCalledWith(app, 'release-notes');
 
     highlighter.destroy();
     wrapper.remove();

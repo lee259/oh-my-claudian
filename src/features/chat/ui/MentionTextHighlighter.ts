@@ -2,6 +2,11 @@ import type { App } from 'obsidian';
 import { setIcon } from 'obsidian';
 
 import type { ProviderCommandKind } from '../../../core/providers/commands/ProviderCommandEntry';
+import {
+  isExternalTextFilePath,
+  openAgentSkillByName,
+  openVaultFile,
+} from '../../../utils/obsidianCompat';
 
 const FILE_MENTION_PATTERN = /@(?:[^\s@]+\.[^\s@]+|[^\s@/]+(?:\/[^\s@]+)*\/)/g;
 const COMMAND_TOKEN_PATTERN = /(^|\s)([/$][^\s]+)(?=\s)/g;
@@ -123,17 +128,18 @@ export class MentionTextHighlighter {
     const linkPath = mention.slice(1);
     const normalizedPath = linkPath.replace(/\/$/, '');
     const isFolder = mention.endsWith('/');
+    const isExternalFile = !isFolder && isExternalTextFilePath(normalizedPath);
     const file = isFolder
       ? this.app?.vault.getAbstractFileByPath(normalizedPath)
       : this.app?.metadataCache.getFirstLinkpathDest(linkPath, '')
         ?? this.app?.vault.getAbstractFileByPath(normalizedPath);
     const mentionEl = this.contentEl.createSpan({
-      cls: file ? 'claudian-input-mention-highlight internal-link' : 'claudian-input-mention-highlight',
+      cls: `${file ? 'internal-link ' : ''}claudian-input-mention-highlight`,
       text: mention,
     });
     mentionEl.dataset.mentionKind = isFolder ? 'folder' : 'file';
-    if (this.app) mentionEl.dataset.mentionState = file ? 'resolved' : 'missing';
-    if (!file || !this.app) return;
+    if (this.app) mentionEl.dataset.mentionState = file || isExternalFile ? 'resolved' : 'missing';
+    if ((!file && !isExternalFile) || !this.app) return;
 
     mentionEl.addClass('claudian-input-mention-highlight--clickable');
     mentionEl.setAttribute('data-href', normalizedPath);
@@ -147,6 +153,8 @@ export class MentionTextHighlighter {
         for (const leaf of this.app?.workspace.getLeavesOfType('file-explorer') ?? []) {
           (leaf.view as unknown as { revealInFolder?: (target: unknown) => void }).revealInFolder?.(folder);
         }
+      } else if (isExternalFile) {
+        void openVaultFile(this.app!, normalizedPath);
       } else {
         void this.app?.workspace.openLinkText(normalizedPath, '', 'tab');
       }
@@ -167,6 +175,19 @@ export class MentionTextHighlighter {
       setIcon(iconEl, 'zap');
     }
     commandEl.append(this.inputEl.ownerDocument.createTextNode(token.slice(1)));
+    if (kind === 'skill' && this.app) {
+      const commandName = token.startsWith('/') || token.startsWith('$')
+        ? token.slice(1)
+        : token;
+      const skillName = commandName.replace(/^skill:/u, '');
+      commandEl.addClass('claudian-input-command-highlight--clickable');
+      commandEl.setAttribute('title', `Open skill: ${skillName}`);
+      commandEl.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void openAgentSkillByName(this.app!, skillName);
+      });
+    }
   }
 }
 
