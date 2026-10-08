@@ -96,6 +96,7 @@ interface DeferredRawExecCall {
     canonicalItemId?: string;
     canonicalCompleted?: boolean;
     fallbackId?: string;
+    fallbackResultEmitted?: boolean;
   }>;
   hasRawOutput?: boolean;
   rawOutput?: unknown;
@@ -120,6 +121,7 @@ export class CodexNotificationRouter {
   private streamedAgentMessageTextById = new Map<string, string>();
   private emittedMemoryCitationIds = new Set<string>();
   private emittedMemoryCitationKeys = new Set<string>();
+  private emittedToolResultIds = new Set<string>();
   private streamedAssistantTurnText = '';
   private currentAssistantSegmentId: string | undefined;
   private currentAssistantSegmentText = '';
@@ -168,6 +170,11 @@ export class CodexNotificationRouter {
   ) {}
 
   private emit(chunk: StreamChunk): void {
+    if (chunk.type === 'tool_result') {
+      const id = this.rawExecAliases.get(chunk.id) ?? chunk.id;
+      if (this.emittedToolResultIds.has(id)) return;
+      this.emittedToolResultIds.add(id);
+    }
     if (chunk.type === 'tool_use' || chunk.type === 'tool_result' || chunk.type === 'tool_output') {
       const id = this.rawExecAliases.get(chunk.id);
       if (id) {
@@ -241,6 +248,7 @@ export class CodexNotificationRouter {
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
+    this.emittedToolResultIds.clear();
     this.resetAssistantTextTracking();
     this.seenRawCallIds.clear();
     this.pendingRawOutputItemsByCallId.clear();
@@ -284,6 +292,7 @@ export class CodexNotificationRouter {
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
+    this.emittedToolResultIds.clear();
     this.resetAssistantTextTracking();
     this.seenRawCallIds.clear();
     this.pendingRawOutputItemsByCallId.clear();
@@ -373,6 +382,7 @@ export class CodexNotificationRouter {
   }
 
   private onAgentMessageDelta(params: AgentMessageDeltaNotification): void {
+    this.publishDeferredRawExecCalls();
     const previousText = this.streamedAgentMessageTextById.get(params.itemId) ?? '';
     this.streamedAgentMessageTextById.set(params.itemId, previousText + params.delta);
     this.appendAssistantText(params.delta, params.itemId);
@@ -380,14 +390,17 @@ export class CodexNotificationRouter {
   }
 
   private onReasoningSummaryDelta(params: ReasoningSummaryTextDeltaNotification): void {
+    this.publishDeferredRawExecCalls();
     this.emit({ type: 'thinking', content: params.delta });
   }
 
   private onReasoningTextDelta(params: ReasoningTextDeltaNotification): void {
+    this.publishDeferredRawExecCalls();
     this.emit({ type: 'thinking', content: params.delta });
   }
 
   private onPlanDelta(params: PlanDeltaNotification): void {
+    this.publishDeferredRawExecCalls();
     this.sawPlanDelta = true;
     this.emitAssistantMessageBoundary(params.itemId);
     this.appendAssistantText(params.delta, params.itemId);
@@ -398,6 +411,7 @@ export class CodexNotificationRouter {
     const item = params.item;
     if (item.type === 'agentMessage' && this.handleAsyncQuestion(item, false)) return;
     const itemId = getItemId(item);
+    if (item.type === 'agentMessage') this.publishDeferredRawExecCalls();
     const deferredOwned = this.claimDeferredRawExecFromItem(item, false);
     if (item.type === 'commandExecution' && !deferredOwned) {
       if (this.claimPendingRawCommand(item)) {
@@ -499,6 +513,7 @@ export class CodexNotificationRouter {
       return;
     }
     const itemId = getItemId(item);
+    if (item.type === 'agentMessage') this.publishDeferredRawExecCalls();
     if (itemId && isCanonicalToolItem(item)) {
       if (this.completedCanonicalToolItemIds.has(itemId)) {
         return;
@@ -623,6 +638,7 @@ export class CodexNotificationRouter {
       case 'message':
         if (itemType === 'agentMessage'
           && this.handleAsyncQuestion(item as unknown as AgentMessageItem, true)) break;
+        this.publishDeferredRawExecCalls();
         this.emitMissingRawAgentMessageText(item);
         break;
 
@@ -645,6 +661,7 @@ export class CodexNotificationRouter {
     const text = stripCodexMemoryCitationMarkup(
       firstString(payload.text, payload.message),
     );
+    this.publishDeferredRawExecCalls();
     this.emitMissingAssistantTurnText(text);
     this.emitMemoryCitation(
       payload.memory_citation ?? payload.memoryCitation,
@@ -1153,6 +1170,16 @@ export class CodexNotificationRouter {
     this.deferredRawExecCalls.clear();
   }
 
+  private publishDeferredRawExecCalls(emitAvailableResults = true): void {
+    for (const deferredExec of this.deferredRawExecCalls.values()) {
+      this.emitDeferredRawExecFallback(
+        deferredExec,
+        deferredExec.rawOutput,
+        emitAvailableResults && Boolean(deferredExec.hasRawOutput),
+      );
+    }
+  }
+
   private flushPendingWrappedWaitCalls(terminalError: boolean): void {
     for (const [callId, waitCall] of this.pendingWrappedWaitCallsByCallId) {
       this.pendingWrappedWaitCallsByCallId.delete(callId);
@@ -1248,9 +1275,9 @@ export class CodexNotificationRouter {
       if (!call.fallbackId) {
         this.resetAssistantSegmentText();
         this.emit({ type: 'tool_use', id: fallbackId, name: call.name, input: call.input });
-        if (this.streamRawExecCalls) call.fallbackId = fallbackId;
+        call.fallbackId = fallbackId;
       }
-      if (emitResult) {
+      if (emitResult && !call.fallbackResultEmitted) {
         this.emit({
           type: 'tool_result',
           id: fallbackId,
@@ -1258,6 +1285,7 @@ export class CodexNotificationRouter {
           isError: isCodexToolOutputError(rawOutputText)
             || (terminalError && !deferredExec.hasRawOutput),
         });
+        call.fallbackResultEmitted = true;
       }
     });
     return true;
@@ -1638,6 +1666,7 @@ export class CodexNotificationRouter {
     if (claimed) {
       this.deferredOwnedCanonicalItemIds.add(itemId);
     }
+    this.publishDeferredRawExecCalls(false);
     this.startedCanonicalToolItemIds.add(itemId);
 
     this.resetAssistantSegmentText();
@@ -1772,7 +1801,7 @@ export class CodexNotificationRouter {
   private emitToolUseFromDynamic(item: DynamicToolCallItem): void {
     this.emitRawToolUse(
       item.id,
-      item.tool,
+      getDynamicToolName(item),
       {},
       asRecord(item.arguments) ?? {},
       true,
@@ -1952,6 +1981,7 @@ export class CodexNotificationRouter {
       syntheticId,
       true,
     );
+    this.publishDeferredRawExecCalls(false);
 
     this.resetAssistantSegmentText();
     this.emit({ type: 'tool_use', id: syntheticId, name: 'TodoWrite', input: { todos } });
@@ -2129,7 +2159,7 @@ function buildCanonicalToolProjection(
 
     case 'dynamicToolCall': {
       const normalized = normalizeCodexToolCall(
-        item.tool,
+        getDynamicToolName(item),
         asRecord(item.arguments) ?? {},
       );
       return { itemId: item.id, ...normalized };
@@ -2138,6 +2168,10 @@ function buildCanonicalToolProjection(
     default:
       return null;
   }
+}
+
+function getDynamicToolName(item: DynamicToolCallItem): string {
+  return item.namespace ? `${item.namespace}__${item.tool}` : item.tool;
 }
 
 function readCanonicalCommand(item: CommandExecutionItem): string {
@@ -2289,10 +2323,27 @@ function toolInputsCompatible(
     const expectedChanges = extractRawPatchChanges(expected.patch, workingDirectory);
     const actualChanges = extractCanonicalFileChanges(actual.changes, workingDirectory);
     if (expectedChanges.length > 0 || actualChanges.length > 0) {
-      if (expectedChanges.some(change => change.kind === 'update' && !change.hasContext)) {
-        return false;
-      }
-      return stableValueKey(expectedChanges) === stableValueKey(actualChanges);
+      return expectedChanges.length === actualChanges.length && expectedChanges.every((expectedChange, index) => {
+        const actualChange = actualChanges[index];
+        if (
+          expectedChange.path !== actualChange.path
+          || expectedChange.kind !== actualChange.kind
+          || expectedChange.movePath !== actualChange.movePath
+        ) {
+          return false;
+        }
+        if (expectedChange.kind !== 'update') {
+          return stableValueKey(expectedChange.lines) === stableValueKey(actualChange.lines);
+        }
+
+        const edits = (lines: string[]) => lines.filter(line => line.startsWith('+') || line.startsWith('-'));
+        if (stableValueKey(edits(expectedChange.lines)) !== stableValueKey(edits(actualChange.lines))) {
+          return false;
+        }
+        return expectedChange.lines.length > 0 && actualChange.lines.some((_line, start) => (
+          expectedChange.lines.every((line, offset) => actualChange.lines[start + offset] === line)
+        ));
+      });
     }
   }
 
@@ -2354,7 +2405,6 @@ interface ComparedFileChange {
   kind: string;
   movePath?: string;
   lines: string[];
-  hasContext: boolean;
 }
 
 function extractRawPatchChanges(
@@ -2376,7 +2426,6 @@ function extractRawPatchChanges(
         path: normalizeComparedFilePath(match[2], workingDirectory),
         kind: normalizeComparedChangeKind(match[1]),
         lines: [],
-        hasContext: false,
       };
       continue;
     }
@@ -2392,13 +2441,11 @@ function extractRawPatchChanges(
       const anchor = extractRawPatchHunkAnchor(line);
       if (anchor) {
         current.lines.push(`@${anchor}`);
-        current.hasContext = true;
       }
     } else if (line.startsWith('+') || line.startsWith('-')) {
       current.lines.push(line);
     } else if (line.startsWith(' ')) {
       current.lines.push(line);
-      current.hasContext = true;
     }
   }
   if (current) {
@@ -2425,27 +2472,23 @@ function extractCanonicalFileChanges(
         return null;
       }
       const lines: string[] = [];
-      let hasContext = false;
+      let inHunk = false;
       for (const line of firstString(record.diff).split('\n')) {
         if (line.startsWith('@@')) {
+          inHunk = true;
           const anchor = extractCanonicalDiffHunkAnchor(line);
           if (anchor) {
             lines.push(`@${anchor}`);
-            hasContext = true;
           }
           continue;
         }
-        if (
-          line.startsWith('+++ ')
-          || line.startsWith('--- ')
-        ) {
+        if (!inHunk && (line.startsWith('+++ ') || line.startsWith('--- '))) {
           continue;
         }
         if (line.startsWith('+') || line.startsWith('-')) {
           lines.push(line);
         } else if (line.startsWith(' ')) {
           lines.push(line);
-          hasContext = true;
         }
       }
       const movePath = firstString(record.movePath);
@@ -2463,7 +2506,6 @@ function extractCanonicalFileChanges(
             }
           : {}),
         lines,
-        hasContext,
       };
     })
     .filter((change): change is ComparedFileChange => change !== null)
@@ -2611,7 +2653,27 @@ function normalizeRawToolOutput(
 }
 
 function buildFileChangeInput(changes: unknown): Record<string, unknown> {
-  return { changes: normalizeFileChanges(changes) };
+  return {
+    changes: normalizeFileChanges(changes).map(change => {
+      if (
+        (change.kind !== 'add' && change.kind !== 'delete')
+        || typeof change.diff !== 'string'
+        || !change.diff
+      ) {
+        return change;
+      }
+
+      const lines = change.diff.replace(/\n$/, '').split('\n');
+      const prefix = change.kind === 'add' ? '+' : '-';
+      const header = change.kind === 'add'
+        ? `@@ -0,0 +1,${lines.length} @@`
+        : `@@ -1,${lines.length} +0,0 @@`;
+      return {
+        ...change,
+        diff: `${header}\n${lines.map(line => `${prefix}${line}`).join('\n')}`,
+      };
+    }),
+  };
 }
 
 function mergeApplyPatchInputs(
