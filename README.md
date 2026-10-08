@@ -4,7 +4,9 @@ Bring your coding agent into [Obsidian](https://obsidian.md/): ask questions abo
 
 [Install](https://community.obsidian.md/plugins/oh-my-claudian) · [Quick start](#quick-start) · [Usage](#usage) · [Releases](https://github.com/lee259/oh-my-claudian/releases) · [Report a bug](https://github.com/lee259/oh-my-claudian/issues)
 
-![Sidebar chat and file editing in Obsidian](assets/Preview.png)
+![AI-generated illustration of note context, completed work, and an expanded edit diff in Oh My Claudian](assets/PreviewIllustration.png)
+
+*AI-generated illustration of the current workflow; interface details may vary by theme and provider.*
 
 ## What you can do
 
