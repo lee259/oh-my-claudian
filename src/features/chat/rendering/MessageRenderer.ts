@@ -779,7 +779,7 @@ export class MessageRenderer {
         firstAssistant,
       );
       completedWork?.setAttribute('data-transcript-turn-id', turn.id);
-      this.removeEmptyTranscriptAssistantMessages(turn, assistantElements);
+      this.removeEmptyTranscriptAssistantMessages(assistantElements);
       return;
     }
     const foldedTimeline = timeline.items
@@ -798,24 +798,16 @@ export class MessageRenderer {
       firstAssistant,
     );
     completedWork?.setAttribute('data-transcript-turn-id', turn.id);
-    this.removeEmptyTranscriptAssistantMessages(turn, assistantElements);
+    this.removeEmptyTranscriptAssistantMessages(assistantElements);
   }
 
   private removeEmptyTranscriptAssistantMessages(
-    turn: TranscriptTurnProjection,
     messageElements: readonly HTMLElement[],
   ): void {
     for (const messageEl of messageElements) {
       const contentEl = messageEl.querySelector<HTMLElement>('.claudian-message-content');
-      const run = turn.runs.find(candidate => candidate.messageId === messageEl.dataset.messageId);
-      const hasNarration = !!run && (
-        !!run.message.content.trim()
-        || run.blocks.some(({ block }) => {
-          if (block.type === 'text' || block.type === 'thinking') return !!block.content.trim();
-          return block.type !== 'tool_use';
-        })
-      );
-      if (!hasNarration && contentEl?.children.length === 0) messageEl.remove();
+      const hostsCompletedWork = messageEl.hasClass('claudian-completed-work');
+      if (!hostsCompletedWork && (!contentEl || contentEl.children.length === 0)) messageEl.remove();
     }
   }
 
