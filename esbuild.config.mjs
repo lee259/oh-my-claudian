@@ -1,6 +1,5 @@
 import esbuild from 'esbuild';
 import { builtinModules } from 'node:module';
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import path from 'path';
 import process from 'process';
@@ -14,6 +13,7 @@ import {
 } from 'fs';
 import rendererSafeUnrefHelpers from './scripts/rendererSafeUnref.js';
 import sdkImportMetaHelpers from './scripts/sdkImportMeta.js';
+import compressedStaticAssetsHelpers from './scripts/compressedStaticAssets.js';
 import { getDevelopmentWatchFiles } from './scripts/devWatchFiles.mjs';
 import { resolveObsidianPluginPath } from './scripts/obsidianPluginPath.mjs';
 
@@ -22,6 +22,7 @@ const {
   patchRendererUnsafeUnrefSites,
 } = rendererSafeUnrefHelpers;
 const { SDK_IMPORT_META_FILTER, patchSdkImportMetaUrl } = sdkImportMetaHelpers;
+const { createCompressedStaticAssetsPlugin } = compressedStaticAssetsHelpers;
 
 // Load .env.local if it exists
 if (existsSync('.env.local')) {
@@ -114,28 +115,6 @@ const watchDevelopmentResources = {
   },
 };
 
-const compressLocaleJson = {
-  name: 'compress-locale-json',
-  setup(build) {
-    if (!prod) return;
-
-    build.onLoad({ filter: /[\\/]src[\\/]i18n[\\/]locales[\\/].+\.json$/ }, async (args) => {
-      const contents = await fsPromises.readFile(args.path);
-      const compressed = brotliCompressSync(contents, {
-        params: {
-          [zlibConstants.BROTLI_PARAM_QUALITY]: 9,
-        },
-      });
-      const base64 = compressed.toString('base64');
-
-      return {
-        contents: `module.exports = JSON.parse(require('node:zlib').brotliDecompressSync(Buffer.from('${base64}', 'base64')).toString('utf8'));`,
-        loader: 'js',
-      };
-    });
-  },
-};
-
 const writeBundleMetafile = {
   name: 'write-bundle-metafile',
   setup(build) {
@@ -207,7 +186,7 @@ const mainContext = await esbuild.context({
   bundle: true,
   plugins: [
     patchSdkImportMeta,
-    compressLocaleJson,
+    ...(prod ? [createCompressedStaticAssetsPlugin()] : []),
     watchDevelopmentResources,
     writeBundleMetafile,
     createPatchRendererUnsafeUnref(['main.js']),
