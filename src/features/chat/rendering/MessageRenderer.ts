@@ -672,7 +672,9 @@ export class MessageRenderer {
         turnEl.setAttribute('data-transcript-turn-id', turn.id);
         parent.insertBefore(turnEl, first);
       }
-      for (const messageEl of messageElements) turnEl.appendChild(messageEl);
+      for (const messageEl of messageElements) {
+        if (messageEl.parentElement !== turnEl) turnEl.appendChild(messageEl);
+      }
 
       if (!mergeWork) continue;
       const workGroups = turn.runs.flatMap((run) => {

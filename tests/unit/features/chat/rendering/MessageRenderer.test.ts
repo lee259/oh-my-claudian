@@ -1659,6 +1659,59 @@ describe('MessageRenderer', () => {
     expect(Array.from(toolElements.values()).every(tool => work?.contains(tool))).toBe(true);
   });
 
+  it('keeps finalized turn order when grouping the next turn', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const createMessage = (id: string, role: 'user' | 'assistant', text: string) => {
+      const message = messagesEl.createDiv({ cls: `claudian-message claudian-message-${role}` });
+      message.setAttribute('data-message-id', id);
+      const content = message.createDiv({ cls: 'claudian-message-content' });
+      if (text) content.createDiv({ cls: 'claudian-text-block', text });
+      return { message, content };
+    };
+    createMessage('stable-order-user-one', 'user', 'First prompt.');
+    const firstAssistant = createMessage('stable-order-assistant-one', 'assistant', 'First answer.');
+    const tool = firstAssistant.content.createDiv({ cls: 'claudian-tool-call' });
+    tool.setAttribute('data-tool-id', 'stable-order-tool');
+    tool.dataset.transcriptItemId = 'stable-order-assistant-one:tool:stable-order-tool';
+    const firstTurnMessages = [
+      { id: 'stable-order-user-one', role: 'user', content: 'First prompt.', timestamp: 1 },
+      {
+        id: 'stable-order-assistant-one', role: 'assistant', content: 'First answer.', timestamp: 2,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'stable-order-tool' },
+          { type: 'text', content: 'First answer.' },
+        ],
+        toolCalls: [{ id: 'stable-order-tool', name: 'Read', input: {}, status: 'completed' }],
+      },
+    ] as ChatMessage[];
+
+    (renderer as any).groupRenderedTranscriptTurns(firstTurnMessages, false);
+    (renderer as any).finalizeTranscriptTurn(projectTranscript(firstTurnMessages)[0]);
+    const firstTurnEl = messagesEl.querySelector('.claudian-transcript-turn');
+    const completedWork = firstTurnEl?.querySelector('.claudian-completed-work');
+
+    const secondUser = createMessage('stable-order-user-two', 'user', 'Second prompt.');
+    const secondAssistant = createMessage('stable-order-assistant-two', 'assistant', 'Second answer.');
+    const allMessages = [
+      ...firstTurnMessages,
+      { id: 'stable-order-user-two', role: 'user', content: 'Second prompt.', timestamp: 3 },
+      { id: 'stable-order-assistant-two', role: 'assistant', content: 'Second answer.', timestamp: 4 },
+    ] as ChatMessage[];
+
+    (renderer as any).groupRenderedTranscriptTurns(allMessages, false);
+
+    expect((Array.from(firstTurnEl?.children ?? []) as MockElement[]).map((element) =>
+      element === completedWork ? 'fold' : element.dataset.messageId,
+    )).toEqual(['stable-order-user-one', 'fold', 'stable-order-assistant-one']);
+    const secondTurnEl = (Array.from(
+      messagesEl.querySelectorAll('.claudian-transcript-turn'),
+    ) as MockElement[]).find((element) => element.dataset.transcriptTurnId === 'stable-order-user-two');
+    expect((Array.from(secondTurnEl?.children ?? []) as MockElement[]).map((element) => element.dataset.messageId))
+      .toEqual([secondUser.message.dataset.messageId, secondAssistant.message.dataset.messageId]);
+  });
+
   it('keeps preceding run narration separate from merged activity phases', () => {
     const messagesEl = createMockEl();
     enableDomLikeNodeMoves(messagesEl);
