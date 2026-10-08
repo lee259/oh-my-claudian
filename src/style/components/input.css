@@ -266,6 +266,18 @@
   line-height: inherit;
 }
 
+.claudian-input-command-highlight--clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.claudian-input-command-highlight--clickable:hover {
+  color: var(--link-color-hover);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+}
+
 .claudian-input-command-highlight-prefix {
   color: var(--interactive-accent);
 }

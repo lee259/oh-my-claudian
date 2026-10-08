@@ -1,20 +1,42 @@
 /** @jest-environment jsdom */
 
+const mockModalInstances: Array<{ close: () => void }> = [];
+const mockComponents: Array<{ load: jest.Mock; unload: jest.Mock }> = [];
+
 jest.mock('obsidian', () => ({
   Modal: class MockModal {
+    app: unknown;
     contentEl = document.createElement('div');
     modalEl = document.createElement('div');
-    constructor(_app: unknown) {}
-    close(): void {}
-    open(): void {}
+    constructor(app: unknown) {
+      this.app = app;
+      Object.assign(this.contentEl, {
+        empty: () => { this.contentEl.replaceChildren(); },
+        addClass: (className: string) => { this.contentEl.classList.add(className); },
+      });
+      Object.assign(this.modalEl, {
+        addClass: (className: string) => { this.modalEl.classList.add(className); },
+      });
+      mockModalInstances.push(this);
+    }
+    close(): void { (this as unknown as { onClose?: () => void }).onClose?.(); }
+    open(): void { void (this as unknown as { onOpen?: () => Promise<void> }).onOpen?.(); }
     setTitle(): void {}
   },
+  Component: class MockComponent {
+    load = jest.fn();
+    unload = jest.fn();
+    constructor() { mockComponents.push(this); }
+  },
+  MarkdownRenderer: { render: jest.fn().mockResolvedValue(undefined) },
   Notice: jest.fn(),
   Setting: class MockSetting {},
   setIcon: (element: HTMLElement, icon: string) => {
     element.dataset.icon = icon;
   },
 }));
+
+import { MarkdownRenderer } from 'obsidian';
 
 import type { AgentSkillListResult } from '@/core/skills/AgentSkill';
 import { AgentSkillSettings } from '@/shared/settings/AgentSkillSettings';
@@ -32,6 +54,12 @@ function createCoordinator(result: AgentSkillListResult) {
 }
 
 describe('AgentSkillSettings Preact view', () => {
+  beforeEach(() => {
+    mockModalInstances.length = 0;
+    mockComponents.length = 0;
+    jest.mocked(MarkdownRenderer.render).mockClear();
+  });
+
   it('renders shared skills and diagnostics through its public constructor', async () => {
     const container = document.createElement('div');
     const providerSetting = document.createElement('div');
@@ -76,5 +104,40 @@ describe('AgentSkillSettings Preact view', () => {
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(container.querySelector('.claudian-agent-skills-manager')?.childElementCount).toBe(0);
+  });
+
+  it('opens a rendered skill preview and unloads its markdown component when closed', async () => {
+    const container = document.createElement('div');
+    const skill = {
+      name: 'release-notes',
+      description: 'Prepare release notes',
+      instructions: 'Summarize changes',
+      frontmatter: {},
+      directoryPath: '.agents/skills/release-notes',
+      filePath: '.agents/skills/release-notes/SKILL.md',
+      revision: 'revision-1',
+    };
+    const settings = new AgentSkillSettings(
+      container,
+      createCoordinator({ skills: [skill], diagnostics: [] }) as never,
+      {} as never,
+    );
+    await tick();
+
+    (container.querySelector('.claudian-agent-skill-item-link') as HTMLButtonElement).click();
+    await tick();
+
+    expect(MarkdownRenderer.render).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Summarize changes'),
+      expect.any(HTMLElement),
+      '.agents/skills/release-notes/SKILL.md',
+      mockComponents[0],
+    );
+    expect(mockComponents[0]?.load).toHaveBeenCalledTimes(1);
+
+    mockModalInstances.at(-1)?.close();
+    expect(mockComponents[0]?.unload).toHaveBeenCalledTimes(1);
+    settings.dispose();
   });
 });

@@ -7,7 +7,8 @@
 
 import type { App, Component } from 'obsidian';
 
-import { getVaultFileByPath } from './obsidianCompat';
+import { parseFileReference } from './FileReference';
+import { getVaultFileByPath, isExternalTextFilePath, openVaultFile } from './obsidianCompat';
 import { getVaultPath, normalizePathForVault } from './path';
 export { stripFileLineRange } from './FileReference';
 
@@ -293,10 +294,18 @@ export function registerFileLinkHandler(
       const linkTarget = link.dataset.href || link.getAttribute('href');
       if (linkTarget) {
         if (link.dataset.claudianFolderLink === 'true') revealFolder(app, linkTarget);
+        else if (shouldOpenThroughFileCompatibility(linkTarget)) void openVaultFile(app, linkTarget);
         else void app.workspace.openLinkText(linkTarget, '', 'tab');
       }
     }
   });
+}
+
+function shouldOpenThroughFileCompatibility(linkTarget: string): boolean {
+  const pathWithoutHeading = linkTarget.split('#', 1)[0] ?? linkTarget;
+  const filePath = parseFileReference(pathWithoutHeading).path;
+  return isExternalTextFilePath(filePath)
+    || /^\/?\.agents\/skills\/[a-z0-9]+(?:-[a-z0-9]+)*\/SKILL\.md$/iu.test(filePath);
 }
 
 function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: WikilinkMatch[]): DocumentFragment {

@@ -1,4 +1,4 @@
-import { type App, Modal, Notice, Setting } from 'obsidian';
+import { type App, Component, MarkdownRenderer, Modal, Notice, Setting } from 'obsidian';
 import { h } from 'preact';
 
 import type {
@@ -6,6 +6,7 @@ import type {
   AgentSkillInput,
   AgentSkillListResult,
 } from '../../core/skills/AgentSkill';
+import { serializeAgentSkillMarkdown } from '../../core/skills/AgentSkillCodec';
 import {
   AgentSkillCollisionError,
   AgentSkillRepositoryError,
@@ -25,7 +26,7 @@ import type {
 } from '../../features/settings/AgentSkillManagementCoordinator';
 import { t } from '../../i18n/i18n';
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
-import { type AgentSkillSettingsStatus,AgentSkillSettingsView } from './AgentSkillSettingsView';
+import { type AgentSkillSettingsStatus, AgentSkillSettingsView } from './AgentSkillSettingsView';
 
 type AgentSkillSaveHandler = (
   input: AgentSkillInput,
@@ -228,6 +229,42 @@ export class AgentSkillDeleteModal extends Modal {
   }
 }
 
+class AgentSkillPreviewModal extends Modal {
+  private markdownComponent: Component | null = null;
+
+  constructor(app: App, private readonly skill: AgentSkillDocument) {
+    super(app);
+  }
+
+  async onOpen(): Promise<void> {
+    this.setTitle(this.skill.name);
+    this.modalEl.addClass('claudian-agent-skill-preview-modal');
+    this.contentEl.addClass('claudian-agent-skill-preview');
+    this.contentEl.empty();
+
+    const component = new Component();
+    component.load();
+    this.markdownComponent = component;
+    await MarkdownRenderer.render(
+      this.app,
+      serializeAgentSkillMarkdown(this.skill.frontmatter, {
+        name: this.skill.name,
+        description: this.skill.description,
+        instructions: this.skill.instructions,
+      }),
+      this.contentEl,
+      this.skill.filePath,
+      component,
+    );
+  }
+
+  onClose(): void {
+    this.markdownComponent?.unload();
+    this.markdownComponent = null;
+    this.contentEl.empty();
+  }
+}
+
 const agentSkillDisposers = new WeakMap<HTMLElement, () => void>();
 
 /** Unmount embedded Agent Skills views before provider settings are cleared. */
@@ -309,6 +346,7 @@ export class AgentSkillSettings {
       diagnostics: this.diagnostics,
       onRefresh: () => { void this.render(); },
       onAdd: () => this.openEditModal(null),
+      onOpen: skill => { new AgentSkillPreviewModal(this.app, skill).open(); },
       onEdit: skill => this.openEditModal(skill),
       onDelete: skill => this.openDeleteModal(skill),
     }));
