@@ -1413,7 +1413,7 @@ describe('CodexNotificationRouter', () => {
           changes: [{
             path: '/workspace/note.md',
             type: 'add',
-            diff: '@@ -0,0 +1 @@\n+hello',
+            diff: 'hello\n',
           }],
           status: 'inProgress',
         },
@@ -1427,7 +1427,7 @@ describe('CodexNotificationRouter', () => {
           changes: [{
             path: '/workspace/note.md',
             type: 'add',
-            diff: '@@ -0,0 +1 @@\n+hello',
+            diff: 'hello\n',
           }],
           status: 'completed',
         },
@@ -1646,7 +1646,7 @@ describe('CodexNotificationRouter', () => {
             changes: [{
               path: '/workspace/same.md',
               type: 'add',
-              diff: '@@ -0,0 +1 @@\n+canonical',
+              diff: 'canonical\n',
             }],
             status: method === 'item/started' ? 'inProgress' : 'completed',
           },
@@ -1792,6 +1792,49 @@ describe('CodexNotificationRouter', () => {
         .map(chunk => chunk.id);
       expect(lifecycleIds.every(id => id === 'canonical_patch')).toBe(true);
       expect(chunks.filter(chunk => chunk.type === 'tool_result')).toHaveLength(1);
+    });
+
+    it('matches requested update context when the native diff includes surrounding lines', () => {
+      router.beginTurn({ isPlanTurn: false });
+      const patch = [
+        '*** Begin Patch',
+        '*** Update File: note.md',
+        '@@',
+        ' context',
+        '-old',
+        '+new',
+        '*** End Patch',
+      ].join('\n');
+      const change = {
+        path: '/workspace/note.md',
+        type: 'update',
+        diff: '@@ -1,4 +1,4 @@\n before\n context\n-old\n+new\n after',
+      };
+
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call',
+        name: 'exec',
+        call_id: 'call_context_patch',
+        input: `const patch = ${JSON.stringify(patch)}; text(await tools.apply_patch(patch));`,
+      } });
+      for (const method of ['item/started', 'item/completed']) {
+        router.handleNotification(method, {
+          item: {
+            type: 'fileChange',
+            id: 'canonical_context_patch',
+            changes: [change],
+            status: method === 'item/started' ? 'inProgress' : 'completed',
+          },
+        });
+      }
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call_output',
+        call_id: 'call_context_patch',
+        output: 'Success. Updated files.',
+      } });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_use' || chunk.type === 'tool_result')
+        .every(chunk => chunk.id === 'canonical_context_patch')).toBe(true);
     });
 
     it('correlates matching move patches across raw and canonical kind shapes', () => {
@@ -3644,7 +3687,7 @@ describe('CodexNotificationRouter', () => {
       const changes = [{
         path: '/workspace/note.md',
         type: 'add',
-        diff: '@@ -0,0 +1 @@\n+hello',
+        diff: 'hello\n',
       }];
 
       router.handleNotification('rawResponseItem/completed', {
@@ -4829,6 +4872,77 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('dynamicToolCall', () => {
+    it('publishes unresolved exec tools before later assistant text', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call',
+        name: 'exec',
+        call_id: 'unmatched-script',
+        input: 'text(await tools.codex_app__missing_operation({}));',
+      } });
+      router.handleNotification('item/agentMessage/delta', { itemId: 'answer', delta: 'Done.' });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks).toEqual([
+        {
+          type: 'tool_use',
+          id: 'unmatched-script',
+          name: 'codex_app__missing_operation',
+          input: {},
+        },
+        { type: 'text', content: 'Done.' },
+        { type: 'tool_result', id: 'unmatched-script', content: '', isError: false },
+        { type: 'done' },
+      ]);
+    });
+
+    it('keeps namespaced script tools in order with their native lifecycle before the answer', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call',
+        name: 'exec',
+        call_id: 'dependencies-script',
+        input: 'text(await tools.codex_app__load_workspace_dependencies({}));',
+      } });
+      const item = {
+        type: 'dynamicToolCall',
+        id: 'dependencies-native',
+        namespace: 'codex_app',
+        tool: 'load_workspace_dependencies',
+        arguments: {},
+      };
+      router.handleNotification('item/started', { item: { ...item, status: 'inProgress' } });
+      router.handleNotification('item/completed', { item: {
+        ...item,
+        status: 'completed',
+        contentItems: [{ type: 'inputText', text: 'Available.' }],
+        success: true,
+      } });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call_output',
+        call_id: 'dependencies-script',
+        output: 'Available.',
+      } });
+      router.handleNotification('item/agentMessage/delta', { itemId: 'answer', delta: 'Ready.' });
+      router.handleNotification('turn/completed', {
+        turn: { id: 'turn', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks).toEqual([
+        {
+          type: 'tool_use',
+          id: 'dependencies-native',
+          name: 'codex_app__load_workspace_dependencies',
+          input: {},
+        },
+        { type: 'tool_result', id: 'dependencies-native', content: 'Available.', isError: false },
+        { type: 'text', content: 'Ready.' },
+        { type: 'done' },
+      ]);
+    });
+
     it('maps canonical dynamic tool lifecycle events to tool chunks', () => {
       router.handleNotification('item/started', {
         item: {
@@ -4865,7 +4979,7 @@ describe('CodexNotificationRouter', () => {
         {
           type: 'tool_use',
           id: 'call_dynamic1',
-          name: 'load_workspace_dependencies',
+          name: 'codex_app__load_workspace_dependencies',
           input: {},
         },
         {
@@ -5126,6 +5240,35 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('file change output delta', () => {
+    it.each([
+      ['add', '@@ -0,0 +1,2 @@\n+first\n+second'],
+      ['delete', '@@ -1,2 +0,0 @@\n-first\n-second'],
+    ])('renders native %s-file contents as a line-based patch', (kind, expectedDiff) => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('item/started', {
+        item: {
+          type: 'fileChange',
+          id: 'fc_add',
+          changes: [{ path: '/workspace/note.md', type: kind, diff: 'first\nsecond\n' }],
+          status: 'inProgress',
+        },
+      });
+
+      expect(chunks).toContainEqual({
+        type: 'tool_use',
+        id: 'fc_add',
+        name: 'apply_patch',
+        input: {
+          changes: [{
+            path: '/workspace/note.md',
+            kind,
+            type: kind,
+            diff: expectedDiff,
+          }],
+        },
+      });
+    });
+
     const startFileChange = (): void => {
       router.handleNotification('item/started', {
         threadId: 't1',
@@ -5277,6 +5420,40 @@ describe('CodexNotificationRouter', () => {
       expect(chunks).toEqual([
         { type: 'assistant_message_start', itemId: 'a1' },
       ]);
+    });
+  });
+
+  describe('streamed raw exec reconciliation', () => {
+    it('keeps one tool result when a streamed fallback later matches a native file change', () => {
+      router = new CodexNotificationRouter(
+        chunk => chunks.push(chunk),
+        update => turnMetadata.push(update),
+        '/workspace',
+        true,
+      );
+      router.beginTurn({ isPlanTurn: false });
+      const patch = '*** Begin Patch\n*** Add File: note.md\n+hello\n*** End Patch';
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call',
+        name: 'exec',
+        call_id: 'call_patch',
+        input: `const patch = ${JSON.stringify(patch)}; text(await tools.apply_patch(patch));`,
+      } });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call_output',
+        call_id: 'call_patch',
+        output: 'Success. Updated files.',
+      } });
+      const fileChange = {
+        type: 'fileChange',
+        id: 'canonical_patch',
+        changes: [{ path: '/workspace/note.md', type: 'add', diff: 'hello\n' }],
+        status: 'completed',
+      };
+      router.handleNotification('item/started', { item: { ...fileChange, status: 'inProgress' } });
+      router.handleNotification('item/completed', { item: fileChange });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toHaveLength(1);
     });
   });
 

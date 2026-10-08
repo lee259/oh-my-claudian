@@ -270,6 +270,50 @@ describe('buildActivityTimeline', () => {
     expect(timeline.fold).toEqual({ start: 0, end: 0 });
   });
 
+  it('folds completed assistant runs while leaving the current OMP-style run visible', () => {
+    const messages: ChatMessage[] = [
+      { id: 'omp-live-user', role: 'user', content: 'Update the document.', timestamp: 1 },
+      {
+        id: 'omp-live-run-1', role: 'assistant', content: '', timestamp: 2,
+        contentBlocks: [
+          { type: 'thinking', content: 'Planning the first edit.' },
+          { type: 'tool_use', toolId: 'omp-live-read' },
+        ],
+        toolCalls: [{ id: 'omp-live-read', name: 'Read', input: {}, status: 'completed' }],
+      },
+      {
+        id: 'omp-live-run-2', role: 'assistant', content: '', timestamp: 3,
+        contentBlocks: [
+          { type: 'thinking', content: 'Applying the first change.' },
+          { type: 'tool_use', toolId: 'omp-live-edit' },
+        ],
+        toolCalls: [{ id: 'omp-live-edit', name: 'Edit', input: {}, status: 'completed' }],
+      },
+      {
+        id: 'omp-live-run-3', role: 'assistant', content: '', timestamp: 4,
+        contentBlocks: [
+          { type: 'thinking', content: 'Verifying the remaining sections.' },
+          { type: 'tool_use', toolId: 'omp-live-current-read' },
+        ],
+        toolCalls: [{ id: 'omp-live-current-read', name: 'Read', input: {}, status: 'running' }],
+      },
+    ];
+
+    const turn = projectTranscript(messages, { activeMessageId: 'omp-live-run-3' })[0];
+    const timeline = buildActivityTimeline(turn, { live: true });
+
+    expect(timeline.items).toHaveLength(3);
+    expect(timeline.items.map(item => item.type)).toEqual(['activity', 'activity', 'activity']);
+    expect(timeline.items.slice(0, 2).flatMap(item => item.type === 'activity'
+      ? item.phases.map(phase => phase.runId)
+      : [])).toEqual(['omp-live-run-1', 'omp-live-run-2']);
+    expect(timeline.fold).toEqual({ start: 0, end: 1 });
+    expect(timeline.items[2]).toMatchObject({
+      type: 'activity',
+      phases: [{ active: true, runId: 'omp-live-run-3' }],
+    });
+  });
+
   it('leaves the final answer outside the answered work fold', () => {
     const blocks: ContentBlock[] = [
       { type: 'thinking', content: 'Check the files.' },

@@ -75,6 +75,7 @@ export function buildActivityTimeline(
     : getSupersededInitialThinkingIndexes(blocks);
   const items: TranscriptTurnItem[] = [];
   let activityIndexes: number[] = [];
+  let activityRunId: string | undefined;
   let boundaryBeforeNext = false;
 
   const flushActivity = () => {
@@ -85,11 +86,14 @@ export function buildActivityTimeline(
       boundaryBefore: boundaryBeforeNext,
     });
     activityIndexes = [];
+    activityRunId = undefined;
     boundaryBeforeNext = false;
   };
 
   for (let index = 0; index < blocks.length; index += 1) {
     if (supersededInitialThinking.has(index)) continue;
+    const runId = projectedBlocks[index]?.runId;
+    if (options.live && activityIndexes.length > 0 && activityRunId !== runId) flushActivity();
     if (boundaryBeforeIndexes.has(index)) {
       flushActivity();
       boundaryBeforeNext = true;
@@ -106,6 +110,7 @@ export function buildActivityTimeline(
       }
       boundaryBeforeNext = false;
     } else if (isActivityBlock(block, pendingToolIds)) {
+      activityRunId ??= runId;
       activityIndexes.push(index);
     } else {
       flushActivity();
@@ -132,11 +137,51 @@ export function buildActivityTimeline(
     }
   }
 
-  const fold = findAnsweredWorkFold(items, blocks, options.backgroundToolIds ?? new Set<string>());
+  const backgroundToolIds = options.backgroundToolIds ?? new Set<string>();
+  const completedRunIds = getCompletedRunIds(projection);
+  const completedRunFold = options.live
+    ? findCompletedRunFold(items, projectedBlocks, blocks, completedRunIds, backgroundToolIds)
+    : undefined;
+  const fold = completedRunFold
+    ?? findAnsweredWorkFold(items, blocks, backgroundToolIds);
   return {
     items,
-    fold: options.live && fold ? extendLiveWorkFold(items, fold) : fold,
+    fold: completedRunFold ?? (options.live && fold ? extendLiveWorkFold(items, fold) : fold),
   };
+}
+
+function getCompletedRunIds(
+  projection: TranscriptRunProjection | TranscriptTurnProjection,
+): Set<string> {
+  const runs = 'runs' in projection ? projection.runs : [projection];
+  return new Set(runs.filter((run) => run.status === 'completed').map((run) => run.id));
+}
+
+function findCompletedRunFold(
+  items: TranscriptTurnItem[],
+  projectedBlocks: ProjectedTranscriptBlock[],
+  blocks: ContentBlock[],
+  completedRunIds: ReadonlySet<string>,
+  backgroundToolIds: ReadonlySet<string>,
+): ActivityTimeline['fold'] {
+  if (completedRunIds.size === 0) return undefined;
+  const yieldedAt = findYieldedAt(items, blocks, backgroundToolIds);
+  let end = -1;
+  let containsActivity = false;
+  for (let index = 0; index < yieldedAt; index += 1) {
+    const item = items[index];
+    if (item.boundaryBefore || !isFoldableItem(item)) break;
+    const blockIndexes = item.type === 'activity'
+      ? item.phases.flatMap((phase) => phase.stepIndexes)
+      : item.type === 'subagents'
+        ? item.blockIndexes
+        : [item.blockIndex];
+    const runIds = new Set(blockIndexes.map((blockIndex) => projectedBlocks[blockIndex]?.runId));
+    if (runIds.size === 0 || ![...runIds].every((runId) => !!runId && completedRunIds.has(runId))) break;
+    end = index;
+    containsActivity ||= item.type === 'activity' || item.type === 'subagents';
+  }
+  return end >= 0 && containsActivity ? { start: 0, end } : undefined;
 }
 
 function buildActivityPhases(
