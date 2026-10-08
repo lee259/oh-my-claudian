@@ -31,17 +31,17 @@ export function findCodexBinaryPath(
     return explicitPathBinary;
   }
 
-  const preferredBinary = findCodexBinaryInDirs(
-    getPreferredCodexBinaryDirs(platform),
-    platform,
-  );
-  if (preferredBinary) {
-    return preferredBinary;
+  if (platform === 'win32') {
+    const configuredInstallDir = process.env.CODEX_INSTALL_DIR?.trim();
+    if (configuredInstallDir) {
+      const dir = expandHomePath(stripSurroundingQuotes(configuredInstallDir));
+      if (isCompleteWindowsCodexRuntimeDir(dir)) {
+        return path.join(dir, 'codex.exe');
+      }
+    }
   }
 
-  // Respect the runtime PATH before falling back to legacy user-local
-  // locations. Obsidian may inherit a newer Node/fnm Codex earlier on PATH,
-  // while ~/.local/bin still contains an older installation.
+  // Honor the inherited PATH before choosing an automatically discovered install.
   if (platform === process.platform) {
     const runtimePathBinary = findCodexBinaryInDirs(
       parsePathEntriesForPlatform(process.env.PATH, platform),
@@ -52,6 +52,14 @@ export function findCodexBinaryPath(
     }
   }
 
+  const preferredBinary = findCodexBinaryInDirs(
+    getPreferredCodexBinaryDirs(platform),
+    platform,
+  );
+  if (preferredBinary) {
+    return preferredBinary;
+  }
+
   const userLocalBinary = findCodexBinaryInDirs(
     getUserLocalCodexBinaryDirs(platform),
     platform,
@@ -60,9 +68,8 @@ export function findCodexBinaryPath(
     return userLocalBinary;
   }
 
-  // The unified ChatGPT desktop app bundles a codex CLI. Treat it as a
-  // legacy-location fallback (after user-local installs) but prefer it over
-  // generic PATH auto-detection so the bundled binary is not shadowed.
+  // The unified ChatGPT desktop app bundles a codex CLI. Keep it as a fallback
+  // after the inherited PATH and user-local locations, ahead of generic lookup.
   const unifiedAppBinary = findCodexBinaryInDirs(
     getChatGptAppCodexDirs(platform),
     platform,
@@ -118,11 +125,6 @@ function getPreferredCodexBinaryDirs(platform: NodeJS.Platform): string[] {
 
 function getPreferredWindowsCodexBinaryDirs(): string[] {
   const preferredDirs: string[] = [];
-  const configuredInstallDir = process.env.CODEX_INSTALL_DIR?.trim();
-  if (configuredInstallDir) {
-    preferredDirs.push(expandHomePath(stripSurroundingQuotes(configuredInstallDir)));
-  }
-
   const localAppData = process.env.LOCALAPPDATA;
   if (localAppData) {
     preferredDirs.push(path.join(localAppData, 'Programs', 'OpenAI', 'Codex', 'bin'));

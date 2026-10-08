@@ -15,6 +15,7 @@ describe('CodexBinaryLocator', () => {
   const originalHome = process.env.HOME;
   const originalLocalAppData = process.env.LOCALAPPDATA;
   const originalPath = process.env.PATH;
+  const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-binary-locator-'));
@@ -22,6 +23,7 @@ describe('CodexBinaryLocator', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    Object.defineProperty(process, 'platform', originalPlatform);
     if (originalHome === undefined) {
       delete process.env.HOME;
     } else {
@@ -97,9 +99,46 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath('', 'win32')).toBe(newer);
   });
 
+  it('prefers inherited Windows PATH over automatically discovered runtimes', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    process.env.LOCALAPPDATA = tempDir;
+    delete process.env.CODEX_INSTALL_DIR;
+    const automaticDir = path.join(tempDir, 'Programs', 'OpenAI', 'Codex', 'bin');
+    const pathDir = path.join(tempDir, 'chosen-cli');
+    const automaticBinary = path.join(automaticDir, 'codex.exe');
+    const pathBinary = path.join(pathDir, 'codex.cmd');
+    fs.mkdirSync(automaticDir, { recursive: true });
+    fs.mkdirSync(pathDir, { recursive: true });
+    fs.writeFileSync(automaticBinary, '');
+    fs.writeFileSync(path.join(automaticDir, 'codex-code-mode-host.exe'), '');
+    fs.writeFileSync(pathBinary, '');
+    process.env.PATH = pathDir;
+
+    expect(findCodexBinaryPath('', 'win32')).toBe(pathBinary);
+  });
+
+  it('keeps the explicit Windows install directory ahead of inherited PATH', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    const installDir = path.join(tempDir, 'explicit-install');
+    const pathDir = path.join(tempDir, 'chosen-cli');
+    const installBinary = path.join(installDir, 'codex.exe');
+    fs.mkdirSync(installDir, { recursive: true });
+    fs.mkdirSync(pathDir, { recursive: true });
+    fs.writeFileSync(installBinary, '');
+    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '');
+    fs.writeFileSync(path.join(pathDir, 'codex.exe'), '');
+    process.env.CODEX_INSTALL_DIR = installDir;
+    process.env.PATH = pathDir;
+
+    expect(findCodexBinaryPath('', 'win32')).toBe(installBinary);
+    fs.unlinkSync(path.join(installDir, 'codex-code-mode-host.exe'));
+    expect(findCodexBinaryPath('', 'win32')).toBe(path.join(pathDir, 'codex.exe'));
+  });
+
   describeOnMac('macOS app bundle discovery', () => {
-  it('prefers the macOS Codex app bundle over generic PATH auto-detection', () => {
+  it('discovers the macOS Codex app bundle when PATH has no Codex', () => {
     process.env.HOME = tempDir;
+    process.env.PATH = '';
     const appDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
     const appBinary = path.join(appDir, 'codex');
     fs.mkdirSync(appDir, { recursive: true });
@@ -121,8 +160,24 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath(explicitDir, 'darwin')).toBe(explicitBinary);
   });
 
+  it('prefers inherited PATH over an automatically discovered macOS app runtime', () => {
+    process.env.HOME = tempDir;
+    const automaticDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
+    const pathDir = path.join(tempDir, 'chosen-cli');
+    const automaticBinary = path.join(automaticDir, 'codex');
+    const pathBinary = path.join(pathDir, 'codex');
+    fs.mkdirSync(automaticDir, { recursive: true });
+    fs.mkdirSync(pathDir, { recursive: true });
+    fs.writeFileSync(automaticBinary, '');
+    fs.writeFileSync(pathBinary, '');
+    process.env.PATH = pathDir;
+
+    expect(findCodexBinaryPath('', 'darwin')).toBe(pathBinary);
+  });
+
   it('prefers the macOS Codex app bundle over the unified ChatGPT app fallback', () => {
     process.env.HOME = tempDir;
+    process.env.PATH = '';
     const codexAppDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
     const chatGptAppDir = path.join(tempDir, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
     const appBinary = path.join(codexAppDir, 'codex');
