@@ -1339,6 +1339,65 @@ describe('MessageRenderer', () => {
       expect(contentEl.children).toContain(answer);
     });
 
+    it.each([
+      ['reading earlier work', 240, false, true],
+      ['following the latest work', 800, false, true],
+      ['content grows before projection', 800, true, true],
+      ['auto-scroll is disabled', 800, false, false],
+    ])(
+      'preserves the streaming history viewport when %s', (_mode, scrollTop, grows, enableAutoScroll) => {
+        const { renderer } = createRenderer(undefined, 'claude', { enableAutoScroll });
+        const contentEl = createMockEl();
+        contentEl.createDiv({ cls: 'claudian-text-block', text: 'Inspecting the files.' });
+        const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+        tool.setAttribute('data-tool-id', 'read-viewport');
+        const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Checking the result.' });
+        const msg = {
+          id: 'assistant-viewport', role: 'assistant', content: '', timestamp: Date.now(),
+          toolCalls: [{ id: 'read-viewport', name: 'Read', input: {}, status: 'completed' }],
+          contentBlocks: [
+            { type: 'text', content: 'Inspecting the files.' },
+            { type: 'tool_use', toolId: 'read-viewport' },
+          ],
+        } as ChatMessage;
+        enableDomLikeNodeMoves(contentEl);
+        renderer.startCompletedWork(contentEl);
+        renderer.syncStreamingActivity(msg, contentEl, { type: 'text', content: 'Checking the result.' });
+        const fold = contentEl.querySelector('.claudian-streaming-work-fold')!;
+        fold.querySelector('.claudian-streaming-work-header')!.click();
+        const history = fold.querySelector('.claudian-streaming-work-history')!;
+        Object.assign(history, { scrollTop, scrollHeight: 1000, clientHeight: 200 });
+        // A native scroll event records the user's position before the next update.
+        history.dispatchEvent('scroll');
+        if (grows) history.scrollHeight += 100;
+        const createDiv = fold.createDiv.bind(fold);
+        fold.createDiv = (options: { cls?: string; text?: string }) => {
+          const element = createDiv(options);
+          Object.assign(element, { scrollHeight: 1200, clientHeight: 200 });
+          return element;
+        };
+        answer.setText('Checking the result and its references.');
+        renderer.syncStreamingActivity(msg, contentEl, {
+          type: 'text', content: 'Checking the result and its references.',
+        });
+        const updatedHistory = fold.querySelector('.claudian-streaming-work-history')!;
+        expect(updatedHistory.hidden).toBe(false);
+        expect(updatedHistory.scrollTop).toBe(
+          scrollTop === 800 && enableAutoScroll ? updatedHistory.scrollHeight : scrollTop,
+        );
+        if (!enableAutoScroll) return;
+        // Returning to the bottom also resumes following after a paused read.
+        updatedHistory.scrollTop = updatedHistory.scrollHeight - updatedHistory.clientHeight;
+        updatedHistory.dispatchEvent('scroll');
+        msg.contentBlocks![0] = { type: 'text', content: 'Inspecting more files and references.' };
+        renderer.syncStreamingActivity(msg, contentEl, {
+          type: 'text', content: 'Checking the result and its references.',
+        });
+        const resumedHistory = fold.querySelector('.claudian-streaming-work-history')!;
+        expect(resumedHistory.scrollTop).toBe(resumedHistory.scrollHeight);
+      },
+    );
+
     it('keeps the streaming work row at the work anchor when the turn settles', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
