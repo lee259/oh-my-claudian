@@ -2195,8 +2195,6 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
 
   // Scroll listener for auto-scroll control (tracks position always, not just during streaming)
   const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
-  const RE_ENABLE_DELAY = 150; // ms to wait before re-enabling auto-scroll
-  let reEnableTimeout: number | null = null;
   let isPointerHeld = false;
 
   const isAutoScrollAllowed = (): boolean => plugin.settings.enableAutoScroll ?? true;
@@ -2218,10 +2216,6 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
 
   const scrollHandler = () => {
     if (!isAutoScrollAllowed()) {
-      if (reEnableTimeout) {
-        window.clearTimeout(reEnableTimeout);
-        reEnableTimeout = null;
-      }
       state.autoScrollEnabled = false;
       state.navigationScrollIntent = null;
       return;
@@ -2235,27 +2229,19 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     if (!isAtBottom) {
       // Layout changes also emit scroll events; only active pointer selection scrolls pause following.
       if (isPointerHeld) {
-        if (reEnableTimeout) {
-          window.clearTimeout(reEnableTimeout);
-          reEnableTimeout = null;
-        }
         state.autoScrollEnabled = false;
       }
     } else if (!state.autoScrollEnabled) {
-      // Debounce re-enabling to avoid bounce during scroll animation
-      if (!reEnableTimeout) {
-        reEnableTimeout = window.setTimeout(() => {
-          reEnableTimeout = null;
-          // Re-verify position before enabling (content may have changed)
-          const { scrollTop, scrollHeight, clientHeight } = dom.messagesEl;
-          if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD) {
-            state.autoScrollEnabled = true;
-          }
-        }, RE_ENABLE_DELAY);
-      }
+      // Resume before the next stream update can move the bottom again.
+      state.autoScrollEnabled = true;
     }
   };
   const userScrollIntentHandler = (event: Event): void => {
+    const history = (event.target as Element | null)
+      ?.closest?.<HTMLElement>('.claudian-streaming-work-history');
+    // The bounded work history contains its own scroll. Its input must not
+    // pause the surrounding conversation's independent follow state.
+    if (history && history.scrollHeight > history.clientHeight) return;
     if (event.type === 'pointerdown') {
       const pointerEvent = event as PointerEvent;
       // Scrollbar presses and middle-button autoscroll scroll without further input events.
@@ -2339,7 +2325,6 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     for (const eventName of pointerReleaseEvents) {
       pointerDocument.removeEventListener(eventName, pointerReleaseHandler, { capture: true });
     }
-    if (reEnableTimeout) window.clearTimeout(reEnableTimeout);
   });
 }
 

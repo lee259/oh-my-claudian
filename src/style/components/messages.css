@@ -720,6 +720,9 @@ button.claudian-work-header:focus-visible {
   margin-bottom: 8px;
   padding: 2px 0;
   border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-completed-work-status > .claudian-completed-work-label {
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -803,11 +806,13 @@ button.claudian-completed-work-header:focus-visible {
   min-width: 0;
 }
 
-.claudian-completed-work-history > :first-child {
+.claudian-completed-work-history > :first-child,
+.claudian-streaming-work-history > :first-child {
   margin-top: 0;
 }
 
-.claudian-completed-work-history > :last-child {
+.claudian-completed-work-history > :last-child,
+.claudian-streaming-work-history > :last-child {
   margin-bottom: 0;
 }
 
