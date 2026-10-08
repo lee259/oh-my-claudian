@@ -2187,8 +2187,24 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
   const RE_ENABLE_DELAY = 150; // ms to wait before re-enabling auto-scroll
   let reEnableTimeout: number | null = null;
+  let isPointerHeld = false;
 
   const isAutoScrollAllowed = (): boolean => plugin.settings.enableAutoScroll ?? true;
+
+  const isScrollbarPress = (event: PointerEvent): boolean => {
+    if (event.target !== dom.messagesEl) return false;
+    const scrollbarWidth = dom.messagesEl.offsetWidth - dom.messagesEl.clientWidth;
+    if (!Number.isFinite(scrollbarWidth)
+      || scrollbarWidth <= 0
+      || dom.messagesEl.scrollHeight <= dom.messagesEl.clientHeight) return false;
+    const bounds = dom.messagesEl.getBoundingClientRect();
+    const pointerX = event.clientX - bounds.left;
+    const direction = dom.messagesEl.ownerDocument.defaultView
+      ?.getComputedStyle?.(dom.messagesEl).direction;
+    return direction === 'rtl'
+      ? pointerX <= scrollbarWidth
+      : pointerX >= bounds.width - scrollbarWidth;
+  };
 
   const scrollHandler = () => {
     if (!isAutoScrollAllowed()) {
@@ -2207,12 +2223,14 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     const isAtBottom = scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD;
 
     if (!isAtBottom) {
-      // Immediately disable when user scrolls up
-      if (reEnableTimeout) {
-        window.clearTimeout(reEnableTimeout);
-        reEnableTimeout = null;
+      // Layout changes also emit scroll events; only active pointer selection scrolls pause following.
+      if (isPointerHeld) {
+        if (reEnableTimeout) {
+          window.clearTimeout(reEnableTimeout);
+          reEnableTimeout = null;
+        }
+        state.autoScrollEnabled = false;
       }
-      state.autoScrollEnabled = false;
     } else if (!state.autoScrollEnabled) {
       // Debounce re-enabling to avoid bounce during scroll animation
       if (!reEnableTimeout) {
@@ -2227,18 +2245,90 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       }
     }
   };
-  const userScrollIntentHandler = (): void => {
-    if (state.navigationScrollIntent === null) return;
+  const userScrollIntentHandler = (event: Event): void => {
+    if (event.type === 'pointerdown') {
+      const pointerEvent = event as PointerEvent;
+      // Scrollbar presses and middle-button autoscroll scroll without further input events.
+      if (pointerEvent.button !== 1 && !isScrollbarPress(pointerEvent)) {
+        // A held press can drag-select past the edge, which also scrolls the transcript.
+        isPointerHeld = true;
+        return;
+      }
+    }
+    if (event.type === 'keydown') {
+      const keyboardEvent = event as KeyboardEvent;
+      const settings = plugin.settings.keyboardNavigation;
+      const key = keyboardEvent.key.toLowerCase();
+      const hasControlModifier = keyboardEvent.ctrlKey || keyboardEvent.metaKey;
+      const isConfiguredScrollKey = !hasControlModifier
+        && !keyboardEvent.altKey
+        && !keyboardEvent.shiftKey && (
+        key === settings.scrollUpKey.toLowerCase()
+        || key === settings.scrollDownKey.toLowerCase()
+      );
+      const target = keyboardEvent.target as HTMLElement | null;
+      const targetTag = target?.tagName;
+      const isTextEntryTarget = targetTag === 'INPUT'
+        || targetTag === 'SELECT'
+        || targetTag === 'TEXTAREA'
+        || target?.isContentEditable === true;
+      const isActivatableTarget = targetTag === 'A'
+        || targetTag === 'BUTTON'
+        || targetTag === 'SUMMARY'
+        || target?.getAttribute?.('role') === 'button';
+      const isNativeBoundaryScrollKey = !keyboardEvent.altKey
+        && !keyboardEvent.shiftKey
+        && (key === 'end' || key === 'home')
+        && !isTextEntryTarget;
+      const isNativePageScrollKey = !hasControlModifier
+        && !keyboardEvent.altKey
+        && !keyboardEvent.shiftKey
+        && (key === 'pagedown' || key === 'pageup')
+        && !isTextEntryTarget;
+      const isNativeArrowScrollKey = !keyboardEvent.altKey
+        && !keyboardEvent.shiftKey
+        && (key === 'arrowdown' || key === 'arrowup')
+        && !isTextEntryTarget
+        && !isActivatableTarget;
+      const isNativeSpaceScrollKey = key === ' '
+        && !hasControlModifier
+        && !keyboardEvent.altKey
+        && !isTextEntryTarget
+        && !isActivatableTarget;
+      if (
+        !isConfiguredScrollKey
+        && !isNativeBoundaryScrollKey
+        && !isNativePageScrollKey
+        && !isNativeArrowScrollKey
+        && !isNativeSpaceScrollKey
+      ) {
+        return;
+      }
+    }
     state.navigationScrollIntent = null;
     state.autoScrollEnabled = false;
   };
+  const userScrollIntentEvents = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const;
+  for (const eventName of userScrollIntentEvents) {
+    dom.messagesEl.addEventListener(eventName, userScrollIntentHandler, { passive: true });
+  }
+  const pointerDocument = dom.messagesEl.ownerDocument;
+  const pointerReleaseEvents = ['pointerup', 'pointercancel'] as const;
+  const pointerReleaseHandler = (): void => {
+    isPointerHeld = false;
+  };
+  for (const eventName of pointerReleaseEvents) {
+    pointerDocument.addEventListener(eventName, pointerReleaseHandler, { capture: true, passive: true });
+  }
   dom.messagesEl.addEventListener('scroll', scrollHandler, { passive: true });
-  dom.messagesEl.addEventListener('wheel', userScrollIntentHandler, { passive: true });
-  dom.messagesEl.addEventListener('pointerdown', userScrollIntentHandler, { passive: true });
   dom.eventCleanups.push(() => {
     dom.messagesEl.removeEventListener('scroll', scrollHandler);
-    dom.messagesEl.removeEventListener('wheel', userScrollIntentHandler);
-    dom.messagesEl.removeEventListener('pointerdown', userScrollIntentHandler);
+    for (const eventName of userScrollIntentEvents) {
+      dom.messagesEl.removeEventListener(eventName, userScrollIntentHandler);
+    }
+    for (const eventName of pointerReleaseEvents) {
+      pointerDocument.removeEventListener(eventName, pointerReleaseHandler, { capture: true });
+    }
     if (reEnableTimeout) window.clearTimeout(reEnableTimeout);
   });
 }
