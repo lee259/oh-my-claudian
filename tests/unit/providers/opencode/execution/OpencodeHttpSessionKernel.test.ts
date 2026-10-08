@@ -155,6 +155,45 @@ describe('OpencodeHttpSessionKernel', () => {
     await kernel.dispose();
   });
 
+  it.each([
+    ['inline code', 'Use `/project.review` as an example.'],
+    ['fenced code', 'Example:\n```md\n/project.review\n```'],
+    ['indented code', 'Example:\n\n    /project.review'],
+  ])('does not attach native skill mentions from %s', async (_kind, input) => {
+    mockRequest.mockImplementation(async (route: string) => {
+      if (route === '/api/model') return { data: [{ enabled: true, id: 'm', name: 'Model', providerID: 'test' }] };
+      if (route === '/api/command') return { data: [{ name: 'init' }] };
+      if (route === '/api/agent') return { data: [] };
+      if (route === '/api/session') return { data: { id: 'ses_test' } };
+      if (route === '/api/skill') return { data: [{ id: 'project.review' }] };
+      return undefined;
+    });
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: { dismissInteraction: jest.fn() } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+    await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+    const session = await kernel.openSession();
+    const completion = kernel.prompt({
+      sessionId: session.sessionId,
+      prompt: [{ text: input, type: 'text' }],
+    } as any, { start: 0, end: input.length });
+    void completion.catch(() => undefined);
+    for (let index = 0; index < 8; index++) await Promise.resolve();
+
+    const promptCall = mockRequest.mock.calls.find(([route, options]) => (
+      route === '/api/session/ses_test/prompt' && options?.method === 'POST'
+    ));
+    expect(promptCall?.[1].body).not.toHaveProperty('skills');
+
+    emitEvent?.({ type: 'session.execution.started', data: { sessionID: session.sessionId } });
+    emitEvent?.({ type: 'session.execution.succeeded', data: { sessionID: session.sessionId } });
+    await completion;
+    await kernel.dispose();
+  });
+
   it('switches the active v2 session to the selected native agent before prompting', async () => {
     const plugin = {
       settings: {},
