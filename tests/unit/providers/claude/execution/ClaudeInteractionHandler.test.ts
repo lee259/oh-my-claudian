@@ -68,7 +68,10 @@ describe('createClaudeExecutionCanUseTool', () => {
       }),
       nativeOptions.signal,
     );
+    expect(port.requestApproval.mock.calls[0][0].decisionOptions?.map(option => option.decision))
+      .toEqual(['deny', 'allow', 'allow-always']);
     expect(result?.behavior).toBe('allow');
+    expect(result && 'updatedPermissions' in result).toBe(true);
     expect(port.dismissInteraction).toHaveBeenCalledWith(
       'claude:session-local:native-tool-1',
       'resolved',
@@ -107,6 +110,31 @@ describe('createClaudeExecutionCanUseTool', () => {
         behavior: 'allow',
         updatedInput: { command: 'git status' },
       });
+  });
+
+  it('limits suppressed persistent approvals to the current invocation', async () => {
+    const port = createPort();
+    const handler = createHandler(port);
+    const input = { command: 'git status' };
+    const options = {
+      ...nativeOptions,
+      suggestions: [{
+        type: 'addRules' as const,
+        behavior: 'allow' as const,
+        rules: [{ toolName: 'Bash', ruleContent: 'git status' }],
+        destination: 'session' as const,
+      }],
+    };
+    Object.defineProperty(options, 'suppressAlwaysAllowRule', { value: true });
+
+    const result = await handler('Bash', input, options);
+
+    expect(port.requestApproval.mock.calls[0][0].decisionOptions?.map(option => option.decision))
+      .toEqual(['deny', 'allow']);
+    expect(result).toEqual({
+      behavior: 'allow',
+      updatedInput: input,
+    });
   });
 
   it('does not open an approval flow for Bash in YOLO mode', async () => {
