@@ -40,6 +40,7 @@
 @media (prefers-reduced-motion: reduce) {
   .claudian-inline-spinner,
   .claudian-history-item--attention .claudian-history-item-title,
+  .claudian-activity-phase[data-active='true'] .claudian-activity-phase-label,
   .claudian-subagent-list.async .claudian-subagent-status.status-running svg,
   .claudian-subagent-transcript-status-icon.status-running svg {
     animation: none;

@@ -4,6 +4,7 @@ import {
   detectBuiltInCommand,
 } from '../../../core/commands/builtInCommands';
 import type { ProviderExecutionEvent } from '../../../core/execution';
+import { getConversationModelLabel } from '../../../core/providers/conversationModel';
 import { stringifyDiagnosticError } from '../../../core/providers/ProviderDiagnostics';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import {
@@ -14,6 +15,7 @@ import {
   type TitleGenerationService,
 } from '../../../core/providers/types';
 import { TOOL_EXIT_PLAN_MODE } from '../../../core/tools/toolNames';
+import { projectTranscript } from '../../../core/transcript/TranscriptProjection';
 import {
   type ApprovalDecision,
   type AskUserAnswers,
@@ -363,6 +365,12 @@ export class InputController {
     }
     const assistant = this.activeStreamingAssistantMessage;
     if (!assistant) return;
+    if (event.scope?.kind === 'requested') {
+      this.deps.renderer.setTranscriptExecutionScope?.(assistant.id, {
+        executionId: event.scope.executionId,
+        turnId: event.scope.turnId,
+      });
+    }
     if (event.type === 'turn_completed') {
       this.deps.state.cancelRequested = false;
       assistant.turnStats = event.turnStats;
@@ -541,6 +549,12 @@ export class InputController {
       role: 'assistant',
       content: '',
       timestamp: Date.now(),
+      modelName: getConversationModelLabel(
+        turnConversationId
+          ? this.deps.plugin.getConversationSync(turnConversationId)
+          : null,
+        this.deps.plugin.settings,
+      ),
       toolCalls: [],
       contentBlocks: [],
     };
@@ -729,7 +743,7 @@ export class InputController {
           }
 
           await this.finalizeRenderedTurn(finalAssistantMsg);
-          renderer.finalizeCompletedWork?.(finalAssistantMsg);
+          this.finalizeTranscriptTurn(finalAssistantMsg);
 
           // approve-new-session: the tool_result chunk is dropped because cancelRequested
           // was set before the stream loop could process it — manually set the result so
@@ -862,6 +876,22 @@ export class InputController {
     this.deps.getSubagentManager().resetStreamingState();
     if (state.currentTodos?.every(todo => todo.status === 'completed')) state.currentTodos = null;
     this.syncScrollToBottomAfterRenderUpdates();
+  }
+
+  private finalizeTranscriptTurn(message: ChatMessage): void {
+    const { renderer, state } = this.deps;
+    const turn = projectTranscript(state.messages).find((candidate) =>
+      candidate.runs.some((run) => run.messageId === message.id),
+    );
+    if (turn && renderer.finalizeTranscriptTurn) {
+      renderer.finalizeTranscriptTurn(turn, message.id);
+      return;
+    }
+    const runIds = new Set(turn?.runs.map((run) => run.messageId) ?? [message.id]);
+    const runs = state.messages.filter((candidate) =>
+      candidate.role === 'assistant' && runIds.has(candidate.id),
+    );
+    for (const run of runs) renderer.finalizeCompletedWork?.(run, run.id === message.id);
   }
 
   private queueStreamingMessage(
@@ -1344,7 +1374,7 @@ export class InputController {
             ];
           }
         }
-        this.deps.renderer.finalizeCompletedWork(previousAssistant, false);
+        this.finalizeTranscriptTurn(previousAssistant);
       }
     }
     this.deps.streamController.hideThinkingIndicator();
@@ -1397,7 +1427,7 @@ export class InputController {
     if (previousAssistant) {
       await this.deps.streamController.finalizeCurrentThinkingBlock(previousAssistant);
       await this.deps.streamController.finalizeCurrentTextBlock(previousAssistant);
-      this.deps.renderer.finalizeCompletedWork(previousAssistant, false);
+      this.deps.renderer.finalizeCompletedWork(previousAssistant, false, false);
     }
 
     const assistantMessage: ChatMessage = {

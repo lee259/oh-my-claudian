@@ -105,14 +105,18 @@ export interface CitationGroup {
 }
 
 /** Content block for preserving streaming order in messages. */
-export type ContentBlock =
+export type ContentBlock = (
   | { type: 'text'; content: string }
   | { type: 'tool_use'; toolId: string }
   | { type: 'thinking'; content: string; durationSeconds?: number }
   | { type: 'subagent'; subagentId: string; mode?: SubagentMode }
   | { type: 'citations'; citations: CitationGroup }
   | { type: 'task_notification'; content: string }
-  | { type: 'context_compacted' };
+  | { type: 'context_compacted' }
+) & {
+  /** Stable Claudian transcript identity; absent on provider-sourced legacy blocks. */
+  id?: string;
+};
 
 /** Authoritative main-agent output across a completed turn, including reasoning. */
 export interface TurnStats {
@@ -143,6 +147,8 @@ export interface ChatMessage {
   isRebuiltContext?: boolean;
   /** Duration in seconds from user send to response completion. */
   durationSeconds?: number;
+  /** Model label selected for this turn, captured when execution starts. */
+  modelName?: string;
   turnStats?: TurnStats;
   /** Flavor word used for duration display (e.g., "Baked", "Cooked"). */
   durationFlavorWord?: string;

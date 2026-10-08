@@ -17,6 +17,19 @@ export interface ThinkingBlockOptions {
   onToggle?: (isExpanded: boolean) => void;
 }
 
+function summarizeThinking(content: string): string {
+  const body = content.replace(/```[\s\S]*?(?:```|$)/g, ' ');
+  const paragraph = body.split(/\n\s*\n/).map((part) => part.trim()).find(Boolean) ?? '';
+  return paragraph
+    .replace(/^\s{0,3}(?:#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/(\*|_)(.+?)\1/g, '$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function createThinkingBlock(
   parentEl: HTMLElement,
   options: ThinkingBlockOptions = {},
@@ -30,16 +43,10 @@ export function createThinkingBlock(
   header.setAttribute('aria-expanded', 'false');
   header.setAttribute('aria-label', t('chat.rendering.thinkingAria'));
 
-  // Label with timer
+  // Keep the live indicator compact while reasoning stays collapsed.
   const labelEl = header.createSpan({ cls: 'claudian-thinking-label' });
   const startTime = Date.now();
   labelEl.setText(t('chat.rendering.thinking', { seconds: 0 }));
-
-  // Start timer interval to update label every second
-  const timerInterval = window.setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    labelEl.setText(t('chat.rendering.thinking', { seconds: elapsed }));
-  }, 1000);
 
   // Collapsible content (collapsed by default)
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-thinking-content' });
@@ -51,9 +58,15 @@ export function createThinkingBlock(
     labelEl,
     content: '',
     startTime,
-    timerInterval,
+    timerInterval: null,
     isExpanded: false,
   };
+
+  state.timerInterval = window.setInterval(() => {
+    const summary = summarizeThinking(state.content);
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    labelEl.setText(summary || t('chat.rendering.thinking', { seconds: elapsed }));
+  }, 1000);
 
   setupCollapsible(wrapperEl, header, contentEl, state, {
     onToggle: options.onToggle,
@@ -68,6 +81,9 @@ export async function appendThinkingContent(
   renderContent: RenderContentFn
 ) {
   state.content += content;
+  const summary = summarizeThinking(state.content);
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  state.labelEl.setText(summary || t('chat.rendering.thinking', { seconds: elapsed }));
   await renderContent(state.contentEl, state.content);
 }
 
@@ -81,8 +97,7 @@ export function finalizeThinkingBlock(state: ThinkingBlockState): number {
   // Calculate final duration
   const durationSeconds = Math.floor((Date.now() - state.startTime) / 1000);
 
-  // Update label to show final duration (without "...")
-  state.labelEl.setText(`Thought for ${durationSeconds}s`);
+  state.labelEl.setText(summarizeThinking(state.content) || t('chat.rendering.thinkingSummary'));
 
   // Collapse when done and sync state
   const header = state.wrapperEl.querySelector('.claudian-thinking-header');
@@ -102,7 +117,7 @@ export function cleanupThinkingBlock(state: ThinkingBlockState | null) {
 export function renderStoredThinkingBlock(
   parentEl: HTMLElement,
   content: string,
-  durationSeconds: number | undefined,
+  _durationSeconds: number | undefined,
   renderContent: RenderContentFn
 ): HTMLElement {
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-thinking-block' });
@@ -111,12 +126,11 @@ export function renderStoredThinkingBlock(
   const header = wrapperEl.createDiv({ cls: 'claudian-thinking-header' });
   header.setAttribute('tabindex', '0');
   header.setAttribute('role', 'button');
-  header.setAttribute('aria-label', 'Extended thinking - click to expand');
+  header.setAttribute('aria-label', t('chat.rendering.thinkingAria'));
 
-  // Label with duration
+  // Keep completed reasoning collapsed behind a compact label.
   const labelEl = header.createSpan({ cls: 'claudian-thinking-label' });
-  const labelText = durationSeconds !== undefined ? `Thought for ${durationSeconds}s` : 'Thought';
-  labelEl.setText(labelText);
+  labelEl.setText(summarizeThinking(content) || t('chat.rendering.thinkingSummary'));
 
   // Collapsible content
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-thinking-content', text: content });

@@ -1,4 +1,5 @@
 import {
+  getConversationModelLabel,
   getConversationModelPersistenceTarget,
   resolveConversationModel,
   resolveNewConversationModel,
@@ -61,6 +62,13 @@ describe('conversation model resolution', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('resolves the selected model label without substituting a provider default', () => {
+    expect(getConversationModelLabel({ providerId: 'codex', selectedModel: 'codex/gpt-5-mini' }, {}))
+      .toBe('codex/gpt-5-mini');
+    expect(getConversationModelLabel({ providerId: 'codex', selectedModel: undefined }, {}))
+      .toBeUndefined();
   });
 
   describe('resolveNewConversationModel', () => {

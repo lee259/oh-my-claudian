@@ -138,6 +138,7 @@ function createFixture(overrides: Record<string, unknown> = {}) {
       appendInterruptIndicator: jest.fn(),
       refreshActionButtons: jest.fn(),
       removeMessage: jest.fn(),
+      setTranscriptExecutionScope: jest.fn(),
       updateLiveUserMessage: jest.fn(),
     },
     streamController: {
@@ -667,7 +668,35 @@ describe('InputController coordinator execution', () => {
     });
     expect(finalizeCompletedWork).toHaveBeenCalledWith(
       expect.objectContaining({ turnStats: { outputTokens: 125, durationMs: 2_500 } }),
+      true,
     );
+    expect(fixture.deps.renderer.setTranscriptExecutionScope).toHaveBeenCalledWith(
+      expect.any(String),
+      { executionId: 'execution-1', turnId: 'turn-1' },
+    );
+  });
+
+  it('keeps earlier assistant runs expanded until their transcript turn completes', async () => {
+    const fixture = createFixture();
+    const finalizeCompletedWork = jest.fn();
+    (fixture.deps.renderer as any).finalizeCompletedWork = finalizeCompletedWork;
+    fixture.coordinator.execute.mockImplementationOnce(async () => {
+      await fixture.controller.handleExecutionEvent({ type: 'assistant_message_started' } as ProviderExecutionEvent);
+      await fixture.controller.handleExecutionEvent({ type: 'text_delta', text: 'First run.' } as ProviderExecutionEvent);
+      await fixture.controller.handleExecutionEvent({ type: 'assistant_message_started' } as ProviderExecutionEvent);
+      await fixture.controller.handleExecutionEvent({ type: 'text_delta', text: 'Final run.' } as ProviderExecutionEvent);
+      return { accepted: true, planCompleted: false, status: 'completed' };
+    });
+
+    await fixture.controller.sendMessage({ content: 'hello' });
+
+    const assistants = fixture.state.messages.filter((message) => message.role === 'assistant');
+    expect(assistants).toHaveLength(2);
+    expect(finalizeCompletedWork.mock.calls).toEqual([
+      [assistants[0], false, false],
+      [assistants[0], false],
+      [assistants[1], true],
+    ]);
   });
 
   it('flushes buffered tools before finalizing a requested turn', async () => {
