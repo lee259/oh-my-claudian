@@ -3,7 +3,8 @@ import * as path from 'node:path';
 
 import type { ChatMessage, ContentBlock } from '../../../core/types';
 import type { ToolCallInfo } from '../../../core/types/tools';
-import { normalizeOmpToolInput, normalizeOmpToolName } from '../normalization/ompToolNormalization';
+import { extractDiffData } from '../../../utils/diff';
+import { normalizeOmpToolInput, normalizeOmpToolName, normalizeOmpToolUseResult } from '../normalization/ompToolNormalization';
 
 export function parseOmpSessionContent(content: string): ChatMessage[] {
   const entries: Record<string, unknown>[] = [];
@@ -119,7 +120,7 @@ function getAssistantContent(
       const rawInput = isRecord(part.arguments) ? part.arguments : {};
       const result = toolResults.get(part.id);
       blocks.push({ toolId: part.id, type: 'tool_use' });
-      toolCalls.push({
+      const toolCall: ToolCallInfo = {
         id: part.id,
         input: normalizeOmpToolInput(rawName, rawInput),
         name: normalizeOmpToolName(rawName),
@@ -130,7 +131,14 @@ function getAssistantContent(
           rawInput,
           ...(result?.details !== undefined ? { rawOutput: result.details } : {}),
         },
-      });
+      };
+      if (result && !result.isError && (toolCall.name === 'Edit' || toolCall.name === 'Write')) {
+        toolCall.diffData = extractDiffData(
+          normalizeOmpToolUseResult(rawName, toolCall.input, result.details, rawInput),
+          toolCall,
+        );
+      }
+      toolCalls.push(toolCall);
     }
   }
   return { contentBlocks: blocks, toolCalls };
