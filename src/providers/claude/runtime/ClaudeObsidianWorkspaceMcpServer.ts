@@ -1,7 +1,7 @@
 import {
   createSdkMcpServer,
   tool,
-} from '@anthropic-ai/claude-agent-sdk';
+} from '@anthropic-ai/claude-agent-sdk/core';
 
 import type { ObsidianWorkspaceAdapter } from '../../../core/obsidian/ObsidianWorkspaceAdapter';
 import {
