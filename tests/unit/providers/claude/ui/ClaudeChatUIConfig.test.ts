@@ -298,7 +298,41 @@ describe('claudeChatUIConfig', () => {
       ]);
     });
 
-    it('keeps tier display names distinct when local Claude settings route every tier to one model', () => {
+    it('uses SDK labels when shared tiers route to the same model', () => {
+      jest.spyOn(claudeUserSettingsEnv, 'getClaudeUserSettingsModelEnvironment')
+        .mockReturnValueOnce({
+          env: {
+            ANTHROPIC_DEFAULT_HAIKU_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_SONNET_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_OPUS_MODEL: 'newapi/deepseek-flash[1m]',
+            ANTHROPIC_DEFAULT_FABLE_MODEL: 'newapi/deepseek-flash[1m]',
+          },
+          displayNames: {},
+          tierDisplayNames: {},
+        });
+
+      const options = claudeChatUIConfig.getModelOptions({
+        providerConfigs: {
+          claude: {
+            discoveredModels: [
+              { value: 'haiku', label: 'SDK Haiku', description: '', resolvedModel: 'newapi/deepseek-flash[1m]' },
+              { value: 'sonnet', label: 'SDK Sonnet', description: '', resolvedModel: 'newapi/deepseek-flash[1m]' },
+              { value: 'opus', label: 'SDK Opus', description: '', resolvedModel: 'newapi/deepseek-flash[1m]' },
+              { value: 'fable', label: 'SDK Fable', description: '', resolvedModel: 'newapi/deepseek-flash[1m]' },
+            ],
+          },
+        },
+      });
+
+      expect(options.map(({ value, label }) => [value, label])).toEqual([
+        ['claude-code/haiku', 'SDK Haiku'],
+        ['claude-code/sonnet', 'SDK Sonnet'],
+        ['claude-code/opus', 'SDK Opus'],
+        ['claude-code/fable', 'SDK Fable'],
+      ]);
+    });
+
+    it('does not override SDK model names with local environment display names', () => {
       jest.spyOn(claudeUserSettingsEnv, 'getClaudeUserSettingsModelEnvironment')
         .mockReturnValue({
           env: {
@@ -319,13 +353,24 @@ describe('claudeChatUIConfig', () => {
           },
         });
 
-      const options = claudeChatUIConfig.getModelOptions({});
+      const options = claudeChatUIConfig.getModelOptions({
+        providerConfigs: {
+          claude: {
+            discoveredModels: [
+              { value: 'haiku', label: 'SDK Haiku', description: '' },
+              { value: 'sonnet', label: 'SDK Sonnet', description: '' },
+              { value: 'opus', label: 'SDK Opus', description: '' },
+              { value: 'fable', label: 'SDK Fable', description: '' },
+            ],
+          },
+        },
+      });
 
       expect(options.map(({ value, label }) => [value, label])).toEqual([
-        ['claude-code/haiku', 'gpt-5.6-luna'],
-        ['claude-code/sonnet', 'deepseek-flash'],
-        ['claude-code/opus', 'deepseek-v4-pro'],
-        ['claude-code/fable', 'kimi-k3'],
+        ['claude-code/haiku', 'SDK Haiku'],
+        ['claude-code/sonnet', 'SDK Sonnet'],
+        ['claude-code/opus', 'SDK Opus'],
+        ['claude-code/fable', 'SDK Fable'],
       ]);
       const selectedSettings: Record<string, unknown> = {};
       claudeChatUIConfig.applyModelDefaults('claude-code/sonnet', selectedSettings);

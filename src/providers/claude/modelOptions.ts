@@ -127,21 +127,16 @@ function findDiscoveredFamilyModel(
 export function getClaudeModelOptions(settings: Record<string, unknown>): ClaudeModelOption[] {
   const customModelAliases = normalizeCustomModelAliases(settings.customModelAliases);
   const userModelEnvironment = getClaudeUserSettingsModelEnvironment();
-  const modelAliases = {
-    ...userModelEnvironment.displayNames,
-    ...customModelAliases,
-  };
   const customModels = getModelsFromEnvironment(
     {
       ...userModelEnvironment.env,
       ...getRuntimeEnvironmentVariables(settings, 'claude'),
     },
-    modelAliases,
+    customModelAliases,
   );
   const claudeSettings = getClaudeProviderSettings(settings);
   const discoveredModels = claudeSettings.discoveredModels;
   if (customModels.length > 0) {
-    const settingsConfiguredModelIds = new Set(Object.values(userModelEnvironment.env));
     const tierTargets = new Map<string, ClaudeModelTier[]>();
     for (const [tier, modelId] of Object.entries(userModelEnvironment.env)) {
       const definition = CLAUDE_MODEL_TIER_DEFINITIONS.find(
@@ -169,12 +164,14 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
           if (!definition) {
             continue;
           }
+          const discovered = findDiscoveredFamilyModel(discoveredModels, tier);
           options.push({
             value: encodeClaudeModelSelectionId(tier),
-            label: userModelEnvironment.tierDisplayNames[tier]
+            label: customModelAliases[tier]
               ?? customModelAliases[model.value]
+              ?? discovered?.label
               ?? definition.label,
-            description: `${model.description} (${tier})`,
+            description: discovered?.description || `${model.description} (${tier})`,
             environmentTypes: [tier],
           });
         }
@@ -184,12 +181,14 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
       options.push({
         ...model,
         label: customModelAliases[toClaudeRuntimeModelId(model.value)]
-          ?? userModelEnvironment.displayNames[model.value]
+          ?? discoveredModels.find(discovered => discovered.value === model.value)?.label
           ?? discoveredModels.find(discovered => (
-            discovered.value === toClaudeRuntimeModelId(model.value)
-            || discovered.resolvedModel === toClaudeRuntimeModelId(model.value)
+            model.environmentTypes?.some(type => type === discovered.value)
           ))?.label
-          ?? (settingsConfiguredModelIds.has(model.value) ? model.value : model.label),
+          ?? discoveredModels.find(discovered => (
+            discovered.value !== 'default' && discovered.resolvedModel === model.value
+          ))?.label
+          ?? model.label,
         value: encodeClaudeModelSelectionId(model.value),
       });
     }

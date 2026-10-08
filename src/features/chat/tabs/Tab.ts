@@ -1350,7 +1350,6 @@ function initializeInputToolbar(
     getCapabilities: () => getTabCapabilities(tab, plugin),
     getSettings: () => getTabSettingsSnapshot(tab, plugin),
     getEnvironmentVariables: () => plugin.getActiveEnvironmentVariables(),
-    getRuntimeModel: () => tab.state.usage?.runtimeModel ?? null,
     onAddContext: () => tab.ui.fileContextManager?.openMentionPicker(),
     onExternalFilesSelected: (paths) => tab.ui.fileContextManager?.addExternalFiles(paths),
     onContextPathActivate: (contextPath) => tab.ui.fileContextManager?.activateContextPath(contextPath),
@@ -1611,9 +1610,6 @@ export function initializeTabUI(
   state.callbacks = {
     ...state.callbacks,
     onUsageChanged: (usage) => {
-      if (usage?.runtimeModel) {
-        tab.ui.modelSelector?.updateDisplay();
-      }
       tab.ui.contextUsageMeter?.update(
         getTabProviderId(tab, plugin) === 'claude' ? null : usage,
       );

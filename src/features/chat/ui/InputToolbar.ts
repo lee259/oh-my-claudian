@@ -94,8 +94,6 @@ export interface ToolbarCallbacks {
   onCloseContextActionsMenu?: () => void;
   getSettings: () => ToolbarSettings;
   getEnvironmentVariables?: () => string;
-  /** Actual model served by the running session, when known. */
-  getRuntimeModel?: () => string | null;
   getUIConfig: () => ProviderChatUIConfig;
   getCapabilities: () => ProviderCapabilities;
 }
@@ -105,14 +103,6 @@ export interface PermissionModeMenuHandle {
   setVisible: (visible: boolean) => void;
   canCycle?: () => boolean;
   cycleMode?: (onSelect?: (mode: string) => void) => boolean;
-}
-
-/** Normalize a model id for display comparison: drop provider prefixes and the [1m] context modifier. */
-function normalizeModelReference(modelId: string): string {
-  const trimmed = modelId.trim().toLowerCase();
-  const separatorIndex = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf(':'));
-  const base = separatorIndex >= 0 ? trimmed.slice(separatorIndex + 1) : trimmed;
-  return base.endsWith('[1m]') ? base.slice(0, -4) : base;
 }
 
 export class ModelSelector {
@@ -138,16 +128,8 @@ export class ModelSelector {
       environmentVariables: this.callbacks.getEnvironmentVariables?.(),
     });
     const currentModel = settings.model;
-    const displayModel = models.find(model => model.value === currentModel) ?? models[0];
-    const runtimeModel = this.callbacks.getRuntimeModel?.()?.trim() || null;
-    let displayModelLabel = displayModel?.label ?? (currentModel ? 'Model unavailable' : 'Choose a model');
-    if (runtimeModel && displayModel) {
-      const runtimeReference = normalizeModelReference(runtimeModel);
-      if (runtimeReference && runtimeReference !== normalizeModelReference(displayModel.value)) {
-        const runtimeOption = models.find(model => normalizeModelReference(model.value) === runtimeReference);
-        displayModelLabel = runtimeOption?.label ?? displayModelLabel;
-      }
-    }
+    const displayModel = models.find(model => model.value === currentModel);
+    const displayModelLabel = displayModel?.label ?? (currentModel ? 'Model unavailable' : 'Choose a model');
 
     const adaptiveReasoning = uiConfig.isAdaptiveReasoningModel(currentModel, settings);
     const reasoningOptions = this.callbacks.getCapabilities().reasoningControl === 'none'
@@ -165,7 +147,7 @@ export class ModelSelector {
       currentModel,
       displayModelLabel,
       providerIcon: displayModel?.providerIcon ?? uiConfig.getProviderIcon?.() ?? undefined,
-      runtimeModelTitle: runtimeModel && displayModelLabel === displayModel?.label ? runtimeModel : '',
+      modelTitle: displayModel ? '' : 'Choose an enabled model in provider settings.',
       reasoningOptions,
       reasoningValue,
       reasoningDefaultValue: uiConfig.getDefaultReasoningValue(currentModel, settings),
