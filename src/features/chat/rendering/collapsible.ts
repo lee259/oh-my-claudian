@@ -5,6 +5,8 @@ export interface CollapsibleState {
 export interface CollapsibleOptions {
   /** Initial expanded state (default: false) */
   initiallyExpanded?: boolean;
+  /** Runs before the transition so deferred content can be rendered and measured. */
+  beforeToggle?: (isExpanded: boolean) => void;
   /** Callback when state changes */
   onToggle?: (isExpanded: boolean) => void;
   /** Base label for aria-label (will append "click to expand/collapse") */
@@ -99,7 +101,9 @@ export function setupCollapsible(
 
   // Toggle handler
   const toggleExpand = () => {
-    state.isExpanded = !state.isExpanded;
+    const nextExpanded = !state.isExpanded;
+    options.beforeToggle?.(nextExpanded);
+    state.isExpanded = nextExpanded;
     if (state.isExpanded) {
       wrapperEl.addClass('expanded');
       headerEl.setAttribute('aria-expanded', 'true');

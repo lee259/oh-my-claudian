@@ -1281,8 +1281,11 @@ export function renderStoredToolCall(
   const todoStatusEl = toolCall.name === TOOL_TODO_WRITE ? statusEl : null;
   setupCollapsible(toolEl, header, content, state, {
     initiallyExpanded: options.initiallyExpanded ?? false,
-    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
+    beforeToggle: (expanded) => {
       if (expanded) renderContentOnce();
+    },
+    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
+      toolCall.isExpanded = expanded;
     }),
     baseAriaLabel: getToolLabel(toolCall.name, toolCall.input)
   });
