@@ -87,7 +87,11 @@
       "inProgress": "进行中 · 用时 {seconds} 秒",
       "label": "已完成",
       "seconds": "用时 {seconds} 秒",
-      "minutes": "用时 {minutes} 分 {seconds} 秒"
+      "minutes": "用时 {minutes} 分 {seconds} 秒",
+      "actionOne": " · {count} 项操作",
+      "actions": " · {count} 项操作",
+      "errorOne": " · {count} 项失败",
+      "errors": " · {count} 项失败"
     },
     "welcome": {
       "availableCapabilities": "可用：{capabilities}",
@@ -252,6 +256,7 @@
       "writing": "正在写入...",
       "done": "完成",
       "thinking": "思考中 {seconds} 秒...",
+      "thinkingSummary": "思考中",
       "thinkingAria": "扩展思考 - 点击展开",
       "hints": "使用方向键导航 · Enter 选择 · Esc 取消",
       "running": "运行中..."

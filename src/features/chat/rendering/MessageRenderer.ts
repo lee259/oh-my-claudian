@@ -11,12 +11,31 @@ import {
 import {
   isWriteEditTool,
   TOOL_APPLY_PATCH,
+  TOOL_BASH,
+  TOOL_BASH_OUTPUT,
+  TOOL_EDIT,
+  TOOL_GLOB,
+  TOOL_GREP,
+  TOOL_KILL_SHELL,
+  TOOL_LS,
+  TOOL_READ,
+  TOOL_WEB_FETCH,
+  TOOL_WEB_SEARCH,
   TOOL_WRITE_STDIN,
 } from '../../../core/tools/toolNames';
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
+import {
+  findTranscriptRun,
+  getTranscriptBlockId,
+  projectMessageRun,
+  projectTranscript,
+  type TranscriptRunProjection,
+  type TranscriptTurnProjection,
+} from '../../../core/transcript/TranscriptProjection';
 import type {
   ChatMessage,
   CitationGroup,
+  ContentBlock,
   ImageAttachment,
   SubagentInfo,
   ToolCallInfo,
@@ -39,6 +58,11 @@ import type { FeatureHost } from '../../FeatureHost';
 import { findRewindContext } from '../rewind';
 import { ImagePreviewModal } from '../ui/ImagePreviewModal';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
+import {
+  type ActivityWorkKind,
+  buildActivityTimeline,
+  getSupersededInitialThinkingIndexes,
+} from './ActivityTimeline';
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
 import {
   DIAGRAM_FENCE_LANGUAGES,
@@ -76,10 +100,40 @@ export type RenderContentFn = (
   options?: RenderContentOptions
 ) => Promise<void>;
 
+type RenderedActivityTimelineSegment =
+  | { type: 'narration'; elements: HTMLElement[] }
+  | {
+    type: 'phase';
+    id: string;
+    active: boolean;
+    kind: ActivityWorkKind;
+    turnId?: string;
+    runId?: string;
+    executionId?: string;
+    executionTurnId?: string;
+    elements: HTMLElement[];
+  }
+  | { type: 'subagents'; elements: HTMLElement[] };
+
+type RenderedActivityTimeline = {
+  items: RenderedActivityTimelineSegment[][];
+  fold?: { start: number; end: number };
+};
+
+type TranscriptIdentity = { turnId: string; runId?: string; runIndex?: number };
+
 function runRendererAction(action: () => Promise<void>): void {
   void action().catch(() => {
     // UI actions already surface expected failures locally.
   });
+}
+
+function isFailedToolStatus(status?: string): boolean {
+  const normalized = status?.toLowerCase();
+  return normalized === 'error'
+    || normalized === 'blocked'
+    || normalized === 'cancelled'
+    || normalized === 'canceled';
 }
 
 export class MessageRenderer {
@@ -88,6 +142,15 @@ export class MessageRenderer {
     timerId: number;
     timerWindow: Window;
   }>();
+  private readonly streamingActivitySignatures = new WeakMap<HTMLElement, string>();
+  private readonly streamingActivityOrigins = new WeakMap<HTMLElement, {
+    parent: HTMLElement;
+    nextSibling: HTMLElement | null;
+  }>();
+  private readonly activityPhaseOverrides = new Map<string, boolean>();
+  private readonly activityPhaseAnimations = new WeakMap<HTMLElement, Animation>();
+  private readonly streamingWorkFoldOverrides = new Map<string, boolean>();
+  private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
   private plugin: FeatureHost;
   private component: Component;
@@ -180,6 +243,9 @@ export class MessageRenderer {
     this.releaseContentRenders();
     this.imagePreviewModal.close();
     this.liveMessageEls.clear();
+    this.activityPhaseOverrides.clear();
+    this.streamingWorkFoldOverrides.clear();
+    this.transcriptExecutionScopes.clear();
   }
 
   private getSubagentAdapter(toolName?: string) {
@@ -246,6 +312,8 @@ export class MessageRenderer {
         ...(msg.role === 'user' ? { 'data-message-timestamp': String(msg.timestamp) } : {}),
       },
     });
+
+    this.setTranscriptIdentity(msgEl, { turnId: msg.id, ...(msg.role === 'assistant' ? { runId: msg.id } : {}) });
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
 
@@ -323,6 +391,12 @@ export class MessageRenderer {
     this.releaseContentRenders(msgEl);
     msgEl.remove();
     this.liveMessageEls.delete(messageId);
+    this.streamingWorkFoldOverrides.delete(messageId);
+    this.transcriptExecutionScopes.delete(messageId);
+    const phasePrefix = `${messageId}:`;
+    for (const key of this.activityPhaseOverrides.keys()) {
+      if (key.startsWith(phasePrefix)) this.activityPhaseOverrides.delete(key);
+    }
   }
 
   // ============================================
@@ -352,9 +426,16 @@ export class MessageRenderer {
       this.getWelcomeHomeOptions?.(),
     );
 
+    const transcriptIdentities = this.getTranscriptIdentities(messages);
     for (let i = 0; i < messages.length; i++) {
-      this.renderStoredMessage(messages[i], messages, i);
+      this.renderStoredMessage(messages[i], messages, i, {
+        collapseCompletedWork: false,
+        deferCompletedWork: true,
+        transcriptIdentity: transcriptIdentities.get(messages[i].id),
+      });
     }
+    this.groupRenderedTranscriptTurns(messages, false);
+    for (const turn of projectTranscript(messages)) this.finalizeTranscriptTurn(turn);
 
     this.scrollToBottom();
     return newWelcomeEl;
@@ -383,10 +464,19 @@ export class MessageRenderer {
     this.suppressConversationActions = options?.suppressConversationActions ?? true;
     try {
       containerEl.empty();
+      const transcriptIdentities = this.getTranscriptIdentities(messages);
       for (let index = 0; index < messages.length; index++) {
         this.renderStoredMessage(messages[index], messages, index, {
-          collapseCompletedWork: options?.collapseCompletedWork ?? true,
+          collapseCompletedWork: false,
+          deferCompletedWork: options?.collapseCompletedWork !== false,
+          transcriptIdentity: transcriptIdentities.get(messages[index].id),
         });
+      }
+      if (options?.collapseCompletedWork !== false) {
+        this.groupRenderedTranscriptTurns(messages, false);
+        for (const turn of projectTranscript(messages)) this.finalizeTranscriptTurn(turn);
+      } else {
+        this.groupRenderedTranscriptTurns(messages, false);
       }
     } finally {
       this.messagesEl = mainMessagesEl;
@@ -398,7 +488,11 @@ export class MessageRenderer {
     msg: ChatMessage,
     allMessages?: ChatMessage[],
     index?: number,
-    options?: { collapseCompletedWork?: boolean },
+    options?: {
+      collapseCompletedWork?: boolean;
+      deferCompletedWork?: boolean;
+      transcriptIdentity?: TranscriptIdentity;
+    },
   ): void {
     if (
       this.getCapabilities().forkMode === 'full-session'
@@ -446,6 +540,10 @@ export class MessageRenderer {
       },
     });
 
+    const transcriptIdentity = options?.transcriptIdentity
+      ?? this.getTranscriptIdentities(allMessages ?? [msg]).get(msg.id);
+    this.setTranscriptIdentity(msgEl, transcriptIdentity);
+
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
@@ -463,7 +561,11 @@ export class MessageRenderer {
         }
       }
     } else if (msg.role === 'assistant') {
-      const hadLegacyInterruptIndicator = this.renderAssistantContent(msg, contentEl);
+      const hadLegacyInterruptIndicator = this.renderAssistantContent(
+        msg,
+        contentEl,
+        transcriptIdentity?.runIndex === undefined || transcriptIdentity.runIndex === 0,
+      );
       if (msg.isInterrupt || hadLegacyInterruptIndicator) {
         this.appendInterruptIndicator(contentEl);
       }
@@ -472,43 +574,303 @@ export class MessageRenderer {
     if (shouldRenderTimestamp) {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
-    if (msg.role === 'assistant' && options?.collapseCompletedWork !== false) {
+    if (msg.role === 'assistant' && options?.deferCompletedWork) {
+      const isLatestReply = this.getCapabilities().forkMode !== 'full-session'
+        || allMessages?.at(-1)?.id === msg.id;
+      this.finalizeCompletedWork(msg, isLatestReply, false);
+    } else if (msg.role === 'assistant' && options?.collapseCompletedWork !== false) {
       const isLatestReply = this.getCapabilities().forkMode !== 'full-session'
         || allMessages?.at(-1)?.id === msg.id;
       this.finalizeCompletedWork(msg, isLatestReply);
     }
   }
 
-  /**
-   * Collapses the completed reasoning/tool portion of one assistant turn while
-   * leaving the final answer visible. This changes presentation only: the
-   * message model, provider history, and rendered child nodes remain intact.
-   */
-  finalizeCompletedWork(msg: ChatMessage, allowFork = true): void {
+  private getTranscriptIdentities(messages: readonly ChatMessage[]): Map<string, TranscriptIdentity> {
+    const identities = new Map<string, TranscriptIdentity>();
+    for (const turn of projectTranscript(messages)) {
+      if (turn.userMessageId) identities.set(turn.userMessageId, { turnId: turn.id });
+      turn.runs.forEach((run, runIndex) => {
+        identities.set(run.messageId, { turnId: turn.id, runId: run.id, runIndex });
+      });
+    }
+    return identities;
+  }
+
+  /** Groups stored message rows by their canonical user turn after rendering. */
+  private groupRenderedTranscriptTurns(
+    messages: readonly ChatMessage[],
+    mergeWork = true,
+  ): void {
+    const turns = projectTranscript(messages);
+    for (const turn of turns) {
+      const messageIds = [
+        ...(turn.userMessageId ? [turn.userMessageId] : []),
+        ...turn.runs.map((run) => run.messageId),
+      ];
+      const renderedMessages = new Map(
+        Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message'))
+          .map((element) => [element.dataset.messageId, element] as const),
+      );
+      const messageElements = messageIds
+        .map((id) => renderedMessages.get(id))
+        .filter((element): element is HTMLElement => !!element);
+      if (messageElements.length === 0 || (messageElements.length < 2 && turn.runs.length === 0)) continue;
+
+      const first = messageElements[0];
+      const existingTurn = Array.from(
+        this.messagesEl.querySelectorAll<HTMLElement>('.claudian-transcript-turn'),
+      ).find((element) => element.dataset.transcriptTurnId === turn.id);
+      let turnEl = existingTurn;
+      if (!turnEl) {
+        const parent = first.parentElement;
+        if (!parent || messageElements.some((element) => element.parentElement !== parent)) continue;
+        turnEl = parent.createDiv({ cls: 'claudian-transcript-turn' });
+        turnEl.setAttribute('data-transcript-turn-id', turn.id);
+        parent.insertBefore(turnEl, first);
+      }
+      for (const messageEl of messageElements) turnEl.appendChild(messageEl);
+
+      if (!mergeWork) continue;
+      const workGroups = turn.runs.flatMap((run) => {
+        const messageEl = messageElements.find((element) => element.dataset.messageId === run.messageId);
+        const contentEl = messageEl?.querySelector<HTMLElement>('.claudian-message-content');
+        return Array.from(contentEl?.querySelectorAll<HTMLElement>('.claudian-completed-work') ?? [])
+          .filter((workEl) => workEl.parentElement === contentEl);
+      });
+      this.mergeTurnWorkGroups(turnEl, workGroups, turn.runs.map((run) => run.message));
+    }
+  }
+
+  /** Builds one completed work fold from the ordered blocks of an entire turn. */
+  finalizeTranscriptTurn(
+    turn: TranscriptTurnProjection,
+    allowForkMessageId?: string,
+  ): void {
+    if (turn.runs.length === 0 || turn.blocks.length === 0) return;
+    const turnEl = Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-transcript-turn'))
+      .find((element) => element.dataset.transcriptTurnId === turn.id);
+    if (!turnEl) return;
+    const messagesById = new Map(
+      Array.from(turnEl.querySelectorAll<HTMLElement>('.claudian-message'))
+        .map((element) => [element.dataset.messageId, element] as const),
+    );
+    const assistantElements = turn.runs
+      .map((run) => messagesById.get(run.messageId))
+      .filter((element): element is HTMLElement => !!element);
+    const firstAssistant = assistantElements[0];
+    if (!firstAssistant) return;
+    for (const run of turn.runs) {
+      const messageEl = messagesById.get(run.messageId);
+      const contentEl = messageEl?.querySelector<HTMLElement>('.claudian-message-content');
+      if (!messageEl || !contentEl) continue;
+      const statuses = Array.from(contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status'));
+      for (const status of statuses) this.stopCompletedWorkStatusTimer(status);
+      this.unwrapStreamingActivity(contentEl);
+      this.unwrapCompletedWork(contentEl, contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work'));
+      this.removeSupersededInitialThinking(contentEl, run.blocks.map((block) => block.block), run === turn.runs[0]);
+      contentEl.querySelectorAll('.claudian-response-footer').forEach((footer) => footer.remove());
+      this.removeCompletedWorkStatuses(statuses);
+      if (allowForkMessageId !== undefined) {
+        this.syncAssistantMessageActions(
+          run.message,
+          messageEl,
+          contentEl,
+          run.messageId === allowForkMessageId,
+        );
+      }
+      this.transcriptExecutionScopes.delete(run.messageId);
+    }
+    const children = assistantElements.flatMap((messageEl) => {
+      const contentEl = messageEl.querySelector<HTMLElement>('.claudian-message-content');
+      return Array.from(contentEl?.children ?? []) as HTMLElement[];
+    });
+    const runs = turn.runs;
+    const firstMessage = runs[0].message;
+    const lastMessage = runs.at(-1)?.message ?? firstMessage;
+    const durations = runs
+      .filter((run) => run.message.durationSeconds !== undefined && run.message.durationSeconds > 0)
+      .map((run) => ({
+        start: run.message.timestamp,
+        end: run.message.timestamp + (run.message.durationSeconds ?? 0) * 1_000,
+      }));
+    const durationSeconds = durations.length > 0
+      ? (Math.max(...durations.map((duration) => duration.end))
+        - Math.min(...durations.map((duration) => duration.start))) / 1_000
+      : runs.reduce((sum, run) => sum + (run.message.durationSeconds ?? 0), 0) || undefined;
+    const turnMessage: ChatMessage = {
+      ...lastMessage,
+      id: turn.id,
+      role: 'assistant',
+      content: runs.map((run) => run.message.content).filter(Boolean).join('\n\n'),
+      timestamp: firstMessage.timestamp,
+      durationSeconds,
+      modelName: lastMessage.modelName ?? firstMessage.modelName,
+      toolCalls: runs.flatMap((run) => run.message.toolCalls ?? []),
+      contentBlocks: turn.blocks.map((projectedBlock) => projectedBlock.block),
+    };
+    const timeline = this.getRenderedActivityTimeline(turn, children, turnMessage, false, true);
+    if (!timeline.fold) {
+      const legacyWork = children.filter((element) => (
+        element.hasClass('claudian-tool-call')
+        || element.hasClass('claudian-write-edit-block')
+        || element.hasClass('claudian-subagent-list')
+      ));
+      if (legacyWork.length === 0 || !turnMessage.content.trim()) return;
+      const fallbackTimeline: RenderedActivityTimelineSegment[] = [{
+        type: 'phase',
+        id: 'legacy-turn-work',
+        active: false,
+        kind: 'other',
+        elements: legacyWork,
+      }];
+      const completedWork = this.createCompletedWork(
+        turnEl,
+        legacyWork,
+        durationSeconds,
+        this.getCompletedWorkSummary(legacyWork, turnMessage),
+        fallbackTimeline,
+        turnMessage,
+        firstAssistant,
+      );
+      completedWork?.setAttribute('data-transcript-turn-id', turn.id);
+      return;
+    }
+    const foldedTimeline = timeline.items
+      .slice(timeline.fold.start, timeline.fold.end + 1)
+      .flat()
+      .filter((segment) => segment.type !== 'subagents');
+    const elements = foldedTimeline.flatMap((segment) => segment.elements);
+    if (elements.length === 0) return;
+    const completedWork = this.createCompletedWork(
+      turnEl,
+      elements,
+      durationSeconds,
+      this.getCompletedWorkSummary(elements, turnMessage),
+      foldedTimeline,
+      turnMessage,
+      firstAssistant,
+    );
+    completedWork?.setAttribute('data-transcript-turn-id', turn.id);
+  }
+
+  private mergeTurnWorkGroups(
+    turnEl: HTMLElement,
+    workGroups: HTMLElement[],
+    messages: readonly Readonly<ChatMessage>[],
+  ): void {
+    const primary = workGroups[0];
+    if (!primary || workGroups.length < 2) return;
+    const primaryHistory = primary.querySelector<HTMLElement>('.claudian-completed-work-history');
+    if (!primaryHistory) return;
+
+    let earliestStart: number | undefined;
+    let latestEnd: number | undefined;
+    let hasErrors = false;
+    for (let index = 0; index < workGroups.length; index += 1) {
+      const workEl = workGroups[index];
+      const owner = Array.from(turnEl.querySelectorAll<HTMLElement>('.claudian-message'))
+        .find((messageEl) => messageEl.contains(workEl));
+      const runMessage = messages.find((message) => message.id === owner?.dataset.messageId);
+      const duration = Number(workEl.dataset.turnDurationSeconds ?? runMessage?.durationSeconds);
+      const timestamp = Number(workEl.dataset.turnStartedAt ?? runMessage?.timestamp);
+      if (Number.isFinite(duration) && duration > 0 && Number.isFinite(timestamp)) {
+        const startedAt = timestamp;
+        const endedAt = startedAt + duration * 1_000;
+        earliestStart = Math.min(earliestStart ?? startedAt, startedAt);
+        latestEnd = Math.max(latestEnd ?? endedAt, endedAt);
+      }
+      hasErrors ||= workEl.hasClass('has-errors');
+      if (workEl === primary) continue;
+      const history = workEl.querySelector<HTMLElement>('.claudian-completed-work-history');
+      if (history) {
+        for (const child of Array.from(history.children)) primaryHistory.appendChild(child);
+      }
+      workEl.remove();
+    }
+
+    const modelName = workGroups.find((workEl) => workEl.dataset.modelName)?.dataset.modelName
+      ?? messages.find((message) => message.modelName)?.modelName;
+    const durationSeconds = earliestStart !== undefined && latestEnd !== undefined
+      ? (latestEnd - earliestStart) / 1_000
+      : undefined;
+    primary.querySelector<HTMLElement>('.claudian-completed-work-label')?.setText(
+      [modelName, this.getCompletedWorkLabel(durationSeconds)]
+        .filter(Boolean)
+        .join(' · '),
+    );
+    if (hasErrors) {
+      primary.addClass('has-errors');
+      const header = primary.querySelector<HTMLElement>('.claudian-completed-work-header');
+      if (header && !header.querySelector('.claudian-completed-work-error')) {
+        const errorIcon = header.createSpan({ cls: 'claudian-completed-work-error' });
+        errorIcon.setAttribute('aria-hidden', 'true');
+        setIcon(errorIcon, 'alert-triangle');
+      }
+    }
+    primary.setAttribute('data-transcript-turn-id', turnEl.dataset.transcriptTurnId ?? '');
+  }
+
+  private setTranscriptIdentity(
+    messageEl: HTMLElement,
+    identity?: TranscriptIdentity,
+  ): void {
+    if (!identity) return;
+    messageEl.setAttribute('data-transcript-turn-id', identity.turnId);
+    if (identity.runId) messageEl.setAttribute('data-transcript-run-id', identity.runId);
+    if (identity.runIndex !== undefined) {
+      messageEl.setAttribute('data-transcript-run-index', String(identity.runIndex));
+    }
+  }
+
+  /** Settles one assistant run; the caller can defer its fold until the turn ends. */
+  finalizeCompletedWork(msg: ChatMessage, allowFork = true, collapseWork = true): void {
     if (msg.role !== 'assistant') return;
 
     const msgEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
     const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
     if (!msgEl || !contentEl) return;
-    const activeStatuses = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status');
-    this.removeCompletedWorkStatuses(activeStatuses);
+    const activeStatuses = Array.from(contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work-status'));
+    for (const status of activeStatuses) this.stopCompletedWorkStatusTimer(status);
+    this.unwrapStreamingActivity(contentEl);
+    const suppressInitialThinking = Number(msgEl.dataset.transcriptRunIndex ?? 0) === 0;
+    this.removeSupersededInitialThinking(contentEl, msg.contentBlocks, suppressInitialThinking);
     contentEl.querySelector<HTMLElement>('.claudian-response-footer')?.remove();
     contentEl.querySelectorAll('.claudian-response-footer').forEach((footer) => footer.remove());
     const existingWork = contentEl.querySelectorAll<HTMLElement>('.claudian-completed-work');
-    if (msg.isInterrupt) return;
+    if (msg.isInterrupt) {
+      this.removeCompletedWorkStatuses(activeStatuses);
+      this.transcriptExecutionScopes.delete(msg.id);
+      return;
+    }
+    if (!collapseWork) {
+      this.removeCompletedWorkStatuses(activeStatuses);
+      this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
+      this.transcriptExecutionScopes.delete(msg.id);
+      return;
+    }
     if (existingWork.length > 0) {
       this.unwrapCompletedWork(contentEl, existingWork);
     }
 
+    const turnId = msgEl.dataset.transcriptTurnId ?? msg.id;
+    const transcriptRun = projectMessageRun(msg, turnId, {
+      executionScope: this.transcriptExecutionScopes.get(msg.id),
+    });
+
     const children = Array.from(contentEl.children) as HTMLElement[];
-    const workEls = this.findCompletedWorkElements(children);
+    const workEls = this.findCompletedWorkElements(children, msg);
     const notification = msg.isAutomaticResponse
       ? contentEl.querySelector<HTMLElement>('.claudian-task-notification')
       : null;
     const notificationHistory = notification?.querySelector<HTMLElement>('.claudian-work-history');
     if (notificationHistory && workEls.length > 0) {
       for (const workEl of workEls) notificationHistory.appendChild(workEl);
+      if (this.getCompletedWorkSummary(workEls, msg).errorCount > 0) {
+        notificationHistory.hidden = false;
+        notification?.querySelector('button')?.setAttribute('aria-expanded', 'true');
+      }
       this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
+      this.transcriptExecutionScopes.delete(msg.id);
       return;
     }
     const requestedNotifications = msg.isAutomaticResponse ? [] : children.filter(child =>
@@ -516,9 +878,77 @@ export class MessageRenderer {
     const completedWorkEls = [...workEls, ...requestedNotifications]
       .sort((left, right) => children.indexOf(left) - children.indexOf(right));
     if (completedWorkEls.length > 0) {
-      this.createCompletedWork(contentEl, completedWorkEls, msg.durationSeconds);
+      const hasOrderedTranscript = !!msg.contentBlocks?.length;
+      const renderedTimeline: RenderedActivityTimeline = hasOrderedTranscript
+        ? this.getRenderedActivityTimeline(
+          transcriptRun,
+          children,
+          msg,
+          false,
+          suppressInitialThinking,
+        )
+        : { items: [] };
+      const timeline = renderedTimeline.fold
+        ? renderedTimeline.items
+          .slice(renderedTimeline.fold.start, renderedTimeline.fold.end + 1)
+          .flat()
+        : [];
+      const foldedTimeline = timeline.filter((segment) => segment.type !== 'subagents');
+      const timelineElements = foldedTimeline.flatMap((segment) => segment.elements);
+      if (timelineElements.length > 0) {
+        const completedWork = this.createCompletedWork(
+          contentEl,
+          timelineElements,
+          msg.durationSeconds,
+          this.getCompletedWorkSummary(completedWorkEls, msg),
+          foldedTimeline,
+          msg,
+          undefined,
+          activeStatuses[0],
+        );
+        completedWork?.setAttribute('data-transcript-turn-id', transcriptRun.turnId);
+        completedWork?.setAttribute('data-transcript-run-id', transcriptRun.id);
+        if (transcriptRun.executionId) {
+          completedWork?.setAttribute('data-transcript-execution-id', transcriptRun.executionId);
+        }
+        if (transcriptRun.executionTurnId) {
+          completedWork?.setAttribute('data-transcript-execution-turn-id', transcriptRun.executionTurnId);
+        }
+      } else if (completedWorkEls.length > 0 && msg.content.trim().length > 0) {
+        // Preserve completed tools in the summary when transcript ordering
+        // cannot produce a fold, while leaving all response text outside it.
+        const fallbackTimeline: RenderedActivityTimelineSegment[] = [{
+          type: 'phase',
+          id: hasOrderedTranscript ? 'unfolded-work' : 'legacy-work',
+          active: false,
+          kind: 'other',
+          elements: completedWorkEls,
+        }];
+        this.createCompletedWork(
+          contentEl,
+          completedWorkEls,
+          msg.durationSeconds,
+          this.getCompletedWorkSummary(completedWorkEls, msg),
+          fallbackTimeline,
+          msg,
+          children.find((child) => child.hasClass('claudian-text-block')) ?? completedWorkEls[0],
+          activeStatuses[0],
+        );
+      }
     }
+    const transcriptTurn = msgEl.closest<HTMLElement>('.claudian-transcript-turn');
+    if (typeof transcriptTurn?.querySelectorAll === 'function') {
+      const turnWorkGroups = Array.from(
+        transcriptTurn.querySelectorAll<HTMLElement>('.claudian-completed-work'),
+      ).filter((workEl) => workEl.parentElement?.hasClass('claudian-message-content'));
+      this.mergeTurnWorkGroups(transcriptTurn, turnWorkGroups, [msg]);
+    }
+    if (activeStatuses[0]?.hasClass('claudian-completed-work-status')) {
+      this.removeCompletedWorkStatuses([activeStatuses[0]]);
+    }
+    this.removeCompletedWorkStatuses(activeStatuses.slice(1));
     this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
+    this.transcriptExecutionScopes.delete(msg.id);
   }
 
   /**
@@ -597,14 +1027,23 @@ export class MessageRenderer {
       contentEl.querySelector('.claudian-completed-work-status')
       || contentEl.querySelector('.claudian-completed-work')
     ) return;
-    const firstChild = contentEl.firstElementChild ?? contentEl.firstChild;
-    if (!firstChild) return;
+    const children = Array.from(contentEl.children) as HTMLElement[];
+    const firstWork = children.find((child) => (
+      child.hasClass('claudian-thinking-block')
+      || child.hasClass('claudian-tool-call')
+      || child.hasClass('claudian-write-edit-block')
+      || child.hasClass('claudian-subagent-list')
+      || child.hasClass('claudian-compact-boundary')
+      || !!child.dataset.toolId
+    ));
+    const anchor = firstWork ?? contentEl.firstElementChild ?? contentEl.firstChild;
+    if (!anchor) return;
 
     const statusEl = contentEl.createDiv({
       cls: 'claudian-completed-work-status',
       attr: { 'aria-live': 'polite' },
     });
-    contentEl.insertBefore(statusEl, firstChild);
+    contentEl.insertBefore(statusEl, anchor);
     const labelEl = statusEl.createSpan({ cls: 'claudian-completed-work-label' });
     const updateLabel = () => {
       if (statusEl.isConnected === false) {
@@ -626,43 +1065,772 @@ export class MessageRenderer {
     });
   }
 
+  /** Associates an active message with its coordinator-owned execution scope. */
+  setTranscriptExecutionScope(
+    messageId: string,
+    scope: { executionId?: string; turnId: string },
+  ): void {
+    this.transcriptExecutionScopes.set(messageId, scope);
+    const messageEl = this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (scope.executionId) messageEl?.setAttribute('data-transcript-execution-id', scope.executionId);
+    messageEl?.setAttribute('data-transcript-execution-turn-id', scope.turnId);
+  }
+
+  /** Updates the transcript projection from committed and in-flight blocks. */
+  syncStreamingActivity(
+    msg: ChatMessage,
+    contentEl: HTMLElement | null,
+    liveBlock?: Extract<ContentBlock, { type: 'text' | 'thinking' }>,
+    messages: readonly ChatMessage[] = [msg],
+  ): void {
+    if (!contentEl) return;
+    const projectionMessages = messages.some((message) => message.id === msg.id)
+      ? messages
+      : [...messages, msg];
+    const turns = projectTranscript(projectionMessages, {
+      activeMessageId: msg.id,
+      liveBlock: liveBlock?.content.trim() ? liveBlock : undefined,
+      executionScope: this.transcriptExecutionScopes.get(msg.id),
+    });
+    const transcriptRun = findTranscriptRun(turns, msg.id);
+    if (!transcriptRun) return;
+    const transcriptTurn = turns.find((turn) => turn.runs.some((run) => run.messageId === msg.id));
+    const runIndex = transcriptTurn?.runs.findIndex((run) => run.messageId === msg.id) ?? 0;
+    const suppressInitialThinking = runIndex === 0;
+    const contentBlocks = transcriptRun.blocks.map((item) => item.block);
+    if (contentBlocks.length === 0) return;
+    const messageEl = contentEl.parentElement;
+    if (messageEl) {
+      messageEl.setAttribute('data-transcript-turn-id', transcriptRun.turnId);
+      messageEl.setAttribute('data-transcript-run-id', transcriptRun.id);
+      messageEl.setAttribute('data-transcript-run-index', String(runIndex));
+    }
+    const statusEl = contentEl.querySelector<HTMLElement>('.claudian-completed-work-status');
+    statusEl?.setAttribute('data-transcript-turn-id', transcriptRun.turnId);
+    statusEl?.setAttribute('data-transcript-run-id', transcriptRun.id);
+    if (transcriptRun.executionId) {
+      statusEl?.setAttribute('data-transcript-execution-id', transcriptRun.executionId);
+    }
+    if (transcriptRun.executionTurnId) {
+      statusEl?.setAttribute('data-transcript-execution-turn-id', transcriptRun.executionTurnId);
+    }
+    const transcriptRuns = transcriptTurn?.runs ?? [transcriptRun];
+    const runContentElements = transcriptRuns.map((run) => {
+      const runMessageEl = Array.from(
+        this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message'),
+      ).find((element) => element.dataset.messageId === run.messageId);
+      return runMessageEl?.querySelector<HTMLElement>('.claudian-message-content')
+        ?? (run.messageId === msg.id ? contentEl : undefined);
+    }).filter((element): element is HTMLElement => !!element);
+    const turnChildren = runContentElements.flatMap((element) =>
+      Array.from(element.children) as HTMLElement[]);
+    const turnMessage: ChatMessage = transcriptTurn && transcriptTurn.runs.length > 1
+      ? {
+        ...transcriptTurn.runs.at(-1)!.message,
+        id: transcriptTurn.id,
+        role: 'assistant',
+        content: transcriptTurn.runs.map((run) => run.message.content).filter(Boolean).join('\n\n'),
+        timestamp: transcriptTurn.runs[0].message.timestamp,
+        toolCalls: transcriptTurn.runs.flatMap((run) => run.message.toolCalls ?? []),
+        contentBlocks: transcriptTurn.blocks.map((block) => block.block),
+      }
+      : msg;
+    const turnId = transcriptTurn?.id ?? transcriptRun.turnId;
+    const effectiveChildren = turnChildren.flatMap((child) => {
+      if (!child.hasClass('claudian-streaming-activity-phase')) return [child];
+      const details = child.querySelector<HTMLElement>('.claudian-activity-phase-details');
+      return details ? Array.from(details.children) as HTMLElement[] : [];
+    });
+    const signature = [
+      turnMessage.contentBlocks?.map((block) => {
+        if (block.type === 'tool_use') return `tool:${block.toolId}`;
+        if (block.type === 'subagent') return `agent:${block.subagentId}`;
+        if (block.type === 'text' || block.type === 'thinking') {
+          return `${block.type}:${block.content.trim().length > 0}:${block.content.length}`;
+        }
+        return block.type;
+      }).join('|'),
+      effectiveChildren.map((child) => `${child.className}:${child.dataset.toolId ?? ''}`).join('|'),
+      (turnMessage.toolCalls ?? []).map((toolCall) => `${toolCall.id}:${toolCall.status}:${toolCall.questionStatus ?? ''}`).join('|'),
+    ].join('::');
+    const signatureKey = `${turnId}:${msg.id}`;
+    if (this.streamingActivitySignatures.get(contentEl) === `${signatureKey}::${signature}`) return;
+    this.streamingActivitySignatures.set(contentEl, `${signatureKey}::${signature}`);
+
+    for (const [index, runContentEl] of runContentElements.entries()) {
+      this.unwrapStreamingActivity(runContentEl);
+      const run = transcriptTurn?.runs[index] ?? transcriptRun;
+      this.removeSupersededInitialThinking(
+        runContentEl,
+        run.blocks.map((block) => block.block),
+        index === 0,
+      );
+    }
+    const normalizedChildren = runContentElements.flatMap((element) =>
+      Array.from(element.children) as HTMLElement[]);
+    const timeline = this.getRenderedActivityTimeline(
+      transcriptTurn && transcriptTurn.runs.length > 1 ? transcriptTurn : transcriptRun,
+      normalizedChildren,
+      turnMessage,
+      true,
+      transcriptTurn ? transcriptTurn.runs.length === 1 && suppressInitialThinking : suppressInitialThinking,
+    );
+    this.renderStreamingTimeline(turnMessage, contentEl, timeline);
+    this.groupRenderedTranscriptTurns(projectionMessages, false);
+  }
+
+  private removeSupersededInitialThinking(
+    contentEl: HTMLElement,
+    blocks: ContentBlock[] | undefined,
+    suppressInitialThinking = true,
+  ): void {
+    if (!blocks?.length || !suppressInitialThinking) return;
+    const hiddenIndexes = getSupersededInitialThinkingIndexes(blocks);
+    if (hiddenIndexes.size === 0) return;
+
+    const hiddenContentIndexes = new Set(
+      Array.from(hiddenIndexes).filter((index) => {
+        const block = blocks[index];
+        return block?.type === 'thinking' && !!block.content.trim();
+      }).map(String),
+    );
+    if (hiddenContentIndexes.size === 0) return;
+    const thinkingElements = Array.from(
+      contentEl.querySelectorAll<HTMLElement>('.claudian-thinking-block'),
+    );
+    const taggedElements = thinkingElements.filter((element) =>
+      element.dataset.contentBlockIndex !== undefined,
+    );
+    if (taggedElements.length > 0) {
+      for (const element of taggedElements) {
+        if (hiddenContentIndexes.has(element.dataset.contentBlockIndex ?? '')) element.remove();
+      }
+      return;
+    }
+    for (const element of thinkingElements.slice(0, hiddenContentIndexes.size)) element.remove();
+  }
+
+  private unwrapStreamingActivity(contentEl: HTMLElement): void {
+    const phases = Array.from(
+      contentEl.querySelectorAll<HTMLElement>('.claudian-streaming-activity-phase'),
+    );
+    for (const phase of phases) {
+      const details = phase.querySelector<HTMLElement>('.claudian-activity-phase-details');
+      const parent = phase.parentElement ?? contentEl;
+      if (details) {
+        for (const child of Array.from(details.children)) {
+          this.restoreStreamingActivityElement(child as HTMLElement, parent, phase);
+        }
+      }
+      phase.remove();
+    }
+
+    const folds = Array.from(
+      contentEl.querySelectorAll<HTMLElement>('.claudian-streaming-work-fold'),
+    );
+    for (const fold of folds) {
+      const history = fold.querySelector<HTMLElement>('.claudian-streaming-work-history');
+      const header = fold.querySelector<HTMLElement>('.claudian-streaming-work-header');
+      const label = header?.querySelector<HTMLElement>('.claudian-completed-work-label');
+      if (history) {
+        const parent = fold.parentElement ?? contentEl;
+        for (const child of Array.from(history.children)) {
+          this.restoreStreamingActivityElement(child as HTMLElement, parent, fold);
+        }
+        history.remove();
+      }
+      if (label && header) fold.insertBefore(label, header);
+      header?.remove();
+      fold.removeClass('claudian-streaming-work-fold');
+      fold.removeAttribute('aria-controls');
+      fold.querySelector<HTMLElement>('.claudian-completed-work-indicator')?.remove();
+    }
+  }
+
+  private renderStreamingTimeline(
+    msg: ChatMessage,
+    contentEl: HTMLElement,
+    timeline: RenderedActivityTimeline,
+  ): void {
+    const fold = timeline.fold;
+    const statusEl = contentEl.querySelector<HTMLElement>('.claudian-completed-work-status');
+    const foldedItems = fold
+      ? timeline.items.slice(fold.start, fold.end + 1)
+      : [];
+    const foldedSegments = foldedItems.flat().filter((segment) => segment.type !== 'subagents');
+    const foldedElements = foldedSegments.flatMap((segment) => segment.elements);
+    let historyEl: HTMLElement | undefined;
+
+    if (fold && foldedElements.length > 0 && statusEl) {
+      const expanded = this.streamingWorkFoldOverrides.get(msg.id) ?? false;
+      const workId = `claudian-streaming-work-${MessageRenderer.nextCompletedWorkId++}`;
+      statusEl.addClass('claudian-streaming-work-fold');
+      const headerEl = statusEl.createEl('button', {
+        cls: 'claudian-completed-work-header claudian-streaming-work-header',
+        attr: {
+          type: 'button',
+          'aria-controls': workId,
+          'aria-expanded': String(expanded),
+        },
+      });
+      const labelEl = statusEl.querySelector<HTMLElement>('.claudian-completed-work-label');
+      if (labelEl) headerEl.appendChild(labelEl);
+      const indicatorEl = headerEl.createSpan({ cls: 'claudian-completed-work-indicator' });
+      indicatorEl.setAttribute('aria-hidden', 'true');
+      setIcon(indicatorEl, expanded ? 'chevron-down' : 'chevron-right');
+      historyEl = statusEl.createDiv({
+        cls: 'claudian-streaming-work-history',
+        attr: { id: workId },
+      });
+      historyEl.hidden = !expanded;
+      headerEl.addEventListener('click', () => {
+        const nextExpanded = historyEl!.hidden === true;
+        this.streamingWorkFoldOverrides.set(msg.id, nextExpanded);
+        historyEl!.hidden = !nextExpanded;
+        headerEl.setAttribute('aria-expanded', String(nextExpanded));
+        setIcon(indicatorEl, nextExpanded ? 'chevron-down' : 'chevron-right');
+      });
+
+      for (let itemIndex = fold.start; itemIndex <= fold.end; itemIndex += 1) {
+        for (const segment of timeline.items[itemIndex]) {
+          if (segment.type === 'subagents') continue;
+          if (segment.type === 'narration') {
+            for (const element of segment.elements) {
+              this.rememberStreamingActivityOrigin(element);
+              element.addClass('claudian-activity-narration');
+              historyEl.appendChild(element);
+            }
+          } else {
+            this.createActivityPhase(
+              historyEl,
+              segment.elements,
+              msg,
+              segment.kind,
+              true,
+              segment.active,
+              `${msg.id}:${segment.id}`,
+              segment.turnId,
+              segment.runId,
+              segment.executionId,
+              segment.executionTurnId,
+            );
+          }
+        }
+      }
+    }
+
+    timeline.items.forEach((item, itemIndex) => {
+      if (fold && itemIndex >= fold.start && itemIndex <= fold.end) return;
+      for (const segment of item) {
+        if (segment.type !== 'phase') continue;
+        this.createActivityPhase(
+          contentEl,
+          segment.elements,
+          msg,
+          segment.kind,
+          true,
+          segment.active,
+          `${msg.id}:${segment.id}`,
+          segment.turnId,
+          segment.runId,
+          segment.executionId,
+          segment.executionTurnId,
+        );
+      }
+    });
+  }
+
   private createCompletedWork(
     contentEl: HTMLElement,
     workEls: HTMLElement[],
     durationSeconds?: number,
+    summary = { actionCount: 0, errorCount: 0 },
+    timeline?: RenderedActivityTimelineSegment[],
+    msg?: ChatMessage,
+    insertBeforeEl?: HTMLElement,
+    statusEl?: HTMLElement,
   ): HTMLElement | null {
     if (!workEls.length) return null;
 
     const workId = `claudian-completed-work-${MessageRenderer.nextCompletedWorkId++}`;
-    const workEl = contentEl.createDiv({ cls: 'claudian-completed-work' });
-    contentEl.insertBefore(workEl, workEls[0]);
+    const workEl = statusEl ?? contentEl.createDiv();
+    workEl.removeClass('claudian-completed-work-status');
+    workEl.removeAttribute('aria-live');
+    workEl.empty();
+    workEl.addClass('claudian-completed-work');
+    if (durationSeconds !== undefined) workEl.dataset.turnDurationSeconds = String(durationSeconds);
+    if (msg?.timestamp !== undefined) workEl.dataset.turnStartedAt = String(msg.timestamp);
+    if (msg?.modelName) workEl.dataset.modelName = msg.modelName;
+    if (summary.errorCount > 0) workEl.addClass('has-errors');
+    if (!statusEl) contentEl.insertBefore(workEl, insertBeforeEl ?? workEls[0]);
+    // Keep the settled turn header visible and let the user open the ordered
+    // progress rail. The error marker remains visible in the header while the
+    // detailed phase expands automatically when the user opens the turn.
+    const isExpanded = false;
+    const headerSummary = { actionCount: 0, errorCount: 0 };
     const headerEl = workEl.createEl('button', {
       cls: 'claudian-completed-work-header',
       attr: {
         type: 'button',
         'aria-controls': workId,
-        'aria-expanded': 'false',
+        'aria-expanded': String(isExpanded),
       },
     });
+    if (summary.errorCount > 0) {
+      const statusEl = headerEl.createSpan({ cls: 'claudian-completed-work-error' });
+      statusEl.setAttribute('aria-hidden', 'true');
+      setIcon(statusEl, 'alert-triangle');
+    }
     headerEl.createSpan({
       cls: 'claudian-completed-work-label',
-      text: this.getCompletedWorkLabel(durationSeconds),
+      text: [msg?.modelName, this.getCompletedWorkLabel(durationSeconds, false, headerSummary)]
+        .filter(Boolean)
+        .join(' · '),
     });
     const indicatorEl = headerEl.createSpan({ cls: 'claudian-completed-work-indicator' });
     indicatorEl.setAttribute('aria-hidden', 'true');
-    setIcon(indicatorEl, 'chevron-right');
+    setIcon(indicatorEl, isExpanded ? 'chevron-down' : 'chevron-right');
     const historyEl = workEl.createDiv({
       cls: 'claudian-completed-work-history',
       attr: { id: workId },
     });
-    historyEl.hidden = true;
-    for (const child of workEls) historyEl.appendChild(child);
+    historyEl.hidden = !isExpanded;
+    if (timeline) {
+      for (const segment of timeline) {
+        if (segment.type === 'narration') {
+          for (const element of segment.elements) {
+            element.addClass('claudian-activity-narration');
+            historyEl.appendChild(element);
+          }
+          continue;
+        }
+        if (segment.type === 'subagents') {
+          for (const element of segment.elements) historyEl.appendChild(element);
+          continue;
+        }
+        if (msg) {
+          this.createActivityPhase(
+            historyEl,
+            segment.elements,
+            msg,
+            segment.kind,
+            false,
+            false,
+            `${msg.id}:${segment.id}`,
+            segment.turnId,
+            segment.runId,
+            segment.executionId,
+            segment.executionTurnId,
+          );
+        }
+      }
+    } else {
+      for (const child of workEls) historyEl.appendChild(child);
+    }
     headerEl.addEventListener('click', () => {
       historyEl.hidden = !historyEl.hidden;
       headerEl.setAttribute('aria-expanded', String(!historyEl.hidden));
       setIcon(indicatorEl, historyEl.hidden ? 'chevron-right' : 'chevron-down');
     });
     return workEl;
+  }
+
+  private createActivityPhase(
+    parentEl: HTMLElement,
+    elements: HTMLElement[],
+    msg: ChatMessage,
+    kind: ActivityWorkKind,
+    streaming = false,
+    initiallyExpanded = false,
+    stateKey?: string,
+    turnId?: string,
+    runId?: string,
+    executionId?: string,
+    executionTurnId?: string,
+  ): void {
+    if (elements.length === 0) return;
+    const hasThinking = elements.some((element) => element.hasClass('claudian-thinking-block'));
+    if (elements.length === 1 && !hasThinking) {
+      parentEl.appendChild(elements[0]);
+      return;
+    }
+    const summary = this.getCompletedWorkSummary(elements, msg);
+    const phaseId = `claudian-activity-phase-${MessageRenderer.nextCompletedWorkId++}`;
+    const phaseEl = parentEl.createDiv({
+      cls: `claudian-activity-phase${streaming ? ' claudian-streaming-activity-phase' : ''}`,
+    });
+    const firstElement = elements[0].parentElement === parentEl ? elements[0] : null;
+    parentEl.insertBefore(phaseEl, firstElement);
+    phaseEl.setAttribute('data-kind', kind);
+    if (initiallyExpanded) phaseEl.setAttribute('data-active', 'true');
+    if (turnId) phaseEl.setAttribute('data-transcript-turn-id', turnId);
+    if (runId) phaseEl.setAttribute('data-transcript-run-id', runId);
+    if (executionId) phaseEl.setAttribute('data-transcript-execution-id', executionId);
+    if (executionTurnId) phaseEl.setAttribute('data-transcript-execution-turn-id', executionTurnId);
+    const requiresAttention = elements.some((element) => this.isPendingInteraction(element, msg));
+    let isExpanded = requiresAttention || (
+      this.activityPhaseOverrides.get(stateKey ?? '') ?? initiallyExpanded
+    );
+    const headerEl = phaseEl.createEl('button', {
+      cls: 'claudian-activity-phase-header',
+      attr: {
+        type: 'button',
+        'aria-controls': phaseId,
+        'aria-expanded': String(isExpanded),
+      },
+    });
+    headerEl.createSpan({
+      cls: 'claudian-activity-phase-label',
+      text: this.getActivityPhaseLabel(elements, msg, summary, kind),
+    });
+    if (summary.errorCount > 0) {
+      const errorEl = headerEl.createSpan({ cls: 'claudian-activity-phase-error' });
+      errorEl.setAttribute('aria-hidden', 'true');
+      errorEl.setAttribute('title', this.getCompletedWorkLabel(undefined, false, {
+        actionCount: 0,
+        errorCount: summary.errorCount,
+      }));
+      setIcon(errorEl, 'alert-triangle');
+    }
+    const indicatorEl = headerEl.createSpan({ cls: 'claudian-activity-phase-indicator' });
+    indicatorEl.setAttribute('aria-hidden', 'true');
+    setIcon(indicatorEl, isExpanded ? 'chevron-down' : 'chevron-right');
+    const detailsEl = phaseEl.createDiv({
+      cls: 'claudian-activity-phase-details',
+      attr: { id: phaseId },
+    });
+    detailsEl.hidden = !isExpanded;
+    detailsEl.setAttribute('aria-hidden', String(!isExpanded));
+    if (!isExpanded) detailsEl.setAttribute('inert', '');
+    for (const element of elements) {
+      if (streaming) this.rememberStreamingActivityOrigin(element);
+      detailsEl.appendChild(element);
+    }
+    headerEl.addEventListener('click', () => {
+      if (requiresAttention) return;
+      isExpanded = !isExpanded;
+      if (stateKey) this.activityPhaseOverrides.set(stateKey, isExpanded);
+      this.setActivityPhaseExpanded(detailsEl, isExpanded);
+      headerEl.setAttribute('aria-expanded', String(isExpanded));
+      setIcon(indicatorEl, isExpanded ? 'chevron-down' : 'chevron-right');
+    });
+  }
+
+  private setActivityPhaseExpanded(detailsEl: HTMLElement, expanded: boolean): void {
+    const previousAnimation = this.activityPhaseAnimations.get(detailsEl);
+    const currentHeight = detailsEl.hidden ? 0 : detailsEl.getBoundingClientRect().height;
+    previousAnimation?.cancel();
+    detailsEl.hidden = false;
+    detailsEl.removeAttribute('inert');
+    detailsEl.setAttribute('aria-hidden', String(!expanded));
+    if (!expanded) detailsEl.setAttribute('inert', '');
+
+    const view = detailsEl.ownerDocument.defaultView;
+    const reducedMotion = view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reducedMotion || typeof detailsEl.animate !== 'function') {
+      detailsEl.hidden = !expanded;
+      return;
+    }
+
+    const targetHeight = expanded ? detailsEl.scrollHeight : 0;
+    const animation = detailsEl.animate(
+      [
+        { height: `${currentHeight}px`, opacity: expanded ? 0 : 1 },
+        { height: `${targetHeight}px`, opacity: expanded ? 1 : 0 },
+      ],
+      {
+        duration: 280,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
+    );
+    this.activityPhaseAnimations.set(detailsEl, animation);
+    animation.onfinish = () => {
+      if (this.activityPhaseAnimations.get(detailsEl) !== animation) return;
+      this.activityPhaseAnimations.delete(detailsEl);
+      detailsEl.hidden = !expanded;
+    };
+  }
+
+  private rememberStreamingActivityOrigin(element: HTMLElement): void {
+    if (this.streamingActivityOrigins.has(element)) return;
+    const parent = element.parentElement;
+    if (!parent) return;
+    const siblings = Array.from(parent.children);
+    const index = siblings.indexOf(element);
+    this.streamingActivityOrigins.set(element, {
+      parent,
+      nextSibling: index >= 0 ? siblings[index + 1] as HTMLElement | undefined ?? null : null,
+    });
+  }
+
+  private restoreStreamingActivityElement(
+    element: HTMLElement,
+    fallbackParent: HTMLElement,
+    fallbackReference: HTMLElement,
+  ): void {
+    const origin = this.streamingActivityOrigins.get(element);
+    if (origin) {
+      const reference = origin.nextSibling?.parentElement === origin.parent
+        ? origin.nextSibling
+        : null;
+      origin.parent.insertBefore(element, reference);
+      return;
+    }
+    fallbackParent.insertBefore(element, fallbackReference);
+  }
+
+  private getActivityPhaseLabel(
+    elements: HTMLElement[],
+    msg: ChatMessage,
+    summary: { actionCount: number; errorCount: number },
+    kind: ActivityWorkKind,
+  ): string {
+    const names: string[] = [];
+    for (const element of elements) {
+      const toolCall = element.dataset.toolId
+        ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
+        : undefined;
+      const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
+      const label = renderedLabel || toolCall?.name;
+      if (label) names.push(label);
+    }
+
+    if (names.length > 0) {
+      const commandNames = new Set<string>([
+        TOOL_BASH,
+        TOOL_BASH_OUTPUT,
+        TOOL_KILL_SHELL,
+        'exec',
+        'exec_command',
+      ]);
+      const readNames = new Set<string>([TOOL_READ, TOOL_WEB_FETCH]);
+      const searchNames = new Set<string>([TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_WEB_SEARCH, 'Search']);
+      const commands = names.filter((name) => commandNames.has(name)).length;
+      const reads = names.filter((name) => readNames.has(name)).length;
+      const searches = names.filter((name) => searchNames.has(name)).length;
+      const edits = names.filter((name) => isWriteEditTool(name) || name === TOOL_APPLY_PATCH).length;
+      const knownNames = new Set([
+        ...commandNames,
+        ...readNames,
+        ...searchNames,
+        TOOL_EDIT,
+        'Write',
+        TOOL_APPLY_PATCH,
+      ]);
+      const counts = new Map<string, number>();
+      for (const name of names) {
+        if (knownNames.has(name)) continue;
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+
+      const labels: string[] = [];
+      if (reads > 0 && searches > 0) labels.push('Explored the project');
+      else if (searches > 0) labels.push('Searched the project');
+      else if (reads > 0) labels.push(`Read ${reads} ${reads === 1 ? 'file' : 'files'}`);
+      if (commands > 0) labels.push(`Ran ${commands} ${commands === 1 ? 'command' : 'commands'}`);
+      if (edits > 0) labels.push(`Edited ${edits} ${edits === 1 ? 'file' : 'files'}`);
+      for (const [name, count] of counts) {
+        labels.push(count > 1 ? `${name} × ${count}` : name);
+      }
+      if (labels.length > 0) return labels.join(' · ');
+    }
+
+    if (kind === 'think' || (
+      elements.length > 0
+      && elements.every((element) => element.hasClass('claudian-thinking-block'))
+    )) {
+      return t('chat.rendering.thinkingSummary');
+    }
+    if (elements.some((element) => element.hasClass('claudian-compact-boundary'))) {
+      return elements.find((element) => element.hasClass('claudian-compact-boundary'))
+        ?.textContent?.trim() || 'Conversation compacted';
+    }
+    if (kind === 'agent') return 'Agent work';
+    if (kind === 'run') return `Ran ${summary.actionCount} ${summary.actionCount === 1 ? 'command' : 'commands'}`;
+    if (kind === 'edit') return `Edited ${summary.actionCount} ${summary.actionCount === 1 ? 'file' : 'files'}`;
+    return this.getCompletedWorkLabel(undefined, false, summary);
+  }
+
+  private getRenderedActivityTimeline(
+    transcriptRun: TranscriptRunProjection | TranscriptTurnProjection | undefined,
+    children: HTMLElement[],
+    msg: ChatMessage,
+    live = false,
+    suppressInitialThinking = true,
+  ): RenderedActivityTimeline {
+    if (!transcriptRun?.blocks.length) return { items: [] };
+    const contentBlocks = transcriptRun.blocks.map((item) => item.block);
+    const elementByBlockIndex = new Map<number, HTMLElement>();
+    const representedElements = new Set<HTMLElement>();
+    const supersededInitialThinking = suppressInitialThinking
+      ? getSupersededInitialThinkingIndexes(contentBlocks)
+      : new Set<number>();
+    let fallbackCursor = 0;
+    const findFallbackElement = (matches: (element: HTMLElement) => boolean) => {
+      for (let index = fallbackCursor; index < children.length; index += 1) {
+        const candidate = children[index];
+        if (!matches(candidate)) continue;
+        fallbackCursor = index + 1;
+        return candidate;
+      }
+      return undefined;
+    };
+
+    transcriptRun.blocks.forEach((projectedBlock, blockIndex) => {
+      const block = projectedBlock.block;
+      if (block.type === 'text' && !block.content.trim()) return;
+      if (block.type === 'thinking' && (!block.content.trim() || supersededInitialThinking.has(blockIndex))) return;
+      let element = children.find((candidate) => (
+        candidate.dataset.transcriptItemId === projectedBlock.id
+      ));
+      // Provider and historical renderers may still produce untagged legacy
+      // nodes. Stable projected IDs remain authoritative whenever present.
+      if (!element && (block.type === 'tool_use' || block.type === 'subagent')) {
+        const toolId = block.type === 'tool_use' ? block.toolId : block.subagentId;
+        element = children.find((candidate) => candidate.dataset.toolId === toolId);
+      }
+      if (!element) {
+        if (block.type === 'text') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-text-block'));
+        } else if (block.type === 'thinking') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-thinking-block'));
+        } else if (block.type === 'tool_use' || block.type === 'subagent') {
+          const toolId = block.type === 'tool_use' ? block.toolId : block.subagentId;
+          element = findFallbackElement((candidate) => candidate.dataset.toolId === toolId);
+        } else if (block.type === 'citations') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-citations'));
+        } else if (block.type === 'task_notification') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-task-notification'));
+        } else if (block.type === 'context_compacted') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-compact-boundary'));
+        }
+      }
+      if (!element) return;
+      element.dataset.transcriptItemId = projectedBlock.id;
+      elementByBlockIndex.set(blockIndex, element);
+      representedElements.add(element);
+    });
+
+    const pendingToolIds = new Set(
+      msg.toolCalls
+        ?.filter((toolCall) => toolCall.questionStatus === 'pending')
+        .map((toolCall) => toolCall.id),
+    );
+    children.forEach((child, index) => {
+      if (!this.isApprovalBoundary(child)) return;
+      for (let previous = index - 1; previous >= 0; previous -= 1) {
+        const toolId = children[previous].dataset.toolId;
+        if (!toolId) continue;
+        const toolCall = msg.toolCalls?.find((candidate) => candidate.id === toolId);
+        if (toolCall?.status === 'running') pendingToolIds.add(toolId);
+        break;
+      }
+    });
+    const failedSubagentIds = new Set(
+      msg.toolCalls
+        ?.filter((toolCall) => (
+          !!toolCall.subagent
+          && (isFailedToolStatus(toolCall.status) || toolCall.subagent.status === 'error')
+        ))
+        .map((toolCall) => toolCall.id),
+    );
+    const backgroundToolIds = new Set(
+      msg.toolCalls
+        ?.filter((toolCall) => (
+          toolCall.input.run_in_background === true
+          || toolCall.subagent?.mode === 'async'
+        ))
+        .map((toolCall) => toolCall.id),
+    );
+    const boundaryBeforeIndexes = new Set<number>();
+    for (const child of children) {
+      if (!this.isPendingInteraction(child, msg) || representedElements.has(child)) continue;
+      const boundaryPosition = children.indexOf(child);
+      let nextBlockIndex: number | undefined;
+      let nextPosition = Number.POSITIVE_INFINITY;
+      for (const [blockIndex, element] of elementByBlockIndex) {
+        const position = children.indexOf(element);
+        if (position > boundaryPosition && position < nextPosition) {
+          nextBlockIndex = blockIndex;
+          nextPosition = position;
+        }
+      }
+      if (nextBlockIndex !== undefined) boundaryBeforeIndexes.add(nextBlockIndex);
+    }
+    const toolNames = new Map((msg.toolCalls ?? []).map((toolCall) => [toolCall.id, toolCall.name]));
+    const timeline = buildActivityTimeline(transcriptRun, {
+      pendingToolIds,
+      backgroundToolIds,
+      failedSubagentIds,
+      boundaryBeforeIndexes,
+      toolNames,
+      live,
+      suppressInitialThinking,
+    });
+    const renderedItems = timeline.items.map((item): RenderedActivityTimelineSegment[] => {
+      if (item.type === 'block') {
+        const block = contentBlocks[item.blockIndex];
+        const element = elementByBlockIndex.get(item.blockIndex);
+        return item.foldable && block.type === 'text' && element
+          ? [{ type: 'narration', elements: [element] }]
+          : [];
+      }
+      if (item.type === 'subagents') {
+        const elements = item.blockIndexes
+          .map((index) => elementByBlockIndex.get(index))
+          .filter((element): element is HTMLElement => !!element);
+        return elements.length > 0 ? [{ type: 'subagents', elements }] : [];
+      }
+      return item.phases.flatMap((phase) => {
+        const firstIndex = phase.stepIndexes[0] ?? 0;
+        const firstBlock = contentBlocks[firstIndex];
+        const id = phase.id ?? (firstBlock?.type === 'tool_use'
+          ? `tool:${firstBlock.toolId}`
+          : firstBlock?.type === 'subagent'
+            ? `agent:${firstBlock.subagentId}`
+            : `block:${firstIndex}`);
+        const elements = phase.stepIndexes
+          .map((index) => elementByBlockIndex.get(index))
+          .filter((element): element is HTMLElement => !!element)
+          .filter((element) => !this.isPendingInteraction(element, msg));
+        return elements.length > 0
+          ? [{
+            type: 'phase',
+            id,
+            active: phase.active === true,
+            kind: phase.kind,
+            turnId: phase.turnId,
+            runId: phase.runId,
+            executionId: phase.executionId,
+            executionTurnId: phase.executionTurnId,
+            elements,
+          }]
+          : [];
+      });
+    });
+
+    const unrepresentedWork = children.filter((element) => (
+      !representedElements.has(element)
+      && !element.hasClass('claudian-text-block')
+      && !element.hasClass('claudian-citations')
+      && !element.hasClass('claudian-response-footer')
+      && !element.hasClass('claudian-completed-work-status')
+      && !this.isPendingInteraction(element, msg)
+    ));
+    if (unrepresentedWork.length > 0 && timeline.fold) {
+      const foldedEnd = renderedItems[timeline.fold.end];
+      const lastSegment = foldedEnd?.at(-1);
+      if (lastSegment?.type === 'phase') lastSegment.elements.push(...unrepresentedWork);
+      else foldedEnd?.push({
+        type: 'phase',
+        id: `unrepresented:${timeline.fold.end}`,
+        active: false,
+        kind: 'other',
+        elements: unrepresentedWork,
+      });
+    }
+
+    return { items: renderedItems, fold: timeline.fold };
   }
 
   private unwrapCompletedWork(
@@ -694,16 +1862,77 @@ export class MessageRenderer {
     this.completedWorkStatusTimers.delete(statusEl);
   }
 
-  private findCompletedWorkElements(children: HTMLElement[]): HTMLElement[] {
+  private findCompletedWorkElements(
+    children: HTMLElement[],
+    msg: ChatMessage,
+  ): HTMLElement[] {
     return children.filter((child) => (
       !child.hasClass('claudian-text-block')
       && !child.hasClass('claudian-citations')
       && !child.hasClass('claudian-task-notification')
       && !child.hasClass('claudian-response-footer')
+      && !child.hasClass('claudian-completed-work-status')
+      && !this.isPendingInteraction(child, msg)
+      && !this.isRunningTool(child, msg)
     ));
   }
 
-  renderTaskNotification(contentEl: HTMLElement, content: string): void {
+  private isRunningTool(element: HTMLElement, msg: ChatMessage): boolean {
+    const toolId = element.dataset.toolId;
+    return !!toolId && msg.toolCalls?.some((toolCall) => (
+      toolCall.id === toolId && toolCall.status === 'running'
+    )) === true;
+  }
+
+  private isPendingInteraction(element: HTMLElement, msg: ChatMessage): boolean {
+    if (this.isApprovalBoundary(element)) return true;
+
+    const toolId = element.dataset.toolId;
+    if (!toolId) return false;
+    const toolCall = msg.toolCalls?.find((candidate) => candidate.id === toolId);
+    return toolCall?.questionStatus === 'pending';
+  }
+
+  private isApprovalBoundary(element: HTMLElement): boolean {
+    return element.hasClass('claudian-plan-approval-inline')
+      || element.hasClass('claudian-ask-question-inline')
+      || element.hasClass('claudian-ask-approval-info');
+  }
+
+  private getCompletedWorkSummary(
+    workEls: HTMLElement[],
+    msg: ChatMessage,
+  ): { actionCount: number; errorCount: number } {
+    const actionElements = workEls.filter((element) => (
+      element.hasClass('claudian-tool-call')
+      || element.hasClass('claudian-write-edit-block')
+      || element.hasClass('claudian-subagent-list')
+    ));
+    const renderedToolIds = new Set(actionElements
+      .map((element) => element.dataset.toolId)
+      .filter((id): id is string => !!id));
+    const failedToolIds = new Set((msg.toolCalls ?? [])
+      .filter((toolCall) => (
+        renderedToolIds.has(toolCall.id)
+        && isFailedToolStatus(toolCall.status)
+      ))
+      .map((toolCall) => toolCall.id));
+    const renderedErrorCount = actionElements.filter((element) => (
+      (element.dataset.toolId && failedToolIds.has(element.dataset.toolId))
+      || element.hasClass('error')
+      || element.hasClass('status-error')
+      || element.hasClass('status-blocked')
+      || !!element.querySelector('.status-error, .status-blocked, .claudian-subagent-list.error')
+    )).length;
+    const reportedErrorCount = (msg.toolCalls ?? []).filter((toolCall) => (
+      renderedToolIds.has(toolCall.id)
+      && isFailedToolStatus(toolCall.status)
+    )).length;
+    const errorCount = Math.max(renderedErrorCount, reportedErrorCount);
+    return { actionCount: actionElements.length, errorCount };
+  }
+
+  renderTaskNotification(contentEl: HTMLElement, content: string): HTMLElement {
     const wrapper = contentEl.createDiv({ cls: 'claudian-task-notification' });
     const historyId = `claudian-task-notification-${MessageRenderer.nextCompletedWorkId++}`;
     const header = wrapper.createEl('button', {
@@ -726,26 +1955,39 @@ export class MessageRenderer {
       history.hidden = !history.hidden;
       header.setAttribute('aria-expanded', String(!history.hidden));
     });
+    return wrapper;
   }
 
   private getCompletedWorkLabel(
     durationSeconds: number | undefined,
     isInProgress = false,
+    summary = { actionCount: 0, errorCount: 0 },
   ): string {
     if (isInProgress) {
       return t('chat.completedWork.inProgress', {
         seconds: Math.max(0, Math.floor(durationSeconds ?? 0)),
       });
     }
-    if (!Number.isFinite(durationSeconds) || durationSeconds === undefined || durationSeconds <= 0) {
-      return t('chat.completedWork.label');
+    let label = t('chat.completedWork.label');
+    if (Number.isFinite(durationSeconds) && durationSeconds !== undefined && durationSeconds > 0) {
+      const totalSeconds = Math.floor(durationSeconds);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      label = minutes > 0
+        ? t('chat.completedWork.minutes', { minutes, seconds })
+        : t('chat.completedWork.seconds', { seconds });
     }
-    const totalSeconds = Math.floor(durationSeconds);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return minutes > 0
-      ? t('chat.completedWork.minutes', { minutes, seconds })
-      : t('chat.completedWork.seconds', { seconds });
+    if (summary.actionCount > 0) {
+      label += t(summary.actionCount === 1
+        ? 'chat.completedWork.actionOne'
+        : 'chat.completedWork.actions', { count: summary.actionCount });
+    }
+    if (summary.errorCount > 0) {
+      label += t(summary.errorCount === 1
+        ? 'chat.completedWork.errorOne'
+        : 'chat.completedWork.errors', { count: summary.errorCount });
+    }
+    return label;
   }
 
   private shouldRenderMessageTimestamp(msg: ChatMessage): boolean {
@@ -818,19 +2060,29 @@ export class MessageRenderer {
   /**
    * Renders assistant message content (content blocks or fallback).
    */
-  private renderAssistantContent(msg: ChatMessage, contentEl: HTMLElement): boolean {
+  private renderAssistantContent(
+    msg: ChatMessage,
+    contentEl: HTMLElement,
+    suppressInitialThinking = true,
+  ): boolean {
     let hadLegacyInterruptIndicator = false;
 
     if (msg.contentBlocks && msg.contentBlocks.length > 0) {
+      const supersededInitialThinking = suppressInitialThinking
+        ? getSupersededInitialThinkingIndexes(msg.contentBlocks)
+        : new Set<number>();
       const renderedToolIds = new Set<string>();
-      for (const block of msg.contentBlocks) {
+      for (const [blockIndex, block] of msg.contentBlocks.entries()) {
+        const existingChildren = new Set(Array.from(contentEl.children));
         if (block.type === 'thinking') {
-          renderStoredThinkingBlock(
+          if (!block.content.trim() || supersededInitialThinking.has(blockIndex)) continue;
+          const thinkingEl = renderStoredThinkingBlock(
             contentEl,
             block.content,
             block.durationSeconds,
             (el, md) => this.renderContent(el, md)
           );
+          if (thinkingEl) thinkingEl.dataset.contentBlockIndex = String(blockIndex);
         } else if (block.type === 'text') {
           const normalized = stripLegacyInterruptIndicator(block.content);
           hadLegacyInterruptIndicator ||= normalized.interrupted;
@@ -865,6 +2117,12 @@ export class MessageRenderer {
 
           this.renderTaskSubagent(contentEl, taskToolCall, block.mode);
           renderedToolIds.add(taskToolCall.id);
+        }
+
+        const renderedBlock = Array.from(contentEl.children)
+          .find((element) => !existingChildren.has(element)) as HTMLElement | undefined;
+        if (renderedBlock) {
+          renderedBlock.dataset.transcriptItemId = getTranscriptBlockId(msg.id, block, blockIndex);
         }
       }
 
@@ -1084,15 +2342,8 @@ export class MessageRenderer {
   private mapToolStatusToSubagentStatus(
     status: ToolCallInfo['status']
   ): 'completed' | 'error' | 'running' {
-    switch (status) {
-      case 'completed':
-        return 'completed';
-      case 'error':
-      case 'blocked':
-        return 'error';
-      default:
-        return 'running';
-    }
+    if (isFailedToolStatus(status)) return 'error';
+    return status === 'completed' ? 'completed' : 'running';
   }
 
   private inferAsyncStatusFromTaskTool(toolCall: ToolCallInfo): 'running' | 'completed' | 'error' {

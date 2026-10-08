@@ -87,7 +87,11 @@
       "inProgress": "En curso · {seconds} s",
       "label": "Completado",
       "seconds": "Duró {seconds} s",
-      "minutes": "Duró {minutes} min {seconds} s"
+      "minutes": "Duró {minutes} min {seconds} s",
+      "actionOne": " · {count} acción",
+      "actions": " · {count} acciones",
+      "errorOne": " · {count} error",
+      "errors": " · {count} errores"
     },
     "welcome": {
       "availableCapabilities": "Disponible: {capabilities}",
@@ -252,6 +256,7 @@
       "writing": "Escribiendo...",
       "done": "HECHO",
       "thinking": "Pensando {seconds}s...",
+      "thinkingSummary": "Pensando",
       "thinkingAria": "Pensamiento extendido: haz clic para expandir",
       "hints": "Usa las flechas para navegar · Intro para seleccionar · Esc para cancelar",
       "running": "En ejecución..."

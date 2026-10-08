@@ -1,6 +1,6 @@
 import '@/providers';
 
-import { createMockEl } from '@test/helpers/MockElement';
+import { createMockEl, type MockElement } from '@test/helpers/MockElement';
 import { Menu } from 'obsidian';
 
 import {
@@ -11,7 +11,9 @@ import {
   TOOL_WAIT_AGENT,
   TOOL_WRITE_STDIN,
 } from '@/core/tools/toolNames';
+import { projectTranscript } from '@/core/transcript/TranscriptProjection';
 import type { ChatMessage, ImageAttachment } from '@/core/types';
+import { buildActivityTimeline } from '@/features/chat/rendering/ActivityTimeline';
 import { renderCitationGroup } from '@/features/chat/rendering/CitationRenderer';
 import { MessageRenderer } from '@/features/chat/rendering/MessageRenderer';
 import { renderStoredAsyncSubagent, renderStoredSubagent } from '@/features/chat/rendering/SubagentRenderer';
@@ -61,6 +63,44 @@ function createMockComponent() {
     }),
     load: jest.fn(),
     unload: jest.fn(),
+  };
+}
+
+function enableDomLikeNodeMoves(element: MockElement): void {
+  for (const child of element.children) {
+    child.parentElement = element;
+    enableDomLikeNodeMoves(child);
+  }
+  for (const factory of ['createDiv', 'createSpan', 'createEl', 'createSvg'] as const) {
+    const create = element[factory].bind(element);
+    element[factory] = (...args: unknown[]) => {
+      const child = Reflect.apply(create, element, args) as MockElement;
+      child.parentElement = element;
+      enableDomLikeNodeMoves(child);
+      return child;
+    };
+  }
+  element.appendChild = (child: MockElement) => {
+    const previousIndex = child.parentElement?.children.indexOf(child) ?? -1;
+    if (previousIndex >= 0) child.parentElement.children.splice(previousIndex, 1);
+    child.parentElement = element;
+    element.children.push(child);
+    return child;
+  };
+  element.insertBefore = (child: MockElement, reference: MockElement | null) => {
+    if (child.parentElement) {
+      const previousIndex = child.parentElement.children.indexOf(child);
+      if (previousIndex >= 0) child.parentElement.children.splice(previousIndex, 1);
+    }
+    child.parentElement = element;
+    const referenceIndex = reference ? element.children.indexOf(reference) : -1;
+    element.children.splice(referenceIndex < 0 ? element.children.length : referenceIndex, 0, child);
+  };
+  element.remove = () => {
+    if (!element.parentElement) return;
+    const index = element.parentElement.children.indexOf(element);
+    if (index >= 0) element.parentElement.children.splice(index, 1);
+    element.parentElement = null;
   };
 }
 
@@ -200,7 +240,7 @@ describe('MessageRenderer', () => {
       expect(contentEl.contains(answerEl)).toBe(true);
     });
 
-    it('collapses completed work while keeping the final answer visible', () => {
+    it('folds completed turn activity while keeping the final answer visible', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl, 'claude', {}, jest.fn());
       const messageEl = messagesEl.createDiv({
@@ -216,6 +256,7 @@ describe('MessageRenderer', () => {
 
       renderer.finalizeCompletedWork({
         id: 'assistant-1', role: 'assistant', content: 'Final answer', timestamp: Date.now(), durationSeconds: 24,
+        modelName: 'GPT-6 Luna',
         assistantMessageId: 'provider-assistant-1',
         contentBlocks: [
           { type: 'thinking', content: 'Thinking' },
@@ -226,17 +267,501 @@ describe('MessageRenderer', () => {
       const workEl = contentEl.querySelector('.claudian-completed-work');
       expect(workEl).toBeTruthy();
       expect(workEl?.querySelector('.claudian-completed-work-header')?.children[0].textContent)
-        .toContain('Took 24s');
+        .toContain('GPT-6 Luna · Took 24s');
       expect(workEl?.querySelector('.claudian-completed-work-indicator')).toBeTruthy();
       expect(workEl?.querySelector('.claudian-completed-work-header')?.children[1])
         .toBe(workEl?.querySelector('.claudian-completed-work-indicator'));
       expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(thinkingEl)).toBe(true);
       expect(contentEl.contains(answerEl)).toBe(true);
-      expect(workEl?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+      const history = workEl?.querySelector('.claudian-completed-work-history') as HTMLElement | null;
+      expect(history?.hidden).toBe(true);
+      expect(contentEl.contains(answerEl)).toBe(true);
+      (workEl?.querySelector('.claudian-completed-work-header') as HTMLButtonElement | null)?.click();
+      expect(history?.hidden).toBe(false);
+      const phaseDetails = workEl?.querySelector('.claudian-activity-phase-details') as HTMLElement | null;
+      expect(phaseDetails?.hidden).toBe(true);
+      (workEl?.querySelector('.claudian-activity-phase-header') as HTMLButtonElement | null)?.click();
+      expect(phaseDetails?.hidden).toBe(false);
       const actions = messageEl.querySelector('.claudian-message-actions');
       expect(actions?.querySelector('.claudian-text-copy-btn')).toBeTruthy();
       expect(actions?.querySelector('.claudian-message-fork-btn')).toBeTruthy();
       expect(contentEl.querySelector('.claudian-text-copy-btn')).toBeNull();
+    });
+
+    it('keeps the turn header concise and marks failed work without opening it', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-with-error' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const completedTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      completedTool.setAttribute('data-tool-id', 'read-1');
+      const failedTool = contentEl.createDiv({
+        cls: 'claudian-tool-call',
+      });
+      failedTool.setAttribute('data-tool-id', 'bash-1');
+      failedTool.createDiv({ cls: 'claudian-tool-status status-error' });
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'The command failed.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-with-error') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-with-error',
+        role: 'assistant',
+        content: 'The command failed.',
+        timestamp: Date.now(),
+        durationSeconds: 12,
+        toolCalls: [
+          { id: 'read-1', name: 'Read', input: {}, status: 'completed' },
+          { id: 'bash-1', name: 'Bash', input: {}, status: 'error', result: 'Exit code 1' },
+        ],
+      } as ChatMessage);
+
+      const workEl = contentEl.querySelector('.claudian-completed-work');
+      const history = workEl?.querySelector('.claudian-completed-work-history');
+      const label = workEl?.querySelector('.claudian-completed-work-label')?.textContent ?? '';
+      expect(label).toContain('Took 12s');
+      expect(label).not.toContain('actions');
+      expect(label).not.toContain('error');
+      expect(workEl?.hasClass('has-errors')).toBe(true);
+      expect(history?.hidden).toBe(true);
+      expect(workEl?.querySelector('.claudian-completed-work-error')).toBeTruthy();
+      (workEl?.querySelector('.claudian-completed-work-header') as HTMLButtonElement | null)?.click();
+      expect(history?.hidden).toBe(false);
+      expect(history?.contains(failedTool)).toBe(true);
+    });
+
+    it('keeps thought text inside the phase and titles it with the tool summary', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-visible-tool-summary' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const thinking = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      thinking.createDiv({ cls: 'claudian-thinking-label', text: 'Inspecting the project' });
+      const execTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      execTool.setAttribute('data-tool-id', 'exec-1');
+      execTool.createSpan({ cls: 'claudian-tool-name', text: 'exec' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'bash-1');
+      tool.createSpan({ cls: 'claudian-tool-name', text: 'Bash' });
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Done.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-visible-tool-summary') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-visible-tool-summary',
+        role: 'assistant',
+        content: 'Done.',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'thinking', content: 'Inspecting.' },
+          { type: 'tool_use', toolId: 'exec-1' },
+          { type: 'tool_use', toolId: 'bash-1' },
+          { type: 'text', content: 'Done.' },
+        ],
+      } as ChatMessage);
+
+      const phase = contentEl.querySelector('.claudian-activity-phase');
+      expect(phase?.querySelector('.claudian-activity-phase-label')?.textContent)
+        .toBe('Ran 2 commands');
+      expect(phase?.querySelector('.claudian-activity-phase-details')?.contains(thinking)).toBe(true);
+      const details = phase?.querySelector('.claudian-activity-phase-details') as HTMLElement | null;
+      expect(details?.hidden).toBe(true);
+      (phase?.querySelector('.claudian-activity-phase-header') as HTMLButtonElement | null)?.click();
+      expect(details?.hidden).toBe(false);
+    });
+
+    it('groups reasoning summaries inside the folded tool phase', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-thinking-phase' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const readTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      readTool.setAttribute('data-tool-id', 'read-before-thought');
+      readTool.createSpan({ cls: 'claudian-tool-name', text: 'Read' });
+      const firstThought = contentEl.createDiv({ cls: 'claudian-thinking-block', text: 'First private reasoning.' });
+      firstThought.createDiv({ cls: 'claudian-thinking-label', text: 'Reviewing workflow guidance' });
+      const secondThought = contentEl.createDiv({ cls: 'claudian-thinking-block', text: 'More private reasoning.' });
+      secondThought.createDiv({ cls: 'claudian-thinking-label', text: 'Reviewing workflow guidance' });
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Done.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-thinking-phase') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-thinking-phase',
+        role: 'assistant',
+        content: 'Done.',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'read-before-thought', name: 'Read', input: { file_path: 'notes/test.md' } } as any],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'read-before-thought' },
+          { type: 'thinking', content: 'First private reasoning.' },
+          { type: 'thinking', content: 'More private reasoning.' },
+          { type: 'text', content: 'Done.' },
+        ],
+      } as ChatMessage);
+
+      const workHistory = contentEl.querySelector('.claudian-completed-work-history');
+      expect(workHistory?.hidden).toBe(true);
+      const phases = Array.from(
+        workHistory?.querySelectorAll('.claudian-activity-phase') ?? [],
+      ) as MockElement[];
+      expect(phases.length).toBeGreaterThan(0);
+      expect(workHistory?.contains(readTool)).toBe(true);
+      expect(workHistory?.contains(firstThought)).toBe(true);
+      expect(workHistory?.contains(secondThought)).toBe(true);
+      const thoughtPhases = [...new Set(
+        [firstThought, secondThought].map((thought) => phases.find((candidate) => candidate.contains(thought)))
+          .filter((phase): phase is MockElement => phase !== undefined),
+      )];
+      for (const phase of thoughtPhases) {
+        const details = phase?.querySelector('.claudian-activity-phase-details') as HTMLElement | null;
+        expect(details?.hidden).toBe(true);
+        (phase?.querySelector('.claudian-activity-phase-header') as HTMLButtonElement | null)?.click();
+        expect(details?.hidden).toBe(false);
+      }
+    });
+
+    it('removes superseded leading reasoning once assistant prose is available', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-superseded-thinking' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const firstThought = contentEl.createDiv({ cls: 'claudian-thinking-block', text: 'First private reasoning.' });
+      firstThought.dataset.contentBlockIndex = '0';
+      const secondThought = contentEl.createDiv({ cls: 'claudian-thinking-block', text: 'More private reasoning.' });
+      secondThought.dataset.contentBlockIndex = '1';
+      const firstRemove = jest.spyOn(firstThought, 'remove');
+      const secondRemove = jest.spyOn(secondThought, 'remove');
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'The answer.' });
+      const laterThought = contentEl.createDiv({ cls: 'claudian-thinking-block', text: 'Follow-up reasoning.' });
+      laterThought.dataset.contentBlockIndex = '4';
+      const laterRemove = jest.spyOn(laterThought, 'remove');
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-superseded-thinking') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-superseded-thinking',
+        role: 'assistant',
+        content: 'The answer.',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'thinking', content: 'First private reasoning.' },
+          { type: 'thinking', content: 'More private reasoning.' },
+          { type: 'text', content: 'The answer.' },
+          { type: 'thinking', content: '   ' },
+          { type: 'thinking', content: 'Follow-up reasoning.' },
+        ],
+      } as ChatMessage);
+
+      expect(firstRemove).toHaveBeenCalled();
+      expect(secondRemove).toHaveBeenCalled();
+      expect(laterRemove).not.toHaveBeenCalled();
+      expect(contentEl.querySelector('.claudian-text-block')?.textContent).toBe('The answer.');
+    });
+
+    it('keeps pending question and approval cards outside completed work', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-awaiting-user' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const question = contentEl.createDiv({ cls: 'claudian-ask-question-inline' });
+      const approval = contentEl.createDiv({ cls: 'claudian-plan-approval-inline' });
+      const pendingQuestionTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      pendingQuestionTool.setAttribute('data-tool-id', 'question-tool');
+      const completedTool = contentEl.createDiv({
+        cls: 'claudian-tool-call',
+        attr: { 'data-tool-id': 'tool-done' },
+      });
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Waiting for your choice.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-awaiting-user') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-awaiting-user',
+        role: 'assistant',
+        content: 'Waiting for your choice.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'tool-done', name: 'Read', input: {}, status: 'completed' },
+          {
+            id: 'question',
+            name: 'AskUserQuestion',
+            input: {},
+            status: 'running',
+            questionStatus: 'pending',
+          },
+          {
+            id: 'question-tool',
+            name: 'AskUserQuestion',
+            input: {},
+            status: 'running',
+            questionStatus: 'pending',
+          },
+        ],
+      } as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(history?.contains(completedTool)).toBe(true);
+      expect(contentEl.contains(question)).toBe(true);
+      expect(contentEl.contains(approval)).toBe(true);
+      expect(history?.contains(question)).toBe(false);
+      expect(history?.contains(approval)).toBe(false);
+      expect(contentEl.contains(pendingQuestionTool)).toBe(true);
+      expect(history?.contains(pendingQuestionTool)).toBe(false);
+    });
+
+    it('keeps pending interactions between separate completed-work disclosures', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-work-boundary' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const earlierTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      earlierTool.setAttribute('data-tool-id', 'read-before');
+      const pendingTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      pendingTool.setAttribute('data-tool-id', 'approval-pending');
+      const laterTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      laterTool.setAttribute('data-tool-id', 'read-after');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Finished.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-work-boundary') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-work-boundary',
+        role: 'assistant',
+        content: 'Finished.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'read-before', name: 'Read', input: {}, status: 'completed' },
+          { id: 'approval-pending', name: 'Approval', input: {}, status: 'running', questionStatus: 'pending' },
+          { id: 'read-after', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'read-before' },
+          { type: 'tool_use', toolId: 'approval-pending' },
+          { type: 'tool_use', toolId: 'read-after' },
+          { type: 'text', content: 'Finished.' },
+        ],
+      } as ChatMessage);
+
+      const disclosure = contentEl.querySelector('.claudian-completed-work');
+      const history = disclosure?.querySelector('.claudian-completed-work-history');
+      expect(history?.contains(earlierTool)).toBe(false);
+      expect(contentEl.contains(earlierTool)).toBe(true);
+      expect(contentEl.contains(pendingTool)).toBe(true);
+      expect(history?.contains(pendingTool)).toBe(false);
+      expect(history?.contains(laterTool)).toBe(true);
+      expect(history?.children).toEqual([laterTool]);
+      expect(contentEl.contains(answer)).toBe(true);
+      expect(contentEl.contains(disclosure)).toBe(true);
+    });
+
+    it('does not fold across an approval card that is not represented in content blocks', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-inline-approval-boundary' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const earlierTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      earlierTool.setAttribute('data-tool-id', 'read-before');
+      const approval = contentEl.createDiv({ cls: 'claudian-plan-approval-inline' });
+      const laterTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      laterTool.setAttribute('data-tool-id', 'read-after');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Finished.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-inline-approval-boundary') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-inline-approval-boundary',
+        role: 'assistant',
+        content: 'Finished.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'read-before', name: 'Read', input: {}, status: 'completed' },
+          { id: 'read-after', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'read-before' },
+          { type: 'tool_use', toolId: 'read-after' },
+          { type: 'text', content: 'Finished.' },
+        ],
+      } as ChatMessage);
+
+      const disclosure = contentEl.querySelector('.claudian-completed-work');
+      const history = disclosure?.querySelector('.claudian-completed-work-history');
+      expect(contentEl.contains(earlierTool)).toBe(true);
+      expect(history?.contains(earlierTool)).toBe(false);
+      expect(contentEl.contains(approval)).toBe(true);
+      expect(history?.contains(approval)).toBe(false);
+      expect(history?.children).toEqual([laterTool]);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('keeps the tool awaiting permission outside the answered work fold', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-awaiting-permission' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const pendingTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      pendingTool.setAttribute('data-tool-id', 'write-pending');
+      contentEl.createDiv({ cls: 'claudian-ask-approval-info' });
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Waiting for approval.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-awaiting-permission') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-awaiting-permission',
+        role: 'assistant',
+        content: 'Waiting for approval.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'write-pending', name: 'Write', input: {}, status: 'running' },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'write-pending' },
+          { type: 'text', content: 'Waiting for approval.' },
+        ],
+      } as ChatMessage);
+
+      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+      expect(contentEl.contains(pendingTool)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('keeps failed subagents visible outside the folded activity history', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-failed-subagent' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const subagentEl = contentEl.createDiv({ cls: 'claudian-subagent-list error' });
+      subagentEl.setAttribute('data-tool-id', 'agent-1');
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      toolEl.setAttribute('data-tool-id', 'read-1');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Finished.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-failed-subagent') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-failed-subagent',
+        role: 'assistant',
+        content: 'Finished.',
+        timestamp: Date.now(),
+        toolCalls: [
+          {
+            id: 'agent-1',
+            name: 'Agent',
+            input: {},
+            status: 'error',
+            subagent: {
+              id: 'agent-1',
+              description: 'Inspect the project',
+              status: 'error',
+              toolCalls: [],
+              isExpanded: false,
+            },
+          },
+          { id: 'read-1', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'subagent', subagentId: 'agent-1' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'Finished.' },
+        ],
+      } as ChatMessage);
+
+      const disclosure = contentEl.querySelector('.claudian-completed-work');
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(contentEl.children.indexOf(subagentEl)).toBe(contentEl.children.indexOf(disclosure) + 1);
+      expect(history?.children).toEqual([toolEl]);
+      expect(contentEl.contains(subagentEl)).toBe(true);
+      expect(history?.contains(subagentEl)).toBe(false);
+      expect(history?.contains(toolEl)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('keeps cancelled subagents visible outside the folded activity history', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-cancelled-subagent' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const subagentEl = contentEl.createDiv({ cls: 'claudian-subagent-list' });
+      subagentEl.setAttribute('data-tool-id', 'agent-cancelled');
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      toolEl.setAttribute('data-tool-id', 'read-1');
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Finished.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-cancelled-subagent') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-cancelled-subagent',
+        role: 'assistant',
+        content: 'Finished.',
+        timestamp: Date.now(),
+        toolCalls: [
+          {
+            id: 'agent-cancelled',
+            name: 'Agent',
+            input: {},
+            status: 'cancelled',
+            subagent: {
+              id: 'agent-cancelled',
+              description: 'Inspect the project',
+              status: 'completed',
+              toolCalls: [],
+              isExpanded: false,
+            },
+          },
+          { id: 'read-1', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'subagent', subagentId: 'agent-cancelled' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'Finished.' },
+        ],
+      } as unknown as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(contentEl.contains(subagentEl)).toBe(true);
+      expect(history?.contains(subagentEl)).toBe(false);
+      expect(history?.contains(toolEl)).toBe(true);
     });
 
     it('keeps assistant text before a tool call visible', () => {
@@ -270,6 +795,336 @@ describe('MessageRenderer', () => {
       expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(preambleEl)).toBe(false);
     });
 
+    it('folds contiguous work into timeline phases and leaves the final answer visible', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-phased-work' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const opening = contentEl.createDiv({ cls: 'claudian-text-block', text: 'I will inspect the files.' });
+      const firstTool = contentEl.createDiv({
+        cls: 'claudian-tool-call',
+      });
+      firstTool.setAttribute('data-tool-id', 'read-1');
+      const secondTool = contentEl.createDiv({
+        cls: 'claudian-tool-call',
+      });
+      secondTool.setAttribute('data-tool-id', 'search-1');
+      const progress = contentEl.createDiv({ cls: 'claudian-text-block', text: 'I found the relevant code.' });
+      const finalTool = contentEl.createDiv({
+        cls: 'claudian-tool-call',
+      });
+      finalTool.setAttribute('data-tool-id', 'read-2');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The implementation is complete.' });
+      enableDomLikeNodeMoves(contentEl);
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-phased-work') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-phased-work',
+        role: 'assistant',
+        content: 'The implementation is complete.',
+        timestamp: Date.now(),
+        durationSeconds: 8,
+        toolCalls: [
+          { id: 'read-1', name: 'Read', input: {}, status: 'completed' },
+          { id: 'search-1', name: 'Search', input: {}, status: 'completed' },
+          { id: 'read-2', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'text', content: 'I will inspect the files.' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'tool_use', toolId: 'search-1' },
+          { type: 'text', content: 'I found the relevant code.' },
+          { type: 'tool_use', toolId: 'read-2' },
+          { type: 'text', content: 'The implementation is complete.' },
+        ],
+      } as ChatMessage);
+
+      const workEl = contentEl.querySelector('.claudian-completed-work') as MockElement;
+      const phases = workEl.querySelectorAll('.claudian-activity-phase');
+      const firstPhase = phases.find((phase) =>
+        phase.querySelector('.claudian-activity-phase-details')?.children.includes(firstTool));
+      const firstDetails = firstPhase?.querySelector('.claudian-activity-phase-details');
+      const firstLabel = firstPhase?.querySelector('.claudian-activity-phase-label')?.textContent ?? '';
+      expect(firstDetails?.hidden).toBe(true);
+      expect(firstDetails?.children).toContain(firstTool);
+      expect(firstDetails?.children).toContain(secondTool);
+      expect(firstLabel).toBe('Explored the project');
+      expect(firstLabel).not.toContain('8s');
+      expect(workEl.querySelector('.claudian-completed-work-history')?.contains(finalTool)).toBe(true);
+      expect(workEl.querySelector('.claudian-completed-work-label')?.textContent).toContain('8s');
+      const timeline = workEl.querySelector('.claudian-completed-work-history')?.children ?? [];
+      expect(Array.from(timeline).filter((element) => !element.hidden).map((element) => (
+        element.hasClass('claudian-activity-narration')
+          ? element.textContent
+          : element.hasClass('claudian-activity-phase')
+            ? element.querySelector('.claudian-activity-phase-label')?.textContent
+            : element.dataset.toolId
+      ))).toEqual([
+        'I will inspect the files.',
+        'Explored the project',
+        'I found the relevant code.',
+        'read-2',
+      ]);
+      expect(workEl.querySelector('.claudian-completed-work-label')?.textContent).not.toContain('action');
+      expect(contentEl.contains(opening)).toBe(true);
+      expect(contentEl.contains(progress)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+      expect(phases.some((phase) => phase.querySelector('.claudian-completed-work-history')?.contains(answer)))
+        .toBe(false);
+    });
+
+    it('keeps the answer and subsequent work outside the answered activity fold', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-follow-up-work' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      const answeredTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      answeredTool.setAttribute('data-tool-id', 'read-1');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The file is valid.' });
+      const followUpTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      followUpTool.setAttribute('data-tool-id', 'follow-up-1');
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-follow-up-work') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-follow-up-work',
+        role: 'assistant',
+        content: 'The file is valid.',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'thinking', content: 'Inspect the file.' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'The file is valid.' },
+          { type: 'tool_use', toolId: 'follow-up-1' },
+        ],
+      } as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(history?.contains(answeredTool)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+      expect(contentEl.contains(followUpTool)).toBe(true);
+      expect(history?.contains(answer)).toBe(false);
+      expect(history?.contains(followUpTool)).toBe(false);
+    });
+
+    it('leaves background work after a yielded reply outside the earlier work fold', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-background-yield' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const earlierTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      earlierTool.setAttribute('data-tool-id', 'read-before-yield');
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'The background check is running.' });
+      const backgroundTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      backgroundTool.setAttribute('data-tool-id', 'background-check');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The background check is complete.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-background-yield') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-background-yield',
+        role: 'assistant',
+        content: 'The background check is complete.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'read-before-yield', name: 'Read', input: {}, status: 'completed' },
+          {
+            id: 'background-check',
+            name: 'Bash',
+            input: { run_in_background: true },
+            status: 'completed',
+          },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'read-before-yield' },
+          { type: 'text', content: 'The background check is running.' },
+          { type: 'tool_use', toolId: 'background-check' },
+          { type: 'text', content: 'The background check is complete.' },
+        ],
+      } as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(history?.contains(earlierTool)).toBe(true);
+      expect(contentEl.contains(backgroundTool)).toBe(true);
+      expect(history?.contains(backgroundTool)).toBe(false);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('keeps unfinished work in the transcript when no answer follows it', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-unanswered-work' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const thinking = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'read-1');
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-unanswered-work') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-unanswered-work',
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'thinking', content: 'Inspect the file.' },
+          { type: 'tool_use', toolId: 'read-1' },
+        ],
+      } as ChatMessage);
+
+      expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
+      expect(contentEl.contains(thinking)).toBe(true);
+      expect(contentEl.contains(tool)).toBe(true);
+    });
+
+    it('renders a lone activity step directly without a redundant phase summary', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-single-step' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'read-1');
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'Read complete.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-single-step') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-single-step',
+        role: 'assistant',
+        content: 'Read complete.',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'Read complete.' },
+        ],
+      } as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(history?.children).toContain(tool);
+      expect(history?.querySelector('.claudian-activity-phase')).toBeNull();
+    });
+
+    it('keeps legacy final text after a grouped work summary', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-legacy-order' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The inspection is complete.' });
+      const firstTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      firstTool.createSpan({ cls: 'claudian-tool-name', text: 'Bash' });
+      const secondTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      secondTool.createSpan({ cls: 'claudian-tool-name', text: 'Bash' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-legacy-order') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-legacy-order',
+        role: 'assistant',
+        content: 'The inspection is complete.',
+        timestamp: Date.now(),
+        durationSeconds: 5,
+        toolCalls: [],
+      } as ChatMessage);
+
+      const work = contentEl.querySelector('.claudian-completed-work') as MockElement;
+      const history = work.querySelector('.claudian-completed-work-history');
+      const summary = work.querySelector('.claudian-activity-phase-label')?.textContent;
+      expect(contentEl.children.indexOf(work)).toBeLessThan(contentEl.children.indexOf(answer));
+      expect(history?.querySelector('.claudian-activity-phase-details')?.children)
+        .toEqual([firstTool, secondTool]);
+      expect(summary).toBe('Ran 2 commands');
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('keeps trailing completed tool calls inside the work summary', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-trailing-tool' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Property updated.' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'vault-set-property');
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-trailing-tool') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-trailing-tool',
+        role: 'assistant',
+        content: 'Property updated.',
+        timestamp: Date.now(),
+        durationSeconds: 14,
+        toolCalls: [{ id: 'vault-set-property', name: 'obsidian__vault', input: {}, status: 'completed' }],
+        contentBlocks: [
+          { type: 'text', content: 'Property updated.' },
+          { type: 'tool_use', toolId: 'vault-set-property' },
+        ],
+      } as ChatMessage);
+
+      const work = contentEl.querySelector('.claudian-completed-work');
+      expect(work?.querySelector('.claudian-completed-work-history')?.contains(tool)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
+    it('summarizes completed tool rows missing from the ordered transcript', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-unmapped-tool' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Property updated.' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'vault-set-property');
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-unmapped-tool') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-unmapped-tool',
+        role: 'assistant',
+        content: 'Property updated.',
+        timestamp: Date.now(),
+        durationSeconds: 14,
+        toolCalls: [{ id: 'vault-set-property', name: 'obsidian__vault', input: {}, status: 'completed' }],
+        contentBlocks: [{ type: 'text', content: 'Property updated.' }],
+      } as ChatMessage);
+
+      const work = contentEl.querySelector('.claudian-completed-work');
+      expect(work?.querySelector('.claudian-completed-work-history')?.contains(tool)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+    });
+
     it('shows elapsed work without collapsing streaming content', () => {
       const { renderer } = createRenderer();
       const contentEl = createMockEl();
@@ -281,6 +1136,288 @@ describe('MessageRenderer', () => {
       expect(status?.querySelector('.claudian-completed-work-label')?.textContent).toContain('Working');
       expect(contentEl.querySelector('.claudian-completed-work')).toBeNull();
       expect(contentEl.contains(thinkingEl)).toBe(true);
+    });
+
+    it('collapses a finished activity phase after streamed narration begins', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const firstTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      firstTool.setAttribute('data-tool-id', 'grep-1');
+      const secondTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      secondTool.setAttribute('data-tool-id', 'bash-1');
+      contentEl.createDiv({ cls: 'claudian-text-block', text: 'I found the relevant files.' });
+      const msg = {
+        id: 'assistant-streaming-phases',
+        role: 'assistant',
+        content: 'I found the relevant files.',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'grep-1', name: 'Grep', input: {}, status: 'completed' },
+          { id: 'bash-1', name: 'Grep', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'grep-1' },
+          { type: 'tool_use', toolId: 'bash-1' },
+          { type: 'text', content: 'I found the relevant files.' },
+        ],
+      } as ChatMessage;
+
+      enableDomLikeNodeMoves(contentEl);
+      renderer.startCompletedWork(contentEl);
+      renderer.syncStreamingActivity(msg, contentEl);
+
+      const phase = contentEl.querySelector('.claudian-streaming-activity-phase');
+      expect(phase?.dataset.kind).toBe('research');
+      expect(phase?.querySelector('.claudian-activity-phase-details')?.hidden).toBe(true);
+      expect(phase?.querySelector('.claudian-activity-phase-details')?.children)
+        .toEqual([firstTool, secondTool]);
+    });
+
+    it('resolves projected history blocks by ID even when rendered nodes are reordered', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const secondTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      secondTool.setAttribute('data-tool-id', 'bash-2');
+      const firstTool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      firstTool.setAttribute('data-tool-id', 'grep-2');
+      const msg = {
+        id: 'assistant-reordered',
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        toolCalls: [
+          { id: 'grep-2', name: 'Grep', input: {}, status: 'completed' },
+          { id: 'bash-2', name: 'Bash', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'grep-2' },
+          { type: 'tool_use', toolId: 'bash-2' },
+        ],
+      } as ChatMessage;
+
+      enableDomLikeNodeMoves(contentEl);
+      renderer.syncStreamingActivity(msg, contentEl);
+
+      expect(contentEl.querySelector('.claudian-streaming-activity-phase')
+        ?.querySelector('.claudian-activity-phase-details')?.children)
+        .toEqual([firstTool, secondTool]);
+      expect(firstTool.dataset.transcriptItemId).toBe('assistant-reordered:tool:grep-2');
+      expect(secondTool.dataset.transcriptItemId).toBe('assistant-reordered:tool:bash-2');
+    });
+
+    it('leaves the active activity phase directly visible while it is streaming', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'bash-live');
+      const msg = {
+        id: 'assistant-live-phase',
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'bash-live', name: 'Bash', input: {}, status: 'running' }],
+        contentBlocks: [{ type: 'tool_use', toolId: 'bash-live' }],
+      } as ChatMessage;
+
+      enableDomLikeNodeMoves(contentEl);
+      renderer.syncStreamingActivity(msg, contentEl);
+
+      expect(contentEl.querySelector('.claudian-streaming-activity-phase')).toBeNull();
+      expect(contentEl.children).toContain(tool);
+    });
+
+    it('keeps the live thought summary inside its expanded activity phase', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const thinking = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      thinking.createDiv({ cls: 'claudian-thinking-label', text: 'Reviewing workflow guidance' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'read-live-thought');
+      const msg = {
+        id: 'assistant-live-thought-title',
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'read-live-thought', name: 'Read', input: {}, status: 'completed' }],
+        contentBlocks: [
+          { type: 'thinking', content: 'Reviewing workflow guidance' },
+          { type: 'tool_use', toolId: 'read-live-thought' },
+        ],
+      } as ChatMessage;
+      const userMessage = {
+        id: 'user-live-thought-turn',
+        role: 'user',
+        content: 'Review the workflow.',
+        timestamp: Date.now(),
+      } as ChatMessage;
+
+      enableDomLikeNodeMoves(contentEl);
+      renderer.syncStreamingActivity(msg, contentEl, undefined, [userMessage, msg]);
+
+      const phase = contentEl.querySelector('.claudian-streaming-activity-phase');
+      expect(phase?.querySelector('.claudian-activity-phase-details')?.contains(thinking)).toBe(true);
+      expect(phase?.querySelector('.claudian-activity-phase-details')?.hidden).toBe(false);
+      expect(phase?.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Read 1 file');
+      expect(thinking.dataset.transcriptItemId).toBe(`${msg.id}:block:0`);
+
+      thinking.querySelector('.claudian-thinking-label')?.setText('Reviewing workflow guidance and related cases');
+      renderer.syncStreamingActivity({
+        ...msg,
+        contentBlocks: [
+          { type: 'thinking', content: 'Reviewing workflow guidance and related cases' },
+          { type: 'tool_use', toolId: 'read-live-thought' },
+        ],
+      } as ChatMessage, contentEl, undefined, [userMessage, {
+        ...msg,
+        contentBlocks: [
+          { type: 'thinking', content: 'Reviewing workflow guidance and related cases' },
+          { type: 'tool_use', toolId: 'read-live-thought' },
+        ],
+      } as ChatMessage]);
+
+      const updatedPhase = contentEl.querySelector('.claudian-streaming-activity-phase');
+      expect(updatedPhase?.querySelector('.claudian-activity-phase-details')?.contains(thinking)).toBe(true);
+      expect(updatedPhase?.querySelector('.claudian-activity-phase-details')?.contains(tool)).toBe(true);
+    });
+
+    it('keeps phase narration when its tool row has not been rendered yet', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const headline = contentEl.createDiv({
+        cls: 'claudian-text-block',
+        text: 'Checking the document context.',
+      });
+      const msg = {
+        id: 'assistant-missing-tool-row',
+        role: 'assistant',
+        content: 'Checking the document context.',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'read-missing', name: 'Read', input: {}, status: 'running' }],
+        contentBlocks: [
+          { type: 'text', content: 'Checking the document context.' },
+          { type: 'tool_use', toolId: 'read-missing' },
+        ],
+      } as ChatMessage;
+
+      enableDomLikeNodeMoves(contentEl);
+      expect(() => renderer.syncStreamingActivity(msg, contentEl)).not.toThrow();
+      expect(contentEl.contains(headline)).toBe(true);
+      expect(headline.hidden).not.toBe(true);
+      expect(headline.hasClass('claudian-activity-narration')).toBe(false);
+      expect(contentEl.querySelector('.claudian-activity-phase')).toBeNull();
+    });
+
+    it('folds narrated work while streaming and leaves the current answer visible', () => {
+      const { renderer } = createRenderer();
+      const contentEl = createMockEl();
+      const preamble = contentEl.createDiv({ cls: 'claudian-text-block', text: 'I will inspect the files.' });
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'read-live');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The result is clear.' });
+      const msg = {
+        id: 'assistant-live-fold',
+        role: 'assistant',
+        content: 'The result is clear.',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'read-live', name: 'Read', input: {}, status: 'completed' }],
+        contentBlocks: [
+          { type: 'text', content: 'I will inspect the files.' },
+          { type: 'tool_use', toolId: 'read-live' },
+        ],
+      } as ChatMessage;
+      enableDomLikeNodeMoves(contentEl);
+      renderer.startCompletedWork(contentEl);
+
+      renderer.syncStreamingActivity(msg, contentEl, { type: 'text', content: 'The result is clear.' });
+
+      const fold = contentEl.querySelector('.claudian-streaming-work-fold');
+      expect(fold).toBeTruthy();
+      expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(preamble)).toBe(true);
+      expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(tool)).toBe(true);
+      expect((fold?.querySelector('.claudian-activity-phase')?.contains(preamble)) ?? false).toBe(false);
+      expect(preamble.hidden).not.toBe(true);
+      expect(contentEl.children).toContain(answer);
+    });
+
+    it('keeps the streaming work row at the work anchor when the turn settles', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'assistant-stable-work-anchor' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const preamble = contentEl.createDiv({ cls: 'claudian-text-block', text: 'I will inspect the file.' });
+      const thinking = contentEl.createDiv({ cls: 'claudian-thinking-block' });
+      contentEl.insertBefore = (element: MockElement, reference: MockElement | null) => {
+        const existingIndex = contentEl.children.indexOf(element);
+        if (existingIndex >= 0) contentEl.children.splice(existingIndex, 1);
+        const referenceIndex = reference ? contentEl.children.indexOf(reference) : -1;
+        contentEl.children.splice(referenceIndex < 0 ? contentEl.children.length : referenceIndex, 0, element);
+      };
+
+      renderer.startCompletedWork(contentEl, performance.now() - 1_000);
+      renderer.setTranscriptExecutionScope('assistant-stable-work-anchor', {
+        executionId: 'execution-stable-work-anchor',
+        turnId: 'execution-turn-stable-work-anchor',
+      });
+      const streamingRow = contentEl.querySelector('.claudian-completed-work-status');
+      expect(streamingRow).toBeTruthy();
+      expect(contentEl.children.indexOf(streamingRow)).toBe(contentEl.children.indexOf(thinking) - 1);
+
+      const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', 'read-1');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'The file is valid.' });
+      enableDomLikeNodeMoves(contentEl);
+      renderer.syncStreamingActivity({
+        id: 'assistant-stable-work-anchor',
+        role: 'assistant',
+        content: 'The file is valid.',
+        timestamp: Date.now(),
+        toolCalls: [{ id: 'read-1', name: 'Read', input: {}, status: 'completed' }],
+        contentBlocks: [
+          { type: 'text', content: 'I will inspect the file.' },
+          { type: 'thinking', content: 'Check the file.' },
+          { type: 'tool_use', toolId: 'read-1' },
+        ],
+      } as ChatMessage, contentEl, { type: 'text', content: 'The file is valid.' });
+      expect(contentEl.querySelector('.claudian-streaming-work-fold')).toBe(streamingRow);
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('assistant-stable-work-anchor') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'assistant-stable-work-anchor',
+        role: 'assistant',
+        content: 'The file is valid.',
+        timestamp: Date.now(),
+        durationSeconds: 1,
+        toolCalls: [{ id: 'read-1', name: 'Read', input: {}, status: 'completed' }],
+        contentBlocks: [
+          { type: 'text', content: 'I will inspect the file.' },
+          { type: 'thinking', content: 'Check the file.' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'The file is valid.' },
+        ],
+      } as ChatMessage);
+
+      expect(contentEl.querySelector('.claudian-completed-work')).toBe(streamingRow);
+      expect(streamingRow?.querySelector('.claudian-completed-work-label')).toBeTruthy();
+      expect(streamingRow?.getAttribute('data-transcript-turn-id')).toBe('assistant-stable-work-anchor');
+      expect(streamingRow?.getAttribute('data-transcript-run-id')).toBe('assistant-stable-work-anchor');
+      expect(streamingRow?.getAttribute('data-transcript-execution-id')).toBe('execution-stable-work-anchor');
+      expect(streamingRow?.getAttribute('data-transcript-execution-turn-id'))
+        .toBe('execution-turn-stable-work-anchor');
+      expect(contentEl.children.indexOf(preamble)).toBeLessThan(contentEl.children.indexOf(streamingRow));
+      expect(contentEl.contains(preamble)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+      expect(contentEl.querySelector('.claudian-completed-work-history')?.contains(thinking)).toBe(true);
+      expect(contentEl.children).not.toContain(thinking);
+      expect(contentEl.querySelector('.claudian-completed-work-history')?.contains(answer)).toBe(false);
+      const settledHistory = contentEl.querySelector('.claudian-completed-work-history');
+      expect(settledHistory?.querySelector('.claudian-tool-call')).toBe(tool);
+      expect(thinking.dataset.transcriptItemId).toBe('assistant-stable-work-anchor:block:1');
+      expect(tool.dataset.transcriptItemId).toBe('assistant-stable-work-anchor:tool:read-1');
     });
 
     it('collapses compacted work while keeping its boundary in history', () => {
@@ -308,7 +1445,9 @@ describe('MessageRenderer', () => {
       expect(workEl).toBeTruthy();
       expect(workEl?.querySelector('.claudian-completed-work-label')?.textContent).toContain('1m 5s');
       expect(workEl?.querySelector('.claudian-completed-work-history')?.children)
-        .toContainEqual(expect.objectContaining({ className: 'claudian-compact-boundary' }));
+        .toContainEqual(expect.objectContaining({ className: 'claudian-activity-phase' }));
+      expect(workEl?.querySelector('.claudian-activity-phase-details')?.querySelector('.claudian-compact-boundary'))
+        .toBeTruthy();
     });
 
   });
@@ -336,6 +1475,308 @@ describe('MessageRenderer', () => {
     expect(welcomeEl.children[0].hasClass('claudian-welcome-brand')).toBe(true);
     expect(welcomeEl.children[0].textContent).toBe('Oh My Claudian');
     expect(welcomeEl.children[1].textContent).toBe('Hello');
+  });
+
+  it('groups assistant runs under one transcript turn and merges their work folds', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const createMessage = (id: string, role: string) => {
+      const message = messagesEl.createDiv({ cls: `claudian-message claudian-message-${role}` });
+      message.setAttribute('data-message-id', id);
+      const content = message.createDiv({ cls: 'claudian-message-content' });
+      return { message, content };
+    };
+    const { content: userContent } = createMessage('turn-user', 'user');
+    userContent.createDiv({ cls: 'claudian-text-block', text: 'Inspect the project' });
+    const first = createMessage('turn-run-one', 'assistant');
+    const second = createMessage('turn-run-two', 'assistant');
+    const createWork = (content: MockElement, id: string, durationSeconds: number) => {
+      const work = content.createDiv({ cls: 'claudian-completed-work' });
+      const header = work.createEl('button', { cls: 'claudian-completed-work-header' });
+      header.createSpan({ cls: 'claudian-completed-work-label', text: `${durationSeconds}s` });
+      const history = work.createDiv({ cls: 'claudian-completed-work-history' });
+      const tool = history.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', id);
+    };
+    createWork(first.content, 'turn-read-one', 4);
+    createWork(second.content, 'turn-read-two', 5);
+    second.content.createDiv({ cls: 'claudian-text-block', text: 'The answer is ready.' });
+    const messages: ChatMessage[] = [
+      { id: 'turn-user', role: 'user', content: 'Inspect the project', timestamp: 1 },
+      {
+        id: 'turn-run-one', role: 'assistant', content: 'I found the relevant files.', timestamp: 2,
+        modelName: 'GPT-6 Luna', durationSeconds: 4,
+      } as ChatMessage,
+      {
+        id: 'turn-run-two', role: 'assistant', content: 'The answer is ready.', timestamp: 3,
+        modelName: 'GPT-6 Luna', durationSeconds: 5,
+      } as ChatMessage,
+    ];
+
+    (renderer as any).groupRenderedTranscriptTurns(messages);
+    const turn = messagesEl.querySelector('.claudian-transcript-turn');
+    expect(turn).toBeTruthy();
+    expect(turn?.querySelectorAll('.claudian-message-assistant')).toHaveLength(2);
+    expect(turn?.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
+    expect(turn?.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
+    expect(turn?.querySelector('.claudian-completed-work-label')?.textContent).toContain('5s');
+    const finalRun = turn?.querySelectorAll('.claudian-message')
+      .find((element: MockElement) => element.dataset.messageId === 'turn-run-two');
+    expect(finalRun?.querySelector('.claudian-text-block')?.textContent).toBe('The answer is ready.');
+  });
+
+  it('creates one ordered work fold from tool calls across assistant runs', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'turn-fold-user');
+    user.createDiv({ cls: 'claudian-message-content' }).createDiv({ cls: 'claudian-text-block' });
+    const first = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    first.setAttribute('data-message-id', 'turn-fold-run-one');
+    const firstContent = first.createDiv({ cls: 'claudian-message-content' });
+    const firstTool = firstContent.createDiv({ cls: 'claudian-tool-call' });
+    firstTool.setAttribute('data-tool-id', 'turn-fold-read');
+    firstTool.dataset.transcriptItemId = 'turn-fold-run-one:tool:turn-fold-read';
+    const second = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    second.setAttribute('data-message-id', 'turn-fold-run-two');
+    const secondContent = second.createDiv({ cls: 'claudian-message-content' });
+    const secondTool = secondContent.createDiv({ cls: 'claudian-tool-call' });
+    secondTool.setAttribute('data-tool-id', 'turn-fold-grep');
+    secondTool.dataset.transcriptItemId = 'turn-fold-run-two:tool:turn-fold-grep';
+    const answer = secondContent.createDiv({ cls: 'claudian-text-block', text: 'The answer.' });
+    answer.dataset.transcriptItemId = 'turn-fold-run-two:block:1';
+    const messages: ChatMessage[] = [
+      { id: 'turn-fold-user', role: 'user', content: 'Inspect the project.', timestamp: 1 },
+      {
+        id: 'turn-fold-run-one', role: 'assistant', content: '', timestamp: 2, durationSeconds: 4,
+        contentBlocks: [{ type: 'tool_use', toolId: 'turn-fold-read' }],
+        toolCalls: [{ id: 'turn-fold-read', name: 'Read', input: {}, status: 'completed' }],
+      },
+      {
+        id: 'turn-fold-run-two', role: 'assistant', content: 'The answer.', timestamp: 3, durationSeconds: 5,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'turn-fold-grep' },
+          { type: 'text', content: 'The answer.' },
+        ],
+        toolCalls: [{ id: 'turn-fold-grep', name: 'Grep', input: {}, status: 'completed' }],
+      },
+    ] as ChatMessage[];
+    const turn = projectTranscript(messages)[0];
+
+    (renderer as any).groupRenderedTranscriptTurns(messages, false);
+    (renderer as any).finalizeTranscriptTurn(turn);
+
+    const turnEl = messagesEl.querySelector('.claudian-transcript-turn');
+    expect(turnEl?.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
+    expect(turnEl?.children[0]).toBe(user);
+    expect(turnEl?.children[1]).toBe(turnEl?.querySelector('.claudian-completed-work'));
+    const work = turnEl?.querySelector('.claudian-completed-work');
+    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+    expect(work?.querySelectorAll('.claudian-tool-call')).toEqual([firstTool, secondTool]);
+    expect(work?.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Explored the project');
+    expect(secondContent.children).toContain(answer);
+    expect(work?.contains(answer)).toBe(false);
+  });
+
+  it('keeps preceding run narration separate from merged activity phases', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const createMessage = (id: string, role: string) => {
+      const message = messagesEl.createDiv({ cls: `claudian-message claudian-message-${role}` });
+      message.setAttribute('data-message-id', id);
+      return { message, content: message.createDiv({ cls: 'claudian-message-content' }) };
+    };
+    createMessage('headline-turn-user', 'user');
+    const first = createMessage('headline-run-one', 'assistant');
+    const second = createMessage('headline-run-two', 'assistant');
+    const work = (content: MockElement, id: string, seconds: number) => {
+      const disclosure = content.createDiv({ cls: 'claudian-completed-work' });
+      const header = disclosure.createEl('button', { cls: 'claudian-completed-work-header' });
+      header.createSpan({ cls: 'claudian-completed-work-label', text: `${seconds}s` });
+      const history = disclosure.createDiv({ cls: 'claudian-completed-work-history' });
+      const tool = history.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', id);
+      return { history, tool };
+    };
+    const firstWork = work(first.content, 'headline-read-one', 2);
+    const earlierNarration = firstWork.history.createDiv({
+      cls: 'claudian-activity-narration claudian-text-block',
+      text: 'Locating README.md',
+    });
+    const narration = firstWork.history.createDiv({
+      cls: 'claudian-activity-narration claudian-text-block',
+      text: 'Inspecting workspace files',
+    });
+    const secondWork = work(second.content, 'headline-read-two', 3);
+    const phase = secondWork.history.createDiv({ cls: 'claudian-activity-phase' });
+    const header = phase.createEl('button', { cls: 'claudian-activity-phase-header' });
+    const label = header.createSpan({ cls: 'claudian-activity-phase-label', text: 'Ran 1 command' });
+    const details = phase.createDiv({ cls: 'claudian-activity-phase-details' });
+    details.hidden = true;
+    details.appendChild(secondWork.tool);
+
+    const messages: ChatMessage[] = [
+      { id: 'headline-turn-user', role: 'user', content: 'Read the README', timestamp: 1 },
+      { id: 'headline-run-one', role: 'assistant', content: 'Inspecting workspace files', timestamp: 2 },
+      { id: 'headline-run-two', role: 'assistant', content: '', timestamp: 3 },
+    ];
+
+    (renderer as any).groupRenderedTranscriptTurns(messages);
+
+    expect(label.textContent).toBe('Ran 1 command');
+    expect(narration.hidden).not.toBe(true);
+    expect(firstWork.history.children).toContain(narration);
+    expect(details.children).toEqual([secondWork.tool]);
+    expect(firstWork.history.children).toContain(earlierNarration);
+  });
+
+  it('groups a live assistant run with its user turn from the shared projection', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'live-turn-user');
+    const assistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    assistant.setAttribute('data-message-id', 'live-turn-run');
+    const content = assistant.createDiv({ cls: 'claudian-message-content' });
+    const narration = content.createDiv({ cls: 'claudian-text-block', text: 'Reviewing the project.' });
+    const tool = content.createDiv({ cls: 'claudian-tool-call' });
+    tool.setAttribute('data-tool-id', 'live-turn-read');
+    const messages: ChatMessage[] = [
+      { id: 'live-turn-user', role: 'user', content: 'Review the project', timestamp: 1 },
+      {
+        id: 'live-turn-run', role: 'assistant', content: 'Reviewing the project.', timestamp: 2,
+        contentBlocks: [
+          { type: 'text', content: 'Reviewing the project.' },
+          { type: 'tool_use', toolId: 'live-turn-read' },
+        ],
+        toolCalls: [{ id: 'live-turn-read', name: 'Read', input: {}, status: 'completed' }],
+      } as ChatMessage,
+    ];
+
+    renderer.syncStreamingActivity(messages[1], content, undefined, messages);
+
+    const turn = messagesEl.querySelector('.claudian-transcript-turn');
+    expect(turn?.querySelectorAll('.claudian-message')).toHaveLength(2);
+    expect(turn?.querySelector('.claudian-activity-phase')).toBeNull();
+    expect(narration.hidden).not.toBe(true);
+    expect(turn?.querySelector('.claudian-tool-call')).toBe(tool);
+  });
+
+  it('folds narrated work across assistant runs while the current turn is live', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'live-multi-turn-user');
+    const firstAssistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    firstAssistant.setAttribute('data-message-id', 'live-multi-run-one');
+    const firstContent = firstAssistant.createDiv({ cls: 'claudian-message-content' });
+    const firstTool = firstContent.createDiv({ cls: 'claudian-tool-call' });
+    firstTool.setAttribute('data-tool-id', 'live-multi-read-one');
+    const secondAssistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    secondAssistant.setAttribute('data-message-id', 'live-multi-run-two');
+    const secondContent = secondAssistant.createDiv({ cls: 'claudian-message-content' });
+    const narration = secondContent.createDiv({ cls: 'claudian-text-block', text: 'Checking the result.' });
+    const currentTool = secondContent.createDiv({ cls: 'claudian-tool-call' });
+    currentTool.setAttribute('data-tool-id', 'live-multi-bash');
+    renderer.startCompletedWork(secondContent);
+
+    const messages: ChatMessage[] = [
+      { id: 'live-multi-turn-user', role: 'user', content: 'Inspect the project.', timestamp: 1 },
+      {
+        id: 'live-multi-run-one', role: 'assistant', content: '', timestamp: 2,
+        contentBlocks: [{ type: 'tool_use', toolId: 'live-multi-read-one' }],
+        toolCalls: [{ id: 'live-multi-read-one', name: 'Read', input: {}, status: 'completed' }],
+      } as ChatMessage,
+      {
+        id: 'live-multi-run-two', role: 'assistant', content: 'Checking the result.', timestamp: 3,
+        contentBlocks: [
+          { type: 'text', content: 'Checking the result.' },
+          { type: 'tool_use', toolId: 'live-multi-bash' },
+        ],
+        toolCalls: [{ id: 'live-multi-bash', name: 'Bash', input: {}, status: 'running' }],
+      } as ChatMessage,
+    ];
+
+    const projection = projectTranscript(messages, { activeMessageId: messages[2].id })[0];
+    expect(projection.runs).toHaveLength(2);
+    expect(buildActivityTimeline(projection, { live: true }).fold).toEqual({ start: 0, end: 2 });
+
+    renderer.syncStreamingActivity(messages[2], secondContent, undefined, messages);
+
+    const fold = secondContent.querySelector('.claudian-streaming-work-fold');
+    expect(firstTool.dataset.transcriptItemId).toBe('live-multi-run-one:tool:live-multi-read-one');
+    expect(secondContent.querySelector('.claudian-completed-work-status')).toBeTruthy();
+    expect(fold).toBeTruthy();
+    expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(firstTool)).toBe(true);
+    const history = fold?.querySelector('.claudian-streaming-work-history');
+    expect(history?.contains(narration)).toBe(true);
+    expect(history?.contains(currentTool)).toBe(true);
+    expect(history?.querySelector('.claudian-activity-phase')).toBeNull();
+    expect(secondContent.children).not.toContain(currentTool);
+  });
+
+  it('restores earlier run nodes when a late user boundary separates the live turn', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'late-boundary-user-one');
+    const firstAssistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    firstAssistant.setAttribute('data-message-id', 'late-boundary-run-one');
+    const firstContent = firstAssistant.createDiv({ cls: 'claudian-message-content' });
+    const firstTool = firstContent.createDiv({ cls: 'claudian-tool-call' });
+    firstTool.setAttribute('data-tool-id', 'late-boundary-read');
+    const secondAssistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+    secondAssistant.setAttribute('data-message-id', 'late-boundary-run-two');
+    const secondContent = secondAssistant.createDiv({ cls: 'claudian-message-content' });
+    const narration = secondContent.createDiv({ cls: 'claudian-text-block', text: 'Checking the result.' });
+    const currentTool = secondContent.createDiv({ cls: 'claudian-tool-call' });
+    currentTool.setAttribute('data-tool-id', 'late-boundary-bash');
+    renderer.startCompletedWork(secondContent);
+
+    const firstRun = {
+      id: 'late-boundary-run-one', role: 'assistant', content: '', timestamp: 2,
+      contentBlocks: [{ type: 'tool_use', toolId: 'late-boundary-read' }],
+      toolCalls: [{ id: 'late-boundary-read', name: 'Read', input: {}, status: 'completed' }],
+    } as ChatMessage;
+    const activeRun = {
+      id: 'late-boundary-run-two', role: 'assistant', content: 'Checking the result.', timestamp: 3,
+      contentBlocks: [
+        { type: 'text', content: 'Checking the result.' },
+        { type: 'tool_use', toolId: 'late-boundary-bash' },
+      ],
+      toolCalls: [{ id: 'late-boundary-bash', name: 'Bash', input: {}, status: 'running' }],
+    } as ChatMessage;
+    const initialMessages: ChatMessage[] = [
+      { id: 'late-boundary-user-one', role: 'user', content: 'Inspect the project.', timestamp: 1 },
+      firstRun,
+      activeRun,
+    ];
+
+    renderer.syncStreamingActivity(activeRun, secondContent, undefined, initialMessages);
+    expect(secondContent.querySelector('.claudian-streaming-work-history')?.contains(firstTool)).toBe(true);
+
+    const secondUserEl = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    secondUserEl.setAttribute('data-message-id', 'late-boundary-user-two');
+    messagesEl.insertBefore(secondUserEl, secondAssistant);
+    const separatedMessages: ChatMessage[] = [
+      initialMessages[0],
+      firstRun,
+      { id: 'late-boundary-user-two', role: 'user', content: 'Continue the work.', timestamp: 4 },
+      activeRun,
+    ];
+
+    renderer.syncStreamingActivity(activeRun, secondContent, undefined, separatedMessages);
+
+    expect(firstTool.parentElement?.className).toBe('claudian-message-content');
+    expect(secondContent.querySelector('.claudian-streaming-work-history')?.contains(firstTool) ?? false).toBe(false);
+    expect(secondContent.querySelector('.claudian-activity-phase')).toBeNull();
+    expect(narration.hidden).not.toBe(true);
   });
 
   it('renders empty messages list with just welcome element', () => {
@@ -502,6 +1943,66 @@ describe('MessageRenderer', () => {
     expect(messagesEl.querySelectorAll('.claudian-message-timestamp')).toHaveLength(1);
     expect(timestampSpy).toHaveBeenCalledTimes(1);
     timestampSpy.mockRestore();
+  });
+
+  it('does not render empty or superseded leading thinking blocks in stored messages', () => {
+    const { renderer } = createRenderer();
+    const renderThinking = jest.mocked(renderStoredThinkingBlock);
+    renderThinking.mockClear();
+
+    renderer.renderStoredMessage({
+      id: 'assistant-leading-thinking',
+      role: 'assistant',
+      content: 'I will inspect the vault.',
+      timestamp: 1_700_000_000_000,
+      contentBlocks: [
+        { type: 'thinking', content: 'First private thought.' },
+        { type: 'thinking', content: 'Second private thought.' },
+        { type: 'text', content: 'I will inspect the vault.' },
+        { type: 'thinking', content: '   ' },
+        { type: 'thinking', content: 'The tool result needs a check.' },
+      ],
+    });
+
+    expect(renderThinking).toHaveBeenCalledTimes(1);
+    expect(renderThinking).toHaveBeenCalledWith(
+      expect.anything(),
+      'The tool result needs a check.',
+      undefined,
+      expect.any(Function),
+    );
+  });
+
+  it('keeps leading thinking in later assistant runs of the same turn', () => {
+    const { renderer } = createRenderer();
+    const renderThinking = jest.mocked(renderStoredThinkingBlock);
+    renderThinking.mockClear();
+    const messages: ChatMessage[] = [
+      { id: 'thinking-turn-user', role: 'user', content: 'Check the project', timestamp: 1 },
+      {
+        id: 'thinking-run-one', role: 'assistant', content: 'I will inspect the project.', timestamp: 2,
+        contentBlocks: [{ type: 'text', content: 'I will inspect the project.' }],
+      } as ChatMessage,
+      {
+        id: 'thinking-run-two', role: 'assistant', content: 'I found the files.', timestamp: 3,
+        contentBlocks: [
+          { type: 'thinking', content: 'The next check should inspect the config.' },
+          { type: 'text', content: 'I found the files.' },
+          { type: 'tool_use', toolId: 'thinking-run-tool' },
+        ],
+        toolCalls: [{ id: 'thinking-run-tool', name: 'Read', input: {}, status: 'completed' }],
+      } as ChatMessage,
+    ];
+
+    renderer.renderStoredMessage(messages[2], messages, 2);
+
+    expect(renderThinking).toHaveBeenCalledTimes(1);
+    expect(renderThinking).toHaveBeenCalledWith(
+      expect.anything(),
+      'The next check should inspect the config.',
+      undefined,
+      expect.any(Function),
+    );
   });
 
   it('can add the timestamp when a streaming assistant message becomes final', () => {
@@ -1014,7 +2515,7 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    expect(renderStoredThinkingBlock).toHaveBeenCalled();
+    expect(renderStoredThinkingBlock).not.toHaveBeenCalled();
     expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Text block');
     // TodoWrite is not rendered inline - only in bottom panel
     expect(renderStoredWriteEdit).toHaveBeenCalled();
@@ -1195,6 +2696,30 @@ describe('MessageRenderer', () => {
       expect.objectContaining({ id: 'patch-1', name: TOOL_APPLY_PATCH }),
       expect.objectContaining({ initiallyExpanded: true }),
     );
+  });
+
+  it('binds rendered history blocks to their projected transcript IDs at creation time', () => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+    const msg: ChatMessage = {
+      id: 'assistant-transcript-identities',
+      role: 'assistant',
+      content: 'Answer',
+      timestamp: Date.now(),
+      contentBlocks: [
+        { type: 'text', content: 'Answer' },
+        { type: 'context_compacted' },
+      ],
+    };
+
+    renderer.renderStoredMessage(msg);
+
+    const contentEl = messagesEl.children[0].children[0];
+    expect(contentEl.children[0].dataset.transcriptItemId)
+      .toBe('assistant-transcript-identities:block:0');
+    expect(contentEl.children[1].dataset.transcriptItemId)
+      .toBe('assistant-transcript-identities:block:1');
   });
 
   it('renders response duration footer when durationSeconds is present', () => {

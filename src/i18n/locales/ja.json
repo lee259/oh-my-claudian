@@ -87,7 +87,11 @@
       "inProgress": "作業中 · {seconds} 秒",
       "label": "完了",
       "seconds": "所要時間 {seconds} 秒",
-      "minutes": "所要時間 {minutes} 分 {seconds} 秒"
+      "minutes": "所要時間 {minutes} 分 {seconds} 秒",
+      "actionOne": " · 操作 {count} 件",
+      "actions": " · 操作 {count} 件",
+      "errorOne": " · エラー {count} 件",
+      "errors": " · エラー {count} 件"
     },
     "welcome": {
       "availableCapabilities": "利用可能: {capabilities}",
@@ -252,6 +256,7 @@
       "writing": "書き込み中...",
       "done": "完了",
       "thinking": "思考中 {seconds}秒...",
+      "thinkingSummary": "思考中",
       "thinkingAria": "拡張思考（クリックして展開）",
       "hints": "矢印キーで移動 · Enterで選択 · Escでキャンセル",
       "running": "実行中..."

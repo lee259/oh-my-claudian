@@ -87,7 +87,11 @@
       "inProgress": "En cours · {seconds} s",
       "label": "Terminé",
       "seconds": "Durée : {seconds} s",
-      "minutes": "Durée : {minutes} min {seconds} s"
+      "minutes": "Durée : {minutes} min {seconds} s",
+      "actionOne": " · {count} action",
+      "actions": " · {count} actions",
+      "errorOne": " · {count} erreur",
+      "errors": " · {count} erreurs"
     },
     "welcome": {
       "availableCapabilities": "Disponible : {capabilities}",
@@ -252,6 +256,7 @@
       "writing": "Écriture en cours...",
       "done": "TERMINÉ",
       "thinking": "Réflexion {seconds}s...",
+      "thinkingSummary": "Réflexion",
       "thinkingAria": "Réflexion étendue – cliquer pour développer",
       "hints": "Utilisez les flèches pour naviguer · Entrée pour sélectionner · Échap pour annuler",
       "running": "En cours..."

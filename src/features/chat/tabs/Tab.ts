@@ -10,6 +10,7 @@ import { createCatalogCommandDiscoveryStore } from '../../../core/providers/comm
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import {
   findProviderModelOption,
+  getConversationModelLabel,
   getProviderSettingsSnapshotWithModel,
   normalizeProviderModelSelection,
   resolveConversationModel,
@@ -891,7 +892,16 @@ async function handleTabSessionEvent(
 
   const turns = getBackgroundTurnBuffers(tab, context.bindingId);
   if (event.type === 'background_turn_started') {
-    turns.set(event.scope.turnId, createBackgroundTurnRenderState());
+    const conversation = tab.conversationId
+      ? plugin.getConversationSync(tab.conversationId)
+      : null;
+    const turn = createBackgroundTurnRenderState(
+      getConversationModelLabel(conversation, plugin.settings),
+    );
+    tab.controllers.streamController?.setTranscriptExecutionScope?.(turn.assistantMsg.id, {
+      turnId: event.scope.turnId,
+    });
+    turns.set(event.scope.turnId, turn);
     return;
   }
   if (event.type === 'background_turn_completed') {
@@ -2538,7 +2548,7 @@ function hasVisibleAutoTurnMessageContent(msg: ChatMessage): boolean {
   ) ?? false;
 }
 
-function createBackgroundTurnRenderState(): BackgroundTurnRenderState {
+function createBackgroundTurnRenderState(modelName?: string): BackgroundTurnRenderState {
   return {
     assistantMsg: {
       id: generateMessageId(),
@@ -2546,6 +2556,7 @@ function createBackgroundTurnRenderState(): BackgroundTurnRenderState {
       isAutomaticResponse: true,
       content: '',
       timestamp: Date.now(),
+      modelName,
       toolCalls: [],
       contentBlocks: [],
     },

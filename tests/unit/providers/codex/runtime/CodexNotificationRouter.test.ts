@@ -3891,15 +3891,33 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('plan and compaction events', () => {
-    it('streams item/plan/delta as text chunks', () => {
+    it('preserves plan item boundaries while streaming successive deltas', () => {
       router.handleNotification('item/plan/delta', {
         threadId: 't1',
         turnId: 'turn1',
         itemId: 'plan-1',
-        delta: '- Investigate failing tests',
+        delta: '- Investigate',
+      });
+      router.handleNotification('item/plan/delta', {
+        threadId: 't1',
+        turnId: 'turn1',
+        itemId: 'plan-1',
+        delta: ' failing tests',
+      });
+      router.handleNotification('item/plan/delta', {
+        threadId: 't1',
+        turnId: 'turn1',
+        itemId: 'plan-2',
+        delta: 'Read the project guide',
       });
 
-      expect(chunks).toEqual([{ type: 'text', content: '- Investigate failing tests' }]);
+      expect(chunks).toEqual([
+        { type: 'assistant_message_start', itemId: 'plan-1' },
+        { type: 'text', content: '- Investigate' },
+        { type: 'text', content: ' failing tests' },
+        { type: 'assistant_message_start', itemId: 'plan-2' },
+        { type: 'text', content: 'Read the project guide' },
+      ]);
     });
 
     it('does not emit context_compacted when a context compaction item starts', () => {

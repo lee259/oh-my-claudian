@@ -87,7 +87,11 @@
       "inProgress": "В процессе · {seconds} с",
       "label": "Завершено",
       "seconds": "Заняло {seconds} с",
-      "minutes": "Заняло {minutes} мин {seconds} с"
+      "minutes": "Заняло {minutes} мин {seconds} с",
+      "actionOne": " · действий: {count}",
+      "actions": " · действий: {count}",
+      "errorOne": " · ошибок: {count}",
+      "errors": " · ошибок: {count}"
     },
     "welcome": {
       "availableCapabilities": "Доступно: {capabilities}",
@@ -252,6 +256,7 @@
       "writing": "Запись...",
       "done": "ГОТОВО",
       "thinking": "Размышление {seconds} с...",
+      "thinkingSummary": "Размышление",
       "thinkingAria": "Расширенное мышление — нажмите, чтобы развернуть",
       "hints": "Используйте стрелки для навигации · Enter — выбрать · Esc — отмена",
       "running": "Выполняется..."
