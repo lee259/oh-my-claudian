@@ -3,6 +3,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 import {
   collapseElement,
   type CollapsibleState,
+  setCollapsibleContentExpanded,
   setupCollapsible,
 } from '@/features/chat/rendering/collapsible';
 
@@ -130,6 +131,72 @@ describe('collapsible', () => {
       setupCollapsible(wrapper, header, content, state);
 
       expect(header.getAttribute('aria-label')).toBeNull();
+    });
+  });
+
+  describe('setCollapsibleContentExpanded', () => {
+    it('uses the transcript fold animation and hides content after collapse finishes', () => {
+      const element = createMockEl() as unknown as HTMLElement;
+      element.addClass('claudian-hidden');
+      const animation = { cancel: jest.fn(), onfinish: null as (() => void) | null };
+      const animate = jest.fn(() => animation as unknown as Animation);
+      Object.defineProperty(element, 'animate', { value: animate });
+      Object.defineProperty(element, 'scrollHeight', { value: 120 });
+      const setHidden = jest.fn();
+
+      setCollapsibleContentExpanded(element, false, setHidden);
+
+      expect(setHidden).toHaveBeenNthCalledWith(1, false);
+      expect(animate).toHaveBeenCalledWith(
+        [
+          { height: '0px', opacity: 1 },
+          { height: '0px', opacity: 0 },
+        ],
+        { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      );
+      expect(setHidden).toHaveBeenCalledTimes(1);
+
+      animation.onfinish?.();
+      expect(setHidden).toHaveBeenNthCalledWith(2, true);
+    });
+
+    it('keeps the region visible while expanding until the shared transition finishes', () => {
+      const element = createMockEl() as unknown as HTMLElement;
+      const animation = { cancel: jest.fn(), onfinish: null as (() => void) | null };
+      const animate = jest.fn(() => animation as unknown as Animation);
+      Object.defineProperty(element, 'animate', { value: animate });
+      Object.defineProperty(element, 'scrollHeight', { value: 120 });
+      const setHidden = jest.fn();
+
+      setCollapsibleContentExpanded(element, true, setHidden);
+
+      expect(setHidden).toHaveBeenCalledTimes(1);
+      expect(setHidden).toHaveBeenCalledWith(false);
+      expect(animate).toHaveBeenCalledWith(
+        [
+          { height: '0px', opacity: 0 },
+          { height: '120px', opacity: 1 },
+        ],
+        { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      );
+      animation.onfinish?.();
+      expect(setHidden).toHaveBeenLastCalledWith(false);
+    });
+
+    it('skips animation when reduced motion is enabled', () => {
+      const element = createMockEl() as unknown as HTMLElement;
+      const animate = jest.fn();
+      Object.defineProperty(element, 'animate', { value: animate });
+      Object.defineProperty(element, 'scrollHeight', { value: 120 });
+      const setHidden = jest.fn();
+      const matchMedia = jest.fn(() => ({ matches: true })) as unknown as typeof window.matchMedia;
+      Object.defineProperty((element as any).ownerDocument.defaultView, 'matchMedia', { value: matchMedia });
+
+      setCollapsibleContentExpanded(element, true, setHidden);
+
+      expect(setHidden).toHaveBeenNthCalledWith(1, false);
+      expect(setHidden).toHaveBeenNthCalledWith(2, false);
+      expect(animate).not.toHaveBeenCalled();
     });
   });
 

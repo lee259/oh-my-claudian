@@ -64,6 +64,7 @@ import {
   getSupersededInitialThinkingIndexes,
 } from './ActivityTimeline';
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
+import { setCollapsibleContentExpanded } from './collapsible';
 import {
   DIAGRAM_FENCE_LANGUAGES,
   DIAGRAM_SOURCE_CLASS,
@@ -148,7 +149,6 @@ export class MessageRenderer {
     nextSibling: HTMLElement | null;
   }>();
   private readonly activityPhaseOverrides = new Map<string, boolean>();
-  private readonly activityPhaseAnimations = new WeakMap<HTMLElement, Animation>();
   private readonly streamingWorkFoldOverrides = new Map<string, boolean>();
   private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
@@ -932,7 +932,9 @@ export class MessageRenderer {
     if (notificationHistory && workEls.length > 0) {
       for (const workEl of workEls) notificationHistory.appendChild(workEl);
       if (this.getCompletedWorkSummary(workEls, msg).errorCount > 0) {
-        notificationHistory.hidden = false;
+        setCollapsibleContentExpanded(notificationHistory, true, hidden => {
+          notificationHistory.hidden = hidden;
+        });
         notification?.querySelector('button')?.setAttribute('aria-expanded', 'true');
       }
       this.syncAssistantMessageActions(msg, msgEl, contentEl, allowFork);
@@ -1352,7 +1354,9 @@ export class MessageRenderer {
       headerEl.addEventListener('click', () => {
         const nextExpanded = historyEl!.hidden === true;
         this.streamingWorkFoldOverrides.set(msg.id, nextExpanded);
-        historyEl!.hidden = !nextExpanded;
+        setCollapsibleContentExpanded(historyEl!, nextExpanded, hidden => {
+          historyEl!.hidden = hidden;
+        });
         headerEl.setAttribute('aria-expanded', String(nextExpanded));
         setIcon(indicatorEl, nextExpanded ? 'chevron-down' : 'chevron-right');
       });
@@ -1494,9 +1498,12 @@ export class MessageRenderer {
       for (const child of workEls) historyEl.appendChild(child);
     }
     headerEl.addEventListener('click', () => {
-      historyEl.hidden = !historyEl.hidden;
-      headerEl.setAttribute('aria-expanded', String(!historyEl.hidden));
-      setIcon(indicatorEl, historyEl.hidden ? 'chevron-right' : 'chevron-down');
+      const nextExpanded = Boolean(historyEl.hidden);
+      setCollapsibleContentExpanded(historyEl, nextExpanded, hidden => {
+        historyEl.hidden = hidden;
+      });
+      headerEl.setAttribute('aria-expanded', String(nextExpanded));
+      setIcon(indicatorEl, nextExpanded ? 'chevron-down' : 'chevron-right');
     });
     return workEl;
   }
@@ -1583,38 +1590,12 @@ export class MessageRenderer {
   }
 
   private setActivityPhaseExpanded(detailsEl: HTMLElement, expanded: boolean): void {
-    const previousAnimation = this.activityPhaseAnimations.get(detailsEl);
-    const currentHeight = detailsEl.hidden ? 0 : detailsEl.getBoundingClientRect().height;
-    previousAnimation?.cancel();
-    detailsEl.hidden = false;
-    detailsEl.removeAttribute('inert');
     detailsEl.setAttribute('aria-hidden', String(!expanded));
-    if (!expanded) detailsEl.setAttribute('inert', '');
-
-    const view = detailsEl.ownerDocument.defaultView;
-    const reducedMotion = view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (reducedMotion || typeof detailsEl.animate !== 'function') {
-      detailsEl.hidden = !expanded;
-      return;
-    }
-
-    const targetHeight = expanded ? detailsEl.scrollHeight : 0;
-    const animation = detailsEl.animate(
-      [
-        { height: `${currentHeight}px`, opacity: expanded ? 0 : 1 },
-        { height: `${targetHeight}px`, opacity: expanded ? 1 : 0 },
-      ],
-      {
-        duration: 280,
-        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-      },
-    );
-    this.activityPhaseAnimations.set(detailsEl, animation);
-    animation.onfinish = () => {
-      if (this.activityPhaseAnimations.get(detailsEl) !== animation) return;
-      this.activityPhaseAnimations.delete(detailsEl);
-      detailsEl.hidden = !expanded;
-    };
+    if (expanded) detailsEl.removeAttribute('inert');
+    else detailsEl.setAttribute('inert', '');
+    setCollapsibleContentExpanded(detailsEl, expanded, hidden => {
+      detailsEl.hidden = hidden;
+    });
   }
 
   private rememberStreamingActivityOrigin(element: HTMLElement): void {
@@ -2018,8 +1999,11 @@ export class MessageRenderer {
         rendered = true;
         void this.renderContent(contentBlock, content);
       }
-      history.hidden = !history.hidden;
-      header.setAttribute('aria-expanded', String(!history.hidden));
+      const nextExpanded = Boolean(history.hidden);
+      setCollapsibleContentExpanded(history, nextExpanded, hidden => {
+        history.hidden = hidden;
+      });
+      header.setAttribute('aria-expanded', String(nextExpanded));
     });
     return wrapper;
   }

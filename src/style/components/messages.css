@@ -785,7 +785,6 @@ button.claudian-completed-work-header:focus-visible {
   box-sizing: border-box;
   margin-top: 8px;
   padding-inline-start: 16px;
-  border-inline-start: 1px solid var(--background-modifier-border);
 }
 
 .claudian-streaming-work-history {
@@ -793,7 +792,6 @@ button.claudian-completed-work-header:focus-visible {
   box-sizing: border-box;
   margin-top: 8px;
   padding-inline-start: 16px;
-  border-inline-start: 1px solid var(--background-modifier-border);
   max-height: min(17.5rem, 45vh);
   overflow: auto;
   overscroll-behavior: contain;
