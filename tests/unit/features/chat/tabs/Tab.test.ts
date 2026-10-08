@@ -1727,6 +1727,28 @@ describe('Tab provider execution ownership', () => {
     expect(tab.state.autoScrollEnabled).toBe(true);
   });
 
+  it('resumes transcript following immediately when the user returns to the bottom', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    tab.state.autoScrollEnabled = false;
+    Object.assign(tab.dom.messagesEl, { scrollTop: 900, scrollHeight: 1000, clientHeight: 100 });
+    tab.dom.messagesEl.dispatchEvent('scroll' as unknown as Event);
+    // Streaming can grow the content before a delayed re-enable callback runs.
+    Object.assign(tab.dom.messagesEl, { scrollHeight: 1100 });
+    expect(tab.state.autoScrollEnabled).toBe(true);
+  });
+
+  it('keeps transcript following enabled when the user scrolls inside streaming work', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const history = { scrollHeight: 1000, clientHeight: 280 };
+    const target = { closest: () => history };
+    tab.dom.messagesEl.dispatchEvent({ type: 'wheel', target } as unknown as Event);
+    expect(tab.state.autoScrollEnabled).toBe(true);
+  });
+
   it('pauses auto-follow for wheel scrolling and middle-button autoscroll', () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });

@@ -150,6 +150,11 @@ export class MessageRenderer {
   }>();
   private readonly activityPhaseOverrides = new Map<string, boolean>();
   private readonly streamingWorkFoldOverrides = new Map<string, boolean>();
+  private readonly streamingWorkViewports = new WeakMap<HTMLElement, {
+    element: HTMLElement;
+    scrollTop: number;
+    following: boolean;
+  }>();
   private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
   private plugin: FeatureHost;
@@ -1214,7 +1219,12 @@ export class MessageRenderer {
       (turnMessage.toolCalls ?? []).map((toolCall) => `${toolCall.id}:${toolCall.status}:${toolCall.questionStatus ?? ''}`).join('|'),
     ].join('::');
     const signatureKey = `${turnId}:${msg.id}`;
-    if (this.streamingActivitySignatures.get(contentEl) === `${signatureKey}::${signature}`) return;
+    if (this.streamingActivitySignatures.get(contentEl) === `${signatureKey}::${signature}`) {
+      for (const fold of contentEl.querySelectorAll<HTMLElement>('.claudian-streaming-work-fold')) {
+        this.restoreStreamingWorkViewport(fold);
+      }
+      return;
+    }
     this.streamingActivitySignatures.set(contentEl, `${signatureKey}::${signature}`);
 
     for (const [index, runContentEl] of runContentElements.entries()) {
@@ -1293,6 +1303,7 @@ export class MessageRenderer {
       const header = fold.querySelector<HTMLElement>('.claudian-streaming-work-header');
       const label = header?.querySelector<HTMLElement>('.claudian-completed-work-label');
       if (history) {
+        this.captureStreamingWorkViewport(fold, history);
         const parent = fold.parentElement ?? contentEl;
         for (const child of Array.from(history.children)) {
           this.restoreStreamingActivityElement(child as HTMLElement, parent, fold);
@@ -1305,6 +1316,26 @@ export class MessageRenderer {
       fold.removeAttribute('aria-controls');
       fold.querySelector<HTMLElement>('.claudian-completed-work-indicator')?.remove();
     }
+  }
+
+  private captureStreamingWorkViewport(fold: HTMLElement, history: HTMLElement): void {
+    const viewport = this.streamingWorkViewports.get(fold);
+    if (!viewport || viewport.element !== history || history.hidden) return;
+    // Content growth can emit scroll events without moving the viewport.
+    // Keep following in that case; a user scroll records a new position.
+    const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight <= 20;
+    if (history.scrollTop !== viewport.scrollTop || atBottom) viewport.following = atBottom;
+    viewport.scrollTop = history.scrollTop;
+  }
+
+  private restoreStreamingWorkViewport(fold: HTMLElement): void {
+    const viewport = this.streamingWorkViewports.get(fold);
+    if (!viewport || viewport.element.hidden) return;
+    const history = viewport.element;
+    history.scrollTop = viewport.following && (this.plugin.settings.enableAutoScroll ?? true)
+      ? history.scrollHeight
+      : viewport.scrollTop;
+    viewport.scrollTop = history.scrollTop;
   }
 
   private renderStreamingTimeline(
@@ -1343,6 +1374,16 @@ export class MessageRenderer {
         attr: { id: workId },
       });
       historyEl.hidden = !expanded;
+      const previousViewport = this.streamingWorkViewports.get(statusEl);
+      this.streamingWorkViewports.set(statusEl, {
+        element: historyEl,
+        scrollTop: previousViewport?.scrollTop ?? 0,
+        following: previousViewport?.following ?? true,
+      });
+      const history = historyEl;
+      history.addEventListener('scroll', () => {
+        this.captureStreamingWorkViewport(statusEl, history);
+      });
       headerEl.addEventListener('click', () => {
         const nextExpanded = historyEl!.hidden === true;
         this.streamingWorkFoldOverrides.set(msg.id, nextExpanded);
@@ -1351,6 +1392,7 @@ export class MessageRenderer {
         });
         headerEl.setAttribute('aria-expanded', String(nextExpanded));
         setIcon(indicatorEl, nextExpanded ? 'chevron-down' : 'chevron-right');
+        if (nextExpanded) this.restoreStreamingWorkViewport(statusEl);
       });
 
       for (let itemIndex = fold.start; itemIndex <= fold.end; itemIndex += 1) {
@@ -1400,6 +1442,7 @@ export class MessageRenderer {
         );
       }
     });
+    if (statusEl) this.restoreStreamingWorkViewport(statusEl);
   }
 
   private createCompletedWork(
