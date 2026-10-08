@@ -160,6 +160,21 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath(explicitDir, 'darwin')).toBe(explicitBinary);
   });
 
+  it('prefers inherited PATH over an automatically discovered macOS app runtime', () => {
+    process.env.HOME = tempDir;
+    const automaticDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
+    const pathDir = path.join(tempDir, 'chosen-cli');
+    const automaticBinary = path.join(automaticDir, 'codex');
+    const pathBinary = path.join(pathDir, 'codex');
+    fs.mkdirSync(automaticDir, { recursive: true });
+    fs.mkdirSync(pathDir, { recursive: true });
+    fs.writeFileSync(automaticBinary, '');
+    fs.writeFileSync(pathBinary, '');
+    process.env.PATH = pathDir;
+
+    expect(findCodexBinaryPath('', 'darwin')).toBe(pathBinary);
+  });
+
   it('prefers the macOS Codex app bundle over the unified ChatGPT app fallback', () => {
     process.env.HOME = tempDir;
     process.env.PATH = '';
@@ -234,22 +249,6 @@ describe('CodexBinaryLocator', () => {
     process.env.PATH = pathDir;
 
     expect(findCodexBinaryPath('', process.platform)).toBe(pathBinary);
-  });
-
-  it('prefers inherited PATH over an automatically discovered macOS app runtime', () => {
-    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-    process.env.HOME = tempDir;
-    const automaticDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
-    const pathDir = path.join(tempDir, 'chosen-cli');
-    const automaticBinary = path.join(automaticDir, 'codex');
-    const pathBinary = path.join(pathDir, 'codex');
-    fs.mkdirSync(automaticDir, { recursive: true });
-    fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(automaticBinary, '');
-    fs.writeFileSync(pathBinary, '');
-    process.env.PATH = pathDir;
-
-    expect(findCodexBinaryPath('', 'darwin')).toBe(pathBinary);
   });
 
   it('prefers a hostname-specific configured path', () => {
