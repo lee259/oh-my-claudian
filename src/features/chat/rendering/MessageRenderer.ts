@@ -264,8 +264,43 @@ export class MessageRenderer {
     return this.plugin.settings?.expandFileEditsByDefault === true;
   }
 
-  private getUserMessageTextToShow(msg: ChatMessage): string {
-    return msg.displayContent ?? extractUserDisplayContent(msg.content) ?? msg.content;
+  private getUserMessagePresentation(msg: ChatMessage): { source: string; quote: string; body: string } {
+    const source = msg.displayContent ?? extractUserDisplayContent(msg.content) ?? msg.content;
+    const lines = source.replace(/\r\n?/g, '\n').split('\n');
+    const quoteLines: string[] = [];
+    let index = 0;
+    while (index < lines.length) {
+      const quoteLine = lines[index].match(/^\s{0,3}>\s?(.*)$/);
+      if (quoteLine) {
+        quoteLines.push(quoteLine[1]);
+        index += 1;
+        continue;
+      }
+      if (quoteLines.length > 0 && !lines[index].trim()) {
+        let nextContentLine = index;
+        while (nextContentLine < lines.length && !lines[nextContentLine].trim()) nextContentLine += 1;
+        if (lines[nextContentLine]?.match(/^\s{0,3}>\s?/)) {
+          quoteLines.push('');
+          index = nextContentLine;
+          continue;
+        }
+      }
+      break;
+    }
+    if (quoteLines.length === 0) return { source, quote: '', body: source };
+
+    while (index < lines.length && !lines[index].trim()) index += 1;
+    return {
+      source,
+      quote: quoteLines.join('\n').trim(),
+      body: lines.slice(index).join('\n'),
+    };
+  }
+
+  private renderQuotedMessageContext(msgEl: HTMLElement, quote: string): void {
+    if (!quote) return;
+    const quoteEl = msgEl.createDiv({ cls: 'claudian-message-quote-context' });
+    void this.renderContent(quoteEl, quote);
   }
 
   private applyTocTitle(msgEl: HTMLElement, text: string): void {
@@ -294,10 +329,11 @@ export class MessageRenderer {
       this.renderMessageImages(this.messagesEl, msg.images);
     }
 
-    // Skip empty bubble for image-only messages
+    const userPresentation = msg.role === 'user' ? this.getUserMessagePresentation(msg) : undefined;
+
+    // Skip empty bubbles while retaining image-only and quote-only messages.
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
-      if (!textToShow && !(this.branchActions && this.getCapabilities().supportsConversationBranches)) {
+      if (!userPresentation?.body.trim() && !userPresentation?.quote) {
         this.scrollToBottom();
         const lastChild = this.messagesEl.lastElementChild as HTMLElement;
         return lastChild ?? this.messagesEl;
@@ -315,14 +351,16 @@ export class MessageRenderer {
 
     this.setTranscriptIdentity(msgEl, { turnId: msg.id, ...(msg.role === 'assistant' ? { runId: msg.id } : {}) });
 
+    if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
+
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
+      const textToShow = userPresentation?.body ?? '';
       if (textToShow) {
         const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
         void this.renderContent(textEl, textToShow);
-        this.addUserCopyButton(msgEl, textToShow);
+        this.addUserCopyButton(msgEl, userPresentation?.source ?? textToShow);
         this.applyTocTitle(msgEl, textToShow);
       }
       if (this.rewindCallback || this.forkCallback || this.branchActions) {
@@ -356,7 +394,10 @@ export class MessageRenderer {
 
     contentEl.empty();
 
-    const textToShow = this.getUserMessageTextToShow(msg);
+    const presentation = this.getUserMessagePresentation(msg);
+    msgEl.querySelector('.claudian-message-quote-context')?.remove();
+    if (presentation.quote) this.renderQuotedMessageContext(msgEl, presentation.quote);
+    const textToShow = presentation.body;
     if (textToShow) {
       const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
       void this.renderContent(textEl, textToShow);
@@ -371,7 +412,7 @@ export class MessageRenderer {
     }
 
     if (textToShow) {
-      this.addUserCopyButton(msgEl, textToShow);
+      this.addUserCopyButton(msgEl, presentation.source);
     }
   }
 
@@ -514,15 +555,16 @@ export class MessageRenderer {
       return;
     }
 
+    const userPresentation = msg.role === 'user' ? this.getUserMessagePresentation(msg) : undefined;
+
     // Render images above bubble for user messages
     if (msg.role === 'user' && msg.images && msg.images.length > 0) {
       this.renderMessageImages(this.messagesEl, msg.images);
     }
 
-    // Skip empty bubble for image-only messages
+    // Skip empty bubbles while retaining image-only and quote-only messages.
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
-      if (!textToShow && !(this.branchActions && this.getCapabilities().supportsConversationBranches)) {
+      if (!userPresentation?.body.trim() && !userPresentation?.quote) {
         return;
       }
     }
@@ -544,14 +586,16 @@ export class MessageRenderer {
       ?? this.getTranscriptIdentities(allMessages ?? [msg]).get(msg.id);
     this.setTranscriptIdentity(msgEl, transcriptIdentity);
 
+    if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
+
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
+      const textToShow = userPresentation?.body ?? '';
       if (textToShow) {
         const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
         void this.renderContent(textEl, textToShow);
-        this.addUserCopyButton(msgEl, textToShow);
+        this.addUserCopyButton(msgEl, userPresentation?.source ?? textToShow);
         this.applyTocTitle(msgEl, textToShow);
       }
       this.addBranchButtons(msgEl, msg, false, allMessages, index);
@@ -733,6 +777,7 @@ export class MessageRenderer {
         firstAssistant,
       );
       completedWork?.setAttribute('data-transcript-turn-id', turn.id);
+      this.removeEmptyTranscriptAssistantMessages(turn, assistantElements);
       return;
     }
     const foldedTimeline = timeline.items
@@ -751,6 +796,25 @@ export class MessageRenderer {
       firstAssistant,
     );
     completedWork?.setAttribute('data-transcript-turn-id', turn.id);
+    this.removeEmptyTranscriptAssistantMessages(turn, assistantElements);
+  }
+
+  private removeEmptyTranscriptAssistantMessages(
+    turn: TranscriptTurnProjection,
+    messageElements: readonly HTMLElement[],
+  ): void {
+    for (const messageEl of messageElements) {
+      const contentEl = messageEl.querySelector<HTMLElement>('.claudian-message-content');
+      const run = turn.runs.find(candidate => candidate.messageId === messageEl.dataset.messageId);
+      const hasNarration = !!run && (
+        !!run.message.content.trim()
+        || run.blocks.some(({ block }) => {
+          if (block.type === 'text' || block.type === 'thinking') return !!block.content.trim();
+          return block.type !== 'tool_use';
+        })
+      );
+      if (!hasNarration && contentEl?.children.length === 0) messageEl.remove();
+    }
   }
 
   private mergeTurnWorkGroups(
@@ -2746,7 +2810,7 @@ export class MessageRenderer {
     };
     const branches = message.treeBranches ?? [];
     const branchIndex = message.userMessageId ? branches.indexOf(message.userMessageId) : -1;
-    if (branches.length > 1 && branchIndex >= 0) {
+    if (branches.length > 1 && branchIndex >= 0 && this.getUserMessagePresentation(message).body.trim()) {
       element.classList.add('claudian-message-branched');
       const marker = element.querySelector('.claudian-message-content')?.createSpan({
         cls: 'claudian-branch-marker', attr: { 'aria-hidden': 'true' },

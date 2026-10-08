@@ -1576,6 +1576,7 @@ describe('MessageRenderer', () => {
     expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
     expect(work?.querySelectorAll('.claudian-tool-call')).toEqual([firstTool, secondTool]);
     expect(work?.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Explored the project');
+    expect(first.parentElement).toBeNull();
     expect(secondContent.children).toContain(answer);
     expect(work?.contains(answer)).toBe(false);
   });
@@ -2327,6 +2328,56 @@ describe('MessageRenderer', () => {
       (c: any) => c.hasClass('claudian-message')
     );
     expect(bubbles.length).toBe(0);
+  });
+
+  it('renders a leading quoted selection separately from the user prompt', () => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    jest.spyOn(renderer, 'renderContent').mockImplementation(async (element, content) => {
+      element.textContent = content;
+    });
+
+    const quotedMessage: ChatMessage = {
+      id: 'quoted-user-message',
+      role: 'user',
+      content: '> Selected passage\n> second line\n\nWhat does this mean?',
+      timestamp: 1,
+    };
+    renderer.renderStoredMessage(quotedMessage);
+
+    const message = (messagesEl as MockElement).children
+      .find((element: MockElement) => element.hasClass('claudian-message-user'));
+    const quote = message?.children.find((element: MockElement) => element.hasClass('claudian-message-quote-context'));
+    const content = message?.children.find((element: MockElement) => element.hasClass('claudian-message-content'));
+    expect(quote?.textContent).toBe('Selected passage\nsecond line');
+    expect(content?.children[0]?.textContent).toBe('What does this mean?');
+  });
+
+  it('does not render an empty branch prompt as a message bubble', () => {
+    const messagesEl = createMockEl();
+    const capabilities = { ...mockCapabilities('codex')(), providerId: 'pi', supportsConversationBranches: true };
+    const renderer = new MessageRenderer(
+      { app: {}, settings: { mediaFolder: '' } } as any,
+      createMockComponent() as any,
+      messagesEl,
+      undefined,
+      undefined,
+      () => capabilities as any,
+      undefined,
+      { navigate: jest.fn().mockResolvedValue(undefined), isBusy: () => false },
+    );
+    const message: ChatMessage = {
+      id: 'empty-branch-prompt',
+      role: 'user',
+      content: '',
+      timestamp: 1,
+      userMessageId: 'pi-empty-prompt',
+      treeBranches: ['pi-empty-prompt', 'pi-sibling-prompt'],
+    };
+
+    renderer.renderStoredMessage(message, [message], 0);
+
+    expect(messagesEl.querySelector('[data-message-id="empty-branch-prompt"]')).toBeNull();
   });
 
   it('renders user message with images above bubble', () => {

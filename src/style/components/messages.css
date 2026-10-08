@@ -429,6 +429,40 @@
   border-end-end-radius: 4px;
 }
 
+.claudian-message-user > .claudian-message-content:empty {
+  display: none;
+}
+
+.claudian-message-quote-context {
+  box-sizing: border-box;
+  align-self: flex-end;
+  max-width: 100%;
+  margin-block-end: 6px;
+  padding: 8px 12px;
+  border-inline-start: 3px solid var(--interactive-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background-secondary) 88%, var(--interactive-accent) 12%);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.claudian-message-quote-context blockquote {
+  margin: 0;
+  padding: 0;
+  border-inline-start: 0;
+  color: inherit;
+}
+
+.claudian-message-quote-context p {
+  margin: 0 0 4px;
+}
+
+.claudian-message-quote-context p:last-child {
+  margin-block-end: 0;
+}
+
 .oh-my-claudian-root .claudian-message-user > .claudian-message-content {
   border-color: rgba(var(--oh-my-claudian-brand-rgb), 0.22);
   background: rgba(var(--oh-my-claudian-brand-rgb), 0.16);
