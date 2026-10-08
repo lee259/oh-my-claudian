@@ -1580,6 +1580,84 @@ describe('MessageRenderer', () => {
     expect(work?.contains(answer)).toBe(false);
   });
 
+  it('folds an OMP-style multi-message response once at the user-turn boundary', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'omp-turn-user');
+    user.createDiv({ cls: 'claudian-message-content' }).createDiv({ cls: 'claudian-text-block' });
+
+    const toolElements = new Map<string, MockElement>();
+    const messages: ChatMessage[] = [
+      { id: 'omp-turn-user', role: 'user', content: 'Update the document.', timestamp: 1 },
+    ];
+    const appendRun = (
+      id: string,
+      blocks: ChatMessage['contentBlocks'],
+      tools: Array<{ id: string; name: string; status: 'completed' | 'failed' }>,
+      timestamp: number,
+    ) => {
+      const assistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+      assistant.setAttribute('data-message-id', id);
+      const content = assistant.createDiv({ cls: 'claudian-message-content' });
+      for (const block of blocks ?? []) {
+        if (block.type === 'text') {
+          const text = content.createDiv({ cls: 'claudian-text-block', text: block.content });
+          text.dataset.transcriptItemId = `${id}:block:${(blocks ?? []).indexOf(block)}`;
+        } else if (block.type === 'tool_use') {
+          const tool = content.createDiv({ cls: 'claudian-tool-call' });
+          tool.setAttribute('data-tool-id', block.toolId);
+          tool.dataset.transcriptItemId = `${id}:tool:${block.toolId}`;
+          toolElements.set(block.toolId, tool);
+        }
+      }
+      messages.push({
+        id,
+        role: 'assistant',
+        content: blocks?.filter(block => block.type === 'text').map(block => block.content).join('') ?? '',
+        timestamp,
+        contentBlocks: blocks,
+        toolCalls: tools.map(tool => ({
+          id: tool.id,
+          name: tool.name,
+          input: {},
+          status: tool.status,
+        })),
+      } as ChatMessage);
+    };
+
+    appendRun('omp-turn-run-1', [
+      { type: 'text', content: 'Planning edits.' },
+      { type: 'tool_use', toolId: 'omp-turn-read-1' },
+    ], [{ id: 'omp-turn-read-1', name: 'Read', status: 'completed' }], 2);
+    appendRun('omp-turn-run-2', [
+      { type: 'text', content: 'Updating the first section.' },
+      { type: 'tool_use', toolId: 'omp-turn-edit-1' },
+      { type: 'text', content: 'Continuing with the next section.' },
+      { type: 'tool_use', toolId: 'omp-turn-edit-2' },
+    ], [
+      { id: 'omp-turn-edit-1', name: 'Edit', status: 'failed' },
+      { id: 'omp-turn-edit-2', name: 'Edit', status: 'completed' },
+    ], 3);
+    appendRun('omp-turn-run-3', [
+      { type: 'text', content: 'Verifying the document.' },
+      { type: 'tool_use', toolId: 'omp-turn-read-2' },
+      { type: 'text', content: 'The requested changes are complete.' },
+    ], [{ id: 'omp-turn-read-2', name: 'Read', status: 'completed' }], 4);
+
+    const turn = projectTranscript(messages)[0];
+    (renderer as any).groupRenderedTranscriptTurns(messages, false);
+    (renderer as any).finalizeTranscriptTurn(turn);
+
+    const turnEl = messagesEl.querySelector('.claudian-transcript-turn');
+    expect(turnEl?.querySelectorAll('.claudian-message-assistant')).toHaveLength(3);
+    expect(turnEl?.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
+    const work = turnEl?.querySelector('.claudian-completed-work');
+    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+    expect(Array.from(toolElements.values()).every(tool => work?.contains(tool))).toBe(true);
+  });
+
   it('keeps preceding run narration separate from merged activity phases', () => {
     const messagesEl = createMockEl();
     enableDomLikeNodeMoves(messagesEl);
@@ -1666,6 +1744,82 @@ describe('MessageRenderer', () => {
     expect(turn?.querySelector('.claudian-tool-call')).toBe(tool);
   });
 
+  it('folds finished OMP-style runs while showing the current thought and tool phase', () => {
+    const messagesEl = createMockEl();
+    enableDomLikeNodeMoves(messagesEl);
+    const { renderer } = createRenderer(messagesEl);
+    const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+    user.setAttribute('data-message-id', 'omp-live-turn-user');
+    user.createDiv({ cls: 'claudian-message-content' });
+
+    const messages: ChatMessage[] = [
+      { id: 'omp-live-turn-user', role: 'user', content: 'Update the document.', timestamp: 1 },
+    ];
+    const renderedRuns = new Map<string, {
+      thinking: MockElement;
+      tool: MockElement;
+      content: MockElement;
+    }>();
+    const appendRun = (
+      id: string,
+      thought: string,
+      toolId: string,
+      toolName: string,
+      toolStatus: 'completed' | 'running',
+      timestamp: number,
+    ) => {
+      const assistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+      assistant.setAttribute('data-message-id', id);
+      const content = assistant.createDiv({ cls: 'claudian-message-content' });
+      const thinking = content.createDiv({ cls: 'claudian-thinking-block', text: thought });
+      const tool = content.createDiv({ cls: 'claudian-tool-call' });
+      tool.setAttribute('data-tool-id', toolId);
+      renderedRuns.set(id, { thinking, tool, content });
+      messages.push({
+        id,
+        role: 'assistant',
+        content: '',
+        timestamp,
+        contentBlocks: [
+          { type: 'thinking', content: thought },
+          { type: 'tool_use', toolId },
+        ],
+        toolCalls: [{ id: toolId, name: toolName, input: {}, status: toolStatus }],
+      } as ChatMessage);
+      return content;
+    };
+
+    appendRun('omp-live-run-1', 'Planning the first edit.', 'omp-live-read-1', 'Read', 'completed', 2);
+    appendRun('omp-live-run-2', 'Applying the first change.', 'omp-live-edit', 'Edit', 'completed', 3);
+    const currentContent = appendRun(
+      'omp-live-run-3',
+      'Verifying the remaining sections.',
+      'omp-live-read-current',
+      'Read',
+      'running',
+      4,
+    );
+    renderer.startCompletedWork(currentContent);
+
+    renderer.syncStreamingActivity(messages[3], currentContent, undefined, messages);
+
+    const fold = currentContent.querySelector('.claudian-streaming-work-fold');
+    const history = fold?.querySelector('.claudian-streaming-work-history');
+    expect(fold).toBeTruthy();
+    for (const id of ['omp-live-run-1', 'omp-live-run-2']) {
+      const run = renderedRuns.get(id)!;
+      expect(history?.contains(run.thinking)).toBe(true);
+      expect(history?.contains(run.tool)).toBe(true);
+    }
+    const current = renderedRuns.get('omp-live-run-3')!;
+    expect(history?.contains(current.thinking)).toBe(false);
+    expect(history?.contains(current.tool)).toBe(false);
+    const activePhase = (currentContent.querySelectorAll('.claudian-streaming-activity-phase') as MockElement[])
+      .find(phase => phase.getAttribute('data-transcript-run-id') === 'omp-live-run-3');
+    expect(activePhase?.getAttribute('data-active')).toBe('true');
+    expect(activePhase?.querySelector('.claudian-activity-phase-details')?.hidden).toBe(false);
+  });
+
   it('folds narrated work across assistant runs while the current turn is live', () => {
     const messagesEl = createMockEl();
     enableDomLikeNodeMoves(messagesEl);
@@ -1704,7 +1858,7 @@ describe('MessageRenderer', () => {
 
     const projection = projectTranscript(messages, { activeMessageId: messages[2].id })[0];
     expect(projection.runs).toHaveLength(2);
-    expect(buildActivityTimeline(projection, { live: true }).fold).toEqual({ start: 0, end: 2 });
+    expect(buildActivityTimeline(projection, { live: true }).fold).toEqual({ start: 0, end: 0 });
 
     renderer.syncStreamingActivity(messages[2], secondContent, undefined, messages);
 
@@ -1714,10 +1868,10 @@ describe('MessageRenderer', () => {
     expect(fold).toBeTruthy();
     expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(firstTool)).toBe(true);
     const history = fold?.querySelector('.claudian-streaming-work-history');
-    expect(history?.contains(narration)).toBe(true);
-    expect(history?.contains(currentTool)).toBe(true);
-    expect(history?.querySelector('.claudian-activity-phase')).toBeNull();
-    expect(secondContent.children).not.toContain(currentTool);
+    expect(history?.contains(narration)).toBe(false);
+    expect(history?.contains(currentTool)).toBe(false);
+    expect(secondContent.children).toContain(narration);
+    expect(secondContent.children).toContain(currentTool);
   });
 
   it('restores earlier run nodes when a late user boundary separates the live turn', () => {
