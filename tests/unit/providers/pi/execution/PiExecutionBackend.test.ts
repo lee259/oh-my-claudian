@@ -558,6 +558,24 @@ describe('PiExecutionBackend', () => {
     expect(new Set(events.map(event => event.scope.sequence)).size).toBe(events.length);
   });
 
+  it('preserves a bare native skill invocation when adding note context', async () => {
+    const harness = createHarness();
+    const run = harness.session.execute(createRequest({
+      context: { currentNote: { path: 'Notes/Plan.md' } },
+      input: [{ text: '/skill:review', type: 'text' }],
+    }));
+    const eventsPromise = collect(run.events);
+    await waitFor(() => harness.kernels.length === 1);
+    const kernel = harness.kernels[0];
+    await waitFor(() => kernel.requests.some(({ type }) => type === 'prompt'));
+    completeTurn(kernel);
+    await eventsPromise;
+
+    expect(getPromptMessages(kernel)[0]).toBe(
+      '/skill:review \n\n<linked_note path="Notes/Plan.md" />',
+    );
+  });
+
   it('keeps a turn active until Pi settles after an automatic retry', async () => {
     const harness = createHarness();
     const run = harness.session.execute(createRequest({

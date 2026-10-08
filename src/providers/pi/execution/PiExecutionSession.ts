@@ -1846,7 +1846,8 @@ function encodePrompt(
   images: PiPromptImage[];
   text: string;
 } {
-  let text = getInputText(request);
+  const inputText = getInputText(request);
+  let text = inputText;
   const context = request.context;
   if (context?.currentNote?.path) {
     text = appendCurrentNote(text, context.currentNote.path);
@@ -1865,6 +1866,10 @@ function encodePrompt(
   }
   if (context?.externalContextPaths?.length) {
     text = appendContextFiles(text, [...context.externalContextPaths]);
+  }
+  // Pi ends a leading skill name at a literal space, not at the context separator.
+  if (text !== inputText && /^\/skill:\S+$/.test(inputText)) {
+    text = `${inputText} ${text.slice(inputText.length)}`;
   }
   if (replayConversationHistory && request.conversationHistory?.length) {
     const history = [...request.conversationHistory] as ChatMessage[];
