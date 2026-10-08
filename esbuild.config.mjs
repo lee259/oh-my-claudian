@@ -194,7 +194,7 @@ const mainContext = await esbuild.context({
   ],
   external,
   format: 'cjs',
-  target: 'es2018',
+  target: 'es2022',
   logLevel: 'info',
   minify: prod,
   sourcemap: prod ? false : 'inline',
