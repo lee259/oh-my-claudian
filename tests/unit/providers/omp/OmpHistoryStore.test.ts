@@ -1,6 +1,30 @@
 import { parseOmpSessionContent } from '@/providers/omp/history/OmpHistoryStore';
 
 describe('parseOmpSessionContent', () => {
+  it('replays snapshot-pruned native edit results with file paths and diff data', () => {
+    const content = [
+      JSON.stringify({ type: 'message', id: 'assistant-edit', message: {
+        role: 'assistant', timestamp: 1785801601000,
+        content: [{ type: 'toolCall', id: 'edit-1', name: 'edit', arguments: {
+          input: '[notes/report.md#0027]\nPUT 11:\n+written_by: assisted',
+        } }],
+      } }),
+      JSON.stringify({ type: 'message', message: {
+        role: 'toolResult', toolCallId: 'edit-1', isError: false,
+        content: [{ type: 'text', text: 'Updated' }],
+        details: { path: '/vault/notes/report.md', diff: '-11|written_by: ai\n+11|written_by: assisted', snapshotsPruned: true },
+      } }),
+    ].join('\n');
+    const tool = parseOmpSessionContent(content)[0].toolCalls?.[0];
+    expect(tool).toMatchObject({
+      name: 'Edit', input: { file_path: 'notes/report.md' },
+      diffData: { filePath: '/vault/notes/report.md', stats: { added: 1, removed: 1 }, diffLines: [
+        { type: 'delete', text: 'written_by: ai', oldLineNum: 11 },
+        { type: 'insert', text: 'written_by: assisted', newLineNum: 11 },
+      ] },
+    });
+  });
+
   it('projects OMP user and assistant JSONL messages without mutating native data', () => {
     const content = [
       JSON.stringify({ type: 'session', id: 'session-1' }),
