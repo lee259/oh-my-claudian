@@ -5,6 +5,7 @@ import type {
 } from '@anthropic-ai/claude-agent-sdk';
 
 import type {
+  ProviderApprovalDecisionOption,
   ProviderInteractionDismissReason,
   ProviderInteractionPort,
 } from '../../../core/execution';
@@ -20,6 +21,16 @@ import {
 } from '../../../core/tools/toolNames';
 import type { PermissionMode } from '../../../core/types/settings';
 import { buildPersistentPermissionUpdates } from '../security/ClaudePermissionUpdates';
+
+const ONE_TIME_APPROVAL_OPTIONS: readonly ProviderApprovalDecisionOption[] = [
+  { label: 'Deny', value: 'Deny', decision: 'deny' },
+  { label: 'Allow once', value: 'Allow once', decision: 'allow' },
+];
+
+const PERSISTABLE_APPROVAL_OPTIONS: readonly ProviderApprovalDecisionOption[] = [
+  ...ONE_TIME_APPROVAL_OPTIONS,
+  { label: 'Always allow', value: 'Always allow', decision: 'allow-always' },
+];
 
 export interface ClaudeExecutionInteractionDeps {
   readonly interactionPort: ProviderInteractionPort;
@@ -189,6 +200,10 @@ export class ClaudeInteractionHandler {
         };
       }
 
+      const persistentPermissionUpdates = options.suppressAlwaysAllowRule
+        ? []
+        : buildPersistentPermissionUpdates(toolName, input, options.suggestions);
+      const canPersistApproval = persistentPermissionUpdates.length > 0;
       const response = await this.deps.interactionPort.requestApproval({
         ...identity,
         kind: 'approval',
@@ -197,6 +212,9 @@ export class ClaudeInteractionHandler {
         description: getActionDescription(toolName, input),
         decisionReason: options.decisionReason,
         blockedPath: options.blockedPath,
+        decisionOptions: canPersistApproval
+          ? PERSISTABLE_APPROVAL_OPTIONS
+          : ONE_TIME_APPROVAL_OPTIONS,
         additionalPermissions: options.suggestions,
       }, options.signal);
       assertResponseIdentity(interactionId, response.interactionId);
@@ -216,14 +234,16 @@ export class ClaudeInteractionHandler {
         };
       }
       if (decision === 'allow-always') {
+        if (!canPersistApproval) {
+          return {
+            behavior: 'allow',
+            updatedInput: input,
+          };
+        }
         return {
           behavior: 'allow',
           updatedInput: input,
-          updatedPermissions: buildPersistentPermissionUpdates(
-            toolName,
-            input,
-            options.suggestions,
-          ),
+          updatedPermissions: persistentPermissionUpdates,
         };
       }
       this.deps.onToolBlocked(options.toolUseID);
