@@ -1706,4 +1706,62 @@ describe('Tab provider execution ownership', () => {
     tab.dom.sendButtonEl.click();
     expect(cancelStreaming).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps auto-follow enabled when transcript layout growth moves the bottom', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const messagesEl = tab.dom.messagesEl as unknown as {
+      clientHeight: number;
+      dispatchEvent: (event: string | { type: string; target?: unknown; button?: number }) => void;
+      scrollHeight: number;
+      scrollTop: number;
+    };
+    Object.assign(messagesEl, { scrollTop: 900, scrollHeight: 1000, clientHeight: 100 });
+
+    messagesEl.dispatchEvent('scroll');
+    expect(tab.state.autoScrollEnabled).toBe(true);
+
+    messagesEl.scrollHeight = 1100;
+    messagesEl.dispatchEvent('scroll');
+    expect(tab.state.autoScrollEnabled).toBe(true);
+  });
+
+  it('pauses auto-follow for wheel scrolling and middle-button autoscroll', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const messagesEl = tab.dom.messagesEl as unknown as {
+      dispatchEvent: (event: string | { type: string; target?: unknown; button?: number }) => void;
+    };
+
+    messagesEl.dispatchEvent({ type: 'wheel', target: messagesEl });
+    expect(tab.state.autoScrollEnabled).toBe(false);
+
+    tab.state.autoScrollEnabled = true;
+    messagesEl.dispatchEvent({
+      type: 'pointerdown',
+      target: messagesEl,
+      button: 1,
+    });
+    expect(tab.state.autoScrollEnabled).toBe(false);
+  });
+
+  it('pauses auto-follow when a held pointer drag scrolls the transcript', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const messagesEl = tab.dom.messagesEl as unknown as {
+      clientHeight: number;
+      dispatchEvent: (event: string | { type: string; target?: unknown; button?: number }) => void;
+      scrollHeight: number;
+      scrollTop: number;
+    };
+    Object.assign(messagesEl, { scrollTop: 900, scrollHeight: 1000, clientHeight: 100 });
+    messagesEl.dispatchEvent({ type: 'pointerdown', target: messagesEl, button: 0 });
+
+    messagesEl.scrollTop = 850;
+    messagesEl.dispatchEvent('scroll');
+    expect(tab.state.autoScrollEnabled).toBe(false);
+  });
 });
