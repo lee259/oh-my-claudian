@@ -37,6 +37,7 @@ export function parseOmpSessionContent(content: string): ChatMessage[] {
     }
     if (role === 'assistant') {
       const assistantContent = getAssistantContent(message.content, toolResults);
+      if (assistantContent.contentBlocks.length === 0 && assistantContent.toolCalls.length === 0) continue;
       messages.push({
         assistantMessageId: id,
         content: assistantContent.contentBlocks
@@ -109,10 +110,10 @@ function getAssistantContent(
     if (!isRecord(part)) continue;
     if (part.type === 'thinking') {
       const content = getText(part.thinking ?? part.text ?? part.content);
-      if (content) blocks.push({ content, type: 'thinking' });
+      if (content.trim()) blocks.push({ content, type: 'thinking' });
     } else if (part.type === 'text') {
       const content = getText(part.text ?? part.content);
-      if (content) blocks.push({ content, type: 'text' });
+      if (content.trim()) blocks.push({ content, type: 'text' });
     } else if (part.type === 'toolCall' && typeof part.id === 'string' && part.id) {
       const rawName = typeof part.name === 'string' ? part.name : 'tool';
       const rawInput = isRecord(part.arguments) ? part.arguments : {};

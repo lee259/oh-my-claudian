@@ -111,4 +111,43 @@ describe('parseOmpSessionContent', () => {
       },
     ]);
   });
+
+  it('omits assistant entries that contain no visible transcript content', () => {
+    const content = [
+      JSON.stringify({
+        id: 'assistant-empty',
+        message: { content: [], role: 'assistant', timestamp: 1785801601000 },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'assistant-whitespace',
+        message: {
+          content: [{ text: '  ', type: 'text' }, { thinking: '\n', type: 'thinking' }],
+          role: 'assistant',
+          timestamp: 1785801602000,
+        },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'assistant-visible',
+        message: {
+          content: [{ text: 'Visible reply', type: 'text' }],
+          role: 'assistant',
+          timestamp: 1785801603000,
+        },
+        type: 'message',
+      }),
+    ].join('\n');
+
+    expect(parseOmpSessionContent(content)).toEqual([
+      {
+        assistantMessageId: 'assistant-visible',
+        content: 'Visible reply',
+        contentBlocks: [{ content: 'Visible reply', type: 'text' }],
+        id: 'assistant-visible',
+        role: 'assistant',
+        timestamp: 1785801603000,
+      },
+    ]);
+  });
 });
