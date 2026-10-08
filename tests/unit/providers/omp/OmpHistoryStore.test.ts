@@ -41,4 +41,113 @@ describe('parseOmpSessionContent', () => {
       },
     ]);
   });
+
+  it('replays native assistant tool calls and separate tool result records in transcript order', () => {
+    const content = [
+      JSON.stringify({
+        id: 'assistant-1',
+        message: {
+          content: [
+            { thinking: 'I should inspect the requested file.', type: 'thinking' },
+            { arguments: { path: 'README.md' }, id: 'tool-1', name: 'read', type: 'toolCall' },
+          ],
+          role: 'assistant',
+          timestamp: 1785801601000,
+        },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'tool-result-1',
+        message: {
+          content: [{ text: 'README contents', type: 'text' }],
+          isError: false,
+          role: 'toolResult',
+          timestamp: 1785801602000,
+          toolCallId: 'tool-1',
+          toolName: 'read',
+        },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'assistant-2',
+        message: {
+          content: [{ text: 'The README says…', type: 'text' }],
+          role: 'assistant',
+          timestamp: 1785801603000,
+        },
+        type: 'message',
+      }),
+    ].join('\n');
+
+    expect(parseOmpSessionContent(content)).toEqual([
+      {
+        assistantMessageId: 'assistant-1',
+        content: '',
+        contentBlocks: [
+          { content: 'I should inspect the requested file.', type: 'thinking' },
+          { toolId: 'tool-1', type: 'tool_use' },
+        ],
+        id: 'assistant-1',
+        role: 'assistant',
+        timestamp: 1785801601000,
+        toolCalls: [
+          {
+            id: 'tool-1',
+            input: { path: 'README.md', file_path: 'README.md' },
+            name: 'Read',
+            providerPayload: { rawInput: { path: 'README.md' }, rawName: 'read' },
+            result: 'README contents',
+            status: 'completed',
+          },
+        ],
+      },
+      {
+        assistantMessageId: 'assistant-2',
+        content: 'The README says…',
+        contentBlocks: [{ content: 'The README says…', type: 'text' }],
+        id: 'assistant-2',
+        role: 'assistant',
+        timestamp: 1785801603000,
+      },
+    ]);
+  });
+
+  it('omits assistant entries that contain no visible transcript content', () => {
+    const content = [
+      JSON.stringify({
+        id: 'assistant-empty',
+        message: { content: [], role: 'assistant', timestamp: 1785801601000 },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'assistant-whitespace',
+        message: {
+          content: [{ text: '  ', type: 'text' }, { thinking: '\n', type: 'thinking' }],
+          role: 'assistant',
+          timestamp: 1785801602000,
+        },
+        type: 'message',
+      }),
+      JSON.stringify({
+        id: 'assistant-visible',
+        message: {
+          content: [{ text: 'Visible reply', type: 'text' }],
+          role: 'assistant',
+          timestamp: 1785801603000,
+        },
+        type: 'message',
+      }),
+    ].join('\n');
+
+    expect(parseOmpSessionContent(content)).toEqual([
+      {
+        assistantMessageId: 'assistant-visible',
+        content: 'Visible reply',
+        contentBlocks: [{ content: 'Visible reply', type: 'text' }],
+        id: 'assistant-visible',
+        role: 'assistant',
+        timestamp: 1785801603000,
+      },
+    ]);
+  });
 });
