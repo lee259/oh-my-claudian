@@ -87,7 +87,11 @@
       "inProgress": "작업 중 · {seconds}초",
       "label": "완료됨",
       "seconds": "{seconds}초 소요",
-      "minutes": "{minutes}분 {seconds}초 소요"
+      "minutes": "{minutes}분 {seconds}초 소요",
+      "actionOne": " · 작업 {count}개",
+      "actions": " · 작업 {count}개",
+      "errorOne": " · 오류 {count}개",
+      "errors": " · 오류 {count}개"
     },
     "welcome": {
       "availableCapabilities": "사용 가능: {capabilities}",
@@ -252,6 +256,7 @@
       "writing": "작성 중...",
       "done": "완료",
       "thinking": "생각 중 {seconds}초...",
+      "thinkingSummary": "생각 중",
       "thinkingAria": "확장 사고 - 클릭하여 펼치기",
       "hints": "화살표 키로 이동 · Enter로 선택 · Esc로 취소",
       "running": "실행 중..."

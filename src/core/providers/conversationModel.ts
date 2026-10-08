@@ -63,6 +63,23 @@ export function findProviderModelOption(
     : null;
 }
 
+/** Resolves the display name for the model selected on this conversation. */
+export function getConversationModelLabel(
+  conversation: Pick<Conversation, 'providerId' | 'selectedModel'> | null | undefined,
+  settings: Record<string, unknown>,
+): string | undefined {
+  if (!conversation?.selectedModel) return undefined;
+  const model = findProviderModelOption(
+    conversation.providerId,
+    conversation.selectedModel,
+    settings,
+  );
+  if (!model) return undefined;
+  return ProviderRegistry.getChatUIConfig(conversation.providerId)
+    .getModelOptions(settings)
+    .find(option => option.value === model)?.label;
+}
+
 export function resolveProviderDefaultModel(
   providerId: ProviderId,
   settings: Record<string, unknown>,

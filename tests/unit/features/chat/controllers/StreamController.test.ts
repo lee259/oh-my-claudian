@@ -46,7 +46,7 @@ jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
 jest.mock('@/features/chat/rendering/ThinkingBlockRenderer', () => ({
   appendThinkingContent: jest.fn(),
   createThinkingBlock: jest.fn().mockImplementation((_parentEl, options) => ({
-    wrapperEl: {},
+    wrapperEl: createMockEl(),
     contentEl: {},
     labelEl: {},
     content: '',
@@ -257,6 +257,23 @@ describe('StreamController - Text Content', () => {
       expect(msg.content).toBe('Hello World');
     });
 
+    it('assigns stable projected IDs when live text and thought nodes are created', async () => {
+      const msg = createTestMessage();
+      msg.contentBlocks = [{ type: 'context_compacted' }];
+
+      await controller.handleStreamChunk({ type: 'text', content: 'Live answer' }, msg);
+      expect(deps.state.currentTextEl?.dataset.transcriptItemId)
+        .toBe('assistant-1:block:1');
+
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Live thought' }, msg);
+      expect(deps.state.currentThinkingState?.wrapperEl.dataset.transcriptItemId)
+        .toBe('assistant-1:block:2');
+      expect(msg.contentBlocks?.[1].id).toBe('assistant-1:block:1');
+
+      await controller.finalizeCurrentThinkingBlock(msg);
+      expect(msg.contentBlocks?.[2].id).toBe('assistant-1:block:2');
+    });
+
     it('should accumulate text across multiple chunks', async () => {
       const msg = createTestMessage();
       deps.state.currentTextEl = createMockEl();
@@ -461,10 +478,10 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'Hello'
       );
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'text',
         content: 'Hello',
-      });
+      }));
     });
 
     it('should coalesce a pending deferred render into the final math render', async () => {
@@ -498,10 +515,10 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'Hello World'
       );
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'text',
         content: 'Hello World',
-      });
+      }));
     });
 
     it('should not add copy button when no text element exists', async () => {
@@ -513,10 +530,10 @@ describe('StreamController - Text Content', () => {
 
       expect(deps.renderer.addTextCopyButton).not.toHaveBeenCalled();
       // Content block should still be added
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'text',
         content: 'Hello World',
-      });
+      }));
     });
 
     it('should not add copy button when no text content exists', async () => {
@@ -570,16 +587,19 @@ describe('StreamController - Text Content', () => {
     it('records and renders task notification chunks', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
+      const notificationEl = createMockEl();
+      (deps.renderer.renderTaskNotification as jest.Mock).mockReturnValue(notificationEl);
 
       await controller.handleStreamChunk({
         type: 'task_notification',
         content: 'Background task completed.',
       }, msg);
 
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'task_notification',
         content: 'Background task completed.',
-      });
+      }));
+      expect(notificationEl.dataset.transcriptItemId).toBe('assistant-1:block:0');
       expect(deps.renderer.renderTaskNotification).toHaveBeenCalledWith(
         deps.state.currentContentEl,
         'Background task completed.',
@@ -593,7 +613,10 @@ describe('StreamController - Text Content', () => {
 
       await controller.handleStreamChunk({ type: 'context_compacted' }, msg);
 
-      expect(msg.contentBlocks).toContainEqual({ type: 'context_compacted' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'context_compacted' }));
+      expect(deps.state.currentContentEl?.querySelector<HTMLElement>('.claudian-compact-boundary')
+        ?.dataset.transcriptItemId)
+        .toBe('assistant-1:block:0');
     });
 
     it('does not let a later Claude Code sub-request lower usage in the same stream', () => {
@@ -685,6 +708,8 @@ describe('StreamController - Text Content', () => {
     it('finalizes text and records a rendered citation block', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
+      const citationEl = createMockEl();
+      (deps.renderer.renderCitationGroup as jest.Mock).mockReturnValue(citationEl);
 
       await controller.handleStreamChunk({ type: 'text', content: 'Answer' }, msg);
       await controller.handleStreamChunk({
@@ -700,7 +725,7 @@ describe('StreamController - Text Content', () => {
         },
       }, msg);
 
-      expect(msg.contentBlocks).toEqual([
+      expect(msg.contentBlocks).toMatchObject([
         { type: 'text', content: 'Answer' },
         {
           type: 'citations',
@@ -715,6 +740,7 @@ describe('StreamController - Text Content', () => {
           },
         },
       ]);
+      expect(citationEl.dataset.transcriptItemId).toBe('assistant-1:block:1');
       expect(deps.renderer.renderCitationGroup).toHaveBeenCalledWith(
         deps.state.currentContentEl,
         {
@@ -853,7 +879,8 @@ describe('StreamController - Text Content', () => {
       expect(msg.toolCalls![0].id).toBe('tool-1');
       expect(msg.toolCalls![0].status).toBe('running');
       expect(msg.contentBlocks).toHaveLength(1);
-      expect(msg.contentBlocks![0]).toEqual({ type: 'tool_use', toolId: 'tool-1' });
+      expect(msg.contentBlocks![0]).toMatchObject({ type: 'tool_use', toolId: 'tool-1' });
+      expect(msg.contentBlocks![0].id).toBe('assistant-1:tool:tool-1');
     });
 
     it('should update tool_result status', async () => {
@@ -900,7 +927,7 @@ describe('StreamController - Text Content', () => {
       );
 
       expect(msg.contentBlocks).toHaveLength(1);
-      expect(msg.contentBlocks![0]).toEqual({ type: 'subagent', subagentId: 'task-1' });
+      expect(msg.contentBlocks![0]).toMatchObject({ type: 'subagent', subagentId: 'task-1' });
       expect(msg.toolCalls).toContainEqual(
         expect.objectContaining({
           id: 'task-1',
@@ -937,7 +964,7 @@ describe('StreamController - Text Content', () => {
           providerPayload: { rawInput: { opaque: name }, rawName: name },
           status: 'running',
         })]);
-        expect(msg.contentBlocks).toEqual([{ type: 'tool_use', toolId: `grok-${name}` }]);
+        expect(msg.contentBlocks).toMatchObject([{ type: 'tool_use', toolId: `grok-${name}` }]);
       },
     );
 
@@ -1003,7 +1030,7 @@ describe('StreamController - Text Content', () => {
         result: 'partial result',
         subagent: expect.objectContaining({ id: 'opencode-agent' }),
       });
-      expect(msg.contentBlocks).toEqual([
+      expect(msg.contentBlocks).toMatchObject([
         { type: 'subagent', subagentId: 'opencode-agent' },
         { content: 'Intervening content', type: 'text' },
       ]);
@@ -1057,7 +1084,7 @@ describe('StreamController - Text Content', () => {
 
       // Tool is buffered, should be in pendingTools
       expect(msg.contentBlocks).toHaveLength(1);
-      expect(msg.contentBlocks![0]).toEqual({ type: 'tool_use', toolId: 'todo-1' });
+      expect(msg.contentBlocks![0]).toMatchObject({ type: 'tool_use', toolId: 'todo-1' });
       expect(deps.state.pendingTools.size).toBe(1);
 
       // Should update currentTodos for panel immediately (side effect)
@@ -1856,7 +1883,7 @@ describe('StreamController - Text Content', () => {
           }),
         })
       );
-      expect(msg.contentBlocks).toContainEqual({ type: 'subagent', subagentId: 'task-1', mode: 'async' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'subagent', subagentId: 'task-1', mode: 'async' }));
     });
 
     it('should handle label_updated action from Task tool use (no-op for message)', async () => {
@@ -2000,7 +2027,7 @@ describe('StreamController - Text Content', () => {
         toolCalls: [],
       });
 
-      expect(deps.state.messages[0].contentBlocks).toEqual([
+      expect(deps.state.messages[0].contentBlocks).toMatchObject([
         { type: 'text', content: 'Earlier parent output.' },
         { type: 'text', content: 'Parent output before the task finished.' },
         { type: 'subagent', subagentId: 'task-1', mode: 'async' },
@@ -2388,11 +2415,11 @@ describe('StreamController - Text Content', () => {
         undefined,
         undefined
       );
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'subagent',
         subagentId: 'task-1',
         mode: 'async',
-      });
+      }));
       expect(msg.toolCalls).toContainEqual(
         expect.objectContaining({
           id: 'task-1',
@@ -2706,7 +2733,7 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'done' }, msg);
 
       expect(msg.toolCalls).toHaveLength(1);
-      expect(msg.contentBlocks).toEqual([{ type: 'tool_use', toolId: 'refined-tool' }]);
+      expect(msg.contentBlocks).toMatchObject([{ type: 'tool_use', toolId: 'refined-tool' }]);
       expect(msg.toolCalls![0]).toMatchObject({
         id: 'refined-tool',
         input,
@@ -2743,7 +2770,7 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'done' }, msg);
 
       expect(msg.toolCalls).toHaveLength(1);
-      expect(msg.contentBlocks).toEqual([{ type: 'tool_use', toolId: 'edit-refined' }]);
+      expect(msg.contentBlocks).toMatchObject([{ type: 'tool_use', toolId: 'edit-refined' }]);
       expect(createWriteEditBlock).toHaveBeenCalledTimes(1);
       expect(createWriteEditBlock).toHaveBeenCalledWith(
         expect.anything(),
@@ -2803,7 +2830,7 @@ describe('StreamController - Text Content', () => {
       }, msg);
 
       expect(msg.toolCalls).toHaveLength(1);
-      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toEqual([
+      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toMatchObject([
         { type: 'tool_use', toolId: 'migrated-edit' },
       ]);
       expect(genericEl.remove).toHaveBeenCalledTimes(1);
@@ -2914,7 +2941,7 @@ describe('StreamController - Text Content', () => {
       }, msg);
 
       expect(msg.toolCalls).toHaveLength(1);
-      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toEqual([
+      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toMatchObject([
         { type: 'tool_use', toolId: 'reverse-migration' },
       ]);
       expect(msg.toolCalls![0]).toBe(toolCall);
@@ -3016,7 +3043,7 @@ describe('StreamController - Text Content', () => {
       }, msg);
 
       expect(msg.toolCalls).toEqual([toolCall]);
-      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toEqual([
+      expect(msg.contentBlocks?.filter(block => block.type === 'tool_use')).toMatchObject([
         { type: 'tool_use', toolId: 'generic-migration' },
       ]);
       expect(toolCall).toMatchObject({
@@ -3591,7 +3618,7 @@ describe('StreamController - Text Content', () => {
       }, msg);
 
       expect(msg.toolCalls).toHaveLength(2);
-      expect(msg.contentBlocks).toEqual([
+      expect(msg.contentBlocks).toMatchObject([
         { type: 'tool_use', toolId: 'late-spawn' },
         { type: 'tool_use', toolId: 'late-output' },
       ]);
@@ -3652,7 +3679,7 @@ describe('StreamController - Text Content', () => {
       expect(parentEl.children).toHaveLength(2);
       expect(parentEl.children[0]).toBe(subagentEl);
       expect(parentEl.children[1]).toBe(laterToolEl);
-      expect(msg.contentBlocks).toEqual([
+      expect(msg.contentBlocks).toMatchObject([
         { type: 'tool_use', toolId: 'ordered-spawn' },
         { type: 'tool_use', toolId: 'later-tool' },
       ]);
@@ -3882,7 +3909,7 @@ describe('StreamController - Text Content', () => {
 
       expect(waitEl.remove).toHaveBeenCalled();
       expect(deps.state.toolCallElements.has('early-wait')).toBe(false);
-      expect(msg.contentBlocks).toContainEqual({ type: 'tool_use', toolId: 'early-wait' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'tool_use', toolId: 'early-wait' }));
       expect(finalizeAsyncSubagent).toHaveBeenCalledWith(
         asyncState,
         'Inspection complete.',
@@ -3940,7 +3967,7 @@ describe('StreamController - Text Content', () => {
 
       expect(waitEl.remove).toHaveBeenCalled();
       expect(deps.state.toolCallElements.has('refined-wait')).toBe(false);
-      expect(msg.contentBlocks).toContainEqual({ type: 'tool_use', toolId: 'refined-wait' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'tool_use', toolId: 'refined-wait' }));
     });
 
     it('replays a terminal generic result when the call is reclassified as output', async () => {
@@ -4067,7 +4094,7 @@ describe('StreamController - Text Content', () => {
 
       expect(outputEl.remove).toHaveBeenCalled();
       expect(deps.state.toolCallElements.has('raw-output-wait')).toBe(false);
-      expect(msg.contentBlocks).toContainEqual({ type: 'tool_use', toolId: 'raw-output-wait' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'tool_use', toolId: 'raw-output-wait' }));
 
       await controller.handleStreamChunk({
         type: 'tool_result',
@@ -4106,10 +4133,10 @@ describe('StreamController - Text Content', () => {
       }, msg);
       await controller.handleStreamChunk({ type: 'done' }, msg);
 
-      expect(msg.contentBlocks).toContainEqual({
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'tool_use',
         toolId: 'mixed-late-output',
-      });
+      }));
       expect(renderToolCall).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ id: 'mixed-late-output' }),
@@ -4174,7 +4201,7 @@ describe('StreamController - Text Content', () => {
         },
       }, msg);
 
-      expect(msg.contentBlocks).toContainEqual({ type: 'tool_use', toolId: 'mixed-output' });
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'tool_use', toolId: 'mixed-output' }));
       expect(renderToolCall).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ id: 'mixed-output' }),
@@ -4364,7 +4391,7 @@ describe('StreamController - Text Content', () => {
         content: 'Command finished.',
       }, msg);
 
-      expect(msg.contentBlocks).toEqual([{ type: 'tool_use', toolId: 'output-command' }]);
+      expect(msg.contentBlocks).toMatchObject([{ type: 'tool_use', toolId: 'output-command' }]);
       expect(renderToolCall).toHaveBeenCalled();
       expect(updateToolCallResult).toHaveBeenCalled();
     });

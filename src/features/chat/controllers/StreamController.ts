@@ -30,8 +30,10 @@ import {
   normalizeToolProviderPayload,
 } from '../../../core/tools/toolProviderPayload';
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
+import { getTranscriptBlockId } from '../../../core/transcript/TranscriptProjection';
 import type {
   ChatMessage,
+  ContentBlock,
   StreamChunk,
   SubagentInfo,
   SubagentProgress,
@@ -174,6 +176,20 @@ export class StreamController {
     );
   }
 
+  setTranscriptExecutionScope(messageId: string, scope: { executionId?: string; turnId: string }): void {
+    this.deps.renderer.setTranscriptExecutionScope(messageId, scope);
+  }
+
+  private appendTranscriptBlock(message: ChatMessage, block: ContentBlock): ContentBlock {
+    const blocks = message.contentBlocks ?? (message.contentBlocks = []);
+    const blockIndex = blocks.length;
+    const identifiedBlock = block.id
+      ? block
+      : { ...block, id: getTranscriptBlockId(message.id, block, blockIndex) };
+    blocks.push(identifiedBlock);
+    return identifiedBlock;
+  }
+
   private createRenderCoordinator(
     getOwnerWindow: () => Window | null
   ): StreamingRenderCoordinator<StreamingContentSnapshot> {
@@ -268,7 +284,7 @@ export class StreamController {
         if (state.currentTextEl) {
           await this.finalizeCurrentTextBlock(msg);
         }
-        await this.appendThinking(chunk.content);
+        await this.appendThinking(chunk.content, msg);
         break;
 
       case 'text':
@@ -278,7 +294,7 @@ export class StreamController {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         msg.content += chunk.content;
-        await this.appendText(chunk.content);
+        await this.appendText(chunk.content, msg);
         break;
 
       case 'citations': {
@@ -288,9 +304,16 @@ export class StreamController {
         }
         await this.finalizeCurrentTextBlock(msg);
         msg.contentBlocks = msg.contentBlocks || [];
-        msg.contentBlocks.push({ type: 'citations', citations: chunk.citations });
+        const block = this.appendTranscriptBlock(msg, { type: 'citations', citations: chunk.citations });
         if (state.currentContentEl) {
-          this.deps.renderer.renderCitationGroup(state.currentContentEl, chunk.citations);
+          const element = this.deps.renderer.renderCitationGroup(state.currentContentEl, chunk.citations);
+          if (element) {
+            element.dataset.transcriptItemId = getTranscriptBlockId(
+              msg.id,
+              block,
+              msg.contentBlocks.length - 1,
+            );
+          }
         }
         break;
       }
@@ -348,18 +371,26 @@ export class StreamController {
         await this.appendText(`\n\n⚠️ **${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
         break;
 
-      case 'task_notification':
+      case 'task_notification': {
         this.flushPendingTools();
         if (state.currentThinkingState) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         await this.finalizeCurrentTextBlock(msg);
         msg.contentBlocks = msg.contentBlocks || [];
-        msg.contentBlocks.push({ type: 'task_notification', content: chunk.content });
+        const block = this.appendTranscriptBlock(msg, { type: 'task_notification', content: chunk.content });
         if (state.currentContentEl) {
-          this.deps.renderer.renderTaskNotification(state.currentContentEl, chunk.content);
+          const element = this.deps.renderer.renderTaskNotification(state.currentContentEl, chunk.content);
+          if (element) {
+            element.dataset.transcriptItemId = getTranscriptBlockId(
+              msg.id,
+              block,
+              msg.contentBlocks.length - 1,
+            );
+          }
         }
         break;
+      }
 
       case 'error':
         // Flush pending tools before rendering error message
@@ -380,8 +411,15 @@ export class StreamController {
         }
         await this.finalizeCurrentTextBlock(msg);
         msg.contentBlocks = msg.contentBlocks || [];
-        msg.contentBlocks.push({ type: 'context_compacted' });
-        this.renderCompactBoundary();
+        const block = this.appendTranscriptBlock(msg, { type: 'context_compacted' });
+        const boundaryEl = this.renderCompactBoundary();
+        if (boundaryEl) {
+          boundaryEl.dataset.transcriptItemId = getTranscriptBlockId(
+            msg.id,
+            block,
+            msg.contentBlocks.length - 1,
+          );
+        }
         break;
       }
 
@@ -394,6 +432,12 @@ export class StreamController {
         break;
     }
 
+    const liveBlock = state.currentTextEl
+      ? { type: 'text' as const, content: state.currentTextContent }
+      : state.currentThinkingState
+        ? { type: 'thinking' as const, content: state.currentThinkingState.content }
+        : undefined;
+    this.deps.renderer.syncStreamingActivity?.(msg, state.currentContentEl, liveBlock, state.messages);
     this.scrollToBottom();
   }
 
@@ -531,7 +575,7 @@ export class StreamController {
 
     // Add to contentBlocks for ordering
     msg.contentBlocks = msg.contentBlocks || [];
-    msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    this.appendTranscriptBlock(msg, { type: 'tool_use', toolId: chunk.id });
 
     // TodoWrite: update panel state immediately (side effect), but still buffer render
     if (chunk.name === TOOL_TODO_WRITE) {
@@ -561,7 +605,7 @@ export class StreamController {
   private ensureRegularToolCallVisibility(toolCall: ToolCallInfo, msg: ChatMessage): void {
     msg.contentBlocks = msg.contentBlocks || [];
     if (!msg.contentBlocks.some(block => block.type === 'tool_use' && block.toolId === toolCall.id)) {
-      msg.contentBlocks.push({ type: 'tool_use', toolId: toolCall.id });
+      this.appendTranscriptBlock(msg, { type: 'tool_use', toolId: toolCall.id });
     }
 
     const { state } = this.deps;
@@ -794,7 +838,7 @@ export class StreamController {
     msg.toolCalls = msg.toolCalls || [];
     msg.toolCalls.push(toolCall);
     msg.contentBlocks = msg.contentBlocks || [];
-    msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    this.appendTranscriptBlock(msg, { type: 'tool_use', toolId: chunk.id });
 
     const subagentInfo = this.mergeSessionSubagentInfo(
       toolCall,
@@ -939,7 +983,7 @@ export class StreamController {
     msg.toolCalls = msg.toolCalls || [];
     msg.toolCalls.push(toolCall);
     msg.contentBlocks = msg.contentBlocks || [];
-    msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    this.appendTranscriptBlock(msg, { type: 'tool_use', toolId: chunk.id });
   }
 
   private isFullyOwnedProviderSubagentTool(
@@ -1273,7 +1317,7 @@ export class StreamController {
   // Text Block Management
   // ============================================
 
-  async appendText(text: string): Promise<void> {
+  async appendText(text: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
     if (!state.currentContentEl) return;
 
@@ -1283,6 +1327,14 @@ export class StreamController {
       this.textRenderCoordinator.cancel();
       state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
       state.currentTextContent = '';
+    }
+    if (msg && !state.currentTextEl.dataset.transcriptItemId) {
+      const blockIndex = msg.contentBlocks?.length ?? 0;
+      state.currentTextEl.dataset.transcriptItemId = getTranscriptBlockId(
+        msg.id,
+        { type: 'text', content: '' },
+        blockIndex,
+      );
     }
 
     state.currentTextContent += text;
@@ -1296,7 +1348,7 @@ export class StreamController {
    * Markdown parsing until their terminal event. Foreground turns retain the
    * existing formatted streaming behavior.
    */
-  appendBackgroundText(text: string): void {
+  appendBackgroundText(text: string, msg?: ChatMessage): void {
     const { state } = this.deps;
     if (!state.currentContentEl) return;
 
@@ -1304,6 +1356,13 @@ export class StreamController {
     if (!state.currentTextEl) {
       state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
       state.currentTextContent = '';
+    }
+    if (msg && !state.currentTextEl.dataset.transcriptItemId) {
+      state.currentTextEl.dataset.transcriptItemId = getTranscriptBlockId(
+        msg.id,
+        { type: 'text', content: '' },
+        msg.contentBlocks?.length ?? 0,
+      );
     }
 
     state.currentTextContent += text;
@@ -1333,7 +1392,8 @@ export class StreamController {
 
     if (msg && content) {
       msg.contentBlocks = msg.contentBlocks || [];
-      msg.contentBlocks.push({ type: 'text', content });
+      const block = this.appendTranscriptBlock(msg, { type: 'text', content });
+      if (textEl && block.id) textEl.dataset.transcriptItemId = block.id;
       // Copy button added here (not during streaming) to match history-loaded messages
       if (textEl) {
         renderer.addTextCopyButton(textEl, content);
@@ -1374,7 +1434,7 @@ export class StreamController {
   // Thinking Block Management
   // ============================================
 
-  async appendThinking(content: string): Promise<void> {
+  async appendThinking(content: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
     if (!state.currentContentEl) return;
 
@@ -1386,6 +1446,13 @@ export class StreamController {
           this.handleThinkingToggle(thinkingState, isExpanded);
         },
       });
+      if (msg && thinkingState.wrapperEl.dataset) {
+        thinkingState.wrapperEl.dataset.transcriptItemId = getTranscriptBlockId(
+          msg.id,
+          { type: 'thinking', content: '' },
+          msg.contentBlocks?.length ?? 0,
+        );
+      }
       state.currentThinkingState = thinkingState;
       this.deps.renderer.startCompletedWork?.(state.currentContentEl, state.responseStartTime);
       this.syncThinkingRenderAvailability();
@@ -1417,11 +1484,14 @@ export class StreamController {
 
     if (msg && thinkingState.content) {
       msg.contentBlocks = msg.contentBlocks || [];
-      msg.contentBlocks.push({
+      const block = this.appendTranscriptBlock(msg, {
         type: 'thinking',
         content: thinkingState.content,
         durationSeconds,
       });
+      if (block.id && thinkingState.wrapperEl?.dataset) {
+        thinkingState.wrapperEl.dataset.transcriptItemId = block.id;
+      }
     }
 
     state.currentThinkingState = null;
@@ -1520,11 +1590,12 @@ export class StreamController {
     const toolBlockIndex = msg.contentBlocks.findIndex(
       block => block.type === 'tool_use' && block.toolId === toolId,
     );
-    const subagentBlock = mode
+    let subagentBlock: ContentBlock = mode
       ? { type: 'subagent' as const, subagentId: toolId, mode }
       : { type: 'subagent' as const, subagentId: toolId };
     if (existingBlockIndex >= 0) {
       const existingBlock = msg.contentBlocks[existingBlockIndex];
+      existingBlock.id ??= getTranscriptBlockId(msg.id, existingBlock, existingBlockIndex);
       if (mode && existingBlock.type === 'subagent') {
         existingBlock.mode = mode;
       }
@@ -1532,9 +1603,14 @@ export class StreamController {
         msg.contentBlocks.splice(toolBlockIndex, 1);
       }
     } else if (toolBlockIndex >= 0) {
+      const existingToolBlock = msg.contentBlocks[toolBlockIndex];
+      subagentBlock = {
+        ...subagentBlock,
+        id: existingToolBlock.id ?? getTranscriptBlockId(msg.id, existingToolBlock, toolBlockIndex),
+      };
       msg.contentBlocks.splice(toolBlockIndex, 1, subagentBlock);
     } else {
-      msg.contentBlocks.push(subagentBlock);
+      this.appendTranscriptBlock(msg, subagentBlock);
     }
   }
 
@@ -1960,7 +2036,8 @@ export class StreamController {
     this.textRenderCoordinator.cancel();
     void renderer.renderContent(textEl, content, this.getStreamingRenderOptions(content));
     message.contentBlocks = message.contentBlocks || [];
-    message.contentBlocks.push({ type: 'text', content });
+    const block = this.appendTranscriptBlock(message, { type: 'text', content });
+    if (block.id) textEl.dataset.transcriptItemId = block.id;
     renderer.addTextCopyButton(textEl, content);
     state.currentTextEl = null;
     state.currentTextContent = '';
@@ -2140,12 +2217,13 @@ export class StreamController {
   // Compact Boundary
   // ============================================
 
-  private renderCompactBoundary(): void {
+  private renderCompactBoundary(): HTMLElement | null {
     const { state } = this.deps;
-    if (!state.currentContentEl) return;
+    if (!state.currentContentEl) return null;
     this.hideThinkingIndicator();
     const el = state.currentContentEl.createDiv({ cls: 'claudian-compact-boundary' });
     el.createSpan({ cls: 'claudian-compact-boundary-label', text: 'Conversation compacted' });
+    return el;
   }
 
   // ============================================

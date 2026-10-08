@@ -116,7 +116,7 @@ export class CodexNotificationRouter {
   private isPlanTurn = false;
   private sawPlanDelta = false;
   private startedUserMessageIds = new Set<string>();
-  private startedAgentMessageIds = new Set<string>();
+  private startedAssistantMessageIds = new Set<string>();
   private streamedAgentMessageTextById = new Map<string, string>();
   private emittedMemoryCitationIds = new Set<string>();
   private emittedMemoryCitationKeys = new Set<string>();
@@ -237,7 +237,7 @@ export class CodexNotificationRouter {
     this.isPlanTurn = params.isPlanTurn;
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
-    this.startedAgentMessageIds.clear();
+    this.startedAssistantMessageIds.clear();
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
@@ -280,7 +280,7 @@ export class CodexNotificationRouter {
     this.isPlanTurn = false;
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
-    this.startedAgentMessageIds.clear();
+    this.startedAssistantMessageIds.clear();
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
@@ -389,6 +389,8 @@ export class CodexNotificationRouter {
 
   private onPlanDelta(params: PlanDeltaNotification): void {
     this.sawPlanDelta = true;
+    this.emitAssistantMessageBoundary(params.itemId);
+    this.appendAssistantText(params.delta, params.itemId);
     this.emit({ type: 'text', content: params.delta });
   }
 
@@ -421,7 +423,7 @@ export class CodexNotificationRouter {
         break;
 
       case 'agentMessage':
-        this.emitAgentMessageBoundary(item);
+        this.emitAssistantMessageBoundary(item.id);
         break;
 
       case 'reasoning':
@@ -1860,14 +1862,14 @@ export class CodexNotificationRouter {
     });
   }
 
-  private emitAgentMessageBoundary(item: AgentMessageItem): void {
-    if (this.startedAgentMessageIds.has(item.id)) {
+  private emitAssistantMessageBoundary(itemId: string): void {
+    if (this.startedAssistantMessageIds.has(itemId)) {
       return;
     }
 
-    this.startedAgentMessageIds.add(item.id);
-    this.claimAssistantSegment(item.id);
-    this.emit({ type: 'assistant_message_start', itemId: item.id });
+    this.startedAssistantMessageIds.add(itemId);
+    this.claimAssistantSegment(itemId);
+    this.emit({ type: 'assistant_message_start', itemId });
   }
 
   private handleAsyncQuestion(item: AgentMessageItem, completed: boolean): boolean {
@@ -1882,8 +1884,8 @@ export class CodexNotificationRouter {
   }
 
   private completeAgentMessage(item: AgentMessageItem): void {
-    if (!this.startedAgentMessageIds.has(item.id)) {
-      this.emitAgentMessageBoundary(item);
+    if (!this.startedAssistantMessageIds.has(item.id)) {
+      this.emitAssistantMessageBoundary(item.id);
     }
 
     const visibleText = stripCodexMemoryCitationMarkup(item.text);

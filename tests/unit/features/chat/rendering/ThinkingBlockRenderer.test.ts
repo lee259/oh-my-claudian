@@ -1,6 +1,7 @@
 import { createMockEl } from '@test/helpers/MockElement';
 
 import {
+  appendThinkingContent,
   createThinkingBlock,
   finalizeThinkingBlock,
   renderStoredThinkingBlock,
@@ -72,10 +73,15 @@ describe('ThinkingBlockRenderer', () => {
       expect(state.contentEl.style.display).toBe('none');
     });
 
-    it('should update label with final duration', () => {
+    it('should summarize the first paragraph after reasoning settles', async () => {
       const parentEl = createMockEl();
 
       const state = createThinkingBlock(parentEl);
+      await appendThinkingContent(
+        state,
+        'I will inspect the vault structure.\n\nThe full reasoning stays in the expandable details.',
+        mockRenderContent,
+      );
 
       // Advance time by 5 seconds
       jest.advanceTimersByTime(5000);
@@ -83,7 +89,8 @@ describe('ThinkingBlockRenderer', () => {
       const duration = finalizeThinkingBlock(state);
 
       expect(duration).toBeGreaterThanOrEqual(5);
-      expect(state.labelEl.textContent).toContain('Thought for');
+      expect(state.labelEl.textContent).toBe('I will inspect the vault structure.');
+      expect(state.labelEl.textContent).not.toContain('full reasoning');
     });
 
     it('should sync isExpanded state so toggle works correctly after finalize', () => {
@@ -128,12 +135,21 @@ describe('ThinkingBlockRenderer', () => {
   });
 
   describe('renderStoredThinkingBlock', () => {
-    it('should render stored block with duration label', () => {
+    it('should render a first-paragraph summary and keep full reasoning collapsed', () => {
       const parentEl = createMockEl();
 
-      const wrapperEl = renderStoredThinkingBlock(parentEl, 'thinking content', 10, mockRenderContent);
+      const wrapperEl = renderStoredThinkingBlock(
+        parentEl,
+        'I will inspect the vault structure.\n\nThe full reasoning stays in the expandable details.',
+        10,
+        mockRenderContent,
+      );
 
-      expect(wrapperEl).toBeDefined();
+      expect(wrapperEl.querySelector('.claudian-thinking-label')?.textContent)
+        .toBe('I will inspect the vault structure.');
+      expect(wrapperEl.querySelector('.claudian-thinking-header')?.getAttribute('aria-expanded')).toBe('false');
+      expect(wrapperEl.querySelector('.claudian-thinking-content')?.textContent)
+        .toContain('The full reasoning stays in the expandable details.');
     });
   });
 });
