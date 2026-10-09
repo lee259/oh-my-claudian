@@ -17,9 +17,13 @@ Bring your coding agent into [Obsidian](https://obsidian.md/): ask questions abo
 
 ## Relationship to Claudian
 
-Oh My Claudian began as a fork of [Claudian](https://github.com/YishenTu/claudian) by Yishen Tu. It retains Claudian's MIT-licensed foundation and core vault-agent workflows, including chat, `@` mentions, slash commands, and inline editing.
+Oh My Claudian began as a fork of [Claudian](https://github.com/YishenTu/claudian) by Yishen Tu. It retains Claudian's MIT-licensed foundation and its core workflows: chatting with an agent in your vault, referencing notes with `@`, using slash commands, and inline editing.
 
-Oh My Claudian is now maintained separately as a local-first, multi-provider project. It extends Claudian's provider lineup of Claude Code, Codex CLI, Grok Build, OpenCode, and Pi with Cursor Agent and Oh My Pi, while keeping settings and controls specific to each provider.
+Oh My Claudian is now maintained separately as a local-first project. Along with adding Cursor Agent and Oh My Pi to Claudian's provider lineup, it has developed its own workflows for setup, long conversations, and working with vault content:
+
+- **Provider setup.** The Readiness panel checks CLI and model setup and offers install or update actions for supported CLIs.
+- **Long conversations.** Session history supports resume, fork, and compact where the provider allows them. Completed tool activity folds into expandable summaries, and expanded work history keeps its own reading position.
+- **Vault actions.** Claude, Codex, OpenCode, and Pi can inspect backlinks, update frontmatter, move or rename files with Obsidian link updates, and send files to Obsidian trash.
 
 ## Supported providers
 
