@@ -96,6 +96,7 @@ const OBSIDIAN_PLUGIN_PATH = OBSIDIAN_VAULT && existsSync(OBSIDIAN_VAULT)
   ? resolveObsidianPluginPath(OBSIDIAN_VAULT, PLUGIN_MANIFEST)
   : null;
 const DEVELOPMENT_WATCH_FILES = prod ? [] : getDevelopmentWatchFiles(process.cwd());
+const DISTRIBUTED_LICENSE_BANNER = `/*!\n${readFileSync(new URL('./LICENSE', import.meta.url), 'utf-8').trim()}\n*/`;
 
 if (prod) {
   mkdirSync(path.join(process.cwd(), '.context'), { recursive: true });
@@ -197,6 +198,7 @@ const mainContext = await esbuild.context({
   target: 'es2022',
   logLevel: 'info',
   minify: prod,
+  banner: { js: DISTRIBUTED_LICENSE_BANNER },
   sourcemap: prod ? false : 'inline',
   treeShaking: true,
   metafile: prod,
