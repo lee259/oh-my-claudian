@@ -1,156 +1,33 @@
-/* Reasoning selection is a stepped slider inside the model menu. */
+/* Provider-native reasoning choices for the current model. */
 .claudian-thinking-selector {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-  padding: 6px 8px 8px;
-}
-
-.claudian-model-slider-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.claudian-model-slider-label {
-  color: var(--text-muted);
-}
-
-.claudian-model-slider-value {
-  color: var(--text-normal);
-}
-
-.claudian-model-slider-endpoints {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-.claudian-model-slider-endpoints > :last-child {
-  text-align: end;
-}
-
-.claudian-model-slider {
-  --claudian-model-slider-thumb-width: 22px;
-  position: relative;
-  height: 24px;
-}
-
-.claudian-model-slider-track {
-  position: absolute;
-  top: 50%;
-  inset-inline: 0;
-  display: flex;
-  height: 18px;
-  min-width: 0;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--background-modifier-border);
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.claudian-model-slider-fill-start,
-.claudian-model-slider-track::after {
-  flex: 0 0 calc(var(--claudian-model-slider-thumb-width) / 2);
-}
-
-.claudian-model-slider-track::after {
-  content: '';
-}
-
-.claudian-model-slider-fill-start,
-.claudian-model-slider-segment.is-filled {
-  background: color-mix(in srgb, var(--text-normal) 32%, var(--background-modifier-border));
-}
-
-.claudian-model-slider-segment {
-  flex: 1 1 0;
-}
-
-.claudian-model-slider-stops {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  inset-inline: calc(var(--claudian-model-slider-thumb-width) / 2 - 3px);
-  display: flex;
+  flex: 1 1 150px;
   align-items: center;
-  justify-content: space-between;
-  pointer-events: none;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
-.claudian-model-slider-tick {
-  position: relative;
-  flex: 0 0 6px;
-  width: 6px;
-  height: 6px;
-}
-
-.claudian-model-slider-tick::before {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border-radius: 50%;
-  background: var(--text-faint);
-}
-
-.claudian-model-slider-tick.is-filled::before {
-  background: var(--text-muted);
-}
-
-.claudian-model-slider-tick.is-recommended::before {
-  inset: -1px 2px;
-  border-radius: 1px;
-}
-
-.claudian-model-slider input.claudian-model-slider-input,
-.claudian-model-slider input.claudian-model-slider-input:is(:hover, :focus, :focus-visible, :active) {
-  appearance: none;
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  outline: none;
-  background: transparent;
+.claudian-model-reasoning-select,
+.claudian-model-reasoning-select:is(:hover, :focus, :focus-visible, :active) {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: 28px;
+  padding-block: 0;
+  padding-inline-start: 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  background-color: var(--background-modifier-form-field);
   box-shadow: none;
-  cursor: pointer;
-
-  /* Obsidian offsets and re-shadows its native range thumb; pin it to the track. */
-  --slider-thumb-y: 0;
-  --slider-thumb-y-active: 0;
-  --slider-thumb-opacity-active: 1;
-  --slider-thumb-shadow-active: 0 1px 3px rgb(0 0 0 / 40%);
-  --slider-thumb-shadow-focus: 0 0 0 2px var(--background-secondary), 0 0 0 4px var(--interactive-accent);
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 11px;
 }
 
-.claudian-model-slider input.claudian-model-slider-input::-webkit-slider-runnable-track {
-  height: 100%;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.claudian-model-slider input.claudian-model-slider-input::-webkit-slider-thumb,
-.claudian-model-slider input.claudian-model-slider-input:is(:hover, :active)::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--claudian-model-slider-thumb-width, 22px);
-  height: 24px;
-  top: 0;
-  margin: 0;
-  border: 0;
-  border-radius: 7px;
-  background: var(--text-normal);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 40%);
-}
-
-.claudian-model-slider input.claudian-model-slider-input:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 2px var(--background-secondary), 0 0 0 4px var(--interactive-accent);
+.claudian-model-reasoning-select:focus-visible {
+  border-color: var(--interactive-accent);
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }

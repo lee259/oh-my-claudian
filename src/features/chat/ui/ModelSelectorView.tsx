@@ -151,28 +151,6 @@ export function ModelSelectorView({
     options[nextIndex]?.focus();
   };
 
-  const updateReasoningPreview = (event: Event): void => {
-    const input = event.currentTarget as HTMLInputElement;
-    const index = Number(input.value);
-    const option = reasoningOptions[index];
-    const section = input.closest('.claudian-thinking-selector');
-    const slider = input.closest('.claudian-model-slider');
-    if (!option || !section || !slider) return;
-
-    const value = section.querySelector('.claudian-model-slider-value');
-    if (value) value.textContent = option.label;
-    input.setAttribute('aria-valuetext', option.label);
-    if (option.description) input.setAttribute('aria-description', option.description);
-    else input.removeAttribute('aria-description');
-
-    slider.querySelectorAll('.claudian-model-slider-segment').forEach((segment, segmentIndex) => {
-      segment.classList.toggle('is-filled', segmentIndex < index);
-    });
-    slider.querySelectorAll('.claudian-model-slider-tick').forEach((tick, tickIndex) => {
-      tick.classList.toggle('is-filled', tickIndex <= index);
-    });
-  };
-
   const renderModelOption = (model: ProviderUIOption, index: number) => {
     const selected = index === selectedModelIndex;
     const favorite = isFavorite(model);
@@ -192,7 +170,6 @@ export function ModelSelectorView({
           type="button"
           onClick={() => {
             onModelChange(model);
-            setOpen(false);
           }}
           onKeyDown={moveModelFocus}
         >
@@ -337,81 +314,50 @@ export function ModelSelectorView({
                       : 'No favorite models available. Use the star beside a model to add it.'
                 }</div>}
             </div>
+            {selectedModelIndex !== -1 && (reasoningHasChoice || serviceTier) && (
+              <section aria-label="Current model settings" className="claudian-model-menu-footer">
+                <div className="claudian-model-settings-heading">
+                  <span>Current model settings</span>
+                  <span className="claudian-model-settings-name" title={displayModelLabel}>{displayModelLabel}</span>
+                </div>
+                <div className="claudian-model-settings-controls">
+                  {reasoningHasChoice && (
+                    <label className="claudian-thinking-selector">
+                      <span>{reasoningLabel}</span>
+                      <select
+                        aria-label={reasoningLabel}
+                        aria-description={selectedReasoning?.description}
+                        className="claudian-model-reasoning-select"
+                        title={selectedReasoning?.description}
+                        value={selectedReasoning?.value ?? reasoningValue}
+                        onChange={event => onReasoningChange(event.currentTarget.value)}
+                      >
+                        {reasoningOptions.map(option => (
+                          <option key={option.value} value={option.value} title={option.description}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {serviceTier && (
+                    <button
+                      aria-checked={isServiceTierActive}
+                      aria-label="Fast mode"
+                      className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
+                      role="switch"
+                      title={serviceTier.description ?? (isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel)}
+                      type="button"
+                      onClick={onServiceTierToggle}
+                    >
+                      <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
+                      <span>Fast</span>
+                      <span aria-hidden="true" className="claudian-toggle-switch" />
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
-
-        {(reasoningHasChoice || serviceTier) && (
-          <div className="claudian-model-menu-footer">
-            {serviceTier && (
-              <section className="claudian-model-menu-section claudian-service-tier-toggle">
-                <button
-                  aria-checked={isServiceTierActive}
-                  className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
-                  role="switch"
-                  title={serviceTier.description}
-                  type="button"
-                  onClick={onServiceTierToggle}
-                >
-                  <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
-                  <span className="claudian-model-service-tier-label">Fast mode</span>
-                  <span className="claudian-model-service-tier-status">
-                    {isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel}
-                  </span>
-                  <span aria-hidden="true" className="claudian-toggle-switch" />
-                </button>
-              </section>
-            )}
-
-            {reasoningHasChoice && (
-              <section aria-label={reasoningLabel} className="claudian-model-menu-section claudian-thinking-selector">
-                <div className="claudian-model-slider-heading">
-                  <span className="claudian-model-slider-label">{reasoningLabel}</span>
-                  <span className="claudian-model-slider-value">{displayReasoning}</span>
-                </div>
-                <div className="claudian-model-slider-endpoints" aria-hidden="true">
-                  <span>Faster</span>
-                  <span>Smarter</span>
-                </div>
-                <div className="claudian-model-slider">
-                  <div aria-hidden="true" className="claudian-model-slider-track">
-                    <span className="claudian-model-slider-fill-start" />
-                    {reasoningOptions.slice(1).map((option, index) => (
-                      <span
-                        className={`claudian-model-slider-segment${index < selectedIndex ? ' is-filled' : ''}`}
-                        key={option.value}
-                      />
-                    ))}
-                  </div>
-                  <div aria-hidden="true" className="claudian-model-slider-stops">
-                    {reasoningOptions.map((option, index) => (
-                      <span
-                        className={`claudian-model-slider-tick${index <= selectedIndex ? ' is-filled' : ''}${option.value === reasoningDefaultValue ? ' is-recommended' : ''}`}
-                        key={option.value}
-                      />
-                    ))}
-                  </div>
-                  <input
-                    aria-label={reasoningLabel}
-                    aria-description={selectedReasoning?.description}
-                    aria-valuetext={displayReasoning}
-                    className="claudian-model-slider-input"
-                    max={String(reasoningOptions.length - 1)}
-                    min="0"
-                    step="1"
-                    type="range"
-                    value={String(selectedIndex)}
-                    onInput={updateReasoningPreview}
-                    onChange={(event) => {
-                      const index = Number((event.currentTarget as HTMLInputElement).value);
-                      const option = reasoningOptions[index];
-                      if (option) onReasoningChange(option.value);
-                    }}
-                  />
-                </div>
-              </section>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

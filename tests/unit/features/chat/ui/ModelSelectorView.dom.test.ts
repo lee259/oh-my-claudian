@@ -65,9 +65,53 @@ describe('ModelSelectorView browsing', () => {
     await click('[data-provider-filter="codex"]');
     expect(options().map(option => option.textContent)).toEqual(['GPT Sol']);
     expect(props.onModelChange).not.toHaveBeenCalled();
-    expect(container.querySelector('.claudian-model-slider-value')?.textContent).toBe('High');
+    expect(container.querySelector('.claudian-model-menu-footer')).toBeNull();
     await click('.claudian-model-option');
     expect(props.onModelChange).toHaveBeenCalledWith(props.models[2]);
+  });
+
+  it('places native reasoning choices in the selected model pane and hides them during unrelated browsing', async () => {
+    const footer = container.querySelector('.claudian-model-menu-footer');
+    expect(container.querySelector('.claudian-model-browser-main')?.contains(footer)).toBe(true);
+    expect(footer?.textContent).toContain('Sonnet');
+    const select = container.querySelector<HTMLSelectElement>('.claudian-model-reasoning-select')!;
+    expect(select).not.toBeNull();
+    expect(Array.from(select.options).map(option => option.value)).toEqual(['low', 'high']);
+    expect(select.value).toBe('high');
+    await act(() => { select.value = 'low'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(props.onReasoningChange).toHaveBeenCalledWith('low');
+    await search('opus');
+    expect(container.querySelector('.claudian-model-menu-footer')).toBeNull();
+    await search('sonnet');
+    expect(container.querySelector('.claudian-model-menu-footer')).not.toBeNull();
+  });
+
+  it('keeps the picker open and waits for the committed selection before changing its controls', async () => {
+    await click('[data-provider-filter="codex"]');
+    await click('.claudian-model-option');
+    expect(container.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
+    expect(container.querySelector('.claudian-model-menu-footer')).toBeNull();
+    // The owner publishes the successful provider switch and its native options.
+    props = { ...props, currentProviderId: 'codex', currentModel: 'shared-id', displayModelLabel: 'GPT Sol',
+      reasoningOptions: [{ value: 'medium', label: 'Medium' }, { value: 'xhigh', label: 'Extra high' }],
+      reasoningValue: 'xhigh', serviceTier: { inactiveValue: 'default', inactiveLabel: 'Standard',
+        activeValue: 'fast', activeLabel: 'Fast' }, serviceTierActive: true };
+    await act(() => render(h(ModelSelectorView, props), container));
+    expect(container.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
+    expect(container.querySelector('.claudian-model-menu-footer')?.textContent).toContain('GPT Sol');
+    expect(container.querySelector<HTMLSelectElement>('select')?.value).toBe('xhigh');
+    expect(container.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
+    await click('[role="switch"]');
+    expect(props.onServiceTierToggle).toHaveBeenCalledTimes(1);
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('hides unsupported controls and closes when clicked outside', async () => {
+    props = { ...props, reasoningOptions: [], serviceTier: null };
+    await act(() => render(h(ModelSelectorView, props), container));
+    expect(container.querySelector('.claudian-model-menu-footer')).toBeNull();
+    await act(() => { document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    expect(container.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(true);
   });
 
   it('searches labels and IDs inside the selected filter and can clear the query', async () => {

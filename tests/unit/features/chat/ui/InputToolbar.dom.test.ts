@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { setIcon } from 'obsidian';
+import { act } from 'preact/test-utils';
 
 import type { ComposerContextTray } from '@/features/chat/ui/ComposerContextTray';
 import { ComposerContextTray as ComposerContextTrayImpl } from '@/features/chat/ui/ComposerContextTray';
@@ -579,14 +580,27 @@ describe('createInputToolbar', () => {
     expect(popover?.contains(reasoningSelector)).toBe(false);
 
     toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn')?.click();
-    const slider = toolbarEl.querySelector<HTMLInputElement>('.claudian-model-slider-input');
-    expect(slider).not.toBeNull();
-    if (slider) {
-      slider.value = '0';
-      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    const select = toolbarEl.querySelector<HTMLSelectElement>('.claudian-model-reasoning-select');
+    expect(select).not.toBeNull();
+    if (select) {
+      select.value = 'low';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+  });
+
+  it('restores the committed reasoning value when saving the new choice fails', async () => {
+    (callbacks.onEffortLevelChange as jest.Mock).mockRejectedValueOnce(new Error('Disk full'));
+    toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn')?.click();
+    await act(async () => {
+      const select = toolbarEl.querySelector<HTMLSelectElement>('.claudian-model-reasoning-select')!;
+      select.value = 'low';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+    expect(toolbarEl.querySelector<HTMLSelectElement>('.claudian-model-reasoning-select')?.value).toBe('high');
+    expect(toolbarEl.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
   });
 
   it('toggles provider Fast mode from the model menu', async () => {

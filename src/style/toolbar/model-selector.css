@@ -145,8 +145,33 @@
 .claudian-model-menu-footer {
   flex: 0 0 auto;
   min-width: 0;
-  padding: 4px 8px 6px;
+  padding: 10px;
   border-top: 1px solid var(--background-modifier-border);
+}
+
+.claudian-model-settings-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.claudian-model-settings-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-model-settings-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
 }
 
 .claudian-model-empty {
