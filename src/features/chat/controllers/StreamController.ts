@@ -129,8 +129,6 @@ interface StreamingContentSnapshot {
   options?: RenderContentOptions;
 }
 
-const AUTO_SCROLL_THRESHOLD = 100;
-
 /**
  * Narrowing guard for the mixed subagent-state map. Kept as an explicit
  * predicate instead of a structural subtype check because live async cards
@@ -227,11 +225,9 @@ export class StreamController {
 
   private shouldFollowScroll(): boolean {
     const { state, plugin } = this.deps;
-    if (!(plugin.settings.enableAutoScroll ?? true) || !state.autoScrollEnabled) return false;
-
-    const messagesEl = this.deps.getMessagesEl();
-    return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight
-      <= AUTO_SCROLL_THRESHOLD;
+    // Tab input events own follow intent. Layout growth can move the bottom
+    // before this chunk arrives without the user choosing to pause following.
+    return (plugin.settings.enableAutoScroll ?? true) && state.autoScrollEnabled;
   }
 
   private getActiveProviderId(): ProviderId {
