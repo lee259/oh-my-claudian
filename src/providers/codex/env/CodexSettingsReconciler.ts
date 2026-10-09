@@ -88,8 +88,18 @@ function invalidateCodexConversationSessions(conversations: Conversation[]): Con
   for (const conversation of conversations) {
     const state = getCodexState(conversation.providerState);
     if (conversation.providerId === 'codex' && (conversation.sessionId || state.threadId)) {
+      const { historySources = [], ...nativeState } = state;
+      conversation.providerState = {
+        historySources: [...historySources, {
+          sessionId: conversation.sessionId,
+          providerState: nativeState,
+          ...(conversation.resumeAtMessageId
+            ? { resumeAtMessageId: conversation.resumeAtMessageId }
+            : {}),
+        }],
+      };
       conversation.sessionId = null;
-      conversation.providerState = undefined;
+      conversation.resumeAtMessageId = undefined;
       invalidatedConversations.push(conversation);
     }
   }
