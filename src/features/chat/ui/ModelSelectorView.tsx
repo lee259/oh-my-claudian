@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type {
   ProviderIconSvg,
+  ProviderId,
   ProviderReasoningOption,
   ProviderServiceTierToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import type { StoredChatModelSelection } from '../../../core/types/settings';
 import { ObsidianIcon } from '../../../shared/ui/ObsidianIcon';
 
 export interface ModelSelectorViewProps {
   id: string;
   models: ProviderUIOption[];
   currentModel: string;
+  currentProviderId?: ProviderId;
+  favoriteModels?: StoredChatModelSelection[];
+  onFavoriteToggle?: (model: ProviderUIOption) => void;
   displayModelLabel: string;
   providerIcon?: ProviderIconSvg;
   modelTitle: string;
@@ -52,6 +57,9 @@ export function ModelSelectorView({
   id,
   models,
   currentModel,
+  currentProviderId = models.find(model => model.value === currentModel)?.providerId ?? '',
+  favoriteModels = [],
+  onFavoriteToggle,
   displayModelLabel,
   providerIcon,
   modelTitle,
@@ -67,8 +75,34 @@ export function ModelSelectorView({
 }: ModelSelectorViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const openFromKeyboardRef = useRef(false);
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<string>(currentProviderId);
+  const [query, setQuery] = useState('');
+  const providers = Array.from(new Map([...models].reverse().map(model => {
+    const providerId = model.providerId ?? currentProviderId;
+    return [providerId, { id: providerId, label: model.group ?? providerId, icon: model.providerIcon ?? providerIcon }] as const;
+  })).values());
+  const activeFilter = providers.some(provider => provider.id === filter) || filter === 'favorites'
+    ? filter
+    : 'all';
+  const favoriteKeys = new Set(favoriteModels.map(favorite => JSON.stringify([favorite.providerId, favorite.model])));
+  const isFavorite = (model: ProviderUIOption): boolean => favoriteKeys.has(
+    JSON.stringify([model.providerId ?? currentProviderId, model.value]),
+  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleModels = [...models].reverse().filter(model => (
+    (activeFilter === 'all'
+      || (activeFilter === 'favorites' ? isFavorite(model) : (model.providerId ?? currentProviderId) === activeFilter))
+    && (!normalizedQuery || [model.label, model.value, model.group ?? ''].some(value => value.toLocaleLowerCase().includes(normalizedQuery)))
+  ));
+  const selectedModelIndex = visibleModels.findIndex(model => model.value === currentModel
+    && (model.providerId ?? currentProviderId) === currentProviderId);
+  const resetBrowsing = (): void => {
+    setFilter(currentProviderId || 'all');
+    setQuery('');
+  };
   const selectedIndex = Math.max(0, reasoningOptions.findIndex(option => option.value === reasoningValue));
   const selectedReasoning = reasoningOptions[selectedIndex];
   const isServiceTierActive = Boolean(serviceTier && serviceTierActive);
@@ -77,9 +111,11 @@ export function ModelSelectorView({
     if (!open) return;
     const root = rootRef.current;
     if (openFromKeyboardRef.current) {
-      const selectedOption = root?.querySelector<HTMLButtonElement>('[role="option"][aria-selected="true"]');
-      (selectedOption ?? root?.querySelector<HTMLButtonElement>('[role="option"]'))?.focus();
+      const selectedOption = root?.querySelector<HTMLButtonElement>('.claudian-model-option[aria-pressed="true"]');
+      (selectedOption ?? root?.querySelector<HTMLButtonElement>('.claudian-model-option'))?.focus();
       openFromKeyboardRef.current = false;
+    } else {
+      searchRef.current?.focus();
     }
 
     const handlePointerDown = (event: PointerEvent): void => {
@@ -103,7 +139,7 @@ export function ModelSelectorView({
   const moveModelFocus = (event: KeyboardEvent): void => {
     const navigationKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
     if (!navigationKeys.includes(event.key)) return;
-    const options = Array.from(rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+    const options = Array.from(rootRef.current?.querySelectorAll<HTMLButtonElement>('.claudian-model-option') ?? []);
     if (options.length === 0) return;
     event.preventDefault();
     const index = options.indexOf(event.currentTarget as HTMLButtonElement);
@@ -138,55 +174,64 @@ export function ModelSelectorView({
   };
 
   const renderModelOption = (model: ProviderUIOption, index: number) => {
-    const selected = model.value === currentModel;
-    const modelIcon = model.providerIcon ?? providerIcon;
+    const selected = index === selectedModelIndex;
+    const favorite = isFavorite(model);
+    const showProvider = activeFilter === 'all' || activeFilter === 'favorites';
     return (
-      <button
-        aria-selected={selected}
-        className={`claudian-model-option${selected ? ' selected' : ''}`}
-        data-model-value={model.value}
-        key={`${model.group ?? ''}:${model.value}`}
-        role="option"
-        tabIndex={selected || (!models.some(option => option.value === currentModel) && index === 0) ? 0 : -1}
-        title={model.description}
-        type="button"
-        onClick={() => onModelChange(model)}
-        onKeyDown={moveModelFocus}
+      <div
+        className={`claudian-model-row${selected ? ' selected' : ''}`}
+        key={`${model.providerId ?? currentProviderId}:${model.value}`}
+        role="listitem"
       >
-        {modelIcon && <ProviderIcon icon={modelIcon} />}
-        <span className="claudian-model-option-label">{model.label}</span>
-        {selected && <ObsidianIcon className="claudian-model-option-check" icon="check" />}
-      </button>
+        <button
+          aria-pressed={selected}
+          className={`claudian-model-option${selected ? ' selected' : ''}`}
+          data-model-value={model.value}
+          tabIndex={selected || (selectedModelIndex === -1 && index === 0) ? 0 : -1}
+          title={model.description ? `${model.value} — ${model.description}` : model.value}
+          type="button"
+          onClick={() => {
+            onModelChange(model);
+            setOpen(false);
+          }}
+          onKeyDown={moveModelFocus}
+        >
+          {showProvider && (model.providerIcon ?? providerIcon) && <ProviderIcon icon={(model.providerIcon ?? providerIcon)!} />}
+          <span className="claudian-model-option-label">{model.label}</span>
+          {selected && <ObsidianIcon className="claudian-model-option-check" icon="check" />}
+        </button>
+        {onFavoriteToggle && (
+          <button
+            aria-label={`${favorite ? 'Remove' : 'Add'} ${model.label} ${favorite ? 'from' : 'to'} favorites`}
+            aria-pressed={favorite}
+            className={`claudian-model-favorite${favorite ? ' is-favorite' : ''}`}
+            title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            type="button"
+            onClick={() => {
+              if (activeFilter === 'favorites') searchRef.current?.focus();
+              onFavoriteToggle(model);
+            }}
+          >
+            <ObsidianIcon icon="star" />
+          </button>
+        )}
+      </div>
     );
   };
-  const orderedModels = [...models].reverse();
-  const modelItems = [];
-  let modelIndex = 0;
-  while (modelIndex < orderedModels.length) {
-    const model = orderedModels[modelIndex];
-    if (!model.group) {
-      modelItems.push(renderModelOption(model, modelIndex));
-      modelIndex++;
-      continue;
-    }
-
-    const group = model.group;
-    const groupStart = modelIndex;
-    while (modelIndex < orderedModels.length && orderedModels[modelIndex]?.group === group) modelIndex++;
-    modelItems.push(
-      <div
-        aria-labelledby={`${id}-heading-${groupStart}`}
-        className="claudian-model-group"
-        key={`${group}:${groupStart}`}
-        role="group"
-      >
-        <div className="claudian-model-group-label" id={`${id}-heading-${groupStart}`}>{group}</div>
-        {orderedModels.slice(groupStart, modelIndex).map((groupModel, offset) => (
-          renderModelOption(groupModel, groupStart + offset)
-        ))}
-      </div>,
-    );
-  }
+  const renderFilter = (value: string, label: string, icon?: ProviderIconSvg, fallbackIcon = 'layers') => (
+    <button
+      aria-label={label}
+      aria-pressed={activeFilter === value}
+      className={`claudian-model-provider-filter${activeFilter === value ? ' is-active' : ''}`}
+      data-provider-filter={value}
+      key={value}
+      title={label}
+      type="button"
+      onClick={() => setFilter(value)}
+    >
+      {icon ? <ProviderIcon icon={icon} /> : <ObsidianIcon icon={fallbackIcon} />}
+    </button>
+  );
 
   const reasoningHasChoice = reasoningOptions.length > 1
     || (reasoningOptions.length === 1 && reasoningOptions[0]?.value !== reasoningDefaultValue);
@@ -215,12 +260,14 @@ export function ModelSelectorView({
         type="button"
         onClick={() => {
           openFromKeyboardRef.current = false;
+          if (!open) resetBrowsing();
           setOpen(value => !value);
         }}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
           event.preventDefault();
           openFromKeyboardRef.current = true;
+          if (!open) resetBrowsing();
           setOpen(true);
         }}
       >
@@ -241,10 +288,56 @@ export function ModelSelectorView({
         role="dialog"
         tabIndex={-1}
       >
-        <div className="claudian-model-options">
-          {models.length > 0
-            ? <div aria-label="Model" className="claudian-model-list" role="listbox">{modelItems}</div>
-            : <div className="claudian-model-empty" role="status">No models available. Check provider settings and refresh the model list if discovery failed.</div>}
+        <div className="claudian-model-browser">
+          <nav aria-label="Filter models by provider" className="claudian-model-provider-rail">
+            {renderFilter('favorites', 'Favorite models', undefined, 'star')}
+            {renderFilter('all', 'All models')}
+            <div className="claudian-model-provider-divider" />
+            {providers.map(provider => renderFilter(provider.id, provider.label || 'Current provider', provider.icon))}
+          </nav>
+          <div className="claudian-model-browser-main">
+            <div className="claudian-model-search">
+              <ObsidianIcon icon="search" />
+              <input
+                aria-label="Search models"
+                autoComplete="off"
+                placeholder="Search models"
+                ref={searchRef}
+                spellcheck={false}
+                type="search"
+                value={query}
+                onInput={event => setQuery(event.currentTarget.value)}
+                onKeyDown={event => {
+                  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+                  const options = rootRef.current?.querySelectorAll<HTMLButtonElement>('.claudian-model-option');
+                  if (!options?.length) return;
+                  event.preventDefault();
+                  options[event.key === 'ArrowDown' ? 0 : options.length - 1]?.focus();
+                }}
+              />
+              {query && (
+                <button
+                  aria-label="Clear search"
+                  className="claudian-model-search-clear"
+                  type="button"
+                  onClick={() => { setQuery(''); searchRef.current?.focus(); }}
+                >
+                  <ObsidianIcon icon="x" />
+                </button>
+              )}
+            </div>
+            <div className="claudian-model-options">
+              {visibleModels.length > 0
+                ? <div aria-label="Model" className="claudian-model-list" role="list">{visibleModels.map(renderModelOption)}</div>
+                : <div className="claudian-model-empty" role="status">{
+                  models.length === 0
+                    ? 'No models available. Check provider settings and refresh the model list if discovery failed.'
+                    : normalizedQuery
+                      ? 'No matching models.'
+                      : 'No favorite models available. Use the star beside a model to add it.'
+                }</div>}
+            </div>
+          </div>
         </div>
 
         {(reasoningHasChoice || serviceTier) && (
