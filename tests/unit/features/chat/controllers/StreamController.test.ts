@@ -1800,7 +1800,34 @@ describe('StreamController - Text Content', () => {
       expect(messagesEl.scrollTop).toBe(0);
     });
 
-    it('should preserve the current position when a stream update starts away from the bottom', async () => {
+    it('keeps following when expanded work moves the bottom before the next stream update', async () => {
+      const messagesEl = deps.getMessagesEl();
+      Object.assign(messagesEl, { scrollHeight: 1000, clientHeight: 500, scrollTop: 500 });
+      deps.state.autoScrollEnabled = true;
+
+      // Expanding a phase grows the transcript without any user scroll intent.
+      Object.assign(messagesEl, { scrollHeight: 2000 });
+      await controller.handleStreamChunk({ type: 'text', content: 'New progress' }, createTestMessage());
+      await jest.runOnlyPendingTimersAsync();
+
+      expect(messagesEl.scrollTop).toBe(2000);
+    });
+
+    it('honors a user pause while a streaming render is pending', async () => {
+      const messagesEl = deps.getMessagesEl();
+      Object.assign(messagesEl, { scrollHeight: 1000, clientHeight: 500, scrollTop: 500 });
+      await controller.handleStreamChunk({ type: 'text', content: 'New progress' }, createTestMessage());
+
+      deps.state.autoScrollEnabled = false;
+      messagesEl.scrollTop = 200;
+      Object.assign(messagesEl, { scrollHeight: 2000 });
+      await jest.runOnlyPendingTimersAsync();
+
+      expect(messagesEl.scrollTop).toBe(200);
+    });
+
+    it('should preserve the current position when the user pauses following to read earlier work', async () => {
+      deps.state.autoScrollEnabled = false;
       const messagesEl = deps.getMessagesEl();
       Object.defineProperty(messagesEl, 'scrollHeight', { value: 1600, configurable: true });
       Object.defineProperty(messagesEl, 'clientHeight', { value: 500, configurable: true });

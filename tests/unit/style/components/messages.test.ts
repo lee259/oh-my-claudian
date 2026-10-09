@@ -2,6 +2,14 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 describe('Message styles', () => {
+  it('lets expanded streaming work grow in the chat scroll container', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const historyRule = css.match(/\.claudian-streaming-work-history\s*{[^}]*}/)?.[0];
+
+    expect(historyRule).toBeDefined();
+    expect(historyRule).not.toMatch(/(?:max-height|overflow(?:-y)?|overscroll-behavior(?:-y)?):/);
+  });
+
   it('keeps ordered-list markers readable in user messages', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
