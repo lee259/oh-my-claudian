@@ -96,7 +96,7 @@ const OBSIDIAN_PLUGIN_PATH = OBSIDIAN_VAULT && existsSync(OBSIDIAN_VAULT)
   ? resolveObsidianPluginPath(OBSIDIAN_VAULT, PLUGIN_MANIFEST)
   : null;
 const DEVELOPMENT_WATCH_FILES = prod ? [] : getDevelopmentWatchFiles(process.cwd());
-const DISTRIBUTED_LICENSE_BANNER = `/*!\n${readFileSync('LICENSE', 'utf-8').trim()}\n*/`;
+const DISTRIBUTED_LICENSE_BANNER = `/*!\n${readFileSync(new URL('./LICENSE', import.meta.url), 'utf-8').trim()}\n*/`;
 
 if (prod) {
   mkdirSync(path.join(process.cwd(), '.context'), { recursive: true });
