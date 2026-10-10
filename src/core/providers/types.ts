@@ -314,6 +314,9 @@ export interface ProviderModeSelectorConfig {
 
 /** Synchronous UI projection owned by the provider and backed by provider-owned metadata. */
 export interface ProviderChatUIConfig {
+  /** Render reasoning as a transient live status instead of expandable transcript blocks. */
+  thinkingPresentation?: 'expandable' | 'status';
+
   /** Model options for the selector dropdown. Provider extracts what it needs from the settings bag. */
   getModelOptions(settings: Record<string, unknown>): ProviderUIOption[];
 
