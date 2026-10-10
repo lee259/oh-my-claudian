@@ -331,6 +331,19 @@ function migrateLegacyChatModelSelection(
   return model ? { providerId, model } : null;
 }
 
+function normalizeFavoriteModels(value: unknown): StoredChatModelSelection[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap(entry => {
+    const selection = normalizeStoredChatModelSelection(entry);
+    if (!selection) return [];
+    const key = JSON.stringify([selection.providerId, selection.model]);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [selection];
+  });
+}
+
 export class ClaudianSettingsStorage {
   constructor(private adapter: VaultFileAdapter) {}
 
@@ -383,6 +396,7 @@ export class ClaudianSettingsStorage {
       providerConfigs,
       chatViewPlacement,
       lastSelectedChatModel,
+      favoriteModels: normalizeFavoriteModels(stored.favoriteModels),
     };
 
     const merged = {
@@ -425,6 +439,8 @@ export class ClaudianSettingsStorage {
       || didStripRuntimeProviderConfig
       || didNormalizeHostScopedProviderConfigs
       || didNormalizeChatModelSelection
+      || ('favoriteModels' in stored
+        && JSON.stringify(merged.favoriteModels) !== JSON.stringify(stored.favoriteModels))
       )
     ) {
       await this.save(merged);
@@ -438,6 +454,7 @@ export class ClaudianSettingsStorage {
     const content = JSON.stringify(
       stripLegacyFields({
         ...settings,
+        favoriteModels: normalizeFavoriteModels(settings.favoriteModels),
         providerConfigs,
       }),
       null,

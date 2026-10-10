@@ -1,66 +1,56 @@
-/* Optional service-tier switch within the model menu. */
-.claudian-service-tier-toggle {
-  min-width: 0;
-}
-
+/* Optional Fast switch beside the current model's reasoning choice. */
 .claudian-model-service-tier,
-.claudian-model-service-tier:is(:hover, :focus, :focus-visible, :active) {
+.claudian-model-service-tier:is(:hover, :focus, :focus-visible, :active, :disabled) {
   appearance: none;
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  gap: 5px;
   min-width: 0;
-  min-height: 32px;
-  padding: 5px 8px;
+  height: 28px;
+  padding: 0 3px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   box-shadow: none;
-  color: var(--text-normal);
+  color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
-  text-align: start;
+  font-size: 11px;
   cursor: pointer;
 }
 
-.claudian-model-service-tier:is(:hover, :focus-visible) {
-  background: var(--background-modifier-hover);
+.claudian-model-service-tier:is(:hover, :focus-visible),
+.claudian-model-service-tier.active {
+  color: var(--text-normal);
 }
 
 .claudian-model-service-tier:focus-visible {
   outline: 2px solid var(--interactive-accent);
-  outline-offset: -2px;
+  outline-offset: 1px;
 }
 
-.claudian-model-service-tier-icon,
-.claudian-model-service-tier-status {
+.claudian-model-service-tier:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-model-service-tier-icon {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
 }
 
-.claudian-model-service-tier-icon svg {
-  width: 14px;
-  height: 14px;
-}
-
-.claudian-model-service-tier-label {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.claudian-model-service-tier-status {
-  color: var(--text-muted);
-  font-size: 11px;
+.claudian-model-service-tier svg {
+  width: 12px;
+  height: 12px;
 }
 
 .claudian-model-service-tier > .claudian-toggle-switch {
   position: relative;
-  flex: 0 0 32px;
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 16px;
+  border-radius: 8px;
   background: var(--background-modifier-border);
   transition: background 0.2s ease;
 }
@@ -70,40 +60,18 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--text-muted);
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .claudian-model-service-tier.active > .claudian-toggle-switch {
-  background: color-mix(in srgb, var(--text-normal) 32%, var(--background-modifier-border));
+  background: color-mix(in srgb, var(--interactive-accent) 65%, var(--background-modifier-border));
 }
 
 .claudian-model-service-tier.active > .claudian-toggle-switch::after {
-  transform: translateX(14px);
+  transform: translateX(10px);
   background: var(--text-normal);
-}
-
-@container (max-width: 180px) {
-  .claudian-model-service-tier {
-    gap: 5px;
-    padding-inline: 5px;
-  }
-
-  .claudian-model-service-tier-status {
-    display: none;
-  }
-}
-
-@container (max-width: 140px) {
-  .claudian-model-service-tier {
-    gap: 4px;
-    padding-inline: 4px;
-  }
-
-  .claudian-model-service-tier-icon {
-    display: none;
-  }
 }

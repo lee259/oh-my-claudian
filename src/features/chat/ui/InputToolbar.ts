@@ -14,6 +14,7 @@ import type {
 } from '../../../core/providers/types';
 import type {
   ManagedMcpServer,
+  StoredChatModelSelection,
   UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
@@ -82,6 +83,9 @@ export interface ToolbarSettings {
 }
 
 export interface ToolbarCallbacks {
+  getModelProvider?: () => { id: ProviderId; label: string };
+  getFavoriteModels?: () => StoredChatModelSelection[];
+  onFavoriteModelToggle?: (model: ProviderUIOption) => Promise<void>;
   onModelChange: (model: string, providerId?: ProviderId) => Promise<void>;
   onModeChange: (mode: string) => Promise<void>;
   onThinkingBudgetChange: (budget: string) => Promise<void>;
@@ -127,8 +131,16 @@ export class ModelSelector {
       ...settings,
       environmentVariables: this.callbacks.getEnvironmentVariables?.(),
     });
+    const provider = this.callbacks.getModelProvider?.();
+    const currentProviderId = provider?.id ?? models.find(model => model.value === settings.model)?.providerId;
+    const pickerModels = provider ? models.map(model => ({
+      ...model,
+      providerId: model.providerId ?? provider.id,
+      group: model.group ?? provider.label,
+    })) : models;
     const currentModel = settings.model;
-    const displayModel = models.find(model => model.value === currentModel);
+    const displayModel = models.find(model => model.value === currentModel
+      && (!currentProviderId || (model.providerId ?? currentProviderId) === currentProviderId));
     const displayModelLabel = displayModel?.label ?? (currentModel ? 'Model unavailable' : 'Choose a model');
 
     const adaptiveReasoning = uiConfig.isAdaptiveReasoningModel(currentModel, settings);
@@ -143,7 +155,16 @@ export class ModelSelector {
 
     this.root.render(h(ModelSelectorView, {
       id: this.menuId,
-      models,
+      models: pickerModels,
+      currentProviderId,
+      favoriteModels: this.callbacks.getFavoriteModels?.() ?? [],
+      onFavoriteToggle: this.callbacks.onFavoriteModelToggle ? model => runToolbarAction(async () => {
+        try {
+          await this.callbacks.onFavoriteModelToggle?.(model);
+        } finally {
+          this.updateDisplay();
+        }
+      }, 'Failed to update favorite models') : undefined,
       currentModel,
       displayModelLabel,
       providerIcon: displayModel?.providerIcon ?? uiConfig.getProviderIcon?.() ?? undefined,

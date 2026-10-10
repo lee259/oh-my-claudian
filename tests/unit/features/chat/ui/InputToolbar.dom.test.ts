@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { setIcon } from 'obsidian';
+import { act } from 'preact/test-utils';
 
 import type { ComposerContextTray } from '@/features/chat/ui/ComposerContextTray';
 import { ComposerContextTray as ComposerContextTrayImpl } from '@/features/chat/ui/ComposerContextTray';
@@ -587,6 +588,20 @@ describe('createInputToolbar', () => {
     }
 
     expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+  });
+
+  it('restores the committed reasoning value when saving the new choice fails', async () => {
+    (callbacks.onEffortLevelChange as jest.Mock).mockRejectedValueOnce(new Error('Disk full'));
+    toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn')?.click();
+    await act(async () => {
+      const slider = toolbarEl.querySelector<HTMLInputElement>('.claudian-model-slider-input')!;
+      slider.value = '0';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+    expect(toolbarEl.querySelector<HTMLInputElement>('.claudian-model-slider-input')?.getAttribute('aria-valuetext')).toBe('High');
+    expect(toolbarEl.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
   });
 
   it('toggles provider Fast mode from the model menu', async () => {
