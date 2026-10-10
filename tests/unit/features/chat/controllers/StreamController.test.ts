@@ -47,7 +47,7 @@ jest.mock('@/features/chat/rendering/ThinkingBlockRenderer', () => ({
   appendThinkingContent: jest.fn(),
   createThinkingBlock: jest.fn().mockImplementation((_parentEl, options) => ({
     wrapperEl: createMockEl(),
-    contentEl: {},
+    contentEl: createMockEl(),
     labelEl: {},
     content: '',
     startTime: Date.now(),
@@ -2274,6 +2274,29 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'thinking', content: 'Second update' }, msg);
       await jest.advanceTimersByTimeAsync(200);
       expect(contentEl.scrollTop).toBeGreaterThanOrEqual(1200);
+    });
+
+    it('honors thinking scroll intent before the browser moves its viewport', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      const msg = createTestMessage();
+      const contentEl = createMockEl();
+      Object.assign(contentEl, { scrollTop: 400, scrollHeight: 800, clientHeight: 400 });
+      createThinkingBlock.mockReturnValueOnce({
+        wrapperEl: createMockEl(), contentEl, labelEl: createMockEl(),
+        content: '', startTime: Date.now(), isExpanded: true,
+      });
+      let finishRender!: () => void;
+      const pendingRender = new Promise<void>(resolve => { finishRender = resolve; });
+      (deps.renderer.renderContent as jest.Mock).mockImplementation(async () => {
+        await pendingRender;
+        Object.assign(contentEl, { scrollHeight: 1200 });
+      });
+      await controller.handleStreamChunk({ type: 'thinking', content: 'More reasoning' }, msg);
+      jest.advanceTimersByTime(16);
+      contentEl.dispatchEvent({ type: 'wheel', target: contentEl, deltaY: -10 } as unknown as Event);
+      finishRender();
+      await jest.advanceTimersByTimeAsync(200);
+      expect(contentEl.scrollTop).toBe(400);
     });
 
     it('does not pull thinking back down if the user scrolls up during rendering', async () => {

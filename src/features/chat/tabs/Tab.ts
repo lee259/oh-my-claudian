@@ -61,6 +61,7 @@ import {
   ChatExecutionCoordinator,
   type ChatExecutionEventContext,
 } from '../execution/ChatExecutionCoordinator';
+import { isNestedScrollEvent } from '../rendering/ScrollFollowController';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { unmountWelcomeElement } from '../rendering/WelcomeRenderer';
 import { BangBashService } from '../services/BangBashService';
@@ -2208,6 +2209,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   // Scroll listener for auto-scroll control (tracks position always, not just during streaming)
   const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
   let isPointerHeld = false;
+  let lastScrollTop = dom.messagesEl.scrollTop;
 
   const isAutoScrollAllowed = (): boolean => plugin.settings.enableAutoScroll ?? true;
 
@@ -2237,25 +2239,23 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
 
     const { scrollTop, scrollHeight, clientHeight } = dom.messagesEl;
     const isAtBottom = scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD;
+    const movedDown = scrollTop > lastScrollTop;
+    lastScrollTop = scrollTop;
 
     if (!isAtBottom) {
       // Layout changes also emit scroll events; only active pointer selection scrolls pause following.
       if (isPointerHeld) {
         state.autoScrollEnabled = false;
       }
-    } else if (!state.autoScrollEnabled) {
+    } else if (!state.autoScrollEnabled && movedDown && !isPointerHeld) {
       // Resume before the next stream update can move the bottom again.
       state.autoScrollEnabled = true;
     }
   };
   const userScrollIntentHandler = (event: Event): void => {
-    const history = (event.target as Element | null)
-      ?.closest?.<HTMLElement>('.claudian-streaming-work-history');
-    const thinking = (event.target as Element | null)
-      ?.closest?.<HTMLElement>('.claudian-thinking-content');
-    // Bounded work and thinking regions contain their own scroll. Their input must not
-    // pause the surrounding conversation's independent follow state.
-    if ([history, thinking].some(region => region && region.scrollHeight > region.clientHeight)) return;
+    // Keep independently scrolling regions separate, but honor input that
+    // reaches the transcript when a nested region is already at its boundary.
+    if (isNestedScrollEvent(event, dom.messagesEl)) return;
     if (event.type === 'pointerdown') {
       const pointerEvent = event as PointerEvent;
       // Scrollbar presses and middle-button autoscroll scroll without further input events.
@@ -2316,6 +2316,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       }
     }
     state.navigationScrollIntent = null;
+    lastScrollTop = dom.messagesEl.scrollTop;
     state.autoScrollEnabled = false;
   };
   const userScrollIntentEvents = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const;

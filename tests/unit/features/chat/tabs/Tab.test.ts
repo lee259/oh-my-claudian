@@ -1778,6 +1778,26 @@ describe('Tab provider execution ownership', () => {
     expect(tab.state.autoScrollEnabled).toBe(true);
   });
 
+  it.each([['a queued scroll event', 900], ['a small upward scroll', 890]])(
+    'does not resume following after user intent when receiving %s', (_label, scrollTop) => {
+      const plugin = createPlugin();
+      const tab = createTab({ plugin, containerEl: createMockEl() as any });
+      wireTabInputEvents(tab, plugin);
+      const messages = tab.dom.messagesEl;
+      Object.assign(messages, { scrollTop: 900, scrollHeight: 1000, clientHeight: 100 });
+      messages.dispatchEvent({ type: 'wheel', target: messages, deltaY: -10 } as unknown as Event);
+      messages.scrollTop = scrollTop;
+      messages.dispatchEvent('scroll' as unknown as Event);
+      expect(tab.state.autoScrollEnabled).toBe(false);
+
+      messages.scrollTop = 800;
+      messages.dispatchEvent('scroll' as unknown as Event);
+      messages.scrollTop = 900;
+      messages.dispatchEvent('scroll' as unknown as Event);
+      expect(tab.state.autoScrollEnabled).toBe(true);
+    },
+  );
+
   it('resumes transcript following immediately when the user returns to the bottom', () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });
@@ -1808,6 +1828,16 @@ describe('Tab provider execution ownership', () => {
     const target = { closest: (selector: string) => selector.includes('thinking-content') ? thinking : null };
     tab.dom.messagesEl.dispatchEvent({ type: 'wheel', target } as unknown as Event);
     expect(tab.state.autoScrollEnabled).toBe(true);
+  });
+
+  it.each([[0, -10], [600, 10]])('pauses outer following when a nested wheel chains at %s', (scrollTop, deltaY) => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const region = { scrollHeight: 1000, clientHeight: 400, scrollTop };
+    const target = { closest: () => region };
+    tab.dom.messagesEl.dispatchEvent({ type: 'wheel', target, deltaY } as unknown as Event);
+    expect(tab.state.autoScrollEnabled).toBe(false);
   });
 
   it('pauses auto-follow for wheel scrolling and middle-button autoscroll', () => {
