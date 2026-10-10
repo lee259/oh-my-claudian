@@ -4,6 +4,7 @@ import { collapseElement, setupCollapsible } from './collapsible';
 export type RenderContentFn = (el: HTMLElement, markdown: string) => Promise<void>;
 
 export interface ThinkingBlockState {
+  presentation?: 'status';
   wrapperEl: HTMLElement;
   contentEl: HTMLElement;
   labelEl: HTMLElement;
@@ -14,6 +15,7 @@ export interface ThinkingBlockState {
 }
 
 export interface ThinkingBlockOptions {
+  presentation?: 'expandable' | 'status';
   onToggle?: (isExpanded: boolean) => void;
 }
 
@@ -34,6 +36,15 @@ export function createThinkingBlock(
   parentEl: HTMLElement,
   options: ThinkingBlockOptions = {},
 ): ThinkingBlockState {
+  if (options.presentation === 'status') {
+    const wrapperEl = parentEl.createDiv({ cls: 'claudian-reasoning-status', attr: { role: 'status' } });
+    const labelEl = wrapperEl.createSpan({ cls: 'claudian-thinking-label' });
+    labelEl.setText(t('chat.rendering.thinking', { seconds: 0 }));
+    const contentEl = wrapperEl.createDiv();
+    contentEl.hidden = true;
+    return { wrapperEl, labelEl, contentEl, content: '', startTime: Date.now(),
+      timerInterval: null, isExpanded: false, presentation: 'status' };
+  }
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-thinking-block' });
 
   // Header (clickable to expand/collapse)
@@ -75,15 +86,24 @@ export function createThinkingBlock(
   return state;
 }
 
+/** Update the live label without rendering or exposing reasoning content. */
+export function refreshThinkingLabel(state: ThinkingBlockState): void {
+  const content = state.presentation === 'status'
+    ? state.content.split(/\n\s*\n/).filter(part => part.trim()).at(-1) ?? ''
+    : state.content;
+  const summary = summarizeThinking(content);
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  state.labelEl.setText(summary || t('chat.rendering.thinking', { seconds: elapsed }));
+}
+
 export async function appendThinkingContent(
   state: ThinkingBlockState,
   content: string,
   renderContent: RenderContentFn
 ) {
   state.content += content;
-  const summary = summarizeThinking(state.content);
-  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
-  state.labelEl.setText(summary || t('chat.rendering.thinking', { seconds: elapsed }));
+  refreshThinkingLabel(state);
+  if (state.presentation === 'status') return;
   await renderContent(state.contentEl, state.content);
 }
 
@@ -96,6 +116,10 @@ export function finalizeThinkingBlock(state: ThinkingBlockState): number {
 
   // Calculate final duration
   const durationSeconds = Math.floor((Date.now() - state.startTime) / 1000);
+  if (state.presentation === 'status') {
+    state.wrapperEl.remove();
+    return durationSeconds;
+  }
 
   state.labelEl.setText(summarizeThinking(state.content) || t('chat.rendering.thinkingSummary'));
 

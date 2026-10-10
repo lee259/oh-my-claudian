@@ -1747,7 +1747,10 @@ export class MessageRenderer {
     transcriptRun.blocks.forEach((projectedBlock, blockIndex) => {
       const block = projectedBlock.block;
       if (block.type === 'text' && !block.content.trim()) return;
-      if (block.type === 'thinking' && (!block.content.trim() || supersededInitialThinking.has(blockIndex))) return;
+      if (block.type === 'thinking' && (
+        ProviderRegistry.getChatUIConfig(this.getCapabilities().providerId).thinkingPresentation === 'status'
+        || !block.content.trim() || supersededInitialThinking.has(blockIndex)
+      )) return;
       let element = children.find((candidate) => (
         candidate.dataset.transcriptItemId === projectedBlock.id
       ));
@@ -2107,7 +2110,8 @@ export class MessageRenderer {
     if (msg.content && msg.content.trim().length > 0) return true;
     if (msg.contentBlocks && msg.contentBlocks.length > 0) {
       for (const block of msg.contentBlocks) {
-        if (block.type === 'thinking' && block.content.trim().length > 0) return true;
+        if (block.type === 'thinking' && block.content.trim().length > 0
+          && ProviderRegistry.getChatUIConfig(this.getCapabilities().providerId).thinkingPresentation !== 'status') return true;
         if (block.type === 'text' && block.content.trim().length > 0) return true;
         if (block.type === 'citations' && block.citations.entries.length > 0) return true;
         if (block.type === 'task_notification') return true;
@@ -2163,7 +2167,8 @@ export class MessageRenderer {
       for (const [blockIndex, block] of msg.contentBlocks.entries()) {
         const existingChildren = new Set(Array.from(contentEl.children));
         if (block.type === 'thinking') {
-          if (!block.content.trim() || supersededInitialThinking.has(blockIndex)) continue;
+          if (ProviderRegistry.getChatUIConfig(this.getCapabilities().providerId).thinkingPresentation === 'status'
+            || !block.content.trim() || supersededInitialThinking.has(blockIndex)) continue;
           const thinkingEl = renderStoredThinkingBlock(
             contentEl,
             block.content,

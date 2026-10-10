@@ -67,6 +67,8 @@ function getVisibleDiscoveredModels(settings: Record<string, unknown>) {
 }
 
 export const codexChatUIConfig: ProviderChatUIConfig = {
+  thinkingPresentation: 'status',
+
   getModelOptions(settings: Record<string, unknown>): ProviderUIOption[] {
     return getCodexModelOptions(settings);
   },

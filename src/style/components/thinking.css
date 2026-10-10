@@ -90,3 +90,14 @@
   font-family: var(--font-monospace);
   font-size: 12px;
 }
+
+/* Provider-owned reasoning summaries are a single transient live status. */
+.claudian-reasoning-status {
+  margin: 4px 0;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.claudian-reasoning-status > .claudian-thinking-label {
+  display: block;
+}

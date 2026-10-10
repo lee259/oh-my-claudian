@@ -4,6 +4,8 @@ import '@/providers';
 
 import { Component } from 'obsidian';
 
+import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
+import type { ProviderId } from '@/core/providers/types';
 import { projectTranscript } from '@/core/transcript/TranscriptProjection';
 import type { ChatMessage, ContentBlock } from '@/core/types';
 import { MessageRenderer } from '@/features/chat/rendering/MessageRenderer';
@@ -12,11 +14,11 @@ import type { FeatureHost } from '@/features/FeatureHost';
 HTMLElement.prototype.empty = function empty(): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function setText(text: string): void { this.textContent = text; };
 
-function createTurn() {
+function createTurn(providerId: ProviderId = 'claude') {
   const messagesEl = document.createElement('div');
   document.body.appendChild(messagesEl);
   const component = new Component();
-  const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl);
+  const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl, undefined, undefined, () => ProviderRegistry.getCapabilities(providerId));
   const user: ChatMessage = { id: 'user', role: 'user', content: 'Check the files.', timestamp: 1 };
   const assistant: ChatMessage = {
     id: 'assistant', role: 'assistant', content: 'The check is complete.', timestamp: 2,
@@ -46,6 +48,40 @@ function createTurn() {
 
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
+
+  it('omits Codex reasoning status from hydrated work without changing source blocks', () => {
+    const fixture = createTurn('codex');
+    const { renderer, component, messagesEl, user, assistant } = fixture;
+    assistant.contentBlocks = [
+      { type: 'text', content: 'Inspecting files.' },
+      { type: 'thinking', content: 'Reviewing required guidance' },
+      { type: 'text', content: 'The check is complete.' },
+      { type: 'thinking', content: 'Checking references' },
+    ];
+    const source = JSON.stringify(assistant);
+    try {
+      renderer.renderMessagesInto(messagesEl, [user, assistant]);
+      expect(messagesEl.querySelector('.claudian-thinking-block')).toBeNull();
+      expect(messagesEl.textContent).not.toContain('Reviewing required guidance');
+      expect(messagesEl.textContent).not.toContain('Checking references');
+      expect(JSON.stringify(assistant)).toBe(source);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('keeps the current Codex status outside the expandable work history', () => {
+    const fixture = createTurn('codex');
+    const { renderer, component, content, text, tool, sync } = fixture;
+    try {
+      text('Inspecting files.');
+      tool('sample-read', 'completed');
+      renderer.startCompletedWork(content);
+      const status = content.createDiv({ cls: 'claudian-reasoning-status', text: 'Checking references' });
+      status.dataset.transcriptItemId = 'assistant:block:2';
+      sync({ type: 'thinking', content: 'Checking references' });
+      expect(content.querySelector('.claudian-streaming-work-history')?.contains(status)).not.toBe(true);
+      expect(status.parentElement).toBe(content);
+    } finally { renderer.dispose(); component.unload(); }
+  });
 
   it('starts expanded and preserves a manual collapse across later stream updates', () => {
     const fixture = createTurn();

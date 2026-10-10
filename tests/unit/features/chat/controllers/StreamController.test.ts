@@ -44,11 +44,13 @@ jest.mock('@/features/chat/rendering/SubagentRenderer', () => ({
 }));
 
 jest.mock('@/features/chat/rendering/ThinkingBlockRenderer', () => ({
+  refreshThinkingLabel: jest.requireActual('@/features/chat/rendering/ThinkingBlockRenderer').refreshThinkingLabel,
   appendThinkingContent: jest.fn(),
   createThinkingBlock: jest.fn().mockImplementation((_parentEl, options) => ({
     wrapperEl: createMockEl(),
     contentEl: createMockEl(),
-    labelEl: {},
+    labelEl: createMockEl(),
+    presentation: options?.presentation === 'status' ? 'status' : undefined,
     content: '',
     startTime: Date.now(),
     isExpanded: false,
@@ -2084,6 +2086,22 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Thinking block finalization', () => {
+    it('uses Codex reasoning only as live status while preserving its transcript data', async () => {
+      deps.getProviderId = () => 'codex';
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Reviewing guidance' }, msg);
+      expect(deps.state.currentThinkingState?.presentation).toBe('status');
+      expect(deps.state.currentThinkingState?.labelEl.textContent).toBe('Reviewing guidance');
+      await controller.handleStreamChunk({ type: 'thinking', content: '\n\nChecking references' }, msg);
+      expect(deps.state.currentThinkingState?.labelEl.textContent).toBe('Checking references');
+      await controller.finalizeCurrentThinkingBlock(msg);
+      expect(deps.state.currentThinkingState).toBeNull();
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
+        type: 'thinking', content: 'Reviewing guidance\n\nChecking references',
+      }));
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+    });
+
     it('should finalize thinking block and add to contentBlocks', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
