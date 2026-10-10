@@ -1,8 +1,8 @@
-![Oh My Claudian in Obsidian with note context, completed work, and an expanded edit diff](assets/PreviewCurrent.png)
+# Oh My Claudian
+
+![Oh My Claudian in dark-themed Obsidian, with a visual project note and a reviewed next-step plan](assets/PreviewCurrent.png)
 
 *Screenshot of the current Obsidian interface with a sample conversation. Appearance varies by theme and provider.*
-
-# Oh My Claudian
 
 Bring your coding agent into [Obsidian](https://obsidian.md/): ask questions about your notes, review file edits, and run multi-step workflows in your vault.
 
