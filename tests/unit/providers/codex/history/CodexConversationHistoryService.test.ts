@@ -8,6 +8,7 @@ const path = jest.requireActual<typeof pathType>('path');
 
 import type { ProviderConversationHistoryService } from '@/core/providers/types';
 import type { Conversation } from '@/core/types';
+import { codexSettingsReconciler } from '@/providers/codex/env/CodexSettingsReconciler';
 import { CodexConversationHistoryService } from '@/providers/codex/history/CodexConversationHistoryService';
 
 async function resolveMissingConversationSession(
@@ -34,6 +35,119 @@ describe('CodexConversationHistoryService', () => {
   afterEach(() => {
     homeDirSpy.mockRestore();
     fs.rmSync(tempHome, { recursive: true, force: true });
+  });
+
+  it('keeps native history readable after runtime settings invalidate the binding', async () => {
+    const transcriptPath = path.join(tempHome, 'invalidated-history.jsonl');
+    fs.writeFileSync(transcriptPath, [
+      JSON.stringify({ type: 'turn_context', payload: { model: 'gpt-5.5' } }),
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'user',
+        content: [{ type: 'input_text', text: 'Previous question' }],
+      } }),
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'assistant',
+        content: [{ type: 'output_text', text: 'Previous answer' }],
+      } }),
+    ].join('\n'));
+    const conversation: Conversation = {
+      id: 'invalidated-history', providerId: 'codex', title: 'History',
+      createdAt: 1, lastActivityAt: 2, messages: [], sessionId: 'old-thread',
+      providerState: { threadId: 'old-thread', sessionFilePath: transcriptPath },
+    };
+    codexSettingsReconciler.invalidateConversationSessions!([conversation]);
+    const service = new CodexConversationHistoryService();
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages.map(message => message.content))
+      .toEqual(['Previous question', 'Previous answer']);
+    expect(conversation.sessionId).toBeNull();
+    expect(service.resolveSessionIdForConversation(conversation)).toBeNull();
+    expect(service.isPendingForkConversation(conversation)).toBe(false);
+    expect(service.hasConversationModelRecoverySource(conversation)).toBe(true);
+    await expect(service.recoverConversationModelSelection(conversation, null))
+      .resolves.toBe('openai-codex/gpt-5.5');
+    const persisted = service.buildPersistedProviderState(conversation);
+    const reopened = { ...conversation, messages: [], providerState: persisted };
+    await new CodexConversationHistoryService().hydrateConversationHistory(reopened, null);
+    expect(reopened.messages).toHaveLength(2);
+    expect(service.resolveSessionIdForConversation(reopened)).toBeNull();
+  });
+
+  it('joins old history with a fresh binding and survives another settings change', async () => {
+    const conversation: Conversation = {
+      id: 'joined-history', providerId: 'codex', title: 'History',
+      createdAt: 1, lastActivityAt: 2, sessionId: null, messages: [],
+    };
+    const service = new CodexConversationHistoryService();
+    for (const threadId of ['first', 'second', 'third']) {
+      const transcriptPath = path.join(tempHome, `${threadId}.jsonl`);
+      fs.writeFileSync(transcriptPath, JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'user',
+        content: [{ type: 'input_text', text: threadId }],
+      } }));
+      conversation.sessionId = threadId;
+      conversation.providerState = {
+        ...conversation.providerState, threadId, sessionFilePath: transcriptPath,
+      };
+      await service.hydrateConversationHistory(conversation, null);
+      if (threadId !== 'third') {
+        codexSettingsReconciler.invalidateConversationSessions!([conversation]);
+        // Simulate closing and reopening the UI: replay cannot rely on its cache.
+        conversation.messages = [];
+      }
+    }
+    expect(conversation.messages.map(message => message.content)).toEqual(['first', 'second', 'third']);
+    expect(new Set(conversation.messages.map(message => message.id)).size).toBe(3);
+    expect(service.resolveSessionIdForConversation(conversation)).toBe('third');
+    codexSettingsReconciler.invalidateConversationSessions!([conversation]);
+    expect(codexSettingsReconciler.invalidateConversationSessions!([conversation])).toEqual([]);
+    conversation.messages = [];
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages.map(message => message.content)).toEqual(['first', 'second', 'third']);
+    expect(service.resolveSessionIdForConversation(conversation)).toBeNull();
+  });
+
+  it('preserves an invalidated fork checkpoint and finds its source in archived sessions', async () => {
+    const threadId = 'archived-source';
+    const archivedDir = path.join(tempHome, '.codex', 'archived_sessions');
+    fs.mkdirSync(archivedDir, { recursive: true });
+    const transcriptPath = path.join(archivedDir, `rollout-${threadId}.jsonl`);
+    fs.writeFileSync(transcriptPath, ['turn-1', 'turn-2'].flatMap(turnId => [
+      JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: turnId } }),
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'user', content: [{ type: 'input_text', text: turnId }],
+      } }),
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'assistant', content: [{ type: 'output_text', text: `Answer ${turnId}` }],
+      } }),
+      JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete', turn_id: turnId } }),
+    ]).join('\n'));
+    const conversation: Conversation = {
+      id: 'checkpoint-history', providerId: 'codex', title: 'History',
+      createdAt: 1, lastActivityAt: 2, messages: [], sessionId: threadId,
+      resumeAtMessageId: 'turn-1',
+      providerState: { threadId, sessionFilePath: path.join(tempHome, 'missing.jsonl') },
+    };
+    codexSettingsReconciler.invalidateConversationSessions!([conversation]);
+    expect(conversation.resumeAtMessageId).toBeUndefined();
+    const service = new CodexConversationHistoryService();
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages.map(message => message.content)).toEqual(['turn-1', 'Answer turn-1']);
+    expect(service.resolveSessionIdForConversation(conversation)).toBeNull();
+  });
+
+  it('keeps visible messages when a read-only history source is unavailable', async () => {
+    const messages = [{ id: 'visible', role: 'user' as const, content: 'Keep me', timestamp: 1 }];
+    const conversation: Conversation = {
+      id: 'unavailable-history', providerId: 'codex', title: 'History',
+      createdAt: 1, lastActivityAt: 2, sessionId: null, messages,
+      providerState: { historySources: [{ sessionId: null, providerState: {
+        sessionFilePath: path.join(tempHome, 'missing.jsonl'),
+      } }] },
+    };
+    await new CodexConversationHistoryService().hydrateConversationHistory(conversation, null);
+    expect(conversation.messages).toBe(messages);
+    expect(conversation.sessionId).toBeNull();
   });
 
   it('hydrates history by resolving the transcript path from thread id', async () => {

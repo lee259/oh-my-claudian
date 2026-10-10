@@ -6,7 +6,7 @@ import type {
 } from '../../../core/providers/types';
 import type { ChatMessage, Conversation } from '../../../core/types';
 import { encodeCodexModelSelectionId } from '../modelSelection';
-import type { CodexProviderState } from '../types';
+import type { CodexHistorySource, CodexProviderState } from '../types';
 import { getCodexState } from '../types';
 import {
   CODEX_HISTORY_LOOKUP_TIMEOUT_MS,
@@ -63,6 +63,7 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       || state.sessionFilePath
       || state.forkSource?.sessionId
       || state.forkSourceSessionFilePath
+      || state.historySources?.length
     );
   }
 
@@ -72,6 +73,15 @@ export class CodexConversationHistoryService implements ProviderConversationHist
     pathContext?: ProviderHistoryPathContext,
   ): Promise<string | null> {
     const state = getCodexState(conversation.providerState);
+    if (!state.threadId && !conversation.sessionId && !state.sessionFilePath && !state.forkSource) {
+      for (const source of [...(state.historySources ?? [])].reverse()) {
+        const model = await this.recoverConversationModelSelection(
+          this.projectHistorySource(conversation, source), _vaultPath, pathContext,
+        );
+        if (model) return model;
+      }
+      return null;
+    }
     const isPendingFork = this.isPendingForkConversation(conversation);
     const threadId = isPendingFork
       ? state.forkSource!.sessionId
@@ -138,6 +148,46 @@ export class CodexConversationHistoryService implements ProviderConversationHist
   async hydrateConversationHistory(
     conversation: Conversation,
     _vaultPath: string | null,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<void> {
+    const state = getCodexState(conversation.providerState);
+    if (!state.historySources?.length) {
+      return this.hydrateNativeHistory(conversation, pathContext);
+    }
+
+    const messages: ChatMessage[] = [];
+    for (const [index, source] of state.historySources.entries()) {
+      const historical = this.projectHistorySource(conversation, source);
+      await this.hydrateNativeHistory(historical, pathContext);
+      // Native replay IDs are file-local counters, so independent sessions
+      // need separate namespaces when joined into one conversation.
+      const namespace = source.sessionId ?? source.providerState.threadId ?? `history-${index}`;
+      messages.push(...historical.messages.map(message => ({
+        ...message, id: `${namespace}:${message.id}`,
+      })));
+    }
+    const { historySources: _historySources, ...nativeState } = state;
+    const current = { ...conversation, providerState: nativeState, messages: [] };
+    await this.hydrateNativeHistory(current, pathContext);
+    messages.push(...current.messages);
+    if (messages.length > 0) {
+      conversation.messages = messages;
+    }
+    conversation.providerState = { ...current.providerState, historySources: state.historySources };
+  }
+
+  private projectHistorySource(conversation: Conversation, source: CodexHistorySource): Conversation {
+    return {
+      ...conversation,
+      sessionId: source.sessionId,
+      providerState: { ...source.providerState },
+      resumeAtMessageId: source.resumeAtMessageId,
+      messages: [],
+    };
+  }
+
+  private async hydrateNativeHistory(
+    conversation: Conversation,
     pathContext?: ProviderHistoryPathContext,
   ): Promise<void> {
     const lookupDeadline = Date.now() + CODEX_HISTORY_LOOKUP_TIMEOUT_MS;
@@ -226,7 +276,7 @@ export class CodexConversationHistoryService implements ProviderConversationHist
 
     // Normal hydration
     const threadId = state.threadId ?? conversation.sessionId ?? null;
-    const sessionFilePath = await resolveCodexSessionFileHint(
+    let sessionFilePath = await resolveCodexSessionFileHint(
       state.sessionFilePath,
       threadId,
       pathContext,
@@ -238,6 +288,24 @@ export class CodexConversationHistoryService implements ProviderConversationHist
           Math.max(0, lookupDeadline - Date.now()),
         )
       : null);
+    if (sessionFilePath) {
+      try {
+        await fs.access(sessionFilePath);
+      } catch {
+        sessionFilePath = null;
+      }
+    }
+    if (!sessionFilePath && threadId) {
+      const roots = getCodexArchivedTranscriptRoots(
+        pathContext, transcriptRootPath ? [transcriptRootPath] : [],
+      );
+      for (const root of roots) {
+        sessionFilePath = await findCodexSessionFileAsync(
+          threadId, root, Math.max(0, lookupDeadline - Date.now()),
+        );
+        if (sessionFilePath) break;
+      }
+    }
     const resolvedTranscriptRootPath = transcriptRootPath
       ?? deriveCodexSessionsRootFromSessionPath(sessionFilePath);
 
@@ -270,7 +338,11 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       };
     }
 
-    const sdkMessages = await parseCodexSessionFileAsync(sessionFilePath);
+    const sdkMessages = conversation.resumeAtMessageId
+      ? (this.truncateTurnsAtCheckpoint(
+          await readSessionTurns(sessionFilePath), conversation.resumeAtMessageId,
+        ) ?? []).flatMap(turn => turn.messages)
+      : await parseCodexSessionFileAsync(sessionFilePath);
     if (sdkMessages.length === 0) {
       this.hydratedConversationPaths.delete(conversation.id);
       return;
@@ -368,6 +440,7 @@ export class CodexConversationHistoryService implements ProviderConversationHist
     const sourceTranscriptRootPath = sourceState.transcriptRootPath
       ?? deriveCodexSessionsRootFromSessionPath(sourceState.sessionFilePath);
     const providerState: CodexProviderState = {
+      ...(sourceState.historySources ? { historySources: sourceState.historySources } : {}),
       forkSource: { sessionId: sourceSessionId, resumeAt },
       ...(
         sourceState.workspaceDependencyToolVersion !== undefined
