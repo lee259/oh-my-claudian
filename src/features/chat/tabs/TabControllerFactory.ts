@@ -46,6 +46,7 @@ export function initializeTabPresentationControllers(
         .navigateBranch(messageId, branchMessageId),
       isBusy: () => tab.state.isStreaming || tab.state.isRewinding || tab.state.isSwitchingConversation,
     },
+    () => tab.state.autoScrollEnabled,
   );
 
   tab.controllers.selectionController = new SelectionController(
