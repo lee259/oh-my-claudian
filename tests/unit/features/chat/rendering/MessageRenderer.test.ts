@@ -878,7 +878,7 @@ describe('MessageRenderer', () => {
         .toBe(false);
     });
 
-    it('keeps the answer and subsequent work outside the answered activity fold', () => {
+    it('collects completed work after the answer without folding the answer', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -914,10 +914,10 @@ describe('MessageRenderer', () => {
       expect(contentEl.contains(answer)).toBe(true);
       expect(contentEl.contains(followUpTool)).toBe(true);
       expect(history?.contains(answer)).toBe(false);
-      expect(history?.contains(followUpTool)).toBe(false);
+      expect(history?.contains(followUpTool)).toBe(true);
     });
 
-    it('leaves background work after a yielded reply outside the earlier work fold', () => {
+    it('collects completed background work after a yielded reply when the turn settles', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -960,7 +960,7 @@ describe('MessageRenderer', () => {
       const history = contentEl.querySelector('.claudian-completed-work-history');
       expect(history?.contains(earlierTool)).toBe(true);
       expect(contentEl.contains(backgroundTool)).toBe(true);
-      expect(history?.contains(backgroundTool)).toBe(false);
+      expect(history?.contains(backgroundTool)).toBe(true);
       expect(contentEl.contains(answer)).toBe(true);
     });
 
@@ -1332,11 +1332,111 @@ describe('MessageRenderer', () => {
 
       const fold = contentEl.querySelector('.claudian-streaming-work-fold');
       expect(fold).toBeTruthy();
+      expect(fold?.querySelector('.claudian-streaming-work-history')?.hidden).toBe(false);
       expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(preamble)).toBe(true);
       expect(fold?.querySelector('.claudian-streaming-work-history')?.contains(tool)).toBe(true);
       expect((fold?.querySelector('.claudian-activity-phase')?.contains(preamble)) ?? false).toBe(false);
       expect(preamble.hidden).not.toBe(true);
       expect(contentEl.children).toContain(answer);
+    });
+
+    it('settles a streamed background launch and its later work above the answer', () => {
+      const messagesEl = createMockEl();
+      enableDomLikeNodeMoves(messagesEl);
+      const { renderer } = createRenderer(messagesEl);
+      const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+      user.setAttribute('data-message-id', 'settle-user');
+      const assistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+      assistant.setAttribute('data-message-id', 'settle-assistant');
+      const contentEl = assistant.createDiv({ cls: 'claudian-message-content' });
+      const message: ChatMessage = {
+        id: 'settle-assistant', role: 'assistant', content: '', timestamp: 2,
+        contentBlocks: [], toolCalls: [],
+      };
+      const messages: ChatMessage[] = [
+        { id: 'settle-user', role: 'user', content: 'Review the document', timestamp: 1 }, message,
+      ];
+      const nodes: MockElement[] = [];
+      const blocks = [
+        { type: 'text' as const, content: 'Checking the sources.' },
+        { type: 'tool_use' as const, toolId: 'settle-read' },
+        { type: 'text' as const, content: 'Searching the remaining notes.' },
+        { type: 'tool_use' as const, toolId: 'settle-bash' },
+        { type: 'thinking' as const, content: 'Compare the evidence.' },
+        { type: 'tool_use' as const, toolId: 'settle-check' },
+        { type: 'text' as const, content: 'The document is now updated.' },
+      ];
+      for (const block of blocks) {
+        const node = contentEl.createDiv({
+          cls: block.type === 'tool_use' ? 'claudian-tool-call'
+            : block.type === 'thinking' ? 'claudian-thinking-block' : 'claudian-text-block',
+          text: 'content' in block ? block.content : '',
+        });
+        nodes.push(node);
+        renderer.startCompletedWork(contentEl);
+        if (block.type === 'tool_use') {
+          node.setAttribute('data-tool-id', block.toolId);
+          message.toolCalls!.push({ id: block.toolId, name: 'Bash',
+            input: block.toolId === 'settle-bash' ? { run_in_background: true } : {}, status: 'completed' });
+          message.contentBlocks!.push(block);
+          renderer.syncStreamingActivity(message, contentEl, undefined, messages);
+        } else {
+          renderer.syncStreamingActivity(message, contentEl, block, messages);
+          message.contentBlocks!.push(block);
+          if (block.type === 'text') message.content += block.content;
+        }
+      }
+      renderer.finalizeTranscriptTurn(projectTranscript(messages)[0], message.id);
+      const fold = messagesEl.querySelector('.claudian-completed-work')!;
+      const history = fold.querySelector('.claudian-completed-work-history')!;
+      for (const node of nodes.slice(0, -1)) expect(history.contains(node)).toBe(true);
+      expect(history.contains(nodes.at(-1)!)).toBe(false);
+      expect(contentEl.children).toContain(nodes.at(-1));
+      expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(3);
+    });
+
+    it('collects completed commands and thoughts that arrive after the last answer while leaving a pending question visible', () => {
+      const messagesEl = createMockEl();
+      enableDomLikeNodeMoves(messagesEl);
+      const { renderer } = createRenderer(messagesEl);
+      const user = messagesEl.createDiv({ cls: 'claudian-message claudian-message-user' });
+      user.setAttribute('data-message-id', 'late-work-user');
+      const assistant = messagesEl.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+      assistant.setAttribute('data-message-id', 'late-work-assistant');
+      const content = assistant.createDiv({ cls: 'claudian-message-content' });
+      const first = content.createDiv({ cls: 'claudian-tool-call' });
+      first.setAttribute('data-tool-id', 'first-read');
+      const answer = content.createDiv({ cls: 'claudian-text-block', text: 'The update is complete.' });
+      const tail = content.createDiv({ cls: 'claudian-tool-call' });
+      tail.setAttribute('data-tool-id', 'tail-check');
+      const thought = content.createDiv({ cls: 'claudian-thinking-block', text: 'Finished the verification.' });
+      const pending = content.createDiv({ cls: 'claudian-ask-question-inline' });
+      const message: ChatMessage = {
+        id: 'late-work-assistant', role: 'assistant', content: 'The update is complete.', timestamp: 2,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'first-read' },
+          { type: 'text', content: 'The update is complete.' },
+          { type: 'tool_use', toolId: 'tail-check' },
+          { type: 'thinking', content: 'Finished the verification.' },
+        ],
+        toolCalls: [
+          { id: 'first-read', name: 'Read', input: {}, status: 'completed' },
+          { id: 'tail-check', name: 'Bash', input: {}, status: 'completed' },
+        ],
+      };
+      const turn = projectTranscript([
+        { id: 'late-work-user', role: 'user', content: 'Update the note', timestamp: 1 }, message,
+      ])[0];
+      renderer.syncStreamingActivity(message, content, undefined, [turn.userMessage!, message]);
+      renderer.finalizeTranscriptTurn(turn, message.id);
+      const fold = messagesEl.querySelector('.claudian-completed-work')!;
+      const history = fold.querySelector('.claudian-completed-work-history')!;
+      expect(history.contains(first)).toBe(true);
+      expect(history.contains(tail)).toBe(true);
+      expect(history.contains(thought)).toBe(true);
+      expect(history.contains(answer)).toBe(false);
+      expect(history.contains(pending)).toBe(false);
+      expect(content.children).toEqual([answer, pending]);
     });
 
     it.each([
@@ -1364,8 +1464,8 @@ describe('MessageRenderer', () => {
         renderer.startCompletedWork(contentEl);
         renderer.syncStreamingActivity(msg, contentEl, { type: 'text', content: 'Checking the result.' });
         const fold = contentEl.querySelector('.claudian-streaming-work-fold')!;
-        fold.querySelector('.claudian-streaming-work-header')!.click();
         const history = fold.querySelector('.claudian-streaming-work-history')!;
+        expect(history.hidden).toBe(false);
         Object.assign(history, { scrollTop, scrollHeight: 1000, clientHeight: 200 });
         // A native scroll event records the user's position before the next update.
         history.dispatchEvent('scroll');

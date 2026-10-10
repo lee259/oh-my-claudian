@@ -762,9 +762,12 @@ export class MessageRenderer {
     const timeline = this.getRenderedActivityTimeline(turn, children, turnMessage, false, true);
     if (!timeline.fold) {
       const legacyWork = children.filter((element) => (
-        element.hasClass('claudian-tool-call')
-        || element.hasClass('claudian-write-edit-block')
-        || element.hasClass('claudian-subagent-list')
+        (element.hasClass('claudian-tool-call')
+          || element.hasClass('claudian-write-edit-block')
+          || element.hasClass('claudian-subagent-list')
+          || element.hasClass('claudian-thinking-block'))
+        && !this.isPendingInteraction(element, turnMessage)
+        && !this.isRunningTool(element, turnMessage)
       ));
       if (legacyWork.length === 0 || !turnMessage.content.trim()) return;
       const fallbackTimeline: RenderedActivityTimelineSegment[] = [{
@@ -1353,7 +1356,7 @@ export class MessageRenderer {
     let historyEl: HTMLElement | undefined;
 
     if (fold && foldedElements.length > 0 && statusEl) {
-      const expanded = this.streamingWorkFoldOverrides.get(msg.id) ?? false;
+      const expanded = this.streamingWorkFoldOverrides.get(msg.id) ?? true;
       const workId = `claudian-streaming-work-${MessageRenderer.nextCompletedWorkId++}`;
       statusEl.addClass('claudian-streaming-work-fold');
       const headerEl = statusEl.createEl('button', {
@@ -1819,8 +1822,8 @@ export class MessageRenderer {
     const backgroundToolIds = new Set(
       msg.toolCalls
         ?.filter((toolCall) => (
-          toolCall.input.run_in_background === true
-          || toolCall.subagent?.mode === 'async'
+          (live || toolCall.status === 'running')
+          && (toolCall.input.run_in_background === true || toolCall.subagent?.mode === 'async')
         ))
         .map((toolCall) => toolCall.id),
     );
@@ -1874,7 +1877,8 @@ export class MessageRenderer {
         const elements = phase.stepIndexes
           .map((index) => elementByBlockIndex.get(index))
           .filter((element): element is HTMLElement => !!element)
-          .filter((element) => !this.isPendingInteraction(element, msg));
+          .filter((element) => !this.isPendingInteraction(element, msg)
+            && (live || !this.isRunningTool(element, msg)));
         return elements.length > 0
           ? [{
             type: 'phase',
@@ -1898,6 +1902,7 @@ export class MessageRenderer {
       && !element.hasClass('claudian-response-footer')
       && !element.hasClass('claudian-completed-work-status')
       && !this.isPendingInteraction(element, msg)
+      && (live || !this.isRunningTool(element, msg))
     ));
     if (unrepresentedWork.length > 0 && timeline.fold) {
       const foldedEnd = renderedItems[timeline.fold.end];
@@ -1910,6 +1915,21 @@ export class MessageRenderer {
         kind: 'other',
         elements: unrepresentedWork,
       });
+    }
+
+    // Live background boundaries may leave work after a yielded reply. Once
+    // this turn settles, collect its completed tail into the same disclosure
+    // without hiding the answer, pending interactions, or still-running tools.
+    if (!live && timeline.fold) {
+      const tail = renderedItems.slice(timeline.fold.end + 1).flat()
+        .filter((segment) => segment.type === 'phase')
+        .flatMap((segment) => segment.elements)
+        .filter((element) => !this.isPendingInteraction(element, msg) && !this.isRunningTool(element, msg));
+      if (tail.length > 0) {
+        renderedItems[timeline.fold.end]?.push({
+          type: 'phase', id: 'settled-tail-work', active: false, kind: 'other', elements: tail,
+        });
+      }
     }
 
     return { items: renderedItems, fold: timeline.fold };
