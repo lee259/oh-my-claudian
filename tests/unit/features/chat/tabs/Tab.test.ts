@@ -1800,6 +1800,16 @@ describe('Tab provider execution ownership', () => {
     expect(tab.state.autoScrollEnabled).toBe(true);
   });
 
+  it('keeps transcript following independent when scrolling inside expanded thinking', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    wireTabInputEvents(tab, plugin);
+    const thinking = { scrollHeight: 1000, clientHeight: 400 };
+    const target = { closest: (selector: string) => selector.includes('thinking-content') ? thinking : null };
+    tab.dom.messagesEl.dispatchEvent({ type: 'wheel', target } as unknown as Event);
+    expect(tab.state.autoScrollEnabled).toBe(true);
+  });
+
   it('pauses auto-follow for wheel scrolling and middle-button autoscroll', () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });

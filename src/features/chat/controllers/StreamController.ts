@@ -200,11 +200,26 @@ export class StreamController {
       maxIntervalMs: 500,
       render: async (snapshot) => {
         const { el, content, getOptions, options: explicitOptions } = snapshot;
+        const thinkingState = this.deps.state.currentThinkingState;
+        const thinkingScrollTop = el.scrollTop;
+        // Thinking has a bounded viewport independent of the transcript. Read
+        // its position before rendering, while the old bottom is still valid.
+        const followThinking = thinkingState?.contentEl === el
+          && thinkingState.isExpanded
+          && (this.deps.plugin.settings.enableAutoScroll ?? true)
+          && el.scrollHeight - thinkingScrollTop - el.clientHeight <= 20;
         const options = getOptions ? getOptions() : explicitOptions;
         if (options) {
           await this.deps.renderer.renderContent(el, content, options);
         } else {
           await this.deps.renderer.renderContent(el, content);
+        }
+        if (followThinking
+          && this.deps.state.currentThinkingState === thinkingState
+          && thinkingState.isExpanded
+          && (this.deps.plugin.settings.enableAutoScroll ?? true)
+          && el.scrollTop >= thinkingScrollTop) {
+          el.scrollTop = el.scrollHeight;
         }
         if (snapshot.shouldFollowScroll) this.scrollToBottom();
       },
@@ -1521,6 +1536,9 @@ export class StreamController {
     if (this.deps.state.currentThinkingState !== thinkingState) return;
 
     thinkingState.isExpanded = isExpanded;
+    if (isExpanded && (this.deps.plugin.settings.enableAutoScroll ?? true)) {
+      thinkingState.contentEl.scrollTop = thinkingState.contentEl.scrollHeight;
+    }
     this.syncThinkingRenderAvailability();
   }
 

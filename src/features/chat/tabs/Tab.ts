@@ -2251,9 +2251,11 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   const userScrollIntentHandler = (event: Event): void => {
     const history = (event.target as Element | null)
       ?.closest?.<HTMLElement>('.claudian-streaming-work-history');
-    // The bounded work history contains its own scroll. Its input must not
+    const thinking = (event.target as Element | null)
+      ?.closest?.<HTMLElement>('.claudian-thinking-content');
+    // Bounded work and thinking regions contain their own scroll. Their input must not
     // pause the surrounding conversation's independent follow state.
-    if (history && history.scrollHeight > history.clientHeight) return;
+    if ([history, thinking].some(region => region && region.scrollHeight > region.clientHeight)) return;
     if (event.type === 'pointerdown') {
       const pointerEvent = event as PointerEvent;
       // Scrollbar presses and middle-button autoscroll scroll without further input events.
