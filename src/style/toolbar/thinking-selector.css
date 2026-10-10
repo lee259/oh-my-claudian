@@ -1,10 +1,12 @@
 /* Reasoning selection is a stepped slider inside the model menu. */
 .claudian-thinking-selector {
   display: flex;
+  flex: 1 1 180px;
   flex-direction: column;
+  align-items: stretch;
   gap: 5px;
   min-width: 0;
-  padding: 6px 8px 8px;
+  padding: 0;
 }
 
 .claudian-model-slider-heading {
@@ -37,6 +39,8 @@
 .claudian-model-slider {
   --claudian-model-slider-thumb-width: 22px;
   position: relative;
+  width: 100%;
+  min-width: 0;
   height: 24px;
 }
 

@@ -1341,6 +1341,22 @@ function initializeInputToolbar(
   });
 
   const toolbarComponents = createInputToolbar(inputToolbar, {
+    getModelProvider: () => ({
+      id: tab.providerId,
+      label: ProviderRegistry.getProviderDisplayName(tab.providerId),
+    }),
+    getFavoriteModels: () => plugin.settings.favoriteModels ?? [],
+    onFavoriteModelToggle: async (model) => {
+      const providerId = model.providerId ?? tab.providerId;
+      await plugin.mutateSettings((settings) => {
+        const favorites = settings.favoriteModels ?? [];
+        const exists = favorites.some(favorite => favorite.providerId === providerId && favorite.model === model.value);
+        settings.favoriteModels = exists
+          ? favorites.filter(favorite => favorite.providerId !== providerId || favorite.model !== model.value)
+          : [...favorites, { providerId, model: model.value }];
+      });
+      for (const view of plugin.getAllViews()) view.refreshModelSelector();
+    },
     getUIConfig: () => {
       if (tab.conversationId === null) {
         return blankTabUIConfigProxy();

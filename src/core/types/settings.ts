@@ -156,6 +156,8 @@ export interface ClaudianSettings {
   // Provider selection
   settingsProvider: string;  // ProviderId — which provider's model/effort/budget is projected to top-level fields
   lastSelectedChatModel: StoredChatModelSelection | null;
+  /** Provider-qualified favorites; unavailable models remain stored but are not selectable. */
+  favoriteModels?: StoredChatModelSelection[];
   savedProviderModel: Partial<Record<string, string>>;
   savedProviderEffort: Partial<Record<string, string>>;
   savedProviderServiceTier: Partial<Record<string, string>>;

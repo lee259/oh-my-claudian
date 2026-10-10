@@ -298,7 +298,7 @@ describe('claudeChatUIConfig', () => {
       ]);
     });
 
-    it('uses SDK labels when shared tiers route to the same model', () => {
+    it('shows the actual mapped target instead of SDK tier labels when tiers share a model', () => {
       jest.spyOn(claudeUserSettingsEnv, 'getClaudeUserSettingsModelEnvironment')
         .mockReturnValueOnce({
           env: {
@@ -325,14 +325,14 @@ describe('claudeChatUIConfig', () => {
       });
 
       expect(options.map(({ value, label }) => [value, label])).toEqual([
-        ['claude-code/haiku', 'SDK Haiku'],
-        ['claude-code/sonnet', 'SDK Sonnet'],
-        ['claude-code/opus', 'SDK Opus'],
-        ['claude-code/fable', 'SDK Fable'],
+        ['claude-code/haiku', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/sonnet', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/opus', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/fable', 'newapi/deepseek-flash[1m]'],
       ]);
     });
 
-    it('does not override SDK model names with local environment display names', () => {
+    it('does not override actual mapped targets with stale local display names', () => {
       jest.spyOn(claudeUserSettingsEnv, 'getClaudeUserSettingsModelEnvironment')
         .mockReturnValue({
           env: {
@@ -367,10 +367,10 @@ describe('claudeChatUIConfig', () => {
       });
 
       expect(options.map(({ value, label }) => [value, label])).toEqual([
-        ['claude-code/haiku', 'SDK Haiku'],
-        ['claude-code/sonnet', 'SDK Sonnet'],
-        ['claude-code/opus', 'SDK Opus'],
-        ['claude-code/fable', 'SDK Fable'],
+        ['claude-code/haiku', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/sonnet', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/opus', 'newapi/deepseek-flash[1m]'],
+        ['claude-code/fable', 'newapi/deepseek-flash[1m]'],
       ]);
       const selectedSettings: Record<string, unknown> = {};
       claudeChatUIConfig.applyModelDefaults('claude-code/sonnet', selectedSettings);

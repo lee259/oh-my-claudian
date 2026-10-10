@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { createMockEl } from '@test/helpers/MockElement';
+import { act } from 'preact/test-utils';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ConversationController } from '@/features/chat/controllers/ConversationController';
@@ -193,6 +194,7 @@ function createPlugin(overrides: Record<string, unknown> = {}) {
     mutateSettings: jest.fn(async (mutation) => {
       await mutation(settings);
     }),
+    getAllViews: jest.fn().mockReturnValue([]),
     getConversationById: jest.fn().mockResolvedValue(null),
     getConversationSync: jest.fn().mockReturnValue(null),
     handleMissingProviderSession: jest.fn(),
@@ -393,6 +395,9 @@ describe('Tab provider execution ownership', () => {
       initializeTabUI(tab, plugin, {
         onProviderChanged: () => codexSwitch,
       });
+      await act(() => {
+        tab.dom.inputWrapper.querySelector<HTMLButtonElement>('[data-provider-filter="all"]')!.click();
+      });
       const modelOptions = Array.from(
         tab.dom.inputWrapper.querySelectorAll('.claudian-model-option'),
       );
@@ -423,6 +428,52 @@ describe('Tab provider execution ownership', () => {
       resolveProviderForModel.mockReturnValue('claude');
       globalThis.ResizeObserver = originalResizeObserver;
     }
+  });
+
+  describe('favorite model settings', () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    beforeEach(() => {
+      globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({
+        disconnect: jest.fn(),
+        observe: jest.fn(),
+      })) as unknown as typeof ResizeObserver;
+    });
+    afterEach(() => { globalThis.ResizeObserver = originalResizeObserver; });
+
+    it('persists favorites through the settings boundary without changing the model', async () => {
+      const plugin = createPlugin();
+      const refreshModelSelector = jest.fn();
+      plugin.getAllViews.mockReturnValue([{ refreshModelSelector }]);
+      const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
+      initializeTabUI(tab, plugin);
+      const originalModel = tab.draftModel;
+      const favorite = tab.dom.inputWrapper.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
+      expect(favorite).not.toBeNull();
+      await act(async () => { favorite.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
+      expect(plugin.mutateSettings).toHaveBeenCalled();
+      expect(plugin.settings.favoriteModels).toHaveLength(1);
+      expect(plugin.settings.favoriteModels[0].providerId).toBe('claude');
+      expect(favorite.getAttribute('aria-pressed')).toBe('true');
+      expect(tab.draftModel).toBe(originalModel);
+      expect(plugin.chatModelSelection.commitIntent).not.toHaveBeenCalled();
+      expect(refreshModelSelector).toHaveBeenCalledTimes(1);
+      await act(async () => { favorite.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
+      expect(plugin.settings.favoriteModels).toEqual([]);
+      expect(favorite.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('keeps favorite state unchanged when persistence fails', async () => {
+      const plugin = createPlugin({ mutateSettings: jest.fn().mockRejectedValue(new Error('Disk full')) });
+      const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
+      initializeTabUI(tab, plugin);
+      const favorite = tab.dom.inputWrapper.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
+      expect(favorite).not.toBeNull();
+      await act(async () => { favorite.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
+      expect(favorite.getAttribute('aria-pressed')).toBe('false');
+      expect(plugin.getAllViews).not.toHaveBeenCalled();
+      expect(plugin.chatModelSelection.commitIntent).not.toHaveBeenCalled();
+    });
+
   });
 
   it('records an explicit bound-conversation model choice without changing its provider', async () => {

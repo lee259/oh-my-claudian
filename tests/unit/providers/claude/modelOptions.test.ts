@@ -1,7 +1,37 @@
+import * as userModelEnvironment from '@/providers/claude/env/claudeUserSettingsEnv';
 import { findClaudeModelOption, getClaudeModelOptions } from '@/providers/claude/modelOptions';
 import { DEFAULT_CLAUDE_PROVIDER_SETTINGS } from '@/providers/claude/settings';
 
 describe('getClaudeModelOptions discovered models', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('shows the actual shared user-settings target while retaining distinct tier selections without a catalog', () => {
+    jest.spyOn(userModelEnvironment, 'getClaudeUserSettingsModelEnvironment').mockReturnValue({
+      env: {
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: 'gateway/fast-model[1m]',
+        ANTHROPIC_DEFAULT_SONNET_MODEL: 'gateway/fast-model[1m]',
+        ANTHROPIC_DEFAULT_OPUS_MODEL: 'gateway/fast-model[1m]',
+        ANTHROPIC_DEFAULT_FABLE_MODEL: 'gateway/fast-model[1m]',
+      },
+      displayNames: {}, tierDisplayNames: {},
+    });
+    const options = getClaudeModelOptions({});
+    expect(options).toHaveLength(4);
+    expect(options.map(option => option.label)).toEqual(Array(4).fill('gateway/fast-model[1m]'));
+    expect(new Set(options.map(option => option.value)).size).toBe(4);
+    expect(options.map(option => option.environmentTypes?.[0])).toEqual(['haiku', 'sonnet', 'opus', 'fable']);
+  });
+
+  it('ignores stale environment names while preserving explicit custom aliases for a shared runtime target', () => {
+    jest.spyOn(userModelEnvironment, 'getClaudeUserSettingsModelEnvironment').mockReturnValue({
+      env: { ANTHROPIC_DEFAULT_SONNET_MODEL: 'gateway/model', ANTHROPIC_DEFAULT_OPUS_MODEL: 'gateway/model' },
+      displayNames: { 'gateway/model': 'Gateway model' }, tierDisplayNames: { sonnet: 'Draft model', opus: 'Review model' },
+    });
+    const options = getClaudeModelOptions({ customModelAliases: { opus: 'My review model' } });
+    expect(options.find(option => option.environmentTypes?.includes('sonnet'))?.label).toBe('gateway/model');
+    expect(options.find(option => option.environmentTypes?.includes('opus'))?.label).toBe('My review model');
+  });
+
   it('uses discovered labels for built-in models and adds newly reported model IDs', () => {
     const options = getClaudeModelOptions({
       providerConfigs: {

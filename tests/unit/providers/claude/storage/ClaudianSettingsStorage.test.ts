@@ -53,6 +53,37 @@ describe('ClaudianSettingsStorage', () => {
   });
 
   describe('load', () => {
+    it('round-trips provider-qualified favorites without exposing malformed entries', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.read.mockResolvedValue(JSON.stringify({
+        favoriteModels: [
+          { providerId: 'claude', model: ' same-model ' },
+          { providerId: 'codex', model: 'same-model' },
+          { providerId: 'claude', model: 'same-model' },
+          { providerId: 'codex', model: '' },
+          null,
+          'invalid',
+        ],
+      }));
+      const settings = await storage.load();
+      expect(settings.favoriteModels).toEqual([
+        { providerId: 'claude', model: 'same-model' },
+        { providerId: 'codex', model: 'same-model' },
+      ]);
+      await storage.save(settings);
+      const saved = JSON.parse(mockAdapter.write.mock.calls.at(-1)![1]);
+      mockAdapter.read.mockResolvedValue(JSON.stringify(saved));
+      expect((await storage.load()).favoriteModels).toEqual(settings.favoriteModels);
+    });
+
+    it('defaults invalid or missing favorites to an empty list', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.read.mockResolvedValue(JSON.stringify({ favoriteModels: { model: 'opus' } }));
+      expect((await storage.load()).favoriteModels).toEqual([]);
+      mockAdapter.read.mockResolvedValue('{}');
+      expect((await storage.load()).favoriteModels).toEqual([]);
+    });
+
     it('should return defaults when file does not exist', async () => {
       mockAdapter.exists.mockResolvedValue(false);
 
