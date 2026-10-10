@@ -111,6 +111,19 @@ The UI is available in 10 locales, including Simplified and Traditional Chinese.
 
 For provider installation and authentication, use the official documentation linked under [Supported providers](#supported-providers). For a plugin issue, [report a bug](https://github.com/lee259/oh-my-claudian/issues) with your plugin version, Obsidian version, operating system, provider, CLI version, and reproduction steps. Remove credentials and private note content from logs or screenshots.
 
+### Claude authentication fails while the CLI subscription works
+
+If Claude reports `authentication_failed` in Obsidian while the same CLI works with a subscription in your terminal, an inherited `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` may be taking precedence over subscription sign-in. Choosing another CLI path does not clear those inherited credentials.
+
+In **Settings → Providers → Claude → Custom variables**, add an empty assignment only for the conflicting credential you intend to disable:
+
+```env
+ANTHROPIC_API_KEY=
+```
+
+Use `ANTHROPIC_AUTH_TOKEN=` instead when that is the conflicting credential. Keep these assignments in Claude's provider settings so other providers remain unaffected. Retain credentials needed for custom API endpoints. When requesting help, share variable names rather than secret values.
+
+
 ## Safety and privacy
 
 Oh My Claudian is local-first and does not send telemetry. Your prompts, attachments, and tool results are sent to the provider you select and its configured model services. Network access also includes CLI version checks against the npm registry and configured MCP endpoints. CLI discovery and launches read relevant local environment variables, such as `PATH`, `HOME`, and `USERPROFILE`, to locate and run provider CLIs. These values are used locally and are not collected for plugin telemetry; provider CLI processes may use their inherited environment according to their own behavior.

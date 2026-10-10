@@ -492,6 +492,19 @@ function maybeEmitUsageFromPromptUsage(
   return { type: 'usage', usage: buildUsageInfo(promptUsage, options) };
 }
 
+/** Only suggest a provider-scoped override when the CLI reports authentication failure. */
+function withAuthenticationConflictHint(error: string, diagnostic: string): string {
+  if (error !== 'authentication_failed') return diagnostic;
+  const message = diagnostic.trim() && diagnostic !== error
+    ? diagnostic.trim()
+    : 'Claude authentication failed. Sign in again or check your API key.';
+  return message + '\n\n'
+    + 'If the same CLI works with a subscription separately, an inherited ANTHROPIC_API_KEY or '
+    + 'ANTHROPIC_AUTH_TOKEN may be interfering. In Settings → Providers → Claude → Custom variables '
+    + '(Claude only), add an empty assignment only for the conflicting credential you intend to disable, '
+    + 'such as ANTHROPIC_API_KEY= or ANTHROPIC_AUTH_TOKEN=. Keep these assignments out of the shared environment.';
+}
+
 /**
  * Transform SDK message to StreamChunk format.
  * One SDK message can yield multiple chunks (e.g., text + tool_use blocks).
@@ -552,12 +565,10 @@ export function* transformSDKMessage(
 
       // Errors on assistant messages (e.g. rate_limit, billing_error)
       if (message.error) {
-        yield {
-          type: 'error',
-          content: 'isApiErrorMessage' in message && message.isApiErrorMessage && assistantText
-            ? assistantText
-            : message.error,
-        };
+        const diagnostic = 'isApiErrorMessage' in message && message.isApiErrorMessage && assistantText
+          ? assistantText
+          : message.error;
+        yield { type: 'error', content: withAuthenticationConflictHint(message.error, diagnostic) };
       }
 
       if (message.message?.content && Array.isArray(message.message.content)) {
