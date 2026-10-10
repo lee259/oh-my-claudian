@@ -72,6 +72,7 @@ import {
 import {
   createThinkingBlock,
   finalizeThinkingBlock,
+  refreshThinkingLabel,
   type ThinkingBlockState,
 } from '../rendering/ThinkingBlockRenderer';
 import {
@@ -1479,6 +1480,7 @@ export class StreamController {
     if (!state.currentThinkingState) {
       this.thinkingRenderCoordinator.cancel();
       const thinkingState = createThinkingBlock(state.currentContentEl, {
+        presentation: ProviderRegistry.getChatUIConfig(this.getActiveProviderId()).thinkingPresentation,
         onToggle: (isExpanded) => {
           this.handleThinkingToggle(thinkingState, isExpanded);
         },
@@ -1492,12 +1494,17 @@ export class StreamController {
       }
       state.currentThinkingState = thinkingState;
       this.thinkingViewport?.dispose();
-      this.thinkingViewport = new ScrollFollowController(thinkingState.contentEl);
+      this.thinkingViewport = thinkingState.presentation === 'status'
+        ? null : new ScrollFollowController(thinkingState.contentEl);
       this.deps.renderer.startCompletedWork?.(state.currentContentEl, state.responseStartTime);
       this.syncThinkingRenderAvailability();
     }
 
     state.currentThinkingState.content += content;
+    if (state.currentThinkingState.presentation === 'status') {
+      refreshThinkingLabel(state.currentThinkingState);
+      return;
+    }
     this.thinkingRenderCoordinator.request(
       this.createStreamingSnapshot(
         state.currentThinkingState.contentEl,
@@ -1511,7 +1518,7 @@ export class StreamController {
     if (!state.currentThinkingState) return;
 
     const thinkingState = state.currentThinkingState;
-    if (this.getStreamingRenderOptions(thinkingState.content)) {
+    if (thinkingState.presentation !== 'status' && this.getStreamingRenderOptions(thinkingState.content)) {
       this.thinkingRenderCoordinator.request({
         el: thinkingState.contentEl,
         content: thinkingState.content,
