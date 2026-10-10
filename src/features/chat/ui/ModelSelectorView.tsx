@@ -110,6 +110,7 @@ export function ModelSelectorView({
     ? reasoningPreviewIndex
     : committedReasoningIndex;
   const selectedReasoning = reasoningOptions[selectedIndex];
+  const sliderProgress = selectedIndex / Math.max(1, reasoningOptions.length - 1);
   const isServiceTierActive = Boolean(serviceTier && serviceTierActive);
 
   useEffect(() => {
@@ -365,13 +366,10 @@ export function ModelSelectorView({
                       </div>
                       <div className="claudian-model-slider">
                         <div aria-hidden="true" className="claudian-model-slider-track">
-                          <span className="claudian-model-slider-fill-start" />
-                          {reasoningOptions.slice(1).map((option, index) => (
-                            <span
-                              className={`claudian-model-slider-segment${index < selectedIndex ? ' is-filled' : ''}`}
-                              key={option.value}
-                            />
-                          ))}
+                          <span
+                            className="claudian-model-slider-fill"
+                            style={{ width: `calc(${sliderProgress * 100}% + ${(0.5 - sliderProgress) * 28}px)` }}
+                          />
                         </div>
                         <div aria-hidden="true" className="claudian-model-slider-stops">
                           {reasoningOptions.map((option, index) => (
@@ -381,6 +379,11 @@ export function ModelSelectorView({
                             />
                           ))}
                         </div>
+                        <span
+                          aria-hidden="true"
+                          className="claudian-model-slider-thumb"
+                          style={{ insetInlineStart: `calc(${sliderProgress * 100}% - ${sliderProgress * 28}px)` }}
+                        />
                         <input
                           aria-label={reasoningLabel}
                           aria-description={selectedReasoning?.description}
