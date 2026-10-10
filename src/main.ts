@@ -66,6 +66,7 @@ import {
 } from './core/types';
 import type { ChatViewPlacement, EnvironmentScope } from './core/types/settings';
 import { ClaudianView } from './features/chat/ClaudianView';
+import { createChatFocusCommand } from './features/chat/controllers/ChatFocusCommand';
 import type { ChatExecutionPersistence } from './features/chat/execution/ChatExecutionCoordinator';
 import {
   DEFAULT_MAX_WARM_AGENT_PROCESSES,
@@ -201,6 +202,15 @@ export default class ClaudianPlugin extends Plugin {
           void this.activateView();
         },
       });
+
+      this.addCommand(createChatFocusCommand({
+        getInputs: () => this.getAllViews().flatMap(view => {
+          const input = view.getActiveTab()?.dom.inputEl;
+          return input ? [input] : [];
+        }),
+        getActiveDocument: () => typeof activeDocument === 'undefined' ? null : activeDocument,
+        getPreferredInput: () => this.getView()?.getActiveTab()?.dom.inputEl ?? null,
+      }));
 
       this.addCommand({
         id: 'inline-edit',
