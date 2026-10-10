@@ -169,8 +169,8 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
             value: encodeClaudeModelSelectionId(tier),
             label: customModelAliases[tier]
               ?? customModelAliases[model.value]
-              ?? discovered?.label
-              ?? definition.label,
+              ?? discoveredModels.find(candidate => candidate.value === model.value)?.label
+              ?? model.value,
             description: discovered?.description || `${model.description} (${tier})`,
             environmentTypes: [tier],
           });

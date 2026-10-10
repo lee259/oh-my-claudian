@@ -70,15 +70,21 @@ describe('ModelSelectorView browsing', () => {
     expect(props.onModelChange).toHaveBeenCalledWith(props.models[2]);
   });
 
-  it('places native reasoning choices in the selected model pane and hides them during unrelated browsing', async () => {
+  it('places a stepped reasoning slider in the selected model pane and hides it during unrelated browsing', async () => {
     const footer = container.querySelector('.claudian-model-menu-footer');
     expect(container.querySelector('.claudian-model-browser-main')?.contains(footer)).toBe(true);
     expect(footer?.textContent).toContain('Sonnet');
-    const select = container.querySelector<HTMLSelectElement>('.claudian-model-reasoning-select')!;
-    expect(select).not.toBeNull();
-    expect(Array.from(select.options).map(option => option.value)).toEqual(['low', 'high']);
-    expect(select.value).toBe('high');
-    await act(() => { select.value = 'low'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(slider).not.toBeNull();
+    expect(slider.min).toBe('0');
+    expect(slider.max).toBe('1');
+    expect(slider.step).toBe('1');
+    expect(slider.value).toBe('1');
+    expect(slider.getAttribute('aria-valuetext')).toBe('High');
+    await act(() => { slider.value = '0'; slider.dispatchEvent(new Event('input', { bubbles: true })); });
+    expect(slider.getAttribute('aria-valuetext')).toBe('Low');
+    expect(props.onReasoningChange).not.toHaveBeenCalled();
+    await act(() => { slider.dispatchEvent(new Event('change', { bubbles: true })); });
     expect(props.onReasoningChange).toHaveBeenCalledWith('low');
     await search('opus');
     expect(container.querySelector('.claudian-model-menu-footer')).toBeNull();
@@ -99,7 +105,7 @@ describe('ModelSelectorView browsing', () => {
     await act(() => render(h(ModelSelectorView, props), container));
     expect(container.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
     expect(container.querySelector('.claudian-model-menu-footer')?.textContent).toContain('GPT Sol');
-    expect(container.querySelector<HTMLSelectElement>('select')?.value).toBe('xhigh');
+    expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.getAttribute('aria-valuetext')).toBe('Extra high');
     expect(container.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
     await click('[role="switch"]');
     expect(props.onServiceTierToggle).toHaveBeenCalledTimes(1);

@@ -80,6 +80,7 @@ export function ModelSelectorView({
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<string>(currentProviderId);
   const [query, setQuery] = useState('');
+  const [reasoningPreviewIndex, setReasoningPreviewIndex] = useState<number | null>(null);
   const providers = Array.from(new Map([...models].reverse().map(model => {
     const providerId = model.providerId ?? currentProviderId;
     return [providerId, { id: providerId, label: model.group ?? providerId, icon: model.providerIcon ?? providerIcon }] as const;
@@ -103,9 +104,14 @@ export function ModelSelectorView({
     setFilter(currentProviderId || 'all');
     setQuery('');
   };
-  const selectedIndex = Math.max(0, reasoningOptions.findIndex(option => option.value === reasoningValue));
+  const committedReasoningIndex = Math.max(0, reasoningOptions.findIndex(option => option.value === reasoningValue));
+  const selectedIndex = reasoningPreviewIndex !== null && reasoningOptions[reasoningPreviewIndex]
+    ? reasoningPreviewIndex
+    : committedReasoningIndex;
   const selectedReasoning = reasoningOptions[selectedIndex];
   const isServiceTierActive = Boolean(serviceTier && serviceTierActive);
+
+  useEffect(() => setReasoningPreviewIndex(null), [currentModel, currentProviderId, reasoningValue]);
 
   useEffect(() => {
     if (!open) return;
@@ -149,6 +155,11 @@ export function ModelSelectorView({
         ? options.length - 1
         : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
     options[nextIndex]?.focus();
+  };
+
+  const updateReasoningPreview = (event: Event): void => {
+    const index = Number((event.currentTarget as HTMLInputElement).value);
+    if (reasoningOptions[index]) setReasoningPreviewIndex(index);
   };
 
   const renderModelOption = (model: ProviderUIOption, index: number) => {
@@ -322,21 +333,53 @@ export function ModelSelectorView({
                 </div>
                 <div className="claudian-model-settings-controls">
                   {reasoningHasChoice && (
-                    <label className="claudian-thinking-selector">
-                      <span>{reasoningLabel}</span>
-                      <select
-                        aria-label={reasoningLabel}
-                        aria-description={selectedReasoning?.description}
-                        className="claudian-model-reasoning-select"
-                        title={selectedReasoning?.description}
-                        value={selectedReasoning?.value ?? reasoningValue}
-                        onChange={event => onReasoningChange(event.currentTarget.value)}
-                      >
-                        {reasoningOptions.map(option => (
-                          <option key={option.value} value={option.value} title={option.description}>{option.label}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <section aria-label={reasoningLabel} className="claudian-thinking-selector">
+                      <div className="claudian-model-slider-heading">
+                        <span className="claudian-model-slider-label">{reasoningLabel}</span>
+                        <span className="claudian-model-slider-value">{displayReasoning}</span>
+                      </div>
+                      <div className="claudian-model-slider-endpoints" aria-hidden="true">
+                        <span>Faster</span>
+                        <span>Smarter</span>
+                      </div>
+                      <div className="claudian-model-slider">
+                        <div aria-hidden="true" className="claudian-model-slider-track">
+                          <span className="claudian-model-slider-fill-start" />
+                          {reasoningOptions.slice(1).map((option, index) => (
+                            <span
+                              className={`claudian-model-slider-segment${index < selectedIndex ? ' is-filled' : ''}`}
+                              key={option.value}
+                            />
+                          ))}
+                        </div>
+                        <div aria-hidden="true" className="claudian-model-slider-stops">
+                          {reasoningOptions.map((option, index) => (
+                            <span
+                              className={`claudian-model-slider-tick${index <= selectedIndex ? ' is-filled' : ''}${option.value === reasoningDefaultValue ? ' is-recommended' : ''}`}
+                              key={option.value}
+                            />
+                          ))}
+                        </div>
+                        <input
+                          aria-label={reasoningLabel}
+                          aria-description={selectedReasoning?.description}
+                          aria-valuetext={displayReasoning}
+                          className="claudian-model-slider-input"
+                          max={String(reasoningOptions.length - 1)}
+                          min="0"
+                          step="1"
+                          type="range"
+                          value={String(selectedIndex)}
+                          onInput={updateReasoningPreview}
+                          onChange={(event) => {
+                            const index = Number((event.currentTarget as HTMLInputElement).value);
+                            const option = reasoningOptions[index];
+                            if (option) onReasoningChange(option.value);
+                          setReasoningPreviewIndex(null);
+                          }}
+                        />
+                      </div>
+                    </section>
                   )}
                   {serviceTier && (
                     <button
