@@ -92,6 +92,50 @@ describe('ModelSelectorView browsing', () => {
     expect(container.querySelector('.claudian-model-menu-footer')).not.toBeNull();
   });
 
+  it('retains the slider preview while the setting is being saved', async () => {
+    let finish!: () => void;
+    props.onReasoningChange = jest.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    await act(() => render(h(ModelSelectorView, props), container));
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+    await act(() => {
+      slider.value = '0';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(slider.value).toBe('0');
+    expect(slider.getAttribute('aria-valuetext')).toBe('Low');
+    await act(async () => {
+      props = { ...props, reasoningValue: 'low' };
+      render(h(ModelSelectorView, props), container);
+      finish();
+    });
+    expect(slider.value).toBe('0');
+    expect(container.querySelector('input[type="range"]')).toBe(slider);
+  });
+
+  it('does not let an earlier save interrupt a new drag', async () => {
+    let finish!: () => void;
+    props.onReasoningChange = jest.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    await act(() => render(h(ModelSelectorView, props), container));
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+    await act(() => {
+      slider.value = '0';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(() => {
+      slider.value = '1';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      props = { ...props, reasoningValue: 'low' };
+      render(h(ModelSelectorView, props), container);
+      finish();
+    });
+    expect(slider.value).toBe('1');
+    expect(slider.getAttribute('aria-valuetext')).toBe('High');
+  });
+
   it('keeps the picker open and waits for the committed selection before changing its controls', async () => {
     await click('[data-provider-filter="codex"]');
     await click('.claudian-model-option');

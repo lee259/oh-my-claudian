@@ -27,7 +27,7 @@ export interface ModelSelectorViewProps {
   serviceTier: ProviderServiceTierToggleConfig | null;
   serviceTierActive: boolean;
   onModelChange: (model: ProviderUIOption) => void;
-  onReasoningChange: (value: string) => void;
+  onReasoningChange: (value: string) => void | Promise<void>;
   onServiceTierToggle: () => void;
 }
 
@@ -81,6 +81,7 @@ export function ModelSelectorView({
   const [filter, setFilter] = useState<string>(currentProviderId);
   const [query, setQuery] = useState('');
   const [reasoningPreviewIndex, setReasoningPreviewIndex] = useState<number | null>(null);
+  const reasoningInteractionRef = useRef(0);
   const providers = Array.from(new Map([...models].reverse().map(model => {
     const providerId = model.providerId ?? currentProviderId;
     return [providerId, { id: providerId, label: model.group ?? providerId, icon: model.providerIcon ?? providerIcon }] as const;
@@ -111,7 +112,10 @@ export function ModelSelectorView({
   const selectedReasoning = reasoningOptions[selectedIndex];
   const isServiceTierActive = Boolean(serviceTier && serviceTierActive);
 
-  useEffect(() => setReasoningPreviewIndex(null), [currentModel, currentProviderId, reasoningValue]);
+  useEffect(() => {
+    reasoningInteractionRef.current++;
+    setReasoningPreviewIndex(null);
+  }, [currentModel, currentProviderId]);
 
   useEffect(() => {
     if (!open) return;
@@ -159,7 +163,10 @@ export function ModelSelectorView({
 
   const updateReasoningPreview = (event: Event): void => {
     const index = Number((event.currentTarget as HTMLInputElement).value);
-    if (reasoningOptions[index]) setReasoningPreviewIndex(index);
+    if (reasoningOptions[index]) {
+      reasoningInteractionRef.current++;
+      setReasoningPreviewIndex(index);
+    }
   };
 
   const renderModelOption = (model: ProviderUIOption, index: number) => {
@@ -328,8 +335,22 @@ export function ModelSelectorView({
             {selectedModelIndex !== -1 && (reasoningHasChoice || serviceTier) && (
               <section aria-label="Current model settings" className="claudian-model-menu-footer">
                 <div className="claudian-model-settings-heading">
-                  <span>Current model settings</span>
                   <span className="claudian-model-settings-name" title={displayModelLabel}>{displayModelLabel}</span>
+                  {serviceTier && (
+                    <button
+                      aria-checked={isServiceTierActive}
+                      aria-label="Fast mode"
+                      className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
+                      role="switch"
+                      title={serviceTier.description ?? (isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel)}
+                      type="button"
+                      onClick={onServiceTierToggle}
+                    >
+                      <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
+                      <span>Fast</span>
+                      <span aria-hidden="true" className="claudian-toggle-switch" />
+                    </button>
+                  )}
                 </div>
                 <div className="claudian-model-settings-controls">
                   {reasoningHasChoice && (
@@ -371,31 +392,23 @@ export function ModelSelectorView({
                           type="range"
                           value={String(selectedIndex)}
                           onInput={updateReasoningPreview}
-                          onChange={(event) => {
+                          onChange={async (event) => {
                             const index = Number((event.currentTarget as HTMLInputElement).value);
                             const option = reasoningOptions[index];
-                            if (option) onReasoningChange(option.value);
-                          setReasoningPreviewIndex(null);
+                            if (!option) return;
+                            const interaction = ++reasoningInteractionRef.current;
+                            setReasoningPreviewIndex(index);
+                            try {
+                              await onReasoningChange(option.value);
+                            } finally {
+                              if (reasoningInteractionRef.current === interaction) setReasoningPreviewIndex(null);
+                            }
                           }}
                         />
                       </div>
                     </section>
                   )}
-                  {serviceTier && (
-                    <button
-                      aria-checked={isServiceTierActive}
-                      aria-label="Fast mode"
-                      className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
-                      role="switch"
-                      title={serviceTier.description ?? (isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel)}
-                      type="button"
-                      onClick={onServiceTierToggle}
-                    >
-                      <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
-                      <span>Fast</span>
-                      <span aria-hidden="true" className="claudian-toggle-switch" />
-                    </button>
-                  )}
+
                 </div>
               </section>
             )}

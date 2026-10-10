@@ -47,8 +47,8 @@ interface ElectronRemoteApi {
 
 let nextPermissionModeMenuId = 0;
 
-function runToolbarAction(action: () => Promise<void>, failureMessage: string): void {
-  void action().catch(() => {
+function runToolbarAction(action: () => Promise<void>, failureMessage: string): Promise<void> {
+  return action().catch(() => {
     new Notice(failureMessage);
   });
 }
@@ -1272,7 +1272,7 @@ export function createInputToolbar(
   let permissionModeMenuOpen = false;
   let currentModeOptions: PermissionModeMenuOption[] = [];
   let currentSelectedMode = '';
-  const selectPermissionMode = (mode: string): void => runToolbarAction(async () => {
+  const selectPermissionMode = (mode: string): void => void runToolbarAction(async () => {
     currentSelectedMode = mode;
     try {
       await callbacks.onPermissionModeChange(mode);

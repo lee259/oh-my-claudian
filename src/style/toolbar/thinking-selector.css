@@ -1,7 +1,7 @@
 /* Reasoning selection is a stepped slider inside the model menu. */
 .claudian-thinking-selector {
   display: flex;
-  flex: 1 1 180px;
+  flex: 1 1 100%;
   flex-direction: column;
   align-items: stretch;
   gap: 5px;
@@ -37,7 +37,7 @@
 }
 
 .claudian-model-slider {
-  --claudian-model-slider-thumb-width: 22px;
+  --claudian-model-slider-thumb-width: 16px;
   position: relative;
   width: 100%;
   min-width: 0;
@@ -49,7 +49,7 @@
   top: 50%;
   inset-inline: 0;
   display: flex;
-  height: 18px;
+  height: 4px;
   min-width: 0;
   overflow: hidden;
   border-radius: 999px;
@@ -69,7 +69,7 @@
 
 .claudian-model-slider-fill-start,
 .claudian-model-slider-segment.is-filled {
-  background: color-mix(in srgb, var(--text-normal) 32%, var(--background-modifier-border));
+  background: color-mix(in srgb, var(--interactive-accent) 65%, var(--background-modifier-border));
 }
 
 .claudian-model-slider-segment {
@@ -128,10 +128,11 @@
   cursor: pointer;
 
   /* Obsidian offsets and re-shadows its native range thumb; pin it to the track. */
+  transition: none;
   --slider-thumb-y: 0;
   --slider-thumb-y-active: 0;
   --slider-thumb-opacity-active: 1;
-  --slider-thumb-shadow-active: 0 1px 3px rgb(0 0 0 / 40%);
+  --slider-thumb-shadow-active: 0 1px 3px var(--background-modifier-box-shadow);
   --slider-thumb-shadow-focus: 0 0 0 2px var(--background-secondary), 0 0 0 4px var(--interactive-accent);
 }
 
@@ -145,14 +146,15 @@
 .claudian-model-slider input.claudian-model-slider-input::-webkit-slider-thumb,
 .claudian-model-slider input.claudian-model-slider-input:is(:hover, :active)::-webkit-slider-thumb {
   appearance: none;
-  width: var(--claudian-model-slider-thumb-width, 22px);
-  height: 24px;
+  transition: none;
+  width: var(--claudian-model-slider-thumb-width, 16px);
+  height: 16px;
   top: 0;
-  margin: 0;
-  border: 0;
-  border-radius: 7px;
-  background: var(--text-normal);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  margin: 4px 0 0;
+  border: 2px solid var(--background-primary);
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  box-shadow: 0 1px 3px var(--background-modifier-box-shadow);
 }
 
 .claudian-model-slider input.claudian-model-slider-input:focus-visible::-webkit-slider-thumb {
