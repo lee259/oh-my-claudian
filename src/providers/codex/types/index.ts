@@ -5,7 +5,15 @@ export interface CodexPendingForkTarget {
   sessionFilePath?: string;
 }
 
+/** Read-only replay locator. Never used to resume an execution binding. */
+export interface CodexHistorySource {
+  sessionId: string | null;
+  providerState: Omit<CodexProviderState, 'historySources'>;
+  resumeAtMessageId?: string;
+}
+
 export interface CodexProviderState {
+  historySources?: CodexHistorySource[];
   threadId?: string;
   nativeConversationContextEstablished?: boolean;
   sessionFilePath?: string;

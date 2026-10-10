@@ -2239,7 +2239,9 @@ describe('ClaudianPlugin', () => {
       }));
       expect(invalidated).toEqual(expect.objectContaining({
         sessionId: null,
-        providerState: undefined,
+        providerState: { historySources: [{
+          sessionId: 'invalidated-session', providerState: { threadId: 'invalidated-thread' },
+        }] },
       }));
       expect(getTabManager).not.toHaveBeenCalled();
     });
@@ -2368,12 +2370,14 @@ describe('ClaudianPlugin', () => {
 
       expect(restartedConversation).toEqual(expect.objectContaining({
         sessionId: null,
-        providerState: undefined,
+        providerState: { historySources: [{
+          sessionId: 'codex-thread-id', providerState: { threadId: 'codex-thread-id' },
+        }] },
       }));
       expect(persistedMetadata).toEqual(expect.objectContaining({
         sessionId: null,
       }));
-      expect(persistedMetadata).not.toHaveProperty('providerState');
+      expect(persistedMetadata.providerState).toEqual(restartedConversation?.providerState);
       expect(restartedSettings.providerConfigs.codex.environmentHash).toBe(fingerprint);
       expect(restartedSettings.pendingProviderSessionInvalidations?.codex).toBeUndefined();
       expect(invalidationWrites).toHaveLength(1);
@@ -2443,7 +2447,9 @@ describe('ClaudianPlugin', () => {
       )).toBe(true);
       expect(plugin.getConversationSync(conversation.id)).toEqual(expect.objectContaining({
         sessionId: null,
-        providerState: undefined,
+        providerState: { historySources: [{
+          sessionId: 'post-commit-thread', providerState: { threadId: 'post-commit-thread' },
+        }] },
       }));
       expect(plugin.settings.pendingProviderSessionInvalidations.codex).toBeUndefined();
     });

@@ -43,7 +43,10 @@ describe('codexSettingsReconciler', () => {
     expect(codexSettingsReconciler.reconcileModelWithEnvironment(settings, [conversation]))
       .toMatchObject({ changed: true, invalidatedConversations: [conversation] });
     expect(conversation.sessionId).toBeNull();
-    expect(conversation.providerState).toBeUndefined();
+    expect(conversation.providerState).toEqual({ historySources: [{
+      sessionId: 'thread-123',
+      providerState: { threadId: 'thread-123', sessionFilePath: '/tmp/thread-123.jsonl' },
+    }] });
   });
 
   it('migrates a legacy fingerprint with an existing CLI path without invalidating history', () => {
@@ -143,10 +146,13 @@ describe('codexSettingsReconciler', () => {
     expect(codexSettingsReconciler.reconcileModelWithEnvironment(settings, [conversation]))
       .toMatchObject({ changed: true, invalidatedConversations: [conversation] });
     expect(conversation.sessionId).toBeNull();
-    expect(conversation.providerState).toBeUndefined();
+    expect(conversation.providerState).toEqual({ historySources: [{
+      sessionId: 'thread-123',
+      providerState: { threadId: 'thread-123', sessionFilePath: '/tmp/thread-123.jsonl' },
+    }] });
   });
 
-  it('invalidates both sessionId and providerState when the Codex env hash changes', () => {
+  it('invalidates the binding but preserves a read-only history source when the env hash changes', () => {
     const conversation = {
       providerId: 'codex',
       sessionId: 'thread-123',
@@ -173,7 +179,10 @@ describe('codexSettingsReconciler', () => {
 
     expect(result.changed).toBe(true);
     expect(conversation.sessionId).toBeNull();
-    expect(conversation.providerState).toBeUndefined();
+    expect(conversation.providerState).toEqual({ historySources: [{
+      sessionId: 'thread-123',
+      providerState: { threadId: 'thread-123', sessionFilePath: '/tmp/thread-123.jsonl' },
+    }] });
     expect(settings.model).toBe(TEST_CODEX_MODEL);
   });
 
@@ -223,7 +232,10 @@ describe('codexSettingsReconciler', () => {
     expect(result.changed).toBe(true);
     expect(result.invalidatedConversations).toEqual([conversation]);
     expect(conversation.sessionId).toBeNull();
-    expect(conversation.providerState).toBeUndefined();
+    expect(conversation.providerState).toEqual({ historySources: [{
+      sessionId: 'thread-123',
+      providerState: { threadId: 'thread-123', sessionFilePath: '/tmp/thread-123.jsonl' },
+    }] });
     expect(settings.model).toBe('openai-codex/my-custom-model');
     const fingerprint = (settings.providerConfigs as any).codex.environmentHash;
     expect(isVersionedRuntimeInputFingerprint(fingerprint)).toBe(true);

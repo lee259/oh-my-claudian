@@ -1012,7 +1012,9 @@ describe('ProviderSettingsCoordinator', () => {
 
       expect(result.changed).toBe(true);
       expect(codexConv.sessionId).toBeNull();
-      expect(codexConv.providerState).toBeUndefined();
+      expect(codexConv.providerState).toEqual({
+        historySources: [{ sessionId: 'thread-1', providerState: {} }],
+      });
       expect(settings.model).toBe('haiku');
       expect(settings.savedProviderModel).toEqual({
         claude: 'haiku',

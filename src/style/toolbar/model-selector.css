@@ -101,14 +101,14 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(280px, calc(100cqi - 16px));
+  width: min(360px, calc(100cqi - 16px));
   min-width: min(160px, calc(100cqi - 16px));
-  max-width: min(280px, calc(100cqi - 16px));
-  max-height: min(420px, 50vh);
+  max-width: min(360px, calc(100cqi - 16px));
+  max-height: min(480px, 60vh);
   overflow: hidden;
-  padding: 4px;
+  padding: 0;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--background-secondary);
   box-shadow: var(--shadow-s);
 }
@@ -125,9 +125,9 @@
   .oh-my-claudian-root .claudian-model-dropdown {
     inset-inline-start: 8px;
     inset-inline-end: auto;
-    width: min(280px, calc(100cqi - 16px));
+    width: min(360px, calc(100cqi - 16px));
     min-width: min(160px, calc(100cqi - 16px));
-    max-width: min(280px, calc(100cqi - 16px));
+    max-width: min(360px, calc(100cqi - 16px));
   }
 }
 
@@ -138,14 +138,40 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  padding: 6px;
   overscroll-behavior: contain;
 }
 
 .claudian-model-menu-footer {
   flex: 0 0 auto;
   min-width: 0;
-  margin-top: 4px;
+  padding: 10px;
   border-top: 1px solid var(--background-modifier-border);
+}
+
+.claudian-model-settings-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.claudian-model-settings-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-model-settings-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
 }
 
 .claudian-model-empty {
@@ -182,21 +208,22 @@
   width: 100%;
   height: auto;
   min-width: 0;
-  min-height: 28px;
-  padding: 4px 8px;
+  min-height: 36px;
+  padding: 7px 10px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   box-shadow: none;
   color: var(--text-normal);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   text-align: start;
   white-space: normal;
   cursor: pointer;
 }
 
-.claudian-model-option:is(:hover, :focus-visible) {
+.claudian-model-row:is(:hover, :focus-within),
+.claudian-model-row.selected {
   background: var(--background-modifier-hover);
 }
 
@@ -214,15 +241,16 @@
   flex: 1 1 auto;
   min-width: 0;
   line-height: 1.25;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .claudian-model-option-check {
   flex: 0 0 auto;
   width: 13px;
   height: 13px;
-  color: var(--color-green);
+  color: var(--text-muted);
 }
 
 @container (max-width: 300px) {
@@ -232,5 +260,205 @@
 
   .claudian-model-secondary.claudian-service-tier-indicator {
     display: inline-flex;
+  }
+}
+
+
+/* Provider browsing never changes the active conversation or its reasoning controls. */
+.claudian-model-browser {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.claudian-model-provider-rail {
+  display: flex;
+  flex: 0 0 48px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 4px;
+  border-inline-end: 1px solid var(--background-modifier-border);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.claudian-model-provider-filter,
+.claudian-model-provider-filter:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  appearance: none;
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-model-provider-filter:is(:hover, :focus-visible),
+.claudian-model-provider-filter.is-active {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-model-provider-filter svg {
+  width: 20px;
+  height: 20px;
+}
+
+.claudian-model-provider-filter:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.claudian-model-provider-divider {
+  flex: 0 0 1px;
+  width: 24px;
+  margin-block: 3px;
+  background: var(--background-modifier-border);
+}
+
+.claudian-model-browser-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.claudian-model-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.claudian-model-search:focus-within {
+  border-bottom-color: var(--interactive-accent);
+}
+
+.claudian-model-search > .claudian-obsidian-icon {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.claudian-model-search svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-model-search input[type='search'],
+.claudian-model-search input[type='search']:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 13px;
+}
+
+.claudian-model-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.claudian-model-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.claudian-model-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 7px;
+}
+
+.claudian-model-row + .claudian-model-row {
+  margin-top: 2px;
+}
+
+.claudian-model-row .claudian-model-option {
+  flex: 1 1 auto;
+  width: auto;
+  border-radius: 7px;
+}
+
+.claudian-model-favorite,
+.claudian-model-favorite:is(:hover, :focus, :focus-visible, :active, :disabled),
+.claudian-model-search-clear,
+.claudian-model-search-clear:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  appearance: none;
+  display: flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-model-favorite {
+  margin-inline-end: 4px;
+  opacity: 0;
+}
+
+.claudian-model-favorite svg,
+.claudian-model-search-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-model-row:is(:hover, :focus-within) .claudian-model-favorite,
+.claudian-model-favorite.is-favorite {
+  opacity: 1;
+}
+
+.claudian-model-favorite.is-favorite svg {
+  fill: currentColor;
+}
+
+.claudian-model-favorite:is(:hover, :focus-visible),
+.claudian-model-search-clear:is(:hover, :focus-visible) {
+  color: var(--text-normal);
+}
+
+.claudian-model-favorite:focus-visible,
+.claudian-model-search-clear:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+@media (hover: none) {
+  .claudian-model-favorite {
+    opacity: 1;
   }
 }
