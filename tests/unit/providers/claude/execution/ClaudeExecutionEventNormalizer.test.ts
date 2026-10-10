@@ -219,6 +219,72 @@ describe('ClaudeExecutionEventNormalizer API errors', () => {
   });
 });
 
+describe('Claude authentication conflict guidance', () => {
+  const normalize = (content: unknown[], synthetic = true, error = 'authentication_failed') => (
+    new ClaudeExecutionEventNormalizer().normalize(msg({
+      type: 'assistant', error,
+      ...(synthetic ? { isApiErrorMessage: true, apiErrorStatus: 401 } : {}),
+      message: { model: synthetic ? '<synthetic>' : 'claude-sonnet-4-5', content },
+    }), 'requested')
+  );
+  const diagnostic = (events: ReturnType<typeof normalize>) => {
+    const event = events.find(candidate => candidate.type === 'native_error');
+    if (event?.type !== 'native_error') throw new Error('Missing native error');
+    return event.message;
+  };
+  const expectGuidance = (text: string) => {
+    expect(text).toContain('If the same CLI works with a subscription');
+    expect(text).toContain('Settings → Providers → Claude → Custom variables');
+    expect(text).toContain('only for the conflicting credential you intend to disable');
+    expect(text).toContain('ANTHROPIC_API_KEY=');
+    expect(text).toContain('ANTHROPIC_AUTH_TOKEN=');
+    expect(text).toContain('shared environment');
+  };
+
+  it('preserves native prose and adds Claude-only guidance without leaking credentials', () => {
+    const previousKey = process.env.ANTHROPIC_API_KEY;
+    const previousToken = process.env.ANTHROPIC_AUTH_TOKEN;
+    process.env.ANTHROPIC_API_KEY = 'test-key-not-for-display';
+    process.env.ANTHROPIC_AUTH_TOKEN = 'test-token-not-for-display';
+    try {
+      const events = normalize([{ type: 'text', text: 'API Error: 401 Invalid credentials' }]);
+      const text = diagnostic(events);
+      expect(text.startsWith('API Error: 401 Invalid credentials')).toBe(true);
+      expectGuidance(text);
+      expect(text).not.toContain('test-key-not-for-display');
+      expect(text).not.toContain('test-token-not-for-display');
+      expect(process.env.ANTHROPIC_API_KEY).toBe('test-key-not-for-display');
+      expect(events.filter(event => event.type === 'output')).toEqual([]);
+    } finally {
+      if (previousKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = previousKey;
+      if (previousToken === undefined) delete process.env.ANTHROPIC_AUTH_TOKEN;
+      else process.env.ANTHROPIC_AUTH_TOKEN = previousToken;
+    }
+  });
+
+  it.each([['empty', []], ['whitespace', [{ type: 'text', text: '  \n\t ' }]]])('handles %s authentication prose', (_label, content) => {
+    const events = normalize(content);
+    const text = diagnostic(events);
+    expect(text.startsWith('Claude authentication failed.')).toBe(true);
+    expectGuidance(text);
+    expect(events.filter(event => event.type === 'output')).toEqual([]);
+  });
+
+  it('preserves a real partial reply separately from the authentication diagnostic', () => {
+    const events = normalize([{ type: 'text', text: 'Partial reply' }], false);
+    expectGuidance(diagnostic(events));
+    expect(diagnostic(events)).not.toContain('Partial reply');
+    expect(events).toContainEqual(expect.objectContaining({ type: 'output',
+      event: expect.objectContaining({ type: 'text_delta', text: 'Partial reply' }) }));
+  });
+
+  it.each(['rate_limit', 'billing_error', 'server_error'])('leaves %s errors unchanged', error => {
+    expect(diagnostic(normalize([{ type: 'text', text: 'Native diagnostic' }], true, error)))
+      .toBe('Native diagnostic');
+  });
+});
+
 describe('Claude task notification presentation', () => {
   it('keeps completion separate from the later native consumption boundary', () => {
     const events = new ClaudeExecutionEventNormalizer().normalize({
