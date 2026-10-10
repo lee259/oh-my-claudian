@@ -152,7 +152,7 @@
 .claudian-model-settings-heading {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 4px 8px;
   margin-bottom: 8px;
   color: var(--text-muted);
@@ -160,6 +160,7 @@
 }
 
 .claudian-model-settings-name {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   color: var(--text-normal);
