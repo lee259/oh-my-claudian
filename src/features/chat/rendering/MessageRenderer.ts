@@ -74,6 +74,7 @@ import {
 import { MarkdownRenderScope } from './MarkdownRenderScope';
 import { renderMermaidDiagram } from './MermaidRenderer';
 import { getOrCreateMessageActionRow } from './MessageActionRow';
+import { ScrollFollowController } from './ScrollFollowController';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
 import {
   renderStoredAsyncSubagent,
@@ -150,11 +151,7 @@ export class MessageRenderer {
   }>();
   private readonly activityPhaseOverrides = new Map<string, boolean>();
   private readonly streamingWorkFoldOverrides = new Map<string, boolean>();
-  private readonly streamingWorkViewports = new WeakMap<HTMLElement, {
-    element: HTMLElement;
-    scrollTop: number;
-    following: boolean;
-  }>();
+  private readonly streamingWorkViewports = new WeakMap<HTMLElement, ScrollFollowController>();
   private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
   private plugin: FeatureHost;
@@ -184,6 +181,7 @@ export class MessageRenderer {
       navigate(messageId: string, branchMessageId?: string): Promise<void>;
       isBusy(): boolean;
     },
+    private readonly shouldAutoFollow?: () => boolean,
   ) {
     this.app = plugin.app;
     this.plugin = plugin;
@@ -339,7 +337,7 @@ export class MessageRenderer {
     // Skip empty bubbles while retaining image-only and quote-only messages.
     if (msg.role === 'user') {
       if (!userPresentation?.body.trim() && !userPresentation?.quote) {
-        this.scrollToBottom();
+        if (this.canAutoFollow()) this.scrollToBottom();
         const lastChild = this.messagesEl.lastElementChild as HTMLElement;
         return lastChild ?? this.messagesEl;
       }
@@ -377,7 +375,7 @@ export class MessageRenderer {
     if (msg.role === 'user') {
       this.renderMessageTimestamp(msgEl, msg.timestamp);
     }
-    this.scrollToBottom();
+    if (this.canAutoFollow()) this.scrollToBottom();
     return msgEl;
   }
 
@@ -1307,6 +1305,7 @@ export class MessageRenderer {
       const label = header?.querySelector<HTMLElement>('.claudian-completed-work-label');
       if (history) {
         this.captureStreamingWorkViewport(fold, history);
+        this.streamingWorkViewports.get(fold)?.dispose();
         const parent = fold.parentElement ?? contentEl;
         for (const child of Array.from(history.children)) {
           this.restoreStreamingActivityElement(child as HTMLElement, parent, fold);
@@ -1324,21 +1323,13 @@ export class MessageRenderer {
   private captureStreamingWorkViewport(fold: HTMLElement, history: HTMLElement): void {
     const viewport = this.streamingWorkViewports.get(fold);
     if (!viewport || viewport.element !== history || history.hidden) return;
-    // Content growth can emit scroll events without moving the viewport.
-    // Keep following in that case; a user scroll records a new position.
-    const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight <= 20;
-    if (history.scrollTop !== viewport.scrollTop || atBottom) viewport.following = atBottom;
-    viewport.scrollTop = history.scrollTop;
+    viewport.capture();
   }
 
   private restoreStreamingWorkViewport(fold: HTMLElement): void {
     const viewport = this.streamingWorkViewports.get(fold);
     if (!viewport || viewport.element.hidden) return;
-    const history = viewport.element;
-    history.scrollTop = viewport.following && (this.plugin.settings.enableAutoScroll ?? true)
-      ? history.scrollHeight
-      : viewport.scrollTop;
-    viewport.scrollTop = history.scrollTop;
+    viewport.restore(this.plugin.settings.enableAutoScroll ?? true);
   }
 
   private renderStreamingTimeline(
@@ -1378,15 +1369,7 @@ export class MessageRenderer {
       });
       historyEl.hidden = !expanded;
       const previousViewport = this.streamingWorkViewports.get(statusEl);
-      this.streamingWorkViewports.set(statusEl, {
-        element: historyEl,
-        scrollTop: previousViewport?.scrollTop ?? 0,
-        following: previousViewport?.following ?? true,
-      });
-      const history = historyEl;
-      history.addEventListener('scroll', () => {
-        this.captureStreamingWorkViewport(statusEl, history);
-      });
+      this.streamingWorkViewports.set(statusEl, new ScrollFollowController(historyEl, previousViewport));
       headerEl.addEventListener('click', () => {
         const nextExpanded = historyEl!.hidden === true;
         this.streamingWorkFoldOverrides.set(msg.id, nextExpanded);
@@ -3005,12 +2988,18 @@ export class MessageRenderer {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
 
+  private canAutoFollow(): boolean {
+    return (this.plugin.settings.enableAutoScroll ?? true) && (this.shouldAutoFollow?.() ?? true);
+  }
+
   /** Scrolls to bottom if already near bottom (within threshold). */
   scrollToBottomIfNeeded(threshold = 100): void {
+    if (!this.canAutoFollow()) return;
     const { scrollTop, scrollHeight, clientHeight } = this.messagesEl;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < threshold;
     if (isNearBottom) {
       window.requestAnimationFrame(() => {
+        if (!this.canAutoFollow()) return;
         this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
       });
     }

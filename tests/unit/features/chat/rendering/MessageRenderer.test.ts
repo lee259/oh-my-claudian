@@ -124,6 +124,7 @@ function createRenderer(
   providerId: 'claude' | 'codex' | 'grok' = 'claude',
   settings: Record<string, unknown> = {},
   forkCallback?: (messageId: string) => Promise<void>,
+  shouldAutoFollow?: () => boolean,
 ) {
   const el = messagesEl ?? createMockEl();
   const comp = createMockComponent();
@@ -139,6 +140,9 @@ function createRenderer(
       undefined,
       forkCallback,
       mockCapabilities(providerId),
+      undefined,
+      undefined,
+      shouldAutoFollow,
     ),
     messagesEl: el,
   };
@@ -1443,6 +1447,7 @@ describe('MessageRenderer', () => {
       ['reading earlier work', 240, false, true],
       ['following the latest work', 800, false, true],
       ['content grows before projection', 800, true, true],
+      ['user scrolls up near the bottom', 790, false, true],
       ['auto-scroll is disabled', 800, false, false],
     ])(
       'preserves the streaming history viewport when %s', (_mode, scrollTop, grows, enableAutoScroll) => {
@@ -1469,6 +1474,9 @@ describe('MessageRenderer', () => {
         Object.assign(history, { scrollTop, scrollHeight: 1000, clientHeight: 200 });
         // A native scroll event records the user's position before the next update.
         history.dispatchEvent('scroll');
+        if (_mode === 'user scrolls up near the bottom') {
+          history.dispatchEvent({ type: 'wheel', target: history, deltaY: -10 } as unknown as Event);
+        }
         if (grows) history.scrollHeight += 100;
         const createDiv = fold.createDiv.bind(fold);
         fold.createDiv = (options: { cls?: string; text?: string }) => {
@@ -3767,6 +3775,34 @@ describe('MessageRenderer', () => {
   // ============================================
   // Scroll utilities
   // ============================================
+
+  it('does not pull a paused reader down when an assistant message is added', () => {
+    const messages = createMockEl();
+    Object.assign(messages, { scrollTop: 890, scrollHeight: 1000, clientHeight: 100 });
+    const { renderer } = createRenderer(messages, 'claude', {}, undefined, () => false);
+    renderer.addMessage({ id: 'new-assistant', role: 'assistant', content: '', timestamp: 1 });
+    expect(messages.scrollTop).toBe(890);
+  });
+
+  it('rechecks follow intent before a queued near-bottom scroll', () => {
+    let following = true;
+    let callback!: FrameRequestCallback;
+    const requestFrame = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(next => {
+      callback = next;
+      return 1;
+    });
+    try {
+      const messages = createMockEl();
+      Object.assign(messages, { scrollTop: 890, scrollHeight: 1000, clientHeight: 100 });
+      const { renderer } = createRenderer(messages, 'claude', {}, undefined, () => following);
+      renderer.scrollToBottomIfNeeded();
+      following = false;
+      callback(0);
+      expect(messages.scrollTop).toBe(890);
+    } finally {
+      requestFrame.mockRestore();
+    }
+  });
 
   it('scrollToBottom sets scrollTop to scrollHeight', () => {
     const messagesEl = createMockEl();

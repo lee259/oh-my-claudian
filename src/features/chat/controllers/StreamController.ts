@@ -56,6 +56,7 @@ import type { FeatureHost } from '../../FeatureHost';
 import { FLAVOR_TEXTS } from '../constants';
 import { hasDiagramFence } from '../rendering/DisplayOnlyCodeFences';
 import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
+import { ScrollFollowController } from '../rendering/ScrollFollowController';
 import { resolveSubagentAdapter } from '../rendering/subagentAdapterResolution';
 import {
   addSubagentToolCall,
@@ -156,6 +157,7 @@ export class StreamController {
   private viewportVisible = true;
   private pendingToolOutputFrames = new Map<string, ScheduledAnimationFrame>();
   private pendingScrollFrame: ScheduledAnimationFrame | null = null;
+  private thinkingViewport: ScrollFollowController | null = null;
   private highestContextUsage: {
     model?: string;
     contextWindow: number;
@@ -200,11 +202,31 @@ export class StreamController {
       maxIntervalMs: 500,
       render: async (snapshot) => {
         const { el, content, getOptions, options: explicitOptions } = snapshot;
+        const thinkingState = this.deps.state.currentThinkingState;
+        const thinkingScrollTop = el.scrollTop;
+        const viewport = this.thinkingViewport?.element === el ? this.thinkingViewport : null;
+        viewport?.capture();
+        const followVersion = viewport?.version;
+        // Thinking has a bounded viewport independent of the transcript. Read
+        // its position before rendering, while the old bottom is still valid.
+        const followThinking = thinkingState?.contentEl === el
+          && thinkingState.isExpanded
+          && (this.deps.plugin.settings.enableAutoScroll ?? true)
+          && viewport?.following;
         const options = getOptions ? getOptions() : explicitOptions;
         if (options) {
           await this.deps.renderer.renderContent(el, content, options);
         } else {
           await this.deps.renderer.renderContent(el, content);
+        }
+        if (followThinking
+          && this.deps.state.currentThinkingState === thinkingState
+          && thinkingState.isExpanded
+          && viewport === this.thinkingViewport
+          && viewport?.version === followVersion
+          && (this.deps.plugin.settings.enableAutoScroll ?? true)
+          && el.scrollTop >= thinkingScrollTop) {
+          viewport.restore(true);
         }
         if (snapshot.shouldFollowScroll) this.scrollToBottom();
       },
@@ -1469,6 +1491,8 @@ export class StreamController {
         );
       }
       state.currentThinkingState = thinkingState;
+      this.thinkingViewport?.dispose();
+      this.thinkingViewport = new ScrollFollowController(thinkingState.contentEl);
       this.deps.renderer.startCompletedWork?.(state.currentContentEl, state.responseStartTime);
       this.syncThinkingRenderAvailability();
     }
@@ -1511,6 +1535,8 @@ export class StreamController {
     }
 
     state.currentThinkingState = null;
+    this.thinkingViewport?.dispose();
+    this.thinkingViewport = null;
     this.thinkingRenderCoordinator.cancel();
   }
 
@@ -1521,6 +1547,10 @@ export class StreamController {
     if (this.deps.state.currentThinkingState !== thinkingState) return;
 
     thinkingState.isExpanded = isExpanded;
+    if (isExpanded && (this.deps.plugin.settings.enableAutoScroll ?? true)) {
+      this.thinkingViewport?.resume();
+      this.thinkingViewport?.restore(true);
+    }
     this.syncThinkingRenderAvailability();
   }
 
@@ -2377,6 +2407,8 @@ export class StreamController {
     this.thinkingRenderCoordinator.cancel();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
+    this.thinkingViewport?.dispose();
+    this.thinkingViewport = null;
     this.hideThinkingIndicator();
     this.deps.clearToolActivities?.();
     state.currentContentEl = null;
