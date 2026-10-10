@@ -82,6 +82,10 @@ Completed work is grouped into expandable summaries. Open a summary to inspect i
 
 With **Auto-scroll during streaming** enabled, new content follows the bottom. Scroll up to read earlier content; return to the bottom to resume following. Expanded work history keeps its own reading position. Use **Expand file edits by default** in the display settings if you prefer to see edit details immediately.
 
+### Switch focus between a note and chat
+
+Assign a shortcut to **Oh My Claudian: Toggle chat input focus** in **Settings → Hotkeys**. It moves focus to an existing visible chat input in the current window; press it again to return to the previous control without changing your draft or editor selection. Hidden inputs are skipped, and the command does not open a chat. No shortcut is assigned by default.
+
 ### Edit selected text
 
 Select text in a note and run the inline-edit command from Obsidian's command palette. Describe the change, inspect the word-level diff, and apply the result.

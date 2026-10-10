@@ -205,6 +205,15 @@ describe('ClaudianPlugin', () => {
       });
     });
 
+    it('registers a chat input focus toggle without imposing a default hotkey', async () => {
+      await plugin.onload();
+      expect(plugin.addCommand).toHaveBeenCalledWith({
+        id: 'toggle-chat-input-focus',
+        name: 'Toggle chat input focus',
+        checkCallback: expect.any(Function),
+      });
+    });
+
     it('registers the file explorer context menu', async () => {
       await plugin.onload();
 
