@@ -1204,6 +1204,7 @@ function initializeContextManagers(
     { onUserImagesChanged: onUserModified },
     dom.contextRowEl,
     contextTray,
+    plugin.app,
   );
 }
 

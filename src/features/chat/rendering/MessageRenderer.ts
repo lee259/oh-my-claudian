@@ -164,7 +164,7 @@ export class MessageRenderer {
   private liveMessageEls = new Map<string, HTMLElement>();
   private readonly contentRenders = new Map<HTMLElement, MarkdownRenderScope>();
   private contentRemovalObserver?: MutationObserver;
-  private readonly imagePreviewModal = new ImagePreviewModal();
+  private readonly imagePreviewModal: ImagePreviewModal;
   private isDisposed = false;
   /** Set while rendering a read-only surface (e.g. subagent transcripts). */
   private suppressConversationActions = false;
@@ -184,6 +184,7 @@ export class MessageRenderer {
     private readonly shouldAutoFollow?: () => boolean,
   ) {
     this.app = plugin.app;
+    this.imagePreviewModal = new ImagePreviewModal(this.app);
     this.plugin = plugin;
     this.component = component;
     this.messagesEl = messagesEl;

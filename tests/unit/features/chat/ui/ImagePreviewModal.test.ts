@@ -1,4 +1,5 @@
 import { createMockEl } from '@test/helpers/MockElement';
+import { Scope } from 'obsidian';
 
 import type { ImageAttachment } from '@/core/types';
 import { ImagePreviewModal } from '@/features/chat/ui/ImagePreviewModal';
@@ -57,6 +58,49 @@ function createDocumentHarness(previouslyFocusedElement: unknown = {
 }
 
 describe('ImagePreviewModal', () => {
+  it('closes the preview without cancelling a turn when Obsidian handles Escape first', () => {
+    const harness = createDocumentHarness();
+    const cancelStreaming = jest.fn();
+    const chatScope = new Scope();
+    chatScope.register([], 'Escape', () => { cancelStreaming(); return false; });
+    const scopes = [chatScope];
+    const keymap = {
+      pushScope: jest.fn((scope: Scope) => scopes.push(scope)),
+      popScope: jest.fn((scope: Scope) => {
+        const index = scopes.indexOf(scope);
+        if (index >= 0) scopes.splice(index, 1);
+      }),
+    };
+    // Obsidian installs its key handler before an image preview is opened.
+    harness.ownerDocument.addEventListener('keydown', (event: KeyboardEvent) => {
+      const scope = scopes[scopes.length - 1] as Scope & {
+        handlers: Array<{ key: string; func: (event: KeyboardEvent) => unknown }>;
+      };
+      scope.handlers.find(handler => handler.key === event.key)?.func(event);
+    });
+    const modal = new ImagePreviewModal({ scope: chatScope, keymap } as never);
+    modal.open(harness.ownerDocument, IMAGE);
+    const event = {
+      key: 'Escape', isComposing: false,
+      preventDefault: jest.fn(), stopPropagation: jest.fn(), stopImmediatePropagation: jest.fn(),
+    } as unknown as KeyboardEvent;
+    for (const handler of [...harness.listeners.get('keydown')!]) {
+      if (harness.listeners.get('keydown')!.includes(handler)) handler(event);
+    }
+
+    expect(cancelStreaming).not.toHaveBeenCalled();
+    expect(keymap.pushScope).toHaveBeenCalledTimes(1);
+    expect(keymap.popScope).toHaveBeenCalledTimes(1);
+    expect(scopes).toEqual([chatScope]);
+    expect((harness.previouslyFocusedElement as { focus: jest.Mock }).focus).toHaveBeenCalledTimes(1);
+
+    // Once the preview is gone, Escape can intentionally stop the chat again.
+    harness.listeners.get('keydown')![0](event);
+    expect(cancelStreaming).toHaveBeenCalledTimes(1);
+    modal.close();
+    expect(keymap.popScope).toHaveBeenCalledTimes(1);
+  });
+
   it('opens a named dialog with a focused native close button', () => {
     const harness = createDocumentHarness();
     const modal = new ImagePreviewModal();
@@ -136,6 +180,7 @@ describe('ImagePreviewModal', () => {
       isComposing: false,
       preventDefault: jest.fn(),
       stopPropagation: jest.fn(),
+      stopImmediatePropagation: jest.fn(),
     };
     escapeHarness.listeners.get('keydown')?.[0](escapeEvent);
     expect(removeEscapeOverlay).toHaveBeenCalledTimes(1);
