@@ -274,6 +274,7 @@ function extendLiveWorkFold(
 
 function isActivityBlock(block: ContentBlock, pendingToolIds: ReadonlySet<string>): boolean {
   if (block.type === 'thinking') return !!block.content.trim();
+  if (block.type === 'task_notification') return true;
   if (block.type === 'tool_use') return !pendingToolIds.has(block.toolId);
   if (block.type === 'subagent') return !pendingToolIds.has(block.subagentId);
   return block.type === 'context_compacted';

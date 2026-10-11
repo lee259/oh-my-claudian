@@ -244,6 +244,66 @@ describe('MessageRenderer', () => {
       expect(contentEl.contains(answerEl)).toBe(true);
     });
 
+    it('folds task notifications and their surrounding subagent progress into completed work', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const messageEl = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant',
+        attr: { 'data-message-id': 'subagent-progress' },
+      });
+      const contentEl = messageEl.createDiv({ cls: 'claudian-message-content' });
+      const agentEl = contentEl.createDiv({ cls: 'claudian-subagent-list' });
+      agentEl.setAttribute('data-tool-id', 'agent-1');
+      const notification = contentEl.createDiv({ cls: 'claudian-task-notification' });
+      const notificationHistory = notification.createDiv({ cls: 'claudian-work-history' });
+      notificationHistory.hidden = true;
+      const progress = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Agent progress.' });
+      const toolEl = contentEl.createDiv({ cls: 'claudian-tool-call' });
+      toolEl.setAttribute('data-tool-id', 'read-1');
+      const answer = contentEl.createDiv({ cls: 'claudian-text-block', text: 'Final answer.' });
+      const querySelector = messagesEl.querySelector.bind(messagesEl);
+      messagesEl.querySelector = jest.fn((selector: string) =>
+        selector.includes('subagent-progress') ? messageEl : querySelector(selector));
+
+      renderer.finalizeCompletedWork({
+        id: 'subagent-progress',
+        role: 'assistant',
+        content: 'Final answer.',
+        timestamp: Date.now(),
+        toolCalls: [
+          {
+            id: 'agent-1',
+            name: 'Agent',
+            input: {},
+            status: 'completed',
+            subagent: {
+              id: 'agent-1',
+              description: 'Inspect the project',
+              status: 'completed',
+              toolCalls: [],
+              isExpanded: false,
+            },
+          },
+          { id: 'read-1', name: 'Read', input: {}, status: 'completed' },
+        ],
+        contentBlocks: [
+          { type: 'subagent', subagentId: 'agent-1' },
+          { type: 'task_notification', content: 'Agent completed.' },
+          { type: 'text', content: 'Agent progress.' },
+          { type: 'tool_use', toolId: 'read-1' },
+          { type: 'text', content: 'Final answer.' },
+        ],
+      } as ChatMessage);
+
+      const history = contentEl.querySelector('.claudian-completed-work-history');
+      expect(history?.contains(agentEl)).toBe(true);
+      expect(history?.contains(notification)).toBe(true);
+      expect(history?.contains(progress)).toBe(true);
+      expect(history?.contains(toolEl)).toBe(true);
+      expect(contentEl.contains(answer)).toBe(true);
+      expect(notificationHistory.hidden).toBe(true);
+    });
+
     it('folds completed turn activity while keeping the final answer visible', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl, 'claude', {}, jest.fn());
