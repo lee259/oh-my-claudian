@@ -203,6 +203,29 @@ describe('buildActivityTimeline', () => {
     expect(timeline.fold).toEqual({ start: 0, end: 3 });
   });
 
+  it('folds task notifications together with surrounding subagent progress', () => {
+    const blocks: ContentBlock[] = [
+      { type: 'tool_use', toolId: 'agent-1' },
+      { type: 'task_notification', content: 'Agent completed.' },
+      { type: 'text', content: 'The agent found the relevant implementation.' },
+      { type: 'tool_use', toolId: 'read-1' },
+      { type: 'text', content: 'Here is the final answer.' },
+    ];
+
+    const timeline = buildTimeline(blocks, {
+      toolNames: new Map([
+        ['agent-1', 'Agent'],
+        ['read-1', 'Read'],
+      ]),
+    });
+
+    expect(timeline.items.map((item) => item.type)).toEqual([
+      'activity', 'block', 'activity', 'block',
+    ]);
+    expect(timeline.fold).toEqual({ start: 0, end: 2 });
+    expect(timeline.items.at(-1)).toMatchObject({ type: 'block', blockIndex: 4 });
+  });
+
   it('assigns an explicit semantic kind to a phase using its tool steps', () => {
     const blocks: ContentBlock[] = [
       { type: 'tool_use', toolId: 'edit-1' },
