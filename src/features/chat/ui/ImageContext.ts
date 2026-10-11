@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { type App, Notice } from 'obsidian';
 import * as path from 'path';
 
 import { normalizeImageMediaType } from '@/utils/imageAttachment';
@@ -30,7 +30,7 @@ export class ImageContextManager {
   private inputEl: HTMLTextAreaElement;
   private dropOverlay: HTMLElement | null = null;
   private attachedImages: Map<string, ImageAttachment> = new Map();
-  private readonly imagePreviewModal = new ImagePreviewModal();
+  private readonly imagePreviewModal: ImagePreviewModal;
   private destroyed = false;
   private enabled = true;
 
@@ -40,7 +40,9 @@ export class ImageContextManager {
     callbacks: ImageContextCallbacks,
     previewContainerEl?: HTMLElement,
     contextTray?: ComposerContextTray,
+    app?: Pick<App, 'keymap' | 'scope'>,
   ) {
+    this.imagePreviewModal = new ImagePreviewModal(app);
     this.containerEl = containerEl;
     this.inputEl = inputEl;
     this.callbacks = callbacks;

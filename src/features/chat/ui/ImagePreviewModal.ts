@@ -1,3 +1,5 @@
+import { type App, Scope } from 'obsidian';
+
 import type { ImageAttachment } from '../../../core/types';
 
 function getFocusableActiveElement(ownerDocument: Document): HTMLElement | null {
@@ -12,6 +14,8 @@ function getFocusableActiveElement(ownerDocument: Document): HTMLElement | null 
 export class ImagePreviewModal {
   private closeCurrent: (() => void) | null = null;
 
+  constructor(private readonly app?: Pick<App, 'keymap' | 'scope'>) {}
+
   open(ownerDocument: Document, image: ImageAttachment): void {
     this.openSource(ownerDocument, `data:${image.mediaType};base64,${image.data}`, image.name);
   }
@@ -20,6 +24,8 @@ export class ImagePreviewModal {
     this.close();
 
     const keyboardWindow = ownerDocument.defaultView;
+    const keymap = this.app?.keymap;
+    const scope = keymap ? new Scope(this.app?.scope) : null;
     const addKeyboardListener = (handler: (event: KeyboardEvent) => void) => {
       if (keyboardWindow) {
         keyboardWindow.addEventListener('keydown', handler, true);
@@ -62,6 +68,7 @@ export class ImagePreviewModal {
       if (isClosed) return;
       isClosed = true;
       removeKeyboardListener(handleKeyDown);
+      if (scope) keymap?.popScope(scope);
       overlay.remove();
       if (this.closeCurrent === close) {
         this.closeCurrent = null;
@@ -74,6 +81,7 @@ export class ImagePreviewModal {
       if (event.key === 'Escape' && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         close();
       } else if (event.key === 'Tab') {
         event.preventDefault();
@@ -85,6 +93,16 @@ export class ImagePreviewModal {
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) close();
     });
+    // Obsidian's key handler can run before DOM listeners registered by this
+    // preview. Own Escape in its keymap so the chat scope cannot cancel a turn.
+    if (scope) {
+      scope.register([], 'Escape', (event) => {
+        if (event.isComposing) return;
+        handleKeyDown(event);
+        return false;
+      });
+      keymap?.pushScope(scope);
+    }
     addKeyboardListener(handleKeyDown);
     this.closeCurrent = close;
     closeButton.focus();
