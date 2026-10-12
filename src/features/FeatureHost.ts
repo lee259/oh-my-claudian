@@ -12,6 +12,7 @@ import type {
 } from '../core/types';
 import type { ChatExecutionPersistence } from './chat/execution/ChatExecutionCoordinator';
 import type { WarmExecutionPool } from './chat/execution/WarmExecutionPool';
+import type { ConversationRuntimeRegistry } from './chat/sessions/ConversationRuntimeRegistry';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
 export interface FeatureTabManagerHost {
@@ -53,6 +54,7 @@ export interface FeatureHost {
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
   readonly warmExecutionPool: WarmExecutionPool;
+  readonly conversationRuntimes: ConversationRuntimeRegistry;
 
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,

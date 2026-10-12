@@ -125,7 +125,18 @@ function renderLegacyHomeSurface(
       homeOptions.onOpenConversation?.(conversation.id);
     });
 
-    if (homeOptions.onArchiveConversation) {
+    if (isLoading && hasRuntimeStatus && homeOptions.onStopConversation) {
+      const stopButton = row.createEl('button', {
+        cls: 'claudian-home-conversation-archive claudian-home-conversation-stop',
+        attr: { type: 'button', 'aria-label': t('chat.history.stop') },
+      });
+      setIcon(stopButton, 'square');
+      stopButton.addEventListener('click', event => {
+        event.stopPropagation();
+        homeOptions.onStopConversation?.(conversation.id);
+      });
+    }
+    if (homeOptions.onArchiveConversation && !(isLoading && hasRuntimeStatus && homeOptions.onStopConversation)) {
       const archiveButton = row.createEl('button', {
         cls: 'claudian-home-conversation-archive',
         attr: { type: 'button', 'aria-label': t('chat.history.archive') },

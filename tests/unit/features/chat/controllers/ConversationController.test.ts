@@ -971,6 +971,32 @@ describe('ConversationController', () => {
     });
 
     describe('renderHistoryDropdown', () => {
+      it('offers Stop for running conversations even when no tab is open and waits before refreshing', async () => {
+        const container = createMockEl();
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'background-1', title: 'Background', createdAt: 1000, lastActivityAt: 1000 },
+        ]);
+        let finish!: () => void;
+        const stop = jest.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+        const refresh = jest.fn();
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          getConversationStatus: () => ({ openState: 'closed', isRunning: true }),
+          onStopConversation: stop,
+          onRerender: refresh,
+        });
+        const button = container.querySelector('.claudian-stop-session-btn');
+        expect(button).not.toBeNull();
+        button!.click();
+        expect(stop).toHaveBeenCalledWith('background-1');
+        expect(refresh).not.toHaveBeenCalled();
+        finish();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(refresh).toHaveBeenCalledTimes(1);
+      });
+
       it('labels the conversation selector as Sessions', () => {
         const container = createMockEl();
 

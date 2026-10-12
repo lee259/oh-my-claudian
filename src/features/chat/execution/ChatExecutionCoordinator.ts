@@ -469,6 +469,35 @@ export class ChatExecutionCoordinator {
     }
   }
 
+  get hasSessionWork(): boolean {
+    return this.activeExecution !== null || (this.sessionBinding?.session.hasBackgroundWork?.() ?? false);
+  }
+
+  /** Explicit whole-session Stop, including provider-owned background work. */
+  async stopSessionWork(waitForTurn?: Promise<void> | null): Promise<void> {
+    this.cancel();
+    const binding = this.sessionBinding;
+    binding?.session.cancel();
+    try {
+      await waitForTurn;
+    } finally {
+      // Some providers only cancel their active run. Release residual native
+      // child work after turn persistence, without stopping a replacement binding.
+      if (binding && this.sessionBinding === binding
+        && binding.session.hasBackgroundWork?.() && !this.activeExecution) {
+        await this.runProtectedOperation(async () => {
+          try {
+            await this.persistSnapshot(binding, binding.session.getSnapshot());
+          } finally {
+            if (this.sessionBinding === binding && !this.activeExecution) {
+              await this.releaseSessionBinding();
+            }
+          }
+        });
+      }
+    }
+  }
+
   cancel(): void {
     this.requestController?.abort();
     const active = this.activeExecution;

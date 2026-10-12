@@ -98,6 +98,7 @@ class FakeSession implements ProviderExecutionSession,
   readonly runs: FakeRun[] = [];
   readonly steerRequests: ProviderExecutionRequest[] = [];
   readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
+  hasBackgroundWork?: () => boolean;
   cancelCalls = 0;
   disposeCalls = 0;
   status: ProviderSessionStatus = 'idle';
@@ -1230,6 +1231,19 @@ describe('ChatExecutionCoordinator', () => {
       0,
       snapshot,
     );
+  });
+
+  it('explicit session Stop cancels provider background work after the requested turn ends', async () => {
+    const harness = createHarness();
+    const { session, run, resultPromise } = await beginExecution(harness);
+    run.events.end();
+    await resultPromise;
+    session.hasBackgroundWork = () => true;
+    expect(harness.coordinator.hasSessionWork).toBe(true);
+    await harness.coordinator.stopSessionWork();
+    expect(session.cancelCalls).toBe(1);
+    expect(session.disposeCalls).toBe(1);
+    expect(harness.coordinator.hasSessionWork).toBe(false);
   });
 
   it('cancels only the active run and reports cancellation', async () => {

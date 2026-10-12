@@ -362,15 +362,12 @@ export class ClaudianView extends ItemView {
   getWelcomeHomeOptions() {
     return {
       getConversations: () => this.plugin.getConversationList(),
-      isConversationRunning: (conversationId: string) => {
-        const localTab = this.findTabWithConversation(conversationId);
-        if (localTab) return localTab.state.isStreaming;
-
-        const crossViewResult = this.plugin.findConversationAcrossViews(conversationId);
-        if (!crossViewResult || crossViewResult.view === this) return false;
-
-        const crossViewTab = crossViewResult.view.getTabManager()?.getTab(crossViewResult.tabId);
-        return crossViewTab?.state.isStreaming ?? false;
+      isConversationRunning: (conversationId: string) => this.plugin.conversationRuntimes?.isRunning(conversationId)
+        ?? this.getHistoryConversationStatus(conversationId).isRunning,
+      onStopConversation: (conversationId: string) => {
+        void this.plugin.conversationRuntimes.stop(conversationId).catch(() => {
+          new Notice(t('chat.errors.stopSession'));
+        });
       },
       onBack: () => {
         void this.activateOrCreateDraftTab().catch(() => new Notice(t('chat.errors.returnHome')));
@@ -828,6 +825,7 @@ export class ClaudianView extends ItemView {
       conversationController.renderHistoryDropdown(container, {
         onSelectConversation: (id) => this.openHistoryConversation(id),
         getConversationStatus: (id) => this.getHistoryConversationStatus(id),
+        onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
         onRerender: () => this.updateHistoryDropdown(),
         showOpenStateLabels: overrides.showOpenStateLabels ?? false,
         showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
@@ -867,6 +865,7 @@ export class ClaudianView extends ItemView {
     conversationController.renderHistoryDropdown(container, {
       onSelectConversation: (id) => this.openHistoryConversation(id),
       getConversationStatus: (id) => this.getHistoryConversationStatus(id),
+      onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
       onRerender: () => this.updateHistoryDropdown(),
       showOpenStateLabels: overrides.showOpenStateLabels ?? false,
       showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
@@ -903,6 +902,7 @@ export class ClaudianView extends ItemView {
         (archiveSection) => conversationController.renderHistoryDropdown(archiveSection, {
           onSelectConversation: (id) => this.openHistoryConversation(id),
           getConversationStatus: (id) => this.getHistoryConversationStatus(id),
+          onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
           onRerender: () => {
             const visibleCount = Number(
               archiveSection.querySelector<HTMLElement>('.claudian-history-list')?.dataset.visibleCount,
@@ -1011,7 +1011,8 @@ export class ClaudianView extends ItemView {
     }
 
     const openTabs = this.getOpenConversationTabs(conversationId);
-    if (openTabs.some(({ tab }) => tab.state.isStreaming)) {
+    if (this.plugin.conversationRuntimes?.hasWork(conversationId)
+      || openTabs.some(({ tab }) => tab.state.isStreaming)) {
       new Notice(t('chat.errors.runningArchive'));
       return;
     }
@@ -1066,12 +1067,13 @@ export class ClaudianView extends ItemView {
   }
 
   private getHistoryConversationStatus(conversationId: string): HistoryConversationStatus {
+    const runtime = this.plugin.conversationRuntimes?.get(conversationId);
     const activeTab = this.tabManager?.getActiveTab();
     if (activeTab?.conversationId === conversationId) {
       return {
         attention: activeTab.state.attention,
         openState: 'current',
-        isRunning: activeTab.state.isStreaming,
+        isRunning: runtime?.isRunning ?? activeTab.state.isStreaming,
         location: 'current-view',
         tabIndex: this.getHistoryTabIndex(activeTab),
       };
@@ -1082,7 +1084,7 @@ export class ClaudianView extends ItemView {
       return {
         attention: localTab.state.attention,
         openState: 'open',
-        isRunning: localTab.state.isStreaming,
+        isRunning: runtime?.isRunning ?? localTab.state.isStreaming,
         location: 'current-view',
         tabIndex: this.getHistoryTabIndex(localTab),
       };
@@ -1094,14 +1096,15 @@ export class ClaudianView extends ItemView {
       return {
         attention: crossViewTab?.state.attention,
         openState: 'open',
-        isRunning: crossViewTab?.state.isStreaming ?? false,
+        isRunning: runtime?.isRunning ?? crossViewTab?.state.isStreaming ?? false,
         location: 'other-view',
       };
     }
 
     return {
       openState: 'closed',
-      isRunning: false,
+      isRunning: runtime?.isRunning ?? false,
+      attention: runtime?.state.attention,
       location: 'current-view',
     };
   }

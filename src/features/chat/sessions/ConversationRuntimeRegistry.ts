@@ -14,21 +14,66 @@ export class ConversationRuntimeRegistry {
   private closed = false;
   private readonly lateDisposalErrors: Error[] = [];
   private disposal: Promise<void> | null = null;
+  private readonly subscriptions = new Map<string, () => void>();
 
   constructor(private readonly disposeRuntime: (runtime: ConversationRuntime) => Promise<void> = async runtime => {
     runtime.state.dismissInteractions('session-disposed');
-    await runtime.disposeExecutionCoordinator();
-    await runtime.activeTurn?.catch(() => undefined);
-    await runtime.awaitBackgroundWork();
-  }) {}
+    runtime.services.titleGenerationService?.cancel();
+    runtime.services.instructionRefineService?.cancel();
+    try {
+      await runtime.stop();
+      await runtime.controllers.conversationController?.save(false);
+    } finally {
+      await runtime.disposeExecutionCoordinator();
+    }
+  }, private readonly onChanged: () => void = () => undefined) {}
 
-  private readonly runtimes = new Map<string, ConversationRuntime>();
   private readonly byRuntimeId = new Map<string, ConversationRuntime>();
   private readonly attachments = new Map<string, ConversationRuntimeAttachment>();
   private readonly reservations = new Map<string, Promise<ConversationRuntime>>();
 
   get(id: string): ConversationRuntime | null {
-    return this.runtimes.get(id) ?? null;
+    return this.getAll().find(runtime => runtime.conversationId === id) ?? null;
+  }
+
+  getAll(): readonly ConversationRuntime[] {
+    return [...this.byRuntimeId.values()];
+  }
+
+  /** Adopts existing tab allocation while creation and presentation migrate separately. */
+  register(runtime: ConversationRuntime): () => void {
+    if (this.closed) throw new Error('Conversation runtime registry is closed.');
+    if (this.byRuntimeId.has(runtime.id)) throw new Error('Duplicate conversation runtime ID.');
+    this.byRuntimeId.set(runtime.id, runtime);
+    const status = () => JSON.stringify([runtime.conversationId, runtime.isRunning, runtime.hasWork, runtime.state.attention]);
+    let previous = status();
+    this.subscriptions.set(runtime.id, runtime.subscribe(() => {
+      const current = status();
+      if (current === previous) return;
+      previous = current;
+      this.onChanged();
+    }));
+    return () => {
+      if (this.byRuntimeId.get(runtime.id) !== runtime) return;
+      this.subscriptions.get(runtime.id)?.();
+      this.subscriptions.delete(runtime.id);
+      this.byRuntimeId.delete(runtime.id);
+      this.attachments.delete(runtime.id);
+      this.onChanged();
+    };
+  }
+
+  isRunning(conversationId: string): boolean {
+    return this.getAll().some(runtime => runtime.conversationId === conversationId && runtime.isRunning);
+  }
+
+  hasWork(conversationId: string): boolean {
+    return this.getAll().some(runtime => runtime.conversationId === conversationId && runtime.hasWork);
+  }
+
+  async stop(conversationId: string): Promise<void> {
+    await Promise.all(this.getAll().filter(runtime => runtime.conversationId === conversationId)
+      .map(runtime => runtime.stop()));
   }
 
   getAttachment(runtimeId: string): ConversationRuntimeAttachment | null {
@@ -55,10 +100,11 @@ export class ConversationRuntimeRegistry {
     if (this.disposal) return this.disposal;
     this.closed = true;
     this.attachments.clear();
+    for (const unsubscribe of this.subscriptions.values()) unsubscribe();
+    this.subscriptions.clear();
     this.disposal = (async () => {
       await Promise.allSettled([...this.reservations.values()]);
       const results = await Promise.allSettled([...this.byRuntimeId.values()].map(runtime => this.disposeRuntime(runtime)));
-      this.runtimes.clear();
       this.byRuntimeId.clear();
       const errors = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason instanceof Error ? result.reason : new Error(String(result.reason)));
       errors.push(...this.lateDisposalErrors);
@@ -84,8 +130,7 @@ export class ConversationRuntimeRegistry {
       }
       if (created.conversationId !== id) throw new Error('Runtime conversation does not match its reservation.');
       if (this.byRuntimeId.has(created.id)) throw new Error('Duplicate conversation runtime ID.');
-      this.byRuntimeId.set(created.id, created);
-      this.runtimes.set(id, created);
+      this.register(created);
       return created;
     }).finally(() => {
       if (this.reservations.get(id) === pending) this.reservations.delete(id);

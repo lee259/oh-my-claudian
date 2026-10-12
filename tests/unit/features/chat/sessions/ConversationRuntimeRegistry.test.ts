@@ -67,3 +67,71 @@ it('reports cleanup failure from a runtime that finishes creating during unload'
   await expect(unloading).rejects.toThrow('cleanup failed');
   await expect(rejected).resolves.toBeInstanceOf(Error);
 });
+
+it('finds adopted drafts by their current conversation binding and releases only the adopted runtime', () => {
+  const registry = new ConversationRuntimeRegistry();
+  const runtime = new ConversationRuntime({ id: 'draft-1', conversationId: null, providerId: 'claude', lifecycleState: 'cold', draftModel: null });
+  const release = registry.register(runtime);
+  runtime.state.currentConversationId = 'created-conversation';
+  expect(registry.get('created-conversation')).toBe(runtime);
+  runtime.state.currentConversationId = 'replacement-conversation';
+  expect(registry.get('created-conversation')).toBeNull();
+  expect(registry.get('replacement-conversation')).toBe(runtime);
+  release();
+  expect(registry.getAll()).toEqual([]);
+});
+
+it('reports and stops work without any presentation, waiting for turn persistence and preserving siblings', async () => {
+  const registry = new ConversationRuntimeRegistry();
+  const runtime = new ConversationRuntime({ id: 'runtime-1', conversationId: 'conversation-1', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+  const sibling = new ConversationRuntime({ id: 'runtime-2', conversationId: 'conversation-2', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+  registry.register(runtime);
+  registry.register(sibling);
+  runtime.state.isStreaming = true;
+  sibling.state.isStreaming = true;
+  let finish!: () => void;
+  runtime.activeTurn = new Promise<void>(resolve => { finish = resolve; });
+  const cancel = jest.fn();
+  runtime.controllers.inputController = { cancelStreaming: cancel } as any;
+  let stopped = false;
+  const pending = registry.stop('conversation-1').then(() => { stopped = true; });
+  await Promise.resolve();
+  expect(registry.isRunning('conversation-1')).toBe(true);
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(stopped).toBe(false);
+  runtime.state.isStreaming = false;
+  runtime.activeTurn = null;
+  finish();
+  await pending;
+  expect(registry.isRunning('conversation-1')).toBe(false);
+  expect(registry.isRunning('conversation-2')).toBe(true);
+});
+
+it('publishes work changes after presentation callbacks detach without refreshing on every text delta', () => {
+  const changed = jest.fn();
+  const registry = new ConversationRuntimeRegistry(undefined, changed);
+  const runtime = new ConversationRuntime({ id: 'runtime-1', conversationId: 'conversation-1', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+  const release = registry.register(runtime);
+  const detach = runtime.bindPresentationCallbacks('pane', {});
+  detach();
+  changed.mockClear();
+  runtime.state.isStreaming = true;
+  runtime.state.messages = [];
+  runtime.state.messages = [];
+  expect(changed).toHaveBeenCalledTimes(1);
+  release();
+  changed.mockClear();
+  runtime.state.isStreaming = false;
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it('still stops native background work when the foreground turn fails', async () => {
+  const registry = new ConversationRuntimeRegistry();
+  const runtime = new ConversationRuntime({ id: 'runtime-1', conversationId: 'conversation-1', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+  const stopSessionWork = jest.fn(async () => undefined);
+  runtime.setExecutionCoordinator({ cancel: jest.fn(), stopSessionWork } as any);
+  runtime.activeTurn = Promise.reject(new Error('Turn persistence failed'));
+  registry.register(runtime);
+  await expect(registry.stop('conversation-1')).rejects.toThrow('Turn persistence failed');
+  expect(stopSessionWork).toHaveBeenCalledTimes(1);
+});
