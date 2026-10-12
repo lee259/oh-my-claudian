@@ -86,6 +86,14 @@ export class CodexSubagentTracker {
     }
   }
 
+  /** Child-thread messages describe a subagent only when the target is its descendant. */
+  childActivity(sourceThreadId: string, item: SubAgentActivityItem, turnId: string): void {
+    const source = this.agents.get(sourceThreadId);
+    if (source && item.agentPath.startsWith(`${source.agentPath}/`)) {
+      this.activity(item, turnId);
+    }
+  }
+
   turnStarted(threadId: string, turnId: string): boolean {
     const agent = this.agents.get(threadId);
     if (!agent) return false;
