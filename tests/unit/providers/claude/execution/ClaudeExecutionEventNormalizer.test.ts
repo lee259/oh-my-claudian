@@ -234,7 +234,7 @@ describe('Claude authentication conflict guidance', () => {
   };
   const expectGuidance = (text: string) => {
     expect(text).toContain('If the same CLI works with a subscription');
-    expect(text).toContain('Settings → Providers → Claude → Custom variables');
+    expect(text).toContain('Settings → Oh My Claudian → Providers → Claude Code → Environment → Custom variables');
     expect(text).toContain('only for the conflicting credential you intend to disable');
     expect(text).toContain('ANTHROPIC_API_KEY=');
     expect(text).toContain('ANTHROPIC_AUTH_TOKEN=');
