@@ -3,6 +3,7 @@ import type { JSX } from 'preact';
 export interface SelectableDropdownViewProps<T> {
   items: T[];
   selectedIndex: number;
+  listboxId?: string;
   itemClassName: string;
   emptyClassName: string;
   emptyText: string;
@@ -16,6 +17,7 @@ export interface SelectableDropdownViewProps<T> {
 export function SelectableDropdownView<T>({
   items,
   selectedIndex,
+  listboxId,
   itemClassName,
   emptyClassName,
   emptyText,
@@ -53,6 +55,9 @@ export function SelectableDropdownView<T>({
     return (
       <div
         className={className}
+        id={listboxId ? `${listboxId}-option-${index}` : undefined}
+        role={listboxId ? 'option' : undefined}
+        aria-selected={listboxId ? index === selectedIndex : undefined}
         ref={assignItemElement}
         onClick={handleClick}
         onMouseEnter={() => onItemHover?.(item, index)}

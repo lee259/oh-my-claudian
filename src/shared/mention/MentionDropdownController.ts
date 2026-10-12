@@ -1,6 +1,8 @@
 import type { TFile } from 'obsidian';
 import { setIcon } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import { buildExternalContextDisplayEntries } from '../../utils/externalContext';
 import { type ExternalContextFile, externalContextScanner } from '../../utils/externalContextScanner';
 import { extractMcpMentions } from '../../utils/mcp';
@@ -74,6 +76,7 @@ export class MentionDropdownController {
       listClassName: 'claudian-mention-dropdown',
       itemClassName: 'claudian-mention-item',
       emptyClassName: 'claudian-mention-empty',
+      accessibility: { inputEl: this.inputEl, label: t('common.inputSuggestions') },
       fixed: this.fixed,
       fixedClassName: 'claudian-mention-dropdown-fixed',
     });

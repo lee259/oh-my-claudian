@@ -132,6 +132,7 @@ describe('FileContextManager', () => {
     mockScanPaths.mockReturnValue([]);
     containerEl = createMockEl();
     inputEl = {
+      ...createMockEl('textarea'),
       value: '',
       selectionStart: 0,
       selectionEnd: 0,
