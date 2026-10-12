@@ -25,7 +25,11 @@ export class AsyncQuestionPrompts {
   private readonly queue: string[] = [];
   private activeId: string | null = null;
 
-  constructor(private readonly deps: AsyncQuestionPromptsDeps) {}
+  constructor(private deps: AsyncQuestionPromptsDeps) {}
+
+  bind(deps: AsyncQuestionPromptsDeps): void {
+    this.deps = deps;
+  }
 
   update(tool: ToolCallInfo): void {
     if (tool.name !== TOOL_ASK_USER_QUESTION || tool.input.replyMode !== 'user-message') return;

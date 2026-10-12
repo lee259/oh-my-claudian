@@ -23,6 +23,13 @@ Detailed tab membership, tab lifecycle, and snapshot rules live in `tabs/AGENTS.
 - `ChatState.response` owns the open text and thinking cursor through `ResponseModel`; foreground and background responses must use separate model instances.
 - Message content blocks and tool/subagent records must update without a mounted content element. DOM handles and rendering timers are presentation only; do not use them to decide whether provider output is retained.
 
+## Interaction State
+
+- `ChatState.interactions` owns pending approval, question, provider plan and local plan promises; `ChatState` also retains the async user-message question tracker across presentation-controller replacement.
+- Presentation attachments display one queued request and may be replaced without resolving it. Abort, conversation reset and tab disposal end requests explicitly; a detached widget must not answer its replacement.
+- Async answer delivery is request-owned: once accepted, retain the answer even if presentation detached during delivery. Reject stale or concurrent submission attempts before sending.
+- These models are in-memory runtime state, not durable approval grants. Keep provider session/turn fencing in `ChatExecutionCoordinator` and preserve close cancellation until session lifecycle migration is complete.
+
 ## Feature Rules
 
 - The chat view uses one panel. New Conversation and `/clear` replace the active tab's conversation.

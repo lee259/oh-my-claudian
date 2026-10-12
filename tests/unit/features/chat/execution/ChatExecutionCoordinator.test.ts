@@ -34,6 +34,7 @@ import {
   type WarmExecutionOwner,
   WarmExecutionPool,
 } from '@/features/chat/execution/WarmExecutionPool';
+import { PendingChatInteractions } from '@/features/chat/state/PendingChatInteractions';
 
 class EventQueue<T> implements AsyncIterable<T> {
   private readonly values: T[] = [];
@@ -2055,6 +2056,25 @@ describe('ChatExecutionCoordinator', () => {
     });
     run.events.end();
     await resultPromise;
+  });
+
+  it('rejects pending headless approval on conversation rebind instead of leaving it unresolved', async () => {
+    const harness = createHarness();
+    const pending = new PendingChatInteractions();
+    harness.interactionPort.requestApproval.mockImplementation((request, signal) => pending.requestApproval(request, signal));
+    harness.interactionPort.dismissInteraction.mockImplementation((id, reason) => pending.dismissInteraction(id, reason));
+    const { session, run, resultPromise } = await beginExecution(harness);
+    const port = harness.backends.get('claude')!.configs[0].interactionPort;
+    const response = port.requestApproval({
+      kind: 'approval', interactionId: 'headless-approval', sessionInstanceId: session.sessionInstanceId,
+      turnId: run.turnId, toolName: 'Read', input: {}, description: 'Read note',
+    }, new AbortController().signal);
+    const rejected = response.catch(error => error);
+    expect(pending.pending).toHaveLength(1);
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-2', providerId: 'codex' });
+    await expect(rejected).resolves.toBeInstanceOf(ChatExecutionInteractionStaleError);
+    await resultPromise;
+    expect(pending.pending).toEqual([]);
   });
 
   it('switches provider/conversation by immediately fencing and then releasing the old binding', async () => {

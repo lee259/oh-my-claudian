@@ -1,5 +1,5 @@
 import type { ToolCallInfo } from '@/core/types';
-import { AsyncQuestionPrompts } from '@/features/chat/rendering/AsyncQuestionPrompts';
+import { AsyncQuestionPrompts } from '@/features/chat/state/AsyncQuestionPrompts';
 
 function asyncQuestion(id: string): ToolCallInfo {
   return {
