@@ -1,11 +1,23 @@
 import type { MessageRenderer } from '../rendering/MessageRenderer';
-import type { TabControllers, TabDOMElements, TabManagerViewHost, TabUIComponents } from '../tabs/types';
+import type { ForkContext } from '../tabs/Tab';
+import type { ProviderCatalogResolver, TabControllers, TabDOMElements, TabManagerViewHost, TabUIComponents } from '../tabs/types';
 
 export type PresentationControllers = Pick<TabControllers,
   'selectionController' | 'browserSelectionController' | 'canvasSelectionController' | 'navigationController'
 >;
 
+export interface RuntimePresentationHooks {
+  openConversation?: (conversationId: string) => Promise<void>;
+  forkRequest?: (context: ForkContext) => Promise<void>;
+  getProviderCatalog?: ProviderCatalogResolver;
+}
+
 export interface RuntimePresentation {
+  readonly epoch: symbol;
+  isActive?: () => boolean;
+  getActivationRevision?: () => number;
+  captureReviewableSettlement?: (outcome?: 'completed' | 'error') => () => void;
+  hooks?: RuntimePresentationHooks;
   dom: TabDOMElements;
   ui: TabUIComponents;
   controllers: PresentationControllers;

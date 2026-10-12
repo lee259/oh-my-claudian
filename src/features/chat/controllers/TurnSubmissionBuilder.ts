@@ -17,9 +17,9 @@ import type { SelectionController } from './SelectionController';
 export interface TurnSubmissionBuilderDeps {
   plugin: FeatureHost;
   state: ChatState;
-  selectionController: SelectionController;
-  browserSelectionController?: BrowserSelectionController;
-  canvasSelectionController: CanvasSelectionController;
+  selectionController: Pick<SelectionController, 'getContext'>;
+  browserSelectionController?: Pick<BrowserSelectionController, 'getContext'>;
+  canvasSelectionController: Pick<CanvasSelectionController, 'getContext'>;
   getFileContextManager: () => FileContextManager | null;
   getMcpServerSelector: () => McpServerSelector | null;
   getExternalContextSelector: () => { getExternalContexts: () => string[] } | null;

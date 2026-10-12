@@ -19,14 +19,14 @@ export function createTabStreamController(
   plugin: FeatureHost,
   enqueueBackgroundWork: TabBackgroundWorkEnqueuer,
 ): StreamController {
-  const { state, services, ui } = tab;
+  const { state, services } = tab;
   return new StreamController({
     plugin,
     state,
     renderer: tab.session.messagePresentation,
     subagentManager: services.subagentManager,
     getMessagesEl: () => tab.session.messagePresentation.messagesElement,
-    getFileContextManager: () => ui.fileContextManager,
+    getFileContextManager: () => tab.ui.fileContextManager,
     updateQueueIndicator: () => tab.controllers.inputController?.updateQueueIndicator(),
     getProviderId: () => getTabProviderId(tab, plugin),
     getProviderSessionId: () => tab.executionCoordinator?.snapshot?.providerSessionId ?? null,

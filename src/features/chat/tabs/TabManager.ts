@@ -196,6 +196,8 @@ export class TabManager implements TabManagerInterface {
       tabId,
       ...(typeof draftModel === 'string' ? { draftModel } : {}),
       lifecycleState,
+      isActive: () => this.activeTabId === tab.id,
+      getActivationRevision: () => this.tabActivationRevisions.get(tab.id) ?? 0,
       getWelcomeHomeOptions: () => this.view.getWelcomeHomeOptions?.() ?? {
         getConversations: () => this.plugin.getConversationList(),
       },

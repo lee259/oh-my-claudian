@@ -90,8 +90,8 @@ export interface ConversationControllerDeps {
   getHistoryDropdown: () => HTMLElement | null;
   getWelcomeEl: () => HTMLElement | null;
   setWelcomeEl: (el: HTMLElement | null) => void;
-  getMessagesEl: () => HTMLElement;
-  getInputEl: () => HTMLTextAreaElement;
+  getMessagesEl: () => HTMLElement | null;
+  getInputEl: () => Pick<HTMLTextAreaElement, 'value' | 'focus'>;
   restoreMessageToComposer?: (message: Pick<ChatMessage, 'content' | 'images'>) => void;
   getMetadataContext?: () => ConversationMetadataContext;
   getFileContextManager: () => FileContextManager | null;
@@ -224,33 +224,35 @@ export class ConversationController {
   private subagentTranscriptAgentId: string | null = null;
   private subagentTranscriptProviderSessionId: string | null = null;
   private subagentTranscriptOpenSeq = 0;
-  private subagentTranscriptListenerAttached = false;
+  private subagentTranscriptBinding: { messagesEl: HTMLElement } | null = null;
   private pendingProgressSave: { supersede: () => void } | null = null;
 
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
     this.callbacks = callbacks;
-    // Marker for "no replayable subagent transcript loader": hides the open
-    // full-conversation affordance on async subagent cards. Deliberately a
-    // distinct class from the panel's notice styling, which shares the
-    // transcript panel scope only.
-    this.deps.getMessagesEl().toggleClass(
-      'claudian-no-subagent-transcript',
-      !this.deps.loadSubagentConversation,
-    );
-    this.attachSubagentTranscriptOpenListener();
+    this.attachPresentation();
   }
 
-  private attachSubagentTranscriptOpenListener(): void {
-    if (this.subagentTranscriptListenerAttached) return;
+  /** Binds transcript UI to the current surface; old cleanup cannot detach its replacement. */
+  attachPresentation(): () => void {
+    this.detachPresentation();
     const messagesEl = this.deps.getMessagesEl();
-    if (typeof messagesEl?.addEventListener === 'function') {
-      messagesEl.addEventListener(
-        OPEN_SUBAGENT_TRANSCRIPT_EVENT,
-        this.handleSubagentTranscriptOpenEvent,
-      );
-      this.subagentTranscriptListenerAttached = true;
-    }
+    if (!messagesEl) return () => undefined;
+    messagesEl.toggleClass('claudian-no-subagent-transcript', !this.deps.loadSubagentConversation);
+    messagesEl.addEventListener?.(OPEN_SUBAGENT_TRANSCRIPT_EVENT, this.handleSubagentTranscriptOpenEvent);
+    const binding = { messagesEl };
+    this.subagentTranscriptBinding = binding;
+    return () => { if (this.subagentTranscriptBinding === binding) this.detachPresentation(); };
+  }
+
+  detachPresentation(): void {
+    this.subagentTranscriptBinding?.messagesEl.removeEventListener?.(
+      OPEN_SUBAGENT_TRANSCRIPT_EVENT, this.handleSubagentTranscriptOpenEvent,
+    );
+    this.subagentTranscriptBinding = null;
+    this.closeSubagentTranscript();
+    this.subagentTranscriptPanel?.destroy();
+    this.subagentTranscriptPanel = null;
   }
 
   private readonly handleSubagentTranscriptOpenEvent = (event: Event): void => {
@@ -323,8 +325,8 @@ export class ConversationController {
 
   private ensureSubagentTranscriptPanel(): SubagentTranscriptPanel | null {
     if (!this.subagentTranscriptPanel) {
-      const hostEl = this.deps.getMessagesEl().parentElement
-        ?? this.deps.getMessagesEl();
+      const messagesEl = this.deps.getMessagesEl();
+      const hostEl = messagesEl?.parentElement ?? messagesEl;
       if (!hostEl || typeof hostEl.createDiv !== 'function') return null;
       this.subagentTranscriptPanel = new SubagentTranscriptPanel(hostEl);
       this.configureSubagentTranscriptRenderer();
@@ -530,17 +532,12 @@ export class ConversationController {
       await this.getExecutionCoordinator()?.bindConversation(null);
 
       const messagesEl = this.deps.getMessagesEl();
-      unmountWelcomeContent(messagesEl);
-      messagesEl.empty();
-
-      // Recreate welcome element first (before StatusPanel for consistent ordering)
-      const welcomeEl = createWelcomeElement(
-        messagesEl,
-        this.getGreeting(),
-        this.deps.getWelcomeProviderSummary?.(),
-        this.deps.getWelcomeHomeOptions?.(),
-      );
-      this.deps.setWelcomeEl(welcomeEl);
+      if (messagesEl) {
+        unmountWelcomeContent(messagesEl);
+        messagesEl.empty();
+        this.deps.setWelcomeEl(createWelcomeElement(messagesEl, this.getGreeting(),
+          this.deps.getWelcomeProviderSummary?.(), this.deps.getWelcomeHomeOptions?.()));
+      }
 
       // Remount StatusPanel to restore state for new conversation
       this.deps.getStatusPanel()?.remount();
@@ -1011,7 +1008,7 @@ export class ConversationController {
     }
     this.branchPreview = {
       conversationId, message, draft: { content: inputEl.value, images: [...images] },
-      scrollTop: this.deps.getMessagesEl().scrollTop,
+      scrollTop: this.deps.getMessagesEl()?.scrollTop ?? 0,
     };
     const content = message.displayContent ?? extractUserDisplayContent(message.content) ?? message.content;
     state.writeEditStates.clear();
@@ -1032,7 +1029,8 @@ export class ConversationController {
     state.writeEditStates.clear();
     this.deps.setWelcomeEl(renderer.renderMessages(state.messages, () => this.getGreeting()));
     this.updateWelcomeVisibility();
-    this.deps.getMessagesEl().scrollTop = preview.scrollTop;
+    const messagesEl = this.deps.getMessagesEl();
+    if (messagesEl) messagesEl.scrollTop = preview.scrollTop;
   }
 
   get hasBranchPreview(): boolean { return this.branchPreview !== null || this.branchRecoveryRequired; }

@@ -2,12 +2,12 @@
 export function syncComposerAutoScroll(
   isEnabled: () => boolean,
   isAutoScrollActive: () => boolean,
-  getMessagesEl: () => HTMLElement,
+  getMessagesEl: () => HTMLElement | null,
 ): void {
-  if (!isEnabled() || !isAutoScrollActive()) return;
+  if (!isEnabled() || !isAutoScrollActive() || !getMessagesEl()) return;
   window.requestAnimationFrame(() => {
     if (!isEnabled() || !isAutoScrollActive()) return;
     const messagesEl = getMessagesEl();
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
   });
 }

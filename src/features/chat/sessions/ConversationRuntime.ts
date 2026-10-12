@@ -103,6 +103,22 @@ export class ConversationRuntime {
     return this.stopping;
   }
 
+  /** A deferred attention reporter retains only runtime identity and numeric UI revision. */
+  captureReviewableSettlement(outcome?: 'completed' | 'error'): () => void {
+    const stamp = {
+      epoch: this.presentation?.epoch,
+      revision: this.presentation?.getActivationRevision?.(),
+      wasBackground: this.presentation?.isActive?.() !== true,
+    };
+    return () => {
+      if (!this.presentation || (stamp.wasBackground
+        && this.presentation.epoch === stamp.epoch
+        && this.presentation.getActivationRevision?.() === stamp.revision)) {
+        this.state.markReviewRequired(outcome);
+      }
+    };
+  }
+
   captureMetadataContext(): void {
     const ui = this.presentation?.ui;
     if (!ui || this.hydrationState !== 'ready') return;
