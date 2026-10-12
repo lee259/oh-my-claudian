@@ -115,7 +115,7 @@ For provider installation and authentication, use the official documentation lin
 
 If Claude reports `authentication_failed` in Obsidian while the same CLI works with a subscription in your terminal, an inherited `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` may be taking precedence over subscription sign-in. Choosing another CLI path does not clear those inherited credentials.
 
-In **Settings → Providers → Claude → Custom variables**, add an empty assignment only for the conflicting credential you intend to disable:
+In **Settings → Oh My Claudian → Providers → Claude Code → Environment → Custom variables**, add an empty assignment only for the conflicting credential you intend to disable:
 
 ```env
 ANTHROPIC_API_KEY=
