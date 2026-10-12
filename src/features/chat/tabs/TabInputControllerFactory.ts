@@ -32,12 +32,13 @@ export function createTabInputController(
   return new InputController({
     plugin,
     state,
-    renderer: tab.renderer!,
+    renderer: tab.session.messagePresentation,
     streamController: controllers.streamController!,
     selectionController: controllers.selectionController!,
     browserSelectionController: controllers.browserSelectionController ?? undefined,
     canvasSelectionController: controllers.canvasSelectionController!,
     conversationController: controllers.conversationController!,
+    composer: tab.session.composer,
     getInputEl: () => dom.inputEl,
     getQuotedMessageTexts: () => ui.quotedMessages.map(quote => quote.text),
     clearQuotedMessages: () => {

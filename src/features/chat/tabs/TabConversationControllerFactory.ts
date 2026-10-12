@@ -64,7 +64,7 @@ export function createTabConversationController(
     {
       plugin,
       state,
-      renderer: tab.renderer!,
+      renderer: tab.session.messagePresentation,
       subagentManager: services.subagentManager,
       getHistoryDropdown: () => null,
       getWelcomeEl: () => dom.welcomeEl,
@@ -74,6 +74,10 @@ export function createTabConversationController(
       restoreMessageToComposer: message => (
         tab.controllers.inputController!.restoreRewoundMessageToComposer(message)
       ),
+      getMetadataContext: () => {
+        tab.session.captureMetadataContext();
+        return tab.session.context.snapshot;
+      },
       getFileContextManager: () => ui.fileContextManager,
       getImageContextManager: () => ui.imageContextManager,
       getMcpServerSelector: () => ui.mcpServerSelector,

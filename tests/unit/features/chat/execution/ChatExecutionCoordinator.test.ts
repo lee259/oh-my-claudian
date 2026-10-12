@@ -2058,6 +2058,29 @@ describe('ChatExecutionCoordinator', () => {
     await resultPromise;
   });
 
+  it('does not let a superseded interaction clear a replacement with the same request ID', async () => {
+    const harness = createHarness();
+    let resolvePrevious!: (response: { interactionId: string; decision: 'allow' }) => void;
+    let resolveCurrent!: (response: { interactionId: string; decision: 'deny' }) => void;
+    harness.interactionPort.requestApproval
+      .mockImplementationOnce(() => new Promise(resolve => { resolvePrevious = resolve; }))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveCurrent = resolve; }));
+    const { session, run, resultPromise } = await beginExecution(harness);
+    const port = harness.backends.get('claude')!.configs[0].interactionPort;
+    const request = { kind: 'approval' as const, interactionId: 'reused-id',
+      sessionInstanceId: session.sessionInstanceId, turnId: run.turnId,
+      toolName: 'Read', input: {}, description: 'Read note' };
+    const previous = port.requestApproval(request, new AbortController().signal).catch(error => error);
+    port.dismissInteraction('reused-id', 'superseded');
+    const current = port.requestApproval(request, new AbortController().signal);
+    resolvePrevious({ interactionId: 'reused-id', decision: 'allow' });
+    await expect(previous).resolves.toBeInstanceOf(ChatExecutionInteractionStaleError);
+    resolveCurrent({ interactionId: 'reused-id', decision: 'deny' });
+    await expect(current).resolves.toEqual({ interactionId: 'reused-id', decision: 'deny' });
+    run.events.end();
+    await resultPromise;
+  });
+
   it('rejects pending headless approval on conversation rebind instead of leaving it unresolved', async () => {
     const harness = createHarness();
     const pending = new PendingChatInteractions();

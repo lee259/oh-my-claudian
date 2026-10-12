@@ -55,7 +55,7 @@ import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { FLAVOR_TEXTS } from '../constants';
 import { hasDiagramFence } from '../rendering/DisplayOnlyCodeFences';
-import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
+import type { RenderContentOptions } from '../rendering/MessageRenderer';
 import { ScrollFollowController } from '../rendering/ScrollFollowController';
 import { resolveSubagentAdapter } from '../rendering/subagentAdapterResolution';
 import {
@@ -88,6 +88,7 @@ import {
 } from '../rendering/WriteEditRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { AsyncSubagentCompletion } from '../services/SubagentManager';
+import type { MessagePresentation } from '../sessions/RuntimeMessagePresentation';
 import type { ChatState } from '../state/ChatState';
 import type { FileContextManager } from '../ui/FileContext';
 import { recalculateUsageForModel } from '../utils/usageInfo';
@@ -96,9 +97,9 @@ import { StreamingRenderCoordinator } from './StreamingRenderCoordinator';
 export interface StreamControllerDeps {
   plugin: FeatureHost;
   state: ChatState;
-  renderer: MessageRenderer;
+  renderer: MessagePresentation;
   subagentManager: SubagentManager;
-  getMessagesEl: () => HTMLElement;
+  getMessagesEl: () => HTMLElement | null;
   getFileContextManager: () => FileContextManager | null;
   updateQueueIndicator: () => void;
   getProviderId?: () => ProviderId;
@@ -1995,7 +1996,7 @@ export class StreamController {
     ) return;
 
     const delay = StreamController.ASYNC_SUBAGENT_RESULT_RETRY_DELAYS_MS[attempt];
-    const ownerWindow = this.deps.getMessagesEl().ownerDocument.defaultView
+    const ownerWindow = this.deps.getMessagesEl()?.ownerDocument.defaultView
       ?? window;
     ownerWindow.setTimeout(() => {
       const work = () => this.retryAsyncSubagentResult(
@@ -2258,7 +2259,7 @@ export class StreamController {
 
     // Cancel any pending show timeout
     if (state.thinkingIndicatorTimeout) {
-      const activeWindow = this.deps.getMessagesEl().ownerDocument.defaultView ?? window;
+      const activeWindow = this.deps.getMessagesEl()?.ownerDocument.defaultView ?? window;
       state.clearThinkingIndicatorTimeout(activeWindow);
     }
 
@@ -2348,6 +2349,7 @@ export class StreamController {
 
   /** Scrolls messages to bottom if auto-scroll is enabled. */
   private scrollToBottom(): void {
+    if (!this.deps.getMessagesEl()) return;
     if (this.pendingScrollFrame !== null) return;
 
     this.pendingScrollFrame = scheduleAnimationFrame(() => {
@@ -2362,7 +2364,7 @@ export class StreamController {
     if (!state.autoScrollEnabled) return;
 
     const messagesEl = this.deps.getMessagesEl();
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   private cancelPendingScroll(): void {
@@ -2396,7 +2398,7 @@ export class StreamController {
   }
 
   private getMessagesWindow(): Window | null {
-    return this.deps.getMessagesEl().ownerDocument.defaultView ?? null;
+    return this.deps.getMessagesEl()?.ownerDocument.defaultView ?? null;
   }
 
   private getStreamingRenderWindow(): Window | null {

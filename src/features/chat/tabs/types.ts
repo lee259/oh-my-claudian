@@ -19,6 +19,7 @@ import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordin
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import type { WelcomeHomeOptions } from '../rendering/WelcomeRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
+import type { ConversationRuntime } from '../sessions/ConversationRuntime';
 import type { ChatState } from '../state/ChatState';
 import type { TabAttention, TabReviewOutcome } from '../state/types';
 import type { BangBashModeManager } from '../ui/BangBashModeManager';
@@ -40,7 +41,6 @@ import type { NavigationSidebar } from '../ui/NavigationSidebar';
 import type { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
-import type { TabSession } from './TabSession';
 
 /**
  * Minimal interface for the ClaudianView methods used by TabManager and Tab.
@@ -94,6 +94,7 @@ export interface TabCreateOptions {
 
   containerEl: HTMLElement;
   conversation?: Conversation;
+  runtime?: ConversationRuntime;
   tabId?: TabId;
   /** Initial draft model for an unbound tab. */
   draftModel?: string | null;
@@ -219,7 +220,7 @@ export type TabHydrationState = 'idle' | 'loading' | 'ready' | 'failed';
  */
 export interface TabData {
   /** Authoritative identity and runtime owner for the tab. */
-  session: TabSession;
+  session: ConversationRuntime;
   /** Unique tab identifier. */
   id: TabId;
 

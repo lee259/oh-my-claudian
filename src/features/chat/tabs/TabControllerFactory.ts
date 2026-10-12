@@ -49,6 +49,9 @@ export function initializeTabPresentationControllers(
     () => tab.state.autoScrollEnabled,
   );
 
+  dom.eventCleanups.push(tab.session.messagePresentation.attach(tab.renderer, dom.messagesEl));
+  dom.eventCleanups.push(tab.session.composer.attach(dom.inputEl));
+
   tab.controllers.selectionController = new SelectionController(
     options.plugin.app,
     ui.contextTray!,

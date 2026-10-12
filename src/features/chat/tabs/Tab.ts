@@ -1571,8 +1571,7 @@ export function initializeTabUI(
     options.onCommandContextChanged,
   );
 
-  state.callbacks = {
-    ...state.callbacks,
+  dom.eventCleanups.push(tab.session.bindPresentationCallbacks('widgets', {
     onUsageChanged: (usage) => {
       tab.ui.contextUsageMeter?.update(
         getTabProviderId(tab, plugin) === 'claude' ? null : usage,
@@ -1580,7 +1579,7 @@ export function initializeTabUI(
     },
     onTodosChanged: (todos) => tab.ui.statusPanel?.updateTodos(todos),
     onAutoScrollChanged: () => tab.ui.navigationSidebar?.updateVisibility(),
-  };
+  }));
   tab.ui.contextUsageMeter?.update(
     getTabProviderId(tab, plugin) === 'claude' ? null : state.usage,
   );

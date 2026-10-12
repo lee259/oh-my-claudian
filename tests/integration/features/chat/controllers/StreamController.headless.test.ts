@@ -16,15 +16,15 @@ HTMLElement.prototype.empty = function (): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function (text: string): void { this.textContent = text; };
 HTMLElement.prototype.scrollIntoView ??= () => undefined;
 
-function createFixture(attached: boolean, providerId: ProviderId = 'claude') {
+function createFixture(attached: boolean, providerId: ProviderId = 'claude', messagesAvailable = true, enableAutoScroll = false) {
   const messages = document.body.createDiv();
-  const plugin = { app: { vault: { getAbstractFileByPath: () => null, adapter: { list: async () => ({ files: [], folders: [] }) } } }, settings: { enableAutoScroll: false, mediaFolder: '' } } as unknown as FeatureHost;
+  const plugin = { app: { vault: { getAbstractFileByPath: () => null, adapter: { list: async () => ({ files: [], folders: [] }) } } }, settings: { enableAutoScroll, mediaFolder: '' } } as unknown as FeatureHost;
   const component = new Component();
   const renderer = new MessageRenderer(plugin, component, messages);
   const state = new ChatState();
   const subagents = new SubagentManager(() => undefined);
   const controller = new StreamController({ plugin, renderer, state, subagentManager: subagents,
-    getProviderId: () => providerId, getMessagesEl: () => messages, getFileContextManager: () => null, updateQueueIndicator: () => undefined });
+    getProviderId: () => providerId, getMessagesEl: () => messagesAvailable ? messages : null, getFileContextManager: () => null, updateQueueIndicator: () => undefined });
   subagents.setCallback(info => controller.onAsyncSubagentStateChange(info));
   const message: ChatMessage = { id: 'answer', role: 'assistant', content: '', timestamp: 1, contentBlocks: [], toolCalls: [] };
   state.addMessage(message);
@@ -158,4 +158,13 @@ it.each(['claude', 'codex', 'cursor', 'grok', 'omp', 'opencode', 'pi'] as const)
       { id: 'answer:block:1', type: 'text', content: 'Answer' },
     ]);
   } finally { time.mockRestore(); fixture.cleanup(); }
+});
+
+it('retains output when no messages surface or rendering window is mounted', async () => {
+  const fixture = createFixture(false, 'claude', false, true);
+  try {
+    await fixture.controller.handleStreamChunk({ type: 'text', content: 'Headless answer' }, fixture.message);
+    await fixture.controller.finalizeCurrentTextBlock(fixture.message);
+    expect(fixture.message.contentBlocks).toEqual([{ id: 'answer:block:0', type: 'text', content: 'Headless answer' }]);
+  } finally { fixture.cleanup(); }
 });

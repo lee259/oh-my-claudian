@@ -3049,3 +3049,18 @@ describe('ConversationController rich transcript rendering', () => {
     controller.closeSubagentTranscript();
   });
 });
+
+it('preserves captured conversation context when saving without presentation selectors', async () => {
+  const deps = createMockDeps({
+    getFileContextManager: () => null,
+    getExternalContextSelector: () => null,
+    getMcpServerSelector: () => null,
+    getMetadataContext: () => ({ currentNote: 'Notes/current.md', externalContextPaths: ['/approved/project'], enabledMcpServers: ['local-tools'] }),
+  });
+  deps.state.currentConversationId = 'conversation-1';
+  const controller = new ConversationController(deps);
+  await controller.save();
+  expect(deps.plugin.updateConversation).toHaveBeenCalledWith('conversation-1', expect.objectContaining({
+    currentNote: 'Notes/current.md', externalContextPaths: ['/approved/project'], enabledMcpServers: ['local-tools'],
+  }));
+});

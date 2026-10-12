@@ -1390,7 +1390,9 @@ export class ChatExecutionCoordinator {
       }
       return response;
     } finally {
-      this.pendingInteractions.delete(request.interactionId);
+      if (this.pendingInteractions.get(request.interactionId) === pending) {
+        this.pendingInteractions.delete(request.interactionId);
+      }
       this.notifyMayCool();
     }
   }
