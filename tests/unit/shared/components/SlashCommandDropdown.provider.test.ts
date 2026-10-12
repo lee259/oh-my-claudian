@@ -31,6 +31,7 @@ jest.mock('@/core/commands/builtInCommands', () => ({
 
 function createMockInput(): any {
   return {
+    ...createMockEl('textarea'),
     value: '',
     selectionStart: 0,
     selectionEnd: 0,

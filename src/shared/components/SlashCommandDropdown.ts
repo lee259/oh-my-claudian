@@ -1,3 +1,5 @@
+import { t } from '@/i18n/i18n';
+
 import { getBuiltInCommandsForDropdown } from '../../core/commands/builtInCommands';
 import type { ProviderCommandDropdownConfig } from '../../core/providers/commands/ProviderCommandCatalog';
 import type {
@@ -217,6 +219,7 @@ export class SlashCommandDropdown {
   }
 
   hide(): void {
+    this.commandList?.hide();
     if (this.dropdownEl) {
       this.dropdownEl.removeClass('visible');
     }
@@ -431,6 +434,7 @@ export class SlashCommandDropdown {
         listClassName: 'claudian-slash-list',
         itemClassName: 'claudian-slash-item',
         emptyClassName: 'claudian-slash-empty',
+        accessibility: { inputEl: this.inputEl, label: t('common.inputSuggestions') },
       });
       this.commandList.render({
         items: this.filteredItems,
