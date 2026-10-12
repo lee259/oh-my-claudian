@@ -1,4 +1,8 @@
+import type { ProviderInteractionDismissReason } from '@/core/execution/ProviderInteractionPort';
+
 import type { UsageInfo } from '../../../core/types';
+import { AsyncQuestionPrompts, type AsyncQuestionPromptsDeps } from './AsyncQuestionPrompts';
+import { PendingChatInteractions } from './PendingChatInteractions';
 import { ResponseModel } from './ResponseModel';
 import type {
   AutoScrollNavigationIntent,
@@ -51,6 +55,9 @@ function createInitialState(): ChatStateData {
 }
 
 export class ChatState {
+  readonly interactions = new PendingChatInteractions((id, pending) => pending
+    ? this.beginActionRequired(id) : this.endActionRequired(id));
+  private asyncQuestionPrompts: AsyncQuestionPrompts | null = null;
   private state: ChatStateData;
 
   private _callbacks: ChatStateCallbacks;
@@ -62,6 +69,17 @@ export class ChatState {
   constructor(callbacks: ChatStateCallbacks = {}) {
     this.state = createInitialState();
     this._callbacks = callbacks;
+  }
+
+  bindAsyncQuestionPrompts(deps: AsyncQuestionPromptsDeps): AsyncQuestionPrompts {
+    if (this.asyncQuestionPrompts) this.asyncQuestionPrompts.bind(deps);
+    else this.asyncQuestionPrompts = new AsyncQuestionPrompts(deps);
+    return this.asyncQuestionPrompts;
+  }
+
+  dismissInteractions(reason: ProviderInteractionDismissReason): void {
+    this.interactions.dismissAll(reason);
+    this.asyncQuestionPrompts?.expireAll();
   }
 
   get response(): ResponseModel { return this.state.response; }
@@ -502,6 +520,7 @@ export class ChatState {
   }
 
   resetForNewConversation(): void {
+    this.dismissInteractions('conversation-switched');
     this.clearMessages();
     this.resetStreamingState();
     this.clearMaps();

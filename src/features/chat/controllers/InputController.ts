@@ -38,13 +38,13 @@ import {
   type ChatExecutionCoordinator,
   ChatExecutionPreHandoffError,
 } from '../execution/ChatExecutionCoordinator';
-import { AsyncQuestionPrompts } from '../rendering/AsyncQuestionPrompts';
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../rendering/InlineAskUserQuestion';
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
 import { InlinePlanApproval, type PlanApprovalDecision } from '../rendering/InlinePlanApproval';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { setToolIcon, updateToolCallResult } from '../rendering/ToolCallRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
+import type { AsyncQuestionPrompts } from '../state/AsyncQuestionPrompts';
 import type { ChatState } from '../state/ChatState';
 import type { QueuedMessage } from '../state/types';
 import type { ChatTurnRequest } from '../state/types';
@@ -190,11 +190,11 @@ export interface SendMessageOptions {
 
 export class InputController {
   private deps: InputControllerDeps;
+  private detachInteractions: (() => void) | null = null;
   private pendingApprovalInline: InlineAskUserQuestion | null = null;
   private pendingAskInline: InlineAskUserQuestion | null = null;
   private pendingExitPlanModeInline: InlineExitPlanMode | null = null;
   private pendingPlanApproval: InlinePlanApproval | null = null;
-  private pendingPlanApprovalInvalidated = false;
   private readonly resumeDropdownController: ResumeDropdownController;
   private readonly inputContainerVisibility = new InputContainerVisibility();
   private readonly asyncQuestions: AsyncQuestionPrompts;
@@ -214,7 +214,7 @@ export class InputController {
 
   constructor(deps: InputControllerDeps) {
     this.deps = deps;
-    this.asyncQuestions = new AsyncQuestionPrompts({
+    this.asyncQuestions = deps.state.bindAsyncQuestionPrompts({
       showQuestion: (tool, signal, onSubmit) => this.showAsyncQuestion(tool, signal, onSubmit),
       answer: (tool, answers, conversationId) => this.answerAsyncQuestion(tool, answers, conversationId),
       onChange: tool => updateToolCallResult(tool.id, tool, this.deps.state.toolCallElements),
@@ -303,6 +303,57 @@ export class InputController {
       handleNewSessionPlan: async (content) => await deps.handleNewSessionPlan?.(content) ?? false,
       processQueuedMessage: () => this.processQueuedMessage(),
     });
+    this.attachInteractionPresentation();
+  }
+
+  /** Rebuilds pending prompts from the model when presentation becomes available. */
+  attachInteractionPresentation(): void {
+    this.detachInteractionPresentation();
+    if (!this.deps.getInputContainerEl().parentElement) return;
+    this.detachInteractions = this.deps.state.interactions.attachPresentation({
+      requestApproval: async (request, signal) => ({
+        interactionId: request.interactionId,
+        decision: await this.handleApprovalRequest(request.toolName, { ...request.input }, request.description, {
+          decisionReason: request.decisionReason, blockedPath: request.blockedPath,
+          decisionOptions: request.decisionOptions?.map(option => ({ ...option })),
+          additionalPermissions: request.additionalPermissions,
+        }, signal),
+      }),
+      askUserQuestion: async (request, signal) => ({
+        interactionId: request.interactionId,
+        answers: await this.handleAskUserQuestion({ ...request.input }, signal),
+      }),
+      requestPlanDecision: async (request, signal) => ({
+        interactionId: request.interactionId,
+        decision: await this.handleExitPlanMode({ ...request.input }, signal, request.presentation),
+      }),
+      requestAsyncQuestion: async (request, signal) => ({
+        interactionId: request.interactionId,
+        answers: await this.renderAsyncQuestion(request.input, signal, request.onSubmit),
+      }),
+      requestLocalPlanApproval: async (request, signal) => ({
+        interactionId: request.interactionId,
+        decision: await this.renderPlanApproval(signal),
+        invalidated: false,
+      }),
+      dismissInteraction: (_id, reason) => {
+        if (reason !== 'resolved') this.dismissProviderPrompts();
+      },
+    });
+  }
+
+  detachInteractionPresentation(): void {
+    this.detachInteractions?.();
+    this.detachInteractions = null;
+  }
+
+  private dismissProviderPrompts(): void {
+    this.dismissPendingApprovalPrompt();
+    this.pendingAskInline?.destroy();
+    this.pendingAskInline = null;
+    this.pendingExitPlanModeInline?.destroy();
+    this.pendingExitPlanModeInline = null;
+    this.dismissPendingPlanApproval();
   }
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
@@ -1651,6 +1702,7 @@ export class InputController {
     approvalInput: Record<string, unknown>,
     description: string,
     approvalOptions?: ApprovalCallbackOptions,
+    signal?: AbortSignal,
   ): Promise<ApprovalDecision> {
     const inputContainerEl = this.deps.getInputContainerEl();
     const parentEl = inputContainerEl.parentElement;
@@ -1728,7 +1780,7 @@ export class InputController {
       inputContainerEl,
       input,
       (inline) => { this.pendingApprovalInline = inline; },
-      undefined,
+      signal,
       { title: 'Permission required', headerEl, showCustomInput: false, immediateSelect: true },
     );
 
@@ -1779,13 +1831,24 @@ export class InputController {
     signal: AbortSignal,
     onSubmit: (answers: AskUserAnswers) => Promise<void>,
   ): Promise<AskUserAnswers | null> {
+    return this.deps.state.interactions.requestAsyncQuestion({
+      kind: 'async-question', interactionId: `present-async-question:${tool.id}`,
+      input: tool.input, onSubmit,
+    }, signal).then(response => response.answers);
+  }
+
+  private renderAsyncQuestion(
+    input: Readonly<Record<string, unknown>>,
+    signal: AbortSignal,
+    onSubmit: (answers: AskUserAnswers) => Promise<void>,
+  ): Promise<AskUserAnswers | null> {
     const inputContainerEl = this.deps.getInputContainerEl();
     const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) return Promise.resolve(null);
+    if (!parentEl) throw new Error('Input container is detached from DOM');
     return this.showInlineQuestion(
       parentEl,
       inputContainerEl,
-      tool.input,
+      { ...input },
       inline => { this.pendingAskInline = inline; },
       signal,
       { title: 'Answer agent question', onSubmit },
@@ -1914,24 +1977,8 @@ export class InputController {
     }
   }
 
-  dismissProviderInteraction(kind: 'approval' | 'question' | 'plan-decision'): void {
-    if (kind === 'approval') {
-      this.dismissPendingApprovalPrompt();
-      return;
-    }
-    if (kind === 'question') {
-      this.pendingAskInline?.destroy();
-      this.pendingAskInline = null;
-      return;
-    }
-    if (this.pendingExitPlanModeInline) {
-      this.pendingExitPlanModeInline.destroy();
-      this.pendingExitPlanModeInline = null;
-    }
-  }
-
   dismissPendingApproval(): void {
-    this.asyncQuestions.expireAll();
+    this.deps.state.dismissInteractions('cancelled');
     this.dismissPendingApprovalPrompt();
     if (this.pendingAskInline) {
       this.pendingAskInline.destroy();
@@ -1941,52 +1988,45 @@ export class InputController {
       this.pendingExitPlanModeInline.destroy();
       this.pendingExitPlanModeInline = null;
     }
-    this.dismissPendingPlanApproval(true);
+    this.dismissPendingPlanApproval();
     this.inputContainerVisibility.reset(this.deps.getInputContainerEl());
   }
 
-  private showPlanApproval(): Promise<{ decision: PlanApprovalDecision | null; invalidated: boolean }> {
+  private async showPlanApproval(): Promise<{ decision: PlanApprovalDecision | null; invalidated: boolean }> {
+    return this.deps.state.interactions.requestLocalPlanApproval({
+      kind: 'local-plan', interactionId: `local-plan:${this.deps.generateId()}`,
+    }, new AbortController().signal);
+  }
+
+  private renderPlanApproval(signal: AbortSignal): Promise<PlanApprovalDecision | null> {
     const inputContainerEl = this.deps.getInputContainerEl();
     const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) {
-      return Promise.resolve({ decision: null, invalidated: false });
-    }
-
+    if (!parentEl) throw new Error('Input container is detached from DOM');
     this.inputContainerVisibility.hide(inputContainerEl);
-    this.pendingPlanApprovalInvalidated = false;
-
-    return new Promise<{ decision: PlanApprovalDecision | null; invalidated: boolean }>((resolve, reject) => {
-      const inline = new InlinePlanApproval(
-        parentEl,
-        (decision: PlanApprovalDecision | null) => {
-          const invalidated = this.pendingPlanApprovalInvalidated;
-          this.pendingPlanApprovalInvalidated = false;
-          this.pendingPlanApproval = null;
-          this.inputContainerVisibility.restore(inputContainerEl);
-          resolve({ decision, invalidated });
-        },
-      );
-      this.pendingPlanApproval = inline;
-      try {
-        inline.render();
-      } catch (err) {
+    return new Promise<PlanApprovalDecision | null>((resolve, reject) => {
+      let failed = false;
+      const abort = () => inline.destroy();
+      const inline = new InlinePlanApproval(parentEl, decision => {
+        signal.removeEventListener('abort', abort);
         this.pendingPlanApproval = null;
-        this.pendingPlanApprovalInvalidated = false;
+        this.inputContainerVisibility.restore(inputContainerEl);
+        if (!failed) resolve(decision);
+      });
+      this.pendingPlanApproval = inline;
+      signal.addEventListener('abort', abort, { once: true });
+      try { inline.render(); } catch (err) {
+        failed = true;
+        signal.removeEventListener('abort', abort);
+        inline.destroy();
+        this.pendingPlanApproval = null;
         this.inputContainerVisibility.restore(inputContainerEl);
         reject(toError(err));
       }
     });
   }
 
-  private dismissPendingPlanApproval(invalidated: boolean): void {
-    if (!this.pendingPlanApproval) {
-      return;
-    }
-
-    if (invalidated) {
-      this.pendingPlanApprovalInvalidated = true;
-    }
-    this.pendingPlanApproval.destroy();
+  private dismissPendingPlanApproval(): void {
+    this.pendingPlanApproval?.destroy();
     this.pendingPlanApproval = null;
   }
 

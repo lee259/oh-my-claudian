@@ -613,80 +613,25 @@ function createTabExecutionCoordinator(
   tab: TabData,
   plugin: FeatureHost,
 ): ChatExecutionCoordinator {
-  const interactionKinds = new Map<
-    string,
-    'approval' | 'question' | 'plan-decision'
-  >();
   const interactionPort: ProviderInteractionPort = {
-    requestApproval: async (request) => {
-      interactionKinds.set(request.interactionId, request.kind);
-      tab.state.beginActionRequired(request.interactionId);
-      try {
-        const decision = await tab.controllers.inputController?.handleApprovalRequest(
-          request.toolName,
-          { ...request.input },
-          request.description,
-          {
-            ...(request.decisionReason ? { decisionReason: request.decisionReason } : {}),
-            ...(request.blockedPath ? { blockedPath: request.blockedPath } : {}),
-            ...(request.decisionOptions
-              ? { decisionOptions: request.decisionOptions.map(option => ({ ...option })) }
-              : {}),
-            ...(request.additionalPermissions !== undefined
-              ? { additionalPermissions: request.additionalPermissions }
-              : {}),
-          },
-        ) ?? 'cancel';
-        return { interactionId: request.interactionId, decision };
-      } finally {
-        interactionKinds.delete(request.interactionId);
-        tab.state.endActionRequired(request.interactionId);
-      }
-    },
-    askUserQuestion: async (request, signal) => {
-      interactionKinds.set(request.interactionId, request.kind);
-      tab.state.beginActionRequired(request.interactionId);
-      try {
-        const answers = await tab.controllers.inputController?.handleAskUserQuestion(
-          { ...request.input },
-          signal,
-        ) ?? null;
-        return { interactionId: request.interactionId, answers };
-      } finally {
-        interactionKinds.delete(request.interactionId);
-        tab.state.endActionRequired(request.interactionId);
-      }
-    },
+    requestApproval: (request, signal) => tab.state.interactions.requestApproval(request, signal),
+    askUserQuestion: (request, signal) => tab.state.interactions.askUserQuestion(request, signal),
     requestPlanDecision: async (request, signal) => {
-      interactionKinds.set(request.interactionId, request.kind);
-      tab.state.beginActionRequired(request.interactionId);
-      try {
-        const decision = await tab.controllers.inputController?.handleExitPlanMode(
-          { ...request.input },
-          signal,
-          request.presentation,
-        ) ?? null;
-        if (decision !== null && decision.type !== 'feedback') {
-          await restorePrePlanMode(tab, plugin);
-          if (decision.type === 'approve-new-session') {
-            tab.state.pendingNewSessionPlan = decision.planContent;
-            tab.state.cancelRequested = true;
-          }
+      const response = await tab.state.interactions.requestPlanDecision({
+        ...request,
+        input: tab.state.planFilePath ? { ...request.input, planFilePath: tab.state.planFilePath } : request.input,
+      }, signal);
+      const decision = response.decision;
+      if (!signal.aborted && decision !== null && decision.type !== 'feedback') {
+        await restorePrePlanMode(tab, plugin);
+        if (decision.type === 'approve-new-session') {
+          tab.state.pendingNewSessionPlan = decision.planContent;
+          tab.state.cancelRequested = true;
         }
-        return { interactionId: request.interactionId, decision };
-      } finally {
-        interactionKinds.delete(request.interactionId);
-        tab.state.endActionRequired(request.interactionId);
       }
+      return response;
     },
-    dismissInteraction: (interactionId) => {
-      const kind = interactionKinds.get(interactionId);
-      if (kind) {
-        tab.controllers.inputController?.dismissProviderInteraction(kind);
-        interactionKinds.delete(interactionId);
-        tab.state.endActionRequired(interactionId);
-      }
-    },
+    dismissInteraction: (id, reason) => tab.state.interactions.dismissInteraction(id, reason),
   };
   return new ChatExecutionCoordinator({
     lifecycleRegistry: plugin.providerHost.executionLifecycleRegistry,
@@ -2388,7 +2333,9 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.lifecycleState = 'closing';
   tab.session.pauseBackgroundWork();
 
+  tab.state.dismissInteractions('session-disposed');
   tab.controllers.inputController?.dismissPendingApproval();
+  tab.controllers.inputController?.detachInteractionPresentation?.();
   const cancelledActiveTurn = await cancelAndAwaitActiveTurn(tab);
   await tab.session.awaitBackgroundWork();
 

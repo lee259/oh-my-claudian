@@ -3,6 +3,7 @@
 import { createMockEl } from '@test/helpers/MockElement';
 import { act } from 'preact/test-utils';
 
+import type { ProviderApprovalInteractionRequest, ProviderPlanInteractionRequest } from '@/core/execution/ProviderInteractionPort';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ConversationController } from '@/features/chat/controllers/ConversationController';
 import type {
@@ -819,6 +820,10 @@ describe('Tab provider execution ownership', () => {
     const handleExecutionEvent = jest.fn();
     const handleExitPlanMode = jest.fn().mockResolvedValue({ type: 'approve' });
     tab.controllers.inputController = { handleExecutionEvent, handleExitPlanMode } as any;
+    tab.state.interactions.attachPresentation({
+      requestPlanDecision: async (request: ProviderPlanInteractionRequest) => ({ interactionId: request.interactionId, decision: await handleExitPlanMode() }),
+      dismissInteraction: jest.fn(),
+    } as any);
 
     await coordinatorDeps[0].onRequestedEvent?.({
       mode: 'plan',
@@ -892,13 +897,39 @@ describe('Tab provider execution ownership', () => {
     expect(plugin.settings.permissionMode).toBe('auto');
   });
 
-  it('routes provider interactions through the current input controller', async () => {
+  it('retains approval identity and permissions until presentation becomes available', async () => {
+    const tab = createTab({ plugin: createPlugin(), containerEl: createMockEl() as any });
+    const additionalPermissions = { network: { allowedDomains: ['example.com'] } };
+    const request = {
+      kind: 'approval' as const, interactionId: 'headless-approval',
+      sessionInstanceId: 'session-instance-1', turnId: 'turn-1',
+      toolName: 'Bash', input: { command: 'curl example.com' }, description: 'Fetch page',
+      additionalPermissions,
+    };
+    let settled = false;
+    const result = coordinatorDeps[0].interactionPort.requestApproval(request, new AbortController().signal);
+    void result.then(() => { settled = true; });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(tab.state.requiresAction).toBe(true);
+    expect(tab.state.interactions.pending).toEqual([request]);
+    const present = jest.fn(async request => ({ interactionId: request.interactionId, decision: 'allow' }));
+    tab.state.interactions.attachPresentation({ requestApproval: present, dismissInteraction: jest.fn() } as any);
+    await expect(result).resolves.toEqual({ interactionId: 'headless-approval', decision: 'allow' });
+    expect(present.mock.calls[0][0].additionalPermissions).toBe(additionalPermissions);
+    expect(tab.state.requiresAction).toBe(false);
+  });
+
+  it('routes provider interactions through the registered presentation', async () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });
     const handleApprovalRequest = jest.fn().mockResolvedValue('allow');
-    tab.controllers.inputController = {
-      handleApprovalRequest,
-    } as any;
+    tab.state.interactions.attachPresentation({
+      requestApproval: async (request: ProviderApprovalInteractionRequest) => ({ interactionId: request.interactionId,
+        decision: await handleApprovalRequest(request.toolName, request.input, request.description, {}) }),
+      dismissInteraction: jest.fn(),
+    } as any);
 
     await expect(coordinatorDeps[0].interactionPort.requestApproval({
       description: 'Read note',
@@ -928,7 +959,10 @@ describe('Tab provider execution ownership', () => {
     const handleApprovalRequest = jest.fn().mockReturnValue(new Promise((resolve) => {
       resolveApproval = resolve;
     }));
-    tab.controllers.inputController = { handleApprovalRequest } as any;
+    tab.state.interactions.attachPresentation({
+      requestApproval: async (request: ProviderApprovalInteractionRequest) => ({ interactionId: request.interactionId, decision: await handleApprovalRequest() }),
+      dismissInteraction: jest.fn(),
+    } as any);
 
     const request = coordinatorDeps[0].interactionPort.requestApproval({
       description: 'Read note',

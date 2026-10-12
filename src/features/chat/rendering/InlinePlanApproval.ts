@@ -1,9 +1,7 @@
 import { t } from '../../../i18n/i18n';
+import type { PlanApprovalDecision } from '../state/PendingChatInteractions';
 
-export type PlanApprovalDecision =
-  | { type: 'implement' }
-  | { type: 'revise'; text: string }
-  | { type: 'cancel' };
+export type { PlanApprovalDecision } from '../state/PendingChatInteractions';
 
 export class InlinePlanApproval {
   private containerEl: HTMLElement;
