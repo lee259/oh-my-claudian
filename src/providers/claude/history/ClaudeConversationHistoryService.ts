@@ -271,6 +271,35 @@ function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
   return result;
 }
 
+/**
+ * Cached messages are the tab's live projection under Claudian-local ids. Complete native history
+ * supersedes every cached message it reflects by id or native identity, and every unmatched one
+ * before the last reflected message; later messages are the unconfirmed tail. A live task
+ * notification that native never consumed keeps its place.
+ */
+function retainUnconfirmedCachedMessages(cached: ChatMessage[], native: ChatMessage[]): ChatMessage[] {
+  const nativeIds = new Set(native.map(message => message.id));
+  const byIdentity = new Map(native.flatMap(message => getMessageIdentities(message)
+    .map(identity => [identity, message] as const)));
+  const reflectedMessage = (message: ChatMessage): ChatMessage | undefined => getMessageIdentities(message)
+    .map(identity => byIdentity.get(identity)).find(candidate => candidate !== undefined);
+  const nativeNotifications = new Set(native.flatMap(message => (message.contentBlocks ?? [])
+    .flatMap(block => block.type === 'task_notification' ? [block.content] : [])));
+  const reflectsNative = (message: ChatMessage): boolean => reflectedMessage(message) !== undefined;
+  const isUnconsumedNotification = (message: ChatMessage): boolean => !!message.contentBlocks?.length
+    && message.contentBlocks.every(block => block.type === 'task_notification' && !nativeNotifications.has(block.content));
+  let lastReflected = -1;
+  cached.forEach((message, index) => {
+    if (reflectsNative(message)) {
+      lastReflected = index;
+      const reflected = reflectedMessage(message);
+      if (reflected) reflected.images = mergeImageAttachments(reflected.images, message.images);
+    }
+  });
+  return cached.filter((message, index) => nativeIds.has(message.id)
+    || (!reflectsNative(message) && (index > lastReflected || isUnconsumedNotification(message))));
+}
+
 /** Native transcript order wins; cached-only messages retain their surrounding anchors. */
 function mergeHistoryMessages(cached: ChatMessage[], native: ChatMessage[]): ChatMessage[] {
   const byId = new Map(dedupeMessages([...cached, ...native]).map(message => [message.id, message]));
@@ -805,6 +834,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     let unknownSessionCount = 0;
     let errorCount = 0;
     let successCount = 0;
+    let skippedLineCount = 0;
     const relocatedSessionPaths = new Map(
       this.relocatedSessionPathsByConversation.get(conversation.id) ?? [],
     );
@@ -883,6 +913,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
       }
 
       successCount++;
+      skippedLineCount += result.skippedLines;
       allSdkMessages.push(...result.messages);
     }
 
@@ -893,7 +924,12 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
 
     const filteredSdkMessages = allSdkMessages.filter(msg => !msg.isRebuiltContext);
 
-    const merged = mergeHistoryMessages(conversation.messages, filteredSdkMessages);
+    const complete = errorCount === 0 && unknownSessionCount === 0
+      && missingSessionCount === 0 && skippedLineCount === 0;
+    const cached = complete
+      ? retainUnconfirmedCachedMessages(conversation.messages, filteredSdkMessages)
+      : conversation.messages;
+    const merged = mergeHistoryMessages(cached, filteredSdkMessages);
 
     if (state.subagentData) {
       await enrichAsyncSubagentToolCalls(
@@ -907,7 +943,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
     }
 
     conversation.messages = merged;
-    if (errorCount === 0 && unknownSessionCount === 0) {
+    if (complete) {
       this.hydratedConversationIds.add(conversation.id);
       if (liveSessionSignature !== null) {
         this.liveSessionSignaturesByConversation.set(conversation.id, liveSessionSignature);
