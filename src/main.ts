@@ -75,6 +75,7 @@ import {
 } from './features/chat/execution/WarmExecutionPool';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { InactiveSessionArchiver } from './features/chat/session-manager/InactiveSessionArchiver';
+import { ConversationRuntimeRegistry } from './features/chat/sessions/ConversationRuntimeRegistry';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { resolveLocale, setLocale, t } from './i18n/i18n';
@@ -107,6 +108,9 @@ export default class ClaudianPlugin extends Plugin {
   storage!: SharedAppStorage;
   readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
   readonly obsidianWorkspaceToolBridge = new ObsidianWorkspaceToolBridgeServer(this.obsidianWorkspace);
+  readonly conversationRuntimes = new ConversationRuntimeRegistry(undefined, () => {
+    for (const view of this.getAllViews()) view.refreshConversationRuntimeState?.();
+  });
   readonly executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
   readonly diagnosticLog = new ProviderDiagnosticLogService(() => this.settings);
   readonly providerHost = new ClaudianProviderHost(this);
@@ -354,7 +358,13 @@ export default class ClaudianPlugin extends Plugin {
     void Promise.all(
       this.getAllViews().map(view => view.flushCurrentTabState()),
     ).catch(() => undefined);
+    const runtimeDisposal = this.conversationRuntimes.dispose();
     void (async () => {
+      try {
+        await runtimeDisposal;
+      } catch {
+        new Notice(t('chat.errors.runtimeCleanup'));
+      }
       await this.nativeSessionArchives?.dispose();
       await this.executionLifecycleRegistry.dispose();
       await ProviderWorkspaceRegistry.disposeInitialized();
@@ -527,8 +537,8 @@ export default class ClaudianPlugin extends Plugin {
       getSettings: () => this.settings,
       getConversationList: () => this.conversationRepository.list(),
       getWorkspaceConversationIds: () => new Set(
-        this.getAllViews().flatMap(view => view.getTabManager()?.getAllTabs() ?? [])
-          .map(tab => tab.conversationId)
+        this.conversationRuntimes.getAll()
+          .map(runtime => runtime.conversationId)
           .filter((id): id is string => Boolean(id)),
       ),
       archiveConversationsIf: (ids, isEligible) => this.archiveConversationsIf(ids, isEligible),
@@ -1018,6 +1028,7 @@ export default class ClaudianPlugin extends Plugin {
 
   private async resetDeletedConversationTabs(id: string): Promise<void> {
     const errors: unknown[] = [];
+    try { await this.conversationRuntimes.stop(id); } catch (error) { errors.push(error); }
     for (const view of this.getAllViews()) {
       const tabManager = view.getTabManager();
       if (!tabManager) continue;
@@ -1057,6 +1068,9 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async setConversationArchived(id: string, isArchived: boolean): Promise<void> {
+    if (isArchived && this.conversationRuntimes.hasWork(id)) {
+      throw new Error(t('chat.errors.runningArchive'));
+    }
     const changed = await this.conversationRepository.setArchived(id, isArchived);
     this.notifyConversationViewsChanged();
     if (changed) await this.nativeSessionArchives.sync([id]);
@@ -1066,7 +1080,9 @@ export default class ClaudianPlugin extends Plugin {
     ids: readonly string[],
     isEligible: (conversation: Readonly<ConversationMeta>) => boolean,
   ): Promise<readonly string[]> {
-    const archivedIds = await this.conversationRepository.archiveConversationsIf(ids, isEligible);
+    const archivedIds = await this.conversationRepository.archiveConversationsIf(ids, conversation => (
+      !this.conversationRuntimes.hasWork(conversation.id) && isEligible(conversation)
+    ));
     if (archivedIds.length > 0) {
       this.notifyConversationViewsChanged();
       await this.nativeSessionArchives.sync(archivedIds);

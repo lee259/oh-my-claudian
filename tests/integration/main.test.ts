@@ -1,4 +1,3 @@
-
 import { TFile, TFolder } from 'obsidian';
 
 import { createConversationMetadataShell } from '@/app/conversations/SessionMetadataCoordinator';
@@ -9,6 +8,7 @@ import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceReg
 import { isVersionedRuntimeInputFingerprint } from '@/core/providers/settings/RuntimeInputFingerprint';
 import { TOOL_SUBAGENT } from '@/core/tools/toolNames';
 import { type Conversation, VIEW_TYPE_CLAUDIAN } from '@/core/types';
+import { ConversationRuntime } from '@/features/chat/sessions/ConversationRuntime';
 import * as sdkSession from '@/providers/claude/history/ClaudeHistoryStore';
 import { SessionStorage } from '@/providers/claude/storage/SessionStorage';
 import { DEFAULT_SETTINGS } from '@/providers/claude/types/settings';
@@ -1100,11 +1100,43 @@ describe('ClaudianPlugin', () => {
 
   });
 
+  it('protects an unpresented runtime awaiting approval from manual and automatic archive', async () => {
+    await plugin.onload();
+    const conversation = await plugin.createConversation();
+    const runtime = new ConversationRuntime({ id: 'runtime-approval', conversationId: conversation.id, providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+    plugin.conversationRuntimes.register(runtime);
+    const approval = runtime.state.interactions.requestLocalPlanApproval(
+      { kind: 'local-plan', interactionId: 'pending-plan' }, new AbortController().signal,
+    );
+    await expect(plugin.setConversationArchived(conversation.id, true)).rejects.toThrow('Running');
+    await expect(plugin.archiveConversationsIf([conversation.id], () => true)).resolves.toEqual([]);
+    expect(plugin.getCachedConversation(conversation.id)?.isArchived).not.toBe(true);
+    await plugin.conversationRuntimes.stop(conversation.id);
+    await expect(approval).resolves.toMatchObject({ decision: null });
+  });
+
   describe('onunload', () => {
     it('should complete without error', async () => {
       await plugin.onload();
 
       expect(() => plugin.onunload()).not.toThrow();
+    });
+
+    it('drains conversation runtime work before disposing provider infrastructure', async () => {
+      await plugin.onload();
+      const runtime = new ConversationRuntime({ id: 'runtime-unload', conversationId: 'conversation-unload', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+      let finish!: () => void;
+      runtime.activeTurn = new Promise<void>(resolve => { finish = resolve; });
+      plugin.conversationRuntimes.register(runtime);
+      const dispose = jest.spyOn(plugin.executionLifecycleRegistry, 'dispose');
+      plugin.onunload();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(dispose).not.toHaveBeenCalled();
+      expect(() => plugin.conversationRuntimes.register(runtime)).toThrow('closed');
+      finish();
+      await new Promise(resolve => setTimeout(resolve, 1));
+      expect(dispose).toHaveBeenCalledTimes(1);
     });
 
     it('disposes the application execution lifecycle registry', async () => {

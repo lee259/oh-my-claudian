@@ -47,6 +47,7 @@ export interface WelcomeHomeOptions {
   getConversations: () => readonly ConversationMeta[];
   isConversationRunning?: (conversationId: string) => boolean;
   onArchiveConversation?: (conversationId: string) => void;
+  onStopConversation?: (conversationId: string) => void;
   onBack?: () => void;
   onOpenConversation?: (conversationId: string) => void;
   onOpenHistory?: () => void;
@@ -145,7 +146,15 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
                   />
                 )}
               </button>
-              {options.onArchiveConversation && (
+              {isLoading && hasRuntimeStatus && options.onStopConversation && (
+                <IconButton
+                  className="claudian-home-conversation-archive claudian-home-conversation-stop"
+                  icon="square"
+                  label={t('chat.history.stop')}
+                  onClick={() => options.onStopConversation?.(conversation.id)}
+                />
+              )}
+              {options.onArchiveConversation && !(isLoading && hasRuntimeStatus && options.onStopConversation) && (
                 <HomeConversationArchiveAction
                   conversationId={conversation.id}
                   onArchive={options.onArchiveConversation}

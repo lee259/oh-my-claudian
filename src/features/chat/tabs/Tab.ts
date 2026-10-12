@@ -592,6 +592,8 @@ export function createTab(options: TabCreateOptions): TabData {
   });
   updateSendButton(tab);
   tab.executionCoordinator = createTabExecutionCoordinator(tab, options.plugin);
+  const releaseRuntime = options.plugin.conversationRuntimes?.register(tab.session);
+  if (releaseRuntime) tab.dom.eventCleanups.push(releaseRuntime);
   return tab;
 }
 

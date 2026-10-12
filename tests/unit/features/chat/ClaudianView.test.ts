@@ -4,6 +4,8 @@ import { Notice, Platform, Scope } from 'obsidian';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCoordinator';
 import { ClaudianView } from '@/features/chat/ClaudianView';
+import { ConversationRuntime } from '@/features/chat/sessions/ConversationRuntime';
+import { ConversationRuntimeRegistry } from '@/features/chat/sessions/ConversationRuntimeRegistry';
 
 const mockRefreshWelcomeContent = jest.fn();
 const mockConversationRenameModalOpen = jest.fn();
@@ -1235,46 +1237,18 @@ describe('ClaudianView tab controls', () => {
     expect(mockRefreshWelcomeContent).toHaveBeenCalledWith(welcomeEl);
   });
 
-  it('exposes live running state for conversations open in another local tab', () => {
-    const tab = {
-      conversationId: 'conversation-1',
-      state: { isStreaming: true },
-    };
+  it('exposes live runtime state without requiring a local or cross-view tab', () => {
+    const conversationRuntimes = new ConversationRuntimeRegistry();
+    const runtime = new ConversationRuntime({ id: 'runtime-1', conversationId: 'conversation-1', providerId: 'claude', lifecycleState: 'warm', draftModel: null });
+    conversationRuntimes.register(runtime);
     const view = Object.create(ClaudianView.prototype) as any;
-    Object.assign(view, {
-      plugin: { findConversationAcrossViews: jest.fn().mockReturnValue(null) },
-      tabManager: { getAllTabs: () => [tab] },
-    });
-
+    Object.assign(view, { plugin: { conversationRuntimes }, tabManager: null });
     const homeOptions = view.getWelcomeHomeOptions();
-
+    runtime.state.isStreaming = true;
     expect(homeOptions.isConversationRunning('conversation-1')).toBe(true);
-    tab.state.isStreaming = false;
+    runtime.state.isStreaming = false;
     expect(homeOptions.isConversationRunning('conversation-1')).toBe(false);
     expect(homeOptions.isConversationRunning('another-conversation')).toBe(false);
-  });
-
-  it('exposes live running state for conversations open in another view', () => {
-    const otherTab = { state: { isStreaming: true } };
-    const otherView = {
-      getTabManager: () => ({ getTab: () => otherTab }),
-    };
-    const view = Object.create(ClaudianView.prototype) as any;
-    Object.assign(view, {
-      plugin: {
-        findConversationAcrossViews: jest.fn().mockReturnValue({
-          view: otherView,
-          tabId: 'other-tab',
-        }),
-      },
-      tabManager: { getAllTabs: () => [] },
-    });
-
-    const homeOptions = view.getWelcomeHomeOptions();
-
-    expect(homeOptions.isConversationRunning('conversation-1')).toBe(true);
-    otherTab.state.isStreaming = false;
-    expect(homeOptions.isConversationRunning('conversation-1')).toBe(false);
   });
 
   it('defers history-surface rendering while a tab has active stream work', () => {

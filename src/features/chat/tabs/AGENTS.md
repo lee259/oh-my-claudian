@@ -5,7 +5,7 @@
 ## Ownership
 
 - `TabManager` owns runtime-tab membership, active-tab selection, and create/switch/close operations across tabs.
-- `ConversationRuntime` owns conversation/provider binding, ChatState, execution controllers, coordinator attachment, active-turn references, background-work sequencing and composer/context snapshots. Tabs currently create and dispose these runtimes; the standalone registry is not yet wired into application lifecycle.
+- `ConversationRuntime` owns conversation/provider binding, ChatState, execution controllers, coordinator attachment, active-turn references, background-work sequencing and composer/context snapshots. Tabs currently create and dispose these runtimes; the application registry tracks them for work status, Stop, archive protection and unload. Closing still disposes the runtime until presentation replacement and all lifecycle paths are migrated.
 - `ChatState` owns transient per-tab message projection, stream state, queued input, render state, and conversation-operation flags.
 - `TabRuntimeFactory` allocates the provider-neutral runtime shell and initial draft/provider resolution. It must not create provider execution sessions.
 - `TabStatePersistenceCoordinator` owns write sequencing for the active tab snapshot, not semantic tab state. It must not infer, add, or remove runtime tabs.

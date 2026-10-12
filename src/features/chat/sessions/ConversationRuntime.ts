@@ -46,6 +46,7 @@ export class ConversationRuntime {
   readonly messagePresentation = new RuntimeMessagePresentation();
   /** Per-runtime provider/model reasoning choices; committed settings seed future tabs. */
   readonly reasoningSelections = new Map<string, string>();
+  private stopping: Promise<void> | null = null;
   private activeTurnValue: Promise<void> | null = null;
   private backgroundWork: Promise<void> = Promise.resolve();
   private backgroundWorkCount = 0;
@@ -72,6 +73,34 @@ export class ConversationRuntime {
       onAttentionChanged: value => this.emit('onAttentionChanged', value),
       onAutoScrollChanged: value => this.emit('onAutoScrollChanged', value),
     };
+  }
+
+  get isRunning(): boolean {
+    return this.state.isStreaming || this.activeTurn !== null || this.hasBackgroundWork
+      || (this.coordinator?.hasSessionWork ?? false);
+  }
+
+  get hasWork(): boolean {
+    return this.isRunning || this.state.requiresAction || this.state.isRewinding
+      || this.state.hasPendingConversationSave;
+  }
+
+  /** Cancels only this runtime; completion includes turn persistence. */
+  stop(): Promise<void> {
+    if (this.stopping) return this.stopping;
+    const activeTurn = this.activeTurn;
+    this.controllers.inputController?.cancelStreaming();
+    const sessionStop = this.coordinator?.stopSessionWork(activeTurn);
+    this.state.dismissInteractions('cancelled');
+    this.stopping = (async () => {
+      try {
+        await activeTurn;
+      } finally {
+        await sessionStop;
+        await this.awaitBackgroundWork();
+      }
+    })().finally(() => { this.stopping = null; });
+    return this.stopping;
   }
 
   captureMetadataContext(): void {

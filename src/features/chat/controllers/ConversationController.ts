@@ -163,6 +163,7 @@ export type HistoryConversationStatus = {
   showOpenStateIndicators?: boolean;
   allowConversationSelection?: boolean;
   searchQuery?: string;
+  onStopConversation?: (id: string) => Promise<void>;
   onSetConversationPinned?: (id: string, isPinned: boolean) => Promise<void>;
   onSetConversationArchived?: (id: string, isArchived: boolean) => Promise<void>;
   onBeforeRestoreListState?: (container: HTMLElement) => void;
@@ -1457,6 +1458,24 @@ export class ConversationController {
     });
 
     const actions = item.createDiv({ cls: 'claudian-history-item-actions' });
+    if (options.onStopConversation && (isRunning || conversationStatus.attention?.kind === 'action-required')) {
+      const stopButton = actions.createEl('button', {
+        cls: 'claudian-action-btn claudian-stop-session-btn',
+        attr: { type: 'button', 'aria-label': t('chat.history.stop') },
+      });
+      setIcon(stopButton, 'square');
+      stopButton.addEventListener('click', event => {
+        event.stopPropagation();
+        runConversationAction(
+          async () => {
+            await options.onStopConversation!(conversation.id);
+            options.onRerender?.();
+          },
+          t('chat.errors.stopSession'),
+        );
+      });
+    }
+
     if (conversation.titleGenerationStatus === 'pending') {
       const loadingEl = actions.createSpan({
         cls: 'claudian-action-btn claudian-action-loading',
