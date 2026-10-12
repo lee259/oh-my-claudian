@@ -23,7 +23,6 @@ import {
   OPEN_SUBAGENT_TRANSCRIPT_EVENT,
   type OpenSubagentTranscriptDetail,
 } from '../OpenSubagentTranscriptEvent';
-import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import {
   createWelcomeElement,
@@ -39,6 +38,8 @@ import {
   buildHistoryRenderKey,
   HistoryViewport,
 } from '../session-manager/HistoryViewport';
+import type { ConversationMetadataContext } from '../sessions/RuntimeContext';
+import type { MessagePresentation } from '../sessions/RuntimeMessagePresentation';
 import type { ChatState } from '../state/ChatState';
 import type { TabAttention } from '../state/types';
 import type { FileContextManager } from '../ui/FileContext';
@@ -84,7 +85,7 @@ export interface ConversationCallbacks {
 export interface ConversationControllerDeps {
   plugin: FeatureHost;
   state: ChatState;
-  renderer: MessageRenderer;
+  renderer: MessagePresentation;
   subagentManager: SubagentManager;
   getHistoryDropdown: () => HTMLElement | null;
   getWelcomeEl: () => HTMLElement | null;
@@ -92,6 +93,7 @@ export interface ConversationControllerDeps {
   getMessagesEl: () => HTMLElement;
   getInputEl: () => HTMLTextAreaElement;
   restoreMessageToComposer?: (message: Pick<ChatMessage, 'content' | 'images'>) => void;
+  getMetadataContext?: () => ConversationMetadataContext;
   getFileContextManager: () => FileContextManager | null;
   getImageContextManager: () => ImageContextManager | null;
   getMcpServerSelector: () => McpServerSelector | null;
@@ -893,8 +895,9 @@ export class ConversationController {
       return;
     }
 
+    const capturedContext = this.deps.getMetadataContext?.();
     const fileCtx = this.deps.getFileContextManager();
-    const currentNote = fileCtx?.getCurrentNotePath() || undefined;
+    const currentNote = capturedContext ? capturedContext.currentNote : fileCtx?.getCurrentNotePath() || undefined;
 
     // Entry point with messages - create conversation lazily
     // New conversations always use SDK-native storage.
@@ -909,9 +912,11 @@ export class ConversationController {
     }
 
     const externalContextSelector = this.deps.getExternalContextSelector();
-    const externalContextPaths = externalContextSelector?.getExternalContexts() ?? [];
+    const externalContextPaths = capturedContext
+      ? [...capturedContext.externalContextPaths] : externalContextSelector?.getExternalContexts() ?? [];
     const mcpServerSelector = this.deps.getMcpServerSelector();
-    const enabledMcpServers = mcpServerSelector ? Array.from(mcpServerSelector.getEnabledServers()) : [];
+    const enabledMcpServers = capturedContext
+      ? [...capturedContext.enabledMcpServers] : mcpServerSelector ? Array.from(mcpServerSelector.getEnabledServers()) : [];
     const conversationId = state.currentConversationId;
     const coordinator = this.getExecutionCoordinator();
     if (coordinator?.supportsConversationBranches && !state.isStreaming) {

@@ -9,10 +9,10 @@ import { DEFAULT_CHAT_PROVIDER_ID } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
 import { createPreactRoot } from '../../../shared/ui/PreactRoot';
 import { createWelcomeElement } from '../rendering/WelcomeRenderer';
-import { SubagentManager } from '../services/SubagentManager';
+import { ConversationRuntime } from '../sessions/ConversationRuntime';
+import { createEmptyPresentationUI } from '../sessions/RuntimePresentation';
 import { ChatState } from '../state/ChatState';
 import { ConversationHeaderView } from '../ui/ConversationHeaderView';
-import { TabSession } from './TabSession';
 import type { TabCreateOptions, TabData, TabDOMElements } from './types';
 import { generateTabId } from './types';
 
@@ -42,13 +42,12 @@ export function createTabRuntime(
 
   const id = tabId ?? generateTabId();
   const contentEl = containerEl.createDiv({ cls: 'claudian-tab-content claudian-hidden' });
-  const state = new ChatState({
+  const state = options.runtime?.state ?? new ChatState({
     onStreamingStateChanged: onStreamingChanged,
     onRewindingStateChanged: onRewindingChanged,
     onAttentionChanged,
     onConversationChanged: onConversationIdChanged,
   });
-  const subagentManager = new SubagentManager(() => {});
   const isBound = !!conversation?.id;
   const dom = buildTabDOM(
     contentEl,
@@ -73,19 +72,25 @@ export function createTabRuntime(
     ?? (draftModel
       ? getEnabledProviderForModel(draftModel, plugin.settings)
       : DEFAULT_CHAT_PROVIDER_ID);
-  const session = new TabSession({
+  const session = options.runtime ?? new ConversationRuntime({
     id,
     lifecycleState: options.lifecycleState ?? 'cold',
     draftModel,
     providerId: initialProviderId,
     conversationId: conversation?.id ?? null,
-  }, onWorkChanged);
+  }, onWorkChanged, state);
+  if (!options.runtime && conversation) session.context.capture({
+    currentNote: conversation.currentNote,
+    externalContextPaths: conversation.externalContextPaths ?? [],
+    enabledMcpServers: conversation.enabledMcpServers ?? [],
+  });
   const tab: TabData = {
     session,
     get id() { return session.id; },
     get lifecycleState() { return session.lifecycleState; },
     set lifecycleState(value) { session.lifecycleState = value; },
-    hydrationState: isBound ? 'idle' : 'ready',
+    get hydrationState() { return session.hydrationState; },
+    set hydrationState(value) { session.hydrationState = value; },
     get draftModel() { return session.draftModel; },
     set draftModel(value) { session.draftModel = value; },
     get providerId() { return session.providerId; },
@@ -98,52 +103,47 @@ export function createTabRuntime(
     captureReviewableSettlement: options.captureReviewableSettlement ?? null,
     state,
     controllers: {
-      selectionController: null,
-      browserSelectionController: null,
-      canvasSelectionController: null,
-      conversationController: null,
-      streamController: null,
-      inputController: null,
-      navigationController: null,
+      get selectionController() { return session.presentation?.controllers.selectionController ?? null; },
+      set selectionController(value) { if (session.presentation) session.presentation.controllers.selectionController = value; },
+      get browserSelectionController() { return session.presentation?.controllers.browserSelectionController ?? null; },
+      set browserSelectionController(value) { if (session.presentation) session.presentation.controllers.browserSelectionController = value; },
+      get canvasSelectionController() { return session.presentation?.controllers.canvasSelectionController ?? null; },
+      set canvasSelectionController(value) { if (session.presentation) session.presentation.controllers.canvasSelectionController = value; },
+      get navigationController() { return session.presentation?.controllers.navigationController ?? null; },
+      set navigationController(value) { if (session.presentation) session.presentation.controllers.navigationController = value; },
+      get conversationController() { return session.controllers.conversationController; },
+      set conversationController(value) { session.controllers.conversationController = value; },
+      get streamController() { return session.controllers.streamController; },
+      set streamController(value) { session.controllers.streamController = value; },
+      get inputController() { return session.controllers.inputController; },
+      set inputController(value) { session.controllers.inputController = value; },
     },
-    services: {
-      subagentManager,
-      instructionRefineService: null,
-      titleGenerationService: null,
+    services: session.services,
+    get ui() { return session.presentation?.ui ?? session.emptyUI; },
+    get dom() {
+      if (!session.presentation) throw new Error('The conversation runtime has no presentation.');
+      return session.presentation.dom;
     },
-    ui: {
-      contextTray: null,
-      quotedMessages: [],
-      scopePreview: null,
-      fileContextManager: null,
-      imageContextManager: null,
-      modelSelector: null,
-      modeSelector: null,
-      thinkingBudgetSelector: null,
-      externalContextSelector: null,
-      mcpServerSelector: null,
-      permissionToggle: null,
-      serviceTierToggle: null,
-      refreshComposerLocale: null,
-      slashCommandDropdown: null,
-      instructionModeManager: null,
-      bangBashModeManager: null,
-      contextUsageMeter: null,
-      statusPanel: null,
-      navigationSidebar: null,
-      promptSuggestion: null,
-    },
-    dom,
-    renderer: null,
+    get renderer() { return session.presentation?.renderer ?? null; },
+    set renderer(value) { if (session.presentation) session.presentation.renderer = value; },
   };
 
-  state.callbacks = {
-    ...state.callbacks,
+  if (session.presentation) throw new Error('The conversation runtime is already presented.');
+  session.presentation = {
+    dom, ui: createEmptyPresentationUI(), renderer: null, viewHost: null,
+    controllers: { selectionController: null, browserSelectionController: null, canvasSelectionController: null, navigationController: null },
+  };
+
+  dom.eventCleanups.push(session.bindPresentationCallbacks('host', {
+    onWorkChanged,
+    onRewindingStateChanged: onRewindingChanged,
+    onAttentionChanged,
+    onConversationChanged: onConversationIdChanged,
     onStreamingStateChanged: (isStreaming) => {
       onStreamingChanged?.(isStreaming);
       hooks.onStreamingStateChanged?.(tab, isStreaming);
     },
-  };
+  }));
   return tab;
 }
 

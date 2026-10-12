@@ -1782,7 +1782,7 @@ describe('StreamController - Text Content', () => {
   describe('scrollToBottom - settings', () => {
     it('should not scroll when enableAutoScroll setting is false', async () => {
       (deps.plugin.settings as any).enableAutoScroll = false;
-      const messagesEl = deps.getMessagesEl();
+      const messagesEl = deps.getMessagesEl()!;
       Object.defineProperty(messagesEl, 'scrollHeight', { value: 1000, configurable: true });
       messagesEl.scrollTop = 0;
 
@@ -1795,7 +1795,7 @@ describe('StreamController - Text Content', () => {
 
     it('should not scroll when autoScrollEnabled state is false', async () => {
       deps.state.autoScrollEnabled = false;
-      const messagesEl = deps.getMessagesEl();
+      const messagesEl = deps.getMessagesEl()!;
       Object.defineProperty(messagesEl, 'scrollHeight', { value: 1000, configurable: true });
       messagesEl.scrollTop = 0;
 
@@ -1807,7 +1807,7 @@ describe('StreamController - Text Content', () => {
     });
 
     it('keeps following when expanded work moves the bottom before the next stream update', async () => {
-      const messagesEl = deps.getMessagesEl();
+      const messagesEl = deps.getMessagesEl()!;
       Object.assign(messagesEl, { scrollHeight: 1000, clientHeight: 500, scrollTop: 500 });
       deps.state.autoScrollEnabled = true;
 
@@ -1820,7 +1820,7 @@ describe('StreamController - Text Content', () => {
     });
 
     it('honors a user pause while a streaming render is pending', async () => {
-      const messagesEl = deps.getMessagesEl();
+      const messagesEl = deps.getMessagesEl()!;
       Object.assign(messagesEl, { scrollHeight: 1000, clientHeight: 500, scrollTop: 500 });
       await controller.handleStreamChunk({ type: 'text', content: 'New progress' }, createTestMessage());
 
@@ -1834,7 +1834,7 @@ describe('StreamController - Text Content', () => {
 
     it('should preserve the current position when the user pauses following to read earlier work', async () => {
       deps.state.autoScrollEnabled = false;
-      const messagesEl = deps.getMessagesEl();
+      const messagesEl = deps.getMessagesEl()!;
       Object.defineProperty(messagesEl, 'scrollHeight', { value: 1600, configurable: true });
       Object.defineProperty(messagesEl, 'clientHeight', { value: 500, configurable: true });
       messagesEl.scrollTop = 420;

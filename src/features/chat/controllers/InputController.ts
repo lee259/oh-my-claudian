@@ -41,9 +41,10 @@ import {
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../rendering/InlineAskUserQuestion';
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
 import { InlinePlanApproval, type PlanApprovalDecision } from '../rendering/InlinePlanApproval';
-import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { setToolIcon, updateToolCallResult } from '../rendering/ToolCallRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
+import type { RuntimeComposer } from '../sessions/RuntimeComposer';
+import type { MessagePresentation } from '../sessions/RuntimeMessagePresentation';
 import type { AsyncQuestionPrompts } from '../state/AsyncQuestionPrompts';
 import type { ChatState } from '../state/ChatState';
 import type { QueuedMessage } from '../state/types';
@@ -127,12 +128,13 @@ function toError(error: unknown): Error {
 export interface InputControllerDeps {
   plugin: FeatureHost;
   state: ChatState;
-  renderer: MessageRenderer;
+  renderer: MessagePresentation;
   streamController: StreamController;
   selectionController: SelectionController;
   browserSelectionController?: BrowserSelectionController;
   canvasSelectionController: CanvasSelectionController;
   conversationController: ConversationController;
+  composer?: RuntimeComposer;
   getInputEl: () => HTMLTextAreaElement;
   getQuotedMessageTexts?: () => string[];
   clearQuotedMessages?: () => void;
@@ -288,12 +290,12 @@ export class InputController {
         );
       },
       setComposerText: (text) => {
-        const inputEl = deps.getInputEl();
+        const inputEl = this.getComposer();
         inputEl.value = text;
         dispatchComposerInputEvent(inputEl);
       },
       scheduleCurrentControllerContinuation: (content, reporter) => {
-        const inputEl = deps.getInputEl();
+        const inputEl = this.getComposer();
         inputEl.value = content;
         dispatchComposerInputEvent(inputEl);
         this.deferReviewableSettlement(reporter);
@@ -354,6 +356,10 @@ export class InputController {
     this.pendingExitPlanModeInline?.destroy();
     this.pendingExitPlanModeInline = null;
     this.dismissPendingPlanApproval();
+  }
+
+  private getComposer(): HTMLTextAreaElement | RuntimeComposer {
+    return this.deps.composer ?? this.deps.getInputEl();
   }
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
@@ -465,7 +471,7 @@ export class InputController {
       return;
     }
 
-    const inputEl = this.deps.getInputEl();
+    const inputEl = this.getComposer();
     const imageContextManager = this.deps.getImageContextManager();
     const fileContextManager = this.deps.getFileContextManager();
 
@@ -863,7 +869,7 @@ export class InputController {
     const turnConversationId = state.currentConversationId;
     this.pendingSteersByConversation.delegateToHistory(turnConversationId);
     if (shouldUseInput) {
-      const inputEl = this.deps.getInputEl();
+      const inputEl = this.getComposer();
       inputEl.value = '';
       dispatchComposerInputEvent(inputEl);
     }
@@ -976,7 +982,7 @@ export class InputController {
     }
     state.queuedMessage = mergeQueuedMessages(state.queuedMessage, queued);
     if (shouldUseInput) {
-      const inputEl = this.deps.getInputEl();
+      const inputEl = this.getComposer();
       inputEl.value = '';
       dispatchComposerInputEvent(inputEl);
       imageContextManager?.clearImages();
@@ -1083,7 +1089,7 @@ export class InputController {
       editorContext: null,
       images: message.images,
     });
-    const inputEl = this.deps.getInputEl();
+    const inputEl = this.getComposer();
     dispatchComposerInputEvent(inputEl);
   }
 
@@ -1095,7 +1101,7 @@ export class InputController {
     message.onDelivery?.(false);
 
     const { content, images } = message;
-    const inputEl = this.deps.getInputEl();
+    const inputEl = this.getComposer();
     const currentContent = options.mergeWithComposer ? inputEl.value.trim() : '';
     inputEl.value = currentContent
       ? appendMarkdownSnippet(content, currentContent)
@@ -1114,7 +1120,7 @@ export class InputController {
   }
 
   private captureComposerDraft(): QueuedMessage | null {
-    const content = this.deps.getInputEl().value;
+    const content = this.getComposer().value;
     const attachedImages = this.deps.getImageContextManager()?.getAttachedImages() ?? [];
     const images = attachedImages.length > 0 ? [...attachedImages] : undefined;
     return captureComposerDraft(content, images);
@@ -1343,11 +1349,7 @@ export class InputController {
   private activateStreamingAssistantMessage(message: ChatMessage): void {
     const { state, renderer } = this.deps;
     const msgEl = renderer.addMessage(message);
-    const contentEl = msgEl.querySelector<HTMLElement>('.claudian-message-content');
-
-    if (!contentEl) {
-      return;
-    }
+    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content') ?? null;
 
     if (!state.currentContentEl) {
       state.toolCallElements.clear();
