@@ -28,36 +28,39 @@ export function createTabInputController(
   plugin: FeatureHost,
   options: TabInputControllerOptions,
 ): InputController {
-  const { dom, state, services, ui, controllers } = tab;
+  const { state, services, controllers } = tab;
   return new InputController({
     plugin,
     state,
     renderer: tab.session.messagePresentation,
     streamController: controllers.streamController!,
-    selectionController: controllers.selectionController!,
-    browserSelectionController: controllers.browserSelectionController ?? undefined,
-    canvasSelectionController: controllers.canvasSelectionController!,
+    selectionController: { getContext: () => controllers.selectionController?.getContext() ?? null },
+    browserSelectionController: { getContext: () => controllers.browserSelectionController?.getContext() ?? null },
+    canvasSelectionController: { getContext: () => controllers.canvasSelectionController?.getContext() ?? null },
     conversationController: controllers.conversationController!,
     composer: tab.session.composer,
-    getInputEl: () => dom.inputEl,
-    getQuotedMessageTexts: () => ui.quotedMessages.map(quote => quote.text),
+    getInputEl: () => tab.session.presentation?.dom.inputEl ?? null,
+    getQuotedMessageTexts: () => tab.ui.quotedMessages.map(quote => quote.text),
     clearQuotedMessages: () => {
-      ui.quotedMessages = [];
-      ui.contextTray?.clearItems('message-quotes');
-      const EventConstructor = dom.inputEl.ownerDocument.defaultView?.Event ?? Event;
-      dom.inputEl.dispatchEvent(new EventConstructor('input', { bubbles: true }));
+      tab.ui.quotedMessages = [];
+      tab.ui.contextTray?.clearItems('message-quotes');
+      const input = tab.session.presentation?.dom.inputEl;
+      if (input) {
+        const EventConstructor = input.ownerDocument.defaultView?.Event ?? Event;
+        input.dispatchEvent(new EventConstructor('input', { bubbles: true }));
+      }
     },
-    getInputContainerEl: () => dom.inputContainerEl,
-    getWelcomeEl: () => dom.welcomeEl,
-    getMessagesEl: () => dom.messagesEl,
-    getFileContextManager: () => ui.fileContextManager,
-    getImageContextManager: () => ui.imageContextManager,
-    getMcpServerSelector: () => ui.mcpServerSelector,
-    getExternalContextSelector: () => ui.externalContextSelector,
-    getInstructionModeManager: () => ui.instructionModeManager,
+    getInputContainerEl: () => tab.session.presentation?.dom.inputContainerEl ?? null,
+    getWelcomeEl: () => tab.session.presentation?.dom.welcomeEl ?? null,
+    getMessagesEl: () => tab.session.messagePresentation.messagesElement,
+    getFileContextManager: () => tab.ui.fileContextManager,
+    getImageContextManager: () => tab.ui.imageContextManager,
+    getMcpServerSelector: () => tab.ui.mcpServerSelector,
+    getExternalContextSelector: () => tab.ui.externalContextSelector,
+    getInstructionModeManager: () => tab.ui.instructionModeManager,
     getInstructionRefineService: () => services.instructionRefineService,
     getTitleGenerationService: () => services.titleGenerationService,
-    getStatusPanel: () => ui.statusPanel,
+    getStatusPanel: () => tab.ui.statusPanel,
     generateId: options.generateId,
     getProviderSettings: options.getProviderSettings,
     getAuxiliaryModel: options.getAuxiliaryModel,
@@ -72,7 +75,7 @@ export function createTabInputController(
     onForkAll: options.onForkAll,
     toggleFastMode: options.toggleFastMode,
     restorePrePlanPermissionModeIfNeeded: options.restorePrePlanPermissionModeIfNeeded,
-    captureReviewableSettlement: tab.captureReviewableSettlement ?? undefined,
+    captureReviewableSettlement: outcome => tab.session.captureReviewableSettlement(outcome),
     onDiagnosticError: options.onDiagnosticError,
     preflightExecution: async () => {
       let diagnostics;

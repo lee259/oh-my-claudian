@@ -50,3 +50,17 @@ it('publishes model changes after presentation callbacks detach and fences old c
   expect(current.mock.calls).toEqual([[true]]);
   expect(changes).toHaveBeenCalledTimes(3);
 });
+
+it('retains review attention after detach without keeping a presentation callback alive', () => {
+  const runtime = new ConversationRuntime(createState());
+  let revision = 1;
+  runtime.presentation = { epoch: Symbol('pane'), isActive: () => false, getActivationRevision: () => revision } as any;
+  const stale = runtime.captureReviewableSettlement('completed');
+  revision++;
+  stale();
+  expect(runtime.state.attention).toBeNull();
+  const detached = runtime.captureReviewableSettlement('completed');
+  runtime.presentation = null;
+  detached();
+  expect(runtime.state.attention).toMatchObject({ kind: 'review', outcome: 'completed' });
+});

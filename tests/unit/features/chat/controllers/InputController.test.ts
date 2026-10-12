@@ -13,6 +13,7 @@ import {
   ChatExecutionPreHandoffError,
   type ChatTurnSubmission,
 } from '@/features/chat/execution/ChatExecutionCoordinator';
+import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
 import { ChatState } from '@/features/chat/state/ChatState';
 
 jest.mock('@/core/providers/ProviderRegistry', () => ({
@@ -216,6 +217,18 @@ function createFixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('InputController coordinator execution', () => {
+  it('initializes without a composer element and keeps a pending plan in the model', async () => {
+    const fixture = createFixture({ composer: new RuntimeComposer(), getInputEl: () => null,
+      getInputContainerEl: () => null, getMessagesEl: () => null });
+    const pending = fixture.state.interactions.requestLocalPlanApproval(
+      { kind: 'local-plan', interactionId: 'headless-plan' }, new AbortController().signal,
+    );
+    expect(fixture.state.interactions.pending).toHaveLength(1);
+    fixture.controller.detachInteractionPresentation();
+    fixture.state.dismissInteractions('cancelled');
+    await expect(pending).resolves.toMatchObject({ decision: null });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(ProviderRegistry.getCapabilities).mockReturnValue({

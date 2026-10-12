@@ -130,16 +130,16 @@ export interface InputControllerDeps {
   state: ChatState;
   renderer: MessagePresentation;
   streamController: StreamController;
-  selectionController: SelectionController;
-  browserSelectionController?: BrowserSelectionController;
-  canvasSelectionController: CanvasSelectionController;
+  selectionController: Pick<SelectionController, 'getContext'>;
+  browserSelectionController?: Pick<BrowserSelectionController, 'getContext'>;
+  canvasSelectionController: Pick<CanvasSelectionController, 'getContext'>;
   conversationController: ConversationController;
   composer?: RuntimeComposer;
-  getInputEl: () => HTMLTextAreaElement;
+  getInputEl: () => HTMLTextAreaElement | null;
   getQuotedMessageTexts?: () => string[];
   clearQuotedMessages?: () => void;
   getWelcomeEl: () => HTMLElement | null;
-  getMessagesEl: () => HTMLElement;
+  getMessagesEl: () => HTMLElement | null;
   getFileContextManager: () => FileContextManager | null;
   getImageContextManager: () => ImageContextManager | null;
   getMcpServerSelector: () => McpServerSelector | null;
@@ -151,7 +151,7 @@ export interface InputControllerDeps {
   getInstructionRefineService: () => InstructionRefineService | null;
   getTitleGenerationService: () => TitleGenerationService | null;
   getStatusPanel: () => StatusPanel | null;
-  getInputContainerEl: () => HTMLElement;
+  getInputContainerEl: () => HTMLElement | null;
   generateId: () => string;
   getProviderSettings?: () => Record<string, unknown>;
   getAuxiliaryModel?: () => string | null;
@@ -311,7 +311,7 @@ export class InputController {
   /** Rebuilds pending prompts from the model when presentation becomes available. */
   attachInteractionPresentation(): void {
     this.detachInteractionPresentation();
-    if (!this.deps.getInputContainerEl().parentElement) return;
+    if (!this.deps.getInputContainerEl()?.parentElement) return;
     this.detachInteractions = this.deps.state.interactions.attachPresentation({
       requestApproval: async (request, signal) => ({
         interactionId: request.interactionId,
@@ -359,7 +359,9 @@ export class InputController {
   }
 
   private getComposer(): HTMLTextAreaElement | RuntimeComposer {
-    return this.deps.composer ?? this.deps.getInputEl();
+    const composer = this.deps.composer ?? this.deps.getInputEl();
+    if (!composer) throw new Error('A runtime composer is required without presentation.');
+    return composer;
   }
 
   private getExecutionCoordinator(): ChatExecutionCoordinator | null {
@@ -1707,8 +1709,8 @@ export class InputController {
     signal?: AbortSignal,
   ): Promise<ApprovalDecision> {
     const inputContainerEl = this.deps.getInputContainerEl();
-    const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) {
+    const parentEl = inputContainerEl?.parentElement;
+    if (!inputContainerEl || !parentEl) {
       throw new Error('Input container is detached from DOM');
     }
 
@@ -1810,8 +1812,8 @@ export class InputController {
     signal?: AbortSignal,
   ): Promise<Record<string, string | string[]> | null> {
     const inputContainerEl = this.deps.getInputContainerEl();
-    const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) {
+    const parentEl = inputContainerEl?.parentElement;
+    if (!inputContainerEl || !parentEl) {
       throw new Error('Input container is detached from DOM');
     }
 
@@ -1845,8 +1847,8 @@ export class InputController {
     onSubmit: (answers: AskUserAnswers) => Promise<void>,
   ): Promise<AskUserAnswers | null> {
     const inputContainerEl = this.deps.getInputContainerEl();
-    const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) throw new Error('Input container is detached from DOM');
+    const parentEl = inputContainerEl?.parentElement;
+    if (!inputContainerEl || !parentEl) throw new Error('Input container is detached from DOM');
     return this.showInlineQuestion(
       parentEl,
       inputContainerEl,
@@ -1930,8 +1932,8 @@ export class InputController {
   ): Promise<ExitPlanModeDecision | null> {
     const { state, streamController } = this.deps;
     const inputContainerEl = this.deps.getInputContainerEl();
-    const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) {
+    const parentEl = inputContainerEl?.parentElement;
+    if (!inputContainerEl || !parentEl) {
       throw new Error('Input container is detached from DOM');
     }
 
@@ -2002,8 +2004,8 @@ export class InputController {
 
   private renderPlanApproval(signal: AbortSignal): Promise<PlanApprovalDecision | null> {
     const inputContainerEl = this.deps.getInputContainerEl();
-    const parentEl = inputContainerEl.parentElement;
-    if (!parentEl) throw new Error('Input container is detached from DOM');
+    const parentEl = inputContainerEl?.parentElement;
+    if (!inputContainerEl || !parentEl) throw new Error('Input container is detached from DOM');
     this.inputContainerVisibility.hide(inputContainerEl);
     return new Promise<PlanApprovalDecision | null>((resolve, reject) => {
       let failed = false;

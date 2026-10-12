@@ -7,8 +7,8 @@ import type { ConversationController } from './ConversationController';
 export interface ResumeDropdownControllerDeps {
   plugin: FeatureHost;
   conversationController: ConversationController;
-  getInputContainerEl: () => HTMLElement;
-  getInputEl: () => HTMLTextAreaElement;
+  getInputContainerEl: () => HTMLElement | null;
+  getInputEl: () => HTMLTextAreaElement | null;
   getCurrentConversationId: () => string | null;
   openConversation?: (conversationId: string) => Promise<void>;
 }
@@ -36,6 +36,9 @@ export class ResumeDropdownController {
 
   show(): void {
     this.destroy();
+    const container = this.deps.getInputContainerEl();
+    const input = this.deps.getInputEl();
+    if (!container || !input) return;
     const conversations = this.deps.plugin.getConversationList();
     if (conversations.length === 0) {
       new Notice('No conversations to resume');
@@ -44,8 +47,8 @@ export class ResumeDropdownController {
     const openConversation = this.deps.openConversation
       ?? ((id: string) => this.deps.conversationController.switchTo(id));
     this.activeDropdown = new ResumeSessionDropdown(
-      this.deps.getInputContainerEl(),
-      this.deps.getInputEl(),
+      container,
+      input,
       conversations,
       this.deps.getCurrentConversationId(),
       {

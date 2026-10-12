@@ -110,6 +110,18 @@ describe('ConversationController', () => {
     controller = new ConversationController(deps);
   });
 
+  it('initializes and saves metadata without a message surface', async () => {
+    const headless = createMockDeps({ getMessagesEl: () => null,
+      getMetadataContext: () => ({ currentNote: 'Notes/retained.md', externalContextPaths: [], enabledMcpServers: [] }),
+    });
+    headless.state.currentConversationId = 'headless-conversation';
+    const owner = new ConversationController(headless);
+    await owner.save(false);
+    expect(headless.plugin.updateConversation).toHaveBeenCalledWith('headless-conversation', expect.objectContaining({
+      currentNote: 'Notes/retained.md',
+    }));
+  });
+
   describe('Pi branch preview', () => {
     it('previews a saved prompt in the composer and restores the prior draft on Escape', async () => {
       const inputEl = { value: '', focus: jest.fn() } as unknown as HTMLTextAreaElement;

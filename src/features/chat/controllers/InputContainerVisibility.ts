@@ -15,9 +15,9 @@ export class InputContainerVisibility {
     }
   }
 
-  reset(inputContainerEl: HTMLElement): void {
+  reset(inputContainerEl: HTMLElement | null): void {
     if (this.hideDepth <= 0) return;
     this.hideDepth = 0;
-    inputContainerEl.removeClass('claudian-hidden');
+    inputContainerEl?.removeClass('claudian-hidden');
   }
 }

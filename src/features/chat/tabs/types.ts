@@ -99,6 +99,8 @@ export interface TabCreateOptions {
   /** Initial draft model for an unbound tab. */
   draftModel?: string | null;
   getWelcomeHomeOptions?: () => WelcomeHomeOptions;
+  isActive?: () => boolean;
+  getActivationRevision?: () => number;
   lifecycleState?: Extract<TabData['lifecycleState'], 'provisional' | 'cold'>;
   onStreamingChanged?: (isStreaming: boolean) => void;
   onWorkChanged?: () => void;

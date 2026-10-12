@@ -43,7 +43,7 @@ export function createTabConversationController(
   plugin: FeatureHost,
   options: TabConversationControllerOptions,
 ): ConversationController {
-  const { dom, state, services, ui } = tab;
+  const { state, services } = tab;
   const subagentHistoryService = ProviderRegistry.createSubagentHistoryService(
     plugin.providerHost,
     getTabProviderId(tab, plugin),
@@ -67,10 +67,10 @@ export function createTabConversationController(
       renderer: tab.session.messagePresentation,
       subagentManager: services.subagentManager,
       getHistoryDropdown: () => null,
-      getWelcomeEl: () => dom.welcomeEl,
-      setWelcomeEl: (el) => { dom.welcomeEl = el; },
-      getMessagesEl: () => dom.messagesEl,
-      getInputEl: () => dom.inputEl,
+      getWelcomeEl: () => tab.session.presentation?.dom.welcomeEl ?? null,
+      setWelcomeEl: (el) => { if (tab.session.presentation) tab.session.presentation.dom.welcomeEl = el; },
+      getMessagesEl: () => tab.session.messagePresentation.messagesElement,
+      getInputEl: () => tab.session.composer,
       restoreMessageToComposer: message => (
         tab.controllers.inputController!.restoreRewoundMessageToComposer(message)
       ),
@@ -78,14 +78,14 @@ export function createTabConversationController(
         tab.session.captureMetadataContext();
         return tab.session.context.snapshot;
       },
-      getFileContextManager: () => ui.fileContextManager,
-      getImageContextManager: () => ui.imageContextManager,
-      getMcpServerSelector: () => ui.mcpServerSelector,
-      getExternalContextSelector: () => ui.externalContextSelector,
-      getScopePreview: () => ui.scopePreview,
+      getFileContextManager: () => tab.ui.fileContextManager,
+      getImageContextManager: () => tab.ui.imageContextManager,
+      getMcpServerSelector: () => tab.ui.mcpServerSelector,
+      getExternalContextSelector: () => tab.ui.externalContextSelector,
+      getScopePreview: () => tab.ui.scopePreview,
       clearQueuedMessage: () => tab.controllers.inputController?.clearQueuedMessage(),
       getTitleGenerationService: () => services.titleGenerationService,
-      getStatusPanel: () => ui.statusPanel,
+      getStatusPanel: () => tab.ui.statusPanel,
       getExecutionCoordinator: () => tab.executionCoordinator,
       ensureExecutionInitialized: options.ensureExecutionInitialized,
       getProviderId: options.getProviderId,

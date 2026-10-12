@@ -100,7 +100,7 @@ export function createTabRuntime(
     get executionCoordinator() { return session.executionCoordinator; },
     set executionCoordinator(coordinator) { session.setExecutionCoordinator(coordinator); },
     providerCatalogResolver: null,
-    captureReviewableSettlement: options.captureReviewableSettlement ?? null,
+    get captureReviewableSettlement() { return session.presentation?.captureReviewableSettlement ?? null; },
     state,
     controllers: {
       get selectionController() { return session.presentation?.controllers.selectionController ?? null; },
@@ -130,6 +130,10 @@ export function createTabRuntime(
 
   if (session.presentation) throw new Error('The conversation runtime is already presented.');
   session.presentation = {
+    epoch: Symbol('runtime-presentation'),
+    isActive: options.isActive,
+    getActivationRevision: options.getActivationRevision,
+    captureReviewableSettlement: options.captureReviewableSettlement,
     dom, ui: createEmptyPresentationUI(), renderer: null, viewHost: null,
     controllers: { selectionController: null, browserSelectionController: null, canvasSelectionController: null, navigationController: null },
   };

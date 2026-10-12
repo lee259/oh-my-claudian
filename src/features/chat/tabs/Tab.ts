@@ -94,7 +94,6 @@ import type {
   ProviderCatalogResolver,
   TabCreateOptions,
   TabData,
-  TabManagerViewHost,
   TabProviderContext,
 } from './types';
 
@@ -693,8 +692,10 @@ function createTabExecutionCoordinator(
                 : {}),
             }
           : undefined;
+        const messagesEl = tab.session.presentation?.dom.messagesEl;
+        if (!messagesEl) return;
         renderProviderDiagnosticCard(
-          tab.dom.messagesEl,
+          messagesEl,
           plugin.app,
           createProviderDiagnosticReport(tab.providerId, diagnosticError, {
             platform: environment?.platform,
@@ -705,8 +706,10 @@ function createTabExecutionCoordinator(
           { onRetry: () => void tab.controllers.inputController?.sendMessage(), onRebuildSession: rebuildSession },
         );
       }).catch(() => {
+        const messagesEl = tab.session.presentation?.dom.messagesEl;
+        if (!messagesEl) return;
         renderProviderDiagnosticCard(
-          tab.dom.messagesEl,
+          messagesEl,
           plugin.app,
           createProviderDiagnosticReport(tab.providerId, diagnosticError, {
             platform: Platform.isMacOS ? 'macOS' : Platform.isWin ? 'Windows' : 'Linux',
@@ -1023,6 +1026,7 @@ function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string):
 }
 
 export function updateSendButton(tab: TabData): void {
+  if (!tab.session.presentation) return;
   const { inputEl, sendButtonEl } = tab.dom;
   const isStreaming = tab.state.isStreaming;
   const canSend = inputEl.value.trim().length > 0 || tab.ui.quotedMessages.length > 0;
@@ -1824,7 +1828,12 @@ export function initializeTabRuntimeControllers(
     ((conversationId: string) => Promise<void>) | undefined;
   const getProviderCatalogConfig = (isLegacy ? arg7 : arg6) as
     (() => ProviderCatalogInfo) | undefined;
-  const viewHost = component as Partial<TabManagerViewHost>;
+  if (tab.session.presentation) {
+    tab.session.presentation.viewHost = component;
+    tab.session.presentation.hooks = { openConversation, forkRequest: forkRequestCallback, getProviderCatalog: getProviderCatalogConfig };
+  }
+  const currentViewHost = () => tab.session.presentation?.viewHost;
+  const currentCatalog = () => tab.session.presentation?.hooks?.getProviderCatalog?.() ?? null;
 
   const { dom, services } = tab;
   const ensureExecutionInitialized = async (): Promise<boolean> => {
@@ -1917,7 +1926,7 @@ export function initializeTabRuntimeControllers(
       if (tab.lifecycleState !== 'provisional') {
         tab.lifecycleState = 'cold';
       }
-      syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig, conversation);
+      syncSlashCommandDropdownForProvider(tab, plugin, currentCatalog, conversation);
 
       await tab.executionCoordinator?.bindConversation(conversation
         ? createConversationExecutionBinding(conversation)
@@ -1940,15 +1949,17 @@ export function initializeTabRuntimeControllers(
       }
       refreshTabProviderUI(tab, plugin);
       applyProviderUIGating(tab, plugin);
-      syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
+      syncSlashCommandDropdownForProvider(tab, plugin, currentCatalog);
     },
     onConversationActivated: () => {
       tab.ui.promptSuggestion?.clear();
-      invalidateTabProviderCommands(tab, getProviderCatalogConfig);
+      invalidateTabProviderCommands(tab, currentCatalog);
       tab.controllers.inputController?.onConversationActivated();
     },
-    getWelcomeHomeOptions: () => viewHost.getWelcomeHomeOptions?.(),
+    getWelcomeHomeOptions: () => currentViewHost()?.getWelcomeHomeOptions?.(),
   });
+
+  dom.eventCleanups.push(tab.controllers.conversationController.attachPresentation());
 
   tab.ui.statusPanel?.setSubagentTranscriptHandler((detail) => {
     void tab.controllers.conversationController?.openSubagentTranscript(detail);
@@ -1959,16 +1970,13 @@ export function initializeTabRuntimeControllers(
     getProviderSettings: () => getTabSettingsSnapshot(tab, plugin),
     generateId: generateMessageId,
     getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
-    openConversation,
-    handleNewConversationCommand: viewHost.handleNewConversationCommand
-      ? () => viewHost.handleNewConversationCommand!()
-      : undefined,
-    handleNewSessionPlan: viewHost.handleNewSessionPlan
-      ? (planContent) => viewHost.handleNewSessionPlan!(planContent)
-      : undefined,
-    onForkAll: forkRequestCallback
-      ? () => handleForkAll(tab, plugin, forkRequestCallback)
-      : undefined,
+    openConversation: id => tab.session.presentation?.hooks?.openConversation?.(id) ?? Promise.resolve(),
+    handleNewConversationCommand: () => currentViewHost()?.handleNewConversationCommand?.() ?? Promise.resolve(false),
+    handleNewSessionPlan: content => currentViewHost()?.handleNewSessionPlan?.(content) ?? Promise.resolve(false),
+    onForkAll: async () => {
+      const fork = tab.session.presentation?.hooks?.forkRequest;
+      if (fork) await handleForkAll(tab, plugin, fork);
+    },
     toggleFastMode: () => toggleTabServiceTier(tab, plugin),
     restorePrePlanPermissionModeIfNeeded: async () => {
       if (getTabPermissionMode(tab, plugin) === 'plan') {
