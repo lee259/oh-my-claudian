@@ -185,13 +185,7 @@ export class StreamController {
   }
 
   private appendTranscriptBlock(message: ChatMessage, block: ContentBlock): ContentBlock {
-    const blocks = message.contentBlocks ?? (message.contentBlocks = []);
-    const blockIndex = blocks.length;
-    const identifiedBlock = block.id
-      ? block
-      : { ...block, id: getTranscriptBlockId(message.id, block, blockIndex) };
-    blocks.push(identifiedBlock);
-    return identifiedBlock;
+    return this.deps.state.response.appendBlock(message, block);
   }
 
   private createRenderCoordinator(
@@ -310,12 +304,13 @@ export class StreamController {
   async handleStreamChunk(chunk: StreamChunk, msg: ChatMessage): Promise<void> {
     const { state } = this.deps;
     const shouldFollowScroll = this.shouldFollowScroll();
+    state.response.messageId = msg.id;
 
     switch (chunk.type) {
       case 'thinking':
         // Flush pending tools before rendering new content type
         this.flushPendingTools();
-        if (state.currentTextEl) {
+        if (state.response.text) {
           await this.finalizeCurrentTextBlock(msg);
         }
         await this.appendThinking(chunk.content, msg);
@@ -324,7 +319,7 @@ export class StreamController {
       case 'text':
         // Flush pending tools before rendering new content type
         this.flushPendingTools();
-        if (state.currentThinkingState) {
+        if (state.response.thinking) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         msg.content += chunk.content;
@@ -333,7 +328,7 @@ export class StreamController {
 
       case 'citations': {
         this.flushPendingTools();
-        if (state.currentThinkingState) {
+        if (state.response.thinking) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         await this.finalizeCurrentTextBlock(msg);
@@ -353,7 +348,7 @@ export class StreamController {
       }
 
       case 'tool_use': {
-        if (state.currentThinkingState) {
+        if (state.response.thinking) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         await this.finalizeCurrentTextBlock(msg);
@@ -407,7 +402,7 @@ export class StreamController {
 
       case 'task_notification': {
         this.flushPendingTools();
-        if (state.currentThinkingState) {
+        if (state.response.thinking) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         await this.finalizeCurrentTextBlock(msg);
@@ -440,7 +435,7 @@ export class StreamController {
       case 'context_compacted': {
         this.highestContextUsage = null;
         this.flushPendingTools();
-        if (state.currentThinkingState) {
+        if (state.response.thinking) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
         await this.finalizeCurrentTextBlock(msg);
@@ -466,10 +461,10 @@ export class StreamController {
         break;
     }
 
-    const liveBlock = state.currentTextEl
+    const liveBlock = state.response.text
       ? { type: 'text' as const, content: state.currentTextContent }
-      : state.currentThinkingState
-        ? { type: 'thinking' as const, content: state.currentThinkingState.content }
+      : state.response.thinking
+        ? { type: 'thinking' as const, content: state.response.thinking.content }
         : undefined;
     this.deps.renderer.syncStreamingActivity?.(msg, state.currentContentEl, liveBlock, state.messages);
     if (shouldFollowScroll) this.scrollToBottom();
@@ -1105,8 +1100,7 @@ export class StreamController {
 
       for (const spawnId of linkedSpawnIds) {
         const spawnToolCall = msg.toolCalls?.find(tc => tc.id === spawnId);
-        const subagentState = this.lifecycleSubagentStates.get(spawnId);
-        if (!spawnToolCall || !subagentState) continue;
+        if (!spawnToolCall) continue;
 
         const subagentInfo = adapter.buildSubagentInfo(spawnToolCall, msg.toolCalls ?? []);
         spawnToolCall.subagent = subagentInfo;
@@ -1253,7 +1247,7 @@ export class StreamController {
     }
 
     // Check if it's a sync subagent result
-    const subagentState = subagentManager.getSyncSubagent(chunk.id);
+    const subagentState = subagentManager.getSyncSubagentInfo(chunk.id);
     if (subagentState) {
       this.finalizeSubagent(chunk, msg);
       return;
@@ -1353,6 +1347,8 @@ export class StreamController {
 
   async appendText(text: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
+    if (msg) state.response.messageId = msg.id;
+    state.currentTextContent += text;
     if (!state.currentContentEl) return;
 
     this.hideThinkingIndicator();
@@ -1360,7 +1356,6 @@ export class StreamController {
     if (!state.currentTextEl) {
       this.textRenderCoordinator.cancel();
       state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
-      state.currentTextContent = '';
     }
     if (msg && !state.currentTextEl.dataset.transcriptItemId) {
       const blockIndex = msg.contentBlocks?.length ?? 0;
@@ -1371,7 +1366,6 @@ export class StreamController {
       );
     }
 
-    state.currentTextContent += text;
     this.textRenderCoordinator.request(
       this.createStreamingSnapshot(state.currentTextEl, state.currentTextContent)
     );
@@ -1384,12 +1378,13 @@ export class StreamController {
    */
   appendBackgroundText(text: string, msg?: ChatMessage): void {
     const { state } = this.deps;
+    if (msg) state.response.messageId = msg.id;
+    state.currentTextContent += text;
     if (!state.currentContentEl) return;
 
     this.hideThinkingIndicator();
     if (!state.currentTextEl) {
       state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
-      state.currentTextContent = '';
     }
     if (msg && !state.currentTextEl.dataset.transcriptItemId) {
       state.currentTextEl.dataset.transcriptItemId = getTranscriptBlockId(
@@ -1399,8 +1394,7 @@ export class StreamController {
       );
     }
 
-    state.currentTextContent += text;
-    state.currentTextEl.appendText(text);
+    state.currentTextEl.setText(state.currentTextContent);
     state.currentTextEl.addClass('claudian-text-block--plain-streaming');
     this.scrollToBottom();
   }
@@ -1428,9 +1422,10 @@ export class StreamController {
       await this.textRenderCoordinator.flush();
     }
 
-    if (msg && content) {
+    const completed = state.response.takeText();
+    if (msg && completed) {
       msg.contentBlocks = msg.contentBlocks || [];
-      const block = this.appendTranscriptBlock(msg, { type: 'text', content });
+      const block = this.appendTranscriptBlock(msg, completed);
       if (textEl && block.id) textEl.dataset.transcriptItemId = block.id;
       // Copy button added here (not during streaming) to match history-loaded messages
       if (textEl) {
@@ -1439,7 +1434,6 @@ export class StreamController {
     }
     this.textRenderCoordinator.cancel();
     state.currentTextEl = null;
-    state.currentTextContent = '';
   }
 
   private scheduleToolOutputRender(toolId: string, toolCall: ToolCallInfo): void {
@@ -1474,12 +1468,14 @@ export class StreamController {
 
   async appendThinking(content: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
+    const thinking = state.response.appendThinking(content);
     if (!state.currentContentEl) return;
 
     this.hideThinkingIndicator();
     if (!state.currentThinkingState) {
       this.thinkingRenderCoordinator.cancel();
       const thinkingState = createThinkingBlock(state.currentContentEl, {
+        startTime: thinking.startTime,
         presentation: ProviderRegistry.getChatUIConfig(this.getActiveProviderId()).thinkingPresentation,
         onToggle: (isExpanded) => {
           this.handleThinkingToggle(thinkingState, isExpanded);
@@ -1492,6 +1488,10 @@ export class StreamController {
           msg.contentBlocks?.length ?? 0,
         );
       }
+      Object.defineProperty(thinkingState, 'content', {
+        get: () => thinking.content,
+        set: (value: string) => { thinking.content = value; },
+      });
       state.currentThinkingState = thinkingState;
       this.thinkingViewport?.dispose();
       this.thinkingViewport = thinkingState.presentation === 'status'
@@ -1500,7 +1500,6 @@ export class StreamController {
       this.syncThinkingRenderAvailability();
     }
 
-    state.currentThinkingState.content += content;
     if (state.currentThinkingState.presentation === 'status') {
       refreshThinkingLabel(state.currentThinkingState);
       return;
@@ -1515,10 +1514,10 @@ export class StreamController {
 
   async finalizeCurrentThinkingBlock(msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
-    if (!state.currentThinkingState) return;
+    if (!state.response.thinking) return;
 
     const thinkingState = state.currentThinkingState;
-    if (thinkingState.presentation !== 'status' && this.getStreamingRenderOptions(thinkingState.content)) {
+    if (thinkingState && thinkingState.presentation !== 'status' && this.getStreamingRenderOptions(thinkingState.content)) {
       this.thinkingRenderCoordinator.request({
         el: thinkingState.contentEl,
         content: thinkingState.content,
@@ -1527,16 +1526,12 @@ export class StreamController {
     }
     await this.thinkingRenderCoordinator.flush();
 
-    const durationSeconds = finalizeThinkingBlock(thinkingState);
+    if (thinkingState) finalizeThinkingBlock(thinkingState);
+    const completed = state.response.takeThinking();
 
-    if (msg && thinkingState.content) {
-      msg.contentBlocks = msg.contentBlocks || [];
-      const block = this.appendTranscriptBlock(msg, {
-        type: 'thinking',
-        content: thinkingState.content,
-        durationSeconds,
-      });
-      if (block.id && thinkingState.wrapperEl?.dataset) {
+    if (msg && completed) {
+      const block = this.appendTranscriptBlock(msg, completed);
+      if (block.id && thinkingState?.wrapperEl?.dataset) {
         thinkingState.wrapperEl.dataset.transcriptItemId = block.id;
       }
     }
@@ -1586,9 +1581,12 @@ export class StreamController {
         this.reportSubagentActivity(result.info);
         this.showThinkingIndicator();
         break;
-      case 'buffered':
+      case 'buffered': {
+        const info = subagentManager.getSyncSubagentInfo(chunk.id) ?? subagentManager.getByTaskId(chunk.id);
+        if (info) this.recordSubagentInMessage(msg, info, chunk.id, info.mode === 'async' ? 'async' : undefined);
         this.showThinkingIndicator();
         break;
+      }
       case 'label_updated':
         break;
     }
@@ -1597,7 +1595,12 @@ export class StreamController {
   /** Renders a pending Agent tool call via SubagentManager and updates message. */
   private renderPendingTaskViaManager(toolId: string, msg: ChatMessage): void {
     const result = this.deps.subagentManager.renderPendingTask(toolId, this.deps.state.currentContentEl);
-    if (!result) return;
+    if (!result) {
+      const manager = this.deps.subagentManager;
+      const info = manager.getSyncSubagentInfo(toolId) ?? manager.getByTaskId(toolId);
+      if (info) this.recordSubagentInMessage(msg, info, toolId, info.mode === 'async' ? 'async' : undefined);
+      return;
+    }
 
     if (result.mode === 'sync') {
       this.recordSubagentInMessage(msg, result.subagentState.info, toolId);
@@ -1618,7 +1621,12 @@ export class StreamController {
       this.deps.state.currentContentEl,
       chunk.toolUseResult
     );
-    if (!result) return;
+    if (!result) {
+      const manager = this.deps.subagentManager;
+      const info = manager.getSyncSubagentInfo(chunk.id) ?? manager.getByTaskId(chunk.id);
+      if (info) this.recordSubagentInMessage(msg, info, chunk.id, info.mode === 'async' ? 'async' : undefined);
+      return;
+    }
 
     if (result.mode === 'sync') {
       this.recordSubagentInMessage(msg, result.subagentState.info, chunk.id);
@@ -1679,7 +1687,7 @@ export class StreamController {
       this.renderPendingTaskViaManager(parentToolUseId, msg);
     }
 
-    const subagentState = subagentManager.getSyncSubagent(parentToolUseId);
+    const subagentState = subagentManager.getSyncSubagentInfo(parentToolUseId);
 
     if (!subagentState) {
       return;
@@ -1700,7 +1708,7 @@ export class StreamController {
       }
 
       case 'subagent_tool_result': {
-        const toolCall = subagentState.info.toolCalls.find((tc: ToolCallInfo) => tc.id === chunk.id);
+        const toolCall = subagentState.toolCalls.find((tc: ToolCallInfo) => tc.id === chunk.id);
         if (toolCall) {
           const normalizedContent = this.normalizeToolResultContent(chunk.content);
           toolCall.status = chunk.isBlocked
@@ -2041,12 +2049,9 @@ export class StreamController {
       this.reportSubagentActivity(subagent);
     }
     const message = this.updateSubagentInMessages(subagent);
-    if (
-      message
-      && subagent.mode === 'async'
+    if (message && subagent.mode === 'async'
       && (subagent.asyncStatus === 'completed' || subagent.asyncStatus === 'error')
-      && this.deps.state.currentContentEl
-    ) {
+      && (this.deps.state.currentContentEl || this.deps.state.response.messageId === message.id)) {
       this.deps.subagentManager.moveCompletedAsyncSubagentToTail(
         subagent.id,
         this.deps.state.currentContentEl,
@@ -2084,14 +2089,14 @@ export class StreamController {
     const { state, renderer } = this.deps;
     const textEl = state.currentTextEl;
     const content = state.currentTextContent;
-    if (!textEl || !content) return;
+    if (!content) return;
 
     this.textRenderCoordinator.cancel();
-    void renderer.renderContent(textEl, content, this.getStreamingRenderOptions(content));
+    if (textEl) void renderer.renderContent(textEl, content, this.getStreamingRenderOptions(content));
     message.contentBlocks = message.contentBlocks || [];
     const block = this.appendTranscriptBlock(message, { type: 'text', content });
-    if (block.id) textEl.dataset.transcriptItemId = block.id;
-    renderer.addTextCopyButton(textEl, content);
+    if (block.id && textEl) textEl.dataset.transcriptItemId = block.id;
+    if (textEl) renderer.addTextCopyButton(textEl, content);
     state.currentTextEl = null;
     state.currentTextContent = '';
   }
@@ -2410,6 +2415,7 @@ export class StreamController {
 
   resetStreamingState(): void {
     const { state } = this.deps;
+    const message = state.messages.find(candidate => candidate.id === state.response.messageId);
     this.textRenderCoordinator.cancel();
     this.thinkingRenderCoordinator.cancel();
     this.cancelPendingToolOutputRenders();
@@ -2420,9 +2426,9 @@ export class StreamController {
     this.deps.clearToolActivities?.();
     state.currentContentEl = null;
     state.currentTextEl = null;
-    state.currentTextContent = '';
+    state.response.reset();
     state.currentThinkingState = null;
-    this.deps.subagentManager.resetStreamingState();
+    this.deps.subagentManager.resetStreamingState(new Set(message?.toolCalls?.map(tool => tool.id)));
     this.highestContextUsage = null;
     this.lifecycleSubagentStates.clear();
     this.lifecycleAgentIdToSpawnId.clear();

@@ -873,7 +873,8 @@ export class InputController {
     await streamController.finalizeCurrentThinkingBlock(message);
     await streamController.finalizeCurrentTextBlock(message);
     renderer.renderFinalMessageTimestamp?.(messageEl, message);
-    this.deps.getSubagentManager().resetStreamingState();
+    this.deps.getSubagentManager().resetStreamingState(new Set(message.toolCalls?.map(tool => tool.id)));
+    state.response.reset();
     if (state.currentTodos?.every(todo => todo.status === 'completed')) state.currentTodos = null;
     this.syncScrollToBottomAfterRenderUpdates();
   }
@@ -1303,7 +1304,7 @@ export class InputController {
 
     state.currentContentEl = contentEl;
     state.currentTextEl = null;
-    state.currentTextContent = '';
+    state.response.reset();
     state.currentThinkingState = null;
   }
 
@@ -1458,7 +1459,7 @@ export class InputController {
     renderer.removeMessage(messageId);
     state.currentContentEl = null;
     state.currentTextEl = null;
-    state.currentTextContent = '';
+    state.response.reset();
     state.currentThinkingState = null;
   }
 
@@ -1490,15 +1491,16 @@ export class InputController {
 
   private resetTurnStreamingState(): void {
     const { state, streamController } = this.deps;
+    const message = state.messages.find(candidate => candidate.id === state.response.messageId);
     streamController.hideThinkingIndicator();
     state.isStreaming = false;
     state.cancelRequested = false;
     state.currentContentEl = null;
     state.currentTextEl = null;
-    state.currentTextContent = '';
+    state.response.reset();
     state.currentThinkingState = null;
     state.responseStartTime = null;
-    this.deps.getSubagentManager().resetStreamingState();
+    this.deps.getSubagentManager().resetStreamingState(new Set(message?.toolCalls?.map(tool => tool.id)));
   }
 
   // ============================================

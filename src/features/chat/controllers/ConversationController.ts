@@ -505,7 +505,7 @@ export class ConversationController {
       cleanupThinkingBlock(state.currentThinkingState);
       state.currentContentEl = null;
       state.currentTextEl = null;
-      state.currentTextContent = '';
+      state.response.reset();
       state.currentThinkingState = null;
       state.toolCallElements.clear();
       state.writeEditStates.clear();

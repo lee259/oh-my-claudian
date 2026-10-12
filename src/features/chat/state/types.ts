@@ -13,6 +13,7 @@ import type { CanvasSelectionContext } from '../../../utils/canvas';
 import type { EditorSelectionContext } from '../../../utils/editor';
 import type { ThinkingBlockState } from '../rendering/ThinkingBlockRenderer';
 import type { WriteEditState } from '../rendering/WriteEditRenderer';
+import type { ResponseModel } from './ResponseModel';
 
 export interface ChatTurnRequest {
   text: string;
@@ -91,10 +92,12 @@ export interface ChatStateData {
   // Queued message
   queuedMessage: QueuedMessage | null;
 
+  // Response content and its optional presentation
+  response: ResponseModel;
+
   // Active streaming DOM state
   currentContentEl: HTMLElement | null;
   currentTextEl: HTMLElement | null;
-  currentTextContent: string;
   currentThinkingState: ThinkingBlockState | null;
   thinkingEl: HTMLElement | null;
   queueIndicatorEl: HTMLElement | null;
