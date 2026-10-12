@@ -388,6 +388,95 @@ async function createActiveSteerSession() {
 }
 
 describe('CodexExecutionBackend', () => {
+  it('keeps parent output flowing after a child messages its parent', async () => {
+    configureSteerTransport('parent', 'parent-turn', () => ({}));
+    const session = new CodexExecutionBackend(createPlugin()).createSession(createSessionConfig());
+    const updates: ProviderSessionEvent[] = [];
+    session.onEvent(event => updates.push(event));
+    let completionTimeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const run = session.execute(createRequest());
+      const output = collectEvents(run.events);
+      await waitForCondition(() => mockTransportRequest.mock.calls.some(([method]) => method === 'turn/start'));
+      emitNotification('item/completed', { threadId: 'parent', turnId: 'parent-turn',
+        item: { type: 'subAgentActivity', id: 'spawn', kind: 'started', agentThreadId: 'child', agentPath: '/root/review' } });
+      emitNotification('turn/started', { threadId: 'child', turn: { id: 'child-turn', status: 'inProgress', items: [], error: null } });
+      // Native records a child's message to its parent on the child thread, targeting the parent.
+      emitNotification('item/completed', { threadId: 'child', turnId: 'child-turn',
+        item: { type: 'subAgentActivity', id: 'message-parent', kind: 'interacted', agentThreadId: 'parent', agentPath: '/root' } });
+      emitNotification('item/completed', { threadId: 'parent', turnId: 'parent-turn',
+        item: { type: 'agentMessage', id: 'final', phase: 'final_answer', text: 'Parent done.', memoryCitation: null } });
+      completeTurn('parent', 'parent-turn');
+      const settled = await Promise.race([
+        output.then(events => JSON.stringify(events)),
+        new Promise<null>(resolve => { completionTimeout = setTimeout(() => resolve(null), 1_000); }),
+      ]);
+      expect(settled).toContain('Parent done.');
+      expect(updates).not.toContainEqual(expect.objectContaining({
+        subagent: expect.objectContaining({ agentId: 'parent' }),
+      }));
+    } finally {
+      clearTimeout(completionTimeout);
+      await session.dispose();
+    }
+  });
+
+  it('tracks a child agent descendant without claiming unrelated threads', async () => {
+    configureSteerTransport('parent', 'parent-turn', () => ({}));
+    const session = new CodexExecutionBackend(createPlugin()).createSession(createSessionConfig());
+    const updates: ProviderSessionEvent[] = [];
+    session.onEvent(event => updates.push(event));
+    try {
+      const run = session.execute(createRequest());
+      const output = collectEvents(run.events);
+      await waitForCondition(() => mockTransportRequest.mock.calls.some(([method]) => method === 'turn/start'));
+      emitNotification('item/completed', { threadId: 'parent', turnId: 'parent-turn',
+        item: { type: 'subAgentActivity', id: 'spawn', kind: 'started', agentThreadId: 'child', agentPath: '/root/a' } });
+      for (const [threadId, agentThreadId, agentPath] of [
+        ['child', 'grandchild', '/root/a/review'],
+        ['child', 'prefix-sibling', '/root/ab/review'],
+        ['unknown', 'unowned-child', '/root/unknown/review'],
+      ]) {
+        emitNotification('item/completed', { threadId, turnId: 'child-turn',
+          item: { type: 'subAgentActivity', id: agentThreadId, kind: 'started', agentThreadId, agentPath } });
+      }
+      completeTurn('parent', 'parent-turn');
+      await output;
+      const agentIds = updates.flatMap(event => event.type === 'subagent_updated' ? [event.subagent.agentId] : []);
+      expect(agentIds).toContain('grandchild');
+      expect(agentIds).not.toContain('prefix-sibling');
+      expect(agentIds).not.toContain('unowned-child');
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it('keeps a sibling message from replacing the receiving subagent invocation', async () => {
+    configureSteerTransport('parent', 'parent-turn', () => ({}));
+    const session = new CodexExecutionBackend(createPlugin()).createSession(createSessionConfig());
+    const updates: ProviderSessionEvent[] = [];
+    session.onEvent(event => updates.push(event));
+    try {
+      session.execute(createRequest());
+      await waitForCondition(() => mockTransportRequest.mock.calls.some(([method]) => method === 'turn/start'));
+      for (const name of ['a', 'b']) {
+        emitNotification('item/completed', { threadId: 'parent', turnId: 'parent-turn',
+          item: { type: 'subAgentActivity', id: `spawn-${name}`, kind: 'started', agentThreadId: name, agentPath: `/root/${name}` } });
+      }
+      emitNotification('turn/started', { threadId: 'b', turn: { id: 'b-turn-1', status: 'inProgress', items: [], error: null } });
+      emitNotification('turn/completed', { threadId: 'b', turn: { id: 'b-turn-1', status: 'completed', items: [], error: null } });
+      emitNotification('turn/started', { threadId: 'a', turn: { id: 'a-turn', status: 'inProgress', items: [], error: null } });
+      emitNotification('item/completed', { threadId: 'a', turnId: 'a-turn',
+        item: { type: 'subAgentActivity', id: 'a-message-b', kind: 'interacted', agentThreadId: 'b', agentPath: '/root/b' } });
+      emitNotification('turn/started', { threadId: 'b', turn: { id: 'b-turn-2', status: 'inProgress', items: [], error: null } });
+      const latestB = updates.filter(event => (event as any).subagent?.agentId === 'b').at(-1) as any;
+      expect(latestB.subagent).toEqual(expect.objectContaining({ id: 'spawn-b', status: 'running' }));
+    } finally {
+      await session.dispose();
+    }
+  });
+
+
   beforeEach(() => {
     jest.clearAllMocks();
     captureHandlers();
