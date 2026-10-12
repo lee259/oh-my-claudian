@@ -374,12 +374,74 @@ describe('ClaudeConversationHistoryService', () => {
   });
 
   describe('hydrateConversationHistory', () => {
+    it.each(['missing', 'unknown', 'error', 'skipped'] as const)(
+      'retains unmatched cached messages when history has a %s segment', async fault => {
+        const cached = { id: 'cached-user', role: 'user' as const, content: 'Retained question', timestamp: 1 };
+        const conversation = createConversation({
+          messages: [cached, { id: 'native-answer', role: 'assistant', content: 'Answer', timestamp: 2 }],
+          providerState: { previousProviderSessionIds: ['previous'], providerSessionId: 'session-1' },
+        });
+        const locations = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+          ['previous', fault === 'missing' || fault === 'unknown'
+            ? { availability: fault }
+            : { availability: 'available', sessionPath: '/vault/previous.jsonl' }],
+          ['session-1', { availability: 'available', sessionPath: '/vault/session-1.jsonl' }],
+        ]));
+        const signature = jest.spyOn(historyStore, 'getSDKSessionSignature').mockResolvedValue('partial');
+        const load = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockImplementation(async (_vault, id) => ({
+          messages: id === 'session-1'
+            ? [{ id: 'native-answer', role: 'assistant', content: 'Answer', timestamp: 2 }] : [],
+          skippedLines: id === 'previous' && fault === 'skipped' ? 1 : 0,
+          ...(id === 'previous' && fault === 'error' ? { error: 'EIO' } : {}),
+        }));
+        try {
+          await new ClaudeConversationHistoryService().hydrateConversationHistory(conversation, '/vault');
+          expect(conversation.messages).toContainEqual(cached);
+        } finally {
+          locations.mockRestore(); signature.mockRestore(); load.mockRestore();
+        }
+      },
+    );
+
+    it('replaces confirmed live projections while retaining pending input and unconsumed notifications', async () => {
+      const service = new ClaudeConversationHistoryService();
+      const conversation = createConversation({ messages: [
+        { id: 'local-user', role: 'user', content: 'Question', timestamp: 1, userMessageId: 'local-send' },
+        { id: 'local-answer', role: 'assistant', content: 'Answer', timestamp: 2, assistantMessageId: 'native-answer' },
+        { id: 'unconsumed', role: 'assistant', content: '', timestamp: 3,
+          contentBlocks: [{ type: 'task_notification', content: 'Another task finished' }] },
+        { id: 'consumed', role: 'assistant', content: '', timestamp: 4,
+          contentBlocks: [{ type: 'task_notification', content: 'Task finished' }] },
+        { id: 'local-auto', role: 'assistant', content: 'Done', timestamp: 5, assistantMessageId: 'native-auto' },
+        { id: 'pending', role: 'user', content: 'Next question', timestamp: 6 },
+      ] });
+      const locations = jest.spyOn(historyStore, 'locateSDKSessions').mockResolvedValue(new Map([
+        ['session-1', { availability: 'available', sessionPath: '/vault/session-1.jsonl' }],
+      ]));
+      const signature = jest.spyOn(historyStore, 'getSDKSessionSignature').mockResolvedValue('complete');
+      const load = jest.spyOn(historyStore, 'loadSDKSessionMessages').mockResolvedValue({ messages: [
+        { id: 'native-user', role: 'user', content: 'Question', timestamp: 1, userMessageId: 'native-user' },
+        { id: 'native-answer', role: 'assistant', content: 'Answer', timestamp: 2, assistantMessageId: 'native-answer' },
+        { id: 'native-auto', role: 'assistant', content: 'Done', timestamp: 5, assistantMessageId: 'native-auto',
+          contentBlocks: [{ type: 'task_notification', content: 'Task finished' }] },
+      ], skippedLines: 0 });
+      try {
+        await service.hydrateConversationHistory(conversation, '/vault');
+        expect(conversation.messages.map(message => message.id)).toEqual([
+          'native-user', 'native-answer', 'unconsumed', 'native-auto', 'pending',
+        ]);
+      } finally {
+        locations.mockRestore(); signature.mockRestore(); load.mockRestore();
+      }
+    });
+
     it('keeps native transcript order and places cached-only messages between their shared anchors', async () => {
       const service = new ClaudeConversationHistoryService();
       const conversation = createConversation({
         messages: [
           { id: 'native-a', role: 'assistant', content: 'First native response', timestamp: 10, assistantMessageId: 'native-a' },
-          { id: 'cached-note', role: 'assistant', content: 'Cached notification', timestamp: 100 },
+          { id: 'cached-note', role: 'assistant', content: 'Cached notification', timestamp: 100,
+            contentBlocks: [{ type: 'task_notification', content: 'Cached notification' }] },
           { id: 'native-b', role: 'assistant', content: 'Second native response', timestamp: 90, assistantMessageId: 'native-b' },
         ],
       });
@@ -504,6 +566,7 @@ describe('ClaudeConversationHistoryService', () => {
           content: 'Prompt',
           timestamp: 1,
           userMessageId: 'native-user-message',
+          images: [{ id: 'image', name: 'note.png', mediaType: 'image/png', data: 'cached-image', size: 12, source: 'paste' }],
         }],
       });
       const locationSpy = jest.spyOn(historyStore, 'locateSDKSessions')
@@ -549,9 +612,11 @@ describe('ClaudeConversationHistoryService', () => {
       await service.hydrateConversationHistory(conversation, '/vault');
 
       expect(conversation.messages.map(message => message.id)).toEqual([
-        'local-user-message',
+        'native-user-message',
         'native-assistant-message',
       ]);
+
+      expect(conversation.messages[0].images?.[0].data).toBe('cached-image');
 
       locationSpy.mockRestore();
       signatureSpy.mockRestore();
