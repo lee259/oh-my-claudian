@@ -12,7 +12,7 @@ import {
   TOOL_TODO_WRITE,
   TOOL_WAIT_AGENT,
 } from '@/core/tools/toolNames';
-import type { ChatMessage, ToolCallInfo } from '@/core/types';
+import type { ChatMessage, SubagentInfo, ToolCallInfo } from '@/core/types';
 import {
   providerOutputEventToStreamChunk,
   StreamController,
@@ -164,6 +164,9 @@ function createMockDeps(): MockStreamControllerDeps {
       renderPendingTask: jest.fn().mockReturnValue(null),
       renderPendingTaskFromTaskResult: jest.fn().mockReturnValue(null),
       getSyncSubagent: jest.fn().mockReturnValue(undefined),
+      getSyncSubagentInfo(this: { getSyncSubagent(id: string): { info: SubagentInfo } | undefined }, id: string) {
+        return this.getSyncSubagent(id)?.info;
+      },
       addSyncToolCall: jest.fn(),
       updateSyncToolResult: jest.fn(),
       finalizeSyncSubagent: jest.fn().mockReturnValue(null),
@@ -1752,6 +1755,7 @@ describe('StreamController - Text Content', () => {
 
     it('should not show indicator when currentThinkingState is active', () => {
       deps.state.currentThinkingState = { content: 'thinking...', container: {}, contentEl: {}, startTime: Date.now() } as any;
+      deps.state.response.thinking = { content: deps.state.currentThinkingState!.content, startTime: deps.state.currentThinkingState!.startTime };
 
       controller.showThinkingIndicator();
       jest.advanceTimersByTime(500);
@@ -2112,6 +2116,7 @@ describe('StreamController - Text Content', () => {
         contentEl: createMockEl(),
         startTime: Date.now(),
       } as any;
+      deps.state.response.thinking = { content: deps.state.currentThinkingState!.content, startTime: deps.state.currentThinkingState!.startTime };
 
       await controller.finalizeCurrentThinkingBlock(msg);
 
@@ -2129,6 +2134,7 @@ describe('StreamController - Text Content', () => {
         contentEl: createMockEl(),
         startTime: Date.now(),
       } as any;
+      deps.state.response.thinking = { content: deps.state.currentThinkingState!.content, startTime: deps.state.currentThinkingState!.startTime };
 
       await controller.finalizeCurrentThinkingBlock(msg);
 
@@ -2635,6 +2641,7 @@ describe('StreamController - Text Content', () => {
         contentEl: createMockEl(),
         startTime: Date.now(),
       } as any;
+      deps.state.response.thinking = { content: deps.state.currentThinkingState!.content, startTime: deps.state.currentThinkingState!.startTime };
 
       await controller.handleStreamChunk({ type: 'text', content: 'Hello' }, msg);
 
@@ -2675,6 +2682,7 @@ describe('StreamController - Text Content', () => {
         contentEl: createMockEl(),
         startTime: Date.now(),
       } as any;
+      deps.state.response.thinking = { content: deps.state.currentThinkingState!.content, startTime: deps.state.currentThinkingState!.startTime };
 
       await controller.handleStreamChunk(
         { type: 'tool_use', id: 'read-1', name: 'Read', input: { file_path: 'test.md' } },

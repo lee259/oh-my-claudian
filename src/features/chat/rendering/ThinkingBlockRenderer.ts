@@ -15,6 +15,7 @@ export interface ThinkingBlockState {
 }
 
 export interface ThinkingBlockOptions {
+  startTime?: number;
   presentation?: 'expandable' | 'status';
   onToggle?: (isExpanded: boolean) => void;
 }
@@ -42,7 +43,7 @@ export function createThinkingBlock(
     labelEl.setText(t('chat.rendering.thinking', { seconds: 0 }));
     const contentEl = wrapperEl.createDiv();
     contentEl.hidden = true;
-    return { wrapperEl, labelEl, contentEl, content: '', startTime: Date.now(),
+    return { wrapperEl, labelEl, contentEl, content: '', startTime: options.startTime ?? Date.now(),
       timerInterval: null, isExpanded: false, presentation: 'status' };
   }
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-thinking-block' });
@@ -56,7 +57,7 @@ export function createThinkingBlock(
 
   // Keep the live indicator compact while reasoning stays collapsed.
   const labelEl = header.createSpan({ cls: 'claudian-thinking-label' });
-  const startTime = Date.now();
+  const startTime = options.startTime ?? Date.now();
   labelEl.setText(t('chat.rendering.thinking', { seconds: 0 }));
 
   // Collapsible content (collapsed by default)

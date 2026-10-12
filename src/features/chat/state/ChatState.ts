@@ -1,4 +1,5 @@
 import type { UsageInfo } from '../../../core/types';
+import { ResponseModel } from './ResponseModel';
 import type {
   AutoScrollNavigationIntent,
   ChatMessage,
@@ -27,7 +28,7 @@ function createInitialState(): ChatStateData {
     queuedMessage: null,
     currentContentEl: null,
     currentTextEl: null,
-    currentTextContent: '',
+    response: new ResponseModel(),
     currentThinkingState: null,
     thinkingEl: null,
     queueIndicatorEl: null,
@@ -51,6 +52,7 @@ function createInitialState(): ChatStateData {
 
 export class ChatState {
   private state: ChatStateData;
+
   private _callbacks: ChatStateCallbacks;
   private readonly pendingActionIds = new Set<string>();
   private pendingReview: { outcome?: TabReviewOutcome; since: number } | null = null;
@@ -61,6 +63,9 @@ export class ChatState {
     this.state = createInitialState();
     this._callbacks = callbacks;
   }
+
+  get response(): ResponseModel { return this.state.response; }
+  set response(value: ResponseModel) { this.state.response = value; }
 
   get callbacks(): ChatStateCallbacks {
     return this._callbacks;
@@ -211,11 +216,11 @@ export class ChatState {
   }
 
   get currentTextContent(): string {
-    return this.state.currentTextContent;
+    return this.response.text;
   }
 
   set currentTextContent(value: string) {
-    this.state.currentTextContent = value;
+    this.response.text = value;
   }
 
   get currentThinkingState(): ThinkingBlockState | null {
@@ -479,7 +484,7 @@ export class ChatState {
   resetStreamingState(): void {
     this.state.currentContentEl = null;
     this.state.currentTextEl = null;
-    this.state.currentTextContent = '';
+    this.response.reset();
     this.state.currentThinkingState = null;
     this.isStreaming = false;
     this.state.cancelRequested = false;

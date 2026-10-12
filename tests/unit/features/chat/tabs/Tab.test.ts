@@ -959,7 +959,7 @@ describe('Tab provider execution ownership', () => {
     expect(coordinatorDeps[0].warmExecution?.canCool()).toBe(true);
   });
 
-  it('buffers normalized background output and persists it on completion', async () => {
+  it.each([true, false])('buffers and saves background output with connected presentation=%s', async connected => {
     const now = jest.spyOn(performance, 'now')
       .mockReturnValueOnce(10_000)
       .mockReturnValueOnce(15_000);
@@ -970,7 +970,7 @@ describe('Tab provider execution ownership', () => {
       containerEl: createMockEl() as any,
       captureReviewableSettlement: () => onReviewableSettlement,
     });
-    Object.defineProperty(tab.dom.contentEl, 'isConnected', { value: true });
+    Object.defineProperty(tab.dom.contentEl, 'isConnected', { value: connected });
     const assistantEl = createMockEl();
     assistantEl.querySelector = jest.fn().mockReturnValue(createMockEl());
     tab.renderer = {
@@ -1070,7 +1070,7 @@ describe('Tab provider execution ownership', () => {
       scope: { ...backgroundScope, sequence: 2 },
     }, context);
 
-    expect(appendBackgroundText).toHaveBeenCalledWith('child result');
+    expect(appendBackgroundText).toHaveBeenCalledWith('child result', expect.objectContaining({ role: 'assistant' }));
     expect(tab.state.currentContentEl).toBe(foregroundContentEl);
     expect(tab.state.currentTextEl).toBe(foregroundTextEl);
     expect(tab.state.currentTextContent).toBe('foreground output');

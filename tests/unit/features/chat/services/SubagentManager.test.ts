@@ -1441,7 +1441,7 @@ Only this is the final result.
       expect(manager.subagentsSpawnedThisStream).toBe(1);
     });
 
-    it('returns null and keeps task pending when targetEl is null', () => {
+    it('registers sync data while retaining its pending presentation without a parent', () => {
       const { manager } = createManager();
 
       // Buffer with null parentEl (no content element)
@@ -1452,7 +1452,8 @@ Only this is the final result.
       const result = manager.renderPendingTask('task-1');
       expect(result).toBeNull();
       expect(manager.hasPendingTask('task-1')).toBe(true);
-      expect(manager.subagentsSpawnedThisStream).toBe(0);
+      expect(manager.getSyncSubagentInfo('task-1')).toEqual(expect.objectContaining({ status: 'running', prompt: 'test' }));
+      expect(manager.subagentsSpawnedThisStream).toBe(1);
     });
 
     it('renders buffered async task with parentEl override', () => {
@@ -1468,7 +1469,7 @@ Only this is the final result.
       expect(result?.mode).toBe('async');
     });
 
-    it('does not increment spawned counter when rendering throws', () => {
+    it('retains the registered model when rendering throws', () => {
       const { createSubagentBlock } = jest.requireMock('@/features/chat/rendering/SubagentRenderer');
       createSubagentBlock.mockImplementationOnce(() => { throw new Error('DOM error'); });
 
@@ -1480,7 +1481,8 @@ Only this is the final result.
 
       const result = manager.renderPendingTask('task-1', parentEl);
       expect(result).toBeNull();
-      expect(manager.subagentsSpawnedThisStream).toBe(0);
+      expect(manager.subagentsSpawnedThisStream).toBe(1);
+      expect(manager.getSyncSubagentInfo('task-1')).toEqual(expect.objectContaining({ prompt: 'test', status: 'running' }));
     });
   });
 
@@ -1925,4 +1927,15 @@ Only this is the final result.
       expect(newUpdates[newUpdates.length - 1].agentId).toBe('agent-new');
     });
   });
+});
+
+it('keeps foreground subagent data when a background response resets its own tools', () => {
+  const manager = new SubagentManager(() => undefined);
+  manager.handleTaskToolUse('foreground', { description: 'Foreground', run_in_background: false }, null);
+  manager.handleTaskToolUse('background', { description: 'Background', run_in_background: false }, null);
+  manager.resetStreamingState(new Set(['background']));
+  expect(manager.getSyncSubagentInfo('background')).toBeUndefined();
+  manager.addSyncToolCall('foreground', { id: 'read', name: 'Read', input: {}, status: 'running' });
+  const result = manager.finalizeSyncSubagent('foreground', 'Done', false);
+  expect(result).toEqual(expect.objectContaining({ status: 'completed', result: 'Done', toolCalls: [expect.objectContaining({ id: 'read' })] }));
 });

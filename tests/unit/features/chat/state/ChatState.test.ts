@@ -50,7 +50,7 @@ describe('ChatState', () => {
       expect(state.queuedMessage).toBeNull();
       expect(state.currentContentEl).toBeNull();
       expect(state.currentTextEl).toBeNull();
-      expect(state.currentTextContent).toBe('');
+      expect(state.response.text).toBe('');
       expect(state.currentThinkingState).toBeNull();
       expect(state.thinkingEl).toBeNull();
       expect(state.queueIndicatorEl).toBeNull();
@@ -209,6 +209,7 @@ describe('ChatState', () => {
       const state = { content: 'thinking' } as any;
       chatState.currentThinkingState = state;
       expect(chatState.currentThinkingState).toBe(state);
+      expect(chatState.response.thinking).toBeNull();
     });
 
     it('stores thinkingEl', () => {

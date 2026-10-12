@@ -65,6 +65,7 @@ import { isNestedScrollEvent } from '../rendering/ScrollFollowController';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { unmountWelcomeElement } from '../rendering/WelcomeRenderer';
 import { BangBashService } from '../services/BangBashService';
+import { ResponseModel } from '../state/ResponseModel';
 import { BangBashModeManager as BangBashModeManagerClass } from '../ui/BangBashModeManager';
 import { ComposerContextTray } from '../ui/ComposerContextTray';
 import { FileContextManager } from '../ui/FileContext';
@@ -113,7 +114,7 @@ interface BackgroundTurnRenderState {
   hiddenToolIds: Set<string>;
   contentEl: HTMLElement | null;
   textEl: HTMLElement | null;
-  textContent: string;
+  response: ResponseModel;
   thinkingState: TabData['state']['currentThinkingState'];
   toolCallElements: Map<string, HTMLElement>;
 }
@@ -2460,6 +2461,7 @@ export async function destroyTab(tab: TabData): Promise<void> {
   cleanup.register('tab resume dropdown', () => tab.controllers.inputController?.destroyResumeDropdown());
   cleanup.register('tab thinking state', () => {
     cleanupThinkingBlock(tab.state.currentThinkingState);
+    tab.state.response.reset();
     tab.state.currentThinkingState = null;
   });
   cleanup.register('tab navigation controller', () => tab.controllers.navigationController?.dispose());
@@ -2566,7 +2568,7 @@ function createBackgroundTurnRenderState(modelName?: string): BackgroundTurnRend
     hiddenToolIds: new Set(),
     contentEl: null,
     textEl: null,
-    textContent: '',
+    response: new ResponseModel(),
     thinkingState: null,
     toolCallElements: new Map(),
   };
@@ -2580,7 +2582,7 @@ async function withBackgroundTurnRenderContext<T>(
   const foreground = {
     contentEl: tab.state.currentContentEl,
     textEl: tab.state.currentTextEl,
-    textContent: tab.state.currentTextContent,
+    response: tab.state.response,
     thinkingState: tab.state.currentThinkingState,
     toolCallElements: new Map(tab.state.toolCallElements),
     responseStartTime: tab.state.responseStartTime,
@@ -2588,7 +2590,7 @@ async function withBackgroundTurnRenderContext<T>(
 
   tab.state.currentContentEl = turn.contentEl;
   tab.state.currentTextEl = turn.textEl;
-  tab.state.currentTextContent = turn.textContent;
+  tab.state.response = turn.response;
   tab.state.currentThinkingState = turn.thinkingState;
   tab.state.responseStartTime = turn.responseStartTime;
   tab.state.toolCallElements.clear();
@@ -2601,14 +2603,14 @@ async function withBackgroundTurnRenderContext<T>(
   } finally {
     turn.contentEl = tab.state.currentContentEl;
     turn.textEl = tab.state.currentTextEl;
-    turn.textContent = tab.state.currentTextContent;
+    turn.response = tab.state.response;
     turn.thinkingState = tab.state.currentThinkingState;
     turn.toolCallElements = new Map(tab.state.toolCallElements);
     turn.responseStartTime = tab.state.responseStartTime ?? turn.responseStartTime;
 
     tab.state.currentContentEl = foreground.contentEl;
     tab.state.currentTextEl = foreground.textEl;
-    tab.state.currentTextContent = foreground.textContent;
+    tab.state.response = foreground.response;
     tab.state.currentThinkingState = foreground.thinkingState;
     tab.state.responseStartTime = foreground.responseStartTime;
     tab.state.toolCallElements.clear();
@@ -2624,7 +2626,7 @@ async function renderBackgroundTurnEvent(
   event: ProviderBackgroundOutputEvent,
   isCurrent: () => boolean,
 ): Promise<void> {
-  if (!isCurrent() || !tab.dom.contentEl.isConnected) return;
+  if (!isCurrent()) return;
   const chunk = providerOutputEventToStreamChunk(event);
   if (!chunk) return;
 
@@ -2635,7 +2637,7 @@ async function renderBackgroundTurnEvent(
   if (isVisible && !turn.hasVisibleContent) {
     turn.hasVisibleContent = true;
     tab.state.addMessage(turn.assistantMsg);
-    const msgEl = tab.renderer?.addMessage?.(turn.assistantMsg);
+    const msgEl = tab.dom.contentEl.isConnected ? tab.renderer?.addMessage?.(turn.assistantMsg) : null;
     const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
     if (contentEl) {
       turn.contentEl = contentEl;
@@ -2647,7 +2649,7 @@ async function renderBackgroundTurnEvent(
     const streamController = tab.controllers.streamController;
     await withBackgroundTurnRenderContext(tab, turn, async () => {
       if (streamController?.appendBackgroundText) {
-        streamController.appendBackgroundText(chunk.content);
+        streamController.appendBackgroundText(chunk.content, turn.assistantMsg);
       } else {
         await streamController?.handleStreamChunk(chunk, turn.assistantMsg);
       }
@@ -2680,6 +2682,7 @@ async function finalizeBackgroundTurn(
       await tab.controllers.streamController?.finalizeCurrentThinkingBlock(assistantMsg);
       if (!isCurrent()) return;
       await tab.controllers.streamController?.finalizeCurrentTextBlock(assistantMsg);
+      tab.state.response.reset();
     });
     if (!isCurrent()) return false;
     assistantMsg.durationSeconds = Math.max(
@@ -2690,7 +2693,7 @@ async function finalizeBackgroundTurn(
     return true;
   } finally {
     tab.controllers.streamController?.hideThinkingIndicator();
-    tab.services.subagentManager.resetStreamingState?.();
+    tab.services.subagentManager.resetStreamingState?.(new Set(assistantMsg.toolCalls?.map(tool => tool.id)));
     tab.renderer?.scrollToBottom();
   }
 }

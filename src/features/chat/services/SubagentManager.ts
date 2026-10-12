@@ -83,6 +83,7 @@ export class SubagentManager {
   private static readonly TRUSTED_OUTPUT_EXT = '.output';
   private static readonly TRUSTED_TMP_ROOTS = SubagentManager.resolveTrustedTmpRoots();
 
+  private readonly syncRecords = new Map<string, SubagentInfo>();
   private syncSubagents: Map<string, SubagentState> = new Map();
   private pendingTasks: Map<string, PendingToolCall> = new Map();
   private _spawnedThisStream = 0;
@@ -156,6 +157,18 @@ export class SubagentManager {
       return { action: 'label_updated' };
     }
 
+    const existingInfo = this.getSyncSubagentInfo(taskToolId) ?? this.getByTaskId(taskToolId);
+    if (existingInfo) {
+      const pending = this.pendingTasks.get(taskToolId);
+      if (pending) pending.toolCall.input = { ...pending.toolCall.input, ...taskInput };
+      if (typeof taskInput.description === 'string') existingInfo.description = taskInput.description;
+      if (typeof taskInput.prompt === 'string') existingInfo.prompt = taskInput.prompt;
+      if (!currentContentEl) return { action: 'label_updated' };
+      return existingInfo.mode === 'async'
+        ? this.createAsyncTask(taskToolId, taskInput, currentContentEl)
+        : this.createSyncTask(taskToolId, taskInput, currentContentEl);
+    }
+
     // Already buffered → merge input and try to render
     const pending = this.pendingTasks.get(taskToolId);
     if (pending) {
@@ -188,6 +201,16 @@ export class SubagentManager {
       return { action: 'buffered' };
     }
 
+    const knownMode = this.resolveTaskMode(taskInput);
+    if (!currentContentEl && knownMode) {
+      this.pendingTasks.set(taskToolId, { toolCall: {
+        id: taskToolId, name: TOOL_SUBAGENT, input: taskInput, status: 'running', isExpanded: false,
+      }, parentEl: null });
+      return knownMode === 'async'
+        ? this.createAsyncTask(taskToolId, taskInput, null)
+        : this.createSyncTask(taskToolId, taskInput, null);
+    }
+
     // New Task without a content element — buffer for later rendering
     if (!currentContentEl) {
       const toolCall: ToolCallInfo = {
@@ -215,7 +238,6 @@ export class SubagentManager {
       return { action: 'buffered' };
     }
 
-    this._spawnedThisStream++;
     if (mode === 'async') {
       return this.createAsyncTask(taskToolId, taskInput, currentContentEl);
     }
@@ -244,7 +266,11 @@ export class SubagentManager {
 
     const input = pending.toolCall.input;
     const targetEl = parentElOverride ?? pending.parentEl;
-    if (!targetEl) return null;
+    if (!targetEl) {
+      if (input.run_in_background === true) this.createAsyncTask(toolId, input, null);
+      else this.createSyncTask(toolId, input, null);
+      return null;
+    }
 
     this.pendingTasks.delete(toolId);
 
@@ -258,14 +284,12 @@ export class SubagentManager {
           existingPreview
         );
         if (result.action === 'created_async') {
-          this._spawnedThisStream++;
           return { mode: 'async', info: result.info, domState: result.domState };
         }
       } else {
         this.discardAsyncPreview(pending.toolCall.id);
         const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
         if (result.action === 'created_sync') {
-          this._spawnedThisStream++;
           return { mode: 'sync', subagentState: result.subagentState };
         }
       }
@@ -293,13 +317,17 @@ export class SubagentManager {
 
     const input = pending.toolCall.input;
     const targetEl = parentElOverride ?? pending.parentEl;
-    if (!targetEl) return null;
 
     const explicitMode = this.resolveTaskMode(input);
     const taskResultText = extractToolResultContent(taskResult, { fallbackIndent: 2 });
     const inferredMode = explicitMode
       ?? this.inferModeFromTaskResult(taskResultText, isError, taskToolUseResult);
 
+    if (!targetEl) {
+      if (inferredMode === 'async') this.createAsyncTask(toolId, input, null);
+      else this.createSyncTask(toolId, input, null);
+      return null;
+    }
     this.pendingTasks.delete(toolId);
 
     try {
@@ -312,14 +340,12 @@ export class SubagentManager {
           existingPreview
         );
         if (result.action === 'created_async') {
-          this._spawnedThisStream++;
           return { mode: 'async', info: result.info, domState: result.domState };
         }
       } else {
         this.discardAsyncPreview(pending.toolCall.id);
         const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
         if (result.action === 'created_sync') {
-          this._spawnedThisStream++;
           return { mode: 'sync', subagentState: result.subagentState };
         }
       }
@@ -334,14 +360,25 @@ export class SubagentManager {
   // Sync Subagent Operations
   // ============================================
 
+  public getSyncSubagentInfo(toolId: string): SubagentInfo | undefined {
+    return this.syncRecords.get(toolId);
+  }
+
   public getSyncSubagent(toolId: string): SubagentState | undefined {
     return this.syncSubagents.get(toolId);
   }
 
   public addSyncToolCall(parentToolUseId: string, toolCall: ToolCallInfo): void {
     const subagentState = this.syncSubagents.get(parentToolUseId);
-    if (!subagentState) return;
-    addSubagentToolCall(subagentState, toolCall);
+    if (subagentState) {
+      addSubagentToolCall(subagentState, toolCall);
+    } else {
+      const info = this.getSyncSubagentInfo(parentToolUseId);
+      if (!info) return;
+      const existing = info.toolCalls.find(tool => tool.id === toolCall.id);
+      if (existing) Object.assign(existing, toolCall, { input: { ...existing.input, ...toolCall.input } });
+      else info.toolCalls.push(toolCall);
+    }
   }
 
   public updateSyncToolResult(
@@ -350,8 +387,11 @@ export class SubagentManager {
     toolCall: ToolCallInfo
   ): void {
     const subagentState = this.syncSubagents.get(parentToolUseId);
-    if (!subagentState) return;
-    updateSubagentToolResult(subagentState, toolId, toolCall);
+    if (subagentState) updateSubagentToolResult(subagentState, toolId, toolCall);
+    else {
+      const existing = this.getSyncSubagentInfo(parentToolUseId)?.toolCalls.find(tool => tool.id === toolId);
+      if (existing) Object.assign(existing, toolCall);
+    }
   }
 
   public finalizeSyncSubagent(
@@ -361,14 +401,19 @@ export class SubagentManager {
     toolUseResult?: unknown
   ): SubagentInfo | null {
     const subagentState = this.syncSubagents.get(toolId);
-    if (!subagentState) return null;
+    const info = this.getSyncSubagentInfo(toolId);
+    if (!info) return null;
 
     const resultText = extractToolResultContent(result, { fallbackIndent: 2 });
     const extractedResult = this.extractAgentResult(resultText, '', toolUseResult);
-    finalizeSubagentBlock(subagentState, extractedResult, isError);
+    info.status = isError ? 'error' : 'completed';
+    info.result = extractedResult;
+    if (subagentState) finalizeSubagentBlock(subagentState, extractedResult, isError);
     this.syncSubagents.delete(toolId);
+    this.syncRecords.delete(toolId);
+    this.pendingTasks.delete(toolId);
 
-    return subagentState.info;
+    return info;
   }
 
   // ============================================
@@ -582,17 +627,20 @@ export class SubagentManager {
    */
   public moveCompletedAsyncSubagentToTail(
     taskToolId: string,
-    parentEl: HTMLElement,
+    parentEl: HTMLElement | null,
     beforeMove: () => void,
   ): boolean {
     if (this.completionAnchoredAsyncTaskIds.has(taskToolId)) return false;
 
     const asyncState = this.asyncDomStates.get(taskToolId);
-    if (!asyncState || asyncState.wrapperEl.parentElement !== parentEl) return false;
+    if (parentEl && (!asyncState || asyncState.wrapperEl.parentElement !== parentEl)) return false;
+    if (!parentEl && !this.asyncSubagents.has(taskToolId)) return false;
 
     beforeMove();
-    asyncState.wrapperEl.remove();
-    parentEl.appendChild(asyncState.wrapperEl);
+    if (asyncState && parentEl) {
+      asyncState.wrapperEl.remove();
+      parentEl.appendChild(asyncState.wrapperEl);
+    }
     this.completionAnchoredAsyncTaskIds.add(taskToolId);
     return true;
   }
@@ -609,8 +657,18 @@ export class SubagentManager {
     this._spawnedThisStream = 0;
   }
 
-  public resetStreamingState(): void {
+  public resetStreamingState(taskIds?: ReadonlySet<string>): void {
+    if (taskIds) {
+      for (const id of taskIds) {
+        this.syncSubagents.delete(id);
+        this.syncRecords.delete(id);
+        this.pendingTasks.delete(id);
+        this.discardAsyncPreview(id);
+      }
+      return;
+    }
     this.syncSubagents.clear();
+    this.syncRecords.clear();
     this.pendingTasks.clear();
     this.clearAsyncPreviews();
   }
@@ -634,6 +692,7 @@ export class SubagentManager {
 
   public clear(): void {
     this.syncSubagents.clear();
+    this.syncRecords.clear();
     this.pendingTasks.clear();
     this.asyncSubagents.clear();
     this.providerIdentifierToToolUseIds.clear();
@@ -736,25 +795,41 @@ export class SubagentManager {
   private createSyncTask(
     taskToolId: string,
     taskInput: Record<string, unknown>,
-    parentEl: HTMLElement
+    parentEl: HTMLElement | null
   ): HandleTaskResult {
+    const existing = this.syncRecords.get(taskToolId);
+    const info = existing ?? {
+      id: taskToolId, description: (taskInput.description as string) || 'Subagent task',
+      prompt: (taskInput.prompt as string) || '', status: 'running' as const,
+      isExpanded: false, toolCalls: [],
+    };
+    this.syncRecords.set(taskToolId, info);
+    if (!existing) this._spawnedThisStream++;
+    if (!parentEl) return { action: 'buffered' };
     const subagentState = createSubagentBlock(parentEl, taskToolId, taskInput, {
       onOpenFile: this.onOpenFile,
     });
+    for (const tool of info.toolCalls) {
+      addSubagentToolCall(subagentState, tool);
+      if (tool.status !== 'running') updateSubagentToolResult(subagentState, tool.id, tool);
+    }
+    subagentState.info = info;
     this.syncSubagents.set(taskToolId, subagentState);
+    this.pendingTasks.delete(taskToolId);
     return { action: 'created_sync', subagentState };
   }
 
   private createAsyncTask(
     taskToolId: string,
     taskInput: Record<string, unknown>,
-    parentEl: HTMLElement,
+    parentEl: HTMLElement | null,
     existingPreview?: AsyncSubagentState | null
   ): HandleTaskResult {
     const description = (taskInput.description as string) || 'Background task';
     const prompt = (taskInput.prompt as string) || '';
 
-    const info: SubagentInfo = {
+    const existing = this.asyncSubagents.get(taskToolId);
+    const info: SubagentInfo = existing?.info ?? {
       id: taskToolId,
       description,
       prompt,
@@ -765,8 +840,15 @@ export class SubagentManager {
       asyncStatus: 'pending',
     };
 
-    const record: AsyncSubagentRecord = { info };
+    const record: AsyncSubagentRecord = this.asyncSubagents.get(taskToolId) ?? { info };
     this.asyncSubagents.set(taskToolId, record);
+    if (!existing) this._spawnedThisStream++;
+
+    if (!parentEl) {
+      const deferred = this.takeDeferredAsyncCompletion(taskToolId);
+      if (deferred) this.applyAsyncSubagentCompletion(record, deferred);
+      return { action: 'buffered' };
+    }
 
     const domState = existingPreview
       ?? createAsyncSubagentBlock(parentEl, taskToolId, taskInput, {
@@ -779,6 +861,7 @@ export class SubagentManager {
       this.updateSubagentLabel(domState.wrapperEl, domState.info, taskInput);
     }
     this.asyncDomStates.set(taskToolId, domState);
+    this.pendingTasks.delete(taskToolId);
 
     const deferred = this.takeDeferredAsyncCompletion(taskToolId);
     if (deferred) {
