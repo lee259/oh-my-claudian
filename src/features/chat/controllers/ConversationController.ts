@@ -470,6 +470,7 @@ export class ConversationController {
    * first message is sent. This prevents empty conversations cluttering history.
    */
   async createNew(options: { force?: boolean } = {}): Promise<void> {
+    if (this.deps.isDisposed?.()) return;
     const { plugin, state, subagentManager } = this.deps;
     const force = !!options.force;
     const isCancellingForegroundTurn = force && state.isStreaming;
@@ -1771,6 +1772,7 @@ export class ConversationController {
     if (state.isStreaming && options.sessionActionMode !== 'archived') return;
 
     await plugin.deleteConversation(conversationId);
+    if (this.deps.isDisposed?.()) return;
     options.onRerender();
 
     if (conversationId === state.currentConversationId) {

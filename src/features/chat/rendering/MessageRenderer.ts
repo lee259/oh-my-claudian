@@ -77,8 +77,10 @@ import { getOrCreateMessageActionRow } from './MessageActionRow';
 import { ScrollFollowController } from './ScrollFollowController';
 import { resolveSubagentAdapter } from './subagentAdapterResolution';
 import {
+  type AsyncSubagentState,
   renderStoredAsyncSubagent,
   renderStoredSubagent,
+  type SubagentState,
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
@@ -182,6 +184,7 @@ export class MessageRenderer {
       isBusy(): boolean;
     },
     private readonly shouldAutoFollow?: () => boolean,
+    private readonly onSubagentRendered?: (state: SubagentState | AsyncSubagentState) => void,
   ) {
     this.app = plugin.app;
     this.imagePreviewModal = new ImagePreviewModal(this.app);
@@ -2345,6 +2348,9 @@ export class MessageRenderer {
     const subagentInfo = this.resolveTaskSubagent(toolCall, modeHint);
     if (subagentInfo.mode === 'async') {
       renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onStateCreated: state => {
+          if (!this.suppressConversationActions && this.messagesEl.contains(contentEl)) this.onSubagentRendered?.(state);
+        },
         onOpenFile: (fileReference) => runRendererAction(async () => {
           await openVaultFile(this.app, fileReference);
         }),
@@ -2352,6 +2358,9 @@ export class MessageRenderer {
       return;
     }
     renderStoredSubagent(contentEl, subagentInfo, {
+        onStateCreated: state => {
+          if (!this.suppressConversationActions && this.messagesEl.contains(contentEl)) this.onSubagentRendered?.(state);
+        },
       onOpenFile: (fileReference) => runRendererAction(async () => {
         await openVaultFile(this.app, fileReference);
       }),
@@ -2379,6 +2388,9 @@ export class MessageRenderer {
     );
     if (subagentInfo.mode === 'async') {
       renderStoredAsyncSubagent(contentEl, subagentInfo, {
+        onStateCreated: state => {
+          if (!this.suppressConversationActions && this.messagesEl.contains(contentEl)) this.onSubagentRendered?.(state);
+        },
         onOpenFile: (fileReference) => runRendererAction(async () => {
           await openVaultFile(this.app, fileReference);
         }),
@@ -2386,6 +2398,9 @@ export class MessageRenderer {
       return;
     }
     renderStoredSubagent(contentEl, subagentInfo, {
+        onStateCreated: state => {
+          if (!this.suppressConversationActions && this.messagesEl.contains(contentEl)) this.onSubagentRendered?.(state);
+        },
       onOpenFile: (fileReference) => runRendererAction(async () => {
         await openVaultFile(this.app, fileReference);
       }),

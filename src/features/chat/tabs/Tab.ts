@@ -62,7 +62,6 @@ import {
   type ChatExecutionEventContext,
 } from '../execution/ChatExecutionCoordinator';
 import { isNestedScrollEvent } from '../rendering/ScrollFollowController';
-import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { unmountWelcomeElement } from '../rendering/WelcomeRenderer';
 import { BangBashService } from '../services/BangBashService';
 import { ResponseModel } from '../state/ResponseModel';
@@ -119,7 +118,7 @@ interface BackgroundTurnRenderState {
 }
 
 const backgroundTurnBuffers = new WeakMap<
-  TabData,
+  TabData['session'],
   Map<string, Map<string, BackgroundTurnRenderState>>
 >();
 
@@ -178,6 +177,11 @@ function getTabSettingsSnapshot(
     providerId,
     getTabSelectedModel(tab, plugin),
   );
+  const uiConfig = getTabChatUIConfig(tab, plugin);
+  const permissionSelection = tab.session.permissionSelections.get(providerId)
+    ?? uiConfig.resolvePermissionModeOption?.(settings) ?? uiConfig.resolvePermissionMode?.(settings) ?? settings.permissionMode;
+  tab.session.permissionSelections.set(providerId, permissionSelection);
+  uiConfig.applyPermissionMode?.(permissionSelection, settings);
   return resolveTabReasoningSettings(
     settings,
     providerId,
@@ -379,7 +383,7 @@ function invalidateTabProviderCommands(
 }
 
 async function updateTabProviderSettings(
-  tab: TabProviderContext,
+  tab: TabData,
   plugin: FeatureHost,
   update: (settings: TabProviderSettings) => void,
   modelOverride?: string | null,
@@ -388,6 +392,9 @@ async function updateTabProviderSettings(
   let snapshot!: TabProviderSettings;
   await plugin.mutateSettings((settings) => {
     snapshot = getWritableTabSettingsSnapshot(tab, plugin, settings, modelOverride);
+    const uiConfig = getTabChatUIConfig(tab, plugin);
+    const permissionSelection = tab.session.permissionSelections.get(providerId);
+    if (permissionSelection) uiConfig.applyPermissionMode?.(permissionSelection, snapshot);
     update(snapshot);
     ProviderSettingsCoordinator.commitProviderSettingsSnapshot(
       settings,
@@ -395,6 +402,9 @@ async function updateTabProviderSettings(
       snapshot,
     );
   });
+  const uiConfig = getTabChatUIConfig(tab, plugin);
+  tab.session.permissionSelections.set(providerId, uiConfig.resolvePermissionModeOption?.(snapshot)
+    ?? uiConfig.resolvePermissionMode?.(snapshot) ?? snapshot.permissionMode);
   return snapshot;
 }
 
@@ -590,9 +600,10 @@ export function createTab(options: TabCreateOptions): TabData {
     onStreamingStateChanged: updateSendButton,
   });
   updateSendButton(tab);
-  tab.executionCoordinator = createTabExecutionCoordinator(tab, options.plugin);
-  const releaseRuntime = options.plugin.conversationRuntimes?.register(tab.session);
-  if (releaseRuntime) tab.dom.eventCleanups.push(releaseRuntime);
+  tab.executionCoordinator ??= createTabExecutionCoordinator(tab, options.plugin);
+  if (options.plugin.conversationRuntimes && !options.plugin.conversationRuntimes.getByRuntimeId(tab.id)) {
+    options.plugin.conversationRuntimes.register(tab.session);
+  }
   return tab;
 }
 
@@ -756,6 +767,8 @@ function showPreHandoffDiagnostic(plugin: FeatureHost, tab: TabData, error: unkn
     settings: plugin.settings,
     resolveCliPath: () => plugin.providerHost.getResolvedProviderCliPath(tab.providerId),
   }).then((diagnostics) => {
+    const messagesEl = tab.session.presentation?.dom.messagesEl;
+    if (!messagesEl) return;
     const platform = Platform.isMacOS ? 'macOS' : Platform.isWin ? 'Windows' : 'Linux';
     const environment = diagnostics?.environment
       ? {
@@ -768,7 +781,7 @@ function showPreHandoffDiagnostic(plugin: FeatureHost, tab: TabData, error: unkn
         }
       : undefined;
     renderProviderDiagnosticCard(
-      tab.dom.messagesEl,
+      messagesEl,
       plugin.app,
       createProviderDiagnosticReport(tab.providerId, diagnosticError, {
         platform,
@@ -779,8 +792,10 @@ function showPreHandoffDiagnostic(plugin: FeatureHost, tab: TabData, error: unkn
       { onRetry: () => void tab.controllers.inputController?.sendMessage() },
     );
   }).catch(() => {
+    const messagesEl = tab.session.presentation?.dom.messagesEl;
+    if (!messagesEl) return;
     renderProviderDiagnosticCard(
-      tab.dom.messagesEl,
+      messagesEl,
       plugin.app,
       createProviderDiagnosticReport(tab.providerId, diagnosticError, {
         platform: Platform.isMacOS ? 'macOS' : Platform.isWin ? 'Windows' : 'Linux',
@@ -810,7 +825,7 @@ async function applyProviderModeChange(
 ): Promise<void> {
   const previousMode = getTabPermissionMode(tab, plugin);
   if (mode === 'plan' && previousMode !== 'plan') {
-    tab.state.prePlanPermissionMode ??= previousMode;
+    tab.state.prePlanPermissionMode ??= tab.session.permissionSelections.get(tab.providerId) ?? previousMode;
   }
   await updatePlanModeUI(tab, plugin, mode);
 }
@@ -986,10 +1001,10 @@ function getBackgroundTurnBuffers(
   tab: TabData,
   bindingId: string,
 ): Map<string, BackgroundTurnRenderState> {
-  let bindings = backgroundTurnBuffers.get(tab);
+  let bindings = backgroundTurnBuffers.get(tab.session);
   if (!bindings) {
     bindings = new Map();
-    backgroundTurnBuffers.set(tab, bindings);
+    backgroundTurnBuffers.set(tab.session, bindings);
   }
   let turns = bindings.get(bindingId);
   if (!turns) {
@@ -1005,15 +1020,15 @@ function deleteBackgroundTurnBuffersIfEmpty(
   turns: Map<string, BackgroundTurnRenderState>,
 ): void {
   if (turns.size > 0) return;
-  const bindings = backgroundTurnBuffers.get(tab);
+  const bindings = backgroundTurnBuffers.get(tab.session);
   bindings?.delete(bindingId);
-  if (bindings?.size === 0) backgroundTurnBuffers.delete(tab);
+  if (bindings?.size === 0) backgroundTurnBuffers.delete(tab.session);
 }
 
 function discardBackgroundTurnBuffers(tab: TabData, bindingId: string): void {
-  const bindings = backgroundTurnBuffers.get(tab);
+  const bindings = backgroundTurnBuffers.get(tab.session);
   bindings?.delete(bindingId);
-  if (bindings?.size === 0) backgroundTurnBuffers.delete(tab);
+  if (bindings?.size === 0) backgroundTurnBuffers.delete(tab.session);
 }
 
 function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string): string {
@@ -1875,7 +1890,7 @@ export function initializeTabRuntimeControllers(
     onCommitProvisional: () => commitProvisionalTab(tab),
   });
 
-  tab.controllers.streamController = createTabStreamController(
+  tab.controllers.streamController ??= createTabStreamController(
     tab,
     plugin,
     (work) => enqueueTabBackgroundWork(tab, work),
@@ -1907,7 +1922,7 @@ export function initializeTabRuntimeControllers(
     void openVaultFile(plugin.app, fileReference);
   });
 
-  tab.controllers.conversationController = createTabConversationController(tab, plugin, {
+  tab.controllers.conversationController ??= createTabConversationController(tab, plugin, {
     ensureExecutionInitialized,
     getProviderId: () => getTabProviderId(tab, plugin),
     getSelectedModel: () => getTabSelectedModel(tab, plugin),
@@ -1965,14 +1980,21 @@ export function initializeTabRuntimeControllers(
     void tab.controllers.conversationController?.openSubagentTranscript(detail);
   });
 
-  tab.controllers.inputController = createTabInputController(tab, plugin, {
+  tab.controllers.inputController ??= createTabInputController(tab, plugin, {
     ensureExecutionInitialized,
     getProviderSettings: () => getTabSettingsSnapshot(tab, plugin),
     generateId: generateMessageId,
     getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
     openConversation: id => tab.session.presentation?.hooks?.openConversation?.(id) ?? Promise.resolve(),
     handleNewConversationCommand: () => currentViewHost()?.handleNewConversationCommand?.() ?? Promise.resolve(false),
-    handleNewSessionPlan: content => currentViewHost()?.handleNewSessionPlan?.(content) ?? Promise.resolve(false),
+    handleNewSessionPlan: content => {
+      if (!currentViewHost()) {
+        tab.state.pendingNewSessionPlan = content;
+        tab.state.markReviewRequired();
+        return Promise.resolve(true);
+      }
+      return currentViewHost()?.handleNewSessionPlan?.(content) ?? Promise.resolve(false);
+    },
     onForkAll: async () => {
       const fork = tab.session.presentation?.hooks?.forkRequest;
       if (fork) await handleForkAll(tab, plugin, fork);
@@ -1993,7 +2015,8 @@ export function initializeTabRuntimeControllers(
     onDiagnosticError: error => showPreHandoffDiagnostic(plugin, tab, error),
   });
 
-  let quoteSequence = 0;
+  tab.controllers.inputController.attachInteractionPresentation();
+  let quoteSequence = tab.ui.quotedMessages.length;
   const updateQuotedMessageContext = (): void => {
     const quotes = tab.ui.quotedMessages;
     if (quotes.length === 0) {
@@ -2359,84 +2382,141 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.services.subagentManager.clear();
   await cleanupTabExecution(tab);
 
-  const cleanup = new TabRuntimeCleanup();
-  cleanup.register('tab welcome view', () => unmountWelcomeElement(tab.dom.welcomeEl));
-  cleanup.register('tab conversation header', () => tab.dom.conversationHeaderRoot.unmount());
-  cleanup.register('tab DOM root', () => tab.dom.contentEl.remove());
-  cleanup.register('tab DOM event handlers', () => {
-    for (const eventCleanup of tab.dom.eventCleanups) {
-      eventCleanup();
+  await detachTabPresentation(tab);
+  tab.controllers.streamController?.dispose();
+  tab.services.titleGenerationService?.cancel();
+  tab.services.titleGenerationService = null;
+  tab.services.instructionRefineService?.cancel();
+  tab.services.instructionRefineService?.resetConversation();
+  tab.services.instructionRefineService = null;
+  tab.state.response.reset();
+  tab.session.releaseRegistration?.();
+}
+
+/** Detaches UI only; execution, cursor, pending requests and persistence remain owned by the runtime. */
+export async function detachTabPresentation(tab: TabData): Promise<void> {
+  const runtime = tab.session;
+  const presentation = runtime.presentation;
+  if (!presentation) return;
+  if (tab.presentationEpoch && presentation.epoch !== tab.presentationEpoch) return;
+  const { dom, ui, controllers, renderer } = presentation;
+  runtime.captureMetadataContext();
+  runtime.retainedImages = [...(ui.imageContextManager?.getAttachedImages() ?? [])];
+  runtime.retainedQuotes = ui.quotedMessages.map(quote => ({ ...quote }));
+  if (ui.fileContextManager) runtime.retainedFileContext = {
+    files: [...ui.fileContextManager.getAttachedFiles()],
+    currentNoteSent: !ui.fileContextManager.shouldSendCurrentNote(),
+    sessionStarted: ui.fileContextManager.isSessionStarted(),
+  };
+  runtime.controllers.inputController?.detachInteractionPresentation();
+  runtime.controllers.inputController?.destroyResumeDropdown();
+  runtime.controllers.conversationController?.detachPresentation();
+  runtime.controllers.streamController?.detachPresentation();
+  for (const turns of backgroundTurnBuffers.get(runtime)?.values() ?? []) {
+    for (const turn of turns.values()) {
+      turn.contentEl = null;
+      turn.textEl = null;
+      turn.thinkingState = null;
+      turn.toolCallElements.clear();
     }
-    tab.dom.eventCleanups.length = 0;
-  });
-  cleanup.register('tab stream controller', () => tab.controllers.streamController?.dispose());
-  cleanup.register('tab message renderer', () => tab.renderer?.dispose());
+  }
+  // Exact port/callback release happens synchronously before another pane can attach.
+  for (const eventCleanup of dom.eventCleanups.splice(0)) eventCleanup();
+  runtime.presentation = null;
+  runtime.state.queueIndicatorEl = null;
+  const cleanup = new TabRuntimeCleanup();
+  cleanup.register('tab welcome view', () => unmountWelcomeElement(dom.welcomeEl));
+  cleanup.register('tab conversation header', () => dom.conversationHeaderRoot.unmount());
+  cleanup.register('tab DOM root', () => dom.contentEl.remove());
+
+
+  cleanup.register('tab message renderer', () => renderer?.dispose());
   cleanup.register('tab navigation sidebar', () => {
-    tab.ui.navigationSidebar?.destroy();
-    tab.ui.navigationSidebar = null;
+    ui.navigationSidebar?.destroy();
+    ui.navigationSidebar = null;
   });
   cleanup.register('tab status panel', () => {
-    tab.ui.statusPanel?.destroy();
-    tab.ui.statusPanel = null;
+    ui.statusPanel?.destroy();
+    ui.statusPanel = null;
   });
   cleanup.register('tab prompt suggestion', () => {
-    tab.ui.promptSuggestion?.destroy();
-    tab.ui.promptSuggestion = null;
+    ui.promptSuggestion?.destroy();
+    ui.promptSuggestion = null;
   });
-  cleanup.register('tab title generation', () => {
-    tab.services.titleGenerationService?.cancel();
-    tab.services.titleGenerationService = null;
-  });
-  cleanup.register('tab instruction refinement', () => {
-    tab.services.instructionRefineService?.cancel();
-    tab.services.instructionRefineService?.resetConversation();
-    tab.services.instructionRefineService = null;
-  });
+
+
   cleanup.register('tab bang-bash mode', () => {
-    tab.ui.bangBashModeManager?.destroy();
-    tab.ui.bangBashModeManager = null;
+    ui.bangBashModeManager?.destroy();
+    ui.bangBashModeManager = null;
   });
   cleanup.register('tab instruction mode', () => {
-    tab.ui.instructionModeManager?.destroy();
-    tab.ui.instructionModeManager = null;
+    ui.instructionModeManager?.destroy();
+    ui.instructionModeManager = null;
   });
   cleanup.register('tab slash command dropdown', () => {
-    tab.ui.slashCommandDropdown?.destroy();
-    tab.ui.slashCommandDropdown = null;
+    ui.slashCommandDropdown?.destroy();
+    ui.slashCommandDropdown = null;
   });
   cleanup.register('tab composer context tray', () => {
-    tab.ui.contextTray?.destroy();
-    tab.ui.contextTray = null;
+    ui.contextTray?.destroy();
+    ui.contextTray = null;
   });
   cleanup.register('tab scope preview', () => {
-    tab.ui.scopePreview?.destroy();
-    tab.ui.scopePreview = null;
+    ui.scopePreview?.destroy();
+    ui.scopePreview = null;
   });
-  cleanup.register('tab image context manager', () => tab.ui.imageContextManager?.destroy());
-  cleanup.register('tab file context manager', () => tab.ui.fileContextManager?.destroy());
-  cleanup.register('tab resume dropdown', () => tab.controllers.inputController?.destroyResumeDropdown());
-  cleanup.register('tab thinking state', () => {
-    cleanupThinkingBlock(tab.state.currentThinkingState);
-    tab.state.response.reset();
-    tab.state.currentThinkingState = null;
-  });
-  cleanup.register('tab navigation controller', () => tab.controllers.navigationController?.dispose());
+  cleanup.register('tab image context manager', () => ui.imageContextManager?.destroy());
+  cleanup.register('tab file context manager', () => ui.fileContextManager?.destroy());
+
+
+  cleanup.register('tab navigation controller', () => controllers.navigationController?.dispose());
   cleanup.register('tab canvas selection controller', () => {
-    tab.controllers.canvasSelectionController?.stop();
-    tab.controllers.canvasSelectionController?.clear();
+    controllers.canvasSelectionController?.stop();
+    controllers.canvasSelectionController?.clear();
   });
   cleanup.register('tab browser selection controller', () => {
-    tab.controllers.browserSelectionController?.stop();
-    tab.controllers.browserSelectionController?.clear();
+    controllers.browserSelectionController?.stop();
+    controllers.browserSelectionController?.clear();
   });
   cleanup.register('tab selection controller', () => {
-    tab.controllers.selectionController?.stop();
-    tab.controllers.selectionController?.clear();
+    controllers.selectionController?.stop();
+    controllers.selectionController?.clear();
   });
 
   const failures = await cleanup.dispose();
   for (const failure of failures) {
     new Notice(`Tab cleanup failed for ${failure.resource}.`);
+  }
+}
+
+/** Projects sealed blocks separately from the runtime-owned open cursors. */
+export function getRuntimeMessageProjection(tab: TabData): ChatMessage[] {
+  const openIds = new Set<string>();
+  if (tab.state.response.messageId) openIds.add(tab.state.response.messageId);
+  for (const turns of backgroundTurnBuffers.get(tab.session)?.values() ?? []) {
+    for (const turn of turns.values()) openIds.add(turn.assistantMsg.id);
+  }
+  return tab.state.messages.map(message => openIds.has(message.id)
+    ? { ...message, content: (message.contentBlocks ?? []).flatMap(block => block.type === 'text' ? [block.content] : []).join('') }
+    : message);
+}
+
+export async function attachBackgroundTurnPresentations(tab: TabData): Promise<void> {
+  const presentation = tab.session.presentation;
+  if (!presentation) return;
+  for (const turns of backgroundTurnBuffers.get(tab.session)?.values() ?? []) {
+    for (const turn of turns.values()) {
+      if (tab.session.presentation !== presentation) return;
+      if (!turn.hasVisibleContent) continue;
+      let contentEl = Array.from(presentation.dom.messagesEl.querySelectorAll<HTMLElement>('[data-message-id]'))
+        .find(element => element.dataset.messageId === turn.assistantMsg.id)
+        ?.querySelector<HTMLElement>('.claudian-message-content') ?? null;
+      if (!contentEl) contentEl = tab.renderer?.addMessage({ ...turn.assistantMsg, content: '' }) ?? null;
+      turn.contentEl = contentEl;
+      await withBackgroundTurnRenderContext(tab, turn, async () => {
+        await tab.controllers.streamController?.attachPresentation(contentEl);
+      });
+    }
   }
 }
 
@@ -2535,6 +2615,7 @@ async function withBackgroundTurnRenderContext<T>(
   turn: BackgroundTurnRenderState,
   render: () => Promise<T>,
 ): Promise<T> {
+  const presentation = tab.session.presentation;
   const foreground = {
     contentEl: tab.state.currentContentEl,
     textEl: tab.state.currentTextEl,
@@ -2557,20 +2638,21 @@ async function withBackgroundTurnRenderContext<T>(
   try {
     return await render();
   } finally {
-    turn.contentEl = tab.state.currentContentEl;
-    turn.textEl = tab.state.currentTextEl;
+    const samePresentation = tab.session.presentation === presentation;
+    turn.contentEl = samePresentation ? tab.state.currentContentEl : null;
+    turn.textEl = samePresentation ? tab.state.currentTextEl : null;
     turn.response = tab.state.response;
-    turn.thinkingState = tab.state.currentThinkingState;
-    turn.toolCallElements = new Map(tab.state.toolCallElements);
+    turn.thinkingState = samePresentation ? tab.state.currentThinkingState : null;
+    turn.toolCallElements = samePresentation ? new Map(tab.state.toolCallElements) : new Map<string, HTMLElement>();
     turn.responseStartTime = tab.state.responseStartTime ?? turn.responseStartTime;
 
-    tab.state.currentContentEl = foreground.contentEl;
-    tab.state.currentTextEl = foreground.textEl;
+    tab.state.currentContentEl = samePresentation ? foreground.contentEl : null;
+    tab.state.currentTextEl = samePresentation ? foreground.textEl : null;
     tab.state.response = foreground.response;
-    tab.state.currentThinkingState = foreground.thinkingState;
+    tab.state.currentThinkingState = samePresentation ? foreground.thinkingState : null;
     tab.state.responseStartTime = foreground.responseStartTime;
     tab.state.toolCallElements.clear();
-    for (const [toolId, toolEl] of foreground.toolCallElements) {
+    for (const [toolId, toolEl] of samePresentation ? foreground.toolCallElements : []) {
       tab.state.toolCallElements.set(toolId, toolEl);
     }
   }
@@ -2593,7 +2675,7 @@ async function renderBackgroundTurnEvent(
   if (isVisible && !turn.hasVisibleContent) {
     turn.hasVisibleContent = true;
     tab.state.addMessage(turn.assistantMsg);
-    const msgEl = tab.dom.contentEl.isConnected ? tab.renderer?.addMessage?.(turn.assistantMsg) : null;
+    const msgEl = tab.session.presentation?.dom.contentEl.isConnected ? tab.renderer?.addMessage?.(turn.assistantMsg) : null;
     const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
     if (contentEl) {
       turn.contentEl = contentEl;
@@ -2663,6 +2745,8 @@ export async function updatePlanModeUI(
   const providerId = getTabProviderId(tab, plugin);
   const uiConfig = ProviderRegistry.getChatUIConfig(providerId);
   const previousMode = getTabPermissionMode(tab, plugin);
+  const previousSelection = tab.session.permissionSelections.get(providerId) ?? previousMode;
+  let committedSelection = mode;
   try {
     await plugin.mutateSettings((settings) => {
       const snapshot = getWritableTabSettingsSnapshot(tab, plugin, settings);
@@ -2671,12 +2755,18 @@ export async function updatePlanModeUI(
       } else {
         snapshot.permissionMode = mode;
       }
+      committedSelection = uiConfig.resolvePermissionModeOption?.(snapshot)
+        ?? uiConfig.resolvePermissionMode?.(snapshot) ?? snapshot.permissionMode;
       ProviderSettingsCoordinator.commitProviderSettingsSnapshot(
         settings,
         providerId,
         snapshot,
       );
     });
+    if (committedSelection === 'plan' && previousSelection !== 'plan') {
+      tab.state.prePlanPermissionMode ??= previousSelection;
+    }
+    tab.session.permissionSelections.set(providerId, committedSelection);
     if (options.syncExecution && tab.conversationId !== null) {
       try {
         await tab.executionCoordinator?.setMode(getTabPermissionMode(tab, plugin));
@@ -2684,7 +2774,7 @@ export async function updatePlanModeUI(
         await plugin.mutateSettings((settings) => {
           const snapshot = getWritableTabSettingsSnapshot(tab, plugin, settings);
           if (uiConfig.applyPermissionMode) {
-            uiConfig.applyPermissionMode(previousMode, snapshot);
+            uiConfig.applyPermissionMode(previousSelection, snapshot);
           } else {
             snapshot.permissionMode = previousMode;
           }
@@ -2694,6 +2784,7 @@ export async function updatePlanModeUI(
             snapshot,
           );
         });
+        tab.session.permissionSelections.set(providerId, previousSelection);
         throw error;
       }
     }

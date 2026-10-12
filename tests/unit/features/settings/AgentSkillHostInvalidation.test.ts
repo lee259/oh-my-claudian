@@ -3,6 +3,17 @@ import { ClaudianSettingTab } from '@/features/settings/ClaudianSettings';
 import ClaudianPlugin from '@/main';
 
 describe('agent skill host invalidation', () => {
+  it('invalidates the shared catalog even when all chat presentations are closed', async () => {
+    const setCommandSnapshot = jest.fn();
+    ProviderWorkspaceRegistry.setServices('codex', {
+      commandCatalog: { setCommandSnapshot, refresh: jest.fn().mockResolvedValue(undefined) } as any,
+    });
+    const plugin = { agentSkillResourceGeneration: 0, getAllViews: () => [] };
+    await ClaudianPlugin.prototype.notifyAgentSkillsChanged.call(plugin as any);
+    expect(setCommandSnapshot).toHaveBeenCalledWith([]);
+    expect(plugin.agentSkillResourceGeneration).toBe(1);
+  });
+
   afterEach(() => {
     ProviderWorkspaceRegistry.setServices('codex', undefined);
   });
@@ -13,7 +24,7 @@ describe('agent skill host invalidation', () => {
       finishRefresh = resolve;
     }));
     ProviderWorkspaceRegistry.setServices('codex', {
-      commandCatalog: { refresh } as any,
+      commandCatalog: { refresh, setCommandSnapshot: jest.fn() } as any,
     });
     const invalidateProviderResources = jest.fn();
     const plugin = {

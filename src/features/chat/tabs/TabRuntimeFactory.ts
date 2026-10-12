@@ -11,7 +11,6 @@ import { createPreactRoot } from '../../../shared/ui/PreactRoot';
 import { createWelcomeElement } from '../rendering/WelcomeRenderer';
 import { ConversationRuntime } from '../sessions/ConversationRuntime';
 import { createEmptyPresentationUI } from '../sessions/RuntimePresentation';
-import { ChatState } from '../state/ChatState';
 import { ConversationHeaderView } from '../ui/ConversationHeaderView';
 import type { TabCreateOptions, TabData, TabDOMElements } from './types';
 import { generateTabId } from './types';
@@ -20,44 +19,10 @@ export interface TabRuntimeFactoryHooks {
   onStreamingStateChanged?: (tab: TabData, isStreaming: boolean) => void;
 }
 
-/**
- * Owns allocation of the provider-neutral runtime shell for one tab.
- * Provider execution, controllers, and feature UI are initialized separately.
- */
-export function createTabRuntime(
-  options: TabCreateOptions,
-  hooks: TabRuntimeFactoryHooks = {},
-): TabData {
-  const {
-    plugin,
-    containerEl,
-    conversation,
-    tabId,
-    onStreamingChanged,
-    onWorkChanged,
-    onRewindingChanged,
-    onAttentionChanged,
-    onConversationIdChanged,
-  } = options;
-
+export function createConversationRuntime(options: Pick<TabCreateOptions, 'plugin' | 'conversation' | 'tabId' | 'draftModel' | 'lifecycleState'>): ConversationRuntime {
+  const { plugin, conversation, tabId } = options;
   const id = tabId ?? generateTabId();
-  const contentEl = containerEl.createDiv({ cls: 'claudian-tab-content claudian-hidden' });
-  const state = options.runtime?.state ?? new ChatState({
-    onStreamingStateChanged: onStreamingChanged,
-    onRewindingStateChanged: onRewindingChanged,
-    onAttentionChanged,
-    onConversationChanged: onConversationIdChanged,
-  });
   const isBound = !!conversation?.id;
-  const dom = buildTabDOM(
-    contentEl,
-    options.getWelcomeHomeOptions,
-    conversation?.title ?? '聊天',
-    !isBound && state.messages.length === 0,
-    conversation?.id ?? null,
-  );
-  state.queueIndicatorEl = dom.queueIndicatorEl;
-
   const restoredDraftModel = typeof options.draftModel === 'string'
     ? options.draftModel.trim()
     : '';
@@ -72,20 +37,46 @@ export function createTabRuntime(
     ?? (draftModel
       ? getEnabledProviderForModel(draftModel, plugin.settings)
       : DEFAULT_CHAT_PROVIDER_ID);
-  const session = options.runtime ?? new ConversationRuntime({
-    id,
-    lifecycleState: options.lifecycleState ?? 'cold',
-    draftModel,
-    providerId: initialProviderId,
-    conversationId: conversation?.id ?? null,
-  }, onWorkChanged, state);
-  if (!options.runtime && conversation) session.context.capture({
-    currentNote: conversation.currentNote,
-    externalContextPaths: conversation.externalContextPaths ?? [],
+  const runtime = new ConversationRuntime({
+    id, lifecycleState: options.lifecycleState ?? 'cold', draftModel,
+    providerId: initialProviderId, conversationId: conversation?.id ?? null,
+  });
+  if (conversation) runtime.context.capture({
+    currentNote: conversation.currentNote, externalContextPaths: conversation.externalContextPaths ?? [],
     enabledMcpServers: conversation.enabledMcpServers ?? [],
   });
+  return runtime;
+}
+
+/**
+ * Owns allocation of the provider-neutral runtime shell for one tab.
+ * Provider execution, controllers, and feature UI are initialized separately.
+ */
+export function createTabRuntime(
+  options: TabCreateOptions,
+  hooks: TabRuntimeFactoryHooks = {},
+): TabData {
+  const {
+    containerEl,
+    conversation,
+    onStreamingChanged,
+    onWorkChanged,
+    onRewindingChanged,
+    onAttentionChanged,
+    onConversationIdChanged,
+  } = options;
+
+  const session = options.runtime ?? createConversationRuntime(options);
+  if (session.presentation) throw new Error('The conversation runtime is already presented.');
+  const state = session.state;
+  const presentationEpoch = Symbol('runtime-presentation');
+  const contentEl = containerEl.createDiv({ cls: 'claudian-tab-content claudian-hidden' });
+  const dom = buildTabDOM(contentEl, options.getWelcomeHomeOptions, conversation?.title ?? '聊天',
+    !session.conversationId && state.messages.length === 0, session.conversationId);
+  state.queueIndicatorEl = dom.queueIndicatorEl;
   const tab: TabData = {
     session,
+    presentationEpoch,
     get id() { return session.id; },
     get lifecycleState() { return session.lifecycleState; },
     set lifecycleState(value) { session.lifecycleState = value; },
@@ -99,8 +90,14 @@ export function createTabRuntime(
     set conversationId(value) { session.conversationId = value; },
     get executionCoordinator() { return session.executionCoordinator; },
     set executionCoordinator(coordinator) { session.setExecutionCoordinator(coordinator); },
-    providerCatalogResolver: null,
-    get captureReviewableSettlement() { return session.presentation?.captureReviewableSettlement ?? null; },
+    get providerCatalogResolver() { return session.presentation?.hooks?.getProviderCatalog ?? null; },
+    set providerCatalogResolver(value) {
+      if (session.presentation) {
+        session.presentation.hooks ??= {};
+        session.presentation.hooks.getProviderCatalog = value ?? undefined;
+      }
+    },
+    get captureReviewableSettlement() { return session.presentation?.captureReviewableSettlement ?? (outcome => session.captureReviewableSettlement(outcome)); },
     state,
     controllers: {
       get selectionController() { return session.presentation?.controllers.selectionController ?? null; },
@@ -128,9 +125,8 @@ export function createTabRuntime(
     set renderer(value) { if (session.presentation) session.presentation.renderer = value; },
   };
 
-  if (session.presentation) throw new Error('The conversation runtime is already presented.');
   session.presentation = {
-    epoch: Symbol('runtime-presentation'),
+    epoch: presentationEpoch,
     isActive: options.isActive,
     getActivationRevision: options.getActivationRevision,
     captureReviewableSettlement: options.captureReviewableSettlement,

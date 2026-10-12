@@ -2891,80 +2891,43 @@ describe('ClaudianPlugin', () => {
       expect(plugin.getConversationList().find(item => item.id === conv.id)).toBeUndefined();
     });
 
-    it('should reset every open tab that references the deleted conversation', async () => {
+    it('closes presentations of a deleted conversation instead of rebinding their runtime', async () => {
       await plugin.onload();
       const conv = await plugin.createConversation();
-      const cancelStreaming = jest.fn();
-      const createNew = jest.fn().mockResolvedValue(undefined);
+      const closeTab = jest.fn().mockResolvedValue(true);
       mockApp.workspace.getLeavesOfType.mockReturnValue([{
         view: {
           notifyConversationListChanged: jest.fn(),
-          getTabManager: () => ({
-            getAllTabs: () => [{
-              conversationId: conv.id,
-              controllers: {
-                inputController: { cancelStreaming },
-                conversationController: { createNew },
-              },
-            }],
-          }),
+          getTabManager: () => ({ closeTab, getAllTabs: () => [{ id: 'tab-1', conversationId: conv.id }] }),
         },
       }]);
-
       await plugin.deleteConversation(conv.id);
-
-      expect(cancelStreaming).toHaveBeenCalledTimes(1);
-      expect(createNew).toHaveBeenCalledWith({ force: true });
+      expect(closeTab).toHaveBeenCalledWith('tab-1', true);
     });
 
-    it('attempts every matching tab and retries only failed deletion associations', async () => {
+    it('attempts every matching presentation and retries only failed deletion associations', async () => {
       await plugin.onload();
       const conv = await plugin.createConversation();
-      const firstTab = {
-        conversationId: conv.id as string | null,
-        controllers: {
-          inputController: { cancelStreaming: jest.fn() },
-          conversationController: {
-            createNew: jest.fn()
-              .mockRejectedValueOnce(new Error('first tab failed'))
-              .mockImplementation(async () => {
-                firstTab.conversationId = null;
-              }),
-          },
-        },
-      };
-      const secondTab = {
-        conversationId: conv.id as string | null,
-        controllers: {
-          inputController: { cancelStreaming: jest.fn() },
-          conversationController: {
-            createNew: jest.fn().mockImplementation(async () => {
-              secondTab.conversationId = null;
-            }),
-          },
-        },
-      };
+      const tabs = [{ id: 'first', conversationId: conv.id }, { id: 'second', conversationId: conv.id }];
+      let failed = false;
+      const closeTab = jest.fn(async (id: string) => {
+        if (id === 'first' && !failed) { failed = true; throw new Error('first tab failed'); }
+        const index = tabs.findIndex(tab => tab.id === id);
+        tabs.splice(index, 1);
+        return true;
+      });
       mockApp.workspace.getLeavesOfType.mockReturnValue([{
         view: {
           notifyConversationListChanged: jest.fn(),
-          getTabManager: () => ({
-            getAllTabs: () => [firstTab, secondTab],
-          }),
+          getTabManager: () => ({ closeTab, getAllTabs: () => [...tabs] }),
         },
       }]);
-
       await expect(plugin.deleteConversation(conv.id)).rejects.toThrow('first tab failed');
-
-      expect(firstTab.controllers.conversationController.createNew).toHaveBeenCalledTimes(1);
-      expect(secondTab.controllers.conversationController.createNew).toHaveBeenCalledTimes(1);
+      expect(closeTab.mock.calls.map(call => call[0])).toEqual(['first', 'second']);
       expect(plugin.getConversationList().find(item => item.id === conv.id)).toBeUndefined();
-
       await expect(plugin.deleteConversation(conv.id)).resolves.toBeUndefined();
-
-      expect(firstTab.controllers.conversationController.createNew).toHaveBeenCalledTimes(2);
-      expect(secondTab.controllers.conversationController.createNew).toHaveBeenCalledTimes(1);
-      expect(firstTab.conversationId).toBeNull();
-      expect(secondTab.conversationId).toBeNull();
+      expect(closeTab.mock.calls.map(call => call[0])).toEqual(['first', 'second', 'first']);
+      expect(tabs).toEqual([]);
     });
   });
 
@@ -3098,6 +3061,10 @@ describe('ClaudianPlugin', () => {
       await plugin.updateConversation(folderConversation.id, {
         currentNote: 'Projects/Old/Plan.md',
       });
+      const runtime = new ConversationRuntime({ id: 'detached-note', conversationId: folderConversation.id, providerId: 'claude', lifecycleState: 'cold', draftModel: null });
+      runtime.context.capture({ currentNote: 'Projects/Old/Plan.md', externalContextPaths: [], enabledMcpServers: [] });
+      runtime.retainedFileContext = { files: ['Projects/Old/Plan.md', 'Projects/Old/Reference.md'], currentNoteSent: true, sessionStarted: true };
+      plugin.conversationRuntimes.register(runtime);
       const fileUpdatedAt = fileConversation.lastActivityAt;
       const folderUpdatedAt = folderConversation.lastActivityAt;
 
@@ -3118,6 +3085,8 @@ describe('ClaudianPlugin', () => {
         currentNote: 'Projects/New/Plan.md',
         lastActivityAt: folderUpdatedAt,
       });
+      expect(runtime.context.snapshot.currentNote).toBe('Projects/New/Plan.md');
+      expect(runtime.retainedFileContext.files).toEqual(['Projects/New/Plan.md', 'Projects/New/Reference.md']);
     });
   });
 

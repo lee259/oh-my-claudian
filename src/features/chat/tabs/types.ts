@@ -223,6 +223,8 @@ export type TabHydrationState = 'idle' | 'loading' | 'ready' | 'failed';
 export interface TabData {
   /** Authoritative identity and runtime owner for the tab. */
   session: ConversationRuntime;
+  /** Fences late cleanup from a previous presentation of the same runtime. */
+  readonly presentationEpoch?: symbol;
   /** Unique tab identifier. */
   id: TabId;
 

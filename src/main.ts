@@ -81,7 +81,7 @@ import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { resolveLocale, setLocale, t } from './i18n/i18n';
 import { buildCursorContext } from './utils/editor';
 import { getObsidianLanguage, revealWorkspaceLeaf } from './utils/obsidianCompat';
-import { getVaultPath } from './utils/path';
+import { getVaultPath, rewriteVaultPathAfterRename } from './utils/path';
 
 function isClaudianView(value: unknown): value is ClaudianView {
   return !!value
@@ -538,6 +538,7 @@ export default class ClaudianPlugin extends Plugin {
       getConversationList: () => this.conversationRepository.list(),
       getWorkspaceConversationIds: () => new Set(
         this.conversationRuntimes.getAll()
+          .filter(runtime => runtime.presentation !== null || runtime.hasWork)
           .map(runtime => runtime.conversationId)
           .filter((id): id is string => Boolean(id)),
       ),
@@ -784,6 +785,10 @@ export default class ClaudianPlugin extends Plugin {
   async notifyAgentSkillsChanged(): Promise<void> {
     const providerIds: ProviderId[] = ['codex', 'grok', 'pi', 'opencode'];
     const generation = ++this.agentSkillResourceGeneration;
+
+    for (const providerId of providerIds) {
+      ProviderWorkspaceRegistry.getCommandCatalog(providerId)?.setCommandSnapshot([]);
+    }
 
     for (const view of this.getAllViews()) {
       view.invalidateProviderResources(providerIds, generation);
@@ -1036,13 +1041,15 @@ export default class ClaudianPlugin extends Plugin {
       for (const tab of tabManager.getAllTabs()) {
         if (tab.conversationId === id) {
           try {
-            tab.controllers.inputController?.cancelStreaming();
-            await tab.controllers.conversationController?.createNew({ force: true });
+            await tabManager.closeTab(tab.id, true);
           } catch (error) {
             errors.push(error);
           }
         }
       }
+    }
+    for (const runtime of this.conversationRuntimes.getAll().filter(runtime => runtime.conversationId === id)) {
+      try { await this.conversationRuntimes.retire(runtime); } catch (error) { errors.push(error); }
     }
     if (errors.length > 0) {
       const first = errors[0];
@@ -1071,6 +1078,7 @@ export default class ClaudianPlugin extends Plugin {
     if (isArchived && this.conversationRuntimes.hasWork(id)) {
       throw new Error(t('chat.errors.runningArchive'));
     }
+    if (isArchived) await this.conversationRuntimes.get(id)?.executionCoordinator?.cool();
     const changed = await this.conversationRepository.setArchived(id, isArchived);
     this.notifyConversationViewsChanged();
     if (changed) await this.nativeSessionArchives.sync([id]);
@@ -1080,6 +1088,12 @@ export default class ClaudianPlugin extends Plugin {
     ids: readonly string[],
     isEligible: (conversation: Readonly<ConversationMeta>) => boolean,
   ): Promise<readonly string[]> {
+    const conversations = new Map(this.conversationRepository.list().map(conversation => [conversation.id, conversation]));
+    for (const id of ids) {
+      const runtime = this.conversationRuntimes.get(id);
+      const conversation = conversations.get(id);
+      if (runtime && conversation && isEligible(conversation) && !runtime.hasWork) await runtime.executionCoordinator?.cool();
+    }
     const archivedIds = await this.conversationRepository.archiveConversationsIf(ids, conversation => (
       !this.conversationRuntimes.hasWork(conversation.id) && isEligible(conversation)
     ));
@@ -1097,6 +1111,12 @@ export default class ClaudianPlugin extends Plugin {
     await this.conversationRepository.rewriteCurrentNotePaths(oldPath, file.path, {
       includeDescendants: file instanceof TFolder,
     });
+    for (const runtime of this.conversationRuntimes.getAll()) {
+      const context = runtime.context.snapshot;
+      const rewrite = (path: string) => rewriteVaultPathAfterRename(path, oldPath, file.path, file instanceof TFolder) ?? path;
+      runtime.context.capture({ ...context, currentNote: context.currentNote ? rewrite(context.currentNote) : undefined });
+      if (runtime.retainedFileContext) runtime.retainedFileContext.files = runtime.retainedFileContext.files.map(rewrite);
+    }
     this.notifyConversationViewsChanged();
   }
 
