@@ -70,6 +70,7 @@ import {
   updateSubagentToolResult,
 } from '../rendering/SubagentRenderer';
 import {
+  cleanupThinkingBlock,
   createThinkingBlock,
   finalizeThinkingBlock,
   refreshThinkingLabel,
@@ -2413,6 +2414,61 @@ export class StreamController {
     return state.currentThinkingState?.contentEl.ownerDocument?.defaultView
       ?? state.currentContentEl?.ownerDocument?.defaultView
       ?? this.getMessagesWindow();
+  }
+
+  /** Releases projection handles without sealing or resetting the open response. */
+  detachPresentation(): void {
+    const { state } = this.deps;
+    this.textRenderCoordinator.cancel();
+    this.thinkingRenderCoordinator.cancel();
+    this.cancelPendingToolOutputRenders();
+    this.cancelPendingScroll();
+    this.thinkingViewport?.dispose();
+    this.thinkingViewport = null;
+    this.hideThinkingIndicator();
+    cleanupThinkingBlock(state.currentThinkingState);
+    state.currentContentEl = null;
+    state.currentTextEl = null;
+    state.currentThinkingState = null;
+    state.toolCallElements.clear();
+    state.writeEditStates.clear();
+    for (const pending of state.pendingTools.values()) pending.parentEl = null;
+    this.lifecycleSubagentStates.clear();
+    this.deps.subagentManager.detachPresentation();
+    this.setTabActive(false);
+  }
+
+  async attachPresentation(contentEl: HTMLElement | null): Promise<void> {
+    const { state } = this.deps;
+    state.currentContentEl = contentEl;
+    if (!contentEl) return;
+    const message = state.messages.find(candidate => candidate.id === state.response.messageId);
+    for (const element of contentEl.querySelectorAll<HTMLElement>('[data-tool-id]')) {
+      if (element.closest('.claudian-subagent-list')) continue;
+      if (element.dataset.toolId) state.toolCallElements.set(element.dataset.toolId, element);
+    }
+    const toolIds = new Set(message?.toolCalls?.map(tool => tool.id));
+    for (const [id, pending] of state.pendingTools) {
+      if (toolIds.has(id)) pending.parentEl = contentEl;
+    }
+    if (state.response.thinking) {
+      await this.appendThinking('', message);
+      await this.thinkingRenderCoordinator.flush();
+    }
+    if (state.response.text && state.currentContentEl === contentEl) {
+      await this.appendText('', message);
+      await this.textRenderCoordinator.flush();
+    }
+  }
+
+  bindSubagentPresentation(state: SubagentState | AsyncSubagentState): void {
+    const tool = this.deps.state.messages.flatMap(message => message.toolCalls ?? [])
+      .find(candidate => candidate.id === state.info.id);
+    if (tool && this.getSubagentAdapter(tool.name)?.protocol !== 'managed-agent') {
+      this.lifecycleSubagentStates.set(state.info.id, state);
+    } else {
+      this.deps.subagentManager.bindPresentationState(state);
+    }
   }
 
   resetStreamingState(): void {

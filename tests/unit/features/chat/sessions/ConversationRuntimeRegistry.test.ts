@@ -1,6 +1,19 @@
 import { ConversationRuntime } from '@/features/chat/sessions/ConversationRuntime';
 import { ConversationRuntimeRegistry } from '@/features/chat/sessions/ConversationRuntimeRegistry';
 
+it('retires a closed conversation even when its final persistence fails', async () => {
+  const registry = new ConversationRuntimeRegistry();
+  const runtime = new ConversationRuntime({ id: 'retired', conversationId: 'deleted', providerId: 'claude', lifecycleState: 'cold', draftModel: null });
+  const dispose = jest.fn().mockResolvedValue(undefined);
+  runtime.setExecutionCoordinator({ dispose, stopSessionWork: jest.fn().mockResolvedValue(undefined) } as any);
+  runtime.controllers.conversationController = { save: jest.fn().mockRejectedValue(new Error('save failed')) } as any;
+  registry.register(runtime);
+  await expect(registry.retire(runtime)).rejects.toThrow('save failed');
+  expect(dispose).toHaveBeenCalledTimes(1);
+  expect(runtime.lifecycleState).toBe('closing');
+  expect(registry.get('deleted')).toBeNull();
+});
+
 it('reserves a conversation before hydration so concurrent panes share one runtime', async () => {
   const registry = new ConversationRuntimeRegistry();
   let hydrate!: () => void;

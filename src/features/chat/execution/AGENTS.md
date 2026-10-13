@@ -4,10 +4,10 @@
 
 ## Ownership
 
-- `ChatExecutionCoordinator` owns one tab's provider-session binding, active execution, interaction fencing, cancellation, and disposal.
+- `ChatExecutionCoordinator` owns one conversation runtime's provider-session binding, active execution, interaction fencing, cancellation, and disposal.
 - `WarmExecutionPool` owns application-scoped warm execution owners, the configured concurrent-running-session limit, and least-recently-used cooling of idle owners.
 - Core `ProviderExecutionLifecycleRegistry` owns provider generations, transition fencing, and live session leases. It is independent from the feature-owned warm pool and tab state.
-- `TabRuntimeCleanup` must release tab-owned resources in reverse order after conversation save and execution drain, before tab DOM removal.
+- `TabRuntimeCleanup` releases presentation resources in reverse order. Ordinary presentation detach must not cancel or dispose the coordinator; runtime retirement drains execution and persistence before releasing the coordinator.
 
 ## Lifecycle Rules
 

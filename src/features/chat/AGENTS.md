@@ -28,11 +28,11 @@ Detailed tab membership, tab lifecycle, and snapshot rules live in `tabs/AGENTS.
 - `ChatState.interactions` owns pending approval, question, provider plan and local plan promises; `ChatState` also retains the async user-message question tracker across presentation-controller replacement.
 - Presentation attachments display one queued request and may be replaced without resolving it. Abort, conversation reset and tab disposal end requests explicitly; a detached widget must not answer its replacement.
 - Async answer delivery is request-owned: once accepted, retain the answer even if presentation detached during delivery. Reject stale or concurrent submission attempts before sending.
-- These models are in-memory runtime state, not durable approval grants. Keep provider session/turn fencing in `ChatExecutionCoordinator` and preserve close cancellation until session lifecycle migration is complete.
+- These models are in-memory runtime state, not durable approval grants. Keep provider session/turn fencing in `ChatExecutionCoordinator` and preserve those requests across presentation detach. Stop, deletion and unload terminate them explicitly.
 
 ## Feature Rules
 
-- The chat view uses one panel. New Conversation and `/clear` replace the active tab's conversation.
+- The chat view uses one panel. New Conversation and `/clear` select a new draft runtime; history navigation selects the conversation's existing runtime. Never rebind a retained runtime merely to reuse its presentation.
 - Bang-bash mode bypasses provider execution and runs a local shell command only when the enabled provider exposes it through `ProviderChatUIConfig`.
 - Forking is provider-owned under the hood. Use execution and provider history contracts instead of reconstructing provider session IDs in feature code.
-- `ClaudianView.onClose()` must abort active tabs, flush the current tab state, and dispose tab-owned execution coordinators.
+- `ClaudianView.onClose()` flushes the active tab snapshot and detaches its presentations. Only application runtime shutdown aborts and drains executions before releasing provider infrastructure.

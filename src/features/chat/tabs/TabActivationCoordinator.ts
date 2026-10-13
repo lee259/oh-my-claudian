@@ -50,7 +50,15 @@ export async function activateTabContent(
     if (needsHydration && tab.conversationId) {
       const profile = startHydrationProfile();
       try {
-        await tab.controllers.conversationController?.switchTo(tab.conversationId);
+        const runtime = tab.session;
+        const work = runtime?.hydrationWork ?? Promise.resolve(tab.controllers.conversationController?.switchTo(tab.conversationId));
+        if (runtime) runtime.hydrationWork = work;
+        try {
+          await work;
+          tab.hydrationState = 'ready';
+        } finally {
+          if (runtime?.hydrationWork === work) runtime.hydrationWork = null;
+        }
       } finally {
         profile?.finish();
       }
@@ -63,8 +71,8 @@ export async function activateTabContent(
       tab.hydrationState = 'ready';
     }
   } catch (error) {
-    if (!isTabAlive()) return { status: 'aborted' };
     tab.hydrationState = 'failed';
+    if (!isTabAlive()) return { status: 'aborted' };
     renderHydrationState(error);
     return { status: 'failed', error };
   }

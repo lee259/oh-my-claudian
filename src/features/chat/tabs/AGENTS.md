@@ -5,8 +5,8 @@
 ## Ownership
 
 - `TabManager` owns runtime-tab membership, active-tab selection, and create/switch/close operations across tabs.
-- `ConversationRuntime` owns conversation/provider binding, ChatState, execution controllers, coordinator attachment, active-turn references, background-work sequencing and composer/context snapshots. Tabs currently create and dispose these runtimes; the application registry tracks them for work status, Stop, archive protection and unload. Closing still disposes the runtime until presentation replacement and all lifecycle paths are migrated.
-- `ChatState` owns transient per-tab message projection, stream state, queued input, render state, and conversation-operation flags.
+- `ConversationRuntime` owns conversation/provider binding, ChatState, execution controllers, coordinator attachment, active-turn references, background-work sequencing and composer/context snapshots. The application registry reserves and retains these runtimes across presentation replacement and owns Stop, deletion, archive protection and unload. Tabs attach one presentation to a runtime; ordinary close detaches without cancelling execution.
+- `ChatState` owns canonical runtime messages, stream state, queued input and conversation-operation flags. DOM references are replaceable presentation state.
 - `TabRuntimeFactory` allocates the provider-neutral runtime shell and initial draft/provider resolution. It must not create provider execution sessions.
 - `TabStatePersistenceCoordinator` owns write sequencing for the active tab snapshot, not semantic tab state. It must not infer, add, or remove runtime tabs.
 - Model selection is coordinated by `TabModelSelectionCoordinator` per tab and by the app-owned coordinator for the future-tab seed.
@@ -18,7 +18,7 @@ Valid tab lifecycle values are `provisional`, `cold`, `warm`, and `closing`.
 - History previews may be provisional and are discarded when navigation is superseded unless explicitly retained.
 - Retained or restored tabs without execution resources are cold, including unbound drafts.
 - Acquiring provider execution resources makes a retained tab warm; cooling returns it to cold without closing the tab or conversation.
-- Closing prevents new hydration work, saves when required, disposes execution resources, and removes the tab from `TabManager`. It never deletes the conversation.
+- Closing saves when required, releases presentation resources and removes the tab from `TabManager`. It preserves execution, interactions and in-flight canonical hydration; deletion and plugin unload dispose the runtime. It never deletes the conversation.
 - Hydration state is orthogonal to tab lifecycle and provider execution state.
 - The configured `maxWarmAgentProcesses` limit applies only to warm execution owners and remains within the supported 5-10 range; runtime tab creation is not capped by it.
 
@@ -31,3 +31,5 @@ Keep durable conversation state, the persisted active-tab shell, runtime tab sta
 - Switching the active tab must not cancel, dispose, or transfer another tab's active execution.
 - Command-only warmup stays isolated from real conversation sessions; the reserved execution warmup mode is currently a no-op.
 - The latest successful explicit model-picker selection wins for the future-tab seed. Restoration, hydration, fallback, fork inheritance, and auxiliary executions must not update that seed.
+
+- Reopening a ready runtime projects sealed blocks and its separate open foreground/background cursors; it must not reload native history or append cursor content twice. Serialize background projection with background events, and fence delayed cleanup by presentation epoch.

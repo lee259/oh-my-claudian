@@ -138,6 +138,14 @@ export class FileContextManager {
     return this.state.getAttachedFiles();
   }
 
+  restoreSessionContext(context: { files: string[]; currentNoteSent: boolean; sessionStarted: boolean }): void {
+    this.state.setAttachedFiles(context.files);
+    if (context.currentNoteSent) this.state.markCurrentNoteSent();
+    else this.state.markCurrentNoteChanged();
+    if (context.sessionStarted) this.state.startSession();
+    this.renderAttachedFiles();
+  }
+
   /** Reveals a vault file or folder in the file explorer; external paths are not navigable here. */
   activateContextPath(rawPath: string): void {
     const vaultPath = getVaultPath(this.app);

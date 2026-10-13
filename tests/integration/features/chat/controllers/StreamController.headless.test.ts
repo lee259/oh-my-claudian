@@ -168,3 +168,23 @@ it('retains output when no messages surface or rendering window is mounted', asy
     expect(fixture.message.contentBlocks).toEqual([{ id: 'answer:block:0', type: 'text', content: 'Headless answer' }]);
   } finally { fixture.cleanup(); }
 });
+
+it('keeps an open response across detach and reconnects its cursor without duplicating text', async () => {
+  const fixture = createFixture(true);
+  const render = jest.spyOn(MarkdownRenderer, 'render').mockImplementation(async (_app, text, el) => { el.textContent = text; });
+  try {
+    await fixture.controller.handleStreamChunk({ type: 'text', content: 'Before ' }, fixture.message);
+    fixture.controller.detachPresentation();
+    fixture.messages.empty();
+    await fixture.controller.handleStreamChunk({ type: 'text', content: 'during ' }, fixture.message);
+    expect(fixture.state.response.text).toBe('Before during ');
+    const current = fixture.messages.createDiv({ cls: 'claudian-message-content' });
+    await fixture.controller.attachPresentation(current);
+    expect(current.textContent).toContain('Before during ');
+    await fixture.controller.handleStreamChunk({ type: 'text', content: 'after.' }, fixture.message);
+    await fixture.controller.finalizeCurrentTextBlock(fixture.message);
+    expect(fixture.message.contentBlocks).toEqual([{ id: 'answer:block:0', type: 'text', content: 'Before during after.' }]);
+    expect(current.textContent).toContain('Before during after.');
+    expect(fixture.state.messages).toHaveLength(1);
+  } finally { render.mockRestore(); fixture.cleanup(); }
+});

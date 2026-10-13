@@ -17,14 +17,18 @@ export class ConversationRuntimeRegistry {
   private readonly subscriptions = new Map<string, () => void>();
 
   constructor(private readonly disposeRuntime: (runtime: ConversationRuntime) => Promise<void> = async runtime => {
+    runtime.lifecycleState = 'closing';
     runtime.state.dismissInteractions('session-disposed');
     runtime.services.titleGenerationService?.cancel();
     runtime.services.instructionRefineService?.cancel();
     try {
+      await runtime.hydrationWork?.catch(() => undefined);
       await runtime.stop();
       await runtime.controllers.conversationController?.save(false);
     } finally {
-      await runtime.disposeExecutionCoordinator();
+      try { await runtime.disposeExecutionCoordinator(); } finally {
+        runtime.disposeModels();
+      }
     }
   }, private readonly onChanged: () => void = () => undefined) {}
 
@@ -53,14 +57,24 @@ export class ConversationRuntimeRegistry {
       previous = current;
       this.onChanged();
     }));
-    return () => {
+    const release = () => {
       if (this.byRuntimeId.get(runtime.id) !== runtime) return;
       this.subscriptions.get(runtime.id)?.();
       this.subscriptions.delete(runtime.id);
       this.byRuntimeId.delete(runtime.id);
       this.attachments.delete(runtime.id);
+      runtime.releaseRegistration = null;
       this.onChanged();
     };
+    runtime.releaseRegistration = release;
+    return release;
+  }
+
+  getByRuntimeId(id: string): ConversationRuntime | null { return this.byRuntimeId.get(id) ?? null; }
+
+  async retire(runtime: ConversationRuntime): Promise<void> {
+    runtime.lifecycleState = 'closing';
+    try { await this.disposeRuntime(runtime); } finally { runtime.releaseRegistration?.(); }
   }
 
   isRunning(conversationId: string): boolean {

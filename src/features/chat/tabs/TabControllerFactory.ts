@@ -47,6 +47,7 @@ export function initializeTabPresentationControllers(
       isBusy: () => tab.state.isStreaming || tab.state.isRewinding || tab.state.isSwitchingConversation,
     },
     () => tab.state.autoScrollEnabled,
+    state => tab.controllers.streamController?.bindSubagentPresentation(state),
   );
 
   dom.eventCleanups.push(tab.session.messagePresentation.attach(tab.renderer, dom.messagesEl));

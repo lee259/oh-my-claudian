@@ -16,6 +16,20 @@ function createTab(overrides: Record<string, unknown> = {}): any {
 }
 
 describe('activateTabContent', () => {
+  it('settles canonical hydration after its presentation closes', async () => {
+    const tab = createTab({ conversationId: 'conversation-1', session: { hydrationWork: null } });
+    let alive = true;
+    tab.controllers.conversationController.switchTo.mockImplementation(async () => { alive = false; });
+    const result = await activateTabContent({
+      tab, ensureWorkspaceServices: async () => true, isTabAlive: () => alive,
+      renderHydrationState: jest.fn(), waitForPaint: async () => undefined,
+      startHydrationProfile: () => null,
+    });
+    expect(result).toEqual({ status: 'aborted' });
+    expect(tab.hydrationState).toBe('ready');
+    expect(tab.session.hydrationWork).toBeNull();
+  });
+
   it('initializes an empty tab after workspace services are ready', async () => {
     const tab = createTab();
     const ensureWorkspaceServices = jest.fn().mockResolvedValue(true);

@@ -690,6 +690,25 @@ export class SubagentManager {
     return orphaned;
   }
 
+  public detachPresentation(): void {
+    this.syncSubagents.clear();
+    this.asyncDomStates.clear();
+    this.clearAsyncPreviews();
+    for (const pending of this.pendingTasks.values()) pending.parentEl = null;
+  }
+
+  public bindPresentationState(state: SubagentState | AsyncSubagentState): void {
+    if (state.info.mode === 'async') {
+      const record = this.asyncSubagents.get(state.info.id);
+      if (record) state.info = record.info;
+      this.asyncDomStates.set(state.info.id, state as AsyncSubagentState);
+    } else {
+      const info = this.syncRecords.get(state.info.id);
+      if (info) state.info = info;
+      this.syncSubagents.set(state.info.id, state as SubagentState);
+    }
+  }
+
   public clear(): void {
     this.syncSubagents.clear();
     this.syncRecords.clear();

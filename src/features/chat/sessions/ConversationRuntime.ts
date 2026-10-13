@@ -1,5 +1,6 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
+import type { ImageAttachment } from '../../../core/types';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
 import { SubagentManager } from '../services/SubagentManager';
 import { ChatState } from '../state/ChatState';
@@ -27,6 +28,11 @@ export class ConversationRuntime {
   private readonly listeners = new Set<() => void>();
   private readonly presentationCallbacks = new Map<string, { callbacks: RuntimePresentationCallbacks }>();
   presentation: RuntimePresentation | null = null;
+  releaseRegistration: (() => void) | null = null;
+  retainedImages: ImageAttachment[] = [];
+  retainedQuotes: Array<{ id: string; text: string }> = [];
+  retainedFileContext: { files: string[]; currentNoteSent: boolean; sessionStarted: boolean } | null = null;
+  hydrationWork: Promise<void> | null = null;
   readonly emptyUI = createEmptyPresentationUI();
   hydrationState: TabHydrationState;
   readonly controllers: Pick<TabControllers, 'inputController' | 'streamController' | 'conversationController'> = {
@@ -46,6 +52,7 @@ export class ConversationRuntime {
   readonly messagePresentation = new RuntimeMessagePresentation();
   /** Per-runtime provider/model reasoning choices; committed settings seed future tabs. */
   readonly reasoningSelections = new Map<string, string>();
+  readonly permissionSelections = new Map<ProviderId, string>();
   private stopping: Promise<void> | null = null;
   private activeTurnValue: Promise<void> | null = null;
   private backgroundWork: Promise<void> = Promise.resolve();
@@ -82,13 +89,14 @@ export class ConversationRuntime {
 
   get hasWork(): boolean {
     return this.isRunning || this.state.requiresAction || this.state.isRewinding
-      || this.state.hasPendingConversationSave;
+      || this.state.hasPendingConversationSave || !!this.state.pendingNewSessionPlan;
   }
 
   /** Cancels only this runtime; completion includes turn persistence. */
   stop(): Promise<void> {
     if (this.stopping) return this.stopping;
     const activeTurn = this.activeTurn;
+    this.state.pendingNewSessionPlan = null;
     this.controllers.inputController?.cancelStreaming();
     const sessionStop = this.coordinator?.stopSessionWork(activeTurn);
     this.state.dismissInteractions('cancelled');
@@ -98,6 +106,7 @@ export class ConversationRuntime {
       } finally {
         await sessionStop;
         await this.awaitBackgroundWork();
+        this.state.pendingNewSessionPlan = null;
       }
     })().finally(() => { this.stopping = null; });
     return this.stopping;
@@ -176,6 +185,12 @@ export class ConversationRuntime {
     const coordinator = this.coordinator;
     this.coordinator = null;
     await coordinator?.dispose();
+  }
+
+  disposeModels(): void {
+    this.controllers.streamController?.dispose();
+    this.subagents?.clear();
+    this.state.response.reset();
   }
 
   enqueueBackgroundWork(work: () => Promise<void>): Promise<void> | null {

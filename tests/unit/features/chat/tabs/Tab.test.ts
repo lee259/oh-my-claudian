@@ -6,6 +6,7 @@ import { act } from 'preact/test-utils';
 import type { ProviderApprovalInteractionRequest, ProviderPlanInteractionRequest } from '@/core/execution/ProviderInteractionPort';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ConversationController } from '@/features/chat/controllers/ConversationController';
+import { StreamController } from '@/features/chat/controllers/StreamController';
 import type {
   ChatExecutionCoordinatorDeps,
   ChatExecutionEventContext,
@@ -13,6 +14,8 @@ import type {
 import {
   createTab,
   destroyTab,
+  detachTabPresentation,
+  getRuntimeMessageProjection,
   initializeTabControllers,
   initializeTabExecution,
   initializeTabUI,
@@ -272,6 +275,58 @@ function installTransitionController(
 }
 
 describe('Tab provider execution ownership', () => {
+  it('retains and seals unsolicited background output after the presentation closes', async () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    tab.controllers.streamController = new StreamController({
+      plugin: plugin as any, state: tab.state, renderer: tab.session.messagePresentation,
+      subagentManager: tab.services.subagentManager, getProviderId: () => 'claude',
+      getMessagesEl: () => tab.session.presentation?.dom.messagesEl ?? null,
+      getFileContextManager: () => null, updateQueueIndicator: () => undefined,
+    });
+    const save = jest.fn().mockResolvedValue(undefined);
+    tab.controllers.conversationController = { save, detachPresentation: jest.fn() } as any;
+    const scope = { kind: 'background' as const, sessionInstanceId: 'session-instance-1', turnId: 'detached-background', sequence: 1 };
+    const context = createEventContext();
+    await coordinatorDeps[0].onSessionEvent?.({ type: 'background_turn_started', scope }, context);
+    await coordinatorDeps[0].onSessionEvent?.({ type: 'text_delta', text: 'Before ', scope: { ...scope, sequence: 2 } }, context);
+    await detachTabPresentation(tab);
+    await coordinatorDeps[0].onSessionEvent?.({ type: 'text_delta', text: 'after.', scope: { ...scope, sequence: 3 } }, context);
+    expect(tab.state.messages[0].content).toBe('Before after.');
+    expect(getRuntimeMessageProjection(tab)[0].content).toBe('');
+    await coordinatorDeps[0].onSessionEvent?.({ type: 'background_turn_completed', reason: 'completed', scope: { ...scope, sequence: 4 } }, context);
+    expect(tab.state.messages[0].contentBlocks).toEqual([
+      expect.objectContaining({ type: 'text', content: 'Before after.' }),
+    ]);
+    expect(save).toHaveBeenCalledWith(true);
+    expect(tab.state.attention?.kind).toBe('review');
+    tab.controllers.streamController.dispose();
+  });
+
+  it('detaches without cancelling execution and fences a replacement presentation from old cleanup', async () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    const runtime = tab.session;
+    const coordinator = coordinatorInstances[0];
+    runtime.state.messages = [{ id: 'answer', role: 'assistant', content: '', timestamp: 1 }];
+    runtime.state.isStreaming = true;
+    runtime.state.response.messageId = 'answer';
+    runtime.state.response.text = 'retained';
+    await detachTabPresentation(tab);
+    expect(runtime.presentation).toBeNull();
+    expect(runtime.state.isStreaming).toBe(true);
+    expect(coordinator.cancel).not.toHaveBeenCalled();
+    expect(coordinator.dispose).not.toHaveBeenCalled();
+    const replacement = createTab({ plugin, containerEl: createMockEl() as any, runtime });
+    const presentation = runtime.presentation;
+    expect(replacement.session).toBe(runtime);
+    expect(runtime.state.response.text).toBe('retained');
+    expect(coordinatorInstances).toHaveLength(1);
+    await detachTabPresentation(tab);
+    expect(runtime.presentation).toBe(presentation);
+    await detachTabPresentation(replacement);
+  });
+
   beforeEach(() => {
     coordinatorInstances.length = 0;
     coordinatorDeps.length = 0;
@@ -1145,7 +1200,7 @@ describe('Tab provider execution ownership', () => {
     const save = jest.fn().mockReturnValue(new Promise<void>((resolve) => {
       resolveSave = resolve;
     }));
-    tab.controllers.conversationController = { save } as any;
+    tab.controllers.conversationController = { save, detachPresentation: jest.fn() } as any;
     const backgroundScope = {
       kind: 'background' as const,
       sequence: 1,
@@ -1632,7 +1687,7 @@ describe('Tab provider execution ownership', () => {
     });
     tab.state.currentConversationId = 'active-conversation';
     const save = jest.fn().mockResolvedValue(undefined);
-    tab.controllers.conversationController = { save } as any;
+    tab.controllers.conversationController = { save, detachPresentation: jest.fn() } as any;
     coordinator.cancel.mockImplementation(() => resolveTurn());
 
     await destroyTab(tab);

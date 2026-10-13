@@ -20,6 +20,7 @@ import {
 
 export interface SubagentRenderOptions {
   onOpenFile?: (fileReference: FileReference) => void;
+  onStateCreated?: (state: SubagentState | AsyncSubagentState) => void;
 }
 
 interface SubagentToolView {
@@ -429,6 +430,7 @@ export function renderStoredSubagent(
   }, options);
 
   hydrateSyncSubagentStateFromStored(state, subagent);
+  options.onStateCreated?.(state);
   return state.wrapperEl;
 }
 
@@ -962,6 +964,8 @@ export function renderStoredAsyncSubagent(
 
   const state = { isExpanded: false };
   setupCollapsible(wrapperEl, headerEl, contentEl, state);
+  options.onStateCreated?.({ wrapperEl, contentEl, headerRowEl, headerEl, labelEl, resultSummaryEl,
+    progressEl: null, statusTextEl, statusEl, info: subagent, onOpenFile: options.onOpenFile });
 
   return wrapperEl;
 }
