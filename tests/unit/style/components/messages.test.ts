@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -29,7 +31,7 @@ describe('Message styles', () => {
     );
   });
 
-  it('isolates assistant layout without containing user message actions', () => {
+  it('keeps user message actions outside layout containment', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     const messageRule = css.match(/\.claudian-message\s*{[^}]*}/)?.[0];
@@ -41,8 +43,6 @@ describe('Message styles', () => {
 
     const assistantRule = css.match(/\.claudian-message-assistant\s*{[^}]*}/)?.[0];
     expect(assistantRule).toContain('flex-shrink: 0;');
-    expect(assistantRule).toContain('content-visibility: auto;');
-    expect(assistantRule).toContain('contain-intrinsic-size: auto 23.5rem;');
   });
 
   it('uses a responsive centered assistant column on wide views', () => {
@@ -55,10 +55,29 @@ describe('Message styles', () => {
     expect(assistantRule).not.toContain('max-width: 72ch;');
   });
 
-  it('disables assistant layout isolation on Windows only', () => {
+  it.each([
+    ['Windows', 'mod-windows'],
+    ['macOS', 'mod-macos'],
+    ['Linux', 'mod-linux'],
+  ])('does not skip offscreen assistant layout on %s', (_platform, platformClass) => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+    document.body.className = platformClass;
+    const message = document.createElement('div');
+    message.className = 'claudian-message claudian-message-assistant';
+    document.body.appendChild(message);
 
-    expect(css).toMatch(/body\.mod-windows \.claudian-message-assistant\s*{[^}]*content-visibility:\s*visible;[^}]*contain-intrinsic-size:\s*none;/);
+    try {
+      const computed = window.getComputedStyle(message);
+      expect(['', 'visible']).toContain(computed.getPropertyValue('content-visibility'));
+      expect(['', 'none']).toContain(computed.getPropertyValue('contain-intrinsic-size'));
+    } finally {
+      message.remove();
+      style.remove();
+      document.body.className = '';
+    }
   });
 
   it('keeps user action rows out of bubble sizing and reveals them on hover', () => {
