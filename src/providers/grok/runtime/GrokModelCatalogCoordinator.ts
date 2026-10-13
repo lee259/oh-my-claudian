@@ -358,6 +358,12 @@ export class GrokModelCatalogCoordinator {
     this.abortController?.abort();
     const abortController = new AbortController();
     this.abortController = abortController;
+    const abort = (): void => {
+      abortController.abort();
+      if (this.refreshGeneration === generation) this.refreshGeneration += 1;
+    };
+    context?.signal?.addEventListener('abort', abort, { once: true });
+    if (context?.signal?.aborted) abort();
     this.state = 'refreshing';
     const refreshStartRevision = this.liveRevision;
     const pendingLiveRevisionsAtStart = new Set(this.pendingLiveRevisions);
@@ -418,6 +424,7 @@ export class GrokModelCatalogCoordinator {
         diagnostics: 'Grok Build model catalog refresh failed',
       };
     } finally {
+      context?.signal?.removeEventListener('abort', abort);
       if (this.abortController === abortController) {
         this.abortController = null;
       }

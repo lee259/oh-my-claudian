@@ -236,6 +236,14 @@ export class ProviderExecutionLifecycleRegistry {
     return this.states.get(providerId)?.generation ?? 0;
   }
 
+  hasActiveWork(providerId: ProviderId): boolean {
+    return [...(this.states.get(providerId)?.leases ?? [])].some(lease => {
+      if (!lease.isCurrent()) return false;
+      const status = lease.session.getStatus();
+      return status === 'executing' || status === 'cancelling' || lease.session.hasBackgroundWork?.() === true;
+    });
+  }
+
   /**
    * Runs a provider transition with explicit ownership across async boundaries.
    * Work that can start another transition must forward the received scope as
@@ -245,6 +253,7 @@ export class ProviderExecutionLifecycleRegistry {
     providerIds: ProviderId[],
     mutation: (scope: ProviderExecutionTransitionScope) => Promise<T>,
     parentScope?: ProviderExecutionTransitionScope,
+    beforeInvalidation?: () => void,
   ): Promise<T> {
     this.assertAvailable();
     const orderedProviderIds = [...new Set(providerIds)].sort();
@@ -266,6 +275,7 @@ export class ProviderExecutionLifecycleRegistry {
         orderedProviderIds,
         scope,
         () => mutation(scope),
+        beforeInvalidation,
       );
     } finally {
       this.activeTransitionScopes.delete(scope);
@@ -276,6 +286,7 @@ export class ProviderExecutionLifecycleRegistry {
     orderedProviderIds: ProviderId[],
     scope: ProviderExecutionTransitionScope,
     mutation: () => Promise<T>,
+    beforeInvalidation?: () => void,
   ): Promise<T> {
     const states = orderedProviderIds.map((providerId) => ({
       providerId,
@@ -292,6 +303,8 @@ export class ProviderExecutionLifecycleRegistry {
       }
 
       this.assertAvailable();
+      // Validate while acquisition is fenced, before any live lease is invalidated.
+      beforeInvalidation?.();
 
       const contexts = states.map(({ providerId, state }) => {
         state.generation += 1;

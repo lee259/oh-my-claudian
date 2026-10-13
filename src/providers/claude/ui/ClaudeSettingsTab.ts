@@ -49,6 +49,8 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         const current = getClaudeProviderSettings(settingsBag);
         const modelOptions = getClaudeModelOptions(settingsBag);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('claude')
+            ? context.plugin.cliLifecycle.getSnapshot('claude')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('claude')
             : null,
@@ -457,6 +459,8 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     // --- CLI lifecycle ---
 
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'claude',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: claudeCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('claude'),
@@ -466,6 +470,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getClaudeProviderSettings(settingsBag);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

@@ -10,12 +10,14 @@ import { opencodeSettingsReconciler } from './env/OpencodeSettingsReconciler';
 import { OpencodeExecutionBackend } from './execution/OpencodeExecutionBackend';
 import { OpencodeConversationHistoryService } from './history/OpencodeConversationHistoryService';
 import { decodeOpencodeModelId } from './models';
+import { opencodeCliLifecycle } from './runtime/OpencodeCliLifecycle';
 import { opencodeTaskResultInterpreter } from './runtime/OpencodeTaskResultInterpreter';
 import { getOpencodeProviderSettings, updateOpencodeProviderSettings } from './settings';
 import { opencodeSubagentAdapter } from './subagentAdapter';
 import { opencodeChatUIConfig } from './ui/OpencodeChatUIConfig';
 
 export const opencodeProviderRegistration: ProviderModule = {
+  cliLifecycle: opencodeCliLifecycle,
   id: 'opencode',
   blankTabOrder: 10,
   capabilities: OPENCODE_PROVIDER_CAPABILITIES,

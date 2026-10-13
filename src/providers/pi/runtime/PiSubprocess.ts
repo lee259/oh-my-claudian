@@ -39,7 +39,7 @@ export class PiSubprocess extends ManagedSubprocess {
   }
 }
 
-function resolvePiProcessSpec(
+export function resolvePiProcessSpec(
   launchSpec: PiSubprocessLaunchSpec,
   enhancedPath: string,
 ): Pick<PiSubprocessLaunchSpec, 'args' | 'command'> {

@@ -10,6 +10,7 @@ import type {
 } from '../execution';
 import { resolveTitleGenerationLocale } from '../prompt/titleGeneration';
 import type { AskUserAnswers, ToolCallInfo } from '../types';
+import type { ProviderCliLifecycleAdapter } from './cli/ProviderCliLifecycle';
 import { decodeProviderModelSelectionId } from './modelSelection';
 import type {
   ProviderDiagnosticCollectorContext,
@@ -38,13 +39,16 @@ import {
 } from './types';
 
 /**
- * Registry for chat-facing provider services.
+ * Registry for provider behavior and application-facing adapter contracts.
  *
  * Bootstrap concerns (default settings, shared storage, CLI resolution,
  * workspace command/agent services) are composed explicitly in `main.ts`
  * through `src/core/bootstrap/` and `src/providers/<id>/app/`.
  */
 export class ProviderRegistry {
+  static getCliLifecycleAdapter(providerId: ProviderId): ProviderCliLifecycleAdapter | null {
+    return this.getProviderRegistration(providerId).cliLifecycle ?? null;
+  }
   private static registrations: Partial<Record<ProviderId, ProviderRegistration>> = {};
 
   static register(

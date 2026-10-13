@@ -22,6 +22,7 @@ import { ProviderDiagnosticLogService } from './app/diagnostics/ProviderDiagnost
 import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdapter';
 import { ObsidianWorkspaceToolBridgeServer } from './app/obsidian/ObsidianWorkspaceToolBridgeServer';
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
+import { ProviderCliLifecycleService } from './app/providers/ProviderCliLifecycleService';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
 import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
 import { ProviderRuntimeSettingsCoordinator } from './app/settings/ProviderRuntimeSettingsCoordinator';
@@ -40,6 +41,9 @@ import {
   ProviderExecutionLifecycleRegistry,
   type ProviderExecutionTransitionScope,
 } from './core/execution';
+import { loadLoginShellPath } from './core/process/LoginShellPath';
+import { ManagedCommandRunner } from './core/process/ManagedCommandRunner';
+import { fetchLatestNpmVersion } from './core/providers/cli/CliVersionUtils';
 import { stringifyDiagnosticError } from './core/providers/ProviderDiagnostics';
 import {
   getEnvironmentVariablesForScope as getScopedEnvironmentVariables,
@@ -104,6 +108,9 @@ function ensureProviderModulesLoaded(): Promise<void> {
 }
 
 export default class ClaudianPlugin extends Plugin {
+  cliLifecycle!: ProviderCliLifecycleService;
+  private cliUpdateTimer: number | null = null;
+  private disposeCliUpdateNotice: (() => void) | null = null;
   settings!: ClaudianSettings;
   storage!: SharedAppStorage;
   readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
@@ -165,6 +172,36 @@ export default class ClaudianPlugin extends Plugin {
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
       );
+      this.cliLifecycle = new ProviderCliLifecycleService({
+        prepareDetection: options => loadLoginShellPath(options),
+        providers: () => ProviderRegistry.getRegisteredProviderIds().flatMap(providerId => {
+          const adapter = ProviderRegistry.getCliLifecycleAdapter(providerId);
+          return adapter ? [{
+            providerId, metadata: adapter.metadata,
+            displayName: ProviderRegistry.getProviderDisplayName(providerId),
+            enabled: ProviderRegistry.isEnabled(providerId, this.settings),
+          }] : [];
+        }),
+        resolveTarget: (id, context) => ProviderRegistry.getCliLifecycleAdapter(id)!.resolveTarget(this.providerHost, context),
+        resolveInstall: id => ProviderRegistry.getCliLifecycleAdapter(id)!.resolveInstallCommand(this.providerHost),
+        resetResolver: async id => { ProviderWorkspaceRegistry.getCliResolver(id)?.reset(); },
+        latestVersion: fetchLatestNpmVersion,
+        run: request => new ManagedCommandRunner().run(request),
+        transition: (id, work) => this.executionLifecycleRegistry.runTransition(
+          [id], () => work({ providerTransitionOwner: true }), undefined,
+          () => {
+            if (this.isUnloading || this.executionLifecycleRegistry.hasActiveWork(id)
+              || this.conversationRuntimes.getAll().some(runtime => runtime.providerId === id && runtime.hasWork)) {
+              throw new Error('Finish or stop this provider’s active tasks before changing its CLI.');
+            }
+          },
+        ),
+        refreshModels: async (id, context) => {
+          const result = await ProviderWorkspaceRegistry.refreshModelCatalog(id, context);
+          if (result.diagnostics) throw new Error(result.diagnostics);
+        },
+        publishModels: id => this.notifyProviderChatOptionsChanged(id),
+      });
       this.registerDomEvent(window, 'error', (event) => {
         const location = event.filename
           ? ` (${event.filename}:${event.lineno}:${event.colno})`
@@ -337,6 +374,22 @@ export default class ClaudianPlugin extends Plugin {
       });
 
       this.addSettingTab(new ClaudianSettingTab(this.app, this));
+      this.cliLifecycle.subscribe(snapshot => {
+        if (this.isUnloading || snapshot.status === 'checking') return;
+        for (const view of this.getAllViews()) view.refreshModelSelector(snapshot.providerId);
+      });
+      this.app.workspace.onLayoutReady(() => {
+        if (this.isUnloading) return;
+        this.cliUpdateTimer = window.setTimeout(() => {
+          this.cliUpdateTimer = null;
+          void import('./features/settings/ProviderCliUpdates').then(async ({ showProviderCliUpdates }) => {
+            if (this.isUnloading) return;
+            const dispose = await showProviderCliUpdates(this.app, this.cliLifecycle);
+            if (this.isUnloading) dispose();
+            else this.disposeCliUpdateNotice = dispose;
+          }).catch(() => undefined);
+        }, 1500);
+      });
       this.scheduleRemainingSessionMetadataLoad();
     } finally {
       StartupProfiler.finishOnload();
@@ -345,6 +398,12 @@ export default class ClaudianPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
+    if (this.cliUpdateTimer !== null) {
+      window.clearTimeout(this.cliUpdateTimer);
+      this.cliUpdateTimer = null;
+    }
+    this.cliLifecycle?.dispose();
+    this.disposeCliUpdateNotice?.();
     if (this.sessionMetadataLoadTimer !== null) {
       window.clearTimeout(this.sessionMetadataLoadTimer);
       this.sessionMetadataLoadTimer = null;

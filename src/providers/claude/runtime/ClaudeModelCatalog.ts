@@ -11,15 +11,18 @@ export class ClaudeModelCatalog {
 
   constructor(private readonly host: ProviderHost) {}
 
-  async refresh(): Promise<ProviderModelCatalogRefreshResult> {
-    if (this.disposed || !getClaudeProviderSettings(this.host.settings).enabled) {
+  async refresh(signal?: AbortSignal): Promise<ProviderModelCatalogRefreshResult> {
+    if (signal?.aborted || this.disposed || !getClaudeProviderSettings(this.host.settings).enabled) {
       return { changed: false };
     }
     if (this.flight) return this.flight;
 
     const controller = new AbortController();
     this.controller = controller;
+    const abort = (): void => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
     const flight = this.discover(controller).finally(() => {
+      signal?.removeEventListener('abort', abort);
       if (this.flight === flight) {
         this.flight = null;
         this.controller = null;

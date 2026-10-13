@@ -48,6 +48,10 @@ export async function createOpencodeWorkspaceServices(
     commandCatalog,
     cliResolver: new OpencodeCliResolver(),
     metadataService,
+    refreshModelCatalog: async context => {
+      const loaded = await metadataService.loadCatalog(context?.signal, context);
+      return loaded ? { changed: true } : { changed: false, diagnostics: 'OpenCode model catalog refresh failed.' };
+    },
     commandLoader: new OpencodeCommandLoader(metadataService),
     settingsTabRenderer: opencodeSettingsTabRenderer,
     tabWarmupPolicy: opencodeTabWarmupPolicy,

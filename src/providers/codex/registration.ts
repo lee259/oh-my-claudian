@@ -12,6 +12,7 @@ import { getCodexModelOptions } from './modelOptions';
 import { toCodexRuntimeModelId } from './modelSelection';
 import { formatCodexQuestionReply } from './normalization/codexQuestionNormalization';
 import { codexSubagentLifecycleAdapter } from './normalization/codexSubagentNormalization';
+import { codexCliLifecycle } from './runtime/CodexCliLifecycle';
 import {
   getCodexProviderSettings,
   normalizeCodexStoredConfig,
@@ -20,6 +21,7 @@ import {
 import { codexChatUIConfig } from './ui/CodexChatUIConfig';
 
 export const codexProviderRegistration: ProviderModule = {
+  cliLifecycle: codexCliLifecycle,
   id: 'codex',
   displayName: 'Codex CLI',
   blankTabOrder: 15,

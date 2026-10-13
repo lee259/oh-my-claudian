@@ -8,6 +8,8 @@ export type ProviderReadinessRemediation =
   | 'selectModel';
 
 export interface ProviderReadinessInput {
+  /** Validated installation state when an application probe has completed. */
+  cliAvailable?: boolean;
   enabled: boolean;
   cliPath: string | null;
   discoveredModelCount: number;
@@ -40,7 +42,7 @@ export function assessProviderReadiness(
     };
   }
 
-  const cliStatus: ProviderReadinessStatus = input.cliPath ? 'ready' : 'blocked';
+  const cliStatus: ProviderReadinessStatus = input.cliPath && input.cliAvailable !== false ? 'ready' : 'blocked';
   const modelsStatus: ProviderReadinessStatus = input.discoveredModelCount > 0
     ? 'ready'
     : 'attention';

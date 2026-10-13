@@ -424,7 +424,9 @@
         "outputTooLarge": "La salida de la comprobación de versión es demasiado grande.",
         "notFound": "CLI no instalado o no está en PATH."
       },
-      "versionUnchanged": "{cli} sigue en {version} después de actualizar. Es posible que el comando no haya surtido efecto."
+      "versionUnchanged": "{cli} sigue en {version} después de actualizar. Es posible que el comando no haya surtido efecto.",
+      "operationVerified": "CLI change verified.",
+      "bundledUpdate": "Update the desktop application to update its bundled CLI."
     },
     "providerDiagnostics": {
       "kicker": "Solución de problemas",
@@ -994,6 +996,33 @@
       "desc": "Archiva automáticamente las conversaciones cerradas y sin fijar que no hayan tenido actividad durante el período seleccionado.",
       "off": "Desactivado",
       "days": "{count} días"
+    },
+    "cliUpdates": {
+      "title": "Agent updates",
+      "summary": "Models refresh after each agent update.",
+      "checkUpdates": "Buscar actualizaciones de agentes",
+      "checkAll": "Check providers",
+      "updateAll": "Update all",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "checking": "Checking",
+      "missing": "Not installed",
+      "broken": "Cannot start",
+      "ready": "Installed",
+      "updating": "Updating",
+      "updated": "Verified",
+      "noUpdates": "No updates found for providers with an available version feed.",
+      "modelWarning": "CLI updated. Model refresh needs another attempt.",
+      "confirmAll": "Update these provider CLIs?\n\n{commands}",
+      "upstreamReply": "CLI response",
+      "exitCode": "Exit code:",
+      "verification": "Claudian verification:",
+      "localError": "Claudian/process error:",
+      "noReply": "The CLI returned no output.",
+      "outputTruncated": "Only the final 1 MiB of each output stream is retained. The command was not stopped by this limit.",
+      "noticeTitle": "{count} agents have updates",
+      "review": "Review updates",
+      "installation": "Installation details"
     }
   }
 }

@@ -5,6 +5,16 @@ import { buildCodexLaunchSpec } from '@/providers/codex/runtime/CodexLaunchSpecB
 const childProcess = jest.requireActual<typeof ChildProcess>('child_process');
 
 describe('buildCodexLaunchSpec', () => {
+  it('runs lifecycle arguments against the selected WSL binary without app-server flags', () => {
+    const spec = buildCodexLaunchSpec({
+      settings: { providerAdditionalArguments: { codex: '--config\nignored=true' } },
+      resolvedCliCommand: '/custom/codex', hostVaultPath: 'C:\\vault', env: {},
+      executionTarget: { method: 'wsl', platformFamily: 'unix', platformOs: 'linux', distroName: 'Ubuntu' },
+      cliArguments: ['update'],
+    });
+    expect(spec.command).toBe('wsl.exe');
+    expect(spec.args).toEqual(['--distribution', 'Ubuntu', '--cd', '/mnt/c/vault', '/custom/codex', 'update']);
+  });
   let execFileSyncSpy: jest.SpyInstance;
 
   beforeEach(() => {

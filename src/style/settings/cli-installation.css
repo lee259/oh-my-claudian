@@ -221,3 +221,252 @@
 .claudian-settings .claudian-cli-installation-body > .setting-item-heading .setting-item-name {
   font-size: var(--font-ui-small);
 }
+/* Agent update details use the host surface; startup notices inherit notice colors. */
+.claudian-cli-updates {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  min-width: 0;
+  max-width: 640px;
+}
+
+.claudian-cli-updates-modal {
+  width: min(560px, 90vw);
+}
+
+.claudian-cli-updates-modal .claudian-cli-updates-heading {
+  display: none;
+}
+
+.claudian-cli-updates p {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+.claudian-cli-updates-heading,
+.claudian-cli-updates-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.claudian-cli-updates-heading > strong {
+  flex: 1;
+  font-weight: var(--font-semibold);
+}
+
+.claudian-cli-updates-row-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.claudian-cli-updates-row-heading > strong {
+  font-weight: var(--font-medium);
+}
+
+.claudian-cli-updates-version {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.claudian-cli-updates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(420px, 55vh);
+  overflow-y: auto;
+}
+
+.claudian-cli-updates-row {
+  padding: 12px 0;
+  border-block-end: 1px solid var(--background-modifier-border);
+}
+
+.claudian-cli-updates-row:last-child {
+  border-block-end: 0;
+}
+
+.claudian-cli-updates-actions {
+  justify-content: flex-end;
+  margin-block-start: 16px;
+  flex-wrap: wrap;
+}
+
+.claudian-cli-updates-installation {
+  margin-block-start: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-cli-updates-path {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.claudian-cli-updates-installation .claudian-cli-updates-path {
+  margin-block-start: 4px;
+  font-family: var(--font-monospace);
+}
+
+.claudian-cli-updates-error {
+  color: var(--text-error);
+  overflow-wrap: anywhere;
+}
+
+.claudian-cli-updates button,
+.claudian-cli-updates button:hover,
+.claudian-cli-updates button:focus-visible,
+.claudian-cli-updates button:active {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  min-height: 28px;
+  font-size: var(--font-ui-small);
+}
+
+.claudian-cli-updates button:hover,
+.claudian-cli-updates button:focus-visible {
+  color: var(--text-normal);
+}
+
+.claudian-cli-updates button:disabled,
+.claudian-cli-updates button:disabled:hover,
+.claudian-cli-updates button:disabled:focus-visible,
+.claudian-cli-updates button:disabled:active {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-cli-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  max-width: 340px;
+}
+
+.claudian-cli-update-notice-copy {
+  display: block;
+  min-width: 0;
+}
+
+.claudian-cli-update-notice-copy strong {
+  font-weight: var(--font-normal);
+}
+
+.claudian-cli-update-notice-copy > span {
+  display: none;
+}
+
+/* Explicit notice-surface modifier: use the host notice foreground, not page text. */
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:hover,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:focus,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:focus-visible,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:active,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  margin-inline-start: auto;
+  white-space: nowrap;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:hover,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:focus-visible {
+  text-decoration: underline;
+}
+
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled:hover,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled:focus,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled:focus-visible,
+.notice .claudian-cli-update-notice button.claudian-cli-update-notice-action:disabled:active {
+  color: inherit;
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+
+.claudian-cli-operation-reply {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.claudian-cli-updates-installation > summary,
+.claudian-cli-operation-reply > details > summary {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.claudian-cli-operation-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-cli-operation-reply pre {
+  margin-block: 8px;
+  padding: 8px;
+  max-height: 240px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+}
+
+@media (max-width: 440px) {
+  .claudian-cli-updates-row-heading {
+    gap: 8px;
+  }
+}
+.claudian-settings button.claudian-cli-update-check-button,
+.claudian-settings button.claudian-cli-update-check-button:hover,
+.claudian-settings button.claudian-cli-update-check-button:focus,
+.claudian-settings button.claudian-cli-update-check-button:focus-visible,
+.claudian-settings button.claudian-cli-update-check-button:active,
+.claudian-settings button.claudian-cli-update-check-button:disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  padding: var(--size-4-1) var(--size-4-2);
+  cursor: pointer;
+}
+
+.claudian-settings button.claudian-cli-update-check-button:hover,
+.claudian-settings button.claudian-cli-update-check-button:focus-visible {
+  color: var(--text-normal);
+}
+
+.claudian-settings button.claudian-cli-update-check-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-settings button.claudian-cli-update-check-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}

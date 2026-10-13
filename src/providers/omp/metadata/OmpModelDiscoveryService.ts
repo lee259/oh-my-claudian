@@ -80,6 +80,8 @@ export class OmpModelDiscoveryService {
       onNotification: () => undefined,
       plugin: this.plugin,
     });
+    const abort = (): void => { void kernel.dispose().catch(() => undefined); };
+    signal?.addEventListener('abort', abort, { once: true });
     try {
       await kernel.connect();
       signal?.throwIfAborted();
@@ -99,6 +101,7 @@ export class OmpModelDiscoveryService {
           : null,
       };
     } finally {
+      signal?.removeEventListener('abort', abort);
       await kernel.dispose();
     }
   }

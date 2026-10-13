@@ -9,6 +9,7 @@ import type { ObsidianWorkspaceAdapter } from '../obsidian/ObsidianWorkspaceAdap
 import type { ObsidianWorkspaceToolBridge } from '../obsidian/ObsidianWorkspaceToolBridge';
 import type { ClaudianSettings } from '../types';
 import type { EnvironmentScope } from '../types/settings';
+import type { ProviderCliLifecyclePort } from './cli/ProviderCliLifecycle';
 import type { ProviderDiagnosticLogSink } from './ProviderDiagnosticLog';
 import type { ProviderCliResolutionContext, ProviderId } from './types';
 
@@ -20,6 +21,7 @@ import type { ProviderCliResolutionContext, ProviderId } from './types';
  * path, CLI, storage, and interaction capabilities they currently consume.
  */
 export interface ProviderHost {
+  readonly cliLifecycle?: ProviderCliLifecyclePort;
   readonly app: App;
   readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
   readonly obsidianWorkspaceToolBridge?: ObsidianWorkspaceToolBridge;

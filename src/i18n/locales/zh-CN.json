@@ -424,7 +424,9 @@
         "outputTooLarge": "版本探测输出过大。",
         "notFound": "未找到 CLI 或不在 PATH 中。"
       },
-      "versionUnchanged": "{cli} 更新后仍为 {version}，命令可能未实际生效。"
+      "versionUnchanged": "{cli} 更新后仍为 {version}，命令可能未实际生效。",
+      "operationVerified": "CLI 变更已验证。",
+      "bundledUpdate": "更新桌面应用，以更新其内置 CLI。"
     },
     "providerDiagnostics": {
       "kicker": "故障排查",
@@ -994,6 +996,33 @@
       "desc": "在所选时长内无活动、未固定且未打开的对话会自动归档。",
       "off": "关闭",
       "days": "{count} 天"
+    },
+    "cliUpdates": {
+      "title": "Agent 更新",
+      "summary": "更新 Agent 后会刷新可用模型。",
+      "checkUpdates": "检查 Agent 更新",
+      "checkAll": "检查 Provider",
+      "updateAll": "全部更新",
+      "retry": "重试",
+      "dismiss": "关闭",
+      "checking": "检查中",
+      "missing": "未安装",
+      "broken": "无法启动",
+      "ready": "已安装",
+      "updating": "更新中",
+      "updated": "已验证",
+      "noUpdates": "未发现有版本来源的 Provider 需要更新。",
+      "modelWarning": "CLI 已更新，模型刷新需要重试。",
+      "confirmAll": "更新以下 Provider CLI？\n\n{commands}",
+      "upstreamReply": "CLI 原始答复",
+      "exitCode": "退出码：",
+      "verification": "Claudian 验证：",
+      "localError": "Claudian／进程错误：",
+      "noReply": "CLI 没有返回内容。",
+      "outputTruncated": "仅保留每个输出流的最后 1 MiB；此限制不会停止命令。",
+      "noticeTitle": "{count} 个 Agent 有新版本",
+      "review": "查看更新",
+      "installation": "安装信息"
     }
   }
 }

@@ -50,6 +50,8 @@ export class CursorModelDiscoveryService {
       plugin: this.plugin,
       sessionInstanceId: 'cursor-metadata',
     });
+    const abort = (): void => { void kernel.dispose().catch(() => undefined); };
+    signal?.addEventListener('abort', abort, { once: true });
     let sessionId: string | null = null;
     try {
       await kernel.connect();
@@ -61,6 +63,7 @@ export class CursorModelDiscoveryService {
         models: normalizeCursorDiscoveredModels(session.models?.availableModels),
       };
     } finally {
+      signal?.removeEventListener('abort', abort);
       await kernel.dispose();
       if (sessionId) await this.removeProbeSession(sessionId);
     }

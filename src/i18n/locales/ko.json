@@ -424,7 +424,9 @@
         "outputTooLarge": "버전 확인 출력이 너무 큽니다.",
         "notFound": "CLI를 찾을 수 없거나 PATH에 없습니다."
       },
-      "versionUnchanged": "업데이트 후에도 {cli}이(가) {version}로 유지됩니다. 명령이 실제로 적용되지 않았을 수 있습니다."
+      "versionUnchanged": "업데이트 후에도 {cli}이(가) {version}로 유지됩니다. 명령이 실제로 적용되지 않았을 수 있습니다.",
+      "operationVerified": "CLI change verified.",
+      "bundledUpdate": "Update the desktop application to update its bundled CLI."
     },
     "providerDiagnostics": {
       "kicker": "문제 해결",
@@ -994,6 +996,33 @@
       "desc": "선택한 기간 동안 활동이 없고 고정되거나 열려 있지 않은 대화를 자동으로 보관합니다.",
       "off": "사용 안 함",
       "days": "{count}일"
+    },
+    "cliUpdates": {
+      "title": "Agent updates",
+      "summary": "Models refresh after each agent update.",
+      "checkUpdates": "에이전트 업데이트 확인",
+      "checkAll": "Check providers",
+      "updateAll": "Update all",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "checking": "Checking",
+      "missing": "Not installed",
+      "broken": "Cannot start",
+      "ready": "Installed",
+      "updating": "Updating",
+      "updated": "Verified",
+      "noUpdates": "No updates found for providers with an available version feed.",
+      "modelWarning": "CLI updated. Model refresh needs another attempt.",
+      "confirmAll": "Update these provider CLIs?\n\n{commands}",
+      "upstreamReply": "CLI response",
+      "exitCode": "Exit code:",
+      "verification": "Claudian verification:",
+      "localError": "Claudian/process error:",
+      "noReply": "The CLI returned no output.",
+      "outputTruncated": "Only the final 1 MiB of each output stream is retained. The command was not stopped by this limit.",
+      "noticeTitle": "{count} agents have updates",
+      "review": "Review updates",
+      "installation": "Installation details"
     }
   }
 }

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { getLoginShellPath } from '../core/process/LoginShellPath';
 import { parsePathEntries, resolveNvmDefaultBin } from './path';
 
 const isWindows = process.platform === 'win32';
@@ -319,11 +320,12 @@ export function getEnhancedPath(additionalPaths?: string, cliPath?: string): str
     }
   }
 
-  segments.push(...extraPaths);
-
+  const loginPath = getLoginShellPath();
+  if (loginPath) segments.push(...parsePathEntries(loginPath));
   if (currentPath) {
     segments.push(...parsePathEntries(currentPath));
   }
+  segments.push(...extraPaths);
 
   const seen = new Set<string>();
   const unique = segments.filter(p => {
