@@ -31,6 +31,25 @@ function buildTimeline(
 }
 
 describe('buildActivityTimeline', () => {
+  it('folds work across whitespace-only text between completed tools', () => {
+    const timeline = buildTimeline([
+      { type: 'thinking', content: 'Inspecting the plan.' },
+      { type: 'tool_use', toolId: 'read-1' },
+      { type: 'text', content: '\n' },
+      { type: 'tool_use', toolId: 'cancelled-command' },
+      { type: 'thinking', content: 'Checking the result.' },
+      { type: 'text', content: 'The final answer.' },
+    ]);
+
+    expect(timeline.fold?.start).toBe(0);
+    const foldedItems = timeline.items.slice(timeline.fold!.start, timeline.fold!.end + 1);
+    const foldedIndexes = foldedItems.flatMap(item => item.type === 'activity'
+      ? item.phases.flatMap(phase => phase.stepIndexes)
+      : item.type === 'block' ? [item.blockIndex] : item.blockIndexes);
+    expect(foldedIndexes).toEqual(expect.arrayContaining([0, 1, 3, 4]));
+    expect(foldedIndexes).not.toContain(5);
+  });
+
   it('marks only the trailing activity phase active while the turn is live', () => {
     const blocks: ContentBlock[] = [
       { type: 'tool_use', toolId: 'read-1' },
