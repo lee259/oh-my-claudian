@@ -33,7 +33,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  column-gap: 8px;
+  gap: 8px;
   padding: 10px 12px;
   cursor: pointer;
   transition: background 0.1s ease;

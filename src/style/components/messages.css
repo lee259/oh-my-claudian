@@ -920,8 +920,8 @@ button.claudian-activity-phase-header:focus-visible {
   border-end-start-radius: 8px;
 }
 
-.claudian-activity-phase-details[hidden] {
-  display: none !important;
+.claudian-container .claudian-activity-phase-details[hidden] {
+  display: none;
 }
 
 .claudian-activity-phase-details > :first-child {

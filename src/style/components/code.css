@@ -69,7 +69,6 @@
   color: var(--code-normal, var(--text-normal));
   padding: 0.1em 0.35em;
   border-radius: 4px;
-  box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 

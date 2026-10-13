@@ -4,7 +4,7 @@ import { sanitizeDiagnosticMessage } from './ProviderDiagnostics';
 const MAX_DIAGNOSTIC_LINE_LENGTH = 16_000;
 const OMITTED_DIAGNOSTIC_LINE = '[stderr line omitted because it exceeded the diagnostic size limit]';
 
-export type ProviderDiagnosticLogSource = ProviderId | 'claudian';
+export type ProviderDiagnosticLogSource = ProviderId;
 
 export type ProviderDiagnosticLogEvent =
   | 'process-started'

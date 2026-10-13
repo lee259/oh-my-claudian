@@ -161,7 +161,7 @@
   box-shadow: none;
 }
 
-.claudian-model-slider:has(input:focus-visible) .claudian-model-slider-thumb {
+.claudian-model-slider:focus-within .claudian-model-slider-thumb {
   box-shadow: 0 0 0 2px var(--background-secondary), 0 0 0 4px var(--interactive-accent);
 }
 

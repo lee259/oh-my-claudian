@@ -183,7 +183,7 @@ export class PendingChatInteractions implements ProviderInteractionPort {
         case 'local-plan': response = presentation.port.requestLocalPlanApproval(request, active.controller.signal); break;
       }
     } catch (error) {
-      response = Promise.reject(error);
+      response = Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
     void response.then(result => {
       if (!isCurrent()) return;
