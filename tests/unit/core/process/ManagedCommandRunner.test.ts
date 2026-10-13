@@ -1,14 +1,10 @@
-jest.mock('node:child_process', () => ({
-  spawn: jest.fn(),
-}));
-
-import { spawn } from 'node:child_process';
+import type { spawn } from 'node:child_process';
 
 import { createMockChildProcess, type MockChildProcess } from '@test/helpers/MockChildProcess';
 
 import { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
 
-const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockSpawn = jest.fn() as jest.MockedFunction<typeof spawn>;
 
 function runCommand(overrides: Partial<Parameters<ManagedCommandRunner['run']>[0]> = {}) {
   return new ManagedCommandRunner().run({
@@ -16,22 +12,26 @@ function runCommand(overrides: Partial<Parameters<ManagedCommandRunner['run']>[0
     command: '/usr/bin/provider',
     cwd: '/workspace',
     env: { PATH: '/usr/bin' },
+    spawn: mockSpawn,
     stdoutLimitBytes: 1024,
     timeoutMs: 1_000,
     ...overrides,
   });
 }
 
-describe('ManagedCommandRunner', () => {
+describe.each(['darwin', 'win32'] as const)('ManagedCommandRunner on %s', platform => {
+  const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!;
   let proc: MockChildProcess;
 
   beforeEach(() => {
+    Object.defineProperty(process, 'platform', { value: platform });
     jest.clearAllMocks();
     proc = createMockChildProcess();
     mockSpawn.mockReturnValue(proc);
   });
 
   afterEach(() => {
+    Object.defineProperty(process, 'platform', originalPlatform);
     jest.useRealTimers();
   });
 
