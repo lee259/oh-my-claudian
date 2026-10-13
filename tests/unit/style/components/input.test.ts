@@ -150,13 +150,13 @@ describe('Chat input toolbar styles', () => {
 
   it('shows link underlines on hover and preserves unresolved mention styling', () => {
     expect(css).toMatch(
-      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\s*\{[\s\S]*?color:\s*var\(--link-color\);[\s\S]*?text-decoration-line:\s*none;/,
+      /\.claudian-input-mention-highlight\[data-mention-state="resolved"\]\s*\{[\s\S]*?color:\s*var\(--link-color\);[\s\S]*?text-decoration:\s*none;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlight--clickable\[data-mention-state="resolved"\]:hover\s*\{[\s\S]*?text-decoration-line:\s*underline;/,
+      /\.claudian-input-mention-highlight--clickable\[data-mention-state="resolved"\]:hover\s*\{[\s\S]*?text-decoration:\s*underline;/,
     );
     expect(css).toMatch(
-      /\.claudian-input-mention-highlight\[data-mention-state="missing"\]\s*\{[\s\S]*?color:\s*var\(--link-unresolved-color/,
+      /\.claudian-input-mention-highlight\[data-mention-state="missing"\]\s*\{[\s\S]*?color:\s*var\(--link-unresolved-color[\s\S]*?text-decoration:\s*underline;/,
     );
     expect(css).not.toMatch(/\.claudian-input-mention-highlight[^{]*\{[^}]*(?:margin|border-width|letter-spacing)\s*:/);
   });
