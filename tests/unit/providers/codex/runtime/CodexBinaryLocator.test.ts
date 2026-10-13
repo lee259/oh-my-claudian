@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import * as loginShellPath from '@/core/process/LoginShellPath';
 import {
   findCodexBinaryPath,
   resolveCodexCliPath,
@@ -45,6 +46,22 @@ describe('CodexBinaryLocator', () => {
       process.env.LOCALAPPDATA = originalLocalAppData;
     }
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  describeOnMac('GUI login-shell discovery', () => {
+    it('prefers the login-shell Codex CLI over a bundled app fallback in a GUI environment', () => {
+      const binaryDirectory = path.join(tempDir, 'terminal-bin');
+      const binary = path.join(binaryDirectory, 'codex');
+      fs.mkdirSync(binaryDirectory, { recursive: true });
+      fs.writeFileSync(binary, '');
+      process.env.PATH = '/usr/bin:/bin';
+      process.env.HOME = tempDir;
+      const bundledDirectory = path.join(tempDir, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
+      fs.mkdirSync(bundledDirectory, { recursive: true });
+      fs.writeFileSync(path.join(bundledDirectory, 'codex'), '');
+      jest.spyOn(loginShellPath, 'getLoginShellPath').mockReturnValue(binaryDirectory);
+      expect(findCodexBinaryPath(undefined, 'darwin')).toBe(binary);
+    });
   });
 
   it('finds a codex executable on PATH', () => {

@@ -7,10 +7,12 @@ import { CURSOR_PROVIDER_CAPABILITIES } from './capabilities';
 import { cursorSettingsReconciler } from './env/CursorSettingsReconciler';
 import { CursorExecutionBackend } from './execution/CursorExecutionBackend';
 import { CursorConversationHistoryService } from './history/CursorConversationHistoryService';
+import { cursorCliLifecycle } from './runtime/CursorCliLifecycle';
 import { getCursorProviderSettings, updateCursorProviderSettings } from './settings';
 import { cursorChatUIConfig } from './ui/CursorChatUIConfig';
 
 export const cursorProviderRegistration: ProviderModule = {
+  cliLifecycle: cursorCliLifecycle,
   id: 'cursor',
   blankTabOrder: 12,
   capabilities: CURSOR_PROVIDER_CAPABILITIES,

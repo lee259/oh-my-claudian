@@ -7,6 +7,7 @@ import type {
 } from '../../core/execution';
 import type { ObsidianWorkspaceAdapter } from '../../core/obsidian/ObsidianWorkspaceAdapter';
 import type { ObsidianWorkspaceToolBridge } from '../../core/obsidian/ObsidianWorkspaceToolBridge';
+import type { ProviderCliLifecyclePort } from '../../core/providers/cli/ProviderCliLifecycle';
 import type { ProviderDiagnosticLogSink } from '../../core/providers/ProviderDiagnosticLog';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type {
@@ -17,6 +18,7 @@ import type { ClaudianSettings } from '../../core/types';
 import type { EnvironmentScope } from '../../core/types/settings';
 
 interface ClaudianProviderHostDependencies {
+  readonly cliLifecycle?: ProviderCliLifecyclePort;
   readonly app: App;
   readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
   readonly obsidianWorkspaceToolBridge?: ObsidianWorkspaceToolBridge;
@@ -62,6 +64,10 @@ interface ClaudianProviderHostDependencies {
 /** Delegates provider-facing capabilities to the application composition root. */
 export class ClaudianProviderHost implements ProviderHost {
   constructor(private readonly plugin: ClaudianProviderHostDependencies) {}
+
+  get cliLifecycle(): ProviderCliLifecyclePort | undefined {
+    return this.plugin.cliLifecycle;
+  }
 
   get app() {
     return this.plugin.app;

@@ -1,94 +1,77 @@
 /** @jest-environment jsdom */
 
-jest.mock('@/utils/cliBinaryLocator', () => ({
-  findCliBinaryPath: jest.fn(() => null),
-}));
+jest.mock('@/shared/modals/ConfirmModal', () => ({ confirm: jest.fn(async () => true) }));
 
-jest.mock('@/utils/env', () => ({
-  parseEnvironmentVariables: jest.fn(() => ({})),
-}));
+import { ProviderCliLifecycleService } from '@/app/providers/ProviderCliLifecycleService';
+import { confirm } from '@/shared/modals/ConfirmModal';
+import { destroyCliLifecycleSections, renderCliLifecycleSection } from '@/shared/settings/CliLifecycleSection';
 
-jest.mock('@/core/providers/cli/CliVersionUtils', () => ({
-  isUpdateAvailable: (current: string, latest: string) => current !== latest,
-  resolveCliVersionInfo: jest.fn(),
-}));
+function setup(latest: string | null = '2.0.0') {
+  let version = '1.0.0';
+  let finishUpdate: (() => void) | undefined;
+  const service = new ProviderCliLifecycleService({
+    providers: () => [{ providerId: 'test', enabled: true, displayName: 'Test', metadata: { binaryName: 'agent', displayName: 'Test', npmPackage: 'test' } }],
+    resolveTarget: async () => ({
+      path: '/custom/agent', cwd: '/vault', environment: {},
+      versionCommand: { command: '/custom/agent', args: ['--version'] },
+      updateCommand: { command: '/custom/agent', args: ['update'] },
+    }),
+    resolveInstall: async () => null, resetResolver: async () => undefined,
+    latestVersion: async () => latest,
+    run: async request => {
+      if (request.args[0] === 'update') {
+        await new Promise<void>(resolve => { finishUpdate = resolve; });
+        version = '2.0.0';
+      }
+      return { exitCode: 0, stdout: version };
+    },
+    transition: async (_id, work) => work({ providerTransitionOwner: true }),
+    refreshModels: async () => undefined, publishModels: async () => undefined,
+  });
+  const mount = () => {
+    const container = document.createElement('div');
+    renderCliLifecycleSection({
+      container, providerId: 'test', lifecycle: service,
+      metadata: { binaryName: 'agent', displayName: 'Test' },
+      resolveCliPath: async () => '/custom/agent', getRuntimeEnvText: () => '', app: {} as never,
+    });
+    return container;
+  };
+  return { service, mount, finish: () => finishUpdate?.() };
+}
 
-import { resolveCliVersionInfo } from '@/core/providers/cli/CliVersionUtils';
-import {
-  destroyCliLifecycleSections,
-  renderCliLifecycleSection,
-} from '@/shared/settings/CliLifecycleSection';
+const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
-describe('renderCliLifecycleSection', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+describe('CLI lifecycle presentation', () => {
+  it('confirms the exact configured command and retains the operation when settings close', async () => {
+    const { service, mount, finish } = setup();
+    const first = mount();
+    await flush();
+    expect(first.textContent).toContain('1.0.0');
+    first.querySelector<HTMLButtonElement>('.claudian-cli-lifecycle-button')!.click();
+    await flush();
+    expect(confirm).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('/custom/agent update'), 'Update');
+    expect(service.getSnapshot('test')?.operation?.status).toBe('running');
+    destroyCliLifecycleSections(first);
+    const second = mount();
+    await flush();
+    expect(second.textContent).toContain('Updating');
+    finish();
+    await flush();
+    expect(second.textContent).toContain('2.0.0');
+    expect(second.textContent).toContain('CLI change verified.');
+    destroyCliLifecycleSections(second);
+    service.dispose();
   });
 
-  it('shows version status and offers update and readiness refresh actions', async () => {
-    jest.mocked(resolveCliVersionInfo).mockResolvedValue({
-      version: '1.2.0',
-      latestVersion: '1.3.0',
-      error: null,
-      installedButBroken: false,
-    });
-    const onCheckAgain = jest.fn().mockResolvedValue(undefined);
-    const container = document.createElement('div');
-
-    renderCliLifecycleSection({
-      container,
-      metadata: {
-        binaryName: 'test-cli',
-        displayName: 'Test CLI',
-        npmPackage: 'test-cli',
-        update: { command: 'npm', args: ['update', '-g', 'test-cli'] },
-      },
-      resolveCliPath: async () => '/usr/local/bin/test-cli',
-      getRuntimeEnvText: () => '',
-      app: {} as never,
-      onCheckAgain,
-    });
-
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    expect(container.textContent).toContain('1.2.0');
-    expect(container.textContent).toContain('1.3.0');
-    expect(container.querySelector('.claudian-cli-lifecycle-update-badge')).not.toBeNull();
-    expect(container.querySelector<HTMLButtonElement>('.claudian-cli-lifecycle-action-row .mod-cta')?.textContent)
-      .toBe('Update');
-
-    const checkButton = container.querySelector<HTMLButtonElement>('.claudian-cli-lifecycle-check');
-    expect(checkButton?.textContent).toBe('Check again');
-    checkButton?.click();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    expect(onCheckAgain).toHaveBeenCalledTimes(1);
-
-    destroyCliLifecycleSections(container);
-    expect(container.childElementCount).toBe(0);
-  });
-
-  it('does not claim the CLI is up to date when the latest version is unknown', async () => {
-    jest.mocked(resolveCliVersionInfo).mockResolvedValue({
-      version: '18.5.0',
-      latestVersion: null,
-      error: null,
-      installedButBroken: false,
-    });
-    const container = document.createElement('div');
-
-    renderCliLifecycleSection({
-      container,
-      metadata: { binaryName: 'test-cli', displayName: 'Test CLI' },
-      resolveCliPath: async () => '/usr/local/bin/test-cli',
-      getRuntimeEnvText: () => '',
-      app: {} as never,
-    });
-
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    expect(container.textContent).toContain('18.5.0');
+  it('does not claim the CLI is up to date when the version feed is unavailable', async () => {
+    const { service, mount } = setup(null);
+    const container = mount();
+    await flush();
+    expect(container.textContent).toContain('1.0.0');
     expect(container.querySelector('.claudian-cli-lifecycle-ready')).toBeNull();
-
+    expect(container.querySelector('.claudian-cli-lifecycle-button:not(.claudian-cli-lifecycle-check)')).toBeNull();
     destroyCliLifecycleSections(container);
+    service.dispose();
   });
 });

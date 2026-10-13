@@ -11,6 +11,8 @@
 
 ## Runtime and Storage
 
+- CLI lifecycle adapters must target the same configured executable and environment used by provider execution. Keep WSL, app-bundled runtimes, native self-update commands, and environment isolation provider-owned; never substitute a PATH installation or a generic npm updater. Catalog refresh after lifecycle changes must preserve explicit enabled-model selections.
+
 - Prefer provider-native behavior at the adapter boundary instead of reimplementing it in features.
 - Live output comes from the provider runtime protocol when available. Native history and transcripts are read-only replay sources; Claudian must not mutate or delete them.
 - Runtime-discovered commands are read-only in Claudian; providers own editing and deletion.

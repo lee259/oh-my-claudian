@@ -11,6 +11,8 @@ import type {
 import { PiCommandCatalog } from '../commands/PiCommandCatalog';
 import { PiCommandMetadataProbe } from '../execution/PiCommandMetadataProbe';
 import { PiCliResolver } from '../runtime/PiCliResolver';
+import { PiModelDiscoveryService } from '../runtime/PiModelDiscoveryService';
+import { getPiProviderSettings, updatePiProviderSettings } from '../settings';
 import { piSettingsTabRenderer } from '../ui/PiSettingsTab';
 import { PiCommandLoader } from './PiCommandLoader';
 
@@ -52,6 +54,20 @@ export async function createPiWorkspaceServices(
 
   return {
     cliResolver: new PiCliResolver(),
+    async refreshModelCatalog(context) {
+      const result = await new PiModelDiscoveryService(plugin).discoverModels(context?.signal);
+      context?.signal?.throwIfAborted();
+      if (result.kind === 'skipped') return { changed: false };
+      if (result.diagnostics) return { changed: false, diagnostics: result.diagnostics };
+      const previous = getPiProviderSettings(plugin.settings);
+      const changed = JSON.stringify(previous.discoveredModels) !== JSON.stringify(result.models);
+      if (changed) await plugin.mutateSettings(settings => {
+        context?.signal?.throwIfAborted();
+        // The settings writer preserves the user's explicit enabled-model order.
+        updatePiProviderSettings(settings, { discoveredModels: result.models });
+      });
+      return { changed, persistedSettingsChanged: changed };
+    },
     commandCatalog: new PiCommandCatalog(),
     commandLoader: new PiCommandLoader(commandMetadataProbe),
     settingsTabRenderer: piSettingsTabRenderer,

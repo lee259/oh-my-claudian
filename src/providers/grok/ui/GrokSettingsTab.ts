@@ -72,6 +72,8 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getGrokProviderSettings(settingsBag);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('grok')
+            ? context.plugin.cliLifecycle.getSnapshot('grok')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath(GROK_PROVIDER_ID)
             : null,
@@ -209,6 +211,8 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'grok',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: grokCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath(GROK_PROVIDER_ID),
@@ -218,6 +222,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getGrokProviderSettings(settingsBag);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

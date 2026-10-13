@@ -23,7 +23,7 @@ export interface ManagedStdioProcessOptions {
   sigkillTimeoutMs?: number;
   stderrBufferLimit?: number;
   spawn?: typeof spawn;
-  stdio?: 'pipe' | ['ignore', 'pipe', 'ignore'] | ['pipe', 'pipe', 'pipe'];
+  stdio?: 'pipe' | ['ignore', 'pipe', 'ignore'] | ['ignore', 'pipe', 'pipe'] | ['pipe', 'pipe', 'pipe'];
 }
 
 export interface ManagedStdioProcessExitState {

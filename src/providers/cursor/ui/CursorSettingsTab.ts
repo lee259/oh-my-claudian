@@ -42,6 +42,8 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const provider = getCursorProviderSettings(settings);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('cursor')
+            ? context.plugin.cliLifecycle.getSnapshot('cursor')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('cursor')
             : null,
@@ -98,6 +100,8 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'cursor',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: cursorCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('cursor'),
@@ -107,6 +111,7 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getCursorProviderSettings(settings);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

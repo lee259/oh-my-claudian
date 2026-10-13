@@ -59,6 +59,33 @@ function createProbe(overrides: Partial<OpencodeMetadataProbe> = {}): OpencodeMe
 }
 
 describe('OpencodeMetadataService', () => {
+  it('refreshes the model catalog inside an owned CLI transition without waiting on its own fence', async () => {
+    const host = createPlugin();
+    const probe = createProbe();
+    const service = new OpencodeMetadataService(host, { createProbe: () => probe });
+    const hook = host.executionLifecycleRegistry.registerTransitionHook.mock.calls[0][1];
+    await hook.beforeTransition();
+    expect(await service.loadCatalog(undefined, { providerTransitionOwner: true })).toBe(true);
+    expect(getOpencodeProviderSettings(host.settings).discoveredModels).toHaveLength(1);
+    expect(getOpencodeProviderSettings(host.settings).visibleModels).toEqual([]);
+    await hook.afterTransition();
+    await service.dispose();
+  });
+
+  it('does not publish a metadata projection after its lifecycle signal is aborted', async () => {
+    const host = createPlugin();
+    const controller = new AbortController();
+    const probe = createProbe({ loadCatalog: async (_signal, onMetadata) => {
+      controller.abort();
+      await onMetadata?.({ models: { availableModels: [{ modelId: 'new', name: 'New' }], currentModelId: 'new' } });
+      return { commands: [] };
+    } });
+    const service = new OpencodeMetadataService(host, { createProbe: () => probe });
+    expect(await service.loadCatalog(controller.signal, { providerTransitionOwner: true })).toBe(false);
+    expect(host.mutateSettings).not.toHaveBeenCalled();
+    await service.dispose();
+  });
+
   it('publishes native modes before waiting for command discovery to finish', async () => {
     let finishCatalog!: (catalog: Awaited<ReturnType<OpencodeMetadataProbe['loadCatalog']>>) => void;
     let resolveProjected!: () => void;

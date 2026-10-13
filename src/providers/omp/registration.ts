@@ -7,10 +7,12 @@ import { OMP_PROVIDER_CAPABILITIES } from './capabilities';
 import { ompSettingsReconciler } from './env/OmpSettingsReconciler';
 import { OmpExecutionBackend } from './execution/OmpExecutionBackend';
 import { OmpConversationHistoryService } from './history/OmpConversationHistoryService';
+import { ompCliLifecycle } from './runtime/OmpCliLifecycle';
 import { getOmpProviderSettings, updateOmpProviderSettings } from './settings';
 import { ompChatUIConfig } from './ui/OmpChatUIConfig';
 
 export const ompProviderRegistration: ProviderModule = {
+  cliLifecycle: ompCliLifecycle,
   id: 'omp',
   blankTabOrder: 12,
   capabilities: OMP_PROVIDER_CAPABILITIES,

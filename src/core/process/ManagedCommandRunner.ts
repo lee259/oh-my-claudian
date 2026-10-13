@@ -11,7 +11,10 @@ export interface ManagedCommandRequest {
   signal?: AbortSignal;
   spawn?: ManagedStdioProcessOptions['spawn'];
   timeoutMs: number;
+  /** Combined output limit, or a per-stream tail limit when truncating. */
   stdoutLimitBytes: number;
+  /** Truncation keeps a bounded tail per stream without terminating the command. */
+  outputLimitBehavior?: 'terminate' | 'truncate';
   /** Also pipe stderr and expose it on the result. Defaults to false. */
   captureStderr?: boolean;
 }
@@ -20,6 +23,8 @@ export interface ManagedCommandResult {
   exitCode: number | null;
   stdout: string;
   termination?: ManagedCommandTermination;
+  error?: string;
+  outputTruncated?: boolean;
   /** Captured stderr output when `captureStderr` is enabled. */
   stderr?: string;
 }
@@ -39,11 +44,18 @@ export class ManagedCommandRunner {
         finalShutdownTimeoutMs: 0,
         sigkillTimeoutMs: 0,
         spawn: request.spawn,
-        stdio: request.captureStderr ? 'pipe' : ['ignore', 'pipe', 'ignore'],
+        stdio: request.captureStderr ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'pipe', 'ignore'],
       });
       const chunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
       let byteLength = 0;
+      let outputTruncated = false;
+      const capturedLengths = new Map<Buffer[], number>();
+      const captured = (): Pick<ManagedCommandResult, 'stdout' | 'stderr' | 'outputTruncated'> => ({
+        stdout: Buffer.concat(chunks).toString('utf8'),
+        ...(stderrChunks.length ? { stderr: Buffer.concat(stderrChunks).toString('utf8') } : {}),
+        ...(outputTruncated ? { outputTruncated: true } : {}),
+      });
       let settled = false;
       let timeout: number | null = null;
 
@@ -56,7 +68,7 @@ export class ManagedCommandRunner {
       };
       const terminate = (result: ManagedCommandResult): void => {
         void process.shutdown();
-        finish(result);
+        finish({ ...result, ...captured() });
       };
       const onAbort = (): void => {
         terminate({ exitCode: null, stdout: '', termination: 'abort' });
@@ -69,23 +81,16 @@ export class ManagedCommandRunner {
 
       process.onCloseState(({ code, error }) => {
         if (error) {
-          finish({ exitCode: null, stdout: '', termination: 'error' });
+          finish({ exitCode: null, ...captured(), termination: 'error', error: error.message });
           return;
         }
-        const result: ManagedCommandResult = {
-          exitCode: code,
-          stdout: Buffer.concat(chunks).toString('utf8'),
-        };
-        if (stderrChunks.length > 0) {
-          result.stderr = Buffer.concat(stderrChunks).toString('utf8');
-        }
-        finish(result);
+        finish({ exitCode: code, ...captured() });
       });
 
       try {
         process.start();
-      } catch {
-        finish({ exitCode: null, stdout: '', termination: 'error' });
+      } catch (error) {
+        finish({ exitCode: null, ...captured(), termination: 'error', error: error instanceof Error ? error.message : String(error) });
         return;
       }
 
@@ -94,20 +99,37 @@ export class ManagedCommandRunner {
         return;
       }
 
-      process.stdout.on('data', (chunk: Buffer | string) => {
+      const collect = (destination: Buffer[], chunk: Buffer | string): void => {
+        if (settled) return;
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         byteLength += buffer.byteLength;
-        if (byteLength > request.stdoutLimitBytes) {
-          terminate({ exitCode: null, stdout: '', termination: 'output-limit' });
+        if (request.outputLimitBehavior !== 'truncate') {
+          if (byteLength > request.stdoutLimitBytes) {
+            terminate({ exitCode: null, stdout: '', termination: 'output-limit' });
+            return;
+          }
+          destination.push(buffer);
           return;
         }
-        chunks.push(buffer);
-      });
-
+        destination.push(buffer);
+        let length = (capturedLengths.get(destination) ?? 0) + buffer.byteLength;
+        while (length > request.stdoutLimitBytes && destination.length) {
+          outputTruncated = true;
+          const first = destination[0];
+          const excess = length - request.stdoutLimitBytes;
+          if (first.byteLength <= excess) {
+            destination.shift();
+            length -= first.byteLength;
+          } else {
+            destination[0] = first.subarray(excess);
+            length -= excess;
+          }
+        }
+        capturedLengths.set(destination, length);
+      };
+      process.stdout.on('data', (chunk: Buffer | string) => collect(chunks, chunk));
       if (request.captureStderr) {
-        process.stderr.on('data', (chunk: Buffer | string) => {
-          stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
+        process.stderr.on('data', (chunk: Buffer | string) => collect(stderrChunks, chunk));
       }
     });
   }

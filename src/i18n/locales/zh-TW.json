@@ -424,7 +424,9 @@
         "outputTooLarge": "版本探測輸出過大。",
         "notFound": "未找到 CLI 或不在 PATH 中。"
       },
-      "versionUnchanged": "{cli} 更新後仍為 {version}，指令可能未實際生效。"
+      "versionUnchanged": "{cli} 更新後仍為 {version}，指令可能未實際生效。",
+      "operationVerified": "CLI 變更已驗證。",
+      "bundledUpdate": "更新桌面應用程式，以更新其內建 CLI。"
     },
     "providerDiagnostics": {
       "kicker": "疑難排解",
@@ -994,6 +996,33 @@
       "desc": "在所選期間內沒有活動、未釘選且未開啟的對話會自動封存。",
       "off": "關閉",
       "days": "{count} 天"
+    },
+    "cliUpdates": {
+      "title": "Agent 更新",
+      "summary": "更新 Agent 後會重新整理可用模型。",
+      "checking": "檢查中",
+      "missing": "未安裝",
+      "broken": "無法使用",
+      "ready": "可用",
+      "updating": "更新中",
+      "updated": "已驗證",
+      "retry": "重試",
+      "checkUpdates": "檢查 Agent 更新",
+      "checkAll": "檢查 Provider",
+      "updateAll": "全部更新",
+      "dismiss": "關閉",
+      "confirmAll": "更新以下 Provider CLI？\n\n{commands}",
+      "modelWarning": "CLI 已驗證，但模型重新整理失敗：",
+      "noUpdates": "具有可用版本來源的 Provider 未發現更新。",
+      "upstreamReply": "CLI 原始回覆",
+      "exitCode": "結束代碼：",
+      "verification": "Claudian 驗證：",
+      "localError": "Claudian／處理程序錯誤：",
+      "noReply": "CLI 沒有傳回內容。",
+      "outputTruncated": "僅保留每個輸出串流的最後 1 MiB；此限制不會停止命令。",
+      "noticeTitle": "{count} 個 Agent 有新版本",
+      "review": "檢視更新",
+      "installation": "安裝資訊"
     }
   }
 }

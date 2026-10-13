@@ -18,6 +18,7 @@ import {
   resolveClaudeModelSelection,
 } from './modelOptions';
 import { toClaudeRuntimeModelId } from './modelSelection';
+import { claudeCliLifecycle } from './runtime/ClaudeCliLifecycle';
 import { ClaudeTaskResultInterpreter } from './runtime/ClaudeTaskResultInterpreter';
 import { getClaudeProviderSettings, updateClaudeProviderSettings } from './settings';
 import { claudeSubagentAdapter } from './subagentAdapter';
@@ -26,6 +27,7 @@ import { claudeChatUIConfig } from './ui/ClaudeChatUIConfig';
 const LEGACY_CLAUDE_1M_SETTINGS = ['enableOpus1M', 'enableSonnet1M'] as const;
 
 export const claudeProviderRegistration: ProviderModule = {
+  cliLifecycle: claudeCliLifecycle,
   id: 'claude',
   displayName: 'Claude Code',
   blankTabOrder: 20,

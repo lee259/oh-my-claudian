@@ -49,19 +49,17 @@ export const ompWorkspaceRegistration: ProviderWorkspaceRegistration<OmpWorkspac
       commandCatalog: new OmpCommandCatalog(),
       commandLoader: new OmpCommandLoader(commandMetadataProbe),
       modelDiscoveryService,
-      refreshModelCatalog: async () => {
+      refreshModelCatalog: async context => {
         try {
-          const catalog = await modelDiscoveryService.discoverCatalog();
+          const catalog = await modelDiscoveryService.discoverCatalog(context?.signal);
+          context?.signal?.throwIfAborted();
           await plugin.mutateSettings(settings => {
+            context?.signal?.throwIfAborted();
             const current = getOmpProviderSettings(settings);
             updateOmpProviderSettings(settings, {
               discoveredModels: catalog.models,
               catalogTimestamp: Date.now(),
-              visibleModels: current.visibleModels.length > 0
-                ? current.visibleModels
-                : catalog.models[0]
-                  ? [catalog.models[0].rawId]
-                  : [],
+              visibleModels: current.visibleModels,
               ...(catalog.thinking ? { thinking: catalog.thinking } : {}),
             });
           });

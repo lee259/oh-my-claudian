@@ -61,7 +61,7 @@ describe('resolveCliInstallCommand', () => {
 
 describe('resolveCliUpdateCommand', () => {
   it('uses Pi native self-update instead of the npm fallback', () => {
-    expect(resolveCliUpdateCommand(piCliMetadata)).toEqual({ command: 'pi', args: ['update'] });
+    expect(resolveCliUpdateCommand(piCliMetadata)).toEqual({ command: 'pi', args: ['update', '--self'] });
   });
 
   it('uses OMP native self-update and checks its published package version', () => {

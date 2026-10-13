@@ -15,6 +15,7 @@ import {
   createTab,
   destroyTab,
   detachTabPresentation,
+  getBlankTabModelOptions,
   getRuntimeMessageProjection,
   initializeTabControllers,
   initializeTabExecution,
@@ -1965,5 +1966,23 @@ describe('Tab provider execution ownership', () => {
     messagesEl.scrollTop = 850;
     messagesEl.dispatchEvent('scroll');
     expect(tab.state.autoScrollEnabled).toBe(false);
+  });
+});
+
+
+describe('blank-tab installation availability', () => {
+  it('hides missing or broken providers and restores only their explicitly enabled options', () => {
+    const getSnapshot = jest.fn();
+    const enabled = [{ label: 'Explicit model', value: 'enabled-model' }];
+    (ProviderRegistry.getEnabledProviderIds as jest.Mock).mockReturnValue(['claude']);
+    (ProviderRegistry.getChatUIConfig as jest.Mock).mockReturnValue({ getModelOptions: () => enabled });
+    getSnapshot.mockReturnValue({ status: 'missing' });
+    expect(getBlankTabModelOptions({}, { getSnapshot })).toEqual([]);
+    getSnapshot.mockReturnValue({ status: 'broken' });
+    expect(getBlankTabModelOptions({}, { getSnapshot })).toEqual([]);
+    getSnapshot.mockReturnValue({ status: 'ready' });
+    expect(getBlankTabModelOptions({}, { getSnapshot })).toHaveLength(1);
+    getSnapshot.mockReturnValue(null);
+    expect(getBlankTabModelOptions({}, { getSnapshot })).toHaveLength(1);
   });
 });

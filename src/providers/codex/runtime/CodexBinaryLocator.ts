@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { getLoginShellPath } from '@/core/process/LoginShellPath';
+
 import { findCliBinaryPath, resolveConfiguredCliPath } from '../../../utils/cliBinaryLocator';
 import { parseEnvironmentVariables } from '../../../utils/env';
 import { expandHomePath, stripSurroundingQuotes } from '../../../utils/path';
@@ -50,6 +52,14 @@ export function findCodexBinaryPath(
     if (runtimePathBinary) {
       return runtimePathBinary;
     }
+  }
+
+  if (platform !== 'win32') {
+    const shellBinary = findCodexBinaryInDirs([
+      ...parsePathEntriesForPlatform(additionalPath, platform),
+      ...parsePathEntriesForPlatform(getLoginShellPath() ?? undefined, platform),
+    ], platform);
+    if (shellBinary) return shellBinary;
   }
 
   const preferredBinary = findCodexBinaryInDirs(
