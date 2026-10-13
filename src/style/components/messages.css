@@ -11,17 +11,11 @@
 .claudian-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px min(12px, 5%) 0;
+  padding: 16px 0 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
   container-type: inline-size;
-}
-
-/* Keep the floating conversation controls in a reserved gutter instead of
- * drawing them over message text once the sidebar becomes scrollable. */
-.claudian-messages-wrapper:has(> .claudian-nav-sidebar.visible) > .claudian-messages {
-  padding-inline-end: 44px;
 }
 
 .claudian-transcript-turn {
@@ -490,7 +484,6 @@
   align-self: center;
   width: min(100%, 960px);
   max-width: 100%;
-  padding-inline: 0;
   border-end-start-radius: 4px;
   text-align: start;
 }
