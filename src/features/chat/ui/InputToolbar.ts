@@ -222,7 +222,7 @@ export class ModeSelector {
     this.toggleEl = this.container.createDiv({ cls: 'claudian-toggle-switch' });
 
     this.toggleEl.addEventListener('click', () => {
-      runToolbarAction(() => this.toggle(), 'Failed to change mode');
+      void runToolbarAction(() => this.toggle(), 'Failed to change mode');
     });
 
     this.updateDisplay();

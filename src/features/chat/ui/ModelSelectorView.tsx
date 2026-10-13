@@ -396,7 +396,7 @@ export function ModelSelectorView({
                           value={String(selectedIndex)}
                           onInput={updateReasoningPreview}
                           onChange={async (event) => {
-                            const index = Number((event.currentTarget as HTMLInputElement).value);
+                            const index = Number(event.currentTarget.value);
                             const option = reasoningOptions[index];
                             if (!option) return;
                             const interaction = ++reasoningInteractionRef.current;

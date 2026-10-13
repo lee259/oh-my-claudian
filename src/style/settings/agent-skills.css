@@ -17,45 +17,45 @@
   flex-shrink: 0;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:active,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled {
-  appearance: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:active,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link {
-  color: var(--link-color) !important;
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link {
+  color: var(--link-color);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
-  color: var(--link-color-hover) !important;
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
+  color: var(--link-color-hover);
   text-decoration: underline;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus {
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus {
   outline: none;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled,
-.claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled:hover {
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled:hover {
   color: var(--text-faint);
   cursor: default;
   text-decoration: none;

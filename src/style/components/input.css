@@ -261,7 +261,6 @@
   border-radius: var(--radius-s);
   background: var(--background-modifier-hover);
   -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
   color: var(--text-normal);
   line-height: inherit;
 }
@@ -274,8 +273,6 @@
 .claudian-input-command-highlight--clickable:hover {
   color: var(--link-color-hover);
   text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-underline-offset: 2px;
 }
 
 .claudian-input-command-highlight-prefix {
@@ -306,16 +303,13 @@
 .claudian-input-mention-highlight[data-mention-state="resolved"] {
   background: transparent;
   color: var(--link-color);
-  text-decoration-line: none;
+  text-decoration: none;
 }
 
 .claudian-input-mention-highlight[data-mention-state="missing"] {
   background: transparent;
   color: var(--link-unresolved-color, var(--text-muted));
-  text-decoration-line: underline;
-  text-decoration-style: dashed;
-  text-decoration-color: var(--link-unresolved-decoration-color, currentColor);
-  text-underline-offset: 2px;
+  text-decoration: underline;
 }
 
 .claudian-input-mention-highlight--clickable {
@@ -325,9 +319,7 @@
 
 .claudian-input-mention-highlight--clickable[data-mention-state="resolved"]:hover {
   color: var(--link-color-hover);
-  text-decoration-line: underline;
-  text-decoration-color: currentColor;
-  text-underline-offset: 2px;
+  text-decoration: underline;
 }
 
 .claudian-input-send-button {
@@ -632,8 +624,7 @@
 .oh-my-claudian-root .claudian-input-toolbar {
   box-sizing: border-box;
   flex-wrap: nowrap;
-  column-gap: 2px;
-  row-gap: 0;
+  gap: 0 2px;
   padding: 4px 6px 4px;
   padding-top: 0;
 }
