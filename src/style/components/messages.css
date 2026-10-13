@@ -718,7 +718,8 @@ button.claudian-work-header:focus-visible {
   border-bottom: 0;
 }
 
-button.claudian-completed-work-header {
+button.claudian-completed-work-header,
+.claudian-streaming-work-header {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -734,6 +735,10 @@ button.claudian-completed-work-header {
   font-size: 12px;
   cursor: pointer;
   text-align: start;
+}
+
+.claudian-streaming-work-header {
+  cursor: default;
 }
 
 .claudian-completed-work-indicator {

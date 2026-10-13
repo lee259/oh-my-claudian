@@ -152,7 +152,6 @@ export class MessageRenderer {
     nextSibling: HTMLElement | null;
   }>();
   private readonly activityPhaseOverrides = new Map<string, boolean>();
-  private readonly streamingWorkFoldOverrides = new Map<string, boolean>();
   private readonly streamingWorkViewports = new WeakMap<HTMLElement, ScrollFollowController>();
   private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
@@ -251,7 +250,6 @@ export class MessageRenderer {
     this.imagePreviewModal.close();
     this.liveMessageEls.clear();
     this.activityPhaseOverrides.clear();
-    this.streamingWorkFoldOverrides.clear();
     this.transcriptExecutionScopes.clear();
   }
 
@@ -439,7 +437,6 @@ export class MessageRenderer {
     this.releaseContentRenders(msgEl);
     msgEl.remove();
     this.liveMessageEls.delete(messageId);
-    this.streamingWorkFoldOverrides.delete(messageId);
     this.transcriptExecutionScopes.delete(messageId);
     const phasePrefix = `${messageId}:`;
     for (const key of this.activityPhaseOverrides.keys()) {
@@ -1351,40 +1348,20 @@ export class MessageRenderer {
     let historyEl: HTMLElement | undefined;
 
     if (fold && foldedElements.length > 0 && statusEl) {
-      const expanded = this.streamingWorkFoldOverrides.get(msg.id) ?? true;
       const workId = `claudian-streaming-work-${MessageRenderer.nextCompletedWorkId++}`;
       statusEl.addClass('claudian-streaming-work-fold');
-      const headerEl = statusEl.createEl('button', {
-        cls: 'claudian-completed-work-header claudian-streaming-work-header',
-        attr: {
-          type: 'button',
-          'aria-controls': workId,
-          'aria-expanded': String(expanded),
-        },
-      });
+      // The live turn is an always-visible status surface. Only settled turns
+      // expose an outer disclosure; individual activity phases remain interactive.
+      const headerEl = statusEl.createDiv({ cls: 'claudian-streaming-work-header' });
       const labelEl = statusEl.querySelector<HTMLElement>('.claudian-completed-work-label');
       if (labelEl) headerEl.appendChild(labelEl);
-      const indicatorEl = headerEl.createSpan({ cls: 'claudian-completed-work-indicator' });
-      indicatorEl.setAttribute('aria-hidden', 'true');
-      setIcon(indicatorEl, expanded ? 'chevron-down' : 'chevron-right');
       historyEl = statusEl.createDiv({
         cls: 'claudian-streaming-work-history',
         attr: { id: workId },
       });
-      historyEl.hidden = !expanded;
+      historyEl.hidden = false;
       const previousViewport = this.streamingWorkViewports.get(statusEl);
       this.streamingWorkViewports.set(statusEl, new ScrollFollowController(historyEl, previousViewport));
-      headerEl.addEventListener('click', () => {
-        const nextExpanded = historyEl!.hidden === true;
-        this.streamingWorkFoldOverrides.set(msg.id, nextExpanded);
-        setCollapsibleContentExpanded(historyEl!, nextExpanded, hidden => {
-          historyEl!.hidden = hidden;
-        });
-        headerEl.setAttribute('aria-expanded', String(nextExpanded));
-        setIcon(indicatorEl, nextExpanded ? 'chevron-down' : 'chevron-right');
-        if (nextExpanded) this.restoreStreamingWorkViewport(statusEl);
-      });
-
       for (let itemIndex = fold.start; itemIndex <= fold.end; itemIndex += 1) {
         for (const segment of timeline.items[itemIndex]) {
           if (segment.type === 'subagents') continue;
@@ -1723,6 +1700,16 @@ export class MessageRenderer {
     return this.getCompletedWorkLabel(undefined, false, summary);
   }
 
+  /** Some tool-use runs contain a lone period in place of a progress update. */
+  private isToolProgressPlaceholder(block: ContentBlock, following: readonly ContentBlock[]): boolean {
+    if (block.type !== 'text' || block.content.trim() !== '.') return false;
+    for (const next of following) {
+      if (next.type === 'text' && next.content.trim()) return false;
+      if (next.type === 'tool_use') return true;
+    }
+    return false;
+  }
+
   private getRenderedActivityTimeline(
     transcriptRun: TranscriptRunProjection | TranscriptTurnProjection | undefined,
     children: HTMLElement[],
@@ -1734,6 +1721,7 @@ export class MessageRenderer {
     const contentBlocks = transcriptRun.blocks.map((item) => item.block);
     const elementByBlockIndex = new Map<number, HTMLElement>();
     const representedElements = new Set<HTMLElement>();
+    const suppressedElements = new Set<HTMLElement>();
     const supersededInitialThinking = suppressInitialThinking
       ? getSupersededInitialThinkingIndexes(contentBlocks)
       : new Set<number>();
@@ -1741,7 +1729,7 @@ export class MessageRenderer {
     const findFallbackElement = (matches: (element: HTMLElement) => boolean) => {
       for (let index = fallbackCursor; index < children.length; index += 1) {
         const candidate = children[index];
-        if (!matches(candidate)) continue;
+        if (suppressedElements.has(candidate) || !matches(candidate)) continue;
         fallbackCursor = index + 1;
         return candidate;
       }
@@ -1750,6 +1738,31 @@ export class MessageRenderer {
 
     transcriptRun.blocks.forEach((projectedBlock, blockIndex) => {
       const block = projectedBlock.block;
+      const following = block.type === 'text' && block.content.trim() === '.'
+        ? transcriptRun.blocks.slice(blockIndex + 1)
+          .filter(candidate => candidate.messageId === projectedBlock.messageId)
+          .map(candidate => candidate.block)
+        : [];
+      if (this.isToolProgressPlaceholder(block, following)) {
+        const nextTool = transcriptRun.blocks.slice(blockIndex + 1).find(candidate => (
+          candidate.messageId === projectedBlock.messageId && candidate.block.type === 'tool_use'
+        ));
+        const nextToolPosition = children.findIndex(candidate => (
+          candidate.dataset.transcriptItemId === nextTool?.id
+          || (nextTool?.block.type === 'tool_use' && candidate.dataset.toolId === nextTool.block.toolId)
+        ));
+        const placeholder = children.find((candidate, position) => (
+          candidate.dataset.transcriptItemId === projectedBlock.id
+          || (!candidate.dataset.transcriptItemId && !suppressedElements.has(candidate)
+            && position < nextToolPosition && candidate.hasClass('claudian-text-block')
+            && candidate.textContent?.trim() === '.')
+        ));
+        if (placeholder) {
+          suppressedElements.add(placeholder);
+          placeholder.remove();
+        }
+        return;
+      }
       if (block.type === 'text' && !block.content.trim()) return;
       if (block.type === 'thinking' && (
         ProviderRegistry.getChatUIConfig(this.getCapabilities().providerId).thinkingPresentation === 'status'
@@ -2183,8 +2196,9 @@ export class MessageRenderer {
         } else if (block.type === 'text') {
           const normalized = stripLegacyInterruptIndicator(block.content);
           hadLegacyInterruptIndicator ||= normalized.interrupted;
-          // Skip empty or whitespace-only text blocks to avoid extra gaps
-          if (!normalized.content.trim()) {
+          // Skip empty text and lone tool-progress periods without changing history.
+          if (!normalized.content.trim()
+            || this.isToolProgressPlaceholder(block, msg.contentBlocks.slice(blockIndex + 1))) {
             continue;
           }
           const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
