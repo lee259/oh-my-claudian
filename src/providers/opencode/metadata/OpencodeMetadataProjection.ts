@@ -32,6 +32,7 @@ export interface OpencodeMetadataProjectionInput {
 export async function projectOpencodeMetadata(
   plugin: ProviderHost,
   input: OpencodeMetadataProjectionInput,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   const modelState = extractAcpSessionModelState({
     configOptions: input.configOptions,
@@ -95,7 +96,9 @@ export async function projectOpencodeMetadata(
     || (baseRawModelId !== null && thinkingOptions.length > 0);
   if (!hasUpdate) return false;
 
+  signal?.throwIfAborted();
   await plugin.mutateSettings((settings) => {
+    signal?.throwIfAborted();
     updateOpencodeProviderSettings(settings, {
       ...(hasModes ? { availableModes } : {}),
       ...(selectedMode ? { selectedMode } : {}),

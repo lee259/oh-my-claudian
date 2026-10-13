@@ -10,11 +10,13 @@ import { PI_PROVIDER_CAPABILITIES } from './capabilities';
 import { piSettingsReconciler } from './env/PiSettingsReconciler';
 import { PiExecutionBackend } from './execution/PiExecutionBackend';
 import { PiConversationHistoryService } from './history/PiConversationHistoryService';
+import { piCliLifecycle } from './runtime/PiCliLifecycle';
 import { getPiProviderSettings, updatePiProviderSettings } from './settings';
 import { ObsidianPiExtensionUiRenderer } from './ui/ObsidianPiExtensionUiRenderer';
 import { piChatUIConfig } from './ui/PiChatUIConfig';
 
 export const piProviderRegistration: ProviderModule = {
+  cliLifecycle: piCliLifecycle,
   id: 'pi',
   blankTabOrder: 11,
   capabilities: PI_PROVIDER_CAPABILITIES,

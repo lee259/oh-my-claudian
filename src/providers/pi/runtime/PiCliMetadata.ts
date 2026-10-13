@@ -8,5 +8,5 @@ export const piCliMetadata: CliProviderMetadata = {
   // latest-version probe and the npm install command, so it must point at
   // the current package. Keep PiSubprocess's PI_PACKAGE_NAME in sync.
   npmPackage: '@earendil-works/pi-coding-agent',
-  update: { command: 'pi', args: ['update'] },
+  update: { command: 'pi', args: ['update', '--self'] },
 };

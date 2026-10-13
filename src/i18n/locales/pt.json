@@ -424,7 +424,9 @@
         "outputTooLarge": "Saída da verificação de versão muito grande.",
         "notFound": "CLI não instalado ou não está no PATH."
       },
-      "versionUnchanged": "{cli} ainda está em {version} após a atualização. O comando pode não ter surtido efeito."
+      "versionUnchanged": "{cli} ainda está em {version} após a atualização. O comando pode não ter surtido efeito.",
+      "operationVerified": "CLI change verified.",
+      "bundledUpdate": "Update the desktop application to update its bundled CLI."
     },
     "providerDiagnostics": {
       "kicker": "Solução de problemas",
@@ -994,6 +996,33 @@
       "desc": "Arquiva automaticamente conversas fechadas e desafixadas sem atividade durante o período selecionado.",
       "off": "Desativado",
       "days": "{count} dias"
+    },
+    "cliUpdates": {
+      "title": "Agent updates",
+      "summary": "Models refresh after each agent update.",
+      "checkUpdates": "Verificar atualizações dos agentes",
+      "checkAll": "Check providers",
+      "updateAll": "Update all",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "checking": "Checking",
+      "missing": "Not installed",
+      "broken": "Cannot start",
+      "ready": "Installed",
+      "updating": "Updating",
+      "updated": "Verified",
+      "noUpdates": "No updates found for providers with an available version feed.",
+      "modelWarning": "CLI updated. Model refresh needs another attempt.",
+      "confirmAll": "Update these provider CLIs?\n\n{commands}",
+      "upstreamReply": "CLI response",
+      "exitCode": "Exit code:",
+      "verification": "Claudian verification:",
+      "localError": "Claudian/process error:",
+      "noReply": "The CLI returned no output.",
+      "outputTruncated": "Only the final 1 MiB of each output stream is retained. The command was not stopped by this limit.",
+      "noticeTitle": "{count} agents have updates",
+      "review": "Review updates",
+      "installation": "Installation details"
     }
   }
 }

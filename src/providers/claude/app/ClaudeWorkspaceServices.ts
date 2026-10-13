@@ -103,7 +103,7 @@ export async function createClaudeWorkspaceServices(
     commandCatalog,
     vaultCommandRepository: commandCatalog,
     agentMentionProvider: agentManager,
-    refreshModelCatalog: () => modelCatalog.refresh(),
+    refreshModelCatalog: context => modelCatalog.refresh(context?.signal),
     settingsTabRenderer: claudeSettingsTabRenderer,
     refreshAgentMentions: async () => {
       await pluginManager.loadPlugins();

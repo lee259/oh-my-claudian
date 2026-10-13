@@ -6,6 +6,7 @@ import type {
   ProviderInteractionPort,
   ProviderSessionEvent,
 } from '../../../core/execution';
+import type { ProviderCliLifecyclePort } from '../../../core/providers/cli/ProviderCliLifecycle';
 import { createCatalogCommandDiscoveryStore } from '../../../core/providers/commands/catalogCommandDiscovery';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import {
@@ -129,8 +130,11 @@ const backgroundTurnBuffers = new WeakMap<
  */
 export function getBlankTabModelOptions(
   settings: Record<string, unknown>,
+  cliLifecycle?: Pick<ProviderCliLifecyclePort, 'getSnapshot'>,
 ): ProviderUIOption[] {
   return ProviderRegistry.getEnabledProviderIds(settings).flatMap((providerId) => {
+    const installation = cliLifecycle?.getSnapshot(providerId);
+    if (installation?.status === 'missing' || installation?.status === 'broken') return [];
     const uiConfig = ProviderRegistry.getChatUIConfig(providerId);
     const providerIcon = uiConfig.getProviderIcon?.() ?? undefined;
     const group = ProviderRegistry.getProviderDisplayName(providerId);
@@ -1277,7 +1281,7 @@ function initializeInputToolbar(
     return {
       ...baseConfig,
       getModelOptions: (settings: Record<string, unknown>) =>
-        getBlankTabModelOptions(settings),
+        getBlankTabModelOptions(settings, plugin.providerHost.cliLifecycle),
     };
   };
 

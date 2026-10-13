@@ -78,6 +78,11 @@ export function createTabInputController(
     captureReviewableSettlement: outcome => tab.session.captureReviewableSettlement(outcome),
     onDiagnosticError: options.onDiagnosticError,
     preflightExecution: async () => {
+      const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId);
+      if (installation?.operation?.status === 'running') return new Error('Wait for this provider’s CLI operation to finish.');
+      if (installation?.status === 'missing' || installation?.status === 'broken') {
+        return new Error(installation.error ?? 'Provider CLI not found.');
+      }
       let diagnostics;
       try {
         diagnostics = await ProviderRegistry.collectDiagnostics(tab.providerId, {

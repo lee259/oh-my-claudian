@@ -15,6 +15,7 @@ Core must consume provider data through explicit contracts. Do not branch on pro
 ## State Ownership
 
 - `ProviderExecutionLifecycleRegistry` is the source of truth for provider generations, transition fencing, and live session leases. It does not own per-tab turn state or impose a global execution-capacity policy.
+- Guarded CLI transitions must reject active foreground or background leases before generation invalidation or session cancellation. Transition-owner metadata refresh may bypass its own transition fence and must honor the caller's cancellation signal.
 - Provider execution sessions own native runtime interaction behind the `ProviderExecutionSession` contract.
 - Bootstrap persistence stores Claudian metadata and input ledgers. Provider transcript files remain provider-owned and read-only.
 - Registries own registration and lookup; they do not absorb the lifecycle or storage responsibilities of the registered service.

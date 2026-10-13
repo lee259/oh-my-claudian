@@ -532,6 +532,21 @@ describe('CodexModelCatalogCoordinator', () => {
     expect(discovery.discoverModels).toHaveBeenCalledTimes(1);
   });
 
+  it('honors the CLI lifecycle signal and rejects model publication after cancellation', async () => {
+    const host = createFakeHost();
+    let release!: (result: CodexModelDiscoveryResult) => void;
+    const discovery = { discoverModels: jest.fn(() => new Promise<CodexModelDiscoveryResult>(resolve => { release = resolve; })) };
+    const coordinator = new CodexModelCatalogCoordinator(host, discovery);
+    const controller = new AbortController();
+    const refresh = coordinator.refresh({ providerTransitionOwner: true, signal: controller.signal });
+    while (!discovery.discoverModels.mock.calls.length) await Promise.resolve();
+    controller.abort();
+    release({ kind: 'completed', models: [makeModel('late-model')] });
+    await refresh;
+    expect(getCodexProviderSettings(host.settings).discoveredModels).toEqual([]);
+    await coordinator.dispose();
+  });
+
   it('cancels an in-progress refresh', async () => {
     const host = createFakeHost();
     const { discovery } = createHangingDiscovery();

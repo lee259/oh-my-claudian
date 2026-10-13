@@ -22,6 +22,7 @@ import type {
   UsageInfo,
 } from '../types';
 import type { ProviderId } from '../types/provider';
+import type { ProviderCliLifecycleAdapter } from './cli/ProviderCliLifecycle';
 import type { ProviderCommandCatalog } from './commands/ProviderCommandCatalog';
 import type { ProviderCommandDiscoveryResult } from './commands/ProviderCommandDiscoveryResult';
 import type { ProviderVaultEntryRepository } from './commands/ProviderVaultEntryRepository';
@@ -68,6 +69,7 @@ export interface ProviderQuestionReply {
  * MCP, settings tabs) live behind `src/providers/<id>/app/`.
  */
 export interface ProviderRegistration {
+  cliLifecycle?: ProviderCliLifecycleAdapter;
   displayName: string;
   settingsTabLabel?: string;
   blankTabOrder: number;
@@ -415,6 +417,7 @@ export interface ProviderChatUIConfig {
 // ---------------------------------------------------------------------------
 
 export interface ProviderTransitionOwnerContext {
+  signal?: AbortSignal;
   providerTransitionOwner?: boolean;
 }
 

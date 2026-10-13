@@ -51,6 +51,8 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getPiProviderSettings(settingsBag);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('pi')
+            ? context.plugin.cliLifecycle.getSnapshot('pi')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('pi')
             : null,
@@ -184,6 +186,8 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'pi',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: piCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('pi'),
@@ -193,6 +197,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getPiProviderSettings(settingsBag);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

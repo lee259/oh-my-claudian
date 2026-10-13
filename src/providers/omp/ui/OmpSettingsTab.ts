@@ -42,6 +42,8 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const provider = getOmpProviderSettings(settings);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('omp')
+            ? context.plugin.cliLifecycle.getSnapshot('omp')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('omp')
             : null,
@@ -98,6 +100,8 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'omp',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: ompCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('omp'),
@@ -107,6 +111,7 @@ export const ompSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getOmpProviderSettings(settings);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

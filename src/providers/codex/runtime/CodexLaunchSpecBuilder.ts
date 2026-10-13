@@ -7,6 +7,8 @@ import type { CodexExecutionTarget, CodexLaunchSpec } from './codexLaunchTypes';
 import { createCodexPathMapper } from './CodexPathMapper';
 
 export interface BuildCodexLaunchSpecOptions {
+  /** Exact CLI lifecycle arguments; app-server user arguments do not apply. */
+  cliArguments?: readonly string[];
   settings: Record<string, unknown>;
   resolvedCliCommand: string | null;
   hostVaultPath: string | null;
@@ -50,7 +52,7 @@ export function buildCodexLaunchSpec(
   }
 
   const targetCwd = pathMapper.toTargetPath(spawnCwd);
-  const appServerArgs = [
+  const appServerArgs = options.cliArguments ? [...options.cliArguments] : [
     ...CODEX_APP_SERVER_ARGS,
     ...getProviderAdditionalArguments(options.settings, 'codex'),
   ];

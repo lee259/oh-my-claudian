@@ -278,6 +278,12 @@ export class CodexModelCatalogCoordinator {
     this.abortController?.abort();
     const abortController = new AbortController();
     this.abortController = abortController;
+    const abort = (): void => {
+      abortController.abort();
+      if (this.refreshGeneration === generation) this.refreshGeneration += 1;
+    };
+    context?.signal?.addEventListener('abort', abort, { once: true });
+    if (context?.signal?.aborted) abort();
     this.state = 'refreshing';
 
     const span = StartupProfiler.start('codex-model-discovery');
@@ -364,6 +370,7 @@ export class CodexModelCatalogCoordinator {
         diagnostics: message,
       };
     } finally {
+      context?.signal?.removeEventListener('abort', abort);
       StartupProfiler.finish(span);
       if (this.abortController === abortController) {
         this.abortController = null;

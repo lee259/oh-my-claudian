@@ -59,6 +59,8 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getOpencodeProviderSettings(settingsBag);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('opencode')
+            ? context.plugin.cliLifecycle.getSnapshot('opencode')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('opencode')
             : null,
@@ -215,6 +217,8 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'opencode',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: opencodeCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('opencode'),
@@ -224,6 +228,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onCheckAgain: () => readinessPanel.refresh(true),
       onProbe: (info, cliPath) => {
         const current = getOpencodeProviderSettings(settingsBag);
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(current.cliPathsByHost[hostnameKey] || current.cliPath

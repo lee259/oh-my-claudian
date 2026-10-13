@@ -118,6 +118,20 @@ async function flushTransitionStart(): Promise<void> {
 }
 
 describe('ProviderExecutionLifecycleRegistry', () => {
+  it('rejects a guarded transition before invalidating any live session', async () => {
+    const registry = new ProviderExecutionLifecycleRegistry();
+    const backend = new TestBackend('claude');
+    const lease = registry.acquire(backend, createSessionConfig(), 'chat');
+    const before = registry.getProviderGeneration('claude');
+    await expect(registry.runTransition(
+      ['claude'], async () => undefined, undefined,
+      () => { throw new Error('Active work must finish first'); },
+    )).rejects.toThrow('Active work must finish first');
+    expect(lease.isCurrent()).toBe(true);
+    expect(registry.getProviderGeneration('claude')).toBe(before);
+    expect(backend.sessions[0].disposeCalls).toBe(0);
+    await registry.dispose();
+  });
   it('acquires persistent and ephemeral sessions with independent leases', async () => {
     const registry = new ProviderExecutionLifecycleRegistry();
     const backend = new TestBackend('claude');
@@ -635,4 +649,21 @@ describe('ProviderExecutionLifecycleRegistry', () => {
     expect(requested.scope.kind).toBe('requested');
     expect(sessionListener).toBeDefined();
   });
+
+  it('reports active auxiliary leases and background work for a guarded CLI transition', async () => {
+    const registry = new ProviderExecutionLifecycleRegistry();
+    const backend = new TestBackend('test');
+    const lease = registry.acquire(backend, createSessionConfig(), 'instruction');
+    const status = jest.spyOn(lease.session, 'getStatus').mockReturnValue('executing');
+    expect(registry.hasActiveWork('test')).toBe(true);
+    expect(registry.hasActiveWork('other')).toBe(false);
+    status.mockReturnValue('idle');
+    expect(registry.hasActiveWork('test')).toBe(false);
+    lease.session.hasBackgroundWork = () => true;
+    expect(registry.hasActiveWork('test')).toBe(true);
+    await lease.release();
+    expect(registry.hasActiveWork('test')).toBe(false);
+    await registry.dispose();
+  });
+
 });

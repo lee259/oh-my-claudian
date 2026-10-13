@@ -67,6 +67,7 @@ import {
 import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+import { mountProviderCliUpdateCheck } from './ProviderCliUpdates';
 
 type SettingsTabId = string;
 type CapabilityMatrixKey = keyof Pick<
@@ -185,6 +186,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private generalEnvironmentHandle: EnvironmentSettingsSectionHandle | null = null;
   private generalNavigationMappingsRoot: PreactRoot | null = null;
   private readonly generalControlRoots = new Set<PreactRoot>();
+  private disposeCliUpdates: (() => void) | null = null;
   private readonly customModelOverrideRoots = new Map<HTMLElement, PreactRoot>();
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
@@ -205,7 +207,16 @@ export class ClaudianSettingTab extends PluginSettingTab {
     return [];
   }
 
+  hide(): void {
+    this.displayGeneration += 1;
+    this.disposeCliUpdates?.();
+    this.disposeCliUpdates = null;
+    destroyCliLifecycleSections(this.containerEl);
+  }
+
   display(): void {
+    this.disposeCliUpdates?.();
+    this.disposeCliUpdates = null;
     const displayGeneration = ++this.displayGeneration;
     this.agentSkillCoordinator.resetSubscriptions();
     this.unmountCustomModelOverrideRoots();
@@ -591,7 +602,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Workspace and layout ---
 
     const setup = section('setup');
-    this.mountGeneralControl(setup, h(SettingsSelectListView, {
+    if (this.plugin.providerHost?.cliLifecycle) {
+      this.disposeCliUpdates = mountProviderCliUpdateCheck(setup, this.app, this.plugin.providerHost.cliLifecycle);
+    }
+    this.mountGeneralControl(setup.createDiv(), h(SettingsSelectListView, {
       saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'chat-view-placement',

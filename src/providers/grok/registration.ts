@@ -12,10 +12,12 @@ import { GrokExecutionBackend } from './execution/GrokExecutionBackend';
 import { GrokConversationHistoryService } from './history/GrokConversationHistoryService';
 import { isGrokModelSelectionId } from './models';
 import { grokSubagentLifecycleAdapter } from './normalization/grokSubagentNormalization';
+import { grokCliLifecycle } from './runtime/GrokCliLifecycle';
 import { getGrokProviderSettings, updateGrokProviderSettings } from './settings';
 import { grokChatUIConfig } from './ui/GrokChatUIConfig';
 
 export const grokProviderRegistration: ProviderModule = {
+  cliLifecycle: grokCliLifecycle,
   id: 'grok',
   blankTabOrder: 12,
   capabilities: GROK_PROVIDER_CAPABILITIES,

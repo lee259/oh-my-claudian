@@ -5,6 +5,7 @@ import { probeCliVersion } from '@/core/providers/cli/CliVersionUtils';
 import { OwnedProbeRegistry } from '@/core/providers/metadata/OwnedProbeRegistry';
 import { ProviderTransitionFence } from '@/core/providers/metadata/ProviderTransitionFence';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
+import type { ProviderTransitionOwnerContext } from '@/core/providers/types';
 import type { SlashCommand } from '@/core/types';
 import { AcpSessionUpdateNormalizer } from '@/providers/acp';
 
@@ -92,7 +93,7 @@ export class OpencodeMetadataService {
       });
   }
 
-  async loadCatalog(signal?: AbortSignal): Promise<boolean> {
+  async loadCatalog(signal?: AbortSignal, context?: ProviderTransitionOwnerContext): Promise<boolean> {
     const result = await this.runProbe(
       async (probe, ownedSignal) => {
         const catalog = await this.loadCatalogWithMetadata(probe, ownedSignal);
@@ -102,7 +103,7 @@ export class OpencodeMetadataService {
         );
         return true;
       },
-      signal,
+      signal, context,
     );
     return result ?? false;
   }
@@ -171,10 +172,11 @@ export class OpencodeMetadataService {
   private async runProbe<T>(
     operation: (probe: OpencodeMetadataProbe, signal: AbortSignal) => Promise<T>,
     signal?: AbortSignal,
+    context?: ProviderTransitionOwnerContext,
   ): Promise<T | null> {
     try {
       if (this.disposed) return null;
-      if (this.transitionFence.isUnavailable()) {
+      if (context?.providerTransitionOwner !== true && this.transitionFence.isUnavailable()) {
         const available = await this.transitionFence.waitUntilAvailable(signal);
         if (!available) return null;
       }
@@ -193,12 +195,13 @@ export class OpencodeMetadataService {
   ): Promise<OpencodeMetadataCatalogResult> {
     let projectedEarly = false;
     const catalog = await probe.loadCatalog(signal, async metadata => {
-      await projectOpencodeMetadata(this.plugin, metadata);
+      signal.throwIfAborted();
+      await projectOpencodeMetadata(this.plugin, metadata, signal);
       projectedEarly = true;
     });
     signal.throwIfAborted();
     if (!projectedEarly) {
-      await projectOpencodeMetadata(this.plugin, catalog);
+      await projectOpencodeMetadata(this.plugin, catalog, signal);
     }
     return catalog;
   }

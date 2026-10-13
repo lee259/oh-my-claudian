@@ -54,6 +54,8 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       async getSnapshot() {
         const current = getCodexProviderSettings(settingsBag);
         return assessProviderReadiness({
+          cliAvailable: context.plugin.cliLifecycle?.getSnapshot('codex')
+            ? context.plugin.cliLifecycle.getSnapshot('codex')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('codex')
             : null,
@@ -366,6 +368,8 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     // --- CLI lifecycle ---
 
     const cliLifecycle = renderCliLifecycleSection({
+      providerId: 'codex',
+      lifecycle: context.plugin.cliLifecycle,
       container: readinessPanel.cliDetail,
       metadata: codexCliMetadata,
       resolveCliPath: () => context.plugin.getResolvedProviderCliPath('codex'),
@@ -376,6 +380,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       onProbe: (info, cliPath) => {
         const current = getCodexProviderSettings(settingsBag);
         const customPath = current.cliPathsByHost[hostnameKey] || current.cliPath;
+        void readinessPanel.refresh();
         readinessPanel.setInstallationSummary({
           version: info.version ?? '',
           sourceText: t(customPath

@@ -49,10 +49,12 @@ export const cursorWorkspaceRegistration: ProviderWorkspaceRegistration<CursorWo
       commandCatalog: new CursorCommandCatalog(),
       commandLoader: new CursorCommandLoader(commandMetadataProbe),
       modelDiscoveryService,
-      refreshModelCatalog: async () => {
+      refreshModelCatalog: async context => {
         try {
-          const catalog = await modelDiscoveryService.discoverCatalog();
+          const catalog = await modelDiscoveryService.discoverCatalog(context?.signal);
+          context?.signal?.throwIfAborted();
           await plugin.mutateSettings(settings => {
+            context?.signal?.throwIfAborted();
             updateCursorProviderSettings(settings, {
               discoveredModels: catalog.models,
               catalogTimestamp: Date.now(),

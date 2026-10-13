@@ -166,6 +166,21 @@ describe('ClaudianPlugin', () => {
   });
 
   describe('onload', () => {
+    it('defers the CLI update check until layout is ready and cancels it on unload', async () => {
+      jest.useFakeTimers();
+      try {
+        await plugin.onload();
+        const check = jest.spyOn(plugin.cliLifecycle, 'checkEnabled');
+        expect(check).not.toHaveBeenCalled();
+        for (const [callback] of mockApp.workspace.onLayoutReady.mock.calls) callback();
+        plugin.onunload();
+        await jest.advanceTimersByTimeAsync(2_000);
+        expect(check).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('should initialize settings with defaults', async () => {
       await plugin.onload();
 

@@ -79,6 +79,7 @@ export class PiModelDiscoveryService {
         }
       });
       const response = await transport.request('get_available_models', {}, 20_000);
+      signal?.throwIfAborted();
       const models = normalizePiDiscoveredModels(extractModels(response)).map((model) => {
         // This complete native response is authoritative, including non-reasoning models.
         delete model.reasoningMetadataResolved;

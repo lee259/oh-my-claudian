@@ -502,7 +502,7 @@ describe('getEnhancedPath', () => {
       expect(nodeIndex).toBeLessThan(extraIndex);
     });
 
-    it('does not prepend node directory when cliPath is native binary', () => {
+    it('preserves inherited PATH precedence when cliPath is a native binary', () => {
       const fakeDir = isWindows ? 'C:\\fake\\node' : '/tmp/fake-node';
       mockNodeExecutable(fakeDir);
 
@@ -521,7 +521,7 @@ describe('getEnhancedPath', () => {
 
       expect(nodeIndex).toBeGreaterThanOrEqual(0);
       expect(extraIndex).toBeGreaterThanOrEqual(0);
-      expect(nodeIndex).toBeGreaterThan(extraIndex);
+      expect(nodeIndex).toBeLessThan(extraIndex);
     });
 
     it('accepts cliPath parameter without error', () => {
