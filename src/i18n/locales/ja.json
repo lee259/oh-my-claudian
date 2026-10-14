@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "引用"
+    },
+    "followUp": {
+      "title": "追加メッセージ（{count}）",
+      "paused": "キューは一時停止中",
+      "resume": "キューを再開",
+      "queued": "待機中",
+      "editing": "編集中",
+      "sending": "送信中…",
+      "accepted": "エージェントが受信済み",
+      "uncertain": "送信結果を確認できません",
+      "up": "上へ移動",
+      "down": "下へ移動",
+      "steer": "作業に追加入力",
+      "submitQueue": "キューに追加",
+      "submitSteer": "現在の作業に追加",
+      "stop": "停止",
+      "mode": "追加メッセージの送信方法",
+      "queueMode": "キュー",
+      "steerMode": "追加入力",
+      "unsupported": "このエージェントは作業中の追加入力に対応していません。",
+      "waiting": "前の追加入力の関連付けを待っています。",
+      "details": "メッセージとコンテキスト",
+      "images": "画像 {count} 件",
+      "files": "ファイル {count} 件",
+      "selection": "選択範囲を添付",
+      "dismiss": "状態表示を閉じる",
+      "failed": "メッセージは未送信です。キューに保持されています。",
+      "unconfirmed": "送信結果を確認できないため、自動再送しません。",
+      "send": "メッセージを送信",
+      "idle": "エージェントの作業中に追加入力できます。",
+      "more": "その他の操作",
+      "reorder": "ドラッグで並べ替え、矢印キーで移動"
     }
   },
   "settings": {

@@ -2,6 +2,7 @@ import type { ProviderInteractionDismissReason } from '@/core/execution/Provider
 
 import type { UsageInfo } from '../../../core/types';
 import { AsyncQuestionPrompts, type AsyncQuestionPromptsDeps } from './AsyncQuestionPrompts';
+import { FollowUpQueue } from './FollowUpQueue';
 import { PendingChatInteractions } from './PendingChatInteractions';
 import { ResponseModel } from './ResponseModel';
 import type {
@@ -10,7 +11,6 @@ import type {
   ChatStateCallbacks,
   ChatStateData,
   PendingToolCall,
-  QueuedMessage,
   TabAttention,
   TabReviewOutcome,
   ThinkingBlockState,
@@ -29,7 +29,6 @@ function createInitialState(): ChatStateData {
     isRewinding: false,
     hasPendingConversationSave: false,
     currentConversationId: null,
-    queuedMessage: null,
     currentContentEl: null,
     currentTextEl: null,
     response: new ResponseModel(),
@@ -55,6 +54,8 @@ function createInitialState(): ChatStateData {
 }
 
 export class ChatState {
+  readonly followUps = new FollowUpQueue();
+  followUpMode: 'queue' | 'steer' = 'queue';
   readonly interactions = new PendingChatInteractions((id, pending) => pending
     ? this.beginActionRequired(id) : this.endActionRequired(id));
   private asyncQuestionPrompts: AsyncQuestionPrompts | null = null;
@@ -202,16 +203,6 @@ export class ChatState {
   }
 
   // ============================================
-  // Queued Message
-  // ============================================
-
-  get queuedMessage(): QueuedMessage | null {
-    return this.state.queuedMessage;
-  }
-
-  set queuedMessage(value: QueuedMessage | null) {
-    this.state.queuedMessage = value;
-  }
 
   // ============================================
   // Streaming DOM State
@@ -524,7 +515,7 @@ export class ChatState {
     this.clearMessages();
     this.resetStreamingState();
     this.clearMaps();
-    this.state.queuedMessage = null;
+    this.followUps.clear();
     this.usage = null;
     this.currentTodos = null;
     this.clearAttention();

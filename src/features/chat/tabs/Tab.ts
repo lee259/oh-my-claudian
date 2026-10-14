@@ -1,5 +1,5 @@
 import type { Component } from 'obsidian';
-import { Notice, Platform, setIcon } from 'obsidian';
+import { Menu, Notice, Platform, setIcon } from 'obsidian';
 
 import type {
   ProviderBackgroundOutputEvent,
@@ -308,7 +308,7 @@ function sendTabInputMessage(
   }
 
   e.preventDefault();
-  void inputController.sendMessage();
+  void inputController.sendMessage(tab.state.isStreaming ? { deliveryMode: tab.state.followUpMode } : undefined);
   return true;
 }
 
@@ -1046,15 +1046,28 @@ function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string):
 
 export function updateSendButton(tab: TabData): void {
   if (!tab.session.presentation) return;
-  const { inputEl, sendButtonEl } = tab.dom;
+  const { inputEl, sendButtonEl, stopButtonEl } = tab.dom;
   const isStreaming = tab.state.isStreaming;
-  const canSend = inputEl.value.trim().length > 0 || tab.ui.quotedMessages.length > 0;
-
-  sendButtonEl.disabled = !isStreaming && !canSend;
-  sendButtonEl.toggleClass('is-streaming', isStreaming);
-  setIcon(sendButtonEl, isStreaming ? 'square' : 'send');
-  sendButtonEl.setAttribute('aria-label', isStreaming ? 'Stop generation' : 'Send message');
-  sendButtonEl.setAttribute('title', isStreaming ? 'Stop generation (Esc)' : 'Send message (Enter)');
+  const supportsSteer = ProviderRegistry.getCapabilities(tab.session.providerId).supportsTurnSteer === true;
+  if (!supportsSteer) tab.state.followUpMode = 'queue';
+  const canSteer = tab.controllers.inputController?.canSteerFollowUp?.() ?? supportsSteer;
+  const canSend = inputEl.value.trim().length > 0 || tab.ui.quotedMessages.length > 0
+    || tab.ui.imageContextManager?.hasImages() === true;
+  const isSteer = isStreaming && tab.state.followUpMode === 'steer';
+  sendButtonEl.disabled = !canSend || (isSteer && !canSteer);
+  sendButtonEl.toggleClass('is-streaming', false);
+  setIcon(sendButtonEl, 'send');
+  sendButtonEl.toggleClass('claudian-hidden', isStreaming && !canSend);
+  const label = isStreaming ? t(isSteer ? 'chat.followUp.submitSteer' : 'chat.followUp.submitQueue') : t('chat.followUp.send');
+  sendButtonEl.setAttribute('aria-label', label);
+  sendButtonEl.setAttribute('title', isStreaming && supportsSteer
+    ? `${label} · ${t('chat.followUp.mode')} (${Platform.isMacOS ? 'Cmd' : 'Ctrl'}+Shift+Enter)` : label);
+  sendButtonEl.setAttribute('aria-haspopup', isStreaming && supportsSteer ? 'menu' : 'false');
+  stopButtonEl.toggleClass('claudian-hidden', !isStreaming || canSend);
+  stopButtonEl.toggleClass('claudian-input-stop-button--primary', isStreaming && !canSend);
+  stopButtonEl.disabled = tab.state.cancelRequested;
+  stopButtonEl.setAttribute('aria-label', t('chat.followUp.stop'));
+  stopButtonEl.setAttribute('title', `${t('chat.followUp.stop')} (Esc)`);
 }
 
 /**
@@ -1467,6 +1480,7 @@ function initializeInputToolbar(
   });
 
   // Keep the primary action in the toolbar flow so it never overlaps provider controls.
+  toolbarComponents.sendButtonSlot.appendChild(dom.stopButtonEl);
   toolbarComponents.sendButtonSlot.appendChild(dom.sendButtonEl);
 
   dom.eventCleanups.push(() => {
@@ -1485,7 +1499,11 @@ function initializeInputToolbar(
   tab.ui.mcpServerSelector = toolbarComponents.mcpServerSelector;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
-  tab.ui.refreshComposerLocale = toolbarComponents.refreshLocale;
+  tab.ui.refreshComposerLocale = () => {
+    toolbarComponents.refreshLocale();
+    updateSendButton(tab);
+    tab.controllers.inputController?.updateQueueIndicator();
+  };
 
   tab.ui.mcpServerSelector.setMcpManager(getProviderMcpManager(getTabProviderId(tab, plugin)));
   tab.ui.mcpServerSelector.setOnChange(() => {
@@ -1985,6 +2003,7 @@ export function initializeTabRuntimeControllers(
   });
 
   tab.controllers.inputController ??= createTabInputController(tab, plugin, {
+    onFollowUpStateChanged: () => updateSendButton(tab),
     ensureExecutionInitialized,
     getProviderSettings: () => getTabSettingsSnapshot(tab, plugin),
     generateId: generateMessageId,
@@ -2123,6 +2142,14 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
       return;
     }
 
+    if (state.isStreaming && e.key === 'Enter' && e.shiftKey && !e.isComposing && hasPlatformSendModifier(e)) {
+      e.preventDefault();
+      const deliveryMode = state.followUpMode === 'queue' ? 'steer' : 'queue';
+      if (deliveryMode === 'queue' || getTabCapabilities(tab, plugin).supportsTurnSteer) {
+        void controllers.inputController?.sendMessage({ deliveryMode });
+      }
+      return;
+    }
     if (sendTabInputMessageFromExplicitEnterShortcut(tab, e)) {
       return;
     }
@@ -2161,13 +2188,41 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     }
   };
   const sendButtonHandler = (): void => {
-    if (state.isStreaming) {
-      controllers.inputController?.cancelStreaming();
-      return;
-    }
     if (dom.sendButtonEl.disabled) return;
-    void controllers.inputController?.sendMessage();
+    void controllers.inputController?.sendMessage(state.isStreaming ? { deliveryMode: state.followUpMode } : undefined);
   };
+  const stopButtonHandler = (): void => {
+    controllers.inputController?.cancelStreaming();
+    updateSendButton(tab);
+  };
+  const modeHandler = (event: Event): void => {
+    if (!state.isStreaming) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = new Menu();
+    const supportsSteer = ProviderRegistry.getCapabilities(tab.session.providerId).supportsTurnSteer === true;
+    for (const mode of ['queue', 'steer'] as const) {
+      menu.addItem(item => item.setTitle(t(mode === 'queue' ? 'chat.followUp.queueMode' : 'chat.followUp.steerMode'))
+        .setIcon(mode === 'queue' ? 'list-end' : 'corner-down-right')
+        .setChecked(state.followUpMode === mode).setDisabled(mode === 'steer' && !supportsSteer)
+        .onClick(() => { state.followUpMode = mode; updateSendButton(tab); }));
+    }
+    const rect = dom.sendButtonEl.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom }, dom.sendButtonEl.ownerDocument);
+  };
+  const modeKeyHandler = (event: KeyboardEvent): void => {
+    if (!event.isComposing && (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))) {
+      modeHandler(event);
+    }
+  };
+  dom.stopButtonEl.addEventListener('click', stopButtonHandler);
+  dom.sendButtonEl.addEventListener('contextmenu', modeHandler);
+  dom.sendButtonEl.addEventListener('keydown', modeKeyHandler);
+  dom.eventCleanups.push(() => {
+    dom.stopButtonEl.removeEventListener('click', stopButtonHandler);
+    dom.sendButtonEl.removeEventListener('contextmenu', modeHandler);
+    dom.sendButtonEl.removeEventListener('keydown', modeKeyHandler);
+  });
   dom.sendButtonEl.addEventListener('click', sendButtonHandler);
   dom.eventCleanups.push(() => dom.sendButtonEl.removeEventListener('click', sendButtonHandler));
   dom.inputEl.addEventListener('keydown', keydownHandler);

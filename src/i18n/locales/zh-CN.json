@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "引用"
+    },
+    "followUp": {
+      "title": "后续消息（{count}）",
+      "paused": "队列已暂停",
+      "resume": "继续队列",
+      "queued": "排队中",
+      "editing": "编辑中",
+      "sending": "发送中…",
+      "accepted": "Agent 已接收",
+      "uncertain": "投递待确认",
+      "up": "上移",
+      "down": "下移",
+      "steer": "插队补充",
+      "submitQueue": "排队发送",
+      "submitSteer": "补充当前任务",
+      "stop": "停止",
+      "mode": "后续消息发送方式",
+      "queueMode": "排队",
+      "steerMode": "引导",
+      "unsupported": "当前 Agent 不支持原生插队。",
+      "waiting": "正在等待上一条插队消息关联。",
+      "details": "消息与上下文",
+      "images": "{count} 张图片",
+      "files": "{count} 个文件",
+      "selection": "附带选区",
+      "dismiss": "关闭状态提示",
+      "failed": "消息未发送，仍保留在队列中。",
+      "unconfirmed": "无法确认投递结果，这条消息不会自动重发。",
+      "send": "发送消息",
+      "idle": "Agent 工作时才能插队补充。",
+      "more": "更多操作",
+      "reorder": "拖拽调整顺序；方向键移动消息"
     }
   },
   "settings": {

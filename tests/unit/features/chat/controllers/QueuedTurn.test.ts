@@ -1,7 +1,6 @@
 import type { ImageAttachment } from '@/core/types';
 import {
   cloneQueuedMessage,
-  mergeQueuedMessages,
   toQueuedChatTurn,
 } from '@/features/chat/controllers/QueuedTurn';
 import type { QueuedMessage } from '@/features/chat/state/types';
@@ -74,74 +73,4 @@ describe('QueuedTurn', () => {
     });
   });
 
-  it('merges queued turns while retaining all unique context and latest request settings', () => {
-    const existing: QueuedMessage = {
-      browserContext: null,
-      canvasContext: null,
-      content: 'first display',
-      editorContext: null,
-      turnRequest: {
-        contextFiles: ['notes/one.md'],
-        enabledMcpServers: new Set(['github']),
-        externalContextPaths: ['/workspace-a'],
-        text: 'first request',
-      },
-    };
-    const incoming: QueuedMessage = {
-      browserContext: null,
-      canvasContext: null,
-      content: 'second display',
-      editorContext: null,
-      turnRequest: {
-        contextFiles: ['notes/one.md', 'notes/two.md'],
-        currentNotePath: 'notes/two.md',
-        enabledMcpServers: new Set(['github', 'filesystem']),
-        externalContextPaths: ['/workspace-a', '/workspace-b'],
-        images: [image],
-        text: 'second request',
-      },
-    };
-
-    expect(mergeQueuedMessages(existing, incoming)).toMatchObject({
-      content: 'first display\n\nsecond display',
-      turnRequest: {
-        contextFiles: ['notes/one.md', 'notes/two.md'],
-        currentNotePath: 'notes/two.md',
-        enabledMcpServers: new Set(['github', 'filesystem']),
-        externalContextPaths: ['/workspace-a', '/workspace-b'],
-        images: [image],
-        text: 'first request\n\nsecond request',
-      },
-    });
-  });
-
-  it('retains delivery observers when queued messages are merged', () => {
-    const first = jest.fn();
-    const second = jest.fn();
-    const merged = mergeQueuedMessages(
-      {
-        browserContext: null,
-        canvasContext: null,
-        content: '',
-        editorContext: null,
-        onDelivery: first,
-        turnRequest: { text: '<hidden reply>' },
-      },
-      {
-        browserContext: null,
-        canvasContext: null,
-        content: 'visible follow-up',
-        editorContext: null,
-        onDelivery: second,
-        turnRequest: { text: 'visible follow-up' },
-      },
-    );
-
-    merged.onDelivery?.(true);
-
-    expect(merged.content).toBe('visible follow-up');
-    expect(merged.turnRequest?.text).toBe('<hidden reply>\n\nvisible follow-up');
-    expect(first).toHaveBeenCalledWith(true);
-    expect(second).toHaveBeenCalledWith(true);
-  });
 });

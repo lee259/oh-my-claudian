@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "Citar"
+    },
+    "followUp": {
+      "title": "Mensagens seguintes ({count})",
+      "paused": "Fila pausada",
+      "resume": "Retomar fila",
+      "queued": "Na fila",
+      "editing": "Em edição",
+      "sending": "A enviar…",
+      "accepted": "Recebido pelo agente",
+      "uncertain": "Entrega não confirmada",
+      "up": "Mover para cima",
+      "down": "Mover para baixo",
+      "steer": "Intervir agora",
+      "submitQueue": "Adicionar à fila",
+      "submitSteer": "Complementar o trabalho atual",
+      "stop": "Parar",
+      "mode": "Comportamento das mensagens seguintes",
+      "queueMode": "Fila",
+      "steerMode": "Intervir",
+      "unsupported": "Este agente não suporta entradas durante a execução.",
+      "waiting": "Aguardando a associação da mensagem anterior.",
+      "details": "Mensagem e contexto",
+      "images": "{count} imagem(ns)",
+      "files": "{count} ficheiro(s)",
+      "selection": "Seleção anexada",
+      "dismiss": "Fechar estado",
+      "failed": "Mensagem não enviada; permanece na fila.",
+      "unconfirmed": "Não foi possível confirmar a entrega. Não será reenviada automaticamente.",
+      "send": "Enviar mensagem",
+      "idle": "Pode intervir enquanto o agente está a trabalhar.",
+      "more": "Mais ações",
+      "reorder": "Arraste para reordenar; as setas movem a mensagem"
     }
   },
   "settings": {

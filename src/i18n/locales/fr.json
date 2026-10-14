@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "Citer"
+    },
+    "followUp": {
+      "title": "Messages suivants ({count})",
+      "paused": "File en pause",
+      "resume": "Reprendre la file",
+      "queued": "En attente",
+      "editing": "En modification",
+      "sending": "Envoi…",
+      "accepted": "Reçu par l’agent",
+      "uncertain": "Livraison non confirmée",
+      "up": "Monter",
+      "down": "Descendre",
+      "steer": "Intervenir maintenant",
+      "submitQueue": "Mettre en file",
+      "submitSteer": "Compléter le travail en cours",
+      "stop": "Arrêter",
+      "mode": "Comportement des messages suivants",
+      "queueMode": "Mettre en file",
+      "steerMode": "Intervenir",
+      "unsupported": "Cet agent ne prend pas en charge les ajouts en cours d’exécution.",
+      "waiting": "En attente de l’association du message précédent.",
+      "details": "Message et contexte",
+      "images": "{count} image(s)",
+      "files": "{count} fichier(s)",
+      "selection": "Sélection jointe",
+      "dismiss": "Fermer le statut",
+      "failed": "Message non envoyé ; il reste dans la file.",
+      "unconfirmed": "Livraison non confirmée. Le message ne sera pas renvoyé automatiquement.",
+      "send": "Envoyer le message",
+      "idle": "Vous pouvez intervenir pendant que l’agent travaille.",
+      "more": "Plus d’actions",
+      "reorder": "Glisser pour réordonner ; les flèches déplacent le message"
     }
   },
   "settings": {

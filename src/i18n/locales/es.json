@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "Citar"
+    },
+    "followUp": {
+      "title": "Mensajes siguientes ({count})",
+      "paused": "Cola pausada",
+      "resume": "Reanudar cola",
+      "queued": "En cola",
+      "editing": "En edición",
+      "sending": "Enviando…",
+      "accepted": "Recibido por el agente",
+      "uncertain": "Entrega sin confirmar",
+      "up": "Subir",
+      "down": "Bajar",
+      "steer": "Intervenir ahora",
+      "submitQueue": "Añadir a la cola",
+      "submitSteer": "Complementar el trabajo actual",
+      "stop": "Detener",
+      "mode": "Comportamiento de mensajes siguientes",
+      "queueMode": "En cola",
+      "steerMode": "Intervenir",
+      "unsupported": "Este agente no admite entradas durante la ejecución.",
+      "waiting": "Esperando la vinculación del mensaje anterior.",
+      "details": "Mensaje y contexto",
+      "images": "{count} imagen(es)",
+      "files": "{count} archivo(s)",
+      "selection": "Selección adjunta",
+      "dismiss": "Cerrar estado",
+      "failed": "El mensaje no se envió; permanece en la cola.",
+      "unconfirmed": "No se pudo confirmar la entrega. No se reenviará automáticamente.",
+      "send": "Enviar mensaje",
+      "idle": "Puedes intervenir mientras el agente trabaja.",
+      "more": "Más acciones",
+      "reorder": "Arrastra para reordenar; las flechas mueven el mensaje"
     }
   },
   "settings": {

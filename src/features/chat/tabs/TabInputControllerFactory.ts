@@ -16,6 +16,7 @@ export interface TabInputControllerOptions {
   toggleFastMode: () => Promise<boolean>;
   restorePrePlanPermissionModeIfNeeded: () => void | Promise<void>;
   onDiagnosticError: (error: unknown) => void;
+  onFollowUpStateChanged?: () => void;
 }
 
 /**
@@ -77,6 +78,7 @@ export function createTabInputController(
     restorePrePlanPermissionModeIfNeeded: options.restorePrePlanPermissionModeIfNeeded,
     captureReviewableSettlement: outcome => tab.session.captureReviewableSettlement(outcome),
     onDiagnosticError: options.onDiagnosticError,
+    onFollowUpStateChanged: options.onFollowUpStateChanged,
     preflightExecution: async () => {
       const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId);
       if (installation?.operation?.status === 'running') return new Error('Wait for this provider’s CLI operation to finish.');

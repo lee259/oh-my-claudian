@@ -19,6 +19,7 @@ export interface PendingSteerState {
   readonly conversationId: string;
   readonly coordinator: ChatExecutionCoordinator;
   readonly inputRecordId: string;
+  readonly queueItemId: string;
   readonly message: QueuedMessage;
   readonly expectedProviderMessage: PendingProviderUserMessage;
   providerDisposition: PendingSteerProviderDisposition;
@@ -63,6 +64,7 @@ export class PendingSteerRegistry {
     if (this.pendingByConversation.get(pending.conversationId) !== pending) return;
     this.pendingByConversation.delete(pending.conversationId);
     pending.coordinator.releaseSteerCorrelation(pending.inputRecordId);
+    this.notifyUiChange(pending);
   }
 
   delegateToHistory(conversationId: string | null): PendingSteerState | null {

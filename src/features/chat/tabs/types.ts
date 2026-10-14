@@ -193,6 +193,7 @@ export interface TabDOMElements {
   inputMentionHighlightsEl: HTMLElement;
   inputEl: HTMLTextAreaElement;
   sendButtonEl: HTMLButtonElement;
+  stopButtonEl: HTMLButtonElement;
 
   /** Nav row for tab badges and header icons (above input wrapper). */
   navRowEl: HTMLElement;

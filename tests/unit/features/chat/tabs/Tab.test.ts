@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { createMockEl } from '@test/helpers/MockElement';
+import { Menu, setIcon } from 'obsidian';
 import { act } from 'preact/test-utils';
 
 import type { ProviderApprovalInteractionRequest, ProviderPlanInteractionRequest } from '@/core/execution/ProviderInteractionPort';
@@ -275,6 +276,10 @@ function installTransitionController(
   return controller;
 }
 
+const menuInstances = (Menu as unknown as {
+  instances: { items: { icon: string; disabled: boolean; clickHandler: (() => void) | null }[] }[];
+}).instances;
+
 describe('Tab provider execution ownership', () => {
   it('retains and seals unsolicited background output after the presentation closes', async () => {
     const plugin = createPlugin();
@@ -398,7 +403,7 @@ describe('Tab provider execution ownership', () => {
     const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
     initializeTabUI(tab, plugin);
     const modelOptions = Array.from(
-      tab.dom.inputWrapper.querySelectorAll('.claudian-model-option'),
+      tab.dom.inputContainerEl.querySelectorAll('.claudian-model-option'),
     );
     const alternate = modelOptions.find(option =>
       Array.from(option.children).some(child => child.textContent === 'Claude Alternate')
@@ -453,10 +458,10 @@ describe('Tab provider execution ownership', () => {
         onProviderChanged: () => codexSwitch,
       });
       await act(() => {
-        tab.dom.inputWrapper.querySelector<HTMLButtonElement>('[data-provider-filter="all"]')!.click();
+        tab.dom.inputContainerEl.querySelector<HTMLButtonElement>('[data-provider-filter="all"]')!.click();
       });
       const modelOptions = Array.from(
-        tab.dom.inputWrapper.querySelectorAll('.claudian-model-option'),
+        tab.dom.inputContainerEl.querySelectorAll('.claudian-model-option'),
       );
       const first = modelOptions.find(option =>
         Array.from(option.children).some(child => child.textContent === 'Codex First')
@@ -504,7 +509,7 @@ describe('Tab provider execution ownership', () => {
       const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
       initializeTabUI(tab, plugin);
       const originalModel = tab.draftModel;
-      const favorite = tab.dom.inputWrapper.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
+      const favorite = tab.dom.inputContainerEl.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
       expect(favorite).not.toBeNull();
       await act(async () => { favorite.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
       expect(plugin.mutateSettings).toHaveBeenCalled();
@@ -523,7 +528,7 @@ describe('Tab provider execution ownership', () => {
       const plugin = createPlugin({ mutateSettings: jest.fn().mockRejectedValue(new Error('Disk full')) });
       const tab = createTab({ plugin, containerEl: document.createElement('div') as any });
       initializeTabUI(tab, plugin);
-      const favorite = tab.dom.inputWrapper.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
+      const favorite = tab.dom.inputContainerEl.querySelector<HTMLButtonElement>('.claudian-model-favorite')!;
       expect(favorite).not.toBeNull();
       await act(async () => { favorite.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
       expect(favorite.getAttribute('aria-pressed')).toBe('false');
@@ -550,7 +555,7 @@ describe('Tab provider execution ownership', () => {
     });
     initializeTabUI(tab, plugin);
     const modelOptions = Array.from(
-      tab.dom.inputWrapper.querySelectorAll('.claudian-model-option'),
+      tab.dom.inputContainerEl.querySelectorAll('.claudian-model-option'),
     );
     const alternate = modelOptions.find(option =>
       Array.from(option.children).some(child => child.textContent === 'Claude Alternate')
@@ -1829,10 +1834,27 @@ describe('Tab provider execution ownership', () => {
     tab.state.isStreaming = true;
     updateSendButton(tab);
     expect(tab.dom.sendButtonEl.disabled).toBe(false);
-    expect(tab.dom.sendButtonEl.getAttribute('aria-label')).toBe('Stop generation');
+    expect(tab.dom.sendButtonEl.getAttribute('aria-label')).toBe('Queue message');
+    expect(tab.dom.stopButtonEl.getAttribute('aria-label')).toBe('Stop');
   });
 
-  it('sends or cancels from the send button', () => {
+  it('keeps the original send appearance without a third toolbar button', () => {
+    const tab = createTab({ plugin: createPlugin(), containerEl: createMockEl() as any });
+    tab.state.isStreaming = true;
+    tab.dom.inputEl.value = '21';
+    updateSendButton(tab);
+    expect(setIcon).toHaveBeenLastCalledWith(tab.dom.sendButtonEl, 'send');
+    expect(tab.dom.sendButtonEl.classList.contains('is-streaming')).toBe(false);
+    expect(tab.dom.sendButtonEl.classList.contains('claudian-hidden')).toBe(false);
+    expect(tab.dom.stopButtonEl.classList.contains('claudian-hidden')).toBe(true);
+    expect(tab.dom.inputContainerEl.querySelector('.claudian-follow-up-mode')).toBeNull();
+    tab.dom.inputEl.value = '';
+    updateSendButton(tab);
+    expect(tab.dom.sendButtonEl.classList.contains('claudian-hidden')).toBe(true);
+    expect(tab.dom.stopButtonEl.classList.contains('claudian-input-stop-button--primary')).toBe(true);
+  });
+
+  it('shows one primary action, queues a draft, and switches to Stop when the draft is empty', () => {
     const sendMessage = jest.fn();
     const cancelStreaming = jest.fn();
     const tab = createTab({ plugin: createPlugin(), containerEl: createMockEl() as any });
@@ -1845,7 +1867,54 @@ describe('Tab provider execution ownership', () => {
 
     tab.state.isStreaming = true;
     tab.dom.sendButtonEl.click();
+    expect(sendMessage).toHaveBeenLastCalledWith({ deliveryMode: 'queue' });
+    expect(cancelStreaming).not.toHaveBeenCalled();
+    tab.dom.inputEl.value = '';
+    updateSendButton(tab);
+    expect(tab.dom.sendButtonEl.classList.contains('claudian-hidden')).toBe(true);
+    expect(tab.dom.stopButtonEl.classList.contains('claudian-hidden')).toBe(false);
+    tab.dom.stopButtonEl.click();
     expect(cancelStreaming).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Escape available while a busy draft hides the Stop button', () => {
+    const cancelStreaming = jest.fn();
+    const tab = createTab({ plugin: createPlugin(), containerEl: createMockEl() as any });
+    tab.controllers.inputController = { cancelStreaming, handleResumeKeydown: () => false } as any;
+    tab.state.isStreaming = true;
+    tab.dom.inputEl.value = 'Keep this draft';
+    wireTabInputEvents(tab, createPlugin());
+    updateSendButton(tab);
+    expect(tab.dom.stopButtonEl.classList.contains('claudian-hidden')).toBe(true);
+    tab.dom.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(cancelStreaming).toHaveBeenCalledTimes(1);
+    expect(tab.dom.inputEl.value).toBe('Keep this draft');
+  });
+
+  it('uses the selected follow-up mode for both keyboard and mouse and inverts it once with the modifier shortcut', () => {
+    jest.mocked(ProviderRegistry.getCapabilities).mockReturnValue({
+      ...ProviderRegistry.getCapabilities('claude'), supportsTurnSteer: true,
+    });
+    const sendMessage = jest.fn();
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    tab.controllers.inputController = { sendMessage, canSteerFollowUp: () => true,
+      handleResumeKeydown: () => false } as any;
+    tab.state.isStreaming = true;
+    tab.dom.inputEl.value = 'Keep the fix narrow';
+    wireTabInputEvents(tab, plugin);
+    tab.dom.sendButtonEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    menuInstances.at(-1)!.items.find(item => item.icon === 'corner-down-right')!.clickHandler!();
+    tab.dom.sendButtonEl.click();
+    expect(sendMessage).toHaveBeenLastCalledWith({ deliveryMode: 'steer' });
+    tab.dom.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(sendMessage).toHaveBeenLastCalledWith({ deliveryMode: 'steer' });
+    tab.dom.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, metaKey: true }));
+    expect(sendMessage).toHaveBeenLastCalledWith({ deliveryMode: 'queue' });
+    expect(tab.state.followUpMode).toBe('steer');
+    const count = sendMessage.mock.calls.length;
+    tab.dom.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, shiftKey: true, isComposing: true }));
+    expect(sendMessage).toHaveBeenCalledTimes(count);
   });
 
   it('keeps auto-follow enabled when transcript layout growth moves the bottom', () => {
