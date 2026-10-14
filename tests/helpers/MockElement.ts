@@ -27,6 +27,7 @@ export interface MockElement {
   firstChild: MockElement | null;
   remove: () => void;
   empty: () => void;
+  replaceChildren: () => void;
   contains: (node: any) => boolean;
   scrollIntoView: () => void;
   setAttribute: (name: string, value: string) => void;
@@ -289,6 +290,9 @@ export function createMockEl(tag = 'div'): any {
     insertBefore(el: MockElement, _ref: MockElement | null) { children.unshift(el); },
     get firstChild() { return children[0] || null; },
     remove() {},
+    replaceChildren() {
+      this.empty();
+    },
     empty() {
       children.length = 0;
       element.innerHTML = '';

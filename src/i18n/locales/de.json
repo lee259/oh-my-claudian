@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "Zitieren"
+    },
+    "followUp": {
+      "title": "Folgenachrichten ({count})",
+      "paused": "Warteschlange pausiert",
+      "resume": "Warteschlange fortsetzen",
+      "queued": "In Warteschlange",
+      "editing": "Wird bearbeitet",
+      "sending": "Wird gesendet…",
+      "accepted": "Vom Agent empfangen",
+      "uncertain": "Zustellung unbestätigt",
+      "up": "Nach oben",
+      "down": "Nach unten",
+      "steer": "Jetzt eingreifen",
+      "submitQueue": "Nachricht einreihen",
+      "submitSteer": "Laufende Arbeit ergänzen",
+      "stop": "Stoppen",
+      "mode": "Verhalten für Folgenachrichten",
+      "queueMode": "Einreihen",
+      "steerMode": "Eingreifen",
+      "unsupported": "Dieser Agent unterstützt keine Eingaben während der Ausführung.",
+      "waiting": "Wartet auf die Zuordnung der vorherigen Eingabe.",
+      "details": "Nachricht und Kontext",
+      "images": "{count} Bild(er)",
+      "files": "{count} Datei(en)",
+      "selection": "Auswahl angehängt",
+      "dismiss": "Status schließen",
+      "failed": "Nachricht nicht gesendet; sie bleibt in der Warteschlange.",
+      "unconfirmed": "Zustellung konnte nicht bestätigt werden. Kein automatischer Neuversand.",
+      "send": "Nachricht senden",
+      "idle": "Eingreifen ist während der Agent arbeitet möglich.",
+      "more": "Weitere Aktionen",
+      "reorder": "Zum Sortieren ziehen; Pfeiltasten verschieben die Nachricht"
     }
   },
   "settings": {

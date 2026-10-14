@@ -664,6 +664,11 @@
   flex: 1 1 auto;
 }
 
+/* Truncate the model name before shrinking the effort label into the chevron. */
+.oh-my-claudian-root .claudian-model-details {
+  flex-shrink: 0;
+}
+
 .oh-my-claudian-root .claudian-input-toolbar-execution-group {
   flex: 0 0 auto;
   margin-inline-start: auto;
@@ -730,77 +735,6 @@
 .claudian-input-toolbar--compact .claudian-thinking-effort > .claudian-thinking-label-text,
 .claudian-input-toolbar--compact .claudian-context-meter-percent {
   display: none;
-}
-
-/* Composer queue status row (queued follow-up preview + steer action) */
-.claudian-input-queue-row {
-  display: none;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: normal;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px 8px 2px;
-}
-
-.claudian-queue-indicator-text {
-  min-width: 0;
-  flex: 1 1 auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.claudian-queue-indicator-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.claudian-queue-indicator-action {
-  flex: 0 0 auto;
-  padding: 1px 8px;
-  border: 0;
-  background: transparent;
-  color: var(--interactive-accent);
-  font: inherit;
-  cursor: pointer;
-}
-
-.claudian-queue-indicator-action:hover {
-  text-decoration: underline;
-}
-
-.claudian-queue-indicator-action[disabled] {
-  color: var(--text-faint);
-  cursor: default;
-  text-decoration: none;
-}
-
-.claudian-queue-indicator-icon-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.claudian-queue-indicator-icon-action:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.claudian-queue-indicator-icon-action svg {
-  width: 14px;
-  height: 14px;
 }
 
 /* Light blue border when instruction mode is active */

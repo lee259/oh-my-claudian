@@ -41,7 +41,7 @@ export class TurnCompletionCoordinator {
     const { state } = this.deps;
     let planApprovalInvalidated = false;
     let planAutoSendContent: string | null = null;
-    let shouldProcessQueuedMessage = true;
+    let shouldProcessQueuedMessage = !options.didCancelThisTurn;
 
     if (options.planCompleted && !options.didCancelThisTurn) {
       const planInteractionId = `local-plan-approval:${options.streamGeneration}`;
@@ -61,6 +61,7 @@ export class TurnCompletionCoordinator {
         planAutoSendContent = 'Implement the plan.';
       } else if (decision?.type === 'revise') {
         this.deps.setComposerText(decision.text);
+        state.followUps.pause();
         shouldProcessQueuedMessage = false;
       } else {
         await this.deps.restorePrePlanPermissionModeIfNeeded();

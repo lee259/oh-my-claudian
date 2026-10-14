@@ -47,7 +47,7 @@ describe('ChatState', () => {
       expect(state.isCreatingConversation).toBe(false);
       expect(state.isSwitchingConversation).toBe(false);
       expect(state.currentConversationId).toBeNull();
-      expect(state.queuedMessage).toBeNull();
+      expect(new ChatState().followUps.items).toEqual([]);
       expect(state.currentContentEl).toBeNull();
       expect(state.currentTextEl).toBeNull();
       expect(state.response.text).toBe('');
@@ -177,9 +177,9 @@ describe('ChatState', () => {
       const chatState = new ChatState();
       const queued = { content: 'queued', editorContext: null, canvasContext: null };
 
-      chatState.queuedMessage = queued;
+      chatState.followUps.enqueue('waiting', queued);
 
-      expect(chatState.queuedMessage).toBe(queued);
+      expect((chatState.followUps.next?.message ?? null)).toEqual(queued);
     });
   });
 
@@ -611,7 +611,7 @@ describe('ChatState', () => {
       chatState.cancelRequested = true;
       chatState.currentContentEl = {} as HTMLElement;
       chatState.toolCallElements.set('a', {} as HTMLElement);
-      chatState.queuedMessage = { content: 'queued', editorContext: null, canvasContext: null };
+      chatState.followUps.enqueue('waiting', { content: 'queued', editorContext: null, canvasContext: null });
       chatState.usage = { inputTokens: 100, outputTokens: 50 } as any;
       chatState.currentTodos = [{ content: 'Test', status: 'pending' as const, activeForm: 'Testing' }];
       chatState.beginActionRequired('approval-1');
@@ -630,7 +630,7 @@ describe('ChatState', () => {
       expect(chatState.toolCallElements.size).toBe(0);
       expect(chatState.writeEditStates.size).toBe(0);
       expect(chatState.pendingTools.size).toBe(0);
-      expect(chatState.queuedMessage).toBeNull();
+      expect((chatState.followUps.next?.message ?? null)).toBeNull();
       expect(chatState.usage).toBeNull();
       expect(chatState.currentTodos).toBeNull();
       expect(chatState.attention).toBeNull();

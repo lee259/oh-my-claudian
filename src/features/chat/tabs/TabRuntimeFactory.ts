@@ -215,7 +215,11 @@ function buildTabDOM(
       title: 'Send message (enter)',
     },
   });
-  setIcon(sendButtonEl, 'arrow-up');
+  const stopButtonEl = inputWrapper.createEl('button', {
+    cls: 'claudian-input-stop-button claudian-hidden', attr: { type: 'button' },
+  });
+  setIcon(stopButtonEl, 'square');
+  setIcon(sendButtonEl, 'send');
 
   return {
     contentEl,
@@ -231,6 +235,7 @@ function buildTabDOM(
     inputMentionHighlightsEl,
     inputEl,
     sendButtonEl,
+    stopButtonEl,
     navRowEl,
     contextRowEl,
     eventCleanups: [],

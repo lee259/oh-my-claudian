@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "Quote"
+    },
+    "followUp": {
+      "title": "Follow-ups ({count})",
+      "paused": "Queue paused",
+      "resume": "Resume queue",
+      "queued": "Queued",
+      "editing": "Editing",
+      "sending": "Sending…",
+      "accepted": "Received by the agent",
+      "uncertain": "Delivery unconfirmed",
+      "up": "Move up",
+      "down": "Move down",
+      "steer": "Steer now",
+      "submitQueue": "Queue message",
+      "submitSteer": "Steer current work",
+      "stop": "Stop",
+      "mode": "Follow-up behavior",
+      "queueMode": "Queue",
+      "steerMode": "Steer",
+      "unsupported": "This agent does not support steering.",
+      "waiting": "Waiting for the previous steer to be linked.",
+      "details": "Message and context",
+      "images": "{count} image(s)",
+      "files": "{count} file(s)",
+      "selection": "Attached selection",
+      "dismiss": "Dismiss status",
+      "failed": "Message was not sent; it remains in the queue.",
+      "unconfirmed": "Delivery could not be confirmed. The message will not be resent automatically.",
+      "send": "Send message",
+      "idle": "Steering is available while the agent is working.",
+      "more": "More actions",
+      "reorder": "Drag to reorder; arrow keys move the message"
     }
   },
   "settings": {

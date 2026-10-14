@@ -270,6 +270,38 @@
     },
     "quote": {
       "buttonLabel": "引用"
+    },
+    "followUp": {
+      "title": "後續訊息（{count}）",
+      "paused": "佇列已暫停",
+      "resume": "繼續佇列",
+      "queued": "排隊中",
+      "editing": "編輯中",
+      "sending": "傳送中…",
+      "accepted": "Agent 已接收",
+      "uncertain": "投遞待確認",
+      "up": "上移",
+      "down": "下移",
+      "steer": "插隊補充",
+      "submitQueue": "排隊傳送",
+      "submitSteer": "補充目前任務",
+      "stop": "停止",
+      "mode": "後續訊息傳送方式",
+      "queueMode": "排隊",
+      "steerMode": "引導",
+      "unsupported": "目前 Agent 不支援原生插隊。",
+      "waiting": "正在等待上一則插隊訊息關聯。",
+      "details": "訊息與上下文",
+      "images": "{count} 張圖片",
+      "files": "{count} 個檔案",
+      "selection": "附帶選取範圍",
+      "dismiss": "關閉狀態提示",
+      "failed": "訊息未傳送，仍保留在佇列中。",
+      "unconfirmed": "無法確認投遞結果，此訊息不會自動重傳。",
+      "send": "傳送訊息",
+      "idle": "Agent 工作時才能插隊補充。",
+      "more": "更多操作",
+      "reorder": "拖曳調整順序；方向鍵移動訊息"
     }
   },
   "settings": {

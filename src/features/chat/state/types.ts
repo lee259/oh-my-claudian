@@ -89,9 +89,6 @@ export interface ChatStateData {
   // Conversation identity
   currentConversationId: string | null;
 
-  // Queued message
-  queuedMessage: QueuedMessage | null;
-
   // Response content and its optional presentation
   response: ResponseModel;
 

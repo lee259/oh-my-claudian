@@ -217,6 +217,261 @@ function createFixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('InputController coordinator execution', () => {
+  it('clears all waiting input and withdrawn context when the conversation resets', () => {
+    const fixture = createFixture();
+    const observers = [jest.fn(), jest.fn(), jest.fn()];
+    for (const [index, id] of ['editing', 'first', 'second'].entries()) {
+      fixture.state.followUps.enqueue(id, {
+        content: id, editorContext: null, canvasContext: null, onDelivery: observers[index],
+      });
+    }
+    fixture.controller.editQueuedMessage('editing');
+    fixture.state.followUps.pause();
+    fixture.controller.clearQueuedMessage();
+    expect(fixture.state.followUps.items).toEqual([]);
+    expect(fixture.state.followUps.editingMessage).toBeNull();
+    expect(fixture.state.followUps.paused).toBe(false);
+    for (const observer of observers) {
+      expect(observer).toHaveBeenCalledTimes(1);
+      expect(observer).toHaveBeenCalledWith(false);
+    }
+  });
+
+  it('ends the withdrawn editing context when the draft becomes a local command', async () => {
+    const fixture = createFixture();
+    const onDelivery = jest.fn();
+    fixture.state.followUps.enqueue('edit', {
+      content: 'Fix CSS', editorContext: null, canvasContext: null, onDelivery,
+      turnRequest: { text: 'Fix CSS', contextFiles: ['original.md'] },
+    });
+    fixture.controller.editQueuedMessage('edit');
+    fixture.input.value = '/add-dir Projects';
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.editingMessage).toBeNull();
+    expect(onDelivery).toHaveBeenCalledTimes(1);
+    expect(onDelivery).toHaveBeenCalledWith(false);
+    fixture.input.value = 'Review the current note';
+    await fixture.controller.sendMessage();
+    expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+    expect(fixture.coordinator.execute.mock.calls[0][0].context?.contextFiles).toBeUndefined();
+  });
+
+  it('withdraws an edited item to the composer without losing its context or the existing draft', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    fixture.state.followUps.enqueue('edit', {
+      content: 'Fix CSS', editorContext: null, canvasContext: null,
+      turnRequest: { text: 'Fix CSS', contextFiles: ['original.md'], editorSelection: {
+        mode: 'selection', notePath: 'original.md', selectedText: 'Original selection',
+      } },
+    });
+    fixture.input.value = 'Run tests later';
+    fixture.controller.editQueuedMessage('edit');
+    expect(fixture.input.value).toBe('Fix CSS');
+    expect(fixture.input.focus).toHaveBeenCalled();
+    expect(fixture.state.followUps.items.map(item => item.message.content)).toEqual(['Run tests later']);
+    fixture.input.value = 'Fix CSS only';
+    jest.mocked(fixture.deps.selectionController.getContext).mockReturnValue({
+      mode: 'selection', notePath: 'later.md', selectedText: 'Later selection',
+    });
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.items[1].message.turnRequest).toEqual(expect.objectContaining({
+      text: 'Fix CSS only', contextFiles: ['original.md'],
+      editorSelection: expect.objectContaining({ selectedText: 'Original selection' }),
+    }));
+    expect(fixture.state.followUps.editingMessage).toBeNull();
+    expect(fixture.input.value).toBe('');
+  });
+
+  it('restores an edited context after a definite pre-handoff rejection', async () => {
+    const fixture = createFixture();
+    fixture.state.followUps.enqueue('edit', { content: 'Fix', editorContext: null, canvasContext: null,
+      turnRequest: { text: 'Fix', contextFiles: ['original.md'] } });
+    fixture.controller.editQueuedMessage('edit');
+    fixture.input.value = 'Fix only CSS';
+    fixture.coordinator.execute.mockRejectedValueOnce(new ChatExecutionPreHandoffError(new Error('Not sent')));
+    await fixture.controller.sendMessage();
+    expect(fixture.input.value).toBe('Fix only CSS');
+    expect(fixture.state.followUps.editingMessage?.turnRequest?.contextFiles).toEqual(['original.md']);
+  });
+
+  it('retains the withdrawn context when readiness fails before consuming the composer', async () => {
+    const fixture = createFixture({ preflightExecution: jest.fn().mockResolvedValue('Not ready') });
+    fixture.state.followUps.enqueue('edit', { content: 'Fix', editorContext: null, canvasContext: null,
+      turnRequest: { text: 'Fix', contextFiles: ['original.md'] } });
+    fixture.controller.editQueuedMessage('edit');
+    fixture.input.value = 'Fix only CSS';
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.editingMessage?.turnRequest?.contextFiles).toEqual(['original.md']);
+    expect(fixture.input.value).toBe('Fix only CSS');
+  });
+
+  it('captures queued input immediately without waiting for provider readiness', async () => {
+    const preflight = jest.fn().mockReturnValue(new Promise(() => undefined));
+    const fixture = createFixture({ preflightExecution: preflight });
+    fixture.state.isStreaming = true;
+    fixture.input.value = 'Run tests';
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.items[0].message.content).toBe('Run tests');
+    expect(preflight).not.toHaveBeenCalled();
+  }, 300);
+  it('cancels an approved plan continuation that has not started when Stop is requested', async () => {
+    jest.useFakeTimers();
+    try {
+      const fixture = createFixture();
+      fixture.coordinator.execute.mockResolvedValueOnce({ accepted: true, planCompleted: true, status: 'completed' });
+      jest.spyOn(fixture.controller as any, 'showPlanApproval').mockResolvedValue({
+        decision: { type: 'implement' }, invalidated: false,
+      });
+      await fixture.controller.sendMessage({ content: 'Make a plan' });
+      fixture.controller.cancelStreaming();
+      await jest.runOnlyPendingTimersAsync();
+      expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+    } finally { jest.useRealTimers(); }
+  });
+  it('settles only the discarded item observer and retains other queued input', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    const first = jest.fn();
+    const second = jest.fn();
+    await fixture.controller.sendMessage({ content: 'Fix', onDelivery: first });
+    await fixture.controller.sendMessage({ content: 'Review', onDelivery: second });
+    const id = fixture.state.followUps.items[0].id;
+    fixture.controller.clearQueuedMessage(id);
+    fixture.controller.clearQueuedMessage(id);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledWith(false);
+    expect(second).not.toHaveBeenCalled();
+    expect(fixture.state.followUps.items.map(item => item.message.content)).toEqual(['Review']);
+  });
+
+  it('retains an unconfirmed direct steer without allowing it to be edited or resent', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    fixture.coordinator.steer.mockRejectedValueOnce(new Error('Acknowledgement lost'));
+    await fixture.controller.sendMessage({ content: 'Keep it in CSS', deliveryMode: 'steer' });
+    const item = fixture.state.followUps.items[0];
+    fixture.controller.editQueuedMessage(item.id);
+    expect(fixture.state.followUps.editingMessage).toBeNull();
+    await fixture.controller.steerQueuedMessage(item.id);
+    expect(fixture.state.followUps.items[0].message.content).toBe('Keep it in CSS');
+    expect(fixture.state.followUps.items[0].status).toBe('uncertain');
+    expect(fixture.state.followUps.paused).toBe(true);
+    expect(fixture.coordinator.steer).toHaveBeenCalledTimes(1);
+  });
+  it('drains independent follow-ups in order without submitting the composer draft', async () => {
+    jest.useFakeTimers();
+    try {
+      const fixture = createFixture();
+      for (const [id, content] of [['test', 'Run tests'], ['review', 'Review changes']]) {
+        fixture.state.followUps.enqueue(id, { content, editorContext: null, canvasContext: null });
+      }
+      fixture.input.value = 'Unfinished draft';
+      await fixture.controller.sendMessage({ content: 'Fix' });
+      await jest.runOnlyPendingTimersAsync();
+      await jest.runOnlyPendingTimersAsync();
+      expect(fixture.coordinator.execute.mock.calls.map(([submission]) => submission.canonicalText))
+        .toEqual(['Fix', 'Run tests', 'Review changes']);
+      expect(fixture.input.value).toBe('Unfinished draft');
+      expect(fixture.state.followUps.items).toEqual([]);
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('fences a scheduled queue submission when the runtime stops before its timer runs', async () => {
+    jest.useFakeTimers();
+    try {
+      const fixture = createFixture();
+      fixture.state.followUps.enqueue('test', { content: 'Run tests', editorContext: null, canvasContext: null });
+      await fixture.controller.sendMessage({ content: 'Fix' });
+      fixture.controller.cancelStreaming();
+      await jest.runOnlyPendingTimersAsync();
+      expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+      expect(fixture.state.followUps.items[0].status).toBe('queued');
+      expect(fixture.state.followUps.paused).toBe(true);
+    } finally { jest.useRealTimers(); }
+  });
+  it('retains active turn ownership while follow-ups are submitted', async () => {
+    const owner = { activeTurn: null as Promise<void> | null };
+    const fixture = createFixture({ turnOwner: owner });
+    const result = deferred<{ accepted: boolean; planCompleted: boolean; status: 'completed' }>();
+    fixture.coordinator.execute.mockReturnValueOnce(result.promise);
+    const main = fixture.controller.sendMessage({ content: 'Fix' });
+    await waitForCall(fixture.coordinator.execute);
+    const active = owner.activeTurn;
+    await fixture.controller.sendMessage({ content: 'Test' });
+    expect(owner.activeTurn).toBe(active);
+    expect(owner.activeTurn).not.toBeNull();
+    fixture.controller.cancelStreaming();
+    result.resolve({ accepted: true, planCompleted: false, status: 'completed' });
+    await main;
+  });
+  it('keeps a failed queued submission out of the current composer draft', async () => {
+    const fixture = createFixture();
+    fixture.state.followUps.enqueue('waiting', { content: 'Run tests', editorContext: null, canvasContext: null });
+    fixture.input.value = 'Unfinished draft';
+    fixture.coordinator.execute.mockRejectedValueOnce(new ChatExecutionPreHandoffError('No handoff'));
+    fixture.controller.resumeQueuedMessages();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(fixture.input.value).toBe('Unfinished draft');
+    expect(fixture.state.followUps.paused).toBe(true);
+    expect(fixture.state.followUps.items).toHaveLength(1);
+    expect(fixture.state.followUps.items[0].message.content).toBe('Run tests');
+  });
+  it('stops without merging waiting instructions into an unfinished draft', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    fixture.input.value = 'Run tests';
+    await fixture.controller.sendMessage();
+    fixture.input.value = 'Unfinished draft';
+    fixture.controller.cancelStreaming();
+    expect(fixture.input.value).toBe('Unfinished draft');
+    expect(fixture.state.followUps.paused).toBe(true);
+    expect(fixture.state.followUps.items[0].message.content).toBe('Run tests');
+    expect(fixture.coordinator.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses queued work when the current execution fails', async () => {
+    const fixture = createFixture();
+    fixture.state.followUps.enqueue('waiting', { content: 'Review', editorContext: null, canvasContext: null });
+    fixture.coordinator.execute.mockResolvedValueOnce({
+      accepted: true, planCompleted: false, status: 'error', error: new Error('Provider failed'),
+    });
+    await fixture.controller.sendMessage({ content: 'Fix' });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+    expect(fixture.state.followUps.paused).toBe(true);
+    expect(fixture.state.followUps.items[0].status).toBe('queued');
+  });
+  it('steers the new instruction directly and leaves earlier queued work alone', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    fixture.input.value = 'Run tests later';
+    await fixture.controller.sendMessage();
+    fixture.input.value = 'Keep the fix in CSS';
+    await fixture.controller.sendMessage({ deliveryMode: 'steer' });
+    expect(fixture.coordinator.steer).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalText: 'Keep the fix in CSS',
+    }));
+    expect(fixture.state.followUps.items.map(item => [item.message.content, item.status])).toEqual([
+      ['Run tests later', 'queued'], ['Keep the fix in CSS', 'accepted'],
+    ]);
+    expect(fixture.input.value).toBe('');
+  });
+  it('queues separate follow-ups without mixing their selections', async () => {
+    const fixture = createFixture();
+    fixture.state.isStreaming = true;
+    fixture.input.value = 'Fix CSS';
+    jest.mocked(fixture.deps.selectionController.getContext).mockReturnValueOnce({
+      mode: 'selection', notePath: 'styles.md', selectedText: 'first selection', startLine: 1,
+    });
+    await fixture.controller.sendMessage();
+    fixture.input.value = 'Run tests';
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.items.map(item => item.message.content)).toEqual(['Fix CSS', 'Run tests']);
+    expect(fixture.state.followUps.items[0].message.turnRequest?.editorSelection?.selectedText).toBe('first selection');
+    expect(fixture.state.followUps.items[1].message.turnRequest?.editorSelection).toBeNull();
+    expect(fixture.coordinator.steer).not.toHaveBeenCalled();
+  });
   it('initializes without a composer element and keeps a pending plan in the model', async () => {
     const fixture = createFixture({ composer: new RuntimeComposer(), getInputEl: () => null,
       getInputContainerEl: () => null, getMessagesEl: () => null });
@@ -852,13 +1107,13 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'follow up';
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
     expect(fixture.coordinator.steer).toHaveBeenCalledWith(expect.objectContaining({
       canonicalText: 'follow up',
       rawDisplayText: 'follow up',
     }));
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
   });
 
   it('restores a queued message only after definite steer rejection', async () => {
@@ -868,9 +1123,9 @@ describe('InputController coordinator execution', () => {
     fixture.coordinator.steer.mockResolvedValueOnce(false);
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
-    expect(fixture.state.queuedMessage).toMatchObject({
+    expect((fixture.state.followUps.next?.message ?? null)).toMatchObject({
       content: 'definitely unsent',
     });
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
@@ -887,14 +1142,14 @@ describe('InputController coordinator execution', () => {
     );
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
-    expect(fixture.state.queuedMessage).toMatchObject({ content: 'staging failed' });
+    expect((fixture.state.followUps.next?.message ?? null)).toMatchObject({ content: 'staging failed' });
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
     expect((fixture.controller as any).pendingProviderUserMessages).toEqual([]);
     expect(Notice).toHaveBeenCalledWith(
-      'Failed to steer the queued message. It is still available.',
+      'Message was not sent; it remains in the queue.',
     );
   });
 
@@ -905,11 +1160,11 @@ describe('InputController coordinator execution', () => {
     fixture.coordinator.steer.mockRejectedValueOnce(new Error('transport closed'));
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
     expect(fixture.coordinator.steer).toHaveBeenCalledTimes(1);
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect(fixture.input.value).toBe('');
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
@@ -920,7 +1175,7 @@ describe('InputController coordinator execution', () => {
         uiState: 'cleared',
       });
     expect(Notice).toHaveBeenCalledWith(
-      'Steer delivery could not be confirmed. The message was not requeued to avoid sending it twice.',
+      'Delivery could not be confirmed. The message will not be resent automatically.',
     );
   });
 
@@ -931,9 +1186,9 @@ describe('InputController coordinator execution', () => {
     fixture.coordinator.steer.mockResolvedValueOnce(true);
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect(fixture.input.value).toBe('');
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
@@ -953,18 +1208,18 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'accepted while cancelling';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.controller.cancelStreaming();
 
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
 
     nativeResult.resolve(true);
     await steer;
 
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
         correlationState: 'pending',
@@ -982,15 +1237,16 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'rejected while cancelling';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.controller.cancelStreaming();
     nativeResult.resolve(false);
     await steer;
     fixture.controller.cancelStreaming();
 
-    expect(fixture.input.value).toBe('rejected while cancelling');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.filter(item => item.message.content === 'rejected while cancelling')).toHaveLength(1);
+    expect(fixture.state.followUps.paused).toBe(true);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
   });
@@ -1003,14 +1259,14 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'unknown while cancelling';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.controller.cancelStreaming();
     nativeResult.reject(new Error('transport closed'));
     await steer;
 
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
         correlationState: 'pending',
@@ -1028,14 +1284,14 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'accepted before switch';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.state.currentConversationId = 'conversation-2';
     nativeResult.resolve(true);
     await steer;
 
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
         providerDisposition: 'accepted-awaiting-correlation',
@@ -1054,7 +1310,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'conversation A retry';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.state.currentConversationId = 'conversation-2';
     fixture.state.isStreaming = false;
@@ -1063,7 +1319,7 @@ describe('InputController coordinator execution', () => {
     await steer;
 
     expect(fixture.input.value).toBe('conversation B draft');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
         providerDisposition: 'definitely-unsent',
@@ -1075,7 +1331,8 @@ describe('InputController coordinator execution', () => {
     fixture.controller.onConversationActivated();
     fixture.controller.onConversationActivated();
 
-    expect(fixture.input.value).toBe('conversation A retry');
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.some(item => item.message.content === 'conversation A retry')).toBe(true);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
   });
@@ -1088,7 +1345,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'conversation A retry';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.state.isSwitchingConversation = true;
     nativeResult.resolve(false);
@@ -1102,7 +1359,8 @@ describe('InputController coordinator execution', () => {
     fixture.state.isStreaming = false;
     fixture.controller.onConversationActivated();
     fixture.controller.onConversationActivated();
-    expect(fixture.input.value).toBe('conversation A retry');
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.some(item => item.message.content === 'conversation A retry')).toBe(true);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
   });
@@ -1115,7 +1373,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'conversation A typed retry';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.state.currentConversationId = 'conversation-2';
     fixture.input.value = 'conversation B queued';
@@ -1123,13 +1381,14 @@ describe('InputController coordinator execution', () => {
     nativeResult.reject(new ChatExecutionPreHandoffError(new Error('A cleanup failed')));
     await steer;
 
-    expect(fixture.state.queuedMessage).toMatchObject({ content: 'conversation B queued' });
+    expect((fixture.state.followUps.next?.message ?? null)).toMatchObject({ content: 'conversation B queued' });
     expect(fixture.input.value).toBe('');
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({ retryState: 'parked' });
 
     fixture.controller.cancelStreaming();
-    expect(fixture.input.value).toBe('conversation B queued');
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.some(item => item.message.content === 'conversation B queued')).toBe(true);
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({ retryState: 'parked' });
 
@@ -1137,7 +1396,8 @@ describe('InputController coordinator execution', () => {
     fixture.state.isStreaming = false;
     fixture.input.value = '';
     fixture.controller.onConversationActivated();
-    expect(fixture.input.value).toBe('conversation A typed retry');
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.some(item => item.message.content === 'conversation A typed retry')).toBe(true);
   });
 
   it('does not let stale accepted A mark conversation B file context as sent', async () => {
@@ -1157,7 +1417,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'accepted A';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.state.currentConversationId = 'conversation-2';
     nativeResult.resolve(true);
@@ -1192,7 +1452,7 @@ describe('InputController coordinator execution', () => {
     await waitForCall(fixture.coordinator.execute);
     fixture.input.value = `${_label} steer`;
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
 
     mainResult.resolve({ accepted: true, planCompleted: false, status: 'completed' });
@@ -1205,7 +1465,7 @@ describe('InputController coordinator execution', () => {
     await steer;
 
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect(timeoutSpy).toHaveBeenCalledTimes(1);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
@@ -1231,15 +1491,16 @@ describe('InputController coordinator execution', () => {
     await waitForCall(fixture.coordinator.execute);
     fixture.input.value = 'definitely rejected steer';
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     mainResult.resolve({ accepted: true, planCompleted: false, status: 'completed' });
     await mainTurn;
     nativeResult.resolve(false);
     await steer;
 
-    expect(fixture.input.value).toBe('definitely rejected steer');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.filter(item => item.message.content === 'definitely rejected steer')).toHaveLength(1);
+    expect(fixture.state.followUps.paused).toBe(true);
     expect(timeoutSpy).toHaveBeenCalledTimes(1);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
@@ -1253,13 +1514,13 @@ describe('InputController coordinator execution', () => {
     fixture.coordinator.steer.mockRejectedValueOnce(new Error('A response lost'));
 
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     fixture.input.value = 'queued B';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
     expect(fixture.coordinator.steer).toHaveBeenCalledTimes(1);
-    expect(fixture.state.queuedMessage).toMatchObject({ content: 'queued B' });
+    expect((fixture.state.followUps.next?.message ?? null)).toMatchObject({ content: 'queued B' });
     expect((fixture.controller as any).pendingSteersByConversation.get('conversation-1'))
       .toMatchObject({
         expectedProviderMessage: expect.objectContaining({ displayContent: 'ambiguous A' }),
@@ -1282,7 +1543,7 @@ describe('InputController coordinator execution', () => {
     await waitForCall(fixture.coordinator.execute);
     fixture.input.value = 'ambiguous A';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
 
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(true);
@@ -1297,7 +1558,7 @@ describe('InputController coordinator execution', () => {
     fixture.state.isStreaming = true;
     fixture.input.value = 'later steer B';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     expect(fixture.coordinator.steer).toHaveBeenCalledTimes(2);
   });
 
@@ -1320,7 +1581,7 @@ describe('InputController coordinator execution', () => {
       fixture.input.value = 'early accepted steer';
 
       await fixture.controller.sendMessage();
-      const steer = (fixture.controller as any).steerQueuedMessage();
+      const steer = fixture.controller.steerQueuedMessage();
       await waitForCall(fixture.coordinator.steer);
       const submission = fixture.coordinator.steer.mock.calls[0][0] as ChatTurnSubmission;
       await fixture.controller.handleExecutionEvent(requestedUserMessageStarted(
@@ -1345,7 +1606,7 @@ describe('InputController coordinator execution', () => {
         message.role === 'user' && message.displayContent === 'early accepted steer'
       ))).toMatchObject({ userMessageId: 'native-steer-user' });
       expect(fixture.input.value).toBe('');
-      expect(fixture.state.queuedMessage).toBeNull();
+      expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
       expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
         .toBe(false);
       expect(fixture.coordinator.releaseSteerCorrelation).toHaveBeenCalledWith(
@@ -1370,7 +1631,7 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.handleExecutionEvent(requestedUserMessageStarted('main turn', 1));
     fixture.input.value = 'acknowledged before live event';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     const submission = fixture.coordinator.steer.mock.calls[0][0] as ChatTurnSubmission;
 
     await fixture.controller.handleExecutionEvent(requestedUserMessageStarted(
@@ -1411,7 +1672,7 @@ describe('InputController coordinator execution', () => {
     await waitForCall(fixture.coordinator.execute);
     fixture.input.value = 'accepted without live event';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     const submission = fixture.coordinator.steer.mock.calls[0][0] as ChatTurnSubmission;
 
     mainResult.resolve({ accepted: true, planCompleted: false, status: 'completed' });
@@ -1454,7 +1715,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'accepted before switch';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     const replacementCoordinator = {
       ...fixture.coordinator,
@@ -1474,13 +1735,13 @@ describe('InputController coordinator execution', () => {
     await mainTurn;
 
     expect(fixture.input.value).toBe('conversation B draft');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
     expect(fixture.coordinator.acceptSteerFromProviderEvent).toHaveBeenCalledTimes(1);
     expect(replacementCoordinator.acceptSteerFromProviderEvent).not.toHaveBeenCalled();
     expect(Notice).not.toHaveBeenCalledWith(
-      'Failed to steer the queued message. It is still available.',
+      'Message was not sent; it remains in the queue.',
     );
   });
 
@@ -1503,7 +1764,7 @@ describe('InputController coordinator execution', () => {
     await fixture.controller.handleExecutionEvent(requestedUserMessageStarted('main turn', 1));
     fixture.input.value = 'never-settling accepted steer';
     await fixture.controller.sendMessage();
-    void (fixture.controller as any).steerQueuedMessage();
+    void fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     await fixture.controller.handleExecutionEvent(requestedUserMessageStarted(
       'provider-formatted steer',
@@ -1518,7 +1779,7 @@ describe('InputController coordinator execution', () => {
     fixture.state.isStreaming = true;
     fixture.input.value = 'later steer';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     expect(fixture.coordinator.steer).toHaveBeenCalledTimes(2);
   });
 
@@ -1542,7 +1803,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'accepted despite save failure';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     await expect(fixture.controller.handleExecutionEvent(requestedUserMessageStarted(
       'provider-formatted steer',
@@ -1558,7 +1819,7 @@ describe('InputController coordinator execution', () => {
       message.role === 'user' && message.displayContent === 'accepted despite save failure'
     ))).toHaveLength(1);
     expect(fixture.input.value).toBe('');
-    expect(fixture.state.queuedMessage).toBeNull();
+    expect((fixture.state.followUps.next?.message ?? null)).toBeNull();
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
   });
@@ -1590,7 +1851,7 @@ describe('InputController coordinator execution', () => {
 
     fixture.input.value = 'ambiguous live steer';
     await fixture.controller.sendMessage();
-    await (fixture.controller as any).steerQueuedMessage();
+    await fixture.controller.steerQueuedMessage();
     await fixture.controller.handleExecutionEvent({
       content: 'provider-formatted steer',
       scope: {
@@ -1623,7 +1884,7 @@ describe('InputController coordinator execution', () => {
     fixture.input.value = 'retry after cleanup failure';
 
     await fixture.controller.sendMessage();
-    const steer = (fixture.controller as any).steerQueuedMessage();
+    const steer = fixture.controller.steerQueuedMessage();
     await waitForCall(fixture.coordinator.steer);
     fixture.controller.cancelStreaming();
     nativeResult.reject(new ChatExecutionPreHandoffError(new Error('discard save failed')));
@@ -1631,7 +1892,8 @@ describe('InputController coordinator execution', () => {
     fixture.controller.cancelStreaming();
 
     expect(fixture.coordinator.steer).toHaveBeenCalledTimes(1);
-    expect(fixture.input.value).toBe('retry after cleanup failure');
+    expect(fixture.input.value).toBe('');
+    expect(fixture.state.followUps.items.some(item => item.message.content === 'retry after cleanup failure')).toBe(true);
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);
     expect((fixture.controller as any).pendingProviderUserMessages).toEqual([]);
@@ -1889,11 +2151,11 @@ describe('InputController coordinator execution', () => {
   it('defers review attention while a queued turn continuation is scheduled', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: 'continue',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
@@ -1904,15 +2166,15 @@ describe('InputController coordinator execution', () => {
   it('reports deferred review when the continuation fails before handoff', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: 'continue',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
-    fixture.state.queuedMessage = null;
+    fixture.state.followUps.clear();
     fixture.coordinator.execute.mockRejectedValueOnce(
       new ChatExecutionPreHandoffError('continuation not handed off'),
     );
@@ -1925,15 +2187,15 @@ describe('InputController coordinator execution', () => {
   it('reports deferred review when continuation initialization fails', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: 'continue',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
-    fixture.state.queuedMessage = null;
+    fixture.state.followUps.clear();
     jest.mocked(fixture.deps.ensureExecutionInitialized!).mockResolvedValueOnce(false);
 
     await fixture.controller.sendMessage({ content: 'continue' });
@@ -1944,15 +2206,15 @@ describe('InputController coordinator execution', () => {
   it('reports deferred review when continuation exits during preflight', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: 'continue',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
-    fixture.state.queuedMessage = null;
+    fixture.state.followUps.clear();
     fixture.state.isRewinding = true;
 
     await fixture.controller.sendMessage({ content: 'continue' });
@@ -1993,7 +2255,7 @@ describe('InputController coordinator execution', () => {
     });
 
     await fixture.controller.sendMessage({ content: 'make a plan' });
-    await Promise.resolve();
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(ensureExecutionInitialized).toHaveBeenCalledTimes(2);
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
@@ -2002,15 +2264,15 @@ describe('InputController coordinator execution', () => {
   it('reports deferred review before a non-replacing built-in command', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: '/add-dir Projects',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
-    fixture.state.queuedMessage = null;
+    fixture.state.followUps.clear();
     await fixture.controller.sendMessage({ content: '/add-dir Projects' });
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
@@ -2019,15 +2281,15 @@ describe('InputController coordinator execution', () => {
   it('discards deferred review when clear replaces the conversation', async () => {
     const onReviewableSettlement = jest.fn();
     const fixture = createFixture({ onReviewableSettlement });
-    fixture.state.queuedMessage = {
+    fixture.state.followUps.enqueue('waiting', {
       canvasContext: null,
       content: '/clear',
       editorContext: null,
-    };
+    });
     jest.spyOn(fixture.controller as any, 'processQueuedMessage').mockReturnValue(true);
 
     await fixture.controller.sendMessage({ content: 'first turn' });
-    fixture.state.queuedMessage = null;
+    fixture.state.followUps.clear();
     await fixture.controller.sendMessage({ content: '/clear' });
 
     expect(onReviewableSettlement).not.toHaveBeenCalled();

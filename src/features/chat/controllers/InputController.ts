@@ -1,4 +1,4 @@
-import { Notice, setIcon } from 'obsidian';
+import { Notice } from 'obsidian';
 
 import {
   detectBuiltInCommand,
@@ -51,6 +51,7 @@ import type { QueuedMessage } from '../state/types';
 import type { ChatTurnRequest } from '../state/types';
 import { dispatchComposerInputEvent } from '../ui/ComposerInputEvents';
 import type { FileContextManager } from '../ui/FileContext';
+import { FollowUpQueueView } from '../ui/FollowUpQueueView';
 import type { ImageContextManager } from '../ui/ImageContext';
 import type { AddExternalContextResult, McpServerSelector } from '../ui/InputToolbar';
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
@@ -74,8 +75,6 @@ import {
   cloneChatTurnRequest,
   cloneQueuedMessage,
   createQueuedMessage,
-  getQueuedMessageDisplay,
-  mergeQueuedMessages,
   toQueuedChatTurn,
 } from './QueuedTurn';
 import { ResumeDropdownController } from './ResumeDropdownController';
@@ -176,10 +175,13 @@ export interface InputControllerDeps {
   onDiagnosticError?: (error: unknown) => void;
   /** Performs a lightweight provider check before starting a new turn. */
   preflightExecution?: () => Promise<Error | null>;
+  onFollowUpStateChanged?: () => void;
   turnOwner?: ActiveTurnOwner;
 }
 
 export interface SendMessageOptions {
+  deliveryMode?: 'queue' | 'steer';
+  queuedInputId?: string;
   editorContextOverride?: EditorSelectionContext | null;
   browserContextOverride?: BrowserSelectionContext | null;
   canvasContextOverride?: CanvasSelectionContext | null;
@@ -193,6 +195,8 @@ export interface SendMessageOptions {
 export class InputController {
   private deps: InputControllerDeps;
   private detachInteractions: (() => void) | null = null;
+  private queueView: FollowUpQueueView | null = null;
+  private stopGeneration = 0;
   private pendingApprovalInline: InlineAskUserQuestion | null = null;
   private pendingAskInline: InlineAskUserQuestion | null = null;
   private pendingExitPlanModeInline: InlineExitPlanMode | null = null;
@@ -299,7 +303,19 @@ export class InputController {
         inputEl.value = content;
         dispatchComposerInputEvent(inputEl);
         this.deferReviewableSettlement(reporter);
-        this.sendMessage().catch(() => this.reportDeferredReviewableSettlement());
+        const conversationId = deps.state.currentConversationId;
+        const stopGeneration = this.stopGeneration;
+        const streamGeneration = deps.state.streamGeneration;
+        window.setTimeout(() => {
+          if (deps.state.currentConversationId !== conversationId
+            || this.stopGeneration !== stopGeneration
+            || deps.state.streamGeneration !== streamGeneration) return;
+          if (this.getComposer().value === content) {
+            this.getComposer().value = '';
+            dispatchComposerInputEvent(this.getComposer());
+          }
+          this.sendMessage({ content }).catch(() => this.reportDeferredReviewableSettlement());
+        }, 0);
       },
       startNewConversation: () => deps.conversationController.createNew(),
       handleNewSessionPlan: async (content) => await deps.handleNewSessionPlan?.(content) ?? false,
@@ -345,6 +361,8 @@ export class InputController {
   }
 
   detachInteractionPresentation(): void {
+    this.queueView?.destroy();
+    this.queueView = null;
     this.detachInteractions?.();
     this.detachInteractions = null;
   }
@@ -397,7 +415,7 @@ export class InputController {
 
   async sendMessage(options?: SendMessageOptions): Promise<void> {
     if (!options?.onDelivery) {
-      await this.turnCoordinator.run(options);
+      await this.submitMessage(options);
       return;
     }
 
@@ -408,12 +426,18 @@ export class InputController {
       options.onDelivery?.(accepted);
     };
     try {
-      await this.turnCoordinator.run({ ...options, onDelivery });
+      await this.submitMessage({ ...options, onDelivery });
       if (!settled && !this.deferredDeliveryCallbacks.has(onDelivery)) onDelivery(false);
     } catch (error) {
       onDelivery(false);
       throw error;
     }
+  }
+
+  private submitMessage(options?: SendMessageOptions): Promise<void> {
+    // Follow-ups must not replace the runtime's active execution/drain owner.
+    return this.turnCoordinator.current || this.deps.state.isStreaming
+      ? this.executeSendMessage(options) : this.turnCoordinator.run(options);
   }
 
   async handleExecutionEvent(event: ProviderExecutionEvent): Promise<void> {
@@ -465,6 +489,14 @@ export class InputController {
       renderer,
       streamController,
     } = this.deps;
+    const isFollowUp = state.isStreaming || this.turnCoordinator.current !== null;
+    let editedMessage: QueuedMessage | null = null;
+    const restoreUnsentMessage = (message: QueuedMessage, restoreOptions: { mergeWithComposer?: boolean } = {}) => {
+      if (!options?.queuedInputId) {
+        if (editedMessage) state.followUps.restoreEditingContext({ ...message, onDelivery: editedMessage.onDelivery });
+        this.restoreMessageToInput(message, restoreOptions);
+      }
+    };
     this.discardDeferredReviewForDifferentConversation();
 
     // During conversation creation/switching, don't send - input is preserved so user can retry
@@ -500,6 +532,17 @@ export class InputController {
       return;
     }
 
+    editedMessage = shouldUseInput ? state.followUps.editingMessage : null;
+    if (editedMessage && !options?.turnRequestOverride) {
+      options = {
+        ...options,
+        displayContentOverride: content,
+        turnRequestOverride: this.buildEditedRequest(editedMessage, content,
+          imageOverride ?? imageContextManager?.getAttachedImages() ?? []),
+        onDelivery: options?.onDelivery ?? editedMessage.onDelivery,
+      };
+    }
+
     // Check for built-in commands first (e.g., /clear, /new, /add-dir)
     const builtInCmd = detectBuiltInCommand(content, this.getActiveProviderId());
     if (builtInCmd) {
@@ -509,10 +552,21 @@ export class InputController {
         this.reportDeferredReviewableSettlement();
       }
       if (shouldUseInput) {
+        state.followUps.finishEditing(editedMessage);
+        editedMessage?.onDelivery?.(false);
         inputEl.value = '';
         dispatchComposerInputEvent(inputEl);
       }
       await this.builtInCommandController.execute(builtInCmd.command, builtInCmd.args);
+      return;
+    }
+
+    // Snapshot follow-ups immediately; provider readiness is checked when they execute.
+    if (state.isStreaming || isFollowUp) {
+      const itemId = this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options);
+      if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
+      if (options?.deliveryMode === 'steer') await this.steerQueuedMessage(itemId);
+      if (!state.isStreaming && !this.turnCoordinator.current) this.processQueuedMessage();
       return;
     }
 
@@ -525,19 +579,13 @@ export class InputController {
       }
     }
 
-    // If agent is working, queue the message instead of dropping it
-    if (state.isStreaming) {
-      this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options);
-      if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
-      return;
-    }
-
     if (this.deps.conversationController.hasBranchPreview
       && !await this.deps.conversationController.commitBranchPreview()) {
       this.reportDeferredReviewableSettlement();
       return;
     }
 
+    if (shouldUseInput) state.followUps.finishEditing(editedMessage);
     const streamGeneration = this.beginTurn(
       shouldUseInput,
       fileContextManager,
@@ -588,12 +636,12 @@ export class InputController {
     try {
       await this.triggerTitleGeneration();
     } catch (error) {
-      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
+      restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       throw error;
     }
     if (state.cancelRequested) {
-      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest), {
+      restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest), {
         mergeWithComposer: true,
       });
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
@@ -650,7 +698,7 @@ export class InputController {
     if (this.deps.ensureExecutionInitialized) {
       const ready = await this.deps.ensureExecutionInitialized();
       if (state.cancelRequested) {
-        this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest), {
+        restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest), {
           mergeWithComposer: true,
         });
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
@@ -661,7 +709,7 @@ export class InputController {
       }
       if (!ready) {
         new Notice('Failed to initialize agent execution. Please try again.');
-        this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
+        restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         this.activeStreamingAssistantMessage = null;
         this.resetProviderMessageBoundaryState();
@@ -673,7 +721,7 @@ export class InputController {
     const coordinator = this.getExecutionCoordinator();
     if (!coordinator) {
       new Notice('Agent execution is not available. Please reload the plugin.');
-      this.restoreMessageToInput(createQueuedMessage(displayContent, turnRequest));
+      restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       this.activeStreamingAssistantMessage = null;
       this.resetProviderMessageBoundaryState();
@@ -733,15 +781,16 @@ export class InputController {
           messagesBeforeTurn,
           hadPendingConversationSave,
           streamGeneration,
+          options?.queuedInputId !== undefined,
         );
         wasInvalidated = true;
-      } else if (result.status === 'error' && result.error) {
+      } else if (result.status === 'error') {
         hadExecutionError = true;
-        await streamController.appendText(`\n\n**Error:** ${result.error.message}`);
+        if (result.error) await streamController.appendText(`\n\n**Error:** ${result.error.message}`);
       }
     } catch (error) {
       if (error instanceof ChatExecutionPreHandoffError) {
-        this.restoreMessageToInput(
+        restoreUnsentMessage(
           createQueuedMessage(displayContent, turnRequest),
           { mergeWithComposer: true },
         );
@@ -751,6 +800,10 @@ export class InputController {
         this.deps.onDiagnosticError?.(error);
         this.reportDeferredReviewableSettlement();
       } else {
+        if (options?.queuedInputId) {
+          state.followUps.setStatus(options.queuedInputId, 'uncertain');
+          state.followUps.pause();
+        }
         hadExecutionError = true;
         shouldReportReviewableSettlement = true;
         const errorMsg = stringifyDiagnosticError(error);
@@ -817,6 +870,7 @@ export class InputController {
             }
           }
 
+          if (didCancelThisTurn || hadExecutionError) state.followUps.pause();
           const completion = await this.turnCompletionCoordinator.complete({
             streamGeneration,
             didEnqueueToSdk,
@@ -831,6 +885,7 @@ export class InputController {
         }
 
         if (wasInvalidated) {
+          state.followUps.pause();
           this.pendingSteersByConversation.clearCurrentUi(state.currentConversationId);
           this.updateQueueIndicator();
         }
@@ -894,16 +949,16 @@ export class InputController {
     messagesBeforeTurn: ChatMessage[],
     hadPendingConversationSave: boolean,
     streamGeneration: number,
+    preserveQueuedInput = false,
   ): void {
-    const retryMessage = result.accepted
+    const retryMessage = result.accepted || preserveQueuedInput
       ? null
       : createQueuedMessage(displayContent, { ...turnRequest, images: images ?? turnRequest.images });
-    const pending = this.deps.state.queuedMessage ? cloneQueuedMessage(this.deps.state.queuedMessage) : null;
+    this.deps.state.followUps.pause();
     const draft = this.captureComposerDraft();
     const resolution = result.missingSessionResolution ?? 'not_found';
     if (resolution === 'deleted') {
       this.restoreMessageToInput(draft, { mergeWithComposer: true });
-      this.restoreMessageToInput(pending, { mergeWithComposer: true });
       this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
     } else if (retryMessage) {
       this.restoreMessageToInput(retryMessage, { mergeWithComposer: true });
@@ -960,7 +1015,9 @@ export class InputController {
     hasImages: boolean,
     shouldUseInput: boolean,
     options?: SendMessageOptions,
-  ): void {
+  ): string {
+    const { state } = this.deps;
+    const editingMessage = shouldUseInput ? state.followUps.editingMessage : null;
     const imageContextManager = this.deps.getImageContextManager();
     const images = hasImages
       ? [...(imageOverride ?? imageContextManager?.getAttachedImages() ?? [])]
@@ -975,14 +1032,16 @@ export class InputController {
     const displayContent = options?.displayContentOverride ?? built.displayContent;
     const turnRequest = options?.turnRequestOverride
       ? cloneChatTurnRequest(options.turnRequestOverride)
-      : built.turnRequest;
-    const { state } = this.deps;
+      : editingMessage ? this.buildEditedRequest(editingMessage, content, images ?? []) : built.turnRequest;
     const queued = createQueuedMessage(displayContent, turnRequest);
-    if (options?.onDelivery) {
-      queued.onDelivery = options.onDelivery;
-      this.deferredDeliveryCallbacks.add(options.onDelivery);
+    const onDelivery = options?.onDelivery ?? editingMessage?.onDelivery;
+    if (onDelivery) {
+      queued.onDelivery = onDelivery;
+      this.deferredDeliveryCallbacks.add(onDelivery);
     }
-    state.queuedMessage = mergeQueuedMessages(state.queuedMessage, queued);
+    const itemId = this.deps.generateId();
+    state.followUps.enqueue(itemId, queued);
+    if (shouldUseInput) state.followUps.finishEditing(editingMessage);
     if (shouldUseInput) {
       const inputEl = this.getComposer();
       inputEl.value = '';
@@ -990,6 +1049,7 @@ export class InputController {
       imageContextManager?.clearImages();
     }
     this.updateQueueIndicator();
+    return itemId;
   }
 
   // ============================================
@@ -998,87 +1058,63 @@ export class InputController {
 
   updateQueueIndicator(): void {
     const { state } = this.deps;
-    const indicatorEl = state.queueIndicatorEl;
-    if (!indicatorEl) return;
-
-    indicatorEl.empty();
-
-    const pendingSteer = this.pendingSteersByConversation.get(state.currentConversationId);
-    const visiblePendingSteer = pendingSteer?.uiState === 'visible'
-      ? pendingSteer.message
-      : null;
-    const visibleQueuedMessage = state.queuedMessage ?? visiblePendingSteer;
-    if (visibleQueuedMessage) {
-      const isPendingSteerOnly = !state.queuedMessage && !!visiblePendingSteer;
-      indicatorEl.createSpan({
-        cls: 'claudian-queue-indicator-text',
-        text: `${isPendingSteerOnly ? '⌙ Steering: ' : '⌙ Queued: '}${getQueuedMessageDisplay(visibleQueuedMessage)}`,
-      });
-
-      if (state.queuedMessage) {
-        const actionsEl = indicatorEl.createDiv({ cls: 'claudian-queue-indicator-actions' });
-
-        if (this.canSteerQueuedMessage()) {
-          const steerButton = actionsEl.createEl('button', {
-            cls: 'claudian-queue-indicator-action',
-            text: pendingSteer?.providerDisposition === 'awaiting-result'
-              ? 'Steering...'
-              : 'Steer Now',
-          });
-          steerButton.setAttribute('type', 'button');
-          if (pendingSteer?.providerDisposition === 'awaiting-result') {
-            steerButton.setAttribute('disabled', 'true');
-          } else {
-            steerButton.addEventListener('click', (event) => {
-              event.stopPropagation();
-              void this.steerQueuedMessage();
-            });
-          }
-        }
-
-        const editButton = this.createQueueIconButton(
-          actionsEl,
-          'pencil',
-          'Edit queued message',
-        );
-        editButton.addEventListener('click', (event) => {
-          event.stopPropagation();
-          this.withdrawQueuedMessageToComposer();
-        });
-
-        const discardButton = this.createQueueIconButton(
-          actionsEl,
-          'trash-2',
-          'Discard queued message',
-        );
-        discardButton.addEventListener('click', (event) => {
-          event.stopPropagation();
-          this.clearQueuedMessage();
-        });
-      }
-
-      indicatorEl.addClass('claudian-visible-flex');
-      indicatorEl.removeClass('claudian-hidden');
-      return;
+    const root = state.queueIndicatorEl;
+    if (this.queueView?.root !== root) {
+      this.queueView?.destroy();
+      this.queueView = root ? new FollowUpQueueView(root, state.followUps, {
+        onSteer: id => { void this.steerQueuedMessage(id); },
+        onRemove: id => this.clearQueuedMessage(id),
+        onResume: () => this.resumeQueuedMessages(),
+        onEdit: id => this.editQueuedMessage(id),
+      }) : null;
     }
-
-    indicatorEl.removeClass('claudian-visible-flex');
-    indicatorEl.addClass('claudian-hidden');
+    this.deps.onFollowUpStateChanged?.();
+    this.queueView?.update(this.canSteerFollowUp(),
+      !state.isStreaming ? t('chat.followUp.idle')
+        : this.getActiveCapabilities().supportsTurnSteer
+          ? t('chat.followUp.waiting') : t('chat.followUp.unsupported'), !state.isStreaming);
   }
 
-  clearQueuedMessage(): void {
+  private buildEditedRequest(message: QueuedMessage, content: string, images: NonNullable<ChatMessage['images']>): ChatTurnRequest {
+    const request = cloneChatTurnRequest(toQueuedChatTurn(message).request);
+    request.text = /^\/compact(\s|$)/i.test(content) ? content
+      : this.deps.getFileContextManager()?.transformContextMentions(content) ?? content;
+    request.images = [...images];
+    return request;
+  }
+
+  editQueuedMessage(id: string): void {
     const { state } = this.deps;
-    state.queuedMessage = null;
+    if (!state.followUps.items.some(item => item.id === id && item.status === 'queued')) return;
+    if (this.turnCoordinator.current && !state.isStreaming) return;
+    const input = this.getComposer();
+    const images = this.deps.getImageContextManager()?.getAttachedImages() ?? [];
+    const quotes = this.deps.getQuotedMessageTexts?.() ?? [];
+    const draft = [...quotes.map(formatSelectionQuote), input.value].filter(Boolean).join('\n\n');
+    if (draft.trim() || images.length || state.followUps.editingMessage) {
+      this.queueStreamingMessage(draft || state.followUps.editingMessage?.content || '', images, !!images.length, true);
+    }
+    this.deps.clearQuotedMessages?.();
+    const message = state.followUps.withdrawForEditing(id);
+    if (!message) return;
+    this.restoreMessageToInput({ ...message, onDelivery: undefined });
     this.updateQueueIndicator();
   }
 
-  withdrawQueuedMessageToComposer(): void {
-    const { state } = this.deps;
-    if (!state.queuedMessage) return;
-
-    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
-    state.queuedMessage = null;
-    this.restoreMessageToInput(queuedMessage, { mergeWithComposer: true });
+  clearQueuedMessage(itemId?: string): void {
+    const queue = this.deps.state.followUps;
+    if (itemId === undefined) {
+      const unsent = queue.items.filter(item => item.status === 'queued').map(item => item.message);
+      if (queue.editingMessage) unsent.push(queue.editingMessage);
+      queue.clear();
+      for (const message of unsent) message.onDelivery?.(false);
+      this.updateQueueIndicator();
+      return;
+    }
+    const item = queue.items.find(entry => entry.id === itemId);
+    if (!item || item.status !== 'queued') return;
+    item.message.onDelivery?.(false);
+    queue.remove(item.id);
     this.updateQueueIndicator();
   }
 
@@ -1128,36 +1164,45 @@ export class InputController {
     return captureComposerDraft(content, images);
   }
 
-  private restoreQueuedMessageToInput(): void {
-    const { state } = this.deps;
-    const queuedMessage = state.queuedMessage
-      ? cloneQueuedMessage(state.queuedMessage)
-      : null;
-    this.restoreMessageToInput(queuedMessage, { mergeWithComposer: true });
-    state.queuedMessage = null;
-    this.updateQueueIndicator();
-  }
-
   private processQueuedMessage(): boolean {
     const { state } = this.deps;
-    if (!state.queuedMessage) return false;
-
-    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
-    state.queuedMessage = null;
+    if (state.isStreaming || state.requiresAction) return false;
+    const item = state.followUps.takeNext();
+    if (!item) return false;
+    const conversationId = state.currentConversationId;
     this.updateQueueIndicator();
-
-    window.setTimeout(
-      () => {
-        void this.sendMessage({
-          content: queuedMessage.content,
-          images: queuedMessage.images,
-          onDelivery: queuedMessage.onDelivery,
-          turnRequestOverride: toQueuedChatTurn(queuedMessage).request,
-        }).catch(() => this.reportDeferredReviewableSettlement());
-      },
-      0
-    );
+    window.setTimeout(() => {
+      if (state.isStreaming || this.turnCoordinator.current || state.currentConversationId !== conversationId || state.followUps.paused
+        || state.followUps.items.find(entry => entry.id === item.id)?.status !== 'sending') {
+        state.followUps.setStatus(item.id, 'queued');
+        this.updateQueueIndicator();
+        return;
+      }
+      void this.sendMessage({
+        content: item.message.content,
+        queuedInputId: item.id,
+        images: item.message.images,
+        turnRequestOverride: toQueuedChatTurn(item.message).request,
+        onDelivery: accepted => {
+          if (accepted) state.followUps.remove(item.id);
+          else {
+            if (state.followUps.items.find(entry => entry.id === item.id)?.status !== 'uncertain') {
+              state.followUps.setStatus(item.id, 'queued');
+            }
+            state.followUps.pause();
+          }
+          item.message.onDelivery?.(accepted);
+          this.updateQueueIndicator();
+        },
+      }).catch(() => this.reportDeferredReviewableSettlement());
+    }, 0);
     return true;
+  }
+
+  resumeQueuedMessages(): void {
+    this.deps.state.followUps.resume();
+    this.processQueuedMessage();
+    this.updateQueueIndicator();
   }
 
   private deferReviewableSettlement(report: (() => void) | null): void {
@@ -1193,24 +1238,7 @@ export class InputController {
     this.deferredReviewableSettlement.clear();
   }
 
-  private createQueueIconButton(
-    parentEl: HTMLElement,
-    icon: string,
-    label: string,
-  ): HTMLElement {
-    const button = parentEl.createEl('button', {
-      cls: 'claudian-queue-indicator-icon-action',
-      attr: {
-        'aria-label': label,
-        title: label,
-        type: 'button',
-      },
-    });
-    setIcon(button, icon);
-    return button;
-  }
-
-  private canSteerQueuedMessage(): boolean {
+  canSteerFollowUp(): boolean {
     return this.deps.state.isStreaming
       && this.pendingSteersByConversation.get(this.deps.state.currentConversationId) === null
       && this.getActiveCapabilities().supportsTurnSteer === true
@@ -1249,13 +1277,8 @@ export class InputController {
     this.pendingSteersByConversation.release(pending);
 
     const { state } = this.deps;
-    if (state.isStreaming && !state.cancelRequested) {
-      state.queuedMessage = state.queuedMessage
-        ? mergeQueuedMessages(pending.message, state.queuedMessage)
-        : cloneQueuedMessage(pending.message);
-    } else {
-      this.restoreMessageToInput(pending.message, { mergeWithComposer: true });
-    }
+    state.followUps.setStatus(pending.queueItemId, 'queued');
+    if (!state.isStreaming || state.cancelRequested) state.followUps.pause();
     this.updateQueueIndicator();
   }
 
@@ -1278,17 +1301,20 @@ export class InputController {
     this.updateQueueIndicator();
   }
 
-  private async steerQueuedMessage(): Promise<void> {
+  async steerQueuedMessage(itemId?: string): Promise<void> {
     const { state } = this.deps;
     const coordinator = this.getExecutionCoordinator();
     const conversationId = state.currentConversationId;
-    if (!state.queuedMessage || !this.canSteerQueuedMessage() || !coordinator) {
+    const item = itemId
+      ? state.followUps.items.find(entry => entry.id === itemId)
+      : state.followUps.next;
+    if (item?.status !== 'queued' || !this.canSteerFollowUp() || !coordinator) {
       return;
     }
     if (!conversationId) return;
 
-    const queuedMessage = cloneQueuedMessage(state.queuedMessage);
-    state.queuedMessage = null;
+    const queuedMessage = cloneQueuedMessage(item.message);
+    state.followUps.setStatus(item.id, 'sending');
     const { displayContent, request } = toQueuedChatTurn(queuedMessage);
     const submission = this.turnSubmissionBuilder.buildExecutionSubmission(displayContent, request);
     const pending: PendingSteerState = {
@@ -1304,6 +1330,7 @@ export class InputController {
         images: request.images,
       },
       inputRecordId: submission.inputRecordId,
+      queueItemId: item.id,
       message: queuedMessage,
       providerDisposition: 'awaiting-result',
       retryState: 'blocked',
@@ -1317,11 +1344,13 @@ export class InputController {
       if (!accepted) {
         if (pending.providerDisposition === 'accepted-awaiting-correlation') return;
         this.restoreDefinitelyUnsentSteer(pending);
+        new Notice(t('chat.followUp.failed'));
         return;
       }
 
       queuedMessage.onDelivery?.(true);
       pending.providerDisposition = 'accepted-awaiting-correlation';
+      if (pending.correlationState === 'pending') state.followUps.setStatus(item.id, 'accepted');
       this.pendingSteersByConversation.clearUi(pending);
       if (pending.correlationState !== 'pending') {
         this.pendingSteersByConversation.release(pending);
@@ -1333,17 +1362,19 @@ export class InputController {
       if (pending.providerDisposition === 'accepted-awaiting-correlation') return;
       if (error instanceof ChatExecutionPreHandoffError) {
         this.restoreDefinitelyUnsentSteer(pending);
-        new Notice('Failed to steer the queued message. It is still available.');
+        new Notice(t('chat.followUp.failed'));
         return;
       }
 
       pending.providerDisposition = 'ambiguous-awaiting-reconciliation';
+      state.followUps.setStatus(item.id, 'uncertain');
+      state.followUps.pause();
       this.pendingSteersByConversation.clearUi(pending);
       if (pending.correlationState !== 'pending') {
         this.pendingSteersByConversation.release(pending);
       }
       new Notice(
-        'Steer delivery could not be confirmed. The message was not requeued to avoid sending it twice.',
+        t('chat.followUp.unconfirmed'),
       );
     }
   }
@@ -1453,6 +1484,7 @@ export class InputController {
       this.deps.renderer.addMessage(userMessage);
     }
     if (pendingSteer?.correlationState === 'settled') {
+      this.deps.state.followUps.remove(pendingSteer.queueItemId);
       this.pendingSteersByConversation.release(pendingSteer);
     }
 
@@ -1665,9 +1697,11 @@ export class InputController {
 
   cancelStreaming(): void {
     const { state, streamController } = this.deps;
+    this.stopGeneration++;
+    state.followUps.pause();
+    this.updateQueueIndicator();
     if (!state.isStreaming) return;
     state.cancelRequested = true;
-    this.restoreQueuedMessageToInput();
     this.pendingSteersByConversation.clearCurrentUi(this.deps.state.currentConversationId);
     this.getExecutionCoordinator()?.cancel();
     streamController.hideThinkingIndicator();
