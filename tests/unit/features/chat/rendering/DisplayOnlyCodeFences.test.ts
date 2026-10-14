@@ -1,3 +1,4 @@
+import { parser } from '@lezer/markdown';
 import { createMockEl } from '@test/helpers/MockElement';
 import { loadPrism } from 'obsidian';
 
@@ -107,6 +108,40 @@ describe('DisplayOnlyCodeFences', () => {
     expect(prepared.fences).toHaveLength(1);
     expect(prepared.fences[0].originalLanguage).toBe('markdown');
   });
+
+  it.each([
+    { name: 'blockquote', before: '> ```text\n> literal', after: '```dataviewjs\nvoid 0;\n```' },
+    { name: 'list', before: '- ```text\n  literal', after: '```dataviewjs\nvoid 0;\n```' },
+    { name: 'nested blockquote', before: '> > ```text\n> > literal', after: '> ```dataviewjs\n> void 0;' },
+    { name: 'nested list', before: '- - ```text\n    literal', after: '  ```dataviewjs\n  void 0;' },
+    { name: 'quote inside list', before: '- > ```text\n  > literal', after: '  ```dataviewjs\n  void 0;' },
+    { name: 'list inside quote', before: '> - ```text\n>   literal', after: '> ```dataviewjs\n> void 0;' },
+  ])('neutralizes executable fences after an implicitly closed $name', ({ before, after }) => {
+    const prepared = prepareDisplayOnlyCodeFences(`${before}\n\n${after}`);
+    const languages: string[] = [];
+    parser.parse(prepared.markdown).iterate({ enter(node) {
+      if (node.name === 'CodeInfo') languages.push(prepared.markdown.slice(node.from, node.to));
+    } });
+
+    expect(prepared.fences.map(fence => fence.originalLanguage)).toEqual(['text', 'dataviewjs']);
+    expect(languages).toEqual(['claudian-display-only-fence-0', 'claudian-display-only-fence-1']);
+  });
+
+  it.each(['<!--', '<![CDATA[', '<?target', '<!DOCTYPE'].flatMap(opener => ['\n', '\r\n']
+    .map(newline => ({ opener, newline }))))(
+    'neutralizes executable fences after indented unterminated HTML ($opener, $newline)', ({ opener, newline }) => {
+      const prepared = prepareDisplayOnlyCodeFences(
+        ['> <div>', `    ${opener}`, '> ~~~dataviewjs', '> void 0;', '> ~~~'].join(newline),
+      );
+      const languages: string[] = [];
+      parser.parse(prepared.markdown).iterate({ enter(node) {
+        if (node.name === 'CodeInfo') languages.push(prepared.markdown.slice(node.from, node.to));
+      } });
+
+      expect(languages).toEqual(['claudian-display-only-fence-0']);
+      expect(prepared.fences.map(fence => fence.originalLanguage)).toEqual(['dataviewjs']);
+    },
+  );
 
   it('protects unclosed streaming fences and leaves non-language syntax unchanged', () => {
     const markdown = [

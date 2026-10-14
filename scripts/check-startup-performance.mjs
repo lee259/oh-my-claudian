@@ -67,9 +67,15 @@ const obsidian = new Proxy({}, {
   },
 });
 const originalLoad = Module._load;
+let markdownRequire;
 Module._load = function (request, parent, isMain) {
   if (request === 'obsidian') return obsidian;
   if (request === 'electron') return { shell: universal };
+  if (request === '@lezer/common' || request === '@lezer/highlight') {
+    // Obsidian supplies these externals; strict pnpm installs keep them under Markdown.
+    markdownRequire ??= Module.createRequire(require.resolve('@lezer/markdown'));
+    return originalLoad.call(this, markdownRequire.resolve(request), parent, isMain);
+  }
   return originalLoad.call(this, request, parent, isMain);
 };
 const startedAt = performance.now();

@@ -1,4 +1,4 @@
-import type { Readable, Writable } from 'node:stream';
+import type { Readable } from 'node:stream';
 
 import { subscribePiJsonlLines, writePiJsonl } from './PiJsonl';
 
@@ -10,7 +10,7 @@ export type PiRpcEventHandler = (event: PiRpcRecord) => void;
 export interface PiRpcStreams {
   input: Readable | NodeJS.ReadableStream;
   onClose?: (listener: (error?: Error) => void) => () => void;
-  output: Writable | NodeJS.WritableStream;
+  output: NodeJS.WritableStream;
 }
 
 interface PendingRequest {
@@ -45,6 +45,14 @@ export class PiRpcTransport {
   private readonly pending = new Map<string, PendingRequest>();
   private unregisterClose?: () => void;
   private unsubscribeLines?: () => void;
+  private readonly handleOutputError = (error: unknown): void => {
+    this.dispose(error instanceof Error ? error : new Error(String(error)));
+  };
+  private readonly handleOutputClose = (): void => {
+    this.dispose(new PiRpcTransportClosedError('Pi RPC output closed'));
+    this.streams.output.off('error', this.handleOutputError);
+    this.streams.output.off('close', this.handleOutputClose);
+  };
 
   constructor(
     private readonly streams: PiRpcStreams,
@@ -60,6 +68,8 @@ export class PiRpcTransport {
       return;
     }
 
+    this.streams.output.on('error', this.handleOutputError);
+    this.streams.output.on('close', this.handleOutputClose);
     this.unsubscribeLines = subscribePiJsonlLines(
       this.streams.input,
       (line) => this.handleLine(line),
@@ -175,6 +185,7 @@ export class PiRpcTransport {
     }
 
     this.disposed = true;
+    // In-flight writes can fail after disposal; own their errors until output closes.
     this.unsubscribeLines?.();
     this.unsubscribeLines = undefined;
     this.unregisterClose?.();

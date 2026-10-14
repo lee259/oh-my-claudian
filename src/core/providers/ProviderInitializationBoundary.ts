@@ -95,17 +95,10 @@ export class ProviderInitializationBoundary {
 
   async disposeInitialized(): Promise<void> {
     this.generation += 1;
-    const promises: Promise<void>[] = [];
-    for (const [providerId, services] of Object.entries(this.services)) {
-      if (!services) continue;
-      const dispose = services.dispose?.bind(services);
-      if (dispose) {
-        promises.push(Promise.resolve(dispose()));
-      }
-      delete this.services[providerId];
-    }
+    const services = Object.values(this.services);
+    this.services = {};
     this.initAttempts = {};
-    await Promise.allSettled(promises);
+    await Promise.allSettled(services.map(async service => { await service?.dispose?.(); }));
   }
 
   private async runInitialize(
