@@ -1020,7 +1020,7 @@
       "localError": "Claudian／處理程序錯誤：",
       "noReply": "CLI 沒有傳回內容。",
       "outputTruncated": "僅保留每個輸出串流的最後 1 MiB；此限制不會停止命令。",
-      "noticeTitle": "{count} 個 Agent 有新版本",
+      "noticeTitle": "Oh My Claudian：{count} 個 Agent 有新版本",
       "review": "檢視更新",
       "installation": "安裝資訊"
     }
