@@ -4,6 +4,7 @@ import { Notice } from 'obsidian';
 
 import type { ProviderCliLifecyclePort, ProviderCliSnapshot } from '@/core/providers/cli/ProviderCliLifecycle';
 import { mountProviderCliUpdates, showProviderCliUpdates } from '@/features/settings/ProviderCliUpdates';
+import { setLocale } from '@/i18n/i18n';
 
 it('shows shared provider installation and update state in one surface', async () => {
   const snapshot: ProviderCliSnapshot = {
@@ -38,7 +39,10 @@ it('shows shared provider installation and update state in one surface', async (
 });
 
 
-it('keeps the startup notice compact and leaves versions and installation details to the review surface', async () => {
+it.each([
+  { locale: 'en' as const, message: 'Oh My Claudian: 1 agents have updates', review: 'Review updates' },
+  { locale: 'zh-CN' as const, message: 'Oh My Claudian：1 个 Agent 有新版本', review: '查看更新' },
+])('identifies the plugin in the compact $locale startup notice', async ({ locale, message, review }) => {
   const snapshot: ProviderCliSnapshot = { providerId: 'test', enabled: true, displayName: 'Test', status: 'ready',
     path: '/long/private/installation/agent', version: '1.0.0', latestVersion: '2.0.0', checkedAt: 1,
     error: null, canInstall: false, canUpdate: true };
@@ -54,16 +58,19 @@ it('keeps the startup notice compact and leaves versions and installation detail
     return { hide: () => el.remove() };
   }) as never);
   try {
+    setLocale(locale);
     const dispose = await showProviderCliUpdates({} as never, port);
     const notice = document.querySelector('.notice')!;
+    expect(notice.querySelector('.claudian-cli-update-notice-copy')?.textContent).toBe(message);
     expect(notice.querySelector('ul')).toBeNull();
     expect(notice.textContent).not.toContain(snapshot.path);
     expect(notice.textContent).not.toContain(snapshot.displayName);
-    expect(notice.querySelector('button')?.textContent).toBe('Review updates');
+    expect(notice.querySelector('button')?.textContent).toBe(review);
     expect(jest.mocked(Notice).mock.calls.at(-1)?.[1]).toBe(8000);
     dispose();
     expect(document.querySelector('.notice')).toBeNull();
   } finally {
+    setLocale('en');
     globalThis.createFragment = original;
     jest.mocked(Notice).mockReset();
     document.body.replaceChildren();

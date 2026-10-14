@@ -1020,7 +1020,7 @@
       "localError": "Claudian/process error:",
       "noReply": "The CLI returned no output.",
       "outputTruncated": "Only the final 1 MiB of each output stream is retained. The command was not stopped by this limit.",
-      "noticeTitle": "{count} agents have updates",
+      "noticeTitle": "Oh My Claudian: {count} agents have updates",
       "review": "Review updates",
       "installation": "Installation details"
     }
