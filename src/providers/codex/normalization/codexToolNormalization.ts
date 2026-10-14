@@ -822,6 +822,12 @@ export function normalizeCodexToolResult(
   rawResult: string,
 ): string {
   if (!rawResult) return rawResult;
+  if (normalizedName === 'exec') {
+    // Preserve emitted values verbatim; only the outer script header is transport metadata.
+    const marker = 'Output:\n';
+    const index = rawResult.startsWith('Script ') ? rawResult.indexOf(marker) : -1;
+    return index >= 0 ? rawResult.slice(index + marker.length) : rawResult;
+  }
   if (normalizedName === 'AskUserQuestion') {
     try {
       const parsed: unknown = JSON.parse(rawResult);

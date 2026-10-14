@@ -168,7 +168,7 @@ describe('CodexHistoryStore', () => {
     expect(rendered).toContain('"name":"Bash"');
   });
 
-  it('keeps a separately framed visible result from a mixed exec wrapper', () => {
+  it('withholds mixed-script values whose array positions cannot establish ownership', () => {
     const content = [
       JSON.stringify({
         type: 'response_item',
@@ -195,7 +195,7 @@ describe('CodexHistoryStore', () => {
 
     const rendered = JSON.stringify(parseCodexSessionContent(content));
     expect(rendered).not.toMatch(/get_context_remaining|tokens_left/);
-    expect(rendered).toContain('/workspace');
+    expect(rendered).not.toContain('/workspace');
   });
 
   it('reads the selected model from a transcript without loading the whole file', async () => {
@@ -797,6 +797,115 @@ describe('CodexHistoryStore', () => {
       expect(patchTool!.status).toBe('completed');
     });
 
+    it.each([false, true])('keeps reordered script output separate from commands (private values: %s)', privateValues => {
+      const input = `${privateValues ? 'text(await tools.get_context_remaining({})); ' : ''}`
+        + 'const first = await tools.exec_command({cmd:"first"}); const second = await tools.exec_command({cmd:"second"}); '
+        + 'text(second.output); text(first.output);';
+      const records = [
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'batch', input } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'batch', output: [
+          { type: 'input_text', text: 'Script completed\nOutput:\n' },
+          { type: 'input_text', text: 'SECOND\n' },
+          { type: 'input_text', text: privateValues ? '{"tokens_left":100}' : 'FIRST\n' },
+          ...(privateValues ? [{ type: 'input_text', text: 'FIRST\n' }] : []),
+        ] } },
+      ];
+      const messages = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'));
+      const tools = messages.flatMap(message => message.toolCalls ?? []);
+      expect(tools.filter(tool => tool.name === 'Bash').map(tool => tool.result)).toEqual([undefined, undefined]);
+      expect(tools.map(tool => [tool.name, tool.result])).toEqual(privateValues
+        ? [['Bash', undefined], ['Bash', undefined]]
+        : [['Bash', undefined], ['Bash', undefined], ['exec', 'SECOND\nFIRST\n']]);
+      expect(JSON.stringify(messages)).not.toMatch(/get_context_remaining|tokens_left/);
+    });
+
+    it.each(['before', 'after'])('uses unambiguous native command evidence %s reordered script output', position => {
+      const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'CommandExecution', id: 'native-second', command: ['/bin/zsh', '-lc', 'second'],
+        cwd: '/vault', aggregated_output: 'Native second failure', exit_code: 7,
+      } } };
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'batch',
+          input: 'text(await tools.exec_command({cmd:"first"})); text(await tools.exec_command({cmd:"second"}));' } },
+        ...(position === 'before' ? [native] : []),
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'batch', output: [
+          { type: 'input_text', text: 'Script completed\nOutput:\n' },
+          { type: 'input_text', text: 'SECOND\n' },
+          { type: 'input_text', text: 'FIRST\n' },
+        ] } },
+        ...(position === 'after' ? [native] : []),
+      ];
+      const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.map(tool => [tool.id, tool.status, tool.result])).toEqual([
+        ['batch:1', 'completed', undefined],
+        ['batch:2', 'error', 'Native second failure'],
+        ['batch', 'completed', 'SECOND\nFIRST\n'],
+      ]);
+    });
+
+    it.each(['direct', 'single script', 'opaque script'])('does not guess native ownership with a competing %s', competitor => {
+      const call = competitor === 'direct'
+        ? { type: 'function_call', name: 'exec_command', call_id: 'other', arguments: '{"cmd":"same"}' }
+        : { type: 'custom_tool_call', name: 'exec', call_id: 'other', input: competitor === 'opaque script'
+          ? 'const cmd = "same"; text(await tools.exec_command({cmd}));'
+          : 'text(await tools.exec_command({cmd:"same"}));' };
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'batch',
+          input: 'text(await tools.exec_command({cmd:"same"})); text(await tools.exec_command({cmd:"different"}));' } },
+        { type: 'response_item', payload: call },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'CommandExecution', id: 'ambiguous', command: ['/bin/zsh', '-lc', 'same'],
+          cwd: '/vault', aggregated_output: 'Unidentified output', exit_code: 7,
+        } } },
+      ];
+      const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'batch:1')?.result).toBeUndefined();
+    });
+
+    it('keeps opaque scripts ambiguous until a new turn starts', () => {
+      const batch = (id: string) => ({ type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: id,
+        input: 'text(await tools.exec_command({cmd:"same"})); text(await tools.exec_command({cmd:"other"}));' } });
+      const native = (id: string) => ({ type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'CommandExecution', id, command: 'same', cwd: '/vault', aggregated_output: 'Native result', exit_code: 0,
+      } } });
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'event_msg', payload: { type: 'task_started' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'opaque', input: 'await runUnknownScript();' } },
+        batch('ambiguous'), native('unknown'),
+        { type: 'event_msg', payload: { type: 'task_complete' } },
+        { type: 'event_msg', payload: { type: 'task_started' } },
+        batch('known'), native('identified'),
+      ];
+      const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'ambiguous:1')?.result).toBeUndefined();
+      expect(tools.find(tool => tool.id === 'known:1')).toMatchObject({ result: 'Native result', status: 'completed' });
+    });
+
+    it('keeps previously claimed commands as evidence against ambiguous repeated execution', () => {
+      const native = (id: string, output: string) => ({ type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'CommandExecution', id, command: 'same', cwd: '/vault', aggregated_output: output, exit_code: 0,
+      } } });
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'loop',
+          input: 'for (let i = 0; i < 2; i++) { text(await tools.exec_command({cmd:"same"})); } text(await tools.exec_command({cmd:"other"}));' } },
+        native('first', 'First result'),
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'next',
+          input: 'text(await tools.exec_command({cmd:"same"})); text(await tools.exec_command({cmd:"different"}));' } },
+        native('second', 'Unidentified second result'),
+      ];
+      const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'loop:1')?.result).toBe('First result');
+      expect(tools.find(tool => tool.id === 'next:1')?.result).toBeUndefined();
+    });
+
     it('restores completed exec envelopes as their nested tools', () => {
       const patch = '*** Begin Patch\n*** Update File: note.md\n*** End Patch';
       const content = [
@@ -914,6 +1023,61 @@ describe('CodexHistoryStore', () => {
       ]);
     });
 
+    it.each(['direct', 'wrapped'])('retains a failed unowned %s poll under its own identity', shape => {
+      const records = [
+        { type: 'response_item', payload: shape === 'direct'
+          ? { type: 'function_call', name: 'write_stdin', call_id: 'poll', arguments: '{"session_id":42,"chars":""}' }
+          : { type: 'custom_tool_call', name: 'exec', call_id: 'poll', input: 'text(await tools.write_stdin({session_id:42,chars:""}));' } },
+        { type: 'response_item', payload: {
+          type: shape === 'direct' ? 'function_call_output' : 'custom_tool_call_output',
+          call_id: 'poll', output: `${shape === 'wrapped' ? 'Script completed\nOutput:\n' : ''}`
+            + JSON.stringify({ output: 'late failure', exit_code: 2 }),
+        } },
+      ];
+      const messages = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'));
+      expect(messages.flatMap(message => message.toolCalls ?? [])).toEqual([
+        expect.objectContaining({ id: 'poll', name: 'write_stdin', result: 'late failure', status: 'error' }),
+      ]);
+      expect(messages.flatMap(message => message.contentBlocks ?? [])).toEqual([
+        { type: 'tool_use', toolId: 'poll' },
+      ]);
+    });
+
+    it('retains an unowned polling wrapper through a yielded script cell', () => {
+      const records = [
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'poll',
+          input: 'text(await tools.write_stdin({session_id:42,chars:""}));' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'poll',
+          output: 'Script running with cell ID poll-cell\nOutput:\n' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'wait', call_id: 'wait-poll', arguments: '{"cell_id":"poll-cell"}' } },
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'wait-poll',
+          output: 'Script completed\nOutput:\n' + JSON.stringify({ output: 'late failure', exit_code: 2 }) } },
+      ];
+      const serialize = (count: number) => records.slice(0, count).map(record => JSON.stringify(record)).join('\n');
+      expect(parseCodexSessionContent(serialize(2)).flatMap(message => message.toolCalls ?? [])).toEqual([
+        expect.objectContaining({ id: 'poll', name: 'write_stdin', status: 'running' }),
+      ]);
+      expect(parseCodexSessionContent(serialize(4)).flatMap(message => message.toolCalls ?? [])).toEqual([
+        expect.objectContaining({ id: 'poll', name: 'write_stdin', status: 'error', result: 'late failure' }),
+      ]);
+    });
+
+    it('keeps delayed unowned polling failures in their original turn', () => {
+      const records = [
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'first' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'write_stdin', call_id: 'poll', arguments: '{"session_id":42,"chars":""}' } },
+        { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'first' } },
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'second' } },
+        { type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Second answer' }] } },
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'poll', output: JSON.stringify({ output: 'late failure', exit_code: 1 }) } },
+      ];
+      const turns = parseCodexSessionTurns(records.map(record => JSON.stringify(record)).join('\n'));
+      expect(turns[0].messages.flatMap(message => message.toolCalls ?? [])).toEqual([
+        expect.objectContaining({ id: 'poll', result: 'late failure', status: 'error' }),
+      ]);
+      expect(turns[1].messages.flatMap(message => message.toolCalls ?? [])).toEqual([]);
+    });
+
     it('joins structured terminal polling output to its running command and restores its failure', () => {
       const records = [
         { type: 'event_msg', payload: { type: 'task_started' } },
@@ -933,7 +1097,7 @@ describe('CodexHistoryStore', () => {
       ]);
     });
 
-    it('restores settled command results and nested polling without extra poll cards', () => {
+    it('preserves settled command and polling values on their scripts without inferring owners', () => {
       const records = [
         { type: 'event_msg', payload: { type: 'task_started' } },
         { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'batch', input: 'const results = await Promise.allSettled([tools.exec_command({cmd:"first"}), tools.exec_command({cmd:"second"})]); for (const result of results) text(result);' } },
@@ -952,19 +1116,24 @@ describe('CodexHistoryStore', () => {
       ];
       const content = records.map((record, seconds) => JSON.stringify({ timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)).toISOString(), ...record })).join('\n');
       const messages = parseCodexSessionContent(content);
-      expect(messages.flatMap(message => message.toolCalls ?? [])).toEqual([
-        expect.objectContaining({ id: 'batch:1', status: 'error', result: 'first failed' }),
-        expect.objectContaining({ id: 'batch:2', status: 'error', result: 'second started\nsecond failed' }),
-        expect.objectContaining({ id: 'poll-batch:2', status: 'completed', result: 'third passed' }),
+      expect(messages.flatMap(message => message.toolCalls ?? []).map(tool => [tool.id, tool.name, tool.result])).toEqual([
+        ['batch:1', 'Bash', undefined],
+        ['batch:2', 'Bash', undefined],
+        ['batch', 'exec', '{"status":"fulfilled","value":{"output":"first failed","exit_code":1}}'
+          + '{"status":"fulfilled","value":{"output":"second started","session_id":42}}'],
+        ['poll-batch:2', 'Bash', undefined],
+        ['poll-batch', 'exec', '{"output":"second failed","exit_code":2}{"output":"third passed","exit_code":0}'],
       ]);
       expect(messages.flatMap(message => message.contentBlocks ?? [])).toEqual([
         { type: 'tool_use', toolId: 'batch:1' },
         { type: 'tool_use', toolId: 'batch:2' },
+        { type: 'tool_use', toolId: 'batch' },
         { type: 'tool_use', toolId: 'poll-batch:2' },
+        { type: 'tool_use', toolId: 'poll-batch' },
       ]);
     });
 
-    it('restores every command from a multi-command exec envelope', () => {
+    it('restores every command while preserving uncorrelated output on its script', () => {
       const content = [
         JSON.stringify({
           timestamp: '2026-07-13T00:00:00.000Z',
@@ -1012,32 +1181,31 @@ describe('CodexHistoryStore', () => {
           id: 'call_exec_group:1',
           name: 'Bash',
           input: { command: 'pwd' },
-          result: '/vault\n',
           status: 'completed',
         }),
         expect.objectContaining({
           id: 'call_exec_group:2',
           name: 'Bash',
           input: { command: 'printf edit' },
-          result: '',
           status: 'completed',
         }),
         expect.objectContaining({
           id: 'call_exec_group:3',
           name: 'Bash',
           input: { command: 'wc -l note.md' },
-          result: '80 note.md\n',
           status: 'completed',
         }),
+        expect.objectContaining({ id: 'call_exec_group', name: 'exec', result: '/vault\n80 note.md\n', status: 'completed' }),
       ]);
       expect(assistantMessage?.contentBlocks).toEqual([
         { type: 'tool_use', toolId: 'call_exec_group:1' },
         { type: 'tool_use', toolId: 'call_exec_group:2' },
         { type: 'tool_use', toolId: 'call_exec_group:3' },
+        { type: 'tool_use', toolId: 'call_exec_group' },
       ]);
     });
 
-    it('restores every image view from a multi-call exec envelope', () => {
+    it('preserves script images without guessing which image view emitted them', () => {
       const content = [
         JSON.stringify({
           timestamp: '2026-07-13T00:00:00.000Z',
@@ -1082,15 +1250,20 @@ describe('CodexHistoryStore', () => {
           id: 'call_image_group:1',
           name: 'Read',
           input: expect.objectContaining({ file_path: '/tmp/first.png' }),
-          result: '/tmp/first.png',
           status: 'completed',
         }),
         expect.objectContaining({
           id: 'call_image_group:2',
           name: 'Read',
           input: expect.objectContaining({ file_path: '/tmp/second.png' }),
-          result: '/tmp/second.png',
           status: 'completed',
+        }),
+        expect.objectContaining({
+          id: 'call_image_group', name: 'exec', status: 'completed',
+          resultImages: [
+            { kind: 'data', data: 'Zmlyc3Q=', mediaType: 'image/png' },
+            { kind: 'data', data: 'c2Vjb25k', mediaType: 'image/png' },
+          ],
         }),
       ]);
     });

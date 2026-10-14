@@ -198,8 +198,16 @@ describe('ProviderWorkspaceRegistry', () => {
     expect(ProviderWorkspaceRegistry.getIfInitialized('codex')).not.toBeNull();
   });
 
-  it('disposes every initialized provider even when one cleanup fails', async () => {
-    const disposeClaude = jest.fn().mockRejectedValue(new Error('cleanup failed'));
+  it.each(['throw', 'reject'] as const)('disposes every initialized provider after a cleanup %s', async failure => {
+    const registeredDuringCleanup: unknown[] = [];
+    const disposeClaude = jest.fn(() => {
+      registeredDuringCleanup.push(
+        ProviderWorkspaceRegistry.getIfInitialized('claude'),
+        ProviderWorkspaceRegistry.getIfInitialized('codex'),
+      );
+      if (failure === 'throw') throw new Error('cleanup failed');
+      return Promise.reject(new Error('cleanup failed'));
+    });
     const disposeCodex = jest.fn().mockResolvedValue(undefined);
     ProviderWorkspaceRegistry.setServices('claude', { dispose: disposeClaude });
     ProviderWorkspaceRegistry.setServices('codex', { dispose: disposeCodex });
@@ -208,6 +216,7 @@ describe('ProviderWorkspaceRegistry', () => {
 
     expect(disposeClaude).toHaveBeenCalledTimes(1);
     expect(disposeCodex).toHaveBeenCalledTimes(1);
+    expect(registeredDuringCleanup).toEqual([null, null]);
     expect(ProviderWorkspaceRegistry.getIfInitialized('claude')).toBeNull();
     expect(ProviderWorkspaceRegistry.getIfInitialized('codex')).toBeNull();
   });

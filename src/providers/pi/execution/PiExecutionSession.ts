@@ -142,6 +142,7 @@ interface ActiveRun {
   accepted: boolean;
   assistantStarted: boolean;
   nativeRequestDispatched: boolean;
+  nativeSettled: boolean;
   nativeAssistantId?: string;
   turnStats?: TurnStats;
   nativeUserMessageId?: string;
@@ -600,6 +601,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       accepted: false,
       assistantStarted: false,
       nativeRequestDispatched: false,
+      nativeSettled: false,
       pendingTerminalError: null,
       settlesOnAgentEnd: false,
       endedWithoutRetry: false,
@@ -716,7 +718,15 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         throw error;
       }
       if (!active.terminal) {
+        // A lost response cannot establish that native work stopped before a retry.
+        const shouldShutdown = active.nativeRequestDispatched && !active.nativeSettled
+          && (active.runStarted || !(error instanceof PiRpcResponseError));
         this.finishError(active, error);
+        try {
+          if (shouldShutdown) await this.shutdownKernel();
+        } catch (cleanupError) {
+          this.lifecycleError ??= toError(cleanupError);
+        }
       }
     } finally {
       this.obsidianWorkspaceToolSession.deactivateTurn();
@@ -1017,6 +1027,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
   }
 
   private settleRun(active: ActiveRun): void {
+    active.nativeSettled = true;
     this.ensureAccepted(active);
     const pendingTerminalError = active.pendingTerminalError;
     active.pendingTerminalError = null;

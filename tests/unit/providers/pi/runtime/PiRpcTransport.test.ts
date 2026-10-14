@@ -99,6 +99,38 @@ describe('PiRpcTransport', () => {
     await expect(pending).rejects.toBeInstanceOf(PiRpcTransportClosedError);
   });
 
+  it.each(['error', 'close'] as const)('rejects pending requests when output emits %s', async event => {
+    const { input, output, transport } = createTransport();
+    const close = jest.fn();
+    transport.onClose(close);
+    const error = new Error('broken output pipe');
+    const expectedFailure = event === 'error' ? error : new PiRpcTransportClosedError('Pi RPC output closed');
+    const pending = transport.request('prompt').catch((failure: unknown) => failure);
+    try {
+      expect(() => output.emit(event, ...(event === 'error' ? [error] : []))).not.toThrow();
+      expect(transport.isClosed).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+      await expect(pending).resolves.toEqual(expectedFailure);
+      await expect(transport.request('get_state')).rejects.toBeInstanceOf(PiRpcTransportClosedError);
+    } finally {
+      transport.dispose();
+      input.destroy();
+      output.destroy();
+    }
+  });
+
+  it('contains late write errors after disposal until the output closes', () => {
+    const { input, output, transport } = createTransport();
+    const errorListeners = output.listenerCount('error');
+    transport.dispose();
+
+    expect(() => output.emit('error', new Error('late write failure'))).not.toThrow();
+    output.emit('close');
+    expect(output.listenerCount('error')).toBe(errorListeners - 1);
+    input.destroy();
+    output.destroy();
+  });
+
   it('rejects timed-out requests and removes them from the pending set', async () => {
     jest.useFakeTimers();
     const { input, transport } = createTransport();
