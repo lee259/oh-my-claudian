@@ -7,6 +7,7 @@ import { fireEvent, within } from '@testing-library/dom';
 import { axe } from 'jest-axe';
 
 import { NavigationSidebar } from '@/features/chat/ui/NavigationSidebar';
+import { getLocale, setLocale } from '@/i18n/i18n';
 
 const css = readFileSync(path.resolve('src/style/components/nav-sidebar.css'), 'utf8');
 const sidebars: NavigationSidebar[] = [];
@@ -17,18 +18,20 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function mount(scrollable: boolean) {
+function mount(scrollable: boolean, withPrompts = true) {
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
 
   const parentEl = document.body.createDiv();
   const messagesEl = parentEl.createDiv();
-  for (const title of ['First question', 'Second question']) {
-    messagesEl.createDiv({
-      cls: 'claudian-message claudian-message-user',
-      attr: { 'data-toc-title': title },
-    });
+  if (withPrompts) {
+    for (const title of ['First question', 'Second question']) {
+      messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-user',
+        attr: { 'data-toc-title': title },
+      });
+    }
   }
   Object.defineProperty(messagesEl, 'scrollHeight', {
     configurable: true,
@@ -75,4 +78,18 @@ it('removes hidden navigation from the accessibility tree and tab order', () => 
 
   expect(view.queryAllByRole('button')).toEqual([]);
   expect(view.getAllByRole('button', { hidden: true })).toHaveLength(5);
+});
+
+it('uses localized labels for navigation controls and the empty directory', () => {
+  const previousLocale = getLocale();
+  setLocale('zh-CN');
+  try {
+    const { parentEl, view } = mount(true, false);
+    expect(view.getByRole('button', { name: '滚动到顶部' })).toBeTruthy();
+    const directory = view.getByRole('button', { name: '对话目录' });
+    fireEvent.click(directory);
+    expect(parentEl.textContent).toContain('此对话中暂无用户提示词');
+  } finally {
+    setLocale(previousLocale);
+  }
 });

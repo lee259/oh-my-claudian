@@ -302,6 +302,14 @@
       "idle": "Steering is available while the agent is working.",
       "more": "More actions",
       "reorder": "Drag to reorder; arrow keys move the message"
+    },
+    "navigation": {
+      "scrollToTop": "Scroll to top",
+      "previousMessage": "Previous message",
+      "directory": "Conversation directory",
+      "nextMessage": "Next message",
+      "scrollToBottom": "Scroll to bottom",
+      "emptyDirectory": "No user prompts in this conversation"
     }
   },
   "settings": {
