@@ -2622,7 +2622,7 @@ export class MessageRenderer {
           Array.from(candidate.classList).some((className) => className.startsWith('language-'))
         );
         if (code) {
-          const match = code.className.match(/language-(\w+)/);
+          const match = code.className.match(/language-([\w-]+)/);
           if (match) {
             wrapper.classList.add('has-language');
             const label = createSpan({

@@ -2,7 +2,7 @@
 
 import '@/providers';
 
-import { Component } from 'obsidian';
+import { Component, MarkdownRenderer } from 'obsidian';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { ProviderId } from '@/core/providers/types';
@@ -123,6 +123,25 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
         Reflect.deleteProperty(window, 'ResizeObserver');
       }
     }
+  });
+
+  it('preserves hyphens in code language labels', async () => {
+    const messagesEl = document.createElement('div');
+    document.body.appendChild(messagesEl);
+    const component = new Component();
+    const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl);
+    (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.className = 'language-objective-c';
+      code.textContent = 'int main(void) {}';
+      pre.appendChild(code);
+      element.appendChild(pre);
+    });
+    try {
+      await renderer.renderContent(messagesEl, 'Objective-C example');
+      expect(messagesEl.querySelector('.claudian-code-lang-label')?.textContent).toBe('objective-c');
+    } finally { renderer.dispose(); component.unload(); }
   });
 
   it('folds settled OMP work across a whitespace-only streaming block', () => {
