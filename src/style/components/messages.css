@@ -227,7 +227,11 @@
   outline-offset: -2px;
 }
 
-.claudian-home-all-conversations:focus-visible,
+.claudian-home-all-conversations:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
 .claudian-home-action:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
