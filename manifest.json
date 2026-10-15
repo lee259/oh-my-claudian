@@ -3,7 +3,7 @@
   "name": "Oh My Claudian",
   "version": "2.5.15",
   "minAppVersion": "1.7.2",
-  "description": "Work with your Obsidian notes using Claude Code, Codex, and other coding agents. Create linked summaries, inspect file-edit diffs, and improve drafts with inline editing.",
+  "description": "Work with your notes using Claude Code, Codex, and other coding agents. Create linked summaries, inspect file-edit diffs, and improve drafts with inline editing.",
   "author": "Lee",
   "authorUrl": "https://github.com/lee259",
   "isDesktopOnly": true
