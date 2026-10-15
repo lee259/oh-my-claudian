@@ -41,6 +41,12 @@ function resolveImageFile(
   imagePath: string,
   options: Required<ReplaceImageEmbedsOptions>
 ): TFile | null {
+  // Resolve links in the note's context before applying the configured media-folder fallback.
+  if (options.sourcePath) {
+    const resolved = app.metadataCache.getFirstLinkpathDest(imagePath, options.sourcePath);
+    if (resolved) return resolved;
+  }
+
   let file = getVaultFileByPath(app, imagePath);
   if (file) return file;
 
@@ -50,8 +56,10 @@ function resolveImageFile(
     if (file) return file;
   }
 
-  const resolved = app.metadataCache.getFirstLinkpathDest(imagePath, options.sourcePath);
-  if (resolved) return resolved;
+  if (!options.sourcePath) {
+    const resolved = app.metadataCache.getFirstLinkpathDest(imagePath, options.sourcePath);
+    if (resolved) return resolved;
+  }
 
   return null;
 }
