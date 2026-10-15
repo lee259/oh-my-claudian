@@ -962,6 +962,7 @@ function createToolElementStructure(
 
   const nameEl = header.createSpan({ cls: 'claudian-tool-name' });
   nameEl.setText(getToolName(toolCall.name, toolCall.input));
+  nameEl.setAttribute('title', getToolName(toolCall.name, toolCall.input));
 
   const summaryEl = header.createSpan({ cls: 'claudian-tool-summary' });
   summaryEl.setText(getToolSummary(toolCall.name, toolCall.input));
@@ -1219,6 +1220,7 @@ export function updateToolCallResult(
     const nameEl = toolEl.querySelector('.claudian-tool-name') as HTMLElement;
     if (nameEl) {
       nameEl.setText(getToolName(toolCall.name, toolCall.input));
+      nameEl.setAttribute('title', getToolName(toolCall.name, toolCall.input));
     }
     const currentTaskEl = toolEl.querySelector('.claudian-tool-current') as HTMLElement;
     if (currentTaskEl) {

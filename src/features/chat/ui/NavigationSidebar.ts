@@ -1,4 +1,4 @@
-import { setIcon } from 'obsidian';
+import { type App, Scope, setIcon } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
 
@@ -28,11 +28,37 @@ export class NavigationSidebar {
   private mutationObserver: MutationObserver | null = null;
   private pendingVisibilityFrame: ScheduledAnimationFrame | null = null;
   private isVisible: boolean | null = null;
+  private directoryScope: Scope | null = null;
+  private readonly directoryKeyDown = (event: KeyboardEvent): void => {
+    if (!this.tocPopover || event.isComposing) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      this.closeDirectory(true);
+      return;
+    }
+    const entries = Array.from(this.tocPopover.querySelectorAll<HTMLButtonElement>('.claudian-nav-toc-item'));
+    const index = entries.indexOf(this.parentEl.ownerDocument.activeElement as HTMLButtonElement);
+    if (index < 0) return;
+    let next: number;
+    switch (event.key) {
+      case 'ArrowDown': next = Math.min(index + 1, entries.length - 1); break;
+      case 'ArrowUp': next = Math.max(index - 1, 0); break;
+      case 'Home': next = 0; break;
+      case 'End': next = entries.length - 1; break;
+      default: return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    entries[next].focus();
+  };
 
   constructor(
     private parentEl: HTMLElement,
     private messagesEl: HTMLElement,
     private onScrollIntent?: (intent: NavigationScrollIntent) => void,
+    private readonly app?: Pick<App, 'keymap' | 'scope'>,
   ) {
     this.container = this.parentEl.createDiv({ cls: 'claudian-nav-sidebar' });
 
@@ -58,6 +84,7 @@ export class NavigationSidebar {
   }
 
   private setupEventListeners(): void {
+    this.parentEl.addEventListener('keydown', this.directoryKeyDown, true);
     // Scroll handling to toggle visibility
     this.scrollHandler = () => this.updateVisibility();
     this.messagesEl.addEventListener('scroll', this.scrollHandler, { passive: true });
@@ -188,17 +215,27 @@ export class NavigationSidebar {
 
   private toggleDirectory(): void {
     if (this.tocPopover) {
-      this.closeDirectory();
+      this.closeDirectory(true);
       return;
     }
     this.openDirectory();
   }
 
-  private openDirectory(): void {
+  private openDirectory(focusFirst = true): void {
     const entries = this.getDirectoryEntries();
     this.closeDirectory();
     this.tocBtn.setAttribute('aria-expanded', 'true');
     this.tocPopover = this.parentEl.createDiv({ cls: 'claudian-nav-toc-popover' });
+    if (this.app?.keymap) {
+      const scope = new Scope(this.app.scope);
+      scope.register([], 'Escape', (event) => {
+        if (event.isComposing) return;
+        this.directoryKeyDown(event);
+        return false;
+      });
+      this.directoryScope = scope;
+      this.app.keymap.pushScope(scope);
+    }
     this.tocPopover.createDiv({ cls: 'claudian-nav-toc-title', text: t('chat.navigation.directory') });
     const listEl = this.tocPopover.createDiv({ cls: 'claudian-nav-toc-list' });
 
@@ -217,21 +254,35 @@ export class NavigationSidebar {
         attr: { type: 'button', title: entry.title },
       });
       itemEl.addEventListener('click', () => {
+        this.onScrollIntent?.('away');
         this.scrollToElement(entry.el);
-        this.closeDirectory();
+        this.closeDirectory(true);
       });
     });
+    if (focusFirst) listEl.querySelector<HTMLButtonElement>('.claudian-nav-toc-item')?.focus?.({ preventScroll: true });
   }
 
   private refreshOpenDirectory(): void {
     if (!this.tocPopover) return;
-    this.openDirectory();
+    const entries = Array.from(this.tocPopover.querySelectorAll<HTMLButtonElement>('.claudian-nav-toc-item'));
+    const focusedIndex = entries.indexOf(this.parentEl.ownerDocument.activeElement as HTMLButtonElement);
+    this.openDirectory(false);
+    if (focusedIndex >= 0) {
+      const updated = this.tocPopover?.querySelectorAll<HTMLButtonElement>('.claudian-nav-toc-item');
+      const target = updated?.[Math.min(focusedIndex, updated.length - 1)] ?? this.tocBtn;
+      target.focus?.({ preventScroll: true });
+    }
   }
 
-  private closeDirectory(): void {
+  private closeDirectory(restoreFocus = false): void {
+    if (this.directoryScope) {
+      this.app?.keymap.popScope(this.directoryScope);
+      this.directoryScope = null;
+    }
     this.tocPopover?.remove();
     this.tocPopover = null;
     this.tocBtn?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) this.tocBtn.focus?.({ preventScroll: true });
   }
 
   private scrollToElement(el: HTMLElement): void {
@@ -278,6 +329,7 @@ export class NavigationSidebar {
   }
 
   destroy(): void {
+    this.parentEl.removeEventListener('keydown', this.directoryKeyDown, true);
     if (this.pendingVisibilityFrame !== null) {
       cancelScheduledAnimationFrame(this.pendingVisibilityFrame);
       this.pendingVisibilityFrame = null;
