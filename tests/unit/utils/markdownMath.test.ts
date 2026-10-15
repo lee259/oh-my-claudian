@@ -22,6 +22,27 @@ describe('markdownMath', () => {
       ].join('\n'));
     });
 
+    it('trims ordinary padding around inline LaTeX expressions', () => {
+      expect(normalizeLatexMathDelimiters('Inline \\( x + y \\).')).toBe('Inline $x + y$.');
+    });
+
+    it('trims only ordinary inline boundary spacing', () => {
+      const cases = [
+        ['Inline \\( x\\).', 'Inline $x$.'],
+        ['Inline \\(x \\).', 'Inline $x$.'],
+        ['Inline \\(  x   + y  \\).', 'Inline $x   + y$.'],
+        ['Inline \\(\tx\t\\).', 'Inline $x$.'],
+        ['Inline \\(\\ x\\ \\).', 'Inline $\\ x\\ $.'],
+        ['Inline \\(  \\).', 'Inline $  $.'],
+        ['Inline \\(\\).', 'Inline $$.'],
+        ['Display \\[  x  \\].', 'Display $$  x  $$.'],
+      ];
+
+      for (const [markdown, expected] of cases) {
+        expect(normalizeLatexMathDelimiters(markdown)).toBe(expected);
+      }
+    });
+
     it('preserves existing dollars and unmatched or escaped LaTeX delimiters', () => {
       expect(
         normalizeLatexMathDelimiters('Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).')
