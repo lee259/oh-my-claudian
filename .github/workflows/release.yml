@@ -67,10 +67,25 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Read release highlights
+        id: highlights
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          RELEASE_HIGHLIGHTS_PATH="docs/releases/$RELEASE_VERSION.md"
+          if [ -f "$RELEASE_HIGHLIGHTS_PATH" ]; then
+            RELEASE_NOTES_DELIMITER="$(node -p 'crypto.randomUUID()')"
+            printf 'notes<<%s\n' "$RELEASE_NOTES_DELIMITER" >> "$GITHUB_OUTPUT"
+            cat "$RELEASE_HIGHLIGHTS_PATH" >> "$GITHUB_OUTPUT"
+            printf '\n%s\n' "$RELEASE_NOTES_DELIMITER" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           body: |
+            ${{ steps.highlights.outputs.notes }}
+
             ## What's Changed
             ${{ steps.changelog.outputs.notes }}
 
