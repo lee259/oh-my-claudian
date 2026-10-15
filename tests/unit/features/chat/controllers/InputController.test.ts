@@ -390,6 +390,27 @@ describe('InputController coordinator execution', () => {
       expect(fixture.state.followUps.paused).toBe(true);
     } finally { jest.useRealTimers(); }
   });
+  it('fences a scheduled post-stop priority submission when another Stop occurs', async () => {
+    jest.useFakeTimers();
+    try {
+      const fixture = createFixture();
+      fixture.state.followUps.pause();
+      fixture.state.followUps.enqueuePriority('after-stop', {
+        content: 'Run this after Stop',
+        editorContext: null,
+        canvasContext: null,
+      });
+
+      fixture.controller.resumeQueuedMessages();
+      expect(fixture.state.followUps.items[0].status).toBe('sending');
+      fixture.controller.cancelStreaming();
+      await jest.runOnlyPendingTimersAsync();
+
+      expect(fixture.coordinator.execute).not.toHaveBeenCalled();
+      expect(fixture.state.followUps.items[0].status).toBe('queued');
+      expect(fixture.state.followUps.paused).toBe(true);
+    } finally { jest.useRealTimers(); }
+  });
   it('retains active turn ownership while follow-ups are submitted', async () => {
     const owner = { activeTurn: null as Promise<void> | null };
     const fixture = createFixture({ turnOwner: owner });
@@ -428,6 +449,47 @@ describe('InputController coordinator execution', () => {
     expect(fixture.state.followUps.paused).toBe(true);
     expect(fixture.state.followUps.items[0].message.content).toBe('Run tests');
     expect(fixture.coordinator.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs a new message entered after Stop without resuming older queued work', async () => {
+    jest.useFakeTimers();
+    try {
+      const turnOwner = { activeTurn: null as Promise<void> | null };
+      const fixture = createFixture({ turnOwner });
+      fixture.state.followUps.enqueue('older-waiting', {
+        content: 'older queued work',
+        editorContext: null,
+        canvasContext: null,
+      });
+      const cancelledResult = deferred<{
+        accepted: boolean;
+        planCompleted: boolean;
+        status: 'cancelled';
+      }>();
+      const save = deferred<void>();
+      fixture.coordinator.execute.mockReturnValueOnce(cancelledResult.promise);
+      jest.mocked(fixture.deps.conversationController.save).mockReturnValueOnce(save.promise);
+
+      const firstTurn = fixture.controller.sendMessage({ content: 'stop this run' });
+      await waitForCall(fixture.coordinator.execute);
+      fixture.controller.cancelStreaming();
+      cancelledResult.resolve({ accepted: true, planCompleted: false, status: 'cancelled' });
+      await waitForCall(fixture.deps.conversationController.save as jest.Mock);
+      expect(fixture.state.isStreaming).toBe(false);
+      expect(turnOwner.activeTurn).not.toBeNull();
+
+      fixture.input.value = 'run this next';
+      await fixture.controller.sendMessage();
+      save.resolve();
+      await firstTurn;
+      await jest.runOnlyPendingTimersAsync();
+
+      expect(fixture.coordinator.execute.mock.calls.map(([submission]) => submission.canonicalText))
+        .toEqual(['stop this run', 'run this next']);
+      expect(fixture.state.followUps.items.map(item => [item.id, item.status]))
+        .toEqual([['older-waiting', 'queued']]);
+      expect(fixture.state.followUps.paused).toBe(true);
+    } finally { jest.useRealTimers(); }
   });
 
   it('pauses queued work when the current execution fails', async () => {

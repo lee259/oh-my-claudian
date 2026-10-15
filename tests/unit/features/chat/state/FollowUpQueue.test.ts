@@ -15,6 +15,33 @@ describe('FollowUpQueue', () => {
     expect(queue.move('fix', 1)).toBe(false);
   });
 
+  it('takes priority input while paused and leaves older queued work paused', () => {
+    const queue = new FollowUpQueue();
+    queue.enqueue('older', { content: 'Older', editorContext: null, canvasContext: null });
+    queue.pause();
+    queue.enqueuePriority('newer-first', { content: 'Newer first', editorContext: null, canvasContext: null });
+    queue.enqueuePriority('newer-second', { content: 'Newer second', editorContext: null, canvasContext: null });
+
+    expect(queue.items.map(item => item.id)).toEqual(['newer-first', 'newer-second', 'older']);
+    expect(queue.takeNextPriority()?.id).toBe('newer-first');
+    expect(queue.takeNextPriority()).toBeNull();
+    expect(queue.takeNext()).toBeNull();
+    queue.remove('newer-first');
+    expect(queue.items.map(item => item.id)).toEqual(['newer-second', 'older']);
+    expect(queue.paused).toBe(true);
+  });
+
+  it('keeps priority entries ahead of ordinary work when users reorder the queue', () => {
+    const queue = new FollowUpQueue();
+    queue.enqueue('older', { content: 'Older', editorContext: null, canvasContext: null });
+    queue.enqueuePriority('newer', { content: 'Newer', editorContext: null, canvasContext: null });
+
+    expect(queue.move('older', -1)).toBe(false);
+    expect(queue.moveTo('older', 'newer')).toBe(false);
+    expect(queue.items.map(item => item.id)).toEqual(['newer', 'older']);
+    expect(queue.takeNext()?.id).toBe('newer');
+  });
+
   it('withdraws to a retained composer context while the remaining queue can continue', () => {
     const queue = new FollowUpQueue();
     const onDelivery = jest.fn();

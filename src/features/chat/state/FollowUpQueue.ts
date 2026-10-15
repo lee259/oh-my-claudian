@@ -12,6 +12,7 @@ export interface FollowUpItem {
 /** Conversation-owned follow-ups; presentation detach never discards waiting input. */
 export class FollowUpQueue {
   private entries: FollowUpItem[] = [];
+  private readonly priorityEntryIds = new Set<string>();
   private isPaused = false;
   private composerMessage: QueuedMessage | null = null;
   private readonly listeners = new Set<() => void>();
@@ -30,11 +31,28 @@ export class FollowUpQueue {
 
   pause(): void { this.isPaused = true; this.notify(); }
   resume(): void { this.isPaused = false; this.notify(); }
-  clear(): void { this.entries = []; this.composerMessage = null; this.isPaused = false; this.notify(); }
+  clear(): void {
+    this.entries = [];
+    this.priorityEntryIds.clear();
+    this.composerMessage = null;
+    this.isPaused = false;
+    this.notify();
+  }
 
   enqueue(id: string, message: QueuedMessage): FollowUpItem {
     const item: FollowUpItem = { id, message: cloneQueuedMessage(message), status: 'queued' };
     this.entries.push(item);
+    this.notify();
+    return item;
+  }
+
+  enqueuePriority(id: string, message: QueuedMessage): FollowUpItem {
+    const item: FollowUpItem = { id, message: cloneQueuedMessage(message), status: 'queued' };
+    this.priorityEntryIds.add(id);
+    const firstOrdinaryQueuedIndex = this.entries.findIndex(entry =>
+      entry.status === 'queued' && !this.priorityEntryIds.has(entry.id));
+    if (firstOrdinaryQueuedIndex < 0) this.entries.push(item);
+    else this.entries.splice(firstOrdinaryQueuedIndex, 0, item);
     this.notify();
     return item;
   }
@@ -62,6 +80,7 @@ export class FollowUpQueue {
     if (!source || !target || source === target) return false;
     const reordered = waiting.filter(item => item !== source);
     reordered.splice(reordered.indexOf(target) + (after ? 1 : 0), 0, source);
+    if (!this.preservesPriorityOrder(reordered)) return false;
     let index = 0;
     this.entries = this.entries.map(item => waiting.includes(item) ? reordered[index++] : item);
     this.notify();
@@ -70,7 +89,20 @@ export class FollowUpQueue {
 
   takeNext(): FollowUpItem | null {
     if (this.paused || this.entries.some(item => item.status === 'sending')) return null;
-    const item = this.next;
+    return this.takeNextPriority() ?? this.takeNextQueued(item => !this.priorityEntryIds.has(item.id));
+  }
+
+  takeNextPriority(): FollowUpItem | null {
+    if (this.entries.some(item => item.status === 'sending')) return null;
+    return this.takeNextQueued(item => this.priorityEntryIds.has(item.id));
+  }
+
+  isPriority(id: string): boolean {
+    return this.priorityEntryIds.has(id);
+  }
+
+  private takeNextQueued(predicate: (item: FollowUpItem) => boolean): FollowUpItem | null {
+    const item = this.entries.find(entry => entry.status === 'queued' && predicate(entry)) ?? null;
     if (!item || item.status !== 'queued') return null;
     this.setStatus(item.id, 'sending');
     return this.entries.find(entry => entry.id === item.id) ?? null;
@@ -82,18 +114,33 @@ export class FollowUpQueue {
   }
 
   move(id: string, direction: -1 | 1): boolean {
-    const editable = this.entries.filter(item => item.status === 'queued');
-    const index = editable.findIndex(item => item.id === id);
-    const other = editable[index + direction];
-    if (index < 0 || !other) return false;
-    const from = this.entries.findIndex(item => item.id === id);
-    const to = this.entries.findIndex(item => item.id === other.id);
-    [this.entries[from], this.entries[to]] = [this.entries[to], this.entries[from]];
+    const waiting = this.entries.filter(item => item.status === 'queued');
+    const index = waiting.findIndex(item => item.id === id);
+    const otherIndex = index + direction;
+    if (index < 0 || otherIndex < 0 || otherIndex >= waiting.length) return false;
+    const reordered = [...waiting];
+    [reordered[index], reordered[otherIndex]] = [reordered[otherIndex], reordered[index]];
+    if (!this.preservesPriorityOrder(reordered)) return false;
+    let cursor = 0;
+    this.entries = this.entries.map(item => waiting.includes(item) ? reordered[cursor++] : item);
     this.notify();
     return true;
   }
 
+  private preservesPriorityOrder(items: readonly FollowUpItem[]): boolean {
+    let hasSeenOrdinaryItem = false;
+    for (const item of items) {
+      if (this.priorityEntryIds.has(item.id)) {
+        if (hasSeenOrdinaryItem) return false;
+      } else {
+        hasSeenOrdinaryItem = true;
+      }
+    }
+    return true;
+  }
+
   remove(id: string): void {
+    this.priorityEntryIds.delete(id);
     this.entries = this.entries.filter(item => item.id !== id);
     this.notify();
   }
