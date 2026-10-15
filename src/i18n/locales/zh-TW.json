@@ -302,6 +302,14 @@
       "idle": "Agent 工作時才能插隊補充。",
       "more": "更多操作",
       "reorder": "拖曳調整順序；方向鍵移動訊息"
+    },
+    "navigation": {
+      "scrollToTop": "捲動至頂端",
+      "previousMessage": "上一則訊息",
+      "directory": "對話目錄",
+      "nextMessage": "下一則訊息",
+      "scrollToBottom": "捲動至底端",
+      "emptyDirectory": "此對話中尚無使用者提示詞"
     }
   },
   "settings": {
