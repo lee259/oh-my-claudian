@@ -1444,16 +1444,7 @@ export class MessageRenderer {
       segment.type === 'phase'
       && this.activityPhaseOverrides.get(`${msg.id}:${segment.id}`) === true
     ));
-    const singleToolPhase = timeline?.length === 1
-      && timeline[0].type === 'phase'
-      && timeline[0].elements.length > 1
-      && timeline[0].elements.every((element) => element.hasClass('claudian-tool-call'))
-      ? timeline[0]
-      : undefined;
-    const headerSummary = {
-      actionCount: singleToolPhase ? summary.actionCount : 0,
-      errorCount: 0,
-    };
+    const headerSummary = { actionCount: 0, errorCount: 0 };
     const headerEl = workEl.createEl('button', {
       cls: 'claudian-completed-work-header',
       attr: {
@@ -1491,10 +1482,6 @@ export class MessageRenderer {
           continue;
         }
         if (segment.type === 'subagents') {
-          for (const element of segment.elements) historyEl.appendChild(element);
-          continue;
-        }
-        if (segment === singleToolPhase) {
           for (const element of segment.elements) historyEl.appendChild(element);
           continue;
         }
