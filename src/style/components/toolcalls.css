@@ -231,6 +231,50 @@
   padding-inline-start: 0;
 }
 
+/* Activity summaries share the transcript's flat, muted UI typography. */
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call {
+  margin-block: 0;
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-header {
+  display: flex;
+  gap: 6px;
+  padding-block: 6px;
+  padding-inline-start: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-header:hover {
+  background: transparent;
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) :is(.claudian-tool-name, .claudian-tool-summary) {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) :is(.claudian-tool-icon, .claudian-tool-status.status-completed) {
+  color: var(--text-muted);
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-file-link:is(:hover, :focus-visible) {
+  color: var(--text-accent);
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call-bash:not(.expanded) .claudian-tool-summary:not(:empty) {
+  display: block;
+  white-space: nowrap;
+}
+
+.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call-bash.expanded .claudian-tool-summary {
+  display: none;
+}
+
 /* Expanded content: per-line rendering */
 .claudian-tool-lines {
   font-family: var(--font-monospace);
