@@ -213,6 +213,7 @@ export class InputController {
   private awaitingProviderAssistantStart = false;
   private readonly deferredReviewableSettlement = new DeferredReviewableSettlement();
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
+  private stoppedTurn: Promise<void> | null = null;
   private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
   private readonly instructionSubmissionController: InstructionSubmissionController;
   private readonly builtInCommandController: BuiltInCommandController;
@@ -490,6 +491,7 @@ export class InputController {
       streamController,
     } = this.deps;
     const isFollowUp = state.isStreaming || this.turnCoordinator.current !== null;
+    const followsStop = this.stoppedTurn !== null && this.turnCoordinator.current === this.stoppedTurn;
     let editedMessage: QueuedMessage | null = null;
     const restoreUnsentMessage = (message: QueuedMessage, restoreOptions: { mergeWithComposer?: boolean } = {}) => {
       if (!options?.queuedInputId) {
@@ -563,7 +565,7 @@ export class InputController {
 
     // Snapshot follow-ups immediately; provider readiness is checked when they execute.
     if (state.isStreaming || isFollowUp) {
-      const itemId = this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options);
+      const itemId = this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options, followsStop);
       if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
       if (options?.deliveryMode === 'steer') await this.steerQueuedMessage(itemId);
       if (!state.isStreaming && !this.turnCoordinator.current) this.processQueuedMessage();
@@ -1015,6 +1017,7 @@ export class InputController {
     hasImages: boolean,
     shouldUseInput: boolean,
     options?: SendMessageOptions,
+    priority = false,
   ): string {
     const { state } = this.deps;
     const editingMessage = shouldUseInput ? state.followUps.editingMessage : null;
@@ -1040,7 +1043,8 @@ export class InputController {
       this.deferredDeliveryCallbacks.add(onDelivery);
     }
     const itemId = this.deps.generateId();
-    state.followUps.enqueue(itemId, queued);
+    if (priority) state.followUps.enqueuePriority(itemId, queued);
+    else state.followUps.enqueue(itemId, queued);
     if (shouldUseInput) state.followUps.finishEditing(editingMessage);
     if (shouldUseInput) {
       const inputEl = this.getComposer();
@@ -1167,12 +1171,15 @@ export class InputController {
   private processQueuedMessage(): boolean {
     const { state } = this.deps;
     if (state.isStreaming || state.requiresAction) return false;
-    const item = state.followUps.takeNext();
+    const item = state.followUps.takeNextPriority() ?? state.followUps.takeNext();
     if (!item) return false;
     const conversationId = state.currentConversationId;
+    const stopGeneration = this.stopGeneration;
     this.updateQueueIndicator();
     window.setTimeout(() => {
-      if (state.isStreaming || this.turnCoordinator.current || state.currentConversationId !== conversationId || state.followUps.paused
+      if (this.stopGeneration !== stopGeneration || state.isStreaming || this.turnCoordinator.current
+        || state.currentConversationId !== conversationId
+        || (state.followUps.paused && !state.followUps.isPriority(item.id))
         || state.followUps.items.find(entry => entry.id === item.id)?.status !== 'sending') {
         state.followUps.setStatus(item.id, 'queued');
         this.updateQueueIndicator();
@@ -1698,6 +1705,14 @@ export class InputController {
   cancelStreaming(): void {
     const { state, streamController } = this.deps;
     this.stopGeneration++;
+    const activeTurn = this.turnCoordinator.current;
+    if (state.isStreaming && activeTurn) {
+      this.stoppedTurn = activeTurn;
+      void activeTurn.then(
+        () => { if (this.stoppedTurn === activeTurn) this.stoppedTurn = null; },
+        () => { if (this.stoppedTurn === activeTurn) this.stoppedTurn = null; },
+      );
+    }
     state.followUps.pause();
     this.updateQueueIndicator();
     if (!state.isStreaming) return;

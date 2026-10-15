@@ -41,7 +41,7 @@ export class TurnCompletionCoordinator {
     const { state } = this.deps;
     let planApprovalInvalidated = false;
     let planAutoSendContent: string | null = null;
-    let shouldProcessQueuedMessage = !options.didCancelThisTurn;
+    let shouldProcessQueuedMessage = true;
 
     if (options.planCompleted && !options.didCancelThisTurn) {
       const planInteractionId = `local-plan-approval:${options.streamGeneration}`;

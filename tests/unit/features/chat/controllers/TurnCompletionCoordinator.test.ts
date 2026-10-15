@@ -96,4 +96,19 @@ describe('TurnCompletionCoordinator', () => {
     expect(deps.scheduleCurrentControllerContinuation).not.toHaveBeenCalled();
     expect(result.planApprovalInvalidated).toBe(true);
   });
+
+  it('lets the input controller dispatch post-stop priority input', async () => {
+    const { coordinator, deps } = createFixture();
+
+    await coordinator.complete({
+      streamGeneration: 1,
+      didEnqueueToSdk: false,
+      planCompleted: false,
+      didCancelThisTurn: true,
+      userMessage,
+      reviewableSettlementReporter: null,
+    });
+
+    expect(deps.processQueuedMessage).toHaveBeenCalledTimes(1);
+  });
 });
