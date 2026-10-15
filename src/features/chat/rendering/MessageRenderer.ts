@@ -319,6 +319,10 @@ export class MessageRenderer {
     }
   }
 
+  private applyUserTocTitle(msgEl: HTMLElement, msg: ChatMessage, text: string): void {
+    this.applyTocTitle(msgEl, text || msg.images?.map((image) => image.name).join(', ') || '');
+  }
+
   // ============================================
   // Streaming Message Rendering
   // ============================================
@@ -331,16 +335,11 @@ export class MessageRenderer {
     if (this.getCapabilities().forkMode === 'full-session') {
       this.messagesEl.querySelectorAll('.claudian-message-fork-btn').forEach(button => button.remove());
     }
-    // Render images above message bubble for user messages
-    if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-      this.renderMessageImages(this.messagesEl, msg.images);
-    }
-
     const userPresentation = msg.role === 'user' ? this.getUserMessagePresentation(msg) : undefined;
 
     // Skip empty bubbles while retaining image-only and quote-only messages.
     if (msg.role === 'user') {
-      if (!userPresentation?.body.trim() && !userPresentation?.quote) {
+      if (!userPresentation?.body.trim() && !userPresentation?.quote && !msg.images?.length) {
         if (this.canAutoFollow()) this.scrollToBottom();
         const lastChild = this.messagesEl.lastElementChild as HTMLElement;
         return lastChild ?? this.messagesEl;
@@ -358,6 +357,7 @@ export class MessageRenderer {
 
     this.setTranscriptIdentity(msgEl, { turnId: msg.id, ...(msg.role === 'assistant' ? { runId: msg.id } : {}) });
 
+    if (msg.role === 'user' && msg.images?.length) this.renderMessageImages(msgEl, msg.images);
     if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
@@ -368,8 +368,8 @@ export class MessageRenderer {
         const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
         void this.renderContent(textEl, textToShow);
         this.addUserCopyButton(msgEl, userPresentation?.source ?? textToShow);
-        this.applyTocTitle(msgEl, textToShow);
       }
+      this.applyUserTocTitle(msgEl, msg, textToShow || userPresentation?.quote || '');
       if (this.rewindCallback || this.forkCallback || this.branchActions) {
         this.liveMessageEls.set(msg.id, msgEl);
       }
@@ -408,10 +408,8 @@ export class MessageRenderer {
     if (textToShow) {
       const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
       void this.renderContent(textEl, textToShow);
-      this.applyTocTitle(msgEl, textToShow);
-    } else {
-      msgEl.removeAttribute('data-toc-title');
     }
+    this.applyUserTocTitle(msgEl, msg, textToShow || presentation.quote);
 
     const toolbar = msgEl.querySelector<HTMLElement>('.claudian-message-action-row');
     if (toolbar) {
@@ -563,14 +561,9 @@ export class MessageRenderer {
 
     const userPresentation = msg.role === 'user' ? this.getUserMessagePresentation(msg) : undefined;
 
-    // Render images above bubble for user messages
-    if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-      this.renderMessageImages(this.messagesEl, msg.images);
-    }
-
     // Skip empty bubbles while retaining image-only and quote-only messages.
     if (msg.role === 'user') {
-      if (!userPresentation?.body.trim() && !userPresentation?.quote) {
+      if (!userPresentation?.body.trim() && !userPresentation?.quote && !msg.images?.length) {
         return;
       }
     }
@@ -592,6 +585,7 @@ export class MessageRenderer {
       ?? this.getTranscriptIdentities(allMessages ?? [msg]).get(msg.id);
     this.setTranscriptIdentity(msgEl, transcriptIdentity);
 
+    if (msg.role === 'user' && msg.images?.length) this.renderMessageImages(msgEl, msg.images);
     if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
@@ -602,8 +596,8 @@ export class MessageRenderer {
         const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
         void this.renderContent(textEl, textToShow);
         this.addUserCopyButton(msgEl, userPresentation?.source ?? textToShow);
-        this.applyTocTitle(msgEl, textToShow);
       }
+      this.applyUserTocTitle(msgEl, msg, textToShow || userPresentation?.quote || '');
       this.addBranchButtons(msgEl, msg, false, allMessages, index);
       if (msg.userMessageId && !this.suppressConversationActions) {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
@@ -1342,6 +1336,8 @@ export class MessageRenderer {
   ): void {
     const fold = timeline.fold;
     const statusEl = contentEl.querySelector<HTMLElement>('.claudian-completed-work-status');
+    statusEl?.querySelector('.claudian-completed-work-error')?.remove();
+    const summary = this.getCompletedWorkSummary(timeline.items.flat().flatMap((segment) => segment.elements), msg);
     const foldedItems = fold
       ? timeline.items.slice(fold.start, fold.end + 1)
       : [];
@@ -1357,6 +1353,7 @@ export class MessageRenderer {
       const headerEl = statusEl.createDiv({ cls: 'claudian-streaming-work-header' });
       const labelEl = statusEl.querySelector<HTMLElement>('.claudian-completed-work-label');
       if (labelEl) headerEl.appendChild(labelEl);
+      this.renderWorkErrorIndicator(headerEl, 'claudian-completed-work-error', summary.errorCount);
       historyEl = statusEl.createDiv({
         cls: 'claudian-streaming-work-history',
         attr: { id: workId },
@@ -1390,6 +1387,8 @@ export class MessageRenderer {
           }
         }
       }
+    } else if (statusEl) {
+      this.renderWorkErrorIndicator(statusEl, 'claudian-completed-work-error', summary.errorCount);
     }
 
     timeline.items.forEach((item, itemIndex) => {
@@ -1412,6 +1411,19 @@ export class MessageRenderer {
       }
     });
     if (statusEl) this.restoreStreamingWorkViewport(statusEl);
+  }
+
+  private renderWorkErrorIndicator(headerEl: HTMLElement, className: string, errorCount: number): void {
+    if (errorCount === 0) return;
+    const description = t(errorCount === 1 ? 'chat.completedWork.errorOne' : 'chat.completedWork.errors', {
+      count: errorCount,
+    }).replace(/^\s*·\s*/, '');
+    const errorEl = headerEl.createSpan({
+      cls: className,
+      attr: { role: 'img', 'aria-label': description, title: description },
+    });
+    setIcon(errorEl, 'alert-triangle');
+    headerEl.insertBefore(errorEl, headerEl.firstChild);
   }
 
   private createCompletedWork(
@@ -1453,11 +1465,7 @@ export class MessageRenderer {
         'aria-expanded': String(isExpanded),
       },
     });
-    if (summary.errorCount > 0) {
-      const statusEl = headerEl.createSpan({ cls: 'claudian-completed-work-error' });
-      statusEl.setAttribute('aria-hidden', 'true');
-      setIcon(statusEl, 'alert-triangle');
-    }
+    this.renderWorkErrorIndicator(headerEl, 'claudian-completed-work-error', summary.errorCount);
     headerEl.createSpan({
       cls: 'claudian-completed-work-label',
       text: [msg?.modelName, this.getCompletedWorkLabel(durationSeconds, false, headerSummary)]
@@ -1505,7 +1513,7 @@ export class MessageRenderer {
       for (const child of workEls) historyEl.appendChild(child);
     }
     headerEl.addEventListener('click', () => {
-      const nextExpanded = Boolean(historyEl.hidden);
+      const nextExpanded = headerEl.getAttribute('aria-expanded') !== 'true';
       setCollapsibleContentExpanded(historyEl, nextExpanded, hidden => {
         historyEl.hidden = hidden;
       });
@@ -1563,15 +1571,7 @@ export class MessageRenderer {
       cls: 'claudian-activity-phase-label',
       text: this.getActivityPhaseLabel(elements, msg, summary, kind),
     });
-    if (summary.errorCount > 0) {
-      const errorEl = headerEl.createSpan({ cls: 'claudian-activity-phase-error' });
-      errorEl.setAttribute('aria-hidden', 'true');
-      errorEl.setAttribute('title', this.getCompletedWorkLabel(undefined, false, {
-        actionCount: 0,
-        errorCount: summary.errorCount,
-      }));
-      setIcon(errorEl, 'alert-triangle');
-    }
+    this.renderWorkErrorIndicator(headerEl, 'claudian-activity-phase-error', summary.errorCount);
     const indicatorEl = headerEl.createSpan({ cls: 'claudian-activity-phase-indicator' });
     indicatorEl.setAttribute('aria-hidden', 'true');
     setIcon(indicatorEl, isExpanded ? 'chevron-down' : 'chevron-right');
@@ -2062,7 +2062,7 @@ export class MessageRenderer {
         rendered = true;
         void this.renderContent(contentBlock, content);
       }
-      const nextExpanded = Boolean(history.hidden);
+      const nextExpanded = header.getAttribute('aria-expanded') !== 'true';
       setCollapsibleContentExpanded(history, nextExpanded, hidden => {
         history.hidden = hidden;
       });
@@ -2620,56 +2620,43 @@ export class MessageRenderer {
         pre.parentElement?.insertBefore(wrapper, pre);
         wrapper.appendChild(pre);
 
-        // Check for language class and add label
-        const code = Array.from(pre.querySelectorAll('code')).find((candidate) =>
-          Array.from(candidate.classList).some((className) => className.startsWith('language-'))
-        );
-        if (code) {
-          const match = code.className.match(/language-([\w-]+)/);
-          if (match) {
-            wrapper.classList.add('has-language');
-            const label = createEl('button', {
-              cls: 'claudian-code-lang-label',
-              attr: {
-                type: 'button',
-                'aria-label': `Copy ${match[1]} code`,
-              },
-            });
-            label.setText(match[1]);
-            wrapper.appendChild(label);
-            label.addEventListener('click', (event) => {
-              event.preventDefault();
-              runRendererAction(async () => {
-                const originalLabel = match[1];
-                if (!originalLabel) return;
-
-                try {
-                  await navigator.clipboard.writeText(code.textContent || '');
-                  label.setText(t('chat.rendering.copied'));
-                  label.setAttribute('aria-label', t('chat.rendering.copied'));
-                  window.setTimeout(() => {
-                    label.setText(originalLabel);
-                    label.setAttribute('aria-label', `Copy ${originalLabel} code`);
-                  }, 1500);
-                } catch {
-                  // Clipboard API may fail in non-secure contexts
-                }
-              });
-            });
-          }
+        const header = wrapper.createDiv({ cls: 'claudian-code-header' });
+        wrapper.insertBefore(header, pre);
+        const code = pre.querySelector('code');
+        const language = code?.className.match(/language-([\w-]+)/)?.[1];
+        if (language) {
+          wrapper.classList.add('has-language');
+          header.createSpan({ cls: 'claudian-code-language', text: language });
         }
+        const copyButton = header.createEl('button', {
+          cls: 'claudian-code-copy-btn',
+          attr: { type: 'button', 'aria-label': language ? `Copy ${language} code` : 'Copy code' },
+        });
+        setIcon(copyButton, 'copy');
+        copyButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runRendererAction(async () => {
+            try {
+              await navigator.clipboard.writeText(code?.textContent ?? pre.textContent ?? '');
+              setIcon(copyButton, 'check');
+              copyButton.setAttribute('aria-label', t('chat.rendering.copied'));
+              window.setTimeout(() => {
+                setIcon(copyButton, 'copy');
+                copyButton.setAttribute('aria-label', language ? `Copy ${language} code` : 'Copy code');
+              }, 1500);
+            } catch {
+              // Clipboard API may fail in non-secure contexts.
+            }
+          });
+        });
+        pre.querySelector('.copy-code-button')?.remove();
 
         const diagramCode = Array.from(pre.querySelectorAll<HTMLElement>('code'))
           .find((candidate) => candidate.classList.contains(DIAGRAM_SOURCE_CLASS));
         if (diagramCode && pre.parentElement) {
           const host = pre.parentElement.createDiv({ cls: 'claudian-diagram-block' });
           diagramBlocks.push({ code: diagramCode, host });
-        }
-
-        // Move Obsidian's copy button outside pre into wrapper
-        const copyBtn = pre.querySelector('.copy-code-button');
-        if (copyBtn) {
-          wrapper.appendChild(copyBtn);
         }
       });
 
@@ -2684,6 +2671,14 @@ export class MessageRenderer {
           block.host.remove();
         }
       }
+
+      el.querySelectorAll('table').forEach((table) => {
+        if (table.parentElement?.classList.contains('claudian-table-wrapper')) return;
+        const wrapper = createDiv({ cls: 'claudian-table-wrapper' });
+        wrapper.setAttribute('tabindex', '0');
+        table.parentElement?.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      });
 
       // Process vault links only when the source can contain file references.
       if (

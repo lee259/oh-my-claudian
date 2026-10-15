@@ -30,7 +30,8 @@
 .claudian-delete-snippet-btn:focus-visible,
 .claudian-cancel-btn:focus-visible,
 .claudian-save-btn:focus-visible,
-.claudian-code-lang-label:focus-visible {
+.claudian-code-copy-btn:focus-visible,
+.claudian-table-wrapper:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }

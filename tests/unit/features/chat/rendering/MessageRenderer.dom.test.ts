@@ -2,6 +2,7 @@
 
 import '@/providers';
 
+import { getByRole } from '@testing-library/dom';
 import { Component, MarkdownRenderer } from 'obsidian';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
@@ -48,6 +49,74 @@ function createTurn(providerId: ProviderId = 'claude') {
 
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
+
+  it('keeps an explicitly opened phase and exposes tool errors when live work settles', () => {
+    const { renderer, component, messagesEl, assistant, content, text, tool, sync } = createTurn();
+    try {
+      text('Checking the files.');
+      tool('check', 'running');
+      tool('second-check', 'completed');
+      renderer.startCompletedWork(content);
+      sync({ type: 'text', content: 'Checking more references.' });
+      let phase = messagesEl.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      if (phase.getAttribute('aria-expanded') === 'true') phase.click();
+      phase.click();
+      assistant.toolCalls![0].status = 'error';
+      sync({ type: 'text', content: 'Checking more references.' });
+      const liveHeader = messagesEl.querySelector<HTMLElement>('.claudian-streaming-work-header')!;
+      expect(getByRole(liveHeader, 'img', { name: /1 error/ })).not.toBeNull();
+      text('The check found a problem.');
+      renderer.finalizeCompletedWork(assistant);
+      const completed = messagesEl.querySelector<HTMLElement>('.claudian-completed-work')!;
+      expect(getByRole(completed, 'button', { name: /1 error.*Completed/ })).not.toBeNull();
+      phase = completed.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      expect(phase.getAttribute('aria-expanded')).toBe('true');
+      expect(completed.querySelector<HTMLElement>('.claudian-completed-work-history')!.hidden).toBe(false);
+      expect(getByRole(phase, 'img', { name: /1 error/ })).not.toBeNull();
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it.each(['live', 'stored'] as const)('keeps image-only %s prompts addressable with their attachments and timestamp', (mode) => {
+    const { renderer, component, messagesEl } = createTurn();
+    const message: ChatMessage = {
+      id: 'image-prompt', role: 'user', content: '', timestamp: 1000,
+      images: [{ id: 'image', name: 'screenshot.png', mediaType: 'image/png', data: 'YWJj', size: 3, source: 'paste' }],
+    };
+    try {
+      if (mode === 'live') renderer.addMessage(message);
+      else renderer.renderStoredMessage(message);
+      const shell = messagesEl.querySelector<HTMLElement>('[data-message-id="image-prompt"]')!;
+      expect(shell).not.toBeNull();
+      expect(shell.querySelectorAll('.claudian-message-image')).toHaveLength(1);
+      expect(shell.querySelector('.claudian-message-timestamp')).not.toBeNull();
+      expect(shell.getAttribute('data-toc-title')).toBe('screenshot.png');
+      expect(shell.querySelector('.claudian-message-content')?.textContent).toBe('');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('reopens completed work when a collapse is reversed before its animation finishes', () => {
+    const { renderer, component, messagesEl, assistant, tool, text } = createTurn();
+    try {
+      tool('read', 'completed');
+      text('The check is complete.');
+      renderer.finalizeCompletedWork(assistant);
+      const header = messagesEl.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!;
+      const history = messagesEl.querySelector<HTMLElement>('.claudian-completed-work-history')!;
+      const animations: Array<{ cancel: jest.Mock; onfinish?: () => void }> = [];
+      Object.defineProperty(history, 'animate', { value: jest.fn(() => {
+        const animation = { cancel: jest.fn() };
+        animations.push(animation);
+        return animation;
+      }) });
+      header.click();
+      animations.at(-1)!.onfinish?.();
+      header.click();
+      header.click();
+      animations.at(-1)!.onfinish?.();
+      expect(header.getAttribute('aria-expanded')).toBe('true');
+      expect(history.hidden).toBe(false);
+    } finally { renderer.dispose(); component.unload(); }
+  });
 
   it('scrolls to the latest message when a hidden tab is revealed', () => {
     const pane = document.createElement('div');
@@ -140,8 +209,37 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     });
     try {
       await renderer.renderContent(messagesEl, 'Objective-C example');
-      expect(messagesEl.querySelector('.claudian-code-lang-label')?.textContent).toBe('objective-c');
+      expect(messagesEl.querySelector('.claudian-code-language')?.textContent).toBe('objective-c');
     } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it.each([true, false])('keeps code copy controls outside code text with streaming=%s', async (streaming) => {
+    const { renderer, component, content } = createTurn();
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    const source = 'const value = "a long first line";';
+    (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
+      const pre = element.createEl('pre');
+      pre.createEl('code', { cls: 'language-typescript', text: source });
+      pre.createEl('button', { cls: 'copy-code-button' });
+    });
+    try {
+      await renderer.renderContent(content, `\`\`\`typescript\n${source}\n\`\`\``, { deferDiagrams: streaming });
+      const pre = content.querySelector('pre')!;
+      const header = content.querySelector<HTMLElement>('.claudian-code-header')!;
+      expect(header).not.toBeNull();
+      expect(header.parentElement).toBe(pre.parentElement);
+      expect(header.nextElementSibling).toBe(pre);
+      expect(pre.querySelector('button')).toBeNull();
+      getByRole<HTMLButtonElement>(header, 'button', { name: 'Copy typescript code' }).click();
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledWith(source);
+    } finally {
+      renderer.dispose(); component.unload();
+      if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    }
   });
 
   it('folds settled OMP work across a whitespace-only streaming block', () => {

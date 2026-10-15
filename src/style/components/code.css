@@ -72,87 +72,78 @@
   -webkit-box-decoration-break: clone;
 }
 
-/* Copy control - positioned outside the code scroll area */
-.claudian-code-wrapper .claudian-code-lang-label {
-  position: absolute;
-  top: 6px;
-  inset-inline-end: 6px;
+/* Code actions occupy their own row above the scrollable code surface. */
+.claudian-code-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 6px 2px 12px;
+  border-radius: 6px 6px 0 0;
+  background: var(--code-background, var(--background-secondary));
+}
+
+.claudian-code-language {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font: 12px var(--font-monospace);
+}
+
+.claudian-code-wrapper .claudian-code-copy-btn,
+.claudian-code-wrapper .claudian-code-copy-btn:hover,
+.claudian-code-wrapper .claudian-code-copy-btn:focus-visible,
+.claudian-code-wrapper .claudian-code-copy-btn:active,
+.claudian-code-wrapper .claudian-code-copy-btn:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   min-height: 28px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-family: var(--font-monospace);
-  color: var(--text-faint);
+  margin-inline-start: auto;
+  padding: 0;
   border: 0;
+  border-radius: 4px;
   background: transparent;
   box-shadow: none;
-  border-radius: 3px;
+  color: var(--text-muted);
   cursor: pointer;
-  z-index: 2;
-  transition: color 0.15s ease;
 }
 
-.claudian-code-wrapper .claudian-code-lang-label:hover,
-.claudian-code-wrapper .claudian-code-lang-label:focus-visible {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+.claudian-code-wrapper .claudian-code-copy-btn:hover,
+.claudian-code-wrapper .claudian-code-copy-btn:focus-visible,
+.claudian-code-wrapper .claudian-code-copy-btn:active {
   color: var(--text-normal);
 }
 
-/* Hide default copy button when language label exists */
-.claudian-code-wrapper.has-language .copy-code-button {
+.claudian-code-wrapper .claudian-code-copy-btn:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-code-copy-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-code-header + pre {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+.claudian-diagram-wrapper > .claudian-code-header {
   display: none;
 }
 
-/* Copy button - positioned outside scroll area */
-.claudian-code-wrapper .copy-code-button {
-  position: absolute;
-  top: 6px;
-  inset-inline-end: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: var(--background-primary);
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
-  border-radius: 3px;
-  z-index: 2;
-}
-
-/* If copy button uses an icon (svg) */
-.claudian-code-wrapper .copy-code-button svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* Show copy button on hover */
-.claudian-code-wrapper:not(.has-language):hover .copy-code-button {
-  opacity: 1;
-}
-
-.claudian-code-wrapper:not(.has-language):focus-within .copy-code-button {
-  opacity: 1;
-}
-
-.claudian-code-wrapper .copy-code-button:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
 @media (hover: none) {
-  .claudian-code-wrapper .claudian-code-lang-label {
-    min-height: 44px;
-    padding-inline: 12px;
-  }
-
-  .claudian-code-wrapper:not(.has-language) .copy-code-button {
+  .claudian-code-wrapper .claudian-code-copy-btn {
+    width: 44px;
+    height: 44px;
     min-width: 44px;
     min-height: 44px;
-    opacity: 1;
   }
 }

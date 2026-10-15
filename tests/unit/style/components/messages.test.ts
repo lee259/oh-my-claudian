@@ -84,7 +84,7 @@ describe('Message styles', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 
     expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding:\s*0;/);
-    expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding-block-end:\s*24px;[^}]*margin-block-end:\s*0;/);
+    expect(css).toMatch(/\.claudian-message-user\s*{[^}]*padding-block-end:\s*36px;[^}]*margin-block-end:\s*0;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-content\s*{[^}]*padding:\s*10px 14px;/);
     expect(css).toMatch(/\.claudian-message-action-row\s*{[^}]*display:\s*flex;[^}]*margin-top:\s*4px;/);
     expect(css).toMatch(/\.claudian-message-user > \.claudian-message-actions\s*{[^}]*position:\s*absolute;[^}]*inset-inline-end:\s*0;/);
@@ -130,7 +130,7 @@ describe('Message table overflow', () => {
 
     expect(messageRule).toContain('overflow-x: clip;');
     expect(codeBlockRule).toContain('overflow-x: auto;');
-    expect(cellRule).toContain('overflow-wrap: anywhere;');
+    expect(cellRule).toContain('overflow-wrap: break-word;');
     expect(cellRule).toContain('white-space: normal;');
   });
 });

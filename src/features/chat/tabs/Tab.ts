@@ -1600,6 +1600,7 @@ export function initializeTabUI(
         state.autoScrollEnabled = intent === 'bottom'
           && (plugin.settings.enableAutoScroll ?? true);
       },
+      plugin.app,
     );
   }
 

@@ -2634,7 +2634,7 @@ describe('MessageRenderer', () => {
     expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Explain this');
   });
 
-  it('skips empty user message bubble (image-only)', () => {
+  it('keeps an image-only user message shell without text', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
     jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
@@ -2649,13 +2649,12 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    // Images should still be rendered, but no message bubble
+    // Attachments retain their owning message even without a text bubble.
     expect(renderer.renderMessageImages).toHaveBeenCalled();
-    // Only the images container, no message bubble
     const bubbles = messagesEl.children.filter(
       (c: any) => c.hasClass('claudian-message')
     );
-    expect(bubbles.length).toBe(0);
+    expect(bubbles.length).toBe(1);
   });
 
   it('renders a leading quoted selection separately from the user prompt', () => {
@@ -2728,7 +2727,8 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    expect(renderImagesSpy).toHaveBeenCalledWith(messagesEl, images);
+    expect(renderImagesSpy.mock.calls[0][0]).toBe(messagesEl.children.find((child: any) => child.hasClass('claudian-message-user')));
+    expect(renderImagesSpy.mock.calls[0][1]).toBe(images);
   });
 
   it('adds a rewind button for eligible stored user messages', () => {
@@ -3685,7 +3685,8 @@ describe('MessageRenderer', () => {
 
     renderer.addMessage(msg);
 
-    expect(renderImagesSpy).toHaveBeenCalledWith(messagesEl, images);
+    expect(renderImagesSpy.mock.calls[0][0]).toBe(messagesEl.children.find((child: any) => child.hasClass('claudian-message-user')));
+    expect(renderImagesSpy.mock.calls[0][1]).toBe(images);
   });
 
   it('addMessage skips empty bubble for image-only user messages', () => {

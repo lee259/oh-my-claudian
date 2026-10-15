@@ -429,7 +429,7 @@
 .claudian-message-user {
   position: relative;
   padding: 0;
-  padding-block-end: 24px;
+  padding-block-end: 36px;
   border: 0;
   background: transparent;
   align-self: flex-end;
@@ -635,19 +635,27 @@ button.claudian-text-copy-btn.copied {
   padding-inline-start: 20px;
 }
 
-/* Full-width tables */
-.claudian-message-content table {
-  width: 100%;
-  border-collapse: collapse;
+/* Dense tables scroll locally instead of breaking words into narrow columns. */
+.claudian-table-wrapper {
+  max-width: 100%;
   margin: 8px 0;
+  overflow-x: auto;
+}
+
+.claudian-message-content table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  margin: 0;
 }
 
 .claudian-message-content th,
 .claudian-message-content td {
+  max-width: 32ch;
   border: 1px solid var(--background-modifier-border);
   padding: 6px 10px;
   text-align: start;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: normal;
 }
 
@@ -997,7 +1005,7 @@ button.claudian-activity-phase-header:focus-visible {
 
 .claudian-message-user > .claudian-message-actions {
   position: absolute;
-  inset-block-start: calc(100% - 16px);
+  inset-block-start: calc(100% - 28px);
   inset-inline-end: 0;
   width: max-content;
   margin: 0;
@@ -1073,6 +1081,8 @@ button.claudian-activity-phase-header:focus-visible {
 }
 
 .claudian-message-actions button.claudian-text-copy-btn {
+  min-width: 28px;
+  min-height: 28px;
   position: static;
   opacity: 1;
   z-index: auto;
@@ -1081,9 +1091,9 @@ button.claudian-activity-phase-header:focus-visible {
 .claudian-message-action-row button {
   appearance: none;
   width: auto;
-  min-width: 0;
+  min-width: 28px;
   height: auto;
-  min-height: 0;
+  min-height: 28px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1131,7 +1141,16 @@ button.claudian-activity-phase-header:focus-visible {
     gap: 4px;
   }
 
-  .claudian-message-action-row button {
+  .claudian-message-user {
+    padding-block-end: 52px;
+  }
+
+  .claudian-message-user > .claudian-message-actions {
+    inset-block-start: calc(100% - 44px);
+  }
+
+  .claudian-message-action-row button,
+  .claudian-message-actions button.claudian-text-copy-btn {
     min-width: 44px;
     min-height: 44px;
     border-radius: 8px;

@@ -120,7 +120,10 @@
   font-weight: 400;
   color: var(--text-normal);
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .claudian-tool-summary {

@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { fireEvent, within } from '@testing-library/dom';
 import { axe } from 'jest-axe';
+import { type App, Scope } from 'obsidian';
 
 import { NavigationSidebar } from '@/features/chat/ui/NavigationSidebar';
 import { getLocale, setLocale } from '@/i18n/i18n';
@@ -92,4 +93,58 @@ it('uses localized labels for navigation controls and the empty directory', () =
   } finally {
     setLocale(previousLocale);
   }
+});
+
+describe('Conversation directory keyboard interaction', () => {
+  it('owns Escape in the host keymap and releases its scope when the directory closes', () => {
+    const parent = document.body.createDiv();
+    const messages = parent.createDiv();
+    const pushScope = jest.fn();
+    const popScope = jest.fn();
+    const host = { scope: new Scope(), keymap: { pushScope, popScope } } as unknown as Pick<App, 'scope' | 'keymap'>;
+    const navigation = new NavigationSidebar(parent, messages, undefined, host);
+    try {
+      parent.querySelector<HTMLButtonElement>('.claudian-nav-btn-toc')!.click();
+      expect(pushScope).toHaveBeenCalledTimes(1);
+      const scope = pushScope.mock.calls[0][0];
+      const registration = (scope.register as jest.Mock).mock.calls.find((args) => args[1] === 'Escape');
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      registration[2](event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(parent.querySelector('.claudian-nav-toc-popover')).toBeNull();
+      expect(popScope).toHaveBeenCalledWith(scope);
+      navigation.destroy();
+      expect(popScope).toHaveBeenCalledTimes(1);
+    } finally { navigation.destroy(); parent.remove(); }
+  });
+
+  it('focuses entries, dismisses on Escape, and restores focus after selecting a prompt', () => {
+    const parent = document.body.createDiv();
+    const messages = parent.createDiv();
+    messages.createDiv({ cls: 'claudian-message-user', attr: { 'data-toc-title': 'First prompt' } });
+    messages.createDiv({ cls: 'claudian-message-user', attr: { 'data-toc-title': 'Second prompt' } });
+    messages.scrollTo = jest.fn();
+    const onIntent = jest.fn();
+    const navigation = new NavigationSidebar(parent, messages, onIntent);
+    const trigger = parent.querySelector<HTMLButtonElement>('.claudian-nav-btn-toc')!;
+    try {
+      trigger.click();
+      let entries = parent.querySelectorAll<HTMLButtonElement>('.claudian-nav-toc-item');
+      expect(document.activeElement).toBe(entries[0]);
+      entries[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(document.activeElement).toBe(entries[1]);
+      entries[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(parent.querySelector('.claudian-nav-toc-popover')).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+      trigger.click();
+      entries = parent.querySelectorAll<HTMLButtonElement>('.claudian-nav-toc-item');
+      entries[1].click();
+      expect(parent.querySelector('.claudian-nav-toc-popover')).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+      expect(onIntent).toHaveBeenLastCalledWith('away');
+    } finally {
+      navigation.destroy();
+      parent.remove();
+    }
+  });
 });
