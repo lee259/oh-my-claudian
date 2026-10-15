@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "設定",
       "enable": "Cursor を有効化",
-      "enableDesc": "ACP CLI を使って Cursor Agent を有効にします。",
+      "enableDesc": "ローカルの Cursor Agent に接続します。ここで Grok モデルを選んだ場合も、Cursor の設定とセッションを使用します。",
       "cliPath": "CLI のパス",
-      "cliPathDesc": "Cursor Agent CLI の絶対パスです。「which agent」の出力を貼り付けてください（Windows では「where agent」）。空欄の場合は自動検出します。",
+      "cliPathDesc": "Cursor Agent CLI の絶対パスです。「which cursor-agent」の出力を貼り付けてください（Windows では「where cursor-agent」）。空欄の場合は自動検出します。",
       "models": "モデル",
-      "noModels": "Cursor のモデルはまだ見つかっていません。agent login を実行し、「検出」をクリックしてください。",
+      "noModels": "Cursor のモデルはまだ見つかっていません。cursor-agent login を実行し、「検出」をクリックしてください。",
       "catalogFailed": "Cursor のモデルカタログを読み込めませんでした。CLI のパスとログイン状態を確認してください。",
       "loadingModels": "Cursor のモデルを読み込み中…",
       "discoveryFailed": "Cursor のモデル検出に失敗しました: {error}",
@@ -398,6 +398,7 @@
       "tool": "ツール"
     },
     "grok": {
+      "enableDesc": "ローカルの Grok Build に接続し、Cursor とは独立した設定とセッションを使用します。",
       "cliPathDesc": "Grok Build CLI の絶対パス（任意）。空欄の場合は既知のインストール先、次に PATH を検索します。「which grok」の出力を貼り付けてください（Windows では「where grok」）。",
       "environment": {
         "name": "Grok Build 環境変数",

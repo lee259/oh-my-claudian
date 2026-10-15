@@ -1,8 +1,8 @@
 import type { CliProviderMetadata } from '../../../core/providers/cli/CliProviderMetadata';
 
-/** Cursor Agent CLI (`agent`) lifecycle metadata. */
+/** Cursor Agent CLI lifecycle metadata; prefer its unambiguous executable name. */
 export const cursorCliMetadata: CliProviderMetadata = {
-  binaryName: 'agent',
+  binaryName: 'cursor-agent',
   displayName: 'Cursor',
   install: {
     command: 'bash',

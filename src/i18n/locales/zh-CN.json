@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "设置",
       "enable": "启用 Cursor",
-      "enableDesc": "通过 ACP CLI 启用 Cursor Agent。",
+      "enableDesc": "连接本机 Cursor Agent。在这里选择 Grok 模型时，仍使用 Cursor 的配置和会话。",
       "cliPath": "CLI 路径",
-      "cliPathDesc": "Cursor Agent CLI 的绝对路径。可粘贴 \"which agent\" 的输出（Windows 使用 \"where agent\"）。留空使用自动检测。",
+      "cliPathDesc": "Cursor Agent CLI 的绝对路径。可粘贴 \"which cursor-agent\" 的输出（Windows 使用 \"where cursor-agent\"）。留空使用自动检测。",
       "models": "模型",
-      "noModels": "尚未发现 Cursor 模型。请先运行 agent login，再点击发现。",
+      "noModels": "尚未发现 Cursor 模型。请先运行 cursor-agent login，再点击发现。",
       "catalogFailed": "无法加载 Cursor 模型目录，请检查 CLI 路径和登录状态。",
       "loadingModels": "正在加载 Cursor 模型…",
       "discoveryFailed": "Cursor 模型发现失败：{error}",
@@ -398,6 +398,7 @@
       "tool": "工具"
     },
     "grok": {
+      "enableDesc": "连接本机 Grok Build，使用独立于 Cursor 的配置和会话。",
       "cliPathDesc": "可选的 Grok Build CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。",
       "environment": {
         "name": "Grok Build 环境变量",
