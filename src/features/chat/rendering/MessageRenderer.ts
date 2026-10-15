@@ -165,6 +165,7 @@ export class MessageRenderer {
   private liveMessageEls = new Map<string, HTMLElement>();
   private readonly contentRenders = new Map<HTMLElement, MarkdownRenderScope>();
   private contentRemovalObserver?: MutationObserver;
+  #pendingLayoutScroll: ResizeObserver | null = null;
   private readonly imagePreviewModal: ImagePreviewModal;
   private isDisposed = false;
   /** Set while rendering a read-only surface (e.g. subagent transcripts). */
@@ -244,6 +245,7 @@ export class MessageRenderer {
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.#cancelLayoutScroll();
     this.contentRemovalObserver?.disconnect();
     this.contentRemovalObserver = undefined;
     this.releaseContentRenders();
@@ -482,7 +484,7 @@ export class MessageRenderer {
     this.groupRenderedTranscriptTurns(messages, false);
     for (const turn of projectTranscript(messages)) this.finalizeTranscriptTurn(turn);
 
-    this.scrollToBottom();
+    this.#scrollToBottomOnceLaidOut();
     return newWelcomeEl;
   }
 
@@ -3021,6 +3023,27 @@ export class MessageRenderer {
   /** Scrolls messages container to bottom. */
   scrollToBottom(): void {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  #scrollToBottomOnceLaidOut(): void {
+    this.#cancelLayoutScroll();
+    this.scrollToBottom();
+    if (this.messagesEl.clientHeight > 0) return;
+
+    const Observer = this.messagesEl.ownerDocument?.defaultView?.ResizeObserver;
+    if (!Observer) return;
+    const observer = new Observer(() => {
+      if (this.messagesEl.clientHeight === 0) return;
+      this.#cancelLayoutScroll();
+      this.scrollToBottom();
+    });
+    this.#pendingLayoutScroll = observer;
+    observer.observe(this.messagesEl);
+  }
+
+  #cancelLayoutScroll(): void {
+    this.#pendingLayoutScroll?.disconnect();
+    this.#pendingLayoutScroll = null;
   }
 
   private canAutoFollow(): boolean {
