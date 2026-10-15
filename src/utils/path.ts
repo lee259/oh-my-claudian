@@ -149,7 +149,7 @@ function findMatchingNvmVersion(entries: string[], resolvedAlias: string): strin
 function resolveNvmAlias(nvmDir: string, alias: string, depth = 0): string | null {
   if (depth > 5) return null;
 
-  if (/^\d/.test(alias) || alias.startsWith('v')) return alias;
+  if (/^\d/.test(alias) || /^v\d/.test(alias)) return alias;
   if (isNvmBuiltInLatestAlias(alias)) return alias;
 
   try {
