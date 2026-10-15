@@ -60,6 +60,28 @@ describe('replaceImageEmbedsWithHtml', () => {
       expect(result).toContain('src="app://local/assets/photo.jpg"');
     });
 
+    it('prefers a note-relative image over a same-named media-folder image', () => {
+      const app = createMockApp(
+        new Map([
+          ['notes/image.png', 'app://local/notes/image.png'],
+          ['assets/image.png', 'app://local/assets/image.png'],
+        ]),
+        (linkPath, sourcePath, files) => {
+          expect(linkPath).toBe('image.png');
+          expect(sourcePath).toBe('notes/source.md');
+          return files.get('notes/image.png') ?? null;
+        },
+      );
+
+      const result = replaceImageEmbedsWithHtml('![[image.png]]', app, {
+        mediaFolder: 'assets',
+        sourcePath: 'notes/source.md',
+      });
+
+      expect(result).toContain('src="app://local/notes/image.png"');
+      expect(result).not.toContain('src="app://local/assets/image.png"');
+    });
+
     it('handles image in surrounding text', () => {
       const app = createMockApp(new Map([['test.png', 'app://local/test.png']]));
       const result = replaceImageEmbedsWithHtml('Check this ![[test.png]] image', app);

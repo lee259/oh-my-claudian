@@ -302,6 +302,14 @@
       "idle": "Puedes intervenir mientras el agente trabaja.",
       "more": "Más acciones",
       "reorder": "Arrastra para reordenar; las flechas mueven el mensaje"
+    },
+    "navigation": {
+      "scrollToTop": "Desplazarse al principio",
+      "previousMessage": "Mensaje anterior",
+      "directory": "Índice de la conversación",
+      "nextMessage": "Mensaje siguiente",
+      "scrollToBottom": "Desplazarse al final",
+      "emptyDirectory": "No hay prompts de usuario en esta conversación"
     }
   },
   "settings": {

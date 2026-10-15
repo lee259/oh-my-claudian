@@ -2,7 +2,7 @@
 
 import '@/providers';
 
-import { Component } from 'obsidian';
+import { Component, MarkdownRenderer } from 'obsidian';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { ProviderId } from '@/core/providers/types';
@@ -48,6 +48,101 @@ function createTurn(providerId: ProviderId = 'claude') {
 
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
+
+  it('scrolls to the latest message when a hidden tab is revealed', () => {
+    const pane = document.createElement('div');
+    pane.classList.add('claudian-hidden');
+    const messagesEl = pane.createDiv();
+    document.body.appendChild(pane);
+
+    let scrollTop = 0;
+    Object.defineProperties(messagesEl, {
+      clientHeight: {
+        configurable: true,
+        get: () => pane.classList.contains('claudian-hidden') ? 0 : 400,
+      },
+      scrollHeight: {
+        configurable: true,
+        get: () => pane.classList.contains('claudian-hidden') ? 0 : 1000,
+      },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          if (!pane.classList.contains('claudian-hidden')) {
+            scrollTop = Math.min(value, messagesEl.scrollHeight - messagesEl.clientHeight);
+          }
+        },
+      },
+    });
+
+    const resizeObserverDescriptor = Object.getOwnPropertyDescriptor(window, 'ResizeObserver');
+    const callbacks: ResizeObserverCallback[] = [];
+    class TestResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe() { callbacks.push(this.callback); }
+      unobserve() {}
+      disconnect() {}
+    }
+    Object.defineProperty(window, 'ResizeObserver', {
+      configurable: true,
+      value: TestResizeObserver,
+    });
+
+    const component = new Component();
+    const renderer = new MessageRenderer(
+      { app: {}, settings: {} } as FeatureHost,
+      component,
+      messagesEl,
+      undefined,
+      undefined,
+      () => ProviderRegistry.getCapabilities('claude'),
+    );
+    jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+    try {
+      renderer.renderMessages([{
+        id: 'latest',
+        role: 'assistant',
+        content: 'Latest answer',
+        timestamp: 2,
+        contentBlocks: [{ type: 'text', content: 'Latest answer' }],
+      }], () => 'Hello');
+
+      expect(scrollTop).toBe(0);
+      pane.classList.remove('claudian-hidden');
+      callbacks.forEach(callback => callback([], {} as ResizeObserver));
+
+      expect(scrollTop).toBe(600);
+    } finally {
+      renderer.dispose();
+      component.unload();
+      if (resizeObserverDescriptor) {
+        Object.defineProperty(window, 'ResizeObserver', resizeObserverDescriptor);
+      } else {
+        Reflect.deleteProperty(window, 'ResizeObserver');
+      }
+    }
+  });
+
+  it('preserves hyphens in code language labels', async () => {
+    const messagesEl = document.createElement('div');
+    document.body.appendChild(messagesEl);
+    const component = new Component();
+    const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl);
+    (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.className = 'language-objective-c';
+      code.textContent = 'int main(void) {}';
+      pre.appendChild(code);
+      element.appendChild(pre);
+    });
+    try {
+      await renderer.renderContent(messagesEl, 'Objective-C example');
+      expect(messagesEl.querySelector('.claudian-code-lang-label')?.textContent).toBe('objective-c');
+    } finally { renderer.dispose(); component.unload(); }
+  });
 
   it('folds settled OMP work across a whitespace-only streaming block', () => {
     const fixture = createTurn('omp');
