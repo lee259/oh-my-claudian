@@ -445,6 +445,21 @@ describe('getEnhancedPath', () => {
         expect(getEnhancedPath()).toContain(versionBin);
       });
 
+      it('resolves a custom v-prefixed alias through its alias file', () => {
+        process.env.NVM_DIR = '/custom/nvm';
+        const versionBin = '/custom/nvm/versions/node/v24.16.0/bin';
+        mockNvm({
+          nvmDir: '/custom/nvm',
+          aliasFiles: {
+            '/custom/nvm/alias/default': 'vault-node',
+            '/custom/nvm/alias/vault-node': 'v24.16.0',
+          },
+          versions: ['v24.16.0'],
+        });
+
+        expect(getEnhancedPath()).toContain(versionBin);
+      });
+
       it.each(['node', 'stable'])(
         'resolves built-in %s alias to the highest installed version',
         builtInAlias => {
