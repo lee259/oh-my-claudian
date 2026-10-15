@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "설정",
       "enable": "Cursor 활성화",
-      "enableDesc": "ACP CLI를 통해 Cursor Agent를 활성화합니다.",
+      "enableDesc": "로컬 Cursor Agent에 연결합니다. 여기서 선택한 Grok 모델도 Cursor의 설정과 세션을 사용합니다.",
       "cliPath": "CLI 경로",
-      "cliPathDesc": "Cursor Agent CLI의 절대 경로입니다. “which agent” 출력을 붙여 넣으세요(Windows에서는 “where agent”). 비워 두면 자동으로 검색합니다.",
+      "cliPathDesc": "Cursor Agent CLI의 절대 경로입니다. “which cursor-agent” 출력을 붙여 넣으세요(Windows에서는 “where cursor-agent”). 비워 두면 자동으로 검색합니다.",
       "models": "모델",
-      "noModels": "아직 Cursor 모델을 찾지 못했습니다. agent login을 실행한 뒤 검색을 클릭하세요.",
+      "noModels": "아직 Cursor 모델을 찾지 못했습니다. cursor-agent login을 실행한 뒤 검색을 클릭하세요.",
       "catalogFailed": "Cursor 모델 카탈로그를 불러오지 못했습니다. CLI 경로와 로그인 상태를 확인하세요.",
       "loadingModels": "Cursor 모델을 불러오는 중…",
       "discoveryFailed": "Cursor 모델 검색 실패: {error}",
@@ -398,6 +398,7 @@
       "tool": "도구"
     },
     "grok": {
+      "enableDesc": "로컬 Grok Build에 연결하며 Cursor와 독립된 설정과 세션을 사용합니다.",
       "cliPathDesc": "Grok Build CLI의 선택적 절대 경로입니다. 비워 두면 알려진 설치 위치를 우선 사용한 다음 PATH를 검색합니다. “which grok” 출력 내용을 붙여 넣으세요(Windows에서는 “where grok”).",
       "environment": {
         "name": "Grok Build 환경 변수",

@@ -90,7 +90,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: readinessPanel.enablement,
-      description: t('settings.providerEnablement.desc', { provider: 'Grok Build' }),
+      description: t('settings.grok.enableDesc'),
       getValue: () => getGrokProviderSettings(settingsBag).enabled,
       name: t('settings.providerEnablement.name', { provider: 'Grok Build' }),
       onChange: async (enabled) => {

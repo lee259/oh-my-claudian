@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { ProviderSessionConfig } from '@/core/execution';
+import { ManagedCommandRunner } from '@/core/process/ManagedCommandRunner';
+import { buildHostCliEnvironment } from '@/core/providers/cli/HostCliLifecycleAdapter';
 import { getProviderAdditionalArguments } from '@/core/providers/ProviderAdditionalArguments';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import { resolveAllowedFileOperationPath } from '@/core/storage/pathAccessPolicy';
@@ -23,6 +25,7 @@ import {
   type AcpWriteTextFileRequest,
 } from '@/providers/acp';
 
+import { CURSOR_CLI_IDENTITY_PATTERN } from '../runtime/CursorCliIdentity';
 import { buildCursorLaunchSpec } from '../runtime/CursorLaunchSpec';
 import { CursorExtensionInteractionRouter } from './CursorExtensionInteractionRouter';
 
@@ -65,6 +68,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   private extensionInteraction: CursorExtensionInteractionRouter | null = null;
   private extensionUnsubscribers: Array<() => void> = [];
   private disposed = false;
+  private readonly abort = new AbortController();
 
   constructor(private readonly options: CursorAcpSessionKernelOptions) {}
 
@@ -72,13 +76,30 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
     if (this.disposed) throw new Error('Cursor ACP kernel is disposed');
     if (this.connection) return;
 
-    const command = await this.options.plugin.getResolvedProviderCliPath('cursor') ?? 'agent';
+    const command = await this.options.plugin.getResolvedProviderCliPath('cursor');
+    if (!command) throw new Error('Cursor Agent CLI was not found. Check the Cursor CLI path in settings.');
     const spec = buildCursorLaunchSpec({
       command,
       cwd: this.options.config.vaultWorkingDirectory,
-      env: { ...process.env },
+      env: buildHostCliEnvironment(this.options.plugin, 'cursor', command),
       additionalArguments: getProviderAdditionalArguments(this.options.plugin.settings, 'cursor'),
     });
+    const identity = await new ManagedCommandRunner().run({
+      ...spec,
+      args: ['--help'],
+      captureStderr: true,
+      signal: this.abort.signal,
+      stdoutLimitBytes: 64 * 1024,
+      timeoutMs: 10_000,
+    });
+    if (this.disposed) throw new Error('Cursor ACP kernel is disposed');
+    if (identity.exitCode !== 0 || identity.termination) {
+      const reason = identity.error ?? identity.termination ?? `exit code ${identity.exitCode}`;
+      throw new Error(`Could not verify Cursor Agent CLI (${reason}). Check the Cursor CLI path in settings.`);
+    }
+    if (!CURSOR_CLI_IDENTITY_PATTERN.test(identity.stdout + '\n' + (identity.stderr ?? ''))) {
+      throw new Error('The configured executable does not match Cursor Agent. Check the Cursor CLI path in settings.');
+    }
     const subprocess = new AcpSubprocess(spec);
     subprocess.onClose((error) => {
       if (!this.disposed) this.options.onClosed(error ?? new Error('Cursor ACP process closed'));
@@ -182,6 +203,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.abort.abort();
     this.interaction?.dispose();
     this.extensionInteraction?.dispose();
     for (const unsubscribe of this.extensionUnsubscribers.splice(0)) unsubscribe();

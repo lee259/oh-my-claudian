@@ -355,7 +355,7 @@ describe('GrokSettingsTab', () => {
 
     const enablement = mockProviderEnablementOptions[0];
     expect(enablement.description).toBe(
-      'Make enabled Grok Build models available for new conversations. Existing sessions are preserved when disabled.',
+      'Connect to the local Grok Build, with its own settings and sessions separate from Cursor.',
     );
     await enablement.onChange(true);
 

@@ -149,6 +149,9 @@ jobs:
           tests/unit/providers/pi/runtime/PiSubprocess.windows-launchers.test.ts
           tests/integration/providers/pi/PiSubprocess.windows.test.ts
           tests/unit/providers/cursor/CursorLaunchSpec.test.ts
+          tests/unit/providers/cursor/CursorCliResolver.test.ts
+          tests/unit/providers/cursor/CursorAcpSessionKernel.test.ts
+          tests/unit/providers/cursor/runtime/CursorCliLifecycle.test.ts
           tests/unit/providers/codex/runtime/CodexBinaryLocator.test.ts
           tests/unit/providers/codex/runtime/CodexCliResolver.test.ts
           tests/unit/providers/omp/OmpLaunchSpec.test.ts

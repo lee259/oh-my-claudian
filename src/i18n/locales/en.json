@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "Setup",
       "enable": "Enable Cursor",
-      "enableDesc": "Enable Cursor Agent through its ACP CLI.",
+      "enableDesc": "Connect to the local Cursor Agent. Grok models selected here use Cursor settings and sessions.",
       "cliPath": "CLI path",
-      "cliPathDesc": "Absolute path to the Cursor Agent CLI. Paste the output of \"which agent\" (or \"where agent\" on Windows). Leave empty for automatic detection.",
+      "cliPathDesc": "Absolute path to the Cursor Agent CLI. Paste the output of \"which cursor-agent\" (or \"where cursor-agent\" on Windows). Leave empty for automatic detection.",
       "models": "Models",
-      "noModels": "No Cursor models discovered yet. Run agent login and click Discover.",
+      "noModels": "No Cursor models discovered yet. Run cursor-agent login and click Discover.",
       "catalogFailed": "Could not load the Cursor model catalog. Check the CLI path and login state.",
       "loadingModels": "Loading Cursor models...",
       "discoveryFailed": "Cursor model discovery failed: {error}",
@@ -398,6 +398,7 @@
       "tool": "a tool"
     },
     "grok": {
+      "enableDesc": "Connect to the local Grok Build, with its own settings and sessions separate from Cursor.",
       "cliPathDesc": "Optional absolute path to the Grok Build CLI. Leave empty to prefer known installs, then PATH. Paste the output of \"which grok\" (or \"where grok\" on Windows).",
       "environment": {
         "name": "Grok Build environment variables",

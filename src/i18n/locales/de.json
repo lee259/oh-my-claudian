@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "Einrichtung",
       "enable": "Cursor aktivieren",
-      "enableDesc": "Aktiviere Cursor Agent über dessen ACP-CLI.",
+      "enableDesc": "Verbinde den lokalen Cursor Agent. Hier ausgewählte Grok-Modelle verwenden die Einstellungen und Sitzungen von Cursor.",
       "cliPath": "CLI-Pfad",
-      "cliPathDesc": "Absoluter Pfad zur Cursor Agent CLI. Füge die Ausgabe von „which agent“ ein (unter Windows „where agent“). Leer lassen für automatische Erkennung.",
+      "cliPathDesc": "Absoluter Pfad zur Cursor Agent CLI. Füge die Ausgabe von „which cursor-agent“ ein (unter Windows „where cursor-agent“). Leer lassen für automatische Erkennung.",
       "models": "Modelle",
-      "noModels": "Es wurden noch keine Cursor-Modelle gefunden. Führe agent login aus und klicke auf „Entdecken“.",
+      "noModels": "Es wurden noch keine Cursor-Modelle gefunden. Führe cursor-agent login aus und klicke auf „Entdecken“.",
       "catalogFailed": "Der Cursor-Modellkatalog konnte nicht geladen werden. Prüfe den CLI-Pfad und den Anmeldestatus.",
       "loadingModels": "Cursor-Modelle werden geladen…",
       "discoveryFailed": "Cursor-Modellerkennung fehlgeschlagen: {error}",
@@ -398,6 +398,7 @@
       "tool": "ein Werkzeug"
     },
     "grok": {
+      "enableDesc": "Verbinde das lokale Grok Build mit eigenen Einstellungen und Sitzungen, getrennt von Cursor.",
       "cliPathDesc": "Optionaler absoluter Pfad zur Grok Build CLI. Leer lassen, um zuerst bekannte Installationen und danach PATH zu verwenden. Füge die Ausgabe von „which grok“ ein (unter Windows „where grok“).",
       "environment": {
         "name": "Grok Build-Umgebungsvariablen",

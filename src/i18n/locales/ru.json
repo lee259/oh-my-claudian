@@ -380,11 +380,11 @@
     "cursor": {
       "setup": "Настройка",
       "enable": "Включить Cursor",
-      "enableDesc": "Включите Cursor Agent через его ACP CLI.",
+      "enableDesc": "Подключение к локальному Cursor Agent. Выбранные здесь модели Grok используют настройки и сессии Cursor.",
       "cliPath": "Путь к CLI",
-      "cliPathDesc": "Абсолютный путь к Cursor Agent CLI. Вставьте вывод «which agent» (или «where agent» в Windows). Оставьте пустым для автоматического обнаружения.",
+      "cliPathDesc": "Абсолютный путь к Cursor Agent CLI. Вставьте вывод «which cursor-agent» (или «where cursor-agent» в Windows). Оставьте пустым для автоматического обнаружения.",
       "models": "Модели",
-      "noModels": "Модели Cursor ещё не обнаружены. Выполните agent login и нажмите «Обнаружить».",
+      "noModels": "Модели Cursor ещё не обнаружены. Выполните cursor-agent login и нажмите «Обнаружить».",
       "catalogFailed": "Не удалось загрузить каталог моделей Cursor. Проверьте путь к CLI и состояние входа.",
       "loadingModels": "Загрузка моделей Cursor…",
       "discoveryFailed": "Не удалось обнаружить модели Cursor: {error}",
@@ -398,6 +398,7 @@
       "tool": "инструмент"
     },
     "grok": {
+      "enableDesc": "Подключение к локальному Grok Build с собственными настройками и сессиями, отдельно от Cursor.",
       "cliPathDesc": "Необязательный абсолютный путь к Grok Build CLI. Оставьте поле пустым, чтобы сначала использовать известные установки, затем искать в PATH. Вставьте вывод «which grok» (или «where grok» в Windows).",
       "environment": {
         "name": "Переменные окружения Grok Build",

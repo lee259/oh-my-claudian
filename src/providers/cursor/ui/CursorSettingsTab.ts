@@ -95,8 +95,8 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
         context.notifyProviderModelOptionsChanged('cursor');
       },
       placeholder: process.platform === 'win32'
-        ? 'C:\\Users\\you\\.local\\bin\\agent.exe'
-        : '/Users/you/.local/bin/agent',
+        ? 'C:\\Users\\you\\.local\\bin\\cursor-agent.exe'
+        : '/Users/you/.local/bin/cursor-agent',
       validate: validateCliPath,
     });
     const cliLifecycle = renderCliLifecycleSection({
@@ -199,7 +199,7 @@ function toPickerModel(
   model: ReturnType<typeof getCursorProviderSettings>['discoveredModels'][number],
 ): ProviderModelPickerModel {
   const [providerKey, ...modelIdParts] = model.rawId.split('/');
-  const providerLabel = providerKey ? formatProviderLabel(providerKey) : undefined;
+  const providerLabel = modelIdParts.length > 0 && providerKey ? formatProviderLabel(providerKey) : undefined;
   return {
     description: model.description,
     id: model.rawId,
