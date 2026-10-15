@@ -302,6 +302,14 @@
       "idle": "エージェントの作業中に追加入力できます。",
       "more": "その他の操作",
       "reorder": "ドラッグで並べ替え、矢印キーで移動"
+    },
+    "navigation": {
+      "scrollToTop": "最上部へスクロール",
+      "previousMessage": "前のメッセージ",
+      "directory": "会話の目次",
+      "nextMessage": "次のメッセージ",
+      "scrollToBottom": "最下部へスクロール",
+      "emptyDirectory": "この会話にはユーザープロンプトがありません"
     }
   },
   "settings": {
