@@ -11,8 +11,95 @@
   overflow: hidden;
 }
 
+@container (max-width: 360px) {
+  .claudian-messages .claudian-tool-call {
+    margin-block: 2px;
+  }
+
+  .claudian-messages .claudian-tool-header {
+    gap: 6px;
+    padding-block: 3px;
+  }
+
+  .claudian-messages .claudian-tool-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .claudian-messages .claudian-tool-name,
+  .claudian-messages .claudian-tool-summary {
+    font-size: 12px;
+  }
+
+  .claudian-messages .claudian-tool-content {
+    margin-inline-start: 5px;
+    padding-inline-start: 12px;
+  }
+
+  .claudian-messages .claudian-tool-call-bash .claudian-tool-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icon name name status'
+      'icon summary summary status';
+    align-items: center;
+  }
+
+  .claudian-messages .claudian-tool-call-bash .claudian-tool-icon {
+    grid-area: icon;
+  }
+
+  .claudian-messages .claudian-tool-call-bash .claudian-tool-name {
+    grid-area: name;
+  }
+
+  .claudian-messages .claudian-tool-call-bash .claudian-tool-summary:not(:empty) {
+    display: -webkit-box;
+    grid-area: summary;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .claudian-messages .claudian-tool-call-bash .claudian-tool-status {
+    grid-area: status;
+    margin-left: 0;
+  }
+}
+
 .claudian-tool-header:hover {
   opacity: 0.85;
+}
+
+.claudian-messages .claudian-tool-header {
+  position: relative;
+  padding-inline: 6px;
+  padding-inline-end: 22px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.claudian-messages .claudian-tool-header::after {
+  position: absolute;
+  inset-inline-end: 7px;
+  width: 6px;
+  height: 6px;
+  border-inline-end: 1.5px solid var(--text-faint);
+  border-block-end: 1.5px solid var(--text-faint);
+  content: '';
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.claudian-messages .claudian-tool-call.expanded > .claudian-tool-header::after {
+  transform: rotate(45deg);
+}
+
+.claudian-messages .claudian-tool-header:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
 }
 
 .claudian-tool-icon {

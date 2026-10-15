@@ -270,7 +270,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
-  it('keeps the outer live work header noninteractive until the turn settles', () => {
+  it('preserves an expanded live activity phase after the turn settles', () => {
     const fixture = createTurn();
     const { messagesEl, renderer, component, assistant, text, tool, sync } = fixture;
     try {
@@ -307,12 +307,13 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       renderer.finalizeCompletedWork(assistant);
       const completed = messagesEl.querySelector<HTMLElement>('.claudian-completed-work-history')!;
       const completedHeader = messagesEl.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!;
-      expect(completed.hidden).toBe(true);
+      expect(completed.hidden).toBe(false);
       expect(completed.contains(read)).toBe(true);
+      expect(completed.querySelector<HTMLElement>('.claudian-activity-phase-details')?.hidden).toBe(false);
+      completedHeader.click();
+      expect(completed.hidden).toBe(true);
       completedHeader.click();
       expect(completed.hidden).toBe(false);
-      completedHeader.click();
-      expect(completed.hidden).toBe(true);
     } finally {
       renderer.dispose();
       component.unload();

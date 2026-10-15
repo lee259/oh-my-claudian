@@ -1440,7 +1440,10 @@ export class MessageRenderer {
     // Keep the settled turn header visible and let the user open the ordered
     // progress rail. The error marker remains visible in the header while the
     // detailed phase expands automatically when the user opens the turn.
-    const isExpanded = false;
+    const isExpanded = Boolean(msg && timeline?.some((segment) =>
+      segment.type === 'phase'
+      && this.activityPhaseOverrides.get(`${msg.id}:${segment.id}`) === true
+    ));
     const headerSummary = { actionCount: 0, errorCount: 0 };
     const headerEl = workEl.createEl('button', {
       cls: 'claudian-completed-work-header',
@@ -2625,12 +2628,17 @@ export class MessageRenderer {
           const match = code.className.match(/language-([\w-]+)/);
           if (match) {
             wrapper.classList.add('has-language');
-            const label = createSpan({
+            const label = createEl('button', {
               cls: 'claudian-code-lang-label',
-              text: match[1],
+              attr: {
+                type: 'button',
+                'aria-label': `Copy ${match[1]} code`,
+              },
             });
+            label.setText(match[1]);
             wrapper.appendChild(label);
-            label.addEventListener('click', () => {
+            label.addEventListener('click', (event) => {
+              event.preventDefault();
               runRendererAction(async () => {
                 const originalLabel = match[1];
                 if (!originalLabel) return;
@@ -2638,7 +2646,11 @@ export class MessageRenderer {
                 try {
                   await navigator.clipboard.writeText(code.textContent || '');
                   label.setText(t('chat.rendering.copied'));
-                  window.setTimeout(() => label.setText(originalLabel), 1500);
+                  label.setAttribute('aria-label', t('chat.rendering.copied'));
+                  window.setTimeout(() => {
+                    label.setText(originalLabel);
+                    label.setAttribute('aria-label', `Copy ${originalLabel} code`);
+                  }, 1500);
                 } catch {
                   // Clipboard API may fail in non-secure contexts
                 }
