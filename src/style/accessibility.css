@@ -5,6 +5,8 @@
 .claudian-thinking-header:focus-visible,
 .claudian-citations-header:focus-visible,
 .claudian-subagent-header:focus-visible,
+.claudian-subagent-section-header:focus-visible,
+.claudian-subagent-tool-header:focus-visible,
 .claudian-input-nav-btn:focus-visible,
 .claudian-model-btn:focus-visible,
 .claudian-thinking-current:focus-visible {
@@ -19,6 +21,7 @@
 .claudian-context-chip-main:focus-visible,
 .claudian-context-chip-remove:focus-visible,
 .claudian-context-more:focus-visible,
+.claudian-subagent-open-transcript:focus-visible,
 .claudian-image-modal-close:focus-visible,
 .claudian-approved-remove-btn:focus-visible,
 .claudian-save-env-btn:focus-visible,
@@ -42,8 +45,14 @@
   .claudian-history-item--attention .claudian-history-item-title,
   .claudian-activity-phase[data-active='true'] .claudian-activity-phase-label,
   .claudian-subagent-list.async .claudian-subagent-status.status-running svg,
-  .claudian-subagent-transcript-status-icon.status-running svg {
+  .claudian-subagent-transcript-status-icon.status-running svg,
+  .claudian-tool-header::after,
+  .claudian-thinking-header::after,
+  .claudian-subagent-header::after,
+  .claudian-subagent-section-header::after,
+  .claudian-subagent-tool-header::after {
     animation: none;
+    transition: none;
   }
 }
 

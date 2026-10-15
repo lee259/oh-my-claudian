@@ -38,6 +38,21 @@
   }
 }
 
+@container (max-width: 360px) {
+  .claudian-messages .claudian-completed-work-history {
+    padding-inline-start: 12px;
+  }
+
+  .claudian-messages .claudian-streaming-work-history {
+    padding-inline-start: 12px;
+  }
+
+  .claudian-messages .claudian-activity-phase-details {
+    margin-inline-start: 5px;
+    padding-inline-start: 14px;
+  }
+}
+
 .claudian-message-quote-btn {
   position: absolute;
   z-index: 2;
@@ -486,6 +501,7 @@
 
 .claudian-message-assistant {
   flex-shrink: 0;
+  padding-block: 4px;
   background: transparent;
   align-self: center;
   width: min(100%, 960px);
@@ -668,9 +684,14 @@ button.claudian-text-copy-btn.copied {
 
 /* Completed reasoning and tool activity stays available without competing
  * with the final answer in long assistant turns. */
-.claudian-completed-work {
+.claudian-completed-work,
+.claudian-completed-work-status.claudian-streaming-work-fold {
+  box-sizing: border-box;
   width: 100%;
-  margin-bottom: 10px;
+  margin-block: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary));
 }
 
 .claudian-task-notification {
@@ -723,7 +744,8 @@ button.claudian-work-header:focus-visible {
 
 .claudian-completed-work-status.claudian-streaming-work-fold {
   display: block;
-  border-bottom: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 button.claudian-completed-work-header,
@@ -731,16 +753,17 @@ button.claudian-completed-work-header,
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
-  padding: 2px 0;
+  min-height: 36px;
+  padding: 7px 10px;
   border: 0;
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--background-modifier-border);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   text-align: start;
 }
@@ -752,6 +775,7 @@ button.claudian-completed-work-header,
 .claudian-completed-work-indicator {
   display: flex;
   flex: 0 0 auto;
+  color: var(--text-faint);
 }
 
 .claudian-completed-work-indicator svg {
@@ -773,10 +797,19 @@ button.claudian-completed-work-header,
 button.claudian-completed-work-header:hover,
 button.claudian-completed-work-header:focus-visible {
   border: 0;
-  border-bottom: 1px solid var(--background-modifier-border);
-  background: transparent;
+  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
   box-shadow: none;
   color: var(--text-normal);
+}
+
+button.claudian-completed-work-header[aria-expanded='true'] {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-completed-work-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 button.claudian-completed-work-header:focus-visible {
@@ -786,16 +819,16 @@ button.claudian-completed-work-header:focus-visible {
 
 .claudian-completed-work-history {
   box-sizing: border-box;
-  margin-top: 8px;
-  padding-inline-start: 16px;
+  margin: 0;
+  padding: 8px 10px 10px;
 }
 
 /* Expanded work participates in the main chat scroll instead of a nested viewport. */
 .claudian-streaming-work-history {
   position: relative;
   box-sizing: border-box;
-  margin-top: 8px;
-  padding-inline-start: 16px;
+  margin: 0;
+  padding: 8px 10px 10px;
   overflow-anchor: none;
 }
 
@@ -820,7 +853,7 @@ button.claudian-completed-work-header:focus-visible {
 .claudian-activity-phase {
   position: relative;
   min-width: 0;
-  margin-block: 8px;
+  margin-block: 4px;
 }
 
 button.claudian-activity-phase-header {
@@ -831,7 +864,8 @@ button.claudian-activity-phase-header {
   width: 100%;
   min-height: 28px;
   min-width: 0;
-  padding: 2px 0;
+  padding: 5px 8px;
+  border-radius: 6px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -844,7 +878,7 @@ button.claudian-activity-phase-header {
 button.claudian-activity-phase-header:hover,
 button.claudian-activity-phase-header:focus-visible {
   border: 0;
-  background: transparent;
+  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
   box-shadow: none;
   color: var(--text-normal);
 }
@@ -947,12 +981,12 @@ button.claudian-activity-phase-header:focus-visible {
   font-style: italic;
 }
 
-/* Message actions share one hover-revealed row below the content bubble. */
+/* Keep one compact action row below each message, revealed without layout shifts. */
 .claudian-message-action-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 4px;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -977,6 +1011,30 @@ button.claudian-activity-phase-header:focus-visible {
 .claudian-message-actions:focus-within {
   opacity: 1;
   pointer-events: auto;
+}
+
+@media (hover: none) {
+  .claudian-message-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .claudian-messages .claudian-completed-work-header,
+  .claudian-messages .claudian-streaming-work-header,
+  .claudian-messages .claudian-activity-phase-header,
+  .claudian-messages .claudian-tool-header,
+  .claudian-messages .claudian-thinking-header,
+  .claudian-messages .claudian-citations-header,
+  .claudian-messages .claudian-subagent-header,
+  .claudian-messages .claudian-subagent-section-header,
+  .claudian-messages .claudian-subagent-tool-header,
+  .claudian-messages .claudian-subagent-open-transcript {
+    min-height: 44px;
+  }
+
+  .claudian-messages .claudian-subagent-open-transcript {
+    min-width: 44px;
+  }
 }
 
 .claudian-message-assistant > .claudian-message-actions {
@@ -1066,6 +1124,22 @@ button.claudian-activity-phase-header:focus-visible {
   box-shadow: none;
   color: var(--text-faint);
   cursor: default;
+}
+
+@media (hover: none) {
+  .claudian-message-action-row {
+    gap: 4px;
+  }
+
+  .claudian-message-action-row button {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 8px;
+  }
+
+  .claudian-message-action-row button:active {
+    background: var(--background-modifier-hover);
+  }
 }
 
 .claudian-message-action-row button.copied {

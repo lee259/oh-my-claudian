@@ -19,12 +19,30 @@
 }
 
 .claudian-subagent-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 4px 16px 4px 0;
   cursor: pointer;
   overflow: hidden;
+}
+
+.claudian-messages .claudian-subagent-header::after {
+  position: absolute;
+  inset-inline-end: 3px;
+  width: 6px;
+  height: 6px;
+  border-inline-end: 1.5px solid var(--text-faint);
+  border-block-end: 1.5px solid var(--text-faint);
+  content: '';
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.claudian-messages .claudian-subagent-list.expanded > .claudian-subagent-header::after,
+.claudian-messages .claudian-subagent-list.expanded > .claudian-subagent-header-row > .claudian-subagent-header::after {
+  transform: rotate(45deg);
 }
 
 /* Async cards keep the collapse toggle and the transcript entry as sibling
@@ -120,6 +138,7 @@
 }
 
 .claudian-subagent-section-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -128,7 +147,25 @@
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-muted);
-  padding: 2px 0;
+  padding: 2px 16px 2px 0;
+}
+
+.claudian-messages .claudian-subagent-section-header::after,
+.claudian-messages .claudian-subagent-tool-header::after {
+  position: absolute;
+  inset-inline-end: 3px;
+  width: 5px;
+  height: 5px;
+  border-inline-end: 1.5px solid var(--text-faint);
+  border-block-end: 1.5px solid var(--text-faint);
+  content: '';
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.claudian-messages .claudian-subagent-section.expanded > .claudian-subagent-section-header::after,
+.claudian-messages .claudian-subagent-tool-item.expanded > .claudian-subagent-tool-header::after {
+  transform: rotate(45deg);
 }
 
 .claudian-subagent-section-header:hover {
@@ -170,12 +207,13 @@
 }
 
 .claudian-subagent-tool-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   overflow: hidden;
-  padding: 2px 0;
+  padding: 2px 16px 2px 0;
 }
 
 .claudian-subagent-tool-header:hover {
