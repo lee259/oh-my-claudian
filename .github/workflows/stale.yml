@@ -1,4 +1,4 @@
-name: Close stale issues
+name: Follow up inactive issues
 
 on:
   schedule:
@@ -13,9 +13,10 @@ jobs:
     steps:
       - uses: actions/stale@v9
         with:
-          days-before-stale: 7
-          days-before-close: 7
-          stale-issue-message: 'This issue has been inactive for 7 days and will be closed in 7 days if no further activity occurs.'
-          close-issue-message: 'Closed due to 14 days of inactivity.'
+          days-before-stale: 60
+          days-before-close: -1
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-message: 'This issue has had no activity for 60 days. If you can, share whether the problem still occurs on the latest release or add details about your use case. It will remain open for maintainer review; inactivity alone will not close it.'
           stale-issue-label: 'stale'
           exempt-issue-labels: 'pinned,security,bug'

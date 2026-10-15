@@ -1,29 +1,79 @@
 # Oh My Claudian
 
-![Oh My Claudian in dark-themed Obsidian, with a visual project note and a reviewed next-step plan](assets/PreviewCurrent.png)
+**Turn scattered notes into a clear next step, with an agent working inside Obsidian.**
 
-*Screenshot of the current Obsidian interface with a sample conversation. Appearance varies by theme and provider.*
+Bring your existing Claude Code, Codex, or another supported coding agent into your vault. Compare source notes, draft a linked summary, inspect file-edit diffs, and keep the result in Markdown.
 
-Bring your coding agent into [Obsidian](https://obsidian.md/): ask questions about your notes, review file edits, and run multi-step workflows in your vault.
+[Install](https://community.obsidian.md/plugins/oh-my-claudian) · [Quick start](#quick-start) · [Try the sample workflow](#try-the-sample-workflow) · [简体中文](README.zh-CN.md) · [Releases](https://github.com/lee259/oh-my-claudian/releases) · [Report a bug](https://github.com/lee259/oh-my-claudian/issues)
 
-[Install](https://community.obsidian.md/plugins/oh-my-claudian) · [Quick start](#quick-start) · [Usage](#usage) · [Releases](https://github.com/lee259/oh-my-claudian/releases) · [Report a bug](https://github.com/lee259/oh-my-claudian/issues)
+![Oh My Claudian in Obsidian: source note, conversation, and an expanded file-edit diff](assets/PreviewCurrent.png)
 
-## What you can do
+*Real Obsidian interface with a sample conversation. Appearance varies by theme and provider.*
 
-- **Work with your notes.** Attach files or folders, ask the agent to compare sources, summarize a topic, or reorganize a draft.
-- **Review changes.** Expand file-edit cards to inspect the diff, or select note text and preview an inline edit before applying it.
-- **Follow longer tasks.** Read the latest reply while completed tool activity folds into expandable summaries. Scroll back to inspect earlier work without losing your reading position.
-- **Use your existing agent setup.** Choose from seven provider integrations, with provider-native authentication, configuration, and permissions.
+## Start with a result
+
+- **Make sense of scattered notes.** Attach a project brief and research notes, then ask for a summary that links each conclusion to its source.
+- **Improve a draft in place.** Select note text, request an inline edit, review the word-level diff, and apply the result.
+- **Keep longer work readable.** Read the latest answer while completed tool activity folds into expandable summaries. Scroll back without losing your reading position.
+- **Keep your agent setup.** Use provider-native authentication, models, permissions, and supported commands from the Obsidian sidebar.
+
+## Quick start
+
+You need **desktop Obsidian 1.7.2+** and access to a supported agent. The plugin is free and MIT-licensed; your provider's subscription, API charges, and usage limits still apply. It does not include a model subscription.
+
+### 1. Install the plugin
+
+Open **Settings → Community plugins → Browse**, search for **Oh My Claudian**, install it, and enable it. You can also use the [community plugin page](https://community.obsidian.md/plugins/oh-my-claudian).
+
+### 2. Connect one agent
+
+Choose the CLI you already use. Verify that it can start and authenticate in your terminal, then configure that same provider in the plugin.
+
+| | Claude Code | Codex CLI |
+| --- | --- | --- |
+| Provider setup | Follow the [Claude Code quick start](https://code.claude.com/docs/en/quickstart). Run `claude` and complete its sign-in if needed. | Follow the [Codex CLI guide](https://developers.openai.com/codex/cli/). Run `codex` and complete its sign-in if needed. |
+| Existing account | Use an account or API configuration supported by Claude Code. | Use an account or API configuration supported by Codex CLI. |
+| Plugin settings | Open **Settings → Oh My Claudian → Providers → Claude Code** and enable the provider. | Open **Settings → Oh My Claudian → Providers → Codex CLI** and enable the provider. |
+| Readiness | Check **Readiness**, correct the CLI path if needed, and enable a chat model. | Check **Readiness**, load the model catalog, and enable a chat model. |
+
+Readiness checks the provider, CLI, model catalog, and selected models. It can offer an install or update action for supported CLIs; the command is shown for confirmation and its result is checked afterward. Authentication stays with the provider's own CLI.
+
+If the CLI works in a terminal but is not found here, set its **absolute executable path** in that provider's settings. Obsidian launched from a desktop shortcut may have a different `PATH`. If Claude authentication fails while subscription sign-in works in the terminal, see the [credential conflict guidance](#claude-authentication-fails-while-the-cli-subscription-works).
+
+### 3. Get your first answer
+
+Open **Oh My Claudian: Open chat view** from the command palette or use its ribbon icon. Select the enabled model, type `@` to attach a note, and send:
+
+> Summarize this note in three bullets. Link the source note and suggest one next step. Do not modify any files.
+
+You should see the attached note as a context chip and an answer in the conversation. Once that works, try the workflow below. If there is no model to select or no answer arrives, start with [Troubleshooting](#troubleshooting).
+
+## Try the sample workflow
+
+Use the three small notes in [`docs/demo-vault`](docs/demo-vault). Copy them into a **test vault**, install and configure the plugin there, and attach all three with `@`.
+
+1. Ask the agent to compare the notes and propose three actions. The prompt asks for a read-only comparison.
+2. Review the proposed plan, then ask it to add a `Next steps` section to `Project Brief.md`, with links to the source notes.
+3. Expand the file-edit card to inspect the diff when your provider supplies supported edit data, then open the changed note. A chat edit may already have been applied under your provider's permission mode; inline editing has a separate preview-and-apply flow.
+
+The [sample walkthrough](docs/demo.md) includes exact prompts, expected results, and a recording plan. This is a reproducible sample, not a promise about a provider's speed or output.
+
+If this helps you work with your notes, a [GitHub star](https://github.com/lee259/oh-my-claudian) helps others discover the project. Bug reports and concrete workflow feedback are welcome too.
 
 ## Relationship to Claudian
 
-Oh My Claudian began as a fork of [Claudian](https://github.com/YishenTu/claudian) by Yishen Tu. It retains Claudian's MIT-licensed foundation and core vault-agent workflows, including chat, `@` mentions, slash commands, and inline editing.
+Oh My Claudian began as a fork of [Claudian](https://github.com/YishenTu/claudian) by Yishen Tu. It retains Claudian's MIT-licensed foundation and core workflows: sidebar chat, `@` mentions, slash commands, and inline editing. It is independently maintained and is not an official Claudian release.
 
-It is now independently maintained as a local-first project. Along with extending Claudian's provider lineup of Claude Code, Codex CLI, Grok Build, OpenCode, and Pi with Cursor Agent and Oh My Pi, it has developed workflows for setup, long conversations, and working with vault content:
+Alongside the inherited foundation, this project focuses on the workflows below:
 
-- **Set up providers in Obsidian.** The Readiness panel checks CLI and model setup and offers install or update actions for supported CLIs. See [Quick start](#quick-start).
-- **Manage long conversations.** Session history supports resume, fork, and compact where the provider allows them. Completed tool activity folds into expandable summaries, and expanded work history keeps its reading position. See [Read a conversation and inspect changes](#read-a-conversation-and-inspect-changes).
-- **Work directly with vault structure.** Claude, Codex, OpenCode, and Pi can inspect backlinks, update or remove frontmatter properties, move or rename files while Obsidian handles link updates, and send files to Obsidian trash. See [Obsidian-native vault actions](#use-obsidian-native-vault-actions).
+| What you are looking for | What to try in Oh My Claudian |
+| --- | --- |
+| Cursor Agent or Oh My Pi in your vault | Choose either integration alongside Claude Code, Codex, Grok Build, OpenCode, and Pi. |
+| Help getting a local agent ready | Provider-specific Readiness checks and supported CLI install/update actions. |
+| Easier review of longer conversations | Expand completed work, inspect edit diffs, and keep your position while reading. |
+| Actions that understand Obsidian's vault structure | Claude, Codex, OpenCode, and Pi can inspect backlinks, manage frontmatter, and move files with Obsidian link updates. |
+
+Upstream evolves independently. See [Claudian's current README](https://github.com/YishenTu/claudian#readme) when comparing available features. There is no need to migrate if your current setup already meets your needs.
 
 ## Supported providers
 
@@ -38,33 +88,6 @@ The built-in provider integrations are:
 - [Pi](https://github.com/earendil-works/pi)
 
 Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude, Codex, OpenCode, and Pi.
-
-## Requirements
-
-- Obsidian 1.7.2 or newer on desktop: macOS, Linux, or Windows.
-- At least one supported provider CLI installed and authenticated according to its own documentation.
-- A compatible subscription or API provider.
-
-## Installation
-
-### Community Plugins
-
-1. Open **Settings → Community plugins → Browse** in Obsidian.
-2. Search for **Oh My Claudian**, install it, and enable it.
-
-You can also open the [Oh My Claudian community plugin page](https://community.obsidian.md/plugins/oh-my-claudian) directly.
-
-For a source build, see [Development](#development).
-
-## Quick start
-
-1. Open **Settings → Oh My Claudian** and choose a provider tab.
-2. Enable the provider and check its **Readiness** panel. Use the offered action to install or update its CLI, or set an executable path if discovery fails.
-3. Sign in through the provider's own CLI when required. For example, Cursor Agent uses `agent login`.
-4. Enable the models you want to use in that provider's settings and select one in the chat composer.
-5. Open the chat from the ribbon icon or command palette. Type `@` to attach a note, then try: **"Summarize this note and suggest three improvements."**
-
-CLI installation and updates show the command for confirmation and check the result afterward. Available actions depend on the provider's distribution and version metadata.
 
 ## Usage
 
