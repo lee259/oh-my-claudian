@@ -1,5 +1,7 @@
 import { htmlToMarkdown, setIcon } from 'obsidian';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 const MESSAGE_SELECTOR = '.claudian-message';
 const CONTENT_SELECTOR = '.claudian-message-content';
 const BUTTON_GAP_PX = 6;
@@ -22,7 +24,7 @@ export function formatSelectionQuote(text: string): string {
 }
 
 /** Appends a quote block to the composer and leaves the caret below it. */
-export function appendQuoteToComposer(inputEl: HTMLTextAreaElement, quote: string): void {
+export function appendQuoteToComposer(inputEl: ComposerInputElement, quote: string): void {
   const currentValue = inputEl.value;
   let separator = '';
   if (currentValue.trim()) {

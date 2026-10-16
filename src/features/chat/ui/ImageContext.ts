@@ -1,6 +1,7 @@
 import { type App, Notice } from 'obsidian';
 import * as path from 'path';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 import { normalizeImageMediaType } from '@/utils/imageAttachment';
 
 import type { ImageAttachment, ImageMediaType } from '../../../core/types';
@@ -27,7 +28,7 @@ export class ImageContextManager {
   private containerEl: HTMLElement;
   private contextTray: ComposerContextTray;
   private ownedContextTray: ComposerContextTray | null = null;
-  private inputEl: HTMLTextAreaElement;
+  private inputEl: ComposerInputElement;
   private dropOverlay: HTMLElement | null = null;
   private attachedImages: Map<string, ImageAttachment> = new Map();
   private readonly imagePreviewModal: ImagePreviewModal;
@@ -36,7 +37,7 @@ export class ImageContextManager {
 
   constructor(
     containerEl: HTMLElement,
-    inputEl: HTMLTextAreaElement,
+    inputEl: ComposerInputElement,
     callbacks: ImageContextCallbacks,
     previewContainerEl?: HTMLElement,
     contextTray?: ComposerContextTray,
@@ -128,7 +129,7 @@ export class ImageContextManager {
     dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
     dropZone.addEventListener('drop', (e) => {
       void this.handleDrop(e);
-    });
+    }, { capture: true });
   }
 
   private handleDragEnter(e: DragEvent) {
@@ -183,6 +184,7 @@ export class ImageContextManager {
   }
 
   private setupPasteHandler() {
+    // Attachments must consume clipboard images before the editor inserts text.
     this.inputEl.addEventListener('paste', (e) => {
       void (async (): Promise<void> => {
       const items = e.clipboardData?.items;
@@ -200,7 +202,7 @@ export class ImageContextManager {
         }
       }
       })();
-    });
+    }, { capture: true });
   }
 
   private isImageFile(file: File): boolean {

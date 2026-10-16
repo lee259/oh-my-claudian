@@ -1,9 +1,11 @@
 import type { Command } from 'obsidian';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 interface ChatFocusCommandDeps {
-  getInputs: () => HTMLTextAreaElement[];
+  getInputs: () => ComposerInputElement[];
   getActiveDocument: () => Document | null;
-  getPreferredInput: () => HTMLTextAreaElement | null;
+  getPreferredInput: () => ComposerInputElement | null;
 }
 
 function isVisible(element: HTMLElement): boolean {
@@ -20,7 +22,7 @@ function isVisible(element: HTMLElement): boolean {
 
 /** Toggle an existing, visible composer without changing view or conversation state. */
 export function createChatFocusCommand(deps: ChatFocusCommandDeps): Command {
-  const previousFocus = new WeakMap<HTMLTextAreaElement, HTMLElement>();
+  const previousFocus = new WeakMap<ComposerInputElement, HTMLElement>();
   return {
     id: 'toggle-chat-input-focus',
     name: 'Toggle chat input focus',

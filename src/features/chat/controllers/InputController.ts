@@ -1,5 +1,7 @@
 import { Notice } from 'obsidian';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import {
   detectBuiltInCommand,
 } from '../../../core/commands/builtInCommands';
@@ -134,7 +136,7 @@ export interface InputControllerDeps {
   canvasSelectionController: Pick<CanvasSelectionController, 'getContext'>;
   conversationController: ConversationController;
   composer?: RuntimeComposer;
-  getInputEl: () => HTMLTextAreaElement | null;
+  getInputEl: () => ComposerInputElement | null;
   getQuotedMessageTexts?: () => string[];
   clearQuotedMessages?: () => void;
   getWelcomeEl: () => HTMLElement | null;
@@ -377,7 +379,7 @@ export class InputController {
     this.dismissPendingPlanApproval();
   }
 
-  private getComposer(): HTMLTextAreaElement | RuntimeComposer {
+  private getComposer(): ComposerInputElement | RuntimeComposer {
     const composer = this.deps.composer ?? this.deps.getInputEl();
     if (!composer) throw new Error('A runtime composer is required without presentation.');
     return composer;

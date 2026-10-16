@@ -1,8 +1,10 @@
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 /** Owns the unsent text independently of an optional composer input. */
 export class RuntimeComposer {
   private text = '';
   private initialized = false;
-  private binding: { input: HTMLTextAreaElement; onInput: () => void } | null = null;
+  private binding: { input: ComposerInputElement; onInput: () => void } | null = null;
 
   get value(): string {
     if (this.binding) this.text = this.binding.input.value;
@@ -22,7 +24,7 @@ export class RuntimeComposer {
 
   focus(): void { this.binding?.input.focus(); }
 
-  attach(input: HTMLTextAreaElement): () => void {
+  attach(input: ComposerInputElement): () => void {
     if (this.binding) this.detach(this.binding);
     if (!this.initialized) this.text = input.value;
     this.initialized = true;
@@ -33,7 +35,7 @@ export class RuntimeComposer {
     return () => this.detach(binding);
   }
 
-  private detach(binding: { input: HTMLTextAreaElement; onInput: () => void }): void {
+  private detach(binding: { input: ComposerInputElement; onInput: () => void }): void {
     if (this.binding !== binding) return;
     this.text = binding.input.value;
     binding.input.removeEventListener('input', binding.onInput);

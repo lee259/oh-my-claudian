@@ -25,6 +25,8 @@ Detailed tab membership, tab lifecycle, and snapshot rules live in `tabs/AGENTS.
 
 ## Interaction State
 
+- `ComposerEditor` owns the chat input document. Consumers use `ComposerInputElement`; the canonical `value` retains full `@path` references, while file labels are derived presentation. Never substitute display labels into drafts or execution requests. Native inline-edit inputs share this structural contract without using the chat editor.
+- Popup ARIA relationships belong to `getComposerTextbox(input)`, and focus checks must include descendants of the chat input. CodeMirror keyboard defaults run only after chat completion/send handlers have had a chance to consume the event.
 - `ChatState.interactions` owns pending approval, question, provider plan and local plan promises; `ChatState` also retains the async user-message question tracker across presentation-controller replacement.
 - Presentation attachments display one queued request and may be replaced without resolving it. Abort, conversation reset and tab disposal end requests explicitly; a detached widget must not answer its replacement.
 - Async answer delivery is request-owned: once accepted, retain the answer even if presentation detached during delivery. Reject stale or concurrent submission attempts before sending.

@@ -1,4 +1,5 @@
 import { t } from '@/i18n/i18n';
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 
 import { getBuiltInCommandsForDropdown } from '../../core/commands/builtInCommands';
 import type { ProviderCommandDropdownConfig } from '../../core/providers/commands/ProviderCommandCatalog';
@@ -54,7 +55,7 @@ export class SlashCommandDropdown {
   private dropdownEl: HTMLElement | null = null;
   private commandList: SelectableDropdown<DropdownItem> | null = null;
   private providerStateEl: HTMLElement | null = null;
-  private inputEl: HTMLTextAreaElement | HTMLInputElement;
+  private inputEl: ComposerInputElement | HTMLInputElement;
   private callbacks: SlashCommandDropdownCallbacks;
   private enabled = true;
   private onInput: () => void;
@@ -75,7 +76,7 @@ export class SlashCommandDropdown {
 
   constructor(
     containerEl: HTMLElement,
-    inputEl: HTMLTextAreaElement | HTMLInputElement,
+    inputEl: ComposerInputElement | HTMLInputElement,
     callbacks: SlashCommandDropdownCallbacks,
     options: SlashCommandDropdownOptions = {}
   ) {
@@ -169,6 +170,11 @@ export class SlashCommandDropdown {
     }
 
     if (triggerIndex === -1) {
+      this.hide();
+      return;
+    }
+
+    if ((this.inputEl as ComposerInputElement).isChipRange?.(triggerIndex, cursorPos)) {
       this.hide();
       return;
     }
@@ -274,7 +280,9 @@ export class SlashCommandDropdown {
   }
 
   private setInputValue(value: string): void {
-    this.inputEl.value = value;
+    const replace = (this.inputEl as ComposerInputElement).replaceText;
+    if (replace) replace(0, this.inputEl.value.length, value);
+    else this.inputEl.value = value;
   }
 
   private setCursorPosition(pos: number): void {

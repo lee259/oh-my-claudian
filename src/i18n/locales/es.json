@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "Sin coincidencias. Prueba otro nombre o ruta.",
     "inputSuggestions": "Sugerencias de entrada",
     "save": "Guardar",
     "cancel": "Cancelar",

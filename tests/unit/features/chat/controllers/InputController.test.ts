@@ -15,6 +15,7 @@ import {
 } from '@/features/chat/execution/ChatExecutionCoordinator';
 import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
 import { ChatState } from '@/features/chat/state/ChatState';
+import { ComposerEditor } from '@/features/chat/ui/ComposerEditor';
 
 jest.mock('@/core/providers/ProviderRegistry', () => ({
   ProviderRegistry: {
@@ -217,6 +218,19 @@ function createFixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('InputController coordinator execution', () => {
+  it('submits full reference paths from the short-name editor without using display labels', async () => {
+    const editor = new ComposerEditor(createMockEl() as any, {
+      vault: { getAbstractFileByPath: (path: string) => ({ path, name: 'plan.md', extension: 'md' }) },
+    } as any);
+    const fixture = createFixture({ getInputEl: () => editor.element });
+    const canonical = 'Compare @one/plan.md and @two/plan.md';
+    editor.element.value = canonical;
+    await fixture.controller.sendMessage();
+    expect(fixture.coordinator.execute.mock.calls[0][0].canonicalText).toBe(canonical);
+    expect(editor.element.value).toBe('');
+    editor.destroy();
+  });
+
   it('clears all waiting input and withdrawn context when the conversation resets', () => {
     const fixture = createFixture();
     const observers = [jest.fn(), jest.fn(), jest.fn()];

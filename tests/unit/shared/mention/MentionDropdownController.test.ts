@@ -491,6 +491,76 @@ describe('MentionDropdownController', () => {
   });
 
   describe('handleKeydown', () => {
+    const setQuery = (query: string) => {
+      inputEl.value = query;
+      inputEl.selectionStart = inputEl.selectionEnd = query.length;
+      controller.handleInputChange();
+    };
+
+    it('shows feedback for an unmatched query without submitting on Enter', () => {
+      setQuery('@unknown');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(true);
+      expect(getLatestDropdownRenderOptions().items).toEqual([]);
+      const event = { key: 'Enter', preventDefault: jest.fn() } as any;
+      expect(controller.handleKeydown(event)).toBe(true);
+      expect(inputEl.value).toBe('@unknown');
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('lets Tab leave an empty result list', () => {
+      setQuery('@unknown');
+      jest.advanceTimersByTime(200);
+      const event = { key: 'Tab', preventDefault: jest.fn() } as any;
+      expect(controller.handleKeydown(event)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(controller.isVisible()).toBe(false);
+    });
+
+    it('selects the current query instead of stale results during the debounce', () => {
+      (callbacks.getCachedVaultFiles as jest.Mock).mockReturnValue([
+        { name: 'alpha.md', path: 'notes/alpha.md', stat: { mtime: 2 } },
+        { name: 'beta.md', path: 'notes/beta.md', stat: { mtime: 1 } },
+      ]);
+      setQuery('@alpha');
+      jest.advanceTimersByTime(200);
+      setQuery('@beta');
+      controller.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+      expect(inputEl.value).toBe('@notes/beta.md ');
+    });
+
+    it('does not reopen after Escape cancels a pending query', () => {
+      setQuery('@unknown');
+      controller.handleKeydown({ key: 'Escape', preventDefault: jest.fn() } as any);
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(false);
+    });
+
+    it('leaves Escape available to the host when ordinary text has a pending debounce', () => {
+      setQuery('hello');
+      const event = { key: 'Escape', preventDefault: jest.fn() } as any;
+      expect(controller.handleKeydown(event)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it.each(['Enter', 'Tab'])('preserves Shift+%s for newline and backward focus navigation', key => {
+      setQuery('@unknown');
+      jest.advanceTimersByTime(200);
+      const event = { key, shiftKey: true, preventDefault: jest.fn() } as any;
+      expect(controller.handleKeydown(event)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(controller.isVisible()).toBe(false);
+    });
+
+    it.each(['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'])('leaves %s to the input method while composing', key => {
+      setQuery('@unknown');
+      jest.advanceTimersByTime(200);
+      const event = { key, isComposing: true, preventDefault: jest.fn() } as any;
+      expect(controller.handleKeydown(event)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(getLatestDropdownInstance().moveSelection).not.toHaveBeenCalled();
+    });
+
     it('returns false when dropdown not visible', () => {
       const event = { key: 'ArrowDown', preventDefault: jest.fn() } as any;
       const handled = controller.handleKeydown(event);
@@ -613,7 +683,7 @@ describe('MentionDropdownController', () => {
       inputEl.selectionStart = 8;
       controller.handleInputChange();
 
-      jest.advanceTimersByTime(199);
+      jest.advanceTimersByTime(99);
       expect(agentService.searchAgents).not.toHaveBeenCalled();
 
       jest.advanceTimersByTime(1);
@@ -646,6 +716,22 @@ describe('MentionDropdownController', () => {
   });
 
   describe('vault folder mentions', () => {
+    it('shows filenames separately from their directories and keeps the full path available', () => {
+      (callbacks.getCachedVaultFiles as jest.Mock).mockReturnValue([
+        { name: 'plan.md', path: 'projects/very-long-directory/plan.md', stat: { mtime: 1 } },
+      ]);
+      inputEl.value = '@plan';
+      inputEl.selectionStart = 5;
+      controller.handleInputChange();
+      jest.advanceTimersByTime(200);
+      const options = getLatestDropdownRenderOptions();
+      const itemEl = createMockEl();
+      options.renderItem(options.items[0], itemEl);
+      expect(itemEl.querySelector('.claudian-mention-name')?.textContent).toBe('@plan.md');
+      expect(itemEl.querySelector('.claudian-mention-desc')?.textContent).toBe('projects/very-long-directory/');
+      expect(itemEl.getAttribute('title')).toBe('projects/very-long-directory/plan.md');
+    });
+
     it('limits vault folder results to 50 items', () => {
       const largeFolderSet = Array.from({ length: 80 }, (_, i) => ({
         name: `folder${i}`,

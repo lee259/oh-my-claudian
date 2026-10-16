@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "일치하는 항목이 없습니다. 다른 이름이나 경로를 입력하세요.",
     "inputSuggestions": "입력 제안",
     "save": "저장",
     "cancel": "취소",

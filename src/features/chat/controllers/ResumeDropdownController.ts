@@ -1,5 +1,7 @@
 import { Notice } from 'obsidian';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
 import type { FeatureHost } from '../../FeatureHost';
 import type { ConversationController } from './ConversationController';
@@ -8,7 +10,7 @@ export interface ResumeDropdownControllerDeps {
   plugin: FeatureHost;
   conversationController: ConversationController;
   getInputContainerEl: () => HTMLElement | null;
-  getInputEl: () => HTMLTextAreaElement | null;
+  getInputEl: () => ComposerInputElement | null;
   getCurrentConversationId: () => string | null;
   openConversation?: (conversationId: string) => Promise<void>;
 }

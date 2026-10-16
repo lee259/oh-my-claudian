@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "没有匹配项，试试其他名称或路径。",
     "inputSuggestions": "输入建议",
     "save": "保存",
     "cancel": "取消",

@@ -1174,6 +1174,13 @@ export class ClaudianView extends ItemView {
       if (e.isComposing) return;
       const activeTab = this.tabManager?.getActiveTab();
       if (activeTab?.controllers.conversationController?.cancelInlineRename()) return false;
+      // Obsidian handles scoped hotkeys before the textarea's keydown listener.
+      if (
+        !e.defaultPrevented
+        && activeTab?.dom?.inputEl
+        && !!e.target && activeTab.dom.inputEl.contains(e.target as Node)
+        && activeTab.ui.fileContextManager?.handleMentionKeydown(e)
+      ) return false;
       if (this.historyDropdown?.hasClass('visible')) {
         this.toggleHistoryDropdown();
         return false;

@@ -73,7 +73,6 @@ import { FileContextManager } from '../ui/FileContext';
 import { ImageContextManager } from '../ui/ImageContext';
 import { createInputToolbar } from '../ui/InputToolbar';
 import { InstructionModeManager as InstructionModeManagerClass } from '../ui/InstructionModeManager';
-import { MentionTextHighlighter } from '../ui/MentionTextHighlighter';
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
@@ -291,7 +290,7 @@ function shouldSendMessageFromEnterKey(
 }
 
 function isTabInputFocused(tab: TabData): boolean {
-  return tab.dom.inputEl.ownerDocument.activeElement === tab.dom.inputEl;
+  return tab.dom.inputEl.contains(tab.dom.inputEl.ownerDocument.activeElement);
 }
 
 function sendTabInputMessage(
@@ -1571,17 +1570,10 @@ export function initializeTabUI(
       tab.renderer?.scrollToBottomIfNeeded();
     },
   });
-  // Passive textarea sizing: field-sizing grows the input with content and a
-  // ResizeObserver keeps only the max-height cap current (no per-keystroke
-  // reflow). Mirrors upstream #1215.
+  // Track the editor's height cap without measuring layout on every keystroke.
   dom.eventCleanups.push(installTextareaSizing(dom.inputEl));
-  const mentionTextHighlighter = new MentionTextHighlighter(
-    dom.inputEl,
-    dom.inputMentionHighlightsEl,
-    plugin.app,
-    (token, atInputStart) => tab.ui.slashCommandDropdown?.resolveCommandKind(token, atInputStart) ?? null,
-  );
-  dom.eventCleanups.push(() => mentionTextHighlighter.destroy());
+  dom.inputEl.setCommandResolver?.((token, atInputStart) =>
+    tab.ui.slashCommandDropdown?.resolveCommandKind(token, atInputStart) ?? null);
   initializeContextManagers(tab, plugin, onUserModified);
 
   const catalogInfo = options.getProviderCatalogConfig?.() ?? null;

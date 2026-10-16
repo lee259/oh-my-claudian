@@ -1803,6 +1803,36 @@ describe('ClaudianView Escape handling', () => {
     expect(result).toBe(false);
   });
 
+  it('gives composer mentions scoped Escape before cancelling a running reply', () => {
+    const { cancelStreaming, view } = createEscapeHarness({ isStreaming: true });
+    const tab = view.tabManager.getActiveTab();
+    const inputEl = createMockEl();
+    tab.dom = { inputEl };
+    tab.ui.fileContextManager.handleMentionKeydown = jest.fn().mockReturnValueOnce(true).mockReturnValue(false);
+    view.wireEventHandlers();
+    const handler = view.scope.handlers.find((entry: any) => entry.key === 'Escape');
+    const event = { key: 'Escape', target: inputEl, isComposing: false } as unknown as KeyboardEvent;
+
+    expect(handler.func(event)).toBe(false);
+    expect(tab.ui.fileContextManager.handleMentionKeydown).toHaveBeenCalledWith(event);
+    expect(cancelStreaming).not.toHaveBeenCalled();
+
+    expect(handler.func(event)).toBe(false);
+    expect(cancelStreaming).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not route Escape from other controls into composer mentions', () => {
+    const { cancelStreaming, view } = createEscapeHarness({ isStreaming: true });
+    const tab = view.tabManager.getActiveTab();
+    tab.dom = { inputEl: createMockEl() };
+    tab.ui.fileContextManager.handleMentionKeydown = jest.fn().mockReturnValue(true);
+    view.wireEventHandlers();
+    const handler = view.scope.handlers.find((entry: any) => entry.key === 'Escape');
+    handler.func({ key: 'Escape', target: createMockEl(), isComposing: false } as unknown as KeyboardEvent);
+    expect(tab.ui.fileContextManager.handleMentionKeydown).not.toHaveBeenCalled();
+    expect(cancelStreaming).toHaveBeenCalledTimes(1);
+  });
+
   it('closes the history menu from the scoped Escape handler', () => {
     const { cancelStreaming, view } = createEscapeHarness({ isStreaming: true });
     view.historyDropdown.addClass('visible');

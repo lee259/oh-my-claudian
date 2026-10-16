@@ -315,7 +315,7 @@ describe('FileContextManager', () => {
     manager.destroy();
   });
 
-  it('shows vault-relative path in @ dropdown and inserts full path on selection', () => {
+  it('shows the filename and directory in @ suggestions and inserts the full path on selection', () => {
     const app = createMockApp({
       files: ['clipping/file.md'],
     });
@@ -332,8 +332,8 @@ describe('FileContextManager', () => {
     manager.handleInputChange();
     jest.advanceTimersByTime(200);
 
-    const pathEl = findByClass(containerEl, 'claudian-mention-path');
-    expect(pathEl?.textContent).toBe('clipping/file.md');
+    expect(findByClass(containerEl, 'claudian-mention-name')?.textContent).toBe('@file.md');
+    expect(findByClass(containerEl, 'claudian-mention-desc')?.textContent).toBe('clipping/');
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
@@ -397,7 +397,8 @@ describe('FileContextManager', () => {
     jest.advanceTimersByTime(200);
 
     const nameEls = findAllByClass(containerEl, 'claudian-mention-name-context');
-    expect(nameEls[0]?.textContent).toBe('src/app.md');
+    expect(nameEls[0]?.textContent).toBe('@app.md');
+    expect(findByClass(containerEl, 'claudian-mention-desc')?.textContent).toBe('external/src/');
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
 
