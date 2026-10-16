@@ -33,6 +33,28 @@ function collectMentionEndCandidates(text: string, pathStart: number): number[] 
   return Array.from(candidates).sort((a, b) => b - a);
 }
 
+function collectLiteralMentionEndCandidates(text: string, pathStart: number): number[] {
+  const candidates = new Set<number>();
+
+  for (let index = pathStart; index < text.length; index++) {
+    const char = text[index];
+    if (isWhitespace(char) || BOUNDARY_PUNCTUATION.has(char)) {
+      candidates.add(index);
+      continue;
+    }
+    if (char === '.' && (
+      index + 1 === text.length
+      || isWhitespace(text[index + 1])
+      || TRAILING_PUNCTUATION_REGEX.test(text[index + 1])
+    )) {
+      candidates.add(index);
+    }
+  }
+
+  candidates.add(text.length);
+  return Array.from(candidates).sort((a, b) => b - a);
+}
+
 export function isMentionStart(text: string, index: number): boolean {
   if (text[index] !== '@') return false;
   if (index === 0) return true;
@@ -112,17 +134,32 @@ export function findBestMentionLookupMatch(
 ): MentionLookupMatch | null {
   if (pathLookup.size === 0 || pathStart >= text.length) return null;
 
+  for (const endIndex of collectLiteralMentionEndCandidates(text, pathStart)) {
+    if (endIndex <= pathStart) continue;
+
+    const normalizedPath = normalizePath(text.slice(pathStart, endIndex));
+    if (!normalizedPath) continue;
+
+    const resolvedPath = pathLookup.get(normalizeLookupKey(normalizedPath));
+    if (resolvedPath) {
+      const trailingPunctuation = text.slice(endIndex).match(/^[),.!?:;]+(?=\s|$)/)?.[0] ?? '';
+      return {
+        resolvedPath,
+        endIndex: endIndex + trailingPunctuation.length,
+        trailingPunctuation,
+      };
+    }
+  }
+
   const endCandidates = collectMentionEndCandidates(text, pathStart);
   for (const endIndex of endCandidates) {
     if (endIndex <= pathStart) continue;
 
     const rawPath = text.slice(pathStart, endIndex);
     const trailingPunctuation = rawPath.match(TRAILING_PUNCTUATION_REGEX)?.[0] ?? '';
-    const rawPathWithoutPunctuation = trailingPunctuation
-      ? rawPath.slice(0, -trailingPunctuation.length)
-      : rawPath;
+    if (!trailingPunctuation) continue;
 
-    const normalizedPath = normalizePath(rawPathWithoutPunctuation);
+    const normalizedPath = normalizePath(rawPath.slice(0, -trailingPunctuation.length));
     if (!normalizedPath) continue;
 
     const resolvedPath = pathLookup.get(normalizeLookupKey(normalizedPath));
