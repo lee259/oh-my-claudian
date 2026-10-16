@@ -19,6 +19,7 @@
 @import "./components/subagent.css";
 @import "./components/subagent-transcript.css";
 @import "./components/input.css";
+@import "./components/composer-editor.css";
 @import "./components/follow-up-queue.css";
 @import "./components/context-tray.css";
 @import "./components/context-footer.css";

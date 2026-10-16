@@ -2,6 +2,7 @@ import type { TFile } from 'obsidian';
 import { setIcon } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 
 import { buildExternalContextDisplayEntries } from '../../utils/externalContext';
 import { type ExternalContextFile, externalContextScanner } from '../../utils/externalContextScanner';
@@ -41,7 +42,7 @@ export interface McpMentionProvider {
 
 export class MentionDropdownController {
   private containerEl: HTMLElement;
-  private inputEl: HTMLTextAreaElement | HTMLInputElement;
+  private inputEl: ComposerInputElement | HTMLInputElement;
   private callbacks: MentionDropdownCallbacks;
   private dropdown: SelectableDropdown<MentionItem>;
   private mentionStartIndex = -1;
@@ -60,10 +61,19 @@ export class MentionDropdownController {
   private fixed: boolean;
   private debounceTimer: number | null = null;
   private destroyed = false;
+  private composing = false;
+  private readonly compositionStartHandler = () => {
+    this.composing = true;
+    this.hide();
+  };
+  private readonly compositionEndHandler = () => {
+    this.composing = false;
+    this.handleInputChange();
+  };
 
   constructor(
     containerEl: HTMLElement,
-    inputEl: HTMLTextAreaElement | HTMLInputElement,
+    inputEl: ComposerInputElement | HTMLInputElement,
     callbacks: MentionDropdownCallbacks,
     options: MentionDropdownOptions = {}
   ) {
@@ -71,6 +81,8 @@ export class MentionDropdownController {
     this.inputEl = inputEl;
     this.callbacks = callbacks;
     this.fixed = options.fixed ?? false;
+    this.inputEl.addEventListener('compositionstart', this.compositionStartHandler);
+    this.inputEl.addEventListener('compositionend', this.compositionEndHandler);
 
     this.dropdown = new SelectableDropdown<MentionItem>(this.containerEl, {
       listClassName: 'claudian-mention-dropdown',
@@ -113,6 +125,7 @@ export class MentionDropdownController {
   }
 
   hide(): void {
+    this.clearDebounce();
     this.dropdown.hide();
     this.mentionStartIndex = -1;
     this.activeMentionSearchText = null;
@@ -135,6 +148,8 @@ export class MentionDropdownController {
     this.mcpLoadPromise = null;
     this.agentService = null;
     this.mcpManager = null;
+    this.inputEl.removeEventListener('compositionstart', this.compositionStartHandler);
+    this.inputEl.removeEventListener('compositionend', this.compositionEndHandler);
     this.dropdown.destroy();
   }
 
@@ -154,40 +169,73 @@ export class MentionDropdownController {
   }
 
   handleInputChange(): void {
-    if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
-    }
+    this.clearDebounce();
+    if (this.destroyed || this.composing) return;
+    this.updateMcpMentionsFromText(this.inputEl.value);
 
     this.debounceTimer = window.setTimeout(() => {
-      const text = this.inputEl.value;
-      this.updateMcpMentionsFromText(text);
+      this.debounceTimer = null;
+      this.refreshQuery();
+    }, 100);
+  }
 
-      const cursorPos = this.inputEl.selectionStart || 0;
-      const textBeforeCursor = text.substring(0, cursorPos);
-      const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+  private clearDebounce(): void {
+    if (this.debounceTimer !== null) window.clearTimeout(this.debounceTimer);
+    this.debounceTimer = null;
+  }
 
-      if (lastAtIndex === -1) {
-        this.hide();
-        return;
-      }
+  private refreshQuery(): void {
+    if (this.destroyed || this.composing) return;
+    const text = this.inputEl.value;
 
-      const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
-      if (!/\s/.test(charBeforeAt) && lastAtIndex !== 0) {
-        this.hide();
-        return;
-      }
+    const cursorPos = this.inputEl.selectionStart || 0;
+    const textBeforeCursor = text.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
 
-      const searchText = textBeforeCursor.substring(lastAtIndex + 1);
+    if (lastAtIndex === -1) {
+      this.hide();
+      return;
+    }
 
-      this.mentionStartIndex = lastAtIndex;
-      this.activeMentionSearchText = searchText;
-      this.showMentionDropdown(searchText);
-    }, 200);
+    const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+    if (!/\s/.test(charBeforeAt) && lastAtIndex !== 0) {
+      this.hide();
+      return;
+    }
+
+    const searchText = textBeforeCursor.substring(lastAtIndex + 1);
+    if ((this.inputEl as ComposerInputElement).isChipRange?.(lastAtIndex, cursorPos)) {
+      this.hide();
+      return;
+    }
+    if (/[\r\n]/.test(searchText)) {
+      this.hide();
+      return;
+    }
+    this.mentionStartIndex = lastAtIndex;
+    this.activeMentionSearchText = searchText;
+    this.showMentionDropdown(searchText);
   }
 
   handleKeydown(e: KeyboardEvent): boolean {
+    if (this.composing || e.isComposing || e.keyCode === 229) return false;
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    if (e.shiftKey && (e.key === 'Tab' || e.key === 'Enter')) {
+      this.hide();
+      return false;
+    }
+    const pendingQuery = this.debounceTimer !== null;
+    // Resolve the latest text before accepting a keyboard choice from older results.
+    if (pendingQuery && ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+      this.clearDebounce();
+      if (e.key !== 'Escape' || !this.dropdown.isVisible()) this.refreshQuery();
+    }
     if (!this.dropdown.isVisible()) return false;
 
+    if (e.key === 'Tab' && this.filteredMentionItems.length === 0) {
+      this.hide();
+      return false;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       this.dropdown.moveSelection(1);
@@ -515,6 +563,9 @@ export class MentionDropdownController {
   private hideIfNoResults(): boolean {
     if (this.filteredMentionItems.length > 0) return false;
 
+    // A space can belong to a filename, but an unmatched phrase is ordinary prose.
+    if (!/\s/.test(this.activeMentionSearchText ?? '')) return false;
+
     this.hide();
     return true;
   }
@@ -523,7 +574,7 @@ export class MentionDropdownController {
     this.dropdown.render({
       items: this.filteredMentionItems,
       selectedIndex: this.selectedMentionIndex,
-      emptyText: 'No matches',
+      emptyText: t('common.mentionNoMatches'),
       getItemClass: (item) => {
         switch (item.type) {
           case 'mcp-server': return 'mcp-server';
@@ -546,7 +597,7 @@ export class MentionDropdownController {
             setIcon(iconEl, 'bot');
             break;
           case 'context-file':
-            setIcon(iconEl, 'folder-open');
+            setIcon(iconEl, 'file-text');
             break;
           case 'folder':
           case 'context-folder':
@@ -561,6 +612,7 @@ export class MentionDropdownController {
         switch (item.type) {
           case 'mcp-server':
             textEl.createSpan({ cls: 'claudian-mention-name' }).setText(`@${item.name}`);
+            textEl.createSpan({ cls: 'claudian-mention-desc' }).setText('MCP');
             break;
           case 'agent-folder':
             textEl.createSpan({
@@ -581,22 +633,57 @@ export class MentionDropdownController {
             textEl.createSpan({
               cls: 'claudian-mention-name claudian-mention-name-folder',
             }).setText(`@${item.name}/`);
+            textEl.createSpan({ cls: 'claudian-mention-desc' }).setText(item.contextRoot);
+            itemEl.setAttribute('title', item.contextRoot);
             break;
-          case 'context-file':
+          case 'context-file': {
+            const slash = item.name.lastIndexOf('/');
             textEl.createSpan({
               cls: 'claudian-mention-name claudian-mention-name-context',
-            }).setText(item.name);
+            }).setText(`@${item.name.slice(slash + 1)}`);
+            textEl.createSpan({ cls: 'claudian-mention-desc' }).setText(
+              `${item.folderName}/${item.name.slice(0, slash + 1)}`,
+            );
+            itemEl.setAttribute('title', item.absolutePath);
             break;
+          }
           case 'folder':
             textEl.createSpan({
               cls: 'claudian-mention-name claudian-mention-name-folder',
-            }).setText(`@${item.path}/`);
+            }).setText(`@${item.name}/`);
+            if (item.path !== item.name) {
+              textEl.createSpan({ cls: 'claudian-mention-desc' }).setText(`${item.path}/`);
+            }
+            itemEl.setAttribute('title', `${item.path}/`);
             break;
-          default:
-            textEl.createSpan({ cls: 'claudian-mention-path' }).setText(item.path || item.name);
+          default: {
+            const path = item.path || item.name;
+            const slash = path.lastIndexOf('/');
+            textEl.createSpan({ cls: 'claudian-mention-name' }).setText(`@${item.name}`);
+            if (slash >= 0) {
+              textEl.createSpan({ cls: 'claudian-mention-desc' }).setText(path.slice(0, slash + 1));
+            }
+            itemEl.setAttribute('title', path);
+          }
+        }
+
+        const actionEl = itemEl.createSpan({ cls: 'claudian-mention-action' });
+        actionEl.setAttribute('aria-hidden', 'true');
+        if (item.type === 'context-folder' || item.type === 'agent-folder') {
+          actionEl.addClass('claudian-mention-action--browse');
+          setIcon(actionEl, 'chevron-right');
+        } else {
+          setIcon(actionEl, 'corner-down-left');
         }
       },
       onItemClick: (item, index, e) => {
+        // A click can arrive before the debounced search catches up with typing.
+        if (this.debounceTimer !== null) {
+          e.stopPropagation();
+          this.clearDebounce();
+          this.refreshQuery();
+          return;
+        }
         // Stop propagation for folder items to prevent document click handler
         // from hiding dropdown (since dropdown is re-rendered with new DOM)
         if (item.type === 'context-folder' || item.type === 'agent-folder') {
@@ -628,7 +715,9 @@ export class MentionDropdownController {
   }
 
   private insertReplacement(beforeAt: string, replacement: string, afterCursor: string): void {
-    this.inputEl.value = beforeAt + replacement + afterCursor;
+    const replace = (this.inputEl as ComposerInputElement).replaceText;
+    if (replace) replace(beforeAt.length, this.inputEl.selectionStart ?? beforeAt.length, replacement);
+    else this.inputEl.value = beforeAt + replacement + afterCursor;
     this.inputEl.selectionStart = this.inputEl.selectionEnd = beforeAt.length + replacement.length;
   }
 
@@ -638,8 +727,7 @@ export class MentionDropdownController {
     const cursorPos = this.inputEl.selectionStart || 0;
     const afterCursor = text.substring(cursorPos);
 
-    this.inputEl.value = beforeAt + '@' + afterCursor;
-    this.inputEl.selectionStart = this.inputEl.selectionEnd = beforeAt.length + 1;
+    this.insertReplacement(beforeAt, '@', afterCursor);
 
     this.activeContextFilter = null;
     this.activeAgentFilter = false;
@@ -669,8 +757,9 @@ export class MentionDropdownController {
         break;
       }
       case 'agent-folder':
-        // Don't modify input text - just show agents submenu
+        this.insertReplacement(beforeAt, '@Agents/', afterCursor);
         this.activeAgentFilter = true;
+        this.activeMentionSearchText = 'Agents/';
         this.inputEl.focus();
         this.showMentionDropdown('Agents/');
         return;

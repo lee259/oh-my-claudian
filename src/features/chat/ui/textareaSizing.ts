@@ -6,14 +6,12 @@ export function calculateTextareaMaxHeight(viewHeight: number): number {
 }
 
 /**
- * Installs passive textarea sizing: the textarea grows with content via
- * `field-sizing: content` (see input.css) and only the max-height cap is
- * tracked here, recomputed on container resizes via ResizeObserver instead
- * of on every keystroke.
+ * Tracks the input's max-height cap on container resizes. Native textareas
+ * use field-sizing; the chat editor applies the cap to its own scroller.
  *
  * Returns a cleanup function that disconnects the observer.
  */
-export function installTextareaSizing(textarea: HTMLTextAreaElement): () => void {
+export function installTextareaSizing(textarea: HTMLElement): () => void {
   const container = textarea.closest<HTMLElement>('.claudian-container');
   const ownerWindow = textarea.ownerDocument.defaultView;
   let currentMaxHeight = '';

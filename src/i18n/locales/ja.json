@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "一致する項目がありません。別の名前やパスを試してください。",
     "inputSuggestions": "入力候補",
     "save": "保存",
     "cancel": "キャンセル",

@@ -1,3 +1,5 @@
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 export interface InstructionModeCallbacks {
   onSubmit: (rawInstruction: string) => Promise<void>;
   getInputWrapper: () => HTMLElement | null;
@@ -11,14 +13,14 @@ export interface InstructionModeState {
 const INSTRUCTION_MODE_PLACEHOLDER = '# Save in custom system prompt';
 
 export class InstructionModeManager {
-  private inputEl: HTMLTextAreaElement;
+  private inputEl: ComposerInputElement;
   private callbacks: InstructionModeCallbacks;
   private state: InstructionModeState = { active: false, rawInstruction: '' };
   private isSubmitting = false;
   private originalPlaceholder: string = '';
 
   constructor(
-    inputEl: HTMLTextAreaElement,
+    inputEl: ComposerInputElement,
     callbacks: InstructionModeCallbacks
   ) {
     this.inputEl = inputEl;

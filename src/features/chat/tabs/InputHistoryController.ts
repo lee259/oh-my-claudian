@@ -1,3 +1,5 @@
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import type { ChatMessage } from '../../../core/types';
 import { isCanonicalUserMessage } from '../../../core/types';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -19,12 +21,15 @@ function isHistoryNavigationKey(event: KeyboardEvent): boolean {
     && !event.shiftKey;
 }
 
-function isAtInputBoundary(input: HTMLTextAreaElement, direction: InputHistoryDirection): boolean {
+function isAtInputBoundary(input: ComposerInputElement, direction: InputHistoryDirection): boolean {
   const selectionStart = input.selectionStart;
   const selectionEnd = input.selectionEnd;
   if (selectionStart === null || selectionEnd === null || selectionStart !== selectionEnd) {
     return false;
   }
+
+  const visualBoundary = input.isCaretOnEdgeRow?.(direction);
+  if (visualBoundary !== null && visualBoundary !== undefined) return visualBoundary;
 
   // A single-line composer has no useful vertical caret navigation, so both
   // arrows should be available regardless of the horizontal caret position.
@@ -57,7 +62,7 @@ export class InputHistoryController {
     this.inputHistoryConversationId = deps.getConversationId();
   }
 
-  handleKeydown(event: KeyboardEvent, input: HTMLTextAreaElement): boolean {
+  handleKeydown(event: KeyboardEvent, input: ComposerInputElement): boolean {
     if (!isHistoryNavigationKey(event)) return false;
 
     if (this.inputHistoryConversationId !== this.deps.getConversationId()) {

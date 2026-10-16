@@ -5,16 +5,21 @@
   bottom: 100%;
   left: 0;
   right: 0;
-  margin-bottom: 4px;
-  background: var(--background-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 4px;
+  background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
   z-index: 1000;
-  max-height: 250px;
+  max-height: min(320px, 50vh);
   overflow-y: auto;
+  overflow-x: hidden;
+  /* The host's inherited scrollbar-color otherwise forces a 15px native gutter. */
+  scrollbar-color: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 4px;
 }
 
 .claudian-mention-dropdown.visible {
@@ -34,45 +39,95 @@
 .claudian-mention-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border-radius: var(--radius-s);
   cursor: pointer;
-  transition: background var(--claudian-motion-fast, 140ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
-.claudian-mention-item:hover,
-.claudian-mention-item.selected {
+.claudian-mention-item:hover {
   background: var(--background-modifier-hover);
 }
 
-.claudian-mention-icon {
+.claudian-mention-item.selected {
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+  box-shadow: inset 2px 0 var(--interactive-accent);
+}
+
+.claudian-mention-icon,
+.claudian-mention-action {
   display: flex;
   align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .claudian-mention-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-mention-action svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-mention-path {
+.claudian-mention-action {
+  visibility: hidden;
+}
+
+.claudian-mention-action--browse,
+.claudian-mention-item.selected .claudian-mention-action {
+  visibility: visible;
+}
+
+.claudian-mention-item.selected .claudian-mention-icon,
+.claudian-mention-item.selected .claudian-mention-action {
+  color: var(--interactive-accent);
+}
+
+.claudian-mention-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.claudian-mention-name {
+  min-width: 0;
   font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
   color: var(--text-normal);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.claudian-mention-desc,
+.claudian-mention-agent-desc {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .claudian-mention-empty {
-  padding: 12px;
+  padding: 16px 12px;
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-/* Scrollbar for mention dropdown */
 .claudian-mention-dropdown::-webkit-scrollbar {
   width: 6px;
 }
@@ -86,106 +141,12 @@
   border-radius: 3px;
 }
 
-/* MCP items in @-mention dropdown */
-.claudian-mention-item.mcp-server .claudian-mention-icon {
-  color: var(--interactive-accent);
-}
-
-.claudian-mention-item.vault-folder .claudian-mention-icon {
-  color: var(--text-muted);
-}
-
-.claudian-mention-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.claudian-mention-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--interactive-accent);
-}
-
-.claudian-mention-desc {
-  font-size: 11px;
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Context file items in @-mention dropdown */
-.claudian-mention-item.context-file .claudian-mention-icon {
-  color: var(--claudian-brand);
-}
-
-.claudian-mention-item.context-file .claudian-mention-text {
-  flex-direction: row;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.claudian-mention-item.context-file .claudian-mention-name-context {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Context folder filter items in @-mention dropdown */
-.claudian-mention-item.context-folder .claudian-mention-icon {
-  color: var(--text-muted);
-}
-
-.claudian-mention-name-folder {
-  color: var(--text-normal);
-  font-weight: 500;
-}
-
-.claudian-mention-name-context {
-  color: var(--text-normal);
-}
-
-/* Agent folder items in @-mention dropdown */
-.claudian-mention-item.agent-folder .claudian-mention-icon {
-  color: var(--link-color);
-}
-
-.claudian-mention-name-agent-folder {
-  color: var(--link-color);
-  font-weight: 600;
-}
-
-/* Agent items in @-mention dropdown (inside @Agents/) */
+.claudian-mention-item.mcp-server .claudian-mention-icon,
+.claudian-mention-item.agent-folder .claudian-mention-icon,
 .claudian-mention-item.agent .claudian-mention-icon {
   color: var(--link-color);
 }
 
-.claudian-mention-item.agent .claudian-mention-text {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.claudian-mention-item.agent .claudian-mention-name-agent {
-  color: var(--text-normal);
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.claudian-mention-item.agent .claudian-mention-agent-desc {
-  font-size: 11px;
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
 .claudian-file-drop-overlay {
   position: absolute;
   inset: 0;

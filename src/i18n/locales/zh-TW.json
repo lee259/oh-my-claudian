@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "沒有符合項目，試試其他名稱或路徑。",
     "inputSuggestions": "輸入建議",
     "save": "儲存",
     "cancel": "取消",

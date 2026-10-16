@@ -1,5 +1,6 @@
 {
   "common": {
+    "mentionNoMatches": "Keine Treffer. Versuche einen anderen Namen oder Pfad.",
     "inputSuggestions": "Eingabevorschläge",
     "save": "Speichern",
     "cancel": "Abbrechen",

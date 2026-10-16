@@ -2,6 +2,8 @@ import type { App, EventRef } from 'obsidian';
 import { Notice, TFile, TFolder } from 'obsidian';
 import * as path from 'path';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import { t } from '../../../i18n/i18n';
 import type { AgentMentionProvider } from '../../../shared/mention/MentionDropdownController';
@@ -45,7 +47,7 @@ export class FileContextManager {
   private app: App;
   private callbacks: FileContextCallbacks;
   private dropdownContainerEl: HTMLElement;
-  private inputEl: HTMLTextAreaElement;
+  private inputEl: ComposerInputElement;
   private state: FileContextState;
   private mentionDataProvider: VaultMentionDataProvider;
   private chipsView: FileChipsView;
@@ -69,7 +71,7 @@ export class FileContextManager {
   constructor(
     app: App,
     chipsContainerEl: HTMLElement,
-    inputEl: HTMLTextAreaElement,
+    inputEl: ComposerInputElement,
     callbacks: FileContextCallbacks,
     dropdownContainerEl?: HTMLElement,
     contextTray?: ComposerContextTray,

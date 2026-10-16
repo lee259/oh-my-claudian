@@ -1,13 +1,15 @@
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import { t } from '../../../i18n/i18n';
 import { dispatchComposerInputEvent } from './ComposerInputEvents';
 
 /** Displays and accepts the optional follow-up prompt suggested by Claude. */
 export class PromptSuggestionController {
-  private readonly inputEl: HTMLTextAreaElement;
+  private readonly inputEl: ComposerInputElement;
   private readonly suggestionEl: HTMLButtonElement;
   private suggestion: string | null = null;
 
-  constructor(containerEl: HTMLElement, inputEl: HTMLTextAreaElement) {
+  constructor(containerEl: HTMLElement, inputEl: ComposerInputElement) {
     this.inputEl = inputEl;
     this.suggestionEl = containerEl.createEl('button', {
       cls: 'claudian-prompt-suggestion',

@@ -1,6 +1,7 @@
 import { type FunctionComponent, h } from 'preact';
 
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { getComposerTextbox } from './ComposerInput';
 import { SelectableDropdownView, type SelectableDropdownViewProps } from './SelectableDropdownView';
 
 export interface SelectableDropdownOptions {
@@ -192,7 +193,7 @@ export class SelectableDropdown<T> {
     if (selected) {
       this.setInputAttribute('aria-activedescendant', selected.id);
     } else {
-      const input = this.options.accessibility.inputEl;
+      const input = getComposerTextbox(this.options.accessibility.inputEl);
       if (input.getAttribute('aria-activedescendant') === this.writtenAttributes.get('aria-activedescendant')) {
         input.removeAttribute('aria-activedescendant');
       }
@@ -202,11 +203,11 @@ export class SelectableDropdown<T> {
 
   private setInputAttribute(attribute: string, value: string): void {
     this.writtenAttributes.set(attribute, value);
-    this.options.accessibility?.inputEl.setAttribute(attribute, value);
+    if (this.options.accessibility) getComposerTextbox(this.options.accessibility.inputEl).setAttribute(attribute, value);
   }
 
   private releaseInputAttributes(): void {
-    const input = this.options.accessibility?.inputEl;
+    const input = this.options.accessibility ? getComposerTextbox(this.options.accessibility.inputEl) : undefined;
     const controls = input?.getAttribute('aria-controls');
     // A different popup may have taken over the same textarea.
     if (!controls || controls === this.listboxId) {

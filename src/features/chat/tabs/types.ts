@@ -1,5 +1,7 @@
 import type { Component, WorkspaceLeaf } from 'obsidian';
 
+import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+
 import type { ProviderCommandDropdownConfig } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandDiscoveryController } from '../../../core/providers/commands/ProviderCommandDiscoveryStore';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
@@ -189,9 +191,7 @@ export interface TabDOMElements {
   inputContainerEl: HTMLElement;
   queueIndicatorEl: HTMLElement;
   inputWrapper: HTMLElement;
-  /** Read-only mirror beneath the textarea that highlights file @mentions. */
-  inputMentionHighlightsEl: HTMLElement;
-  inputEl: HTMLTextAreaElement;
+  inputEl: ComposerInputElement;
   sendButtonEl: HTMLButtonElement;
   stopButtonEl: HTMLButtonElement;
 

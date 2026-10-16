@@ -1,3 +1,4 @@
+import type { App } from 'obsidian';
 import { setIcon } from 'obsidian';
 import { h } from 'preact';
 
@@ -11,6 +12,7 @@ import { createPreactRoot } from '../../../shared/ui/PreactRoot';
 import { createWelcomeElement } from '../rendering/WelcomeRenderer';
 import { ConversationRuntime } from '../sessions/ConversationRuntime';
 import { createEmptyPresentationUI } from '../sessions/RuntimePresentation';
+import { ComposerEditor } from '../ui/ComposerEditor';
 import { ConversationHeaderView } from '../ui/ConversationHeaderView';
 import type { TabCreateOptions, TabData, TabDOMElements } from './types';
 import { generateTabId } from './types';
@@ -71,7 +73,7 @@ export function createTabRuntime(
   const state = session.state;
   const presentationEpoch = Symbol('runtime-presentation');
   const contentEl = containerEl.createDiv({ cls: 'claudian-tab-content claudian-hidden' });
-  const dom = buildTabDOM(contentEl, options.getWelcomeHomeOptions, conversation?.title ?? '聊天',
+  const dom = buildTabDOM(contentEl, options.plugin.app, options.getWelcomeHomeOptions, conversation?.title ?? '聊天',
     !session.conversationId && state.messages.length === 0, session.conversationId);
   state.queueIndicatorEl = dom.queueIndicatorEl;
   const tab: TabData = {
@@ -149,6 +151,7 @@ export function createTabRuntime(
 
 function buildTabDOM(
   contentEl: HTMLElement,
+  app: App,
   getWelcomeHomeOptions?: TabCreateOptions['getWelcomeHomeOptions'],
   conversationTitle = t('chat.home.title'),
   isHome = false,
@@ -195,18 +198,8 @@ function buildTabDOM(
   const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-input-wrapper' });
   const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-context-row' });
   const inputEditorEl = inputWrapper.createDiv({ cls: 'claudian-input-editor' });
-  const inputMentionHighlightsEl = inputEditorEl.createDiv({
-    cls: 'claudian-input-mention-highlights claudian-input-mention-highlights--empty',
-    attr: { 'aria-hidden': 'true' },
-  });
-  const inputEl = inputEditorEl.createEl('textarea', {
-    cls: 'claudian-input',
-    attr: {
-      placeholder: 'Ask to make changes, @mention files, run /commands',
-      rows: '3',
-      dir: 'auto',
-    },
-  });
+  const editor = new ComposerEditor(inputEditorEl, app);
+  const inputEl = editor.element;
   const sendButtonEl = inputWrapper.createEl('button', {
     cls: 'claudian-input-send-button',
     attr: {
@@ -232,12 +225,11 @@ function buildTabDOM(
     inputContainerEl,
     queueIndicatorEl,
     inputWrapper,
-    inputMentionHighlightsEl,
     inputEl,
     sendButtonEl,
     stopButtonEl,
     navRowEl,
     contextRowEl,
-    eventCleanups: [],
+    eventCleanups: [() => editor.destroy()],
   };
 }
