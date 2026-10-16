@@ -59,6 +59,12 @@ Body`;
     expect(result!.body).toBe('Body');
   });
 
+  it('requires the closing frontmatter delimiter to occupy its line', () => {
+    const content = '---\ntitle: Hello\n--- trailing\nBody';
+
+    expect(parseFrontmatter(content)).toBeNull();
+  });
+
   it('handles empty frontmatter block', () => {
     const content = `---
 
