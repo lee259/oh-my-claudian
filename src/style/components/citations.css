@@ -15,7 +15,7 @@
 
 .claudian-citations-chevron {
   color: var(--text-faint);
-  transition: transform 0.15s ease;
+  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-citations.expanded .claudian-citations-chevron {
@@ -50,10 +50,4 @@
   margin-top: 2px;
   color: var(--text-faint);
   line-height: 1.4;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .claudian-citations-chevron {
-    transition: none;
-  }
 }

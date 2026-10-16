@@ -92,7 +92,7 @@
   border-radius: 16px;
   background: var(--background-primary);
   box-shadow: var(--claudian-input-wrapper-box-shadow);
-  transition: border-color 0.18s ease;
+  transition: border-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 
   /* Popovers size against the composer, which can be much narrower than the app viewport. */
   container-type: inline-size;
@@ -152,7 +152,7 @@
   font: inherit;
   cursor: pointer;
   color: var(--text-faint);
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-input-nav-btn:hover,
@@ -339,7 +339,7 @@
   background: var(--claudian-brand);
   color: var(--background-primary);
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-input-send-button:hover:not(:disabled) {
@@ -427,7 +427,7 @@
   color: var(--text-muted);
   box-shadow: none;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-context-actions-trigger:hover,

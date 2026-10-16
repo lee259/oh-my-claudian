@@ -82,8 +82,8 @@ button.claudian-ask-tab {
   user-select: none;
   color: var(--text-muted);
   transition:
-    background 0.15s ease,
-    color 0.15s ease;
+    background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+    color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 button.claudian-ask-tab:hover {
@@ -208,7 +208,7 @@ button.claudian-ask-item.is-disabled {
   box-sizing: border-box;
   border: 1px solid var(--text-faint);
   border-radius: 50%;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-ask-radio.is-checked {
@@ -234,8 +234,8 @@ button.claudian-ask-item.is-disabled {
   border: 1px solid var(--text-faint);
   border-radius: 3px;
   transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
+    background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+    border-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-ask-check.is-checked {

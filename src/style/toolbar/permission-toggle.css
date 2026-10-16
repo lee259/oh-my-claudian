@@ -295,7 +295,7 @@
   background: var(--background-modifier-border);
   cursor: pointer;
   position: relative;
-  transition: background 0.2s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   flex-shrink: 0;
 }
 
@@ -308,7 +308,7 @@
   background: var(--text-muted);
   top: 2px;
   left: 2px;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-toggle-switch:hover {

@@ -36,7 +36,7 @@
   gap: 8px;
   padding: 10px 12px;
   cursor: pointer;
-  transition: background 0.1s ease;
+  transition: background var(--claudian-motion-fast, 140ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   border-bottom: 1px solid var(--background-modifier-border);
 }
 

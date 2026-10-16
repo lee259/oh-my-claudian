@@ -26,7 +26,7 @@
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), visibility var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   pointer-events: none;
   z-index: 100;
 }
@@ -55,7 +55,7 @@
 
 .claudian-meter-fill {
   stroke: var(--claudian-brand);
-  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  transition: stroke-dashoffset var(--claudian-motion-emphasized, 260ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), stroke var(--claudian-motion-emphasized, 260ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-context-meter-percent {
@@ -63,7 +63,7 @@
   color: var(--claudian-brand);
   min-width: 24px;
   text-align: end;
-  transition: color 0.3s ease;
+  transition: color var(--claudian-motion-emphasized, 260ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 /* Warning state (> 80%) */

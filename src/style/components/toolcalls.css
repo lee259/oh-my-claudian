@@ -78,7 +78,7 @@
   padding-inline: 6px;
   padding-inline-end: 22px;
   border-radius: 6px;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-messages .claudian-tool-header::after {
@@ -90,7 +90,7 @@
   border-block-end: 1.5px solid var(--text-faint);
   content: '';
   transform: rotate(-45deg);
-  transition: transform 0.15s ease;
+  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-messages .claudian-tool-call.expanded > .claudian-tool-header::after {

@@ -11,7 +11,7 @@
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s;
+    transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), visibility var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-nav-sidebar.visible {
@@ -48,7 +48,7 @@
     justify-content: center;
     cursor: pointer;
     box-shadow: none;
-    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-nav-sidebar button.claudian-nav-btn--surface,
@@ -63,7 +63,7 @@
 .claudian-nav-sidebar button.claudian-nav-btn:hover {
     background: var(--background-secondary);
     color: var(--text-normal);
-    transform: scale(1.05);
+    transform: scale(1.02);
 }
 
 .claudian-nav-sidebar button.claudian-nav-btn:focus-visible {

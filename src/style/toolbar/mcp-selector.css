@@ -35,7 +35,7 @@
   width: 24px;
   height: 24px;
   color: var(--text-faint);
-  transition: color 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-mcp-selector-icon-wrapper:hover .claudian-mcp-selector-icon {
@@ -44,7 +44,6 @@
 
 .claudian-mcp-selector-icon.active {
   color: var(--claudian-brand);
-  animation: mcp-glow 2s ease-in-out infinite;
 }
 
 .claudian-mcp-selector-icon svg {
@@ -60,7 +59,7 @@
   font-weight: 600;
   color: var(--claudian-brand);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   pointer-events: none;
 }
 
@@ -82,7 +81,7 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), visibility var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   z-index: 100;
 }
 
@@ -144,7 +143,7 @@
   padding: 8px 12px;
   gap: 8px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-mcp-selector-item:focus-visible {

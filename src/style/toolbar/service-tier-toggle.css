@@ -52,7 +52,7 @@
   height: 16px;
   border-radius: 8px;
   background: var(--background-modifier-border);
-  transition: background 0.2s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-model-service-tier > .claudian-toggle-switch::after {
@@ -64,7 +64,7 @@
   height: 12px;
   border-radius: 50%;
   background: var(--text-muted);
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-model-service-tier.active > .claudian-toggle-switch {

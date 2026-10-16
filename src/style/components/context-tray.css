@@ -100,7 +100,7 @@
   color: var(--text-normal);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.12s ease, visibility 0.12s ease;
+  transition: opacity var(--claudian-motion-fast, 140ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), visibility var(--claudian-motion-fast, 140ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-context-chip--preview:hover,
@@ -283,7 +283,7 @@
   line-height: 1;
   cursor: pointer;
   box-shadow: none;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-context-chip > button.claudian-context-chip-remove,
