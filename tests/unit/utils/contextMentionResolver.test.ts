@@ -195,6 +195,28 @@ describe('contextMentionResolver', () => {
       });
     });
 
+    it('matches a path that ends in punctuation as part of its name', () => {
+      const text = 'Check @reports/Release!.';
+      const pathStart = text.indexOf('@') + 1;
+      const lookup = new Map<string, string>([
+        ['reports/Release!', '/vault/reports/Release!'],
+      ]);
+
+      const match = findBestMentionLookupMatch(
+        text,
+        pathStart,
+        lookup,
+        normalizeMentionPath,
+        normalizeForPlatformLookup
+      );
+
+      expect(match).toEqual({
+        resolvedPath: '/vault/reports/Release!',
+        endIndex: text.length,
+        trailingPunctuation: '.',
+      });
+    });
+
     it('returns null when no lookup key matches', () => {
       const text = 'Check @missing/path';
       const pathStart = text.indexOf('@') + 1;
