@@ -39,7 +39,7 @@
   padding: 12px;
   background: var(--background-secondary);
   border-radius: 6px;
-  transition: background-color 0.2s;
+  transition: background-color var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-context-limits-item:hover {
@@ -138,7 +138,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-save-env-btn:hover {
@@ -171,7 +171,7 @@
   padding: 12px;
   background: var(--background-secondary);
   border-radius: 6px;
-  transition: background-color 0.2s;
+  transition: background-color var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-snippet-item:hover {

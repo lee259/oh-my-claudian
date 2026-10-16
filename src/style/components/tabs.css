@@ -45,7 +45,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-tab-badge-expanded {
@@ -226,7 +226,7 @@
   text-align: start;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-conversation-menu-item:hover,

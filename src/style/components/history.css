@@ -19,7 +19,7 @@
   cursor: pointer;
   background: transparent;
   border-bottom: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-history-archive-control .claudian-session-nav-icon {
@@ -139,7 +139,7 @@
   color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-history-menu .claudian-history-item-actions {
@@ -262,7 +262,7 @@
   gap: 10px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
-  transition: background 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-history-item-icon {
@@ -379,7 +379,7 @@
   gap: 4px;
   margin-inline-start: 8px;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-history-item:hover .claudian-history-item-actions {
@@ -397,7 +397,7 @@
   padding: 4px;
   border-radius: 4px;
   color: var(--text-muted);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-action-btn:hover {
@@ -419,7 +419,7 @@
   border: none;
   box-shadow: none;
   color: var(--text-muted);
-  transition: color 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-history-menu .claudian-history-item-actions .claudian-action-btn:hover,

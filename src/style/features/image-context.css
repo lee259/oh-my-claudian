@@ -59,7 +59,7 @@ button.claudian-message-image:active {
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), box-shadow var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   background: var(--background-secondary);
   background-image: none;
   border: 1px solid var(--background-modifier-border);

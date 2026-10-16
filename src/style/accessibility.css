@@ -42,18 +42,29 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .claudian-inline-spinner,
-  .claudian-history-item--attention .claudian-history-item-title,
-  .claudian-activity-phase[data-active='true'] .claudian-activity-phase-label,
-  .claudian-subagent-list.async .claudian-subagent-status.status-running svg,
-  .claudian-subagent-transcript-status-icon.status-running svg,
-  .claudian-tool-header::after,
-  .claudian-thinking-header::after,
-  .claudian-subagent-header::after,
-  .claudian-subagent-section-header::after,
-  .claudian-subagent-tool-header::after {
-    animation: none;
-    transition: none;
+  :where(
+    .oh-my-claudian-root.claudian-container,
+    .oh-my-claudian-root.claudian-container *,
+    .oh-my-claudian-root.claudian-container *::before,
+    .oh-my-claudian-root.claudian-container *::after,
+    .claudian-settings,
+    .claudian-settings *,
+    .claudian-settings *::before,
+    .claudian-settings *::after,
+    .modal[class*="claudian-"],
+    .modal[class*="claudian-"] *,
+    .modal[class*="claudian-"] *::before,
+    .modal[class*="claudian-"] *::after,
+    .claudian-instruction-modal,
+    .claudian-instruction-modal *,
+    .claudian-instruction-modal *::before,
+    .claudian-instruction-modal *::after
+  ) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

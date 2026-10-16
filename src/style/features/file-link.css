@@ -4,7 +4,7 @@
   text-decoration: none;
   cursor: pointer;
   border-radius: 3px;
-  transition: color 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-file-link:hover {

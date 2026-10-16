@@ -213,7 +213,7 @@ button.claudian-message-selection-action svg {
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-home-conversation-open {
@@ -268,7 +268,7 @@ button.claudian-message-selection-action svg {
   padding-inline-start: 14px;
   color: var(--text-muted);
   font-size: 15px;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-home-conversation-loading {
@@ -309,7 +309,7 @@ button.claudian-message-selection-action svg {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%);
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition: color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-home-conversation:hover .claudian-home-conversation-archive,
@@ -567,7 +567,7 @@ button.claudian-text-copy-btn {
   color: var(--text-faint);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   z-index: 2;
   display: flex;
   align-items: center;
@@ -999,7 +999,7 @@ button.claudian-activity-phase-header:focus-visible {
   gap: 12px;
   margin-top: 4px;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-message-user > .claudian-message-action-row {
@@ -1107,7 +1107,7 @@ button.claudian-activity-phase-header:focus-visible {
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
-  transition: color 0.15s;
+  transition: color var(--claudian-motion-standard, 180ms);
 }
 
 .claudian-message-action-row button svg {

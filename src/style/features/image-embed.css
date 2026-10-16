@@ -12,7 +12,7 @@
   height: auto;
   border-radius: var(--radius-s);
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-embedded-image img:hover {

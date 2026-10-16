@@ -31,7 +31,7 @@
 .claudian-status-panel-activity-row--openable {
   cursor: pointer;
   border-radius: 4px;
-  transition: background 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 .claudian-status-panel-activity-row--openable:hover {
@@ -94,7 +94,7 @@
   padding: 4px 0;
   cursor: pointer;
   border-radius: 4px;
-  transition: background 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   overflow: hidden;
 }
 

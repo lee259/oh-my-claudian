@@ -50,7 +50,7 @@ button.claudian-image-modal-close:active {
   font-size: 20px;
   color: var(--text-muted);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
 button.claudian-image-modal-close:hover {

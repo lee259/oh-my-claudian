@@ -37,17 +37,6 @@
   }
 }
 
-@keyframes mcp-glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 2px color-mix(in srgb, var(--interactive-accent) 40%, transparent));
-  }
-
-  50% {
-    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--interactive-accent) 90%, transparent));
-  }
-}
-
 @keyframes claudian-spin {
   to {
     transform: rotate(360deg);

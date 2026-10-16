@@ -64,7 +64,7 @@
   inset-inline-start: 0;
   border-radius: inherit;
   background: var(--interactive-accent);
-  transition: width 140ms ease-out;
+  transition: width var(--claudian-motion-fast, 140ms) ease-out;
 }
 
 .claudian-model-slider-thumb {
@@ -77,7 +77,7 @@
   background: var(--background-primary);
   box-shadow: 0 1px 3px var(--background-modifier-box-shadow);
   pointer-events: none;
-  transition: inset-inline-start 140ms ease-out;
+  transition: inset-inline-start var(--claudian-motion-fast, 140ms) ease-out;
 }
 
 .claudian-model-slider-stops {
@@ -163,11 +163,4 @@
 
 .claudian-model-slider:focus-within .claudian-model-slider-thumb {
   box-shadow: 0 0 0 2px var(--background-secondary), 0 0 0 4px var(--interactive-accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .claudian-model-slider-fill,
-  .claudian-model-slider-thumb {
-    transition: none;
-  }
 }

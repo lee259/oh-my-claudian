@@ -1,6 +1,10 @@
 /* Brand & semantic color tokens */
 .oh-my-claudian-root.claudian-container,
 .claudian-settings {
+  --claudian-motion-fast: 140ms;
+  --claudian-motion-standard: 180ms;
+  --claudian-motion-emphasized: 260ms;
+  --claudian-motion-easing: cubic-bezier(0.2, 0, 0, 1);
   --oh-my-claudian-brand: #D97757;
   --oh-my-claudian-brand-rgb: 217, 119, 87;
   --oh-my-claudian-brand-claude: #D97757;

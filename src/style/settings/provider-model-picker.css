@@ -312,7 +312,7 @@
 .claudian-provider-model-picker-catalog-caret {
   font-size: 16px;
   color: var(--text-muted);
-  transition: transform 0.12s ease;
+  transition: transform var(--claudian-motion-fast, 140ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
   display: inline-flex;
   width: 18px;
   justify-content: center;
