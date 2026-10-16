@@ -310,6 +310,31 @@
       "nextMessage": "Mensaje siguiente",
       "scrollToBottom": "Desplazarse al final",
       "emptyDirectory": "No hay prompts de usuario en esta conversación"
+    },
+    "saveNote": {
+      "title": "Guardar como nota",
+      "newNote": "Nueva nota",
+      "append": "Añadir a una nota",
+      "destination": "Destino",
+      "path": "Ruta de la nota",
+      "answer": "Texto seleccionado",
+      "preview": "Vista previa",
+      "edit": "Editar",
+      "open": "Abrir nota",
+      "undo": "Deshacer el texto guardado",
+      "undoHint": "Solo se eliminará este texto guardado. La nota recién creada se conservará.",
+      "saved": "Guardado en {path}",
+      "undone": "Texto guardado eliminado.",
+      "failed": "No se pudo guardar o deshacer. Inténtalo de nuevo.",
+      "previewFailed": "No se pudo mostrar la vista previa.",
+      "invalidPath": "Introduce una ruta Markdown dentro de la bóveda. Las carpetas deben existir.",
+      "emptyContent": "Introduce texto para guardar.",
+      "missingNote": "La nota seleccionada ya no está disponible. Selecciónala de nuevo.",
+      "exists": "Ya existe una nota en esta ruta. Elige otro nombre.",
+      "conflict": "El texto guardado se ha editado. No se puede deshacer para proteger esos cambios.",
+      "defaultName": "Nota",
+      "close": "Cerrar",
+      "selectionLabel": "Guardar en una nota"
     }
   },
   "settings": {

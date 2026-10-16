@@ -38,18 +38,39 @@
   }
 }
 
-.claudian-message-quote-btn {
+.claudian-message-selection-actions {
   position: absolute;
   z-index: 2;
   top: var(--claudian-quote-btn-top, 8px);
   left: var(--claudian-quote-btn-left, 8px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
+}
+
+.claudian-message-selection-actions[hidden] {
+  display: none;
+}
+
+button.claudian-message-selection-action,
+button.claudian-message-selection-action:hover,
+button.claudian-message-selection-action:focus-visible,
+button.claudian-message-selection-action:active,
+button.claudian-message-selection-action:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  padding: 4px 9px;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
@@ -58,32 +79,27 @@
   cursor: pointer;
 }
 
-.claudian-message-quote-btn:hover,
-.claudian-message-quote-btn:focus-visible {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+button.claudian-message-selection-action:hover,
+button.claudian-message-selection-action:focus-visible,
+button.claudian-message-selection-action:active {
   color: var(--text-normal);
 }
 
-.claudian-message-quote-btn--floating {
-  background: var(--background-primary);
-  box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
-}
-
-.claudian-message-quote-btn--floating:hover,
-.claudian-message-quote-btn--floating:focus-visible {
-  background: var(--background-secondary);
-  box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
-}
-
-.claudian-message-quote-btn:focus-visible {
+button.claudian-message-selection-action:focus-visible {
   outline: 2px solid var(--interactive-accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.claudian-message-quote-btn[hidden] {
-  display: none;
+button.claudian-message-selection-action:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+button.claudian-message-selection-action svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
 }
 
 /* Focusable messages panel for vim-style navigation */

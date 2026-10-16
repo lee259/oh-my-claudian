@@ -2,6 +2,7 @@ import type { App } from 'obsidian';
 
 import type { SharedAppStorage } from '../core/bootstrap/storage';
 import type { ObsidianWorkspaceAdapter } from '../core/obsidian/ObsidianWorkspaceAdapter';
+import type { ReplyNoteWriter } from '../core/obsidian/ReplyNoteWriter';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { ProviderId } from '../core/providers/types';
 import type {
@@ -51,6 +52,7 @@ export interface FeatureHost {
   readonly executionPersistence: ChatExecutionPersistence;
   readonly providerHost: ProviderHost;
   readonly obsidianWorkspace: ObsidianWorkspaceAdapter;
+  readonly replyNoteWriter: ReplyNoteWriter;
   readonly settings: ClaudianSettings;
   readonly storage: SharedAppStorage;
   readonly warmExecutionPool: WarmExecutionPool;

@@ -310,6 +310,31 @@
       "nextMessage": "次のメッセージ",
       "scrollToBottom": "最下部へスクロール",
       "emptyDirectory": "この会話にはユーザープロンプトがありません"
+    },
+    "saveNote": {
+      "title": "ノートとして保存",
+      "newNote": "新規ノート",
+      "append": "ノートに追記",
+      "destination": "保存方法",
+      "path": "ノートのパス",
+      "answer": "選択したテキスト",
+      "preview": "プレビュー",
+      "edit": "編集",
+      "open": "ノートを開く",
+      "undo": "保存したテキストを取り消す",
+      "undoHint": "今回保存したテキストのみ削除します。新規ノートは残ります。",
+      "saved": "{path} に保存しました",
+      "undone": "保存したテキストを削除しました。",
+      "failed": "保存または取り消しに失敗しました。再試行してください。",
+      "previewFailed": "プレビューを表示できません。",
+      "invalidPath": "保管庫内の Markdown パスを入力してください。フォルダーは既存のものを指定してください。",
+      "emptyContent": "保存するテキストを入力してください。",
+      "missingNote": "選択したノートが見つかりません。選び直してください。",
+      "exists": "同じパスにノートがあります。別の名前を指定してください。",
+      "conflict": "保存したテキストが編集されています。変更を保護するため取り消せません。",
+      "defaultName": "ノート",
+      "close": "閉じる",
+      "selectionLabel": "ノートに保存"
     }
   },
   "settings": {

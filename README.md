@@ -103,6 +103,8 @@ The chat uses one conversation panel with history and session navigation. Start 
 
 Completed work is grouped into expandable summaries. Open a summary to inspect its tool calls; expand a file-edit card to see the diff when the provider supplies supported edit data.
 
+Select text in a chat message and choose **Save to note** beside **Quote** to review and edit the selected content, then create a note or append to an existing Markdown note. Headings, emphasis, links, lists, tables, and code blocks are converted back to Markdown from the rendered selection. Existing folders can be included in the note path. The success dialog offers **Open note** and **Undo saved text**; undo preserves later additions and refuses conflicting edits. Undoing a new note removes the saved text and keeps the note file.
+
 With **Auto-scroll during streaming** enabled, new content follows the bottom. Scroll up to read earlier content; return to the bottom to resume following. Expanded work history keeps its own reading position. Use **Expand file edits by default** in the display settings if you prefer to see edit details immediately.
 
 ### Switch focus between a note and chat

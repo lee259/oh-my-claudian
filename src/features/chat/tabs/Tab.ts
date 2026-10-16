@@ -55,6 +55,7 @@ import { toggleServiceTier } from '../actions/toggleServiceTier';
 import {
   MessageQuoteController,
 } from '../controllers/MessageQuoteController';
+import { ReplyNoteController } from '../controllers/ReplyNoteController';
 import {
   providerOutputEventToStreamChunk,
 } from '../controllers/StreamController';
@@ -2076,9 +2077,12 @@ export function initializeTabRuntimeControllers(
     }));
   };
 
+  const replyNotes = new ReplyNoteController(plugin.app, plugin.replyNoteWriter);
+  dom.eventCleanups.push(() => replyNotes.dispose());
   const messageQuoteController = new MessageQuoteController({
     messagesEl: dom.messagesEl,
     label: t('chat.quote.buttonLabel'),
+    saveSelection: { label: t('chat.saveNote.selectionLabel'), onSave: text => replyNotes.open(text) },
     onQuote: (text) => {
       commitProvisionalTab(tab);
       const quoteId = `message-quote-${++quoteSequence}`;

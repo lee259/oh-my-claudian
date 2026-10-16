@@ -310,6 +310,31 @@
       "nextMessage": "Next message",
       "scrollToBottom": "Scroll to bottom",
       "emptyDirectory": "No user prompts in this conversation"
+    },
+    "saveNote": {
+      "title": "Save as note",
+      "newNote": "New note",
+      "append": "Append to note",
+      "destination": "Destination",
+      "path": "Note path",
+      "answer": "Selected text",
+      "preview": "Preview",
+      "edit": "Edit",
+      "open": "Open note",
+      "undo": "Undo saved text",
+      "undoHint": "Undo removes only this saved text. A newly created note is kept.",
+      "saved": "Saved to {path}",
+      "undone": "Saved text removed.",
+      "failed": "Could not save or undo the note. Try again.",
+      "previewFailed": "Could not render the preview.",
+      "invalidPath": "Use a vault-relative Markdown path. Folders must already exist.",
+      "emptyContent": "Enter text to save.",
+      "missingNote": "The chosen note is no longer available. Choose it again.",
+      "exists": "A note already exists at this path. Choose another name.",
+      "conflict": "The saved text was edited. Undo is unavailable to protect those edits.",
+      "defaultName": "Note",
+      "close": "Close",
+      "selectionLabel": "Save to note"
     }
   },
   "settings": {

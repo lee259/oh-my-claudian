@@ -1,0 +1,131 @@
+.claudian-save-note-modal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: 90vh;
+}
+
+.claudian-save-note-modal .modal-content {
+  overflow-y: auto;
+}
+
+.claudian-save-note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-block-end: 16px;
+}
+
+.claudian-save-note-field label {
+  color: var(--text-normal);
+  font-weight: var(--font-medium);
+}
+
+.claudian-save-note-field select {
+  appearance: auto;
+}
+
+.claudian-save-note-field input,
+.claudian-save-note-field select,
+.claudian-save-note-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+}
+
+.claudian-save-note-field input:hover,
+.claudian-save-note-field select:hover,
+.claudian-save-note-field textarea:hover {
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+}
+
+.claudian-save-note-field input:focus,
+.claudian-save-note-field select:focus,
+.claudian-save-note-field textarea:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+  box-shadow: none;
+}
+
+.claudian-save-note-field input::placeholder,
+.claudian-save-note-field textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.claudian-save-note-field input:disabled,
+.claudian-save-note-field select:disabled,
+.claudian-save-note-field textarea:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-save-note-editor {
+  min-height: 180px;
+  max-height: 45vh;
+  padding: 12px;
+  resize: none;
+  overflow-y: auto;
+}
+
+.claudian-save-note-preview {
+  min-height: 180px;
+  max-height: 45vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  margin-block-end: 16px;
+}
+
+.claudian-save-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+button.claudian-save-note-button,
+button.claudian-save-note-button:hover,
+button.claudian-save-note-button:focus-visible,
+button.claudian-save-note-button:active,
+button.claudian-save-note-button:disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+button.claudian-save-note-button {
+  min-height: 32px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+button.claudian-save-note-button:hover,
+button.claudian-save-note-button:focus-visible,
+button.claudian-save-note-button:active {
+  color: var(--text-normal);
+}
+
+button.claudian-save-note-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+button.claudian-save-note-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-save-note-status,
+.claudian-save-note-hint {
+  overflow-wrap: anywhere;
+  margin-block-start: 12px;
+  color: var(--text-muted);
+}
+
+.claudian-save-note-modal [hidden] {
+  display: none;
+}
