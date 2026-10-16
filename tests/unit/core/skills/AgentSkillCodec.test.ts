@@ -32,6 +32,14 @@ describe('AgentSkillCodec', () => {
     });
   });
 
+  it('requires the closing frontmatter delimiter to occupy its line', () => {
+    const content = valid.replace('\n---\nUse this skill', '\n---  \t\nUse this skill');
+    const malformed = valid.replace('\n---\nUse this skill', '\n--- trailing\nUse this skill');
+
+    expect(parseAgentSkillMarkdown(content, 'portable-skill').instructions).toBe('Use this skill carefully.');
+    expect(() => parseAgentSkillMarkdown(malformed, 'portable-skill')).toThrow(AgentSkillCodecError);
+  });
+
   it.each([
     ['missing frontmatter', 'Use this skill.', 'portable-skill'],
     ['missing name', '---\ndescription: Desc\n---\nBody', 'portable-skill'],
