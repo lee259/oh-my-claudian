@@ -310,6 +310,31 @@
       "nextMessage": "下一則訊息",
       "scrollToBottom": "捲動至底端",
       "emptyDirectory": "此對話中尚無使用者提示詞"
+    },
+    "saveNote": {
+      "title": "儲存為筆記",
+      "newNote": "新增筆記",
+      "append": "附加至筆記",
+      "destination": "儲存方式",
+      "path": "筆記路徑",
+      "answer": "選取的內容",
+      "preview": "預覽",
+      "edit": "編輯",
+      "open": "開啟筆記",
+      "undo": "復原儲存的內文",
+      "undoHint": "復原只移除本次儲存的內文；新增的筆記會保留。",
+      "saved": "已儲存至 {path}",
+      "undone": "已移除儲存的內文。",
+      "failed": "儲存或復原失敗，請重試。",
+      "previewFailed": "無法顯示預覽。",
+      "invalidPath": "請輸入庫內 Markdown 路徑，資料夾須已存在。",
+      "emptyContent": "請輸入要儲存的內容。",
+      "missingNote": "所選筆記已無法使用，請重新選擇。",
+      "exists": "此路徑已有筆記，請使用其他名稱。",
+      "conflict": "儲存的內文已被編輯，為保護後續修改，無法復原。",
+      "defaultName": "筆記",
+      "close": "關閉",
+      "selectionLabel": "儲存至筆記"
     }
   },
   "settings": {

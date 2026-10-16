@@ -73,6 +73,10 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 
 这些是本项目的维护重点。上游独立演进，对比时请查看 [Claudian 当前 README](https://github.com/YishenTu/claudian#readme)。已有配置满足需要时，可以继续使用原来的版本。
 
+## 把回答保存为笔记
+
+在聊天消息中选中内容，点击浮层里与「引用」并列的「保存到笔记」，可编辑、预览选中内容，再新建笔记或追加到已有笔记。选区中的标题、强调、链接、列表、表格和代码块会从渲染内容还原为 Markdown；路径中的文件夹须已存在。保存成功后可打开笔记，或在弹窗内撤销本次正文。撤销会保留后来追加的内容，遇到冲突则停止；新建的笔记文件会保留。
+
 ## 支持的提供商
 
 内置 Claude Code、Codex CLI、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode 和 Pi。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)

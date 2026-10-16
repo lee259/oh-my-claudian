@@ -1,3 +1,5 @@
+import { htmlToMarkdown, setIcon } from 'obsidian';
+
 const MESSAGE_SELECTOR = '.claudian-message';
 const CONTENT_SELECTOR = '.claudian-message-content';
 const BUTTON_GAP_PX = 6;
@@ -7,6 +9,7 @@ export interface MessageQuoteControllerOptions {
   messagesEl: HTMLElement;
   label: string;
   onQuote: (text: string) => void;
+  saveSelection?: { label: string; onSave: (text: string) => void };
 }
 
 /** Formats selected message text as a Markdown blockquote. */
@@ -38,17 +41,18 @@ export function appendQuoteToComposer(inputEl: HTMLTextAreaElement, quote: strin
   inputEl.focus();
 }
 
-/** Offers a floating action for text selected inside one rendered message. */
+/** Offers quoting and optional note saving for text selected inside one message. */
 export class MessageQuoteController {
   readonly #messagesEl: HTMLElement;
   readonly #label: string;
   readonly #onQuote: (text: string) => void;
-  #buttonEl: HTMLButtonElement | null = null;
+  readonly #saveSelection: MessageQuoteControllerOptions['saveSelection'];
+  #menuEl: HTMLElement | null = null;
   #disposed = false;
 
   readonly #onMouseUp = (): void => this.#showForCurrentSelection();
   readonly #onSelectionChange = (): void => {
-    if (this.#buttonEl && !this.#buttonEl.hidden) this.#showForCurrentSelection();
+    if (this.#menuEl && !this.#menuEl.hidden) this.#showForCurrentSelection();
   };
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') this.#hide();
@@ -59,12 +63,15 @@ export class MessageQuoteController {
     this.#messagesEl = options.messagesEl;
     this.#label = options.label;
     this.#onQuote = options.onQuote;
+    this.#saveSelection = options.saveSelection;
 
     const doc = this.#messagesEl.ownerDocument;
     this.#messagesEl.addEventListener('mouseup', this.#onMouseUp);
     this.#messagesEl.addEventListener('scroll', this.#onScroll, { passive: true });
     doc.addEventListener('selectionchange', this.#onSelectionChange);
     doc.addEventListener('keydown', this.#onKeyDown);
+    doc.defaultView?.addEventListener('resize', this.#onScroll);
+    doc.defaultView?.addEventListener('scroll', this.#onScroll, true);
   }
 
   dispose(): void {
@@ -75,8 +82,10 @@ export class MessageQuoteController {
     this.#messagesEl.removeEventListener('scroll', this.#onScroll);
     doc.removeEventListener('selectionchange', this.#onSelectionChange);
     doc.removeEventListener('keydown', this.#onKeyDown);
-    this.#buttonEl?.remove();
-    this.#buttonEl = null;
+    doc.defaultView?.removeEventListener('resize', this.#onScroll);
+    doc.defaultView?.removeEventListener('scroll', this.#onScroll, true);
+    this.#menuEl?.remove();
+    this.#menuEl = null;
   }
 
   #showForCurrentSelection(): void {
@@ -87,12 +96,12 @@ export class MessageQuoteController {
       return;
     }
 
-    const button = this.#ensureButton(hostEl);
-    if (!this.#position(button, hostEl, range)) {
+    const menu = this.#ensureMenu(hostEl);
+    menu.hidden = false;
+    if (!this.#position(menu, hostEl, range)) {
       this.#hide();
       return;
     }
-    button.hidden = false;
   }
 
   #getMessageSelectionRange(): Range | null {
@@ -112,30 +121,37 @@ export class MessageQuoteController {
     return contentEl && messageEl && this.#messagesEl.contains(messageEl) ? contentEl : null;
   }
 
-  #ensureButton(hostEl: HTMLElement): HTMLButtonElement {
-    if (this.#buttonEl?.parentElement === hostEl) return this.#buttonEl;
-    this.#buttonEl?.remove();
-
-    const button = hostEl.createEl('button', {
-      cls: 'claudian-message-quote-btn',
-      attr: { type: 'button', 'aria-label': this.#label },
+  #ensureMenu(hostEl: HTMLElement): HTMLElement {
+    if (this.#menuEl?.parentElement === hostEl) return this.#menuEl;
+    this.#menuEl?.remove();
+    const menu = hostEl.createDiv({
+      cls: 'claudian-message-selection-actions',
+      attr: { role: 'group', 'aria-label': [this.#label, this.#saveSelection?.label].filter(Boolean).join(' / ') },
     });
-    button.addClass('claudian-message-quote-btn--floating');
-    button.title = this.#label;
-    button.hidden = true;
-    button.textContent = this.#label;
+    this.#addAction(menu, this.#label, 'quote', 'claudian-message-quote-btn', this.#onQuote, 'text');
+    if (this.#saveSelection) {
+      this.#addAction(menu, this.#saveSelection.label, 'file-plus-2', 'claudian-message-save-selection-btn', this.#saveSelection.onSave, 'markdown');
+    }
+    this.#menuEl = menu;
+    return menu;
+  }
+
+  #addAction(menu: HTMLElement, label: string, icon: string, cls: string, action: (text: string) => void, format: 'text' | 'markdown'): void {
+    const button = menu.createEl('button', {
+      cls: `claudian-message-selection-action ${cls}`,
+      attr: { type: 'button', 'aria-label': label, title: label },
+    });
+    setIcon(button.createSpan({ attr: { 'aria-hidden': 'true' } }), icon);
+    button.createSpan({ text: label });
     // Preserve the browser selection until the click handler reads it.
     button.addEventListener('mousedown', event => event.preventDefault());
     button.addEventListener('click', (event) => {
       event.stopPropagation();
-      this.#quote();
+      this.#act(action, format);
     });
-    hostEl.append(button);
-    this.#buttonEl = button;
-    return button;
   }
 
-  #position(button: HTMLButtonElement, hostEl: HTMLElement, range: Range): boolean {
+  #position(button: HTMLElement, hostEl: HTMLElement, range: Range): boolean {
     const rects = typeof range.getClientRects === 'function' ? Array.from(range.getClientRects()) : [];
     const anchor = rects.at(-1);
     if (!anchor) return false;
@@ -158,15 +174,50 @@ export class MessageQuoteController {
     return true;
   }
 
-  #quote(): void {
+  #act(action: (text: string) => void, format: 'text' | 'markdown'): void {
     const selection = this.#messagesEl.ownerDocument.getSelection();
-    const text = this.#getMessageSelectionRange() ? selection?.toString() ?? '' : '';
+    const range = this.#getMessageSelectionRange();
+    const text = range
+      ? format === 'markdown' ? this.#selectionMarkdown(range) : selection?.toString() ?? ''
+      : '';
     selection?.removeAllRanges();
     this.#hide();
-    if (text) this.#onQuote(text);
+    if (text) action(text);
+  }
+
+  #selectionMarkdown(range: Range): string {
+    const contentEl = this.#closestMessageContent(range.startContainer)!;
+    let fragment: Node = range.cloneContents();
+    // cloneContents omits common ancestors, such as a link or code block when
+    // only part of its text is selected. Restore their structure, not siblings.
+    let ancestor = range.commonAncestorContainer;
+    if (ancestor.nodeType !== 1) ancestor = ancestor.parentNode!;
+    while (ancestor !== contentEl) {
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(fragment);
+      fragment = wrapper;
+      ancestor = ancestor.parentNode!;
+    }
+    const container = createDiv();
+    container.appendChild(fragment);
+    container.querySelectorAll('.claudian-code-header, button').forEach(element => element.remove());
+    // A text selection omits the task checkbox sibling. Pair the retained list
+    // items in document order and restore only their live checkbox state.
+    const sourceItems = Array.from(contentEl.querySelectorAll('li')).filter(item => range.intersectsNode(item));
+    container.querySelectorAll('li').forEach((item, index) => {
+      const sourceCheckbox = sourceItems[index]?.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+      if (!sourceCheckbox) return;
+      let checkbox = item.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+      if (!checkbox) {
+        checkbox = sourceCheckbox.cloneNode(false) as HTMLInputElement;
+        item.prepend(checkbox);
+      }
+      checkbox.toggleAttribute('checked', sourceCheckbox.checked);
+    });
+    return htmlToMarkdown(container);
   }
 
   #hide(): void {
-    if (this.#buttonEl) this.#buttonEl.hidden = true;
+    if (this.#menuEl) this.#menuEl.hidden = true;
   }
 }

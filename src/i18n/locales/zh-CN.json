@@ -310,6 +310,31 @@
       "nextMessage": "下一条消息",
       "scrollToBottom": "滚动到底部",
       "emptyDirectory": "此对话中暂无用户提示词"
+    },
+    "saveNote": {
+      "title": "保存为笔记",
+      "newNote": "新建笔记",
+      "append": "追加到笔记",
+      "destination": "保存方式",
+      "path": "笔记路径",
+      "answer": "选中的内容",
+      "preview": "预览",
+      "edit": "编辑",
+      "open": "打开笔记",
+      "undo": "撤销保存的正文",
+      "undoHint": "撤销只移除本次保存的正文；新建的笔记会保留。",
+      "saved": "已保存到 {path}",
+      "undone": "已移除保存的正文。",
+      "failed": "保存或撤销失败，请重试。",
+      "previewFailed": "无法渲染预览。",
+      "invalidPath": "请输入库内 Markdown 路径，文件夹须已存在。",
+      "emptyContent": "请输入要保存的内容。",
+      "missingNote": "所选笔记已不可用，请重新选择。",
+      "exists": "此路径已有笔记，请换一个名称。",
+      "conflict": "保存的正文已被编辑，为保护后续修改，无法撤销。",
+      "defaultName": "笔记",
+      "close": "关闭",
+      "selectionLabel": "保存到笔记"
     }
   },
   "settings": {

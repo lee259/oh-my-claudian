@@ -50,6 +50,17 @@ function createTurn(providerId: ProviderId = 'claude') {
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
 
+  it('keeps note saving out of the completed answer action row', () => {
+    const { renderer, component, messagesEl, assistant, text } = createTurn();
+    try {
+      text('The answer can be selected and saved.');
+      renderer.finalizeCompletedWork(assistant);
+      const actions = messagesEl.querySelector('.claudian-message-action-row')!;
+      expect(actions.querySelector('.claudian-text-copy-btn')).not.toBeNull();
+      expect(actions.querySelector('.claudian-save-note-btn')).toBeNull();
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it('keeps an explicitly opened phase and exposes tool errors when live work settles', () => {
     const { renderer, component, messagesEl, assistant, content, text, tool, sync } = createTurn();
     try {

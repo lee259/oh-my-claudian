@@ -310,6 +310,31 @@
       "nextMessage": "Message suivant",
       "scrollToBottom": "Défiler vers le bas",
       "emptyDirectory": "Aucun prompt utilisateur dans cette conversation"
+    },
+    "saveNote": {
+      "title": "Enregistrer comme note",
+      "newNote": "Nouvelle note",
+      "append": "Ajouter à une note",
+      "destination": "Destination",
+      "path": "Chemin de la note",
+      "answer": "Texte sélectionné",
+      "preview": "Aperçu",
+      "edit": "Modifier",
+      "open": "Ouvrir la note",
+      "undo": "Annuler le texte enregistré",
+      "undoHint": "Seul ce texte sera supprimé. Une note nouvellement créée sera conservée.",
+      "saved": "Enregistré dans {path}",
+      "undone": "Texte enregistré supprimé.",
+      "failed": "Échec de l’enregistrement ou de l’annulation. Réessayez.",
+      "previewFailed": "Impossible d’afficher l’aperçu.",
+      "invalidPath": "Saisissez un chemin Markdown dans le coffre. Les dossiers doivent déjà exister.",
+      "emptyContent": "Saisissez le texte à enregistrer.",
+      "missingNote": "La note choisie n’est plus disponible. Sélectionnez-la à nouveau.",
+      "exists": "Une note existe déjà à cet emplacement. Choisissez un autre nom.",
+      "conflict": "Le texte enregistré a été modifié. L’annulation est indisponible pour protéger ces modifications.",
+      "defaultName": "Note",
+      "close": "Fermer",
+      "selectionLabel": "Enregistrer dans une note"
     }
   },
   "settings": {

@@ -51,6 +51,7 @@
 @import "./modals/fork-target.css";
 @import "./modals/conversation-rename.css";
 @import "./modals/provider-diagnostic.css";
+@import "./modals/save-note.css";
 
 /* Settings */
 @import "./settings/base.css";

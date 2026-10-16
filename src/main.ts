@@ -21,6 +21,7 @@ import {
 import { ProviderDiagnosticLogService } from './app/diagnostics/ProviderDiagnosticLogService';
 import { ObsidianCapabilityAdapter } from './app/obsidian/ObsidianCapabilityAdapter';
 import { ObsidianWorkspaceToolBridgeServer } from './app/obsidian/ObsidianWorkspaceToolBridgeServer';
+import { VaultReplyNoteWriter } from './app/obsidian/VaultReplyNoteWriter';
 import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
 import { ProviderCliLifecycleService } from './app/providers/ProviderCliLifecycleService';
 import { ChatModelSelectionCoordinator } from './app/settings/ChatModelSelectionCoordinator';
@@ -114,6 +115,7 @@ export default class ClaudianPlugin extends Plugin {
   settings!: ClaudianSettings;
   storage!: SharedAppStorage;
   readonly obsidianWorkspace = new ObsidianCapabilityAdapter(this.app);
+  readonly replyNoteWriter = new VaultReplyNoteWriter(this.app);
   readonly obsidianWorkspaceToolBridge = new ObsidianWorkspaceToolBridgeServer(this.obsidianWorkspace);
   readonly conversationRuntimes = new ConversationRuntimeRegistry(undefined, () => {
     for (const view of this.getAllViews()) view.refreshConversationRuntimeState?.();

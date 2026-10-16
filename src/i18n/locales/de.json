@@ -310,6 +310,31 @@
       "nextMessage": "Nächste Nachricht",
       "scrollToBottom": "Nach unten scrollen",
       "emptyDirectory": "Keine Benutzer-Prompts in dieser Unterhaltung"
+    },
+    "saveNote": {
+      "title": "Als Notiz speichern",
+      "newNote": "Neue Notiz",
+      "append": "An Notiz anhängen",
+      "destination": "Ziel",
+      "path": "Notizpfad",
+      "answer": "Ausgewählter Text",
+      "preview": "Vorschau",
+      "edit": "Bearbeiten",
+      "open": "Notiz öffnen",
+      "undo": "Gespeicherten Text rückgängig machen",
+      "undoHint": "Nur dieser gespeicherte Text wird entfernt. Eine neu erstellte Notiz bleibt erhalten.",
+      "saved": "In {path} gespeichert",
+      "undone": "Gespeicherter Text entfernt.",
+      "failed": "Speichern oder Rückgängigmachen fehlgeschlagen. Bitte erneut versuchen.",
+      "previewFailed": "Vorschau konnte nicht angezeigt werden.",
+      "invalidPath": "Einen Markdown-Pfad im Vault angeben. Ordner müssen bereits vorhanden sein.",
+      "emptyContent": "Text zum Speichern eingeben.",
+      "missingNote": "Die gewählte Notiz ist nicht mehr verfügbar. Bitte erneut auswählen.",
+      "exists": "Unter diesem Pfad existiert bereits eine Notiz. Einen anderen Namen wählen.",
+      "conflict": "Der gespeicherte Text wurde bearbeitet. Zum Schutz dieser Änderungen ist kein Rückgängigmachen möglich.",
+      "defaultName": "Notiz",
+      "close": "Schließen",
+      "selectionLabel": "In Notiz speichern"
     }
   },
   "settings": {
