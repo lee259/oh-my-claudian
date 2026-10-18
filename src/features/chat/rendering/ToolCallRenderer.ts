@@ -367,12 +367,17 @@ function parseWebSearchResult(result: string): { links: WebSearchLink[]; summary
   if (!linksMatch) return null;
 
   try {
-    const parsed = JSON.parse(linksMatch[1]) as WebSearchLink[];
+    const parsed: unknown = JSON.parse(linksMatch[1]);
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
 
     const linksEndIndex = result.indexOf(linksMatch[0]) + linksMatch[0].length;
     const summary = result.slice(linksEndIndex).trim();
-    return { links: parsed.filter(l => l.title && l.url), summary };
+    const links = parsed.filter((entry): entry is WebSearchLink => {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return false;
+      const { title, url } = entry as Record<string, unknown>;
+      return typeof title === 'string' && title.length > 0 && typeof url === 'string' && url.length > 0;
+    });
+    return { links, summary };
   } catch {
     return null;
   }
