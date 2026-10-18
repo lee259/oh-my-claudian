@@ -66,6 +66,12 @@ describe('getToolIcon', () => {
     expect(getToolIcon('SomeCustomTool')).toBe('wrench');
   });
 
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'uses the fallback icon for the custom tool %s', (name) => {
+      expect(getToolIcon(name)).toBe('wrench');
+    },
+  );
+
   it('should not match partial mcp prefix', () => {
     expect(getToolIcon('mcpTool')).toBe('wrench');
     expect(getToolIcon('mcp_single_underscore')).toBe('wrench');

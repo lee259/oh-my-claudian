@@ -115,7 +115,7 @@ export function formatCodexWebSearchResults(results: unknown): string | undefine
 export function normalizeCodexToolName(rawName: string | undefined): string {
   if (!rawName) return 'tool';
   if (NATIVE_TOOLS.has(rawName)) return rawName;
-  return TOOL_NAME_MAP[rawName] ?? rawName;
+  return Object.hasOwn(TOOL_NAME_MAP, rawName) ? TOOL_NAME_MAP[rawName] : rawName;
 }
 
 export interface NormalizedCodexToolCall {

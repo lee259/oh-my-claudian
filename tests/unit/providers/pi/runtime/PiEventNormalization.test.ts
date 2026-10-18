@@ -4,6 +4,16 @@ import {
 } from '@/providers/pi/normalizations/piEventNormalization';
 
 describe('Pi event normalization', () => {
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'preserves the custom tool name %s in tool events', (name) => {
+      expect(normalizePiRpcEvent({
+        args: { custom: true }, toolCallId: 'custom-1', toolName: name, type: 'tool_execution_start',
+      }, createPiEventNormalizationState())).toEqual([{
+        id: 'custom-1', input: { custom: true }, name, type: 'tool_use',
+      }]);
+    },
+  );
+
   it('normalizes text and thinking deltas', () => {
     const state = createPiEventNormalizationState();
     expect(normalizePiRpcEvent({
