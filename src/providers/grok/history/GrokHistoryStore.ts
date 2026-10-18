@@ -1,5 +1,6 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+
+import { forEachJSONLLine } from '@/utils/jsonlFile';
 
 import { isWriteEditTool, TOOL_ASK_USER_QUESTION } from '../../../core/tools/toolNames';
 import type {
@@ -80,11 +81,16 @@ interface CompletedTurn {
   usage?: GrokHistoryUsage;
 }
 
-export function parseGrokHistoryContent(
-  content: string,
+/** Consumes native `updates.jsonl` lines one at a time; a false `pushLine` result means done. */
+export interface GrokHistoryLineConsumer<T> {
+  finish(): T;
+  pushLine(line: string): boolean | void;
+}
+
+export function createGrokHistoryParser(
   sessionId: string,
   resumeAt?: string,
-): ParsedGrokHistory {
+): GrokHistoryLineConsumer<ParsedGrokHistory> {
   let completedTurns: CompletedTurn[] = [];
   let pending: PendingTurn | null = null;
   let activePromptIndex: number | null = null;
@@ -108,17 +114,17 @@ export function parseGrokHistoryContent(
     return true;
   };
 
-  for (const line of content.split(/\r?\n/)) {
+  const pushLine = (line: string): void => {
     const record = parseRecord(line);
     if (!record || !HISTORY_METHODS.has(record.method)) {
-      continue;
+      return;
     }
     if (readString(record.params.sessionId) !== sessionId) {
-      continue;
+      return;
     }
     const update = readRecord(record.params.update);
     if (!update) {
-      continue;
+      return;
     }
 
     const updateType = readString(update.sessionUpdate) ?? readString(update.type);
@@ -132,7 +138,7 @@ export function parseGrokHistoryContent(
         nextFallbackPromptIndex = targetPromptIndex;
         turnIndex = completedTurns.length;
       }
-      continue;
+      return;
     }
     if (updateType === 'user_message_chunk') {
       const incomingUserId = resolveGrokUpdateMessageId(
@@ -208,17 +214,17 @@ export function parseGrokHistoryContent(
       );
       if (image) pending.images.push(image);
       pending.userId ??= incomingUserId;
-      continue;
+      return;
     }
 
     if (!pending) {
-      continue;
+      return;
     }
 
     if (updateType === 'agent_thought_chunk') {
       const text = extractContentText(update.content);
       appendContentBlock(pending.blocks, 'thinking', text);
-      continue;
+      return;
     }
 
     if (updateType === 'agent_message_chunk') {
@@ -230,12 +236,12 @@ export function parseGrokHistoryContent(
         record.params._meta,
       );
       appendContentBlock(pending.blocks, 'text', text);
-      continue;
+      return;
     }
 
     if (updateType === 'tool_call' || updateType === 'tool_call_update') {
       reconcileToolUpdate(pending, update);
-      continue;
+      return;
     }
 
     if (updateType === 'turn_completed') {
@@ -244,59 +250,53 @@ export function parseGrokHistoryContent(
       commitPending(pending, promptId, usage);
       pending = null;
     }
-  }
-
-  if (resumeAt !== undefined) {
-    const checkpointIndex = completedTurns.findIndex(turn => (
-      turn.promptId === resumeAt
-      || turn.messages.some(message => (
-        message.role === 'assistant' && message.assistantMessageId === resumeAt
-      ))
-    ));
-    completedTurns = completedTurns.slice(0, checkpointIndex + 1);
-  }
-
-  const messages = completedTurns.flatMap(turn => turn.messages);
-  let lastUsage: GrokHistoryUsage | undefined;
-  for (let index = completedTurns.length - 1; index >= 0; index -= 1) {
-    if (completedTurns[index].usage) {
-      lastUsage = completedTurns[index].usage;
-      break;
-    }
-  }
-  return {
-    ...(lastUsage ? { lastUsage } : {}),
-    messages,
   };
+
+  const finish = (): ParsedGrokHistory => {
+    if (resumeAt !== undefined) {
+      // Live checkpoints use prompt IDs, while stored messages retain their native IDs.
+      const checkpointIndex = completedTurns.findIndex(turn => (
+        turn.promptId === resumeAt
+        || turn.messages.some(message => (
+          message.role === 'assistant' && message.assistantMessageId === resumeAt
+        ))
+      ));
+      completedTurns = completedTurns.slice(0, checkpointIndex + 1);
+    }
+
+    const messages = completedTurns.flatMap(turn => turn.messages);
+    let lastUsage: GrokHistoryUsage | undefined;
+    for (let index = completedTurns.length - 1; index >= 0; index -= 1) {
+      if (completedTurns[index].usage) {
+        lastUsage = completedTurns[index].usage;
+        break;
+      }
+    }
+    return {
+      ...(lastUsage ? { lastUsage } : {}),
+      messages,
+    };
+  };
+
+  return { finish, pushLine };
 }
 
-export async function loadGrokHistory(
-  sessionDirectory: string,
-  sessionId: string,
-  resumeAt?: string,
-): Promise<ParsedGrokHistory> {
-  try {
-    const content = await fs.readFile(path.join(sessionDirectory, 'updates.jsonl'), 'utf8');
-    return parseGrokHistoryContent(content, sessionId, resumeAt);
-  } catch {
-    return { messages: [] };
-  }
-}
-
-export function resolveGrokPromptIndexAfterAssistant(
-  content: string,
+export function createGrokPromptIndexResolver(
   sessionId: string,
   resumeAt: string,
-): number | null {
+): GrokHistoryLineConsumer<number | null> {
   let activePromptIndex: number | null = null;
   let nextFallbackPromptIndex = 0;
+  let resolved: number | null = null;
+  const legacy = createGrokHistoryParser(sessionId);
 
-  for (const line of content.split(/\r?\n/)) {
+  const pushLine = (line: string): boolean => {
+    legacy.pushLine(line);
     const record = parseRecord(line);
-    if (!record || !HISTORY_METHODS.has(record.method)) continue;
-    if (readString(record.params.sessionId) !== sessionId) continue;
+    if (!record || !HISTORY_METHODS.has(record.method)) return true;
+    if (readString(record.params.sessionId) !== sessionId) return true;
     const update = readRecord(record.params.update);
-    if (!update) continue;
+    if (!update) return true;
     const updateType = readString(update.sessionUpdate) ?? readString(update.type);
 
     if (updateType === 'rewind_marker') {
@@ -304,7 +304,7 @@ export function resolveGrokPromptIndexAfterAssistant(
         ?? readNonNegativeInteger(update.targetPromptIndex);
       if (target !== null) nextFallbackPromptIndex = target;
       activePromptIndex = null;
-      continue;
+      return true;
     }
     if (updateType === 'user_message_chunk') {
       const advertisedPromptIndex = readPromptIndex(update);
@@ -318,43 +318,45 @@ export function resolveGrokPromptIndexAfterAssistant(
         activePromptIndex = nextFallbackPromptIndex;
         nextFallbackPromptIndex += 1;
       }
-      continue;
+      return true;
     }
     if (
       updateType === 'agent_message_chunk'
       && resolveGrokUpdateMessageId(update, 'assistant', record.params._meta) === resumeAt
       && activePromptIndex !== null
     ) {
-      return activePromptIndex + 1;
+      resolved = activePromptIndex + 1;
+      return false;
     }
     if (updateType === 'turn_completed') {
       const promptId = readString(update.prompt_id) ?? readString(update.promptId);
       if (promptId === resumeAt && activePromptIndex !== null) {
-        return activePromptIndex + 1;
+        resolved = activePromptIndex + 1;
+        return false;
       }
       activePromptIndex = null;
     }
-  }
+    return true;
+  };
 
-  return resolveLegacyForkTargetPromptIndex(content, sessionId, resumeAt);
+  return { finish: () => {
+    if (resolved !== null) return resolved;
+    let count = 0;
+    for (const message of legacy.finish().messages) {
+      if (message.role === 'user' && message.userMessageId) count++;
+      if (message.assistantMessageId === resumeAt) return count;
+    }
+    return null;
+  }, pushLine };
 }
 
-function resolveLegacyForkTargetPromptIndex(
-  content: string,
+export async function loadGrokHistory(
+  sessionDirectory: string,
   sessionId: string,
-  resumeAt: string,
-): number | null {
-  let completedPrompts = 0;
-  for (const message of parseGrokHistoryContent(content, sessionId).messages) {
-    if (message.role === 'user' && message.userMessageId) {
-      completedPrompts += 1;
-      continue;
-    }
-    if (message.assistantMessageId === resumeAt) {
-      return completedPrompts;
-    }
-  }
-  return null;
+  resumeAt?: string,
+): Promise<ParsedGrokHistory> {
+  return await readGrokUpdates(sessionDirectory, createGrokHistoryParser(sessionId, resumeAt))
+    ?? { messages: [] };
 }
 
 export async function loadGrokPromptIndexAfterAssistant(
@@ -363,11 +365,31 @@ export async function loadGrokPromptIndexAfterAssistant(
   resumeAt: string,
 ): Promise<number | null> {
   try {
-    const content = await fs.readFile(path.join(sessionDirectory, 'updates.jsonl'), 'utf8');
-    return resolveGrokPromptIndexAfterAssistant(content, sessionId, resumeAt);
+    return await readGrokUpdates(
+      sessionDirectory,
+      createGrokPromptIndexResolver(sessionId, resumeAt),
+    );
   } catch {
+    // Fork checkpoint resolution is best-effort; callers treat null as an unknown index.
     return null;
   }
+}
+
+/** Streams native updates; resolves null only when the session has no updates file. */
+async function readGrokUpdates<T>(
+  sessionDirectory: string,
+  consumer: GrokHistoryLineConsumer<T>,
+): Promise<T | null> {
+  try {
+    await forEachJSONLLine(
+      path.join(sessionDirectory, 'updates.jsonl'),
+      line => consumer.pushLine(line),
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return null;
+    throw error;
+  }
+  return consumer.finish();
 }
 
 function createPendingTurn(
@@ -721,4 +743,16 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+export function parseGrokHistoryContent(content: string, sessionId: string, resumeAt?: string): ParsedGrokHistory {
+  const parser = createGrokHistoryParser(sessionId, resumeAt);
+  for (const line of content.split(/\r?\n/)) parser.pushLine(line);
+  return parser.finish();
+}
+
+export function resolveGrokPromptIndexAfterAssistant(content: string, sessionId: string, resumeAt: string): number | null {
+  const parser = createGrokPromptIndexResolver(sessionId, resumeAt);
+  for (const line of content.split(/\r?\n/)) if (parser.pushLine(line) === false) break;
+  return parser.finish();
 }

@@ -3,24 +3,25 @@
  * Prefers the latest assistant text block and falls back to top-level result.
  */
 export function extractFinalResultFromSubagentJsonl(content: string): string | null {
-  const lines = content
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && line.startsWith('{'));
+  const collector = createSubagentFinalResultCollector();
+  for (const line of content.split('\n')) collector.addLine(line);
+  return collector.result();
+}
 
+export function createSubagentFinalResultCollector(): { addLine(line: string): void; result(): string | null } {
   let lastAssistantText: string | null = null;
   let lastResultText: string | null = null;
 
-  for (const line of lines) {
+  const addLine = (line: string): void => {
     let raw: unknown;
     try {
       raw = JSON.parse(line);
     } catch {
-      continue;
+      return;
     }
 
     if (!raw || typeof raw !== 'object') {
-      continue;
+      return;
     }
 
     const record = raw as {
@@ -33,7 +34,7 @@ export function extractFinalResultFromSubagentJsonl(content: string): string | n
     }
 
     if (record.message?.role !== 'assistant' || !Array.isArray(record.message.content)) {
-      continue;
+      return;
     }
 
     for (const blockRaw of record.message.content) {
@@ -46,7 +47,7 @@ export function extractFinalResultFromSubagentJsonl(content: string): string | n
         lastAssistantText = block.text.trim();
       }
     }
-  }
+  };
 
-  return lastAssistantText ?? lastResultText;
+  return { addLine, result: () => lastAssistantText ?? lastResultText };
 }

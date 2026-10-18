@@ -21,23 +21,13 @@ import {
   parseCodexSessionFileAsync,
   parseCodexSessionTurns,
   readCodexSessionModel,
+  readCodexSessionRecords,
 } from './CodexHistoryStore';
 import { hydrateCodexSubagentHistory } from './CodexSubagentHistory';
 
-async function readSessionTurns(sessionFilePath: string): Promise<CodexParsedTurn[]> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 10_000);
-  try {
-    const content = await fs.readFile(sessionFilePath, {
-      encoding: 'utf-8',
-      signal: controller.signal,
-    });
-    return parseCodexSessionTurns(content);
-  } catch {
-    return [];
-  } finally {
-    window.clearTimeout(timer);
-  }
+/** Parsed transcript turns; a missing file has none, and other read failures reject. */
+async function readSessionTurns(sessionFilePath: string, throughTurnId?: string): Promise<CodexParsedTurn[]> {
+  return parseCodexSessionTurns(await readCodexSessionRecords(sessionFilePath) ?? [], throughTurnId);
 }
 
 async function readSessionModel(
@@ -211,8 +201,8 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       );
       if (!sourceSessionFile) return;
 
-      const turns = await readSessionTurns(sourceSessionFile);
       const resumeAt = state.forkSource!.resumeAt;
+      const turns = await readSessionTurns(sourceSessionFile, resumeAt);
       const truncated = this.truncateTurnsAtCheckpoint(turns, resumeAt);
       if (!truncated) {
         this.hydratedConversationPaths.delete(conversation.id);
@@ -244,11 +234,11 @@ export class CodexConversationHistoryService implements ProviderConversationHist
         : null);
 
       if (sourceSessionFile && forkSessionFile) {
-        const sourceTurns = await readSessionTurns(sourceSessionFile);
+        const sourceRecords = await readCodexSessionRecords(sourceSessionFile) ?? [];
+        const sourceTurns = parseCodexSessionTurns(sourceRecords);
         const forkTurns = await readSessionTurns(forkSessionFile);
-
         const resumeAt = state.forkSource.resumeAt;
-        const sourcePrefix = this.truncateTurnsAtCheckpoint(sourceTurns, resumeAt);
+        const sourcePrefix = this.truncateTurnsAtCheckpoint(parseCodexSessionTurns(sourceRecords, resumeAt), resumeAt);
         if (!sourcePrefix) {
           this.hydratedConversationPaths.delete(conversation.id);
           return;

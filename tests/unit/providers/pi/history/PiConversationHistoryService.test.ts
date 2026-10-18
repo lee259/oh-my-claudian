@@ -1,6 +1,8 @@
+import type * as nativeFsType from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type * as streamType from 'node:stream';
 
 import type { Conversation } from '@/core/types';
 import { PiConversationHistoryService } from '@/providers/pi/history/PiConversationHistoryService';
@@ -19,6 +21,21 @@ function createConversation(sessionFile: string): Conversation {
 }
 
 describe('PiConversationHistoryService', () => {
+  it('rejects a current segment read error instead of marking empty history loaded', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-read-'));
+    const file = path.join(dir, 'broken.jsonl');
+    await fs.writeFile(file, JSON.stringify({ type: 'entry', id: 'u', message: { role: 'user', content: 'hello' } }));
+    const nativeFs = jest.requireActual<typeof nativeFsType>('node:fs');
+    const { Readable } = jest.requireActual<typeof streamType>('node:stream');
+    const error = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    const spy = jest.spyOn(nativeFs, 'createReadStream').mockImplementation(() =>
+      new Readable({ read() { this.destroy(error); } }) as unknown as nativeFsType.ReadStream);
+    try {
+      const service = new PiConversationHistoryService();
+      await expect(service.hydrateConversationHistory(createConversation(file), null)).rejects.toBe(error);
+    } finally { spy.mockRestore(); await fs.rm(dir, { recursive: true, force: true }); }
+  });
+
   it('hydrates from providerState sessionFile', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-history-'));
     const sessionFile = path.join(dir, 'session.jsonl');

@@ -1,3 +1,5 @@
+import type * as streamType from 'node:stream';
+
 import { existsSync } from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as os from 'os';
@@ -25,6 +27,12 @@ import { extractToolResultContent } from '@/providers/claude/sdk/toolResultConte
 // Mock fs, fs/promises, and os modules
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
+  createReadStream: (file: string) => {
+    const { Readable } = jest.requireActual<typeof streamType>('node:stream');
+    return Readable.from((async function* () {
+      yield await fsPromises.readFile(file, 'utf-8');
+    })());
+  },
 }));
 jest.mock('fs/promises');
 jest.mock('os');
