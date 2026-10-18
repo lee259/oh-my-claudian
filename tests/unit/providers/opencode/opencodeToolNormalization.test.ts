@@ -1,8 +1,17 @@
 import {
   createOpencodeToolStreamAdapter,
   normalizeOpencodeToolInput,
+  normalizeOpencodeToolName,
   resolveOpencodeRawToolName,
 } from '../../../../src/providers/opencode/normalization/opencodeToolNormalization';
+
+describe('normalizeOpencodeToolName', () => {
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'preserves the custom tool name %s', (name) => {
+      expect(normalizeOpencodeToolName(name)).toBe(name);
+    },
+  );
+});
 
 describe('normalizeOpencodeToolInput', () => {
   it('maps websearch payloads to the WebSearch renderer shape', () => {

@@ -110,7 +110,8 @@ export function getPiToolName(value: Record<string, unknown>): string {
 }
 
 export function normalizePiToolName(name: string): string {
-  return PI_BUILT_IN_TOOL_NAMES[name.trim().toLowerCase()] ?? name;
+  const lookup = name.trim().toLowerCase();
+  return Object.hasOwn(PI_BUILT_IN_TOOL_NAMES, lookup) ? PI_BUILT_IN_TOOL_NAMES[lookup] : name;
 }
 
 function firstString(...values: unknown[]): string | undefined {
