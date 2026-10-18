@@ -510,9 +510,13 @@ export class OpencodeHttpSessionKernel implements OpencodeSessionKernel {
         }
         const answer: Record<string, unknown> = {};
         for (const field of fields) {
-          const value = response.answers[String(field.key)];
+          const key = String(field.key);
+          const value = Object.hasOwn(response.answers, key) ? response.answers[key] : undefined;
           if (value === undefined) continue;
-          answer[String(field.key)] = Array.isArray(value) ? value : field.type === 'boolean' ? value.toLowerCase() === 'true' : field.type === 'number' || field.type === 'integer' ? Number(value) : value;
+          Object.defineProperty(answer, key, {
+            value: Array.isArray(value) ? value : field.type === 'boolean' ? value.toLowerCase() === 'true' : field.type === 'number' || field.type === 'integer' ? Number(value) : value,
+            enumerable: true, writable: true, configurable: true,
+          });
         }
         await this.requireClient().request(`${route}/reply`, { method: 'POST', body: { answer } });
       } else {

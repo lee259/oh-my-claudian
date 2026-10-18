@@ -1,6 +1,22 @@
 import { CursorExtensionInteractionRouter } from '@/providers/cursor/execution/CursorExtensionInteractionRouter';
 
 describe('CursorExtensionInteractionRouter', () => {
+  it.each([false, true])('uses own Cursor answers and question-text fallbacks (%s)', async inherited => {
+    const router = new CursorExtensionInteractionRouter({
+      askUserQuestion: async request => ({
+        interactionId: request.interactionId,
+        answers: inherited ? Object.create({ constructor: 'plan' }) : { 'Which mode?': 'plan' },
+      }),
+      dismissInteraction: jest.fn(), requestApproval: jest.fn(), requestPlanDecision: jest.fn(),
+    }, 'instance', () => 'turn');
+    await expect(router.handle('cursor/ask_question', {
+      toolCallId: 'question', questions: [{ id: 'constructor', prompt: 'Which mode?', allowMultiple: false,
+        options: [{ id: 'plan', label: 'Plan' }] }],
+    })).resolves.toEqual({ outcome: { outcome: 'answered', answers: inherited ? [] : [
+      { questionId: 'constructor', selectedOptionIds: ['plan'] },
+    ] } });
+  });
+
   it('maps Cursor questions to the shared interaction interface', async () => {
     const interactionPort = {
       askUserQuestion: jest.fn(async (request) => ({

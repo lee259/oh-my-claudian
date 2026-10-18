@@ -6,6 +6,18 @@ import {
 } from '@/providers/codex/normalization/codexQuestionNormalization';
 
 describe('Codex async question reply normalization', () => {
+  it('falls back to own question text without treating inherited keys as answers', () => {
+    const tool: ToolCallInfo = {
+      id: 'question-call', name: 'AskUserQuestion', status: 'completed',
+      input: { replyMode: 'user-message', questions: [{ id: 'constructor', question: 'Continue?' }] },
+    };
+    const reply = formatCodexQuestionReply(tool, { 'Continue?': 'Yes' });
+    expect(reply).not.toBeNull();
+    expect(parseCodexQuestionReply(reply!.content)[0]?.answer).toBe('Yes');
+    expect(formatCodexQuestionReply(tool, Object.create({ constructor: 'Inherited' }))).toBeNull();
+    expect(formatCodexQuestionReply(tool, { constructor: '', 'Continue?': 'Yes' })).toBeNull();
+  });
+
   it('formats answers with the native async question identity and hides them from the chat bubble', () => {
     const tool: ToolCallInfo = {
       id: 'question-call',

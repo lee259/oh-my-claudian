@@ -523,6 +523,22 @@ function renderFileSearchExpanded(container: HTMLElement, result: string): void 
   renderLinesExpanded(container, result, 15, true);
 }
 
+/** Removes legacy Read gutters only when the entire result has consecutive line numbers. */
+function stripLegacyReadGutters(result: string): string {
+  const lines = result.split(/\r?\n/);
+  const trailingNewline = lines.length > 1 && lines[lines.length - 1] === '';
+  const contentLines = trailingNewline ? lines.slice(0, -1) : lines;
+  const first = contentLines[0]?.match(/^\s*(\d+)→/);
+  if (!first) return result;
+  const start = Number(first[1]);
+  const stripped = contentLines.map((line, index) => {
+    const gutter = line.match(/^\s*(\d+)→/);
+    return gutter && Number(gutter[1]) === start + index ? line.slice(gutter[0].length) : null;
+  });
+  if (stripped.some(line => line === null)) return result;
+  return [...stripped, ...(trailingNewline ? [''] : [])].join('\n');
+}
+
 function renderLinesExpanded(
   container: HTMLElement,
   result: string,
@@ -764,7 +780,7 @@ export function renderExpandedContent(
         renderLinesExpanded(container, resolvedResult, 20);
         break;
       case TOOL_READ:
-        renderLinesExpanded(container, resolvedResult, 15, false, resultFormat !== 'plain');
+        renderLinesExpanded(container, resultFormat === 'plain' ? resolvedResult : stripLegacyReadGutters(resolvedResult), 15, false, false);
         break;
       case TOOL_GLOB:
       case TOOL_GREP:
@@ -1012,7 +1028,8 @@ function renderAskUserQuestionResult(container: HTMLElement, toolCall: ToolCallI
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     const answer = formatAnswer(
-      (q.id ? answers[q.id] : undefined) ?? answers[q.question]
+      (q.id && Object.hasOwn(answers, q.id) ? answers[q.id] : undefined)
+        ?? (Object.hasOwn(answers, q.question) ? answers[q.question] : undefined)
     );
     const pairEl = reviewEl.createDiv({ cls: 'claudian-ask-review-pair' });
     const bodyEl = pairEl.createDiv({ cls: 'claudian-ask-review-body' });

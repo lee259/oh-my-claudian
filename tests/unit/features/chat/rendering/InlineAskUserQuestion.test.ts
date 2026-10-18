@@ -60,6 +60,25 @@ function findItems(container: any): any[] {
 }
 
 describe('InlineAskUserQuestion', () => {
+  it.each(['immediate', 'single', 'multi'])(
+    'submits an own __proto__ question key in %s mode', (mode) => {
+      const { container, resolve, widget } = renderWidget({ questions: [{
+        id: '__proto__', question: 'Continue?', options: ['Yes'], multiSelect: mode === 'multi',
+      }] }, undefined, { immediateSelect: mode === 'immediate' });
+      findItems(container)[0]?.click();
+      if (mode !== 'immediate') {
+        const tabs = container.querySelectorAll('claudian-ask-tab');
+        tabs[tabs.length - 1]?.click();
+        findItems(container)[0]?.click();
+      }
+      const answer = resolve.mock.calls[0]?.[0];
+      expect(answer).toBeDefined();
+      expect(Object.hasOwn(answer, '__proto__')).toBe(true);
+      expect(answer.__proto__).toEqual(mode === 'multi' ? ['Yes'] : 'Yes');
+      widget.destroy();
+    },
+  );
+
   it('exposes question navigation and choices as labeled native buttons', () => {
     const input = makeInput([{ question: 'Choose tools', options: ['Search', 'Edit'], multiSelect: true }]);
     const { container } = renderWidget(input);

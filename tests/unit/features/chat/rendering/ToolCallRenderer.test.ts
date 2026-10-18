@@ -30,6 +30,51 @@ function createToolCall(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 }
 
 describe('ToolCallRenderer', () => {
+  it.each([
+    ['1→literal prefix\nordinary text', ['1→literal prefix', 'ordinary text']],
+    ['1→first\n2→second\n4→not consecutive', ['1→first', '2→second', '4→not consecutive']],
+    ['1→first\n\n3→third', ['1→first', ' ', '3→third']],
+    ['20→first\n21→second\n', ['first', 'second', ' ']],
+    ['20→first\r\n21→second', ['first', 'second']],
+  ])('strips legacy Read gutters only from a fully consecutive result: %j', (result, expected) => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'Read', status: 'completed', result,
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent))
+      .toEqual(expected);
+  });
+
+  it('keeps numbered arrows in Read results explicitly marked as plain text', () => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'Read', status: 'completed', resultFormat: 'plain', result: '1→first\n2→second',
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent))
+      .toEqual(['1→first', '2→second']);
+  });
+
+  it('uses an own question-text answer when the question id is an inherited property name', () => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'AskUserQuestion', status: 'completed',
+      input: { questions: [{ id: 'constructor', question: 'Continue?' }] },
+      resolvedAnswers: { 'Continue?': 'Yes' },
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(toolEl.querySelector('.claudian-ask-review-a-text')?.textContent).toBe('Yes');
+  });
+
+  it('does not display inherited values as submitted answers', () => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'AskUserQuestion', status: 'completed',
+      input: { questions: [{ id: 'question', question: 'Continue?' }] },
+      resolvedAnswers: Object.create({ question: 'Inherited answer' }),
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(toolEl.querySelector('.claudian-ask-review-a-text')).toBeNull();
+    expect(toolEl.querySelector('.claudian-ask-review-empty')?.textContent).toBe('Not answered');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

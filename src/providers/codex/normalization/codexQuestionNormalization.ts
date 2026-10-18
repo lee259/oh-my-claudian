@@ -21,7 +21,8 @@ export function formatCodexQuestionReply(
     const question = value as Record<string, unknown>;
     const text = typeof question.question === 'string' ? question.question : '';
     const key = typeof question.id === 'string' ? question.id : String(index);
-    const answerValue = answers[key] ?? answers[text];
+    const answerValue = (Object.hasOwn(answers, key) ? answers[key] : undefined)
+      ?? (Object.hasOwn(answers, text) ? answers[text] : undefined);
     const answer = Array.isArray(answerValue) ? answerValue.join(', ') : answerValue;
     if (!text || typeof answer !== 'string' || !answer.trim()) return null;
     return {
