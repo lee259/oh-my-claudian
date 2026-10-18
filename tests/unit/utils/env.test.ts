@@ -1,4 +1,5 @@
 import type * as fsType from 'fs';
+import * as os from 'os';
 import type * as pathType from 'path';
 
 const fs = jest.requireActual<typeof fsType>('fs');
@@ -386,6 +387,7 @@ describe('getEnhancedPath', () => {
           if (String(p) === path.join(nvmDir, 'versions', 'node')) return versions;
           return [];
         }) as typeof fs.readdirSync);
+        jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
         jest.spyOn(fs, 'statSync').mockImplementation(
           () => ({ isFile: () => true, isDirectory: () => true }) as fsType.Stats
         );
@@ -489,6 +491,7 @@ describe('getEnhancedPath', () => {
     function mockNodeExecutable(fakeDir: string) {
       const nodePath = path.join(fakeDir, isWindows ? 'node.exe' : 'node');
       jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
+      jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
       jest.spyOn(fs, 'statSync').mockImplementation(
         p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
       );
@@ -564,6 +567,7 @@ describe('getEnhancedPath', () => {
     function mockCliDirWithNode(cliDir: string) {
       const nodePath = path.join(cliDir, isWindows ? 'node.exe' : 'node');
       jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
+      jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
       jest.spyOn(fs, 'statSync').mockImplementation(
         p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
       );
@@ -662,6 +666,7 @@ describe('getEnhancedPath', () => {
       // Mock: node exists in CLI directory
       const nodePath = path.join(nvmBinDir, 'node');
       jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
+      jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
       jest.spyOn(fs, 'statSync').mockImplementation(
         p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
       );
@@ -818,6 +823,7 @@ describe('getMissingNodeError', () => {
     const nodePath = path.join(nodeDir, isWindows ? 'node.exe' : 'node');
 
     jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
     jest.spyOn(fs, 'statSync').mockImplementation(
       p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
     );
@@ -857,6 +863,7 @@ describe('findNodeDirectory', () => {
     const nvmSymlink = 'C:\\nvm\\symlink';
     const nodePath = path.join(nvmSymlink, 'node.exe');
     jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
     jest.spyOn(fs, 'statSync').mockImplementation(
       p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
     );
@@ -879,6 +886,7 @@ describe('findNodeDirectory', () => {
       const candidate = String(p);
       return candidate === preferredNode || candidate === fallbackNode;
     });
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
     jest.spyOn(fs, 'statSync').mockImplementation(
       () => ({ isFile: () => true }) as fsType.Stats
     );
@@ -895,6 +903,7 @@ describe('findNodeDirectory', () => {
     const preferredNode = path.join(preferredDir, nodeExecutable);
 
     jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === preferredNode);
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => undefined);
     jest.spyOn(fs, 'statSync').mockImplementation(
       () => ({ isFile: () => true }) as fsType.Stats
     );
@@ -1295,5 +1304,69 @@ describe('Obsidian CLI path integration', () => {
     expect(segments).not.toContain(appImageDir);
     expect(segments).toContain('/usr/local/bin');
     expect(segments).toContain('/home/test/.local/bin');
+  });
+});
+
+
+describe('Node executable candidate admission', () => {
+  let directory: string;
+  let blocked: string;
+  let runnable: string;
+
+  beforeEach(() => {
+    directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'claudian-node-'));
+    blocked = path.join(directory, 'blocked');
+    runnable = path.join(directory, 'runnable');
+    for (const [candidate, mode] of [[blocked, 0o644], [runnable, 0o755]] as const) {
+      fs.mkdirSync(candidate);
+      fs.writeFileSync(path.join(candidate, isWindows ? 'node.exe' : 'node'), '', { mode });
+    }
+  });
+
+  afterEach(() => {
+    fs.rmSync(directory, { recursive: true, force: true });
+    jest.restoreAllMocks();
+  });
+
+  it('skips a non-executable file and finds the next runnable Node', () => {
+    if (isWindows) return;
+    expect(findNodeDirectory(`${blocked}${SEP}${runnable}`)).toBe(runnable);
+    expect(env.findNodeExecutables(`${blocked}${SEP}${runnable}`))
+      .not.toContain(path.join(blocked, 'node'));
+  });
+
+  it('does not prioritize a non-executable Node beside the CLI', () => {
+    if (isWindows) return;
+    const segments = getEnhancedPath(undefined, path.join(blocked, 'cli.js')).split(SEP);
+    expect(segments).not.toContain(blocked);
+  });
+
+  it('skips an inaccessible candidate without abandoning the remaining candidates', () => {
+    const originalStat = fs.statSync;
+    jest.spyOn(fs, 'statSync').mockImplementation(((candidate, options) => {
+      if (String(candidate) === path.join(blocked, isWindows ? 'node.exe' : 'node')) {
+        throw Object.assign(new Error('Access denied'), { code: 'EACCES' });
+      }
+      return originalStat(candidate, options as never);
+    }) as typeof fs.statSync);
+    expect(findNodeExecutable(`${blocked}${SEP}${runnable}`))
+      .toBe(path.join(runnable, isWindows ? 'node.exe' : 'node'));
+  });
+
+  it('skips a directory named Node and a broken symlink', () => {
+    const invalid = path.join(directory, 'invalid');
+    fs.mkdirSync(invalid);
+    fs.mkdirSync(path.join(invalid, isWindows ? 'node.exe' : 'node'));
+    expect(findNodeDirectory(`${invalid}${SEP}${runnable}`)).toBe(runnable);
+    if (isWindows) return;
+    fs.rmSync(path.join(invalid, 'node'), { recursive: true });
+    fs.symlinkSync(path.join(directory, 'missing'), path.join(invalid, 'node'));
+    expect(findNodeDirectory(`${invalid}${SEP}${runnable}`)).toBe(runnable);
+  });
+
+  it('keeps Windows file semantics without a POSIX access check', () => {
+    if (!isWindows) return;
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => { throw new Error('No POSIX access'); });
+    expect(findNodeDirectory(blocked)).toBe(blocked);
   });
 });
