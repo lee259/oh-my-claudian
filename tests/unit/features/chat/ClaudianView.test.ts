@@ -90,7 +90,7 @@ describe('ClaudianView model refresh routing', () => {
     jest.restoreAllMocks();
   });
 
-  it('refreshes matching bound tabs and all blank tabs without priming runtimes', () => {
+  it('refreshes matching bound tabs and delegates blank tabs to availability reconciliation', () => {
     jest.spyOn(ProviderSettingsCoordinator, 'getProviderSettingsSnapshot')
       .mockImplementation((_settings, providerId) => ({
         customContextLimits: {},
@@ -132,11 +132,11 @@ describe('ClaudianView model refresh routing', () => {
     view.refreshModelSelector('codex');
 
     expect(codexTab.ui.modelSelector.updateDisplay).toHaveBeenCalledTimes(1);
-    expect(codexTab.ui.modelSelector.renderOptions).toHaveBeenCalledTimes(1);
+    expect(codexTab.ui.modelSelector.renderOptions).not.toHaveBeenCalled();
     expect(grokTab.ui.modelSelector.updateDisplay).not.toHaveBeenCalled();
     expect(grokTab.ui.modelSelector.renderOptions).not.toHaveBeenCalled();
-    expect(blankGrokTab.ui.modelSelector.updateDisplay).toHaveBeenCalled();
-    expect(blankGrokTab.ui.modelSelector.renderOptions).toHaveBeenCalled();
+    expect(blankGrokTab.ui.modelSelector.updateDisplay).not.toHaveBeenCalled();
+    expect(blankGrokTab.ui.modelSelector.renderOptions).not.toHaveBeenCalled();
     expect(view.tabManager.reconcileProviderAvailability).toHaveBeenCalledTimes(1);
     expect(primeProviderExecution).not.toHaveBeenCalled();
   });

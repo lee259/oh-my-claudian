@@ -32,6 +32,7 @@ import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCo
 import {
   commitProvisionalTab,
   getTabProviderId,
+  refreshTabProviderUI,
   sendTabInputMessageFromExplicitEnterShortcut,
   updatePlanModeUI,
 } from './tabs/Tab';
@@ -175,13 +176,8 @@ export class ClaudianView extends ItemView {
         );
       }
 
-      tab.ui.modelSelector?.updateDisplay();
-      tab.ui.modelSelector?.renderOptions();
-      tab.ui.modeSelector?.updateDisplay();
-      tab.ui.modeSelector?.renderOptions();
-      tab.ui.thinkingBudgetSelector?.updateDisplay();
-      tab.ui.permissionToggle?.updateDisplay();
-      tab.ui.serviceTierToggle?.updateDisplay();
+      // Blank drafts were already refreshed during availability reconciliation.
+      if (tab.conversationId !== null) refreshTabProviderUI(tab);
     }
 
     if (!changedProviderId) {

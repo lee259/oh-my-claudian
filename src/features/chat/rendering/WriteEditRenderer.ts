@@ -261,7 +261,7 @@ export function renderStoredWriteEdit(
   const state = { isExpanded: false };
   setupCollapsible(wrapperEl, headerEl, contentEl, state, {
     initiallyExpanded: options.initiallyExpanded ?? false,
-    onToggle: (expanded) => {
+    beforeToggle: (expanded) => {
       if (expanded) renderContentOnce();
     },
     baseAriaLabel,

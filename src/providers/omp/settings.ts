@@ -38,13 +38,18 @@ export const DEFAULT_OMP_PROVIDER_SETTINGS: Readonly<OmpProviderSettings> = Obje
   visibleModels: [],
 });
 
+/** Reads availability without decoding the model catalog. */
+export function isOmpProviderEnabled(settings: Record<string, unknown>): boolean {
+  return readStoredBoolean(getProviderConfig(settings, 'omp').enabled, DEFAULT_OMP_PROVIDER_SETTINGS.enabled);
+}
+
 export function getOmpProviderSettings(settings: Record<string, unknown>): OmpProviderSettings {
   const config = getProviderConfig(settings, 'omp');
   const discoveredModels = normalizeOmpDiscoveredModels(config.discoveredModels);
   return {
     cliPath: readStoredString(config.cliPath, DEFAULT_OMP_PROVIDER_SETTINGS.cliPath),
     cliPathsByHost: normalizeHostnameStringMap(config.cliPathsByHost),
-    enabled: readStoredBoolean(config.enabled, DEFAULT_OMP_PROVIDER_SETTINGS.enabled),
+    enabled: isOmpProviderEnabled(settings),
     environmentHash: readStoredString(
       config.environmentHash,
       DEFAULT_OMP_PROVIDER_SETTINGS.environmentHash,

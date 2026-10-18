@@ -49,6 +49,9 @@ interface PreparedAction {
 export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
   private readonly snapshots = new Map<ProviderId, ProviderCliSnapshot>();
   private readonly checks = new Map<ProviderId, Promise<ProviderCliSnapshot>>();
+  private readonly readinessChecks = new Map<ProviderId, Promise<ProviderCliSnapshot>>();
+  private readonly updateTargets = new Map<ProviderId, boolean>();
+  private readonly latestVersions = new Map<string, { checkedAt: number; value: Promise<string | null> }>();
   private readonly listeners = new Set<(snapshot: ProviderCliSnapshot) => void>();
   private readonly plans = new WeakMap<ProviderCliActionPlan, PreparedAction>();
   private readonly busy = new Set<ProviderId>();
@@ -74,14 +77,13 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     return () => this.listeners.delete(listener);
   }
 
-  async check(id: ProviderId, options: { force?: boolean } = {}): Promise<ProviderCliSnapshot> {
+  async check(id: ProviderId, options: { force?: boolean; includeLatestVersion?: boolean } = {}): Promise<ProviderCliSnapshot> {
     this.assertAvailable();
     const current = this.getSnapshot(id);
     if (this.busy.has(id) && current) return Promise.resolve(current);
+    if (options.includeLatestVersion === false) return this.checkReadiness(id, options.force === true);
     const pending = this.checks.get(id);
     if (pending) return pending;
-    if (!options.force && current && current.status !== 'checking'
-      && this.now() - current.checkedAt < 30_000) return Promise.resolve(current);
     const work = this.inspect(id, options.force === true).finally(() => this.checks.delete(id));
     this.checks.set(id, work);
     return work;
@@ -212,9 +214,39 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     this.disposed = true;
     this.abort.abort();
     this.listeners.clear();
+    this.latestVersions.clear();
+    this.updateTargets.clear();
   }
 
-  private async inspect(id: ProviderId, reset: boolean): Promise<ProviderCliSnapshot> {
+  private async inspect(id: ProviderId, force: boolean): Promise<ProviderCliSnapshot> {
+    const snapshot = await this.checkReadiness(id, force, false);
+    if (this.busy.has(id)) return this.getSnapshot(id) ?? snapshot;
+    const owner = this.snapshots.get(id);
+    const latestVersion = await this.latest(this.entry(id).metadata, snapshot.version, force);
+    this.assertAvailable();
+    // A newer probe or operation owns publication after it replaces this snapshot.
+    if (this.snapshots.get(id) !== owner) return this.getSnapshot(id) ?? snapshot;
+    const canUpdate = (this.updateTargets.get(id) ?? false) && isUpdateAvailable(snapshot.version, latestVersion);
+    if (owner?.status !== 'checking' && owner?.latestVersion === latestVersion && owner?.canUpdate === canUpdate) {
+      return this.getSnapshot(id) ?? snapshot;
+    }
+    this.publish({ ...snapshot, latestVersion, canUpdate });
+    return this.getSnapshot(id) ?? snapshot;
+  }
+
+  private async checkReadiness(id: ProviderId, force: boolean, publishResult = true): Promise<ProviderCliSnapshot> {
+    const current = this.getSnapshot(id);
+    if (this.busy.has(id) && current) return current;
+    const pending = this.readinessChecks.get(id);
+    if (pending) return pending;
+    if (!force && current && current.status !== 'checking'
+      && this.now() - current.checkedAt < 30_000) return current;
+    const work = this.inspectReadiness(id, force, publishResult).finally(() => this.readinessChecks.delete(id));
+    this.readinessChecks.set(id, work);
+    return work;
+  }
+
+  private async inspectReadiness(id: ProviderId, reset: boolean, publishResult: boolean): Promise<ProviderCliSnapshot> {
     const previous = this.getSnapshot(id);
     const entry = this.entry(id);
     this.publish({
@@ -225,17 +257,17 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     });
     await this.options.prepareDetection?.({ force: reset, signal: this.abort.signal });
     this.assertAvailable();
-    // Expired probes must rediscover both cached hits and cached misses.
     await this.options.resetResolver(id);
-    const local = this.inspectTarget(id);
-    const latest = entry.metadata.latestVersionNpmPackagesByMajor
-      ? local.then(value => this.latest(entry.metadata, value.version))
-      : this.latest(entry.metadata, previous?.version ?? null);
-    const [snapshot, latestVersion] = await Promise.all([local, latest]);
-    snapshot.latestVersion = latestVersion;
+    const snapshot = await this.inspectTarget(id);
+    this.assertAvailable();
+    snapshot.latestVersion = previous?.latestVersion ?? null;
     snapshot.operation = previous?.operation;
-    this.publish(snapshot);
-    return this.getSnapshot(id) ?? snapshot;
+    if (publishResult) {
+      this.publish(snapshot);
+      return this.getSnapshot(id) ?? snapshot;
+    }
+    snapshot.canUpdate = snapshot.canUpdate && isUpdateAvailable(snapshot.version, snapshot.latestVersion);
+    return snapshot;
   }
 
   private async inspectTarget(id: ProviderId, context?: ProviderTransitionOwnerContext): Promise<ProviderCliSnapshot> {
@@ -248,6 +280,7 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     try {
       const target = await this.options.resolveTarget(id, context);
       if (!target) {
+        this.updateTargets.set(id, false);
         snapshot.canInstall = Boolean(await this.options.resolveInstall(id));
         return snapshot;
       }
@@ -281,14 +314,19 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
       snapshot.error = this.message(error);
     }
     snapshot.checkedAt = this.now();
+    this.updateTargets.set(id, snapshot.canUpdate);
     return snapshot;
   }
 
-  private async latest(metadata: CliProviderMetadata, version: string | null): Promise<string | null> {
+  private async latest(metadata: CliProviderMetadata, version: string | null, force: boolean): Promise<string | null> {
     const major = version ? Number(version.split('.')[0]) : null;
     const packageName = (major === null ? null : metadata.latestVersionNpmPackagesByMajor?.[major]) ?? metadata.npmPackage;
     if (!packageName) return null;
-    return this.options.latestVersion(packageName).catch(() => null);
+    const cached = this.latestVersions.get(packageName);
+    if (!force && cached && this.now() - cached.checkedAt < 15 * 60_000) return cached.value;
+    const value = this.options.latestVersion(packageName).catch(() => null);
+    this.latestVersions.set(packageName, { checkedAt: this.now(), value });
+    return value;
   }
 
   private publish(snapshot: ProviderCliSnapshot): void {

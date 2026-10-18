@@ -376,8 +376,12 @@ export default class ClaudianPlugin extends Plugin {
       });
 
       this.addSettingTab(new ClaudianSettingTab(this.app, this));
+      const cliAvailability = new Map<ProviderId, string>();
       this.cliLifecycle.subscribe(snapshot => {
         if (this.isUnloading || snapshot.status === 'checking') return;
+        const availability = JSON.stringify([snapshot.status, snapshot.path, snapshot.enabled]);
+        if (cliAvailability.get(snapshot.providerId) === availability) return;
+        cliAvailability.set(snapshot.providerId, availability);
         for (const view of this.getAllViews()) view.refreshModelSelector(snapshot.providerId);
       });
       this.app.workspace.onLayoutReady(() => {

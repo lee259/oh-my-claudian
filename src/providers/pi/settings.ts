@@ -123,6 +123,11 @@ export function normalizePiPreferredThinkingByModel(
   );
 }
 
+/** Reads availability without decoding the model catalog. */
+export function isPiProviderEnabled(settings: Record<string, unknown>): boolean {
+  return readStoredBoolean(getProviderConfig(settings, 'pi').enabled, DEFAULT_PI_PROVIDER_SETTINGS.enabled);
+}
+
 export function getPiProviderSettings(settings: Record<string, unknown>): PiProviderSettings {
   const config = getProviderConfig(settings, 'pi');
   const cliPathsByHost = normalizeHostnameStringMap(config.cliPathsByHost);
@@ -135,7 +140,7 @@ export function getPiProviderSettings(settings: Record<string, unknown>): PiProv
     cliPathsByHost,
     catalogTimestamp: typeof config.catalogTimestamp === 'number' ? config.catalogTimestamp : 0,
     discoveredModels,
-    enabled: readStoredBoolean(config.enabled, DEFAULT_PI_PROVIDER_SETTINGS.enabled),
+    enabled: isPiProviderEnabled(settings),
     environmentHash: readStoredString(
       config.environmentHash,
       DEFAULT_PI_PROVIDER_SETTINGS.environmentHash,
