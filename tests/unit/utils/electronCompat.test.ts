@@ -13,6 +13,25 @@ describe('patchSetMaxListenersForElectron', () => {
     events.setMaxListeners = originalSetMaxListeners;
   });
 
+  it.each([-1, NaN, '50', null])('preserves the native error for an invalid listener limit (%p)', (limit) => {
+    const fakeSignal = { aborted: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    let nativeError: Error | undefined;
+    try {
+      originalSetMaxListeners(limit, fakeSignal);
+    } catch (error) {
+      nativeError = error as Error;
+    }
+    expect(nativeError).toBeDefined();
+    patchSetMaxListenersForElectron();
+    expect(() => events.setMaxListeners(limit, fakeSignal)).toThrow(nativeError!.message);
+  });
+
+  it.each([undefined, 0, 50, Infinity])('keeps cross-realm compatibility for valid listener limits (%p)', (limit) => {
+    const fakeSignal = { aborted: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    patchSetMaxListenersForElectron();
+    expect(() => events.setMaxListeners(limit, fakeSignal)).not.toThrow();
+  });
+
   it('should not throw when setMaxListeners receives a browser-like AbortSignal', () => {
     patchSetMaxListenersForElectron();
 

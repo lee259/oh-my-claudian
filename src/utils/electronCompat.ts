@@ -40,8 +40,10 @@ export function patchSetMaxListenersForElectron(): void {
     } catch (error) {
       // Only swallow the Electron cross-realm AbortSignal error.
       // Duck-type check avoids depending on Node.js internal error message text.
+      const limit = args[0];
       const eventTargets = args.slice(1);
-      if (eventTargets.length > 0 && eventTargets.every(isAbortSignalLike)) {
+      if ((limit === undefined || (typeof limit === 'number' && limit >= 0)) &&
+        eventTargets.length > 0 && eventTargets.every(isAbortSignalLike)) {
         return;
       }
       throw error;
