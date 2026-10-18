@@ -1,5 +1,5 @@
 /** A consumed native task notification keeps its task identity across live and replay paths. */
-export function parseClaudeTaskNotification(content: unknown): { taskId: string; content: string } | null {
+export function parseClaudeTaskNotification(content: unknown): { taskId: string; content: string; hasResult: boolean } | null {
   const textBlocks = (blocks: unknown[]): string => blocks
     .filter(isNonemptyTextBlock)
     .map(block => block.text)
@@ -16,6 +16,7 @@ export function parseClaudeTaskNotification(content: unknown): { taskId: string;
   if (!taskId || !status) return null;
   return {
     taskId,
+    hasResult: extractXmlTag(text, 'result') !== null,
     content: extractXmlTag(text, 'result') ?? extractXmlTag(text, 'summary') ?? `Background task ${status}.`,
   };
 }

@@ -607,7 +607,10 @@ export interface ProviderConversationHistoryService {
   /** Projects provider state for persistence without mutating live state or native history. */
   buildPersistedProviderState?(
     conversation: Conversation,
-    options?: { preserveProviderState?: boolean },
+    options?: {
+      preserveProviderState?: boolean;
+      getNativeHistory?: () => { vaultPath: string | null; pathContext?: ProviderHistoryPathContext };
+    },
   ): Record<string, unknown> | undefined;
 }
 

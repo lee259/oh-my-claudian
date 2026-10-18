@@ -1743,8 +1743,12 @@ export class ConversationRepository {
     const historyService = ProviderRegistry.getConversationHistoryService(
       conversation.providerId,
     );
+    const getNativeHistory = () => {
+      const vaultPath = this.deps.getVaultPath();
+      return { vaultPath, pathContext: this.getHistoryPathContext(conversation.providerId, vaultPath) };
+    };
     const providerState = historyService.buildPersistedProviderState
-      ? historyService.buildPersistedProviderState(conversation, options)
+      ? historyService.buildPersistedProviderState(conversation, { ...options, getNativeHistory })
       : conversation.providerState;
     const modelRecoverySource = !getStoredModelSelection(conversation.selectedModel)
       && conversation.modelRecoverySource
@@ -1758,7 +1762,7 @@ export class ConversationRepository {
           providerState: modelRecoverySource.providerState,
           messages: [],
         },
-        { preserveProviderState: true },
+        { preserveProviderState: true, getNativeHistory },
       );
     }
     return {
