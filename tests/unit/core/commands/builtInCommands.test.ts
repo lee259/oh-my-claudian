@@ -9,6 +9,23 @@ import {
 
 describe('builtInCommands', () => {
   describe('detectBuiltInCommand', () => {
+    it.each(['\n', '\r', '\u2028', '\u2029'])(
+      'leaves multiline prompts containing %p to provider execution', (separator) => {
+        expect(detectBuiltInCommand(`/clear${separator}Explain this command`)).toBeNull();
+        expect(detectBuiltInCommand(`/clear line one${separator}line two`)).toBeNull();
+        expect(detectBuiltInCommand(`/add-dir${separator}/tmp/context`)).toBeNull();
+        expect(detectBuiltInCommand(`/fast${separator}Explain this command`, 'codex')).toBeNull();
+      },
+    );
+
+    it('keeps single-line arguments and tolerates surrounding line breaks', () => {
+      expect(detectBuiltInCommand('\n/clear\n')?.command.action).toBe('clear');
+      expect(detectBuiltInCommand('/add-dir\t/tmp/context')?.args).toBe('/tmp/context');
+      expect(detectBuiltInCommand('/clear Explain this command')?.args).toBe('Explain this command');
+      expect(detectBuiltInCommand('/fast', 'claude')).toBeNull();
+      expect(detectBuiltInCommand('/fast', 'codex')?.command.action).toBe('fast');
+    });
+
     it('detects /clear command', () => {
       const result = detectBuiltInCommand('/clear');
       expect(result).not.toBeNull();
