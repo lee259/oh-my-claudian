@@ -268,3 +268,36 @@ describe('i18n', () => {
     });
   });
 });
+
+describe('untrusted locale values', () => {
+  afterEach(() => { setLocale('en'); });
+
+  it.each(['constructor', '__proto__', 'toString', 'valueOf', 'invalid'])(
+    'rejects %s without changing the current locale', (value) => {
+      setLocale('de');
+      expect(setLocale(value as Locale)).toBe(false);
+      expect(getLocale()).toBe('de');
+      expect(getLocaleDisplayName(value as Locale)).toBe(value);
+      expect(typeof t('common.save')).toBe('string');
+    },
+  );
+
+  it('falls back past inherited Obsidian language aliases', () => {
+    expect(resolveLocale('constructor', 'zh-Hant')).toBe('zh-TW');
+    expect(resolveLocale('', 'constructor')).toBe('en');
+    expect(resolveLocale('constructor', 'constructor')).toBe('en');
+  });
+
+  it.each([
+    ['zh', 'zh-CN'], ['ZH_hans', 'zh-CN'], ['zh-Hant', 'zh-TW'], ['pt-BR', 'pt'],
+  ])('preserves supported Obsidian aliases and variants (%s)', (input, expected) => {
+    expect(resolveLocale('', input)).toBe(expected);
+  });
+
+  it.each(getAvailableLocales())('still loads every supported locale (%s)', (locale) => {
+    expect(setLocale(locale)).toBe(true);
+    expect(getLocale()).toBe(locale);
+    expect(typeof getLocaleDisplayName(locale)).toBe('string');
+    expect(typeof t('common.save')).toBe('string');
+  });
+});
