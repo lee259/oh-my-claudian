@@ -2108,3 +2108,24 @@ describe('ConversationRepository deletion, fork, and rewind persistence', () => 
     })).rejects.toThrow('Conversation ID is permanently deleted');
   });
 });
+
+it('passes native history context lazily to the provider save projection', async () => {
+  const conversation = createConversation();
+  const projected = { providerSessionId: 'native-session' };
+  const buildPersistedProviderState = jest.fn((_conversation, options) => {
+    expect(options.getNativeHistory()).toMatchObject({ vaultPath: '/vault' });
+    return projected;
+  });
+  const spy = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+    hydrateConversationHistory: jest.fn(), buildPersistedProviderState,
+    resolveSessionIdForConversation: jest.fn(),
+    isPendingForkConversation: jest.fn(),
+    buildForkProviderState: jest.fn(),
+  });
+  try {
+    const { repository, persistence } = createRepository(conversation);
+    await repository.persistConversations([conversation]);
+    expect(buildPersistedProviderState).toHaveBeenCalledTimes(1);
+    expect(persistence.saveMetadata).toHaveBeenCalledWith(expect.objectContaining({ providerState: projected }));
+  } finally { spy.mockRestore(); }
+});

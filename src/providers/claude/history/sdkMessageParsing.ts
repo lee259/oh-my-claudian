@@ -308,7 +308,8 @@ export function collectAsyncSubagentResults(
 
     const taskId = extractXmlTag(sdkMsg.content, 'task-id');
     const status = extractXmlTag(sdkMsg.content, 'status');
-    const result = extractXmlTag(sdkMsg.content, 'result');
+    const fullResult = extractXmlTag(sdkMsg.content, 'result');
+    const result = fullResult ?? extractXmlTag(sdkMsg.content, 'summary');
     if (!taskId || !result) {
       continue;
     }
@@ -316,6 +317,7 @@ export function collectAsyncSubagentResults(
     results.set(taskId, {
       result,
       status: status ?? 'completed',
+      summaryOnly: fullResult === null,
     });
   }
 
@@ -411,34 +413,16 @@ export function mergeAssistantMessage(target: ChatMessage, source: ChatMessage):
 }
 
 export function hydrateStructuredToolResults(messages: ChatMessage[], toolUseResults: Map<string, unknown>): void {
-  if (toolUseResults.size === 0) {
-    return;
+  for (const message of messages) {
+    for (const toolCall of message.toolCalls ?? []) hydrateStructuredToolResult(toolCall, toolUseResults.get(toolCall.id));
   }
+}
 
-  for (const msg of messages) {
-    if (msg.role !== 'assistant' || !msg.toolCalls) {
-      continue;
-    }
-
-    for (const toolCall of msg.toolCalls) {
-      const toolUseResult = toolUseResults.get(toolCall.id);
-      if (!toolUseResult) {
-        continue;
-      }
-
-      if (!toolCall.diffData) {
-        toolCall.diffData = extractDiffData(toolUseResult, toolCall);
-      }
-
-      if (toolCall.name === TOOL_ASK_USER_QUESTION) {
-        const answers =
-          extractResolvedAnswers(toolUseResult) ??
-          extractResolvedAnswersFromResultText(toolCall.result);
-        if (answers) {
-          toolCall.resolvedAnswers = answers;
-        }
-      }
-    }
+export function hydrateStructuredToolResult(toolCall: ToolCallInfo, toolUseResult: unknown): void {
+  if (toolUseResult && !toolCall.diffData) toolCall.diffData = extractDiffData(toolUseResult, toolCall);
+  if (toolCall.name === TOOL_ASK_USER_QUESTION && !toolCall.resolvedAnswers) {
+    const answers = extractResolvedAnswers(toolUseResult) ?? extractResolvedAnswersFromResultText(toolCall.result);
+    if (answers) toolCall.resolvedAnswers = answers;
   }
 }
 
