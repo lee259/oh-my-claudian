@@ -1002,6 +1002,20 @@ describe('parseContextLimit', () => {
 });
 
 describe('formatContextLimit', () => {
+  it.each(['de-DE', 'fr-FR', 'ar-EG'])(
+    'keeps saved context limits parseable when the system locale is %s', (locale) => {
+      const original = Number.prototype.toLocaleString;
+      const spy = jest.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (this: number, locales, options) {
+        return original.call(this, locales ?? locale, options);
+      });
+      try {
+        expect(parseContextLimit(formatContextLimit(32768))).toBe(32768);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
   it('should format 256000 as "256k"', () => {
     expect(formatContextLimit(256000)).toBe('256k');
   });

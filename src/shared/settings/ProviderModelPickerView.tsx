@@ -11,6 +11,44 @@ import type {
 
 const ALL_PROVIDERS_KEY = 'all';
 
+function ModelAliasInput({
+  savedValue, defaultLabel, onCommit,
+}: {
+  savedValue: string;
+  defaultLabel: string;
+  onCommit(this: void, value: string): Promise<void>;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      className="claudian-provider-model-picker-selected-alias"
+      type="text"
+      placeholder={defaultLabel}
+      value={draft ?? savedValue}
+      aria-label={t('settings.customModelAliases.ariaLabel', { model: defaultLabel })}
+      title={t('settings.customModelAliases.ariaDescription')}
+      onInput={event => setDraft(event.currentTarget.value)}
+      onBlur={event => {
+        const submitted = event.currentTarget.value;
+        void onCommit(submitted).then(() => {
+          setDraft(current => current === submitted ? null : current);
+        });
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          setDraft(null);
+          event.currentTarget.value = savedValue;
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 export interface ProviderModelPickerViewProps {
   options: ProviderModelPickerOptions;
   state: ProviderModelPickerState;
@@ -167,24 +205,10 @@ export function ProviderModelPickerView({
         <div className="claudian-provider-model-picker-selected-controls">
           <label className="claudian-provider-model-picker-selected-alias-field">
             <span className="claudian-provider-model-picker-selected-alias-label">{t('settings.modelPicker.aliasLabel')}</span>
-            <input
-              className="claudian-provider-model-picker-selected-alias"
-              type="text"
-              placeholder={defaultLabel}
-              value={state.aliases[model.id] ?? ''}
-              aria-label={t('settings.customModelAliases.ariaLabel', { model: defaultLabel })}
-              title={t('settings.customModelAliases.ariaDescription')}
-              onBlur={(event) => void persistAlias(model.id, event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  event.currentTarget.blur();
-                } else if (event.key === 'Escape') {
-                  event.preventDefault();
-                  event.currentTarget.value = state.aliases[model.id] ?? '';
-                  event.currentTarget.blur();
-                }
-              }}
+            <ModelAliasInput
+              savedValue={state.aliases[model.id] ?? ''}
+              defaultLabel={defaultLabel}
+              onCommit={value => persistAlias(model.id, value)}
             />
           </label>
           <button
