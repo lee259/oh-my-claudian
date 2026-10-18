@@ -68,6 +68,10 @@ export function parseTitleGenerationResponse(responseText: string): string | nul
 
   title = title.replace(/[.!?:;,]+$/, '');
 
+  if (!/[^\s.!?:;,]/.test(title)) {
+    return null;
+  }
+
   if (title.length > MAX_TITLE_LENGTH) {
     title = `${title.slice(0, MAX_TITLE_LENGTH - 3)}...`;
   }
