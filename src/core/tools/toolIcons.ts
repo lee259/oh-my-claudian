@@ -74,5 +74,5 @@ export function getToolIcon(toolName: string): string {
   if (toolName.startsWith('mcp__')) {
     return MCP_ICON_MARKER;
   }
-  return TOOL_ICONS[toolName] || 'wrench';
+  return Object.hasOwn(TOOL_ICONS, toolName) ? TOOL_ICONS[toolName] : 'wrench';
 }

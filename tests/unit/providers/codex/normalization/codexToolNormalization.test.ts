@@ -44,6 +44,12 @@ describe('normalizeCodexToolName', () => {
     expect(normalizeCodexToolName('custom_tool')).toBe('custom_tool');
   });
 
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'preserves the custom tool name %s', (name) => {
+      expect(normalizeCodexToolName(name)).toBe(name);
+    },
+  );
+
   it('returns "tool" for undefined', () => {
     expect(normalizeCodexToolName(undefined)).toBe('tool');
   });
