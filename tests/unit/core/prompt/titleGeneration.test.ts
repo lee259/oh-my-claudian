@@ -1,10 +1,23 @@
 import {
   buildTitleGenerationSystemPrompt,
+  parseTitleGenerationResponse,
   resolveTitleGenerationLocale,
   TITLE_GENERATION_SYSTEM_PROMPT,
 } from '@/core/prompt/titleGeneration';
 
 describe('titleGeneration', () => {
+  it.each(['"   "', "'\t'", '" . ! ? "', "' ; , : '"])(
+    'rejects a generated title with only quoted whitespace or punctuation: %j', (response) => {
+      expect(parseTitleGenerationResponse(response)).toBeNull();
+    },
+  );
+
+  it.each(['修复登录问题', '🎉', '优化 API', '設定を更新'])(
+    'retains meaningful generated titles in any language: %s', (title) => {
+      expect(parseTitleGenerationResponse(`"${title}"`)).toBe(title);
+    },
+  );
+
   it('exports a non-empty default system prompt string', () => {
     expect(typeof TITLE_GENERATION_SYSTEM_PROMPT).toBe('string');
     expect(TITLE_GENERATION_SYSTEM_PROMPT.length).toBeGreaterThan(0);
