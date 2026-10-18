@@ -731,6 +731,36 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('WebSearch expanded rendering', () => {
+    it('keeps valid links and the summary when neighboring result entries are malformed', () => {
+      const toolCall = createToolCall({
+        name: 'WebSearch',
+        status: 'completed',
+        input: { query: 'docs' },
+        result: `Links: ${JSON.stringify([
+          null, 42, 'scalar', ['Array title', 'https://array.example.com/'],
+          { title: 'First', url: 'https://first.example.com/' },
+          { title: 'Invalid URL', url: 42 },
+          { title: 7, url: 'https://invalid-title.example.com/' },
+          { url: 'https://missing-title.example.com/' },
+          { title: '', url: 'https://empty-title.example.com/' },
+          { title: 'Missing URL' },
+          { title: 'Empty URL', url: '' },
+          { title: 'Second', url: 'https://second.example.com/' },
+        ])}\nSearch summary`,
+      });
+
+      const toolEl = renderStoredToolCall(createMockEl(), toolCall);
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+      const links = Array.from(toolEl.querySelectorAll('.claudian-tool-link'));
+
+      expect(links.map(link => link.getAttribute('href'))).toEqual([
+        'https://first.example.com/', 'https://second.example.com/',
+      ]);
+      expect(links.map(link => link.querySelector('.claudian-tool-link-title')?.textContent))
+        .toEqual(['First', 'Second']);
+      expect(toolEl.querySelector('.claudian-tool-web-summary')?.textContent).toBe('Search summary');
+    });
+
     it('renders every operation from a mixed Codex web call', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
