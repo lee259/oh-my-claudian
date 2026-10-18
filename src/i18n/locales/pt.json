@@ -731,6 +731,8 @@
         "cancel": "Cancelar"
       },
       "insert": "Inserir",
+      "saveFailed": "Não foi possível salvar o trecho de ambiente",
+      "updateFailed": "Não foi possível atualizar o trecho de ambiente",
       "insertFailed": "Falha ao inserir o snippet",
       "deleteConfirm": "Excluir o snippet de ambiente \"{name}\"?",
       "deleteFailed": "Falha ao excluir o snippet"

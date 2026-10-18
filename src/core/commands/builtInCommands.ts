@@ -138,6 +138,7 @@ export function detectBuiltInCommand(
   context?: BuiltInCommandSupportContext,
 ): BuiltInCommandResult | null {
   const trimmed = input.trim();
+  if (/[\r\n\u2028\u2029]/.test(trimmed)) return null;
   if (!trimmed.startsWith('/')) return null;
 
   // Extract command name (first word after /)
