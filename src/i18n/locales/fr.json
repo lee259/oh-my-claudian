@@ -731,6 +731,8 @@
         "cancel": "Annuler"
       },
       "insert": "Insérer",
+      "saveFailed": "Impossible d’enregistrer l’extrait d’environnement",
+      "updateFailed": "Impossible de mettre à jour l’extrait d’environnement",
       "insertFailed": "Impossible d'insérer le snippet",
       "deleteConfirm": "Supprimer le snippet d'environnement « {name} » ?",
       "deleteFailed": "Impossible de supprimer le snippet"
