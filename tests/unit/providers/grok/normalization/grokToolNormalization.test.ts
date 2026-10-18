@@ -6,6 +6,14 @@ import {
 } from '@/providers/grok/normalization/grokToolNormalization';
 
 describe('grokToolNormalization', () => {
+  it('keeps an own prototype-named id when normalizing a Grok question result', () => {
+    const result = normalizeGrokToolUseResult('ask_user_question', {
+      questions: [{ id: '__proto__', question: 'Continue?' }],
+    }, { userAnswered: { message: 'Yes' } });
+    expect(result.answers && Object.hasOwn(result.answers, '__proto__')).toBe(true);
+    expect(result.answers?.__proto__).toBe('Yes');
+  });
+
   it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
     'preserves the custom tool name %s and its payload', (name) => {
       const rawInput = { custom: true };
