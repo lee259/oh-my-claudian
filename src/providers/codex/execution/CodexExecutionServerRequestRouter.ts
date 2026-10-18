@@ -297,14 +297,13 @@ export class CodexExecutionServerRequestRouter {
         return { answers: {} };
       }
 
-      const answers: UserInputResponse['answers'] = {};
-      for (const [key, value] of Object.entries(response.answers)) {
-        answers[key] = {
+      const answers: UserInputResponse['answers'] = Object.fromEntries(
+        Object.entries(response.answers).map(([key, value]) => [key, {
           answers: (Array.isArray(value) ? value : [value])
             .map(answer => String(answer))
             .filter(answer => answer.trim().length > 0),
-        };
-      }
+        }]),
+      );
       return { answers };
     } finally {
       this.removePending(pending);

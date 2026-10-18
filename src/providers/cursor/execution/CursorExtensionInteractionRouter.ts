@@ -66,10 +66,12 @@ export class CursorExtensionInteractionRouter {
       }
       reason = 'resolved';
       if (!response.answers) return { outcome: { outcome: 'cancelled' } };
+      const answers = response.answers;
       return {
         outcome: {
           answers: request.questions.flatMap(question => {
-            const answer = response.answers?.[question.id] ?? response.answers?.[question.prompt];
+            const answer = (Object.hasOwn(answers, question.id) ? answers[question.id] : undefined)
+              ?? (Object.hasOwn(answers, question.prompt) ? answers[question.prompt] : undefined);
             if (answer === undefined) return [];
             const values = Array.isArray(answer) ? answer : [answer];
             return [{ questionId: question.id, selectedOptionIds: values }];

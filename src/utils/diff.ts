@@ -185,7 +185,7 @@ export function diffFromToolInput(toolCall: ToolCallInfo, filePath: string): Too
   if (toolCall.name === 'Write') {
     const content = toolCall.input.content;
     if (typeof content === 'string') {
-      const newLines = content.split('\n');
+      const newLines = splitReplacementLines(content);
       const diffLines: DiffLine[] = newLines.map((text, i) => ({
         type: 'insert',
         text,
@@ -272,7 +272,10 @@ function buildReplacementDiffLines(pairs: ReplacementPair[]): DiffLine[] {
 }
 
 function splitReplacementLines(text: string): string[] {
-  return text === '' ? [] : text.split('\n');
+  if (text === '') return [];
+  const lines = text.split('\n');
+  if (text.endsWith('\n')) lines.pop();
+  return lines;
 }
 
 function buildApplyPatchFileDiff(current: {

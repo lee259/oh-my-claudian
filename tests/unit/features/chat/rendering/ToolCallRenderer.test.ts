@@ -54,6 +54,27 @@ describe('ToolCallRenderer', () => {
       .toEqual(['1→first', '2→second']);
   });
 
+  it('uses an own question-text answer when the question id is an inherited property name', () => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'AskUserQuestion', status: 'completed',
+      input: { questions: [{ id: 'constructor', question: 'Continue?' }] },
+      resolvedAnswers: { 'Continue?': 'Yes' },
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(toolEl.querySelector('.claudian-ask-review-a-text')?.textContent).toBe('Yes');
+  });
+
+  it('does not display inherited values as submitted answers', () => {
+    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+      name: 'AskUserQuestion', status: 'completed',
+      input: { questions: [{ id: 'question', question: 'Continue?' }] },
+      resolvedAnswers: Object.create({ question: 'Inherited answer' }),
+    }));
+    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    expect(toolEl.querySelector('.claudian-ask-review-a-text')).toBeNull();
+    expect(toolEl.querySelector('.claudian-ask-review-empty')?.textContent).toBe('Not answered');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

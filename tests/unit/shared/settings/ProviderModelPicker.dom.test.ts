@@ -19,6 +19,9 @@ jest.mock('obsidian', () => ({
   },
 }));
 
+import { waitFor } from '@testing-library/dom';
+import { act } from 'preact/test-utils';
+
 import { type ProviderModelPickerState,renderProviderModelPicker } from '@/shared/settings/ProviderModelPicker';
 
 beforeAll(() => {
@@ -47,6 +50,69 @@ function createPickerState(): ProviderModelPickerState {
 }
 
 describe('ProviderModelPicker public renderer', () => {
+  it('retains a focused alias draft and caret across refresh, then saves on Enter', async () => {
+    const container = document.body.appendChild(document.createElement('div'));
+    const state = createPickerState();
+    const onAliasesChange = jest.fn(async aliases => { state.aliases = aliases; });
+    const picker = renderProviderModelPicker({
+      container, emptyCatalogText: 'empty', failedCatalogText: 'failed', getState: () => state,
+      loadCatalog: async () => 'loaded', loadingCatalogText: 'loading', modifier: 'test',
+      onAliasesChange, onSelectedIdsChange: async () => {}, providerName: 'Test',
+    });
+    try {
+      const alias = container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-selected-alias')!;
+      await act(async () => {
+        alias.focus();
+        alias.value = ' My draft ';
+        alias.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      alias.setSelectionRange(2, 5, 'backward');
+      picker.refresh();
+      expect(document.activeElement).toBe(alias);
+      expect(alias.value).toBe(' My draft ');
+      expect([alias.selectionStart, alias.selectionEnd, alias.selectionDirection]).toEqual([2, 5, 'backward']);
+      expect(onAliasesChange).not.toHaveBeenCalled();
+      await act(async () => {
+        alias.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      });
+      expect(onAliasesChange).toHaveBeenCalledWith({ 'claude-sonnet': 'My draft' });
+      await waitFor(() => expect(alias.value).toBe('My draft'));
+    } finally {
+      picker.dispose(); container.remove();
+    }
+  });
+
+  it('cancels the refreshed alias draft on Escape and follows later saved aliases', async () => {
+    const container = document.body.appendChild(document.createElement('div'));
+    const state = createPickerState();
+    state.aliases = { 'claude-sonnet': 'Original' };
+    const onAliasesChange = jest.fn(async () => {});
+    const picker = renderProviderModelPicker({
+      container, emptyCatalogText: 'empty', failedCatalogText: 'failed', getState: () => state,
+      loadCatalog: async () => 'loaded', loadingCatalogText: 'loading', modifier: 'test',
+      onAliasesChange, onSelectedIdsChange: async () => {}, providerName: 'Test',
+    });
+    try {
+      const alias = container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-selected-alias')!;
+      await act(async () => {
+        alias.focus(); alias.value = 'Discard me';
+        alias.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      picker.refresh();
+      expect(alias.value).toBe('Discard me');
+      await act(async () => {
+        alias.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(alias.value).toBe('Original');
+      expect(onAliasesChange).not.toHaveBeenCalled();
+      state.aliases = { 'claude-sonnet': 'External update' };
+      picker.refresh();
+      expect(alias.value).toBe('External update');
+    } finally {
+      picker.dispose(); container.remove();
+    }
+  });
+
   it('filters the catalog by search text and provider', async () => {
     const container = document.createElement('div');
     const state = createPickerState();

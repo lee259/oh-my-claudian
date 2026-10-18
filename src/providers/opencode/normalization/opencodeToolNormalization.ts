@@ -224,9 +224,9 @@ function normalizeQuestionAnswers(
     }
 
     const normalizedValue = values.length === 1 ? values[0] : values;
-    answers[question.question] = normalizedValue;
+    Object.defineProperty(answers, question.question, { value: normalizedValue, enumerable: true, writable: true, configurable: true });
     if (question.id) {
-      answers[question.id] = normalizedValue;
+      Object.defineProperty(answers, question.id, { value: normalizedValue, enumerable: true, writable: true, configurable: true });
     }
   }
 
