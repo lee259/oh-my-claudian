@@ -6,6 +6,21 @@ import {
 } from '@/providers/grok/normalization/grokToolNormalization';
 
 describe('grokToolNormalization', () => {
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'preserves the custom tool name %s and its payload', (name) => {
+      const rawInput = { custom: true };
+      const rawOutput = { result: 'done' };
+      expect(normalizeGrokToolCall({ title: name, rawInput, rawOutput })).toEqual({
+        input: rawInput, name, output: JSON.stringify(rawOutput), rawInput, rawName: name, rawOutput,
+      });
+    },
+  );
+
+  it('preserves the casing of a custom title that resembles an inherited tool name', () => {
+    expect(resolveGrokRawToolName(undefined, { title: 'Constructor' }))
+      .toEqual({ provenance: 'title', rawName: 'Constructor' });
+  });
+
   it.each([
     ['run_terminal_command', 'Bash'],
     ['get_terminal_command_output', 'BashOutput'],

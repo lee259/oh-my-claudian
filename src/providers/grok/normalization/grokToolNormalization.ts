@@ -80,7 +80,7 @@ export function normalizeGrokToolName(rawName: string): string {
   if (GROK_SUBAGENT_LIFECYCLE_TOOL_NAMES.has(lookup)) {
     return normalized || 'tool';
   }
-  return GROK_TOOL_NAME_MAP[lookup] ?? (normalized || 'tool');
+  return Object.hasOwn(GROK_TOOL_NAME_MAP, lookup) ? GROK_TOOL_NAME_MAP[lookup] : (normalized || 'tool');
 }
 
 export function resolveGrokRawToolName(
@@ -95,7 +95,7 @@ export function resolveGrokRawToolName(
   if (
     normalizedTitle
     && (
-      normalizedTitle in GROK_TOOL_NAME_MAP
+      Object.hasOwn(GROK_TOOL_NAME_MAP, normalizedTitle)
       || GROK_SUBAGENT_LIFECYCLE_TOOL_NAMES.has(normalizedTitle)
     )
   ) {
