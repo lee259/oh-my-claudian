@@ -32,7 +32,8 @@ export function normalizeImageMediaType(value: unknown): ImageMediaType | null {
     return null;
   }
 
-  return IMAGE_MEDIA_TYPES[value.trim().toLowerCase()] ?? null;
+  const key = value.trim().toLowerCase();
+  return Object.hasOwn(IMAGE_MEDIA_TYPES, key) ? IMAGE_MEDIA_TYPES[key] : null;
 }
 
 export function parseImageDataUri(value: unknown): ParsedImageDataUri | null {
