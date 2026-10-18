@@ -380,7 +380,7 @@
     "tabs": {
       "general": "Allgemein",
       "claude": "Claude Code",
-      "codex": "Codex CLI",
+      "codex": "Codex",
       "providers": "Anbieter"
     },
     "omp": {
@@ -829,15 +829,15 @@
     "codex": {
       "installationMethod": {
         "name": "Installationsmethode",
-        "desc": "Wie Oh My Claudian Codex CLI unter Windows starten soll. Native Windows verwendet einen Windows-Programmpfad. WSL startet die Linux-CLI in einer ausgewählten Distribution.",
+        "desc": "Wie Oh My Claudian Codex unter Windows starten soll. Native Windows verwendet einen Windows-Programmpfad. WSL startet die Linux-CLI in einer ausgewählten Distribution.",
         "nativeWindows": "Natives Windows",
         "wsl": "WSL"
       },
       "cliPath": {
-        "name": "Codex CLI-CLI-Pfad",
-        "descUnix": "Benutzerdefinierter Pfad zur lokalen Codex CLI-CLI. Leer lassen, um bekannte Codex CLI-Installationen und dann PATH zu bevorzugen.",
-        "descWindows": "Benutzerdefinierter Pfad zur lokalen Codex CLI-CLI. Leer lassen für automatische Erkennung über PATH. Verwende den nativen Windows-Programmpfad, normalerweise `codex.exe`.",
-        "descWsl": "Linux-seitiger Codex CLI-Befehl oder absoluter Pfad zur Ausführung in WSL. Leer lassen für PATH-Suche in der ausgewählten Distribution.",
+        "name": "Codex-Pfad",
+        "descUnix": "Benutzerdefinierter Pfad zur lokalen Codex. Leer lassen, um bekannte Codex-Installationen und dann PATH zu bevorzugen.",
+        "descWindows": "Benutzerdefinierter Pfad zur lokalen Codex. Leer lassen für automatische Erkennung über PATH. Verwende den nativen Windows-Programmpfad, normalerweise `codex.exe`.",
+        "descWsl": "Linux-seitiger Codex-Befehl oder absoluter Pfad zur Ausführung in WSL. Leer lassen für PATH-Suche in der ausgewählten Distribution.",
         "validation": {
           "wslWindowsPath": "Der WSL-Modus erwartet einen Linux-Befehl oder absoluten Linux-Pfad, keinen Windows-Programmpfad."
         }
@@ -852,7 +852,7 @@
       },
       "customModels": {
         "name": "Benutzerdefinierte Modelle",
-        "desc": "Füge zusätzliche Codex CLI-Modell-IDs zur Auswahl hinzu, eine pro Zeile. `OPENAI_MODEL` hat weiterhin Vorrang, wenn gesetzt.",
+        "desc": "Füge zusätzliche Codex-Modell-IDs zur Auswahl hinzu, eine pro Zeile. `OPENAI_MODEL` hat weiterhin Vorrang, wenn gesetzt.",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -865,27 +865,27 @@
       },
       "ultraEffort": {
         "name": "Ultra-Denktiefe aktivieren",
-        "desc": "Ultra in der Auswahl für Codex CLI-Modelle anzeigen, die es unterstützen. Ultra nutzt maximale Denktiefe mit automatischer Aufgabendelegation."
+        "desc": "Ultra in der Auswahl für Codex-Modelle anzeigen, die es unterstützen. Ultra nutzt maximale Denktiefe mit automatischer Aufgabendelegation."
       },
       "skills": {
-        "name": "Codex CLI-Fähigkeiten",
+        "name": "Codex-Fähigkeiten",
         "desc": "Gemeinsame Vault-weite Skills verwalten, die nur in .agents/skills/ gespeichert sind.",
         "hiddenName": "Ausgeblendete Fähigkeiten",
-        "hiddenDesc": "Blende bestimmte Codex CLI-Fähigkeiten aus dem Dropdown aus. Gib Fähigkeitsnamen ohne führendes $ ein, einen pro Zeile.",
+        "hiddenDesc": "Blende bestimmte Codex-Fähigkeiten aus dem Dropdown aus. Gib Fähigkeitsnamen ohne führendes $ ein, einen pro Zeile.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex CLI-Sub-Agenten",
-        "desc": "Verwalte Vault-Codex CLI-Sub-Agenten in .codex/agents/. Jede TOML-Datei definiert einen benutzerdefinierten Agenten."
+        "name": "Codex-Sub-Agenten",
+        "desc": "Verwalte Vault-Codex-Sub-Agenten in .codex/agents/. Jede TOML-Datei definiert einen benutzerdefinierten Agenten."
       },
       "mcp": {
-        "descBeforeCommand": "Codex CLI verwaltet MCP-Server über seine eigene CLI. Konfiguriere mit ",
+        "descBeforeCommand": "Codex verwaltet MCP-Server über seine eigene CLI. Konfiguriere mit ",
         "descAfterCommand": ", dann sind sie in Oh My Claudian verfügbar. ",
         "learnMore": "Mehr erfahren"
       },
       "environment": {
-        "name": "Codex CLI-Umgebung",
-        "desc": "Nur Codex CLI-eigene Laufzeitvariablen. Verwende dies für OPENAI_*- und CODEX_*-Einstellungen. Wenn die Codex CLI-Autoerkennung Hilfe braucht, füge das Installationsverzeichnis dem gemeinsamen PATH hinzu statt diesem Anbieterabschnitt."
+        "name": "Codex-Umgebung",
+        "desc": "Nur Codex-eigene Laufzeitvariablen. Verwende dies für OPENAI_*- und CODEX_*-Einstellungen. Wenn die Codex-Autoerkennung Hilfe braucht, füge das Installationsverzeichnis dem gemeinsamen PATH hinzu statt diesem Anbieterabschnitt."
       }
     },
     "agentSkills": {
@@ -926,8 +926,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Codex CLI-Fähigkeit bearbeiten",
-        "titleAdd": "Codex CLI-Fähigkeit hinzufügen",
+        "titleEdit": "Codex-Fähigkeit bearbeiten",
+        "titleAdd": "Codex-Fähigkeit hinzufügen",
         "directory": "Verzeichnis",
         "directoryDesc": "Speicherort der Fähigkeit",
         "skillName": "Name der Fähigkeit",
@@ -939,21 +939,21 @@
         "instructionsPlaceholder": "Analysiere den Code auf…"
       },
       "instructionsRequired": "Anweisungen sind erforderlich",
-      "saveFailed": "Codex CLI-Fähigkeit konnte nicht gespeichert werden",
-      "header": "Codex CLI-Fähigkeiten",
-      "noSkills": "Keine Codex CLI-Fähigkeiten im Vault. Klicke auf +, um eine zu erstellen.",
+      "saveFailed": "Codex-Fähigkeit konnte nicht gespeichert werden",
+      "header": "Codex-Fähigkeiten",
+      "noSkills": "Keine Codex-Fähigkeiten im Vault. Klicke auf +, um eine zu erstellen.",
       "skillBadge": "Fähigkeit",
-      "deleted": "Codex CLI-Fähigkeit \"{name}\" gelöscht",
-      "deleteFailed": "Codex CLI-Fähigkeit konnte nicht gelöscht werden",
-      "created": "Codex CLI-Fähigkeit \"{name}\" erstellt",
-      "updated": "Codex CLI-Fähigkeit \"{name}\" aktualisiert"
+      "deleted": "Codex-Fähigkeit \"{name}\" gelöscht",
+      "deleteFailed": "Codex-Fähigkeit konnte nicht gelöscht werden",
+      "created": "Codex-Fähigkeit \"{name}\" erstellt",
+      "updated": "Codex-Fähigkeit \"{name}\" aktualisiert"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Codex CLI-Sub-Agent bearbeiten",
-        "titleAdd": "Codex CLI-Sub-Agent hinzufügen",
-        "nameDesc": "Agentenname, den Codex CLI beim Starten verwendet (Kleinbuchstaben, Bindestriche, Unterstriche)",
-        "descriptionDesc": "Wann Codex CLI diesen Agenten verwenden soll",
+        "titleEdit": "Codex-Sub-Agent bearbeiten",
+        "titleAdd": "Codex-Sub-Agent hinzufügen",
+        "nameDesc": "Agentenname, den Codex beim Starten verwendet (Kleinbuchstaben, Bindestriche, Unterstriche)",
+        "descriptionDesc": "Wann Codex diesen Agenten verwenden soll",
         "modelDesc": "Modellüberschreibung (leer lassen zum Vererben)",
         "namePlaceholder": "code_reviewer"
       },
@@ -991,8 +991,8 @@
         "nicknameInvalid": "Nickname-Kandidaten dürfen nur ASCII-Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten",
         "nicknameDuplicate": "Nickname-Kandidaten müssen eindeutig sein"
       },
-      "header": "Codex CLI-Sub-Agenten",
-      "noAgents": "Keine Codex CLI-Sub-Agenten im Vault. Klicke auf +, um einen zu erstellen."
+      "header": "Codex-Sub-Agenten",
+      "noAgents": "Keine Codex-Sub-Agenten im Vault. Klicke auf +, um einen zu erstellen."
     },
     "providerArguments": {
       "name": "Zusätzliche CLI-Argumente",

@@ -53,6 +53,7 @@ import {
   readCodexExecCellIdArgument,
   stringifyCodexToolOutput,
 } from '../normalization/codexToolNormalization';
+import { presentCodexCommand, presentCodexFileChange } from '../normalization/CodexToolPresentation';
 
 interface CodexEvent {
   type: string;
@@ -68,6 +69,8 @@ interface CodexItem {
   type: string;
   text?: string;
   command?: string;
+  commandActions?: unknown[];
+  cwd?: string;
   aggregated_output?: string;
   exit_code?: number;
   status?: string;
@@ -665,24 +668,32 @@ function processLegacyItem(
       }
       break;
 
-    case 'command_execution':
+    case 'command_execution': {
+      const presentation = presentCodexCommand({
+        command: item.command,
+        cwd: item.cwd,
+        commandActions: item.commandActions,
+      });
       if (eventType === 'item.started') {
         turn.toolCalls.push({
           id: item.id,
           name: normalizeCodexToolName(item.type),
           input: normalizeCodexToolInput(item.type, { command: item.command ?? '' }),
+          ...(presentation ? { presentation } : {}),
           status: 'running',
         });
         turn.contentBlocks.push({ type: 'tool_use', toolId: item.id });
       } else if (eventType === 'item.completed') {
         const tc = turn.toolCalls.find(tool => tool.id === item.id);
         if (tc) {
+          if (presentation) tc.presentation = presentation;
           const rawOutput = item.aggregated_output ?? '';
           tc.result = normalizeCodexToolResult(tc.name, rawOutput);
           tc.status = item.exit_code === 0 ? 'completed' : 'error';
         }
       }
       break;
+    }
 
     case 'file_change': {
       const changes = item.changes ?? [];
@@ -694,11 +705,13 @@ function processLegacyItem(
             id: item.id,
             name: normalizeCodexToolName('file_change'),
             input: { changes },
+            presentation: presentCodexFileChange(changes, item.cwd),
             status: item.status === 'completed' ? 'completed' : 'error',
             result: paths ? `Applied: ${paths}` : 'Applied',
           });
           turn.contentBlocks.push({ type: 'tool_use', toolId: item.id });
         } else if (eventType === 'item.completed') {
+          existing.presentation = presentCodexFileChange(changes, item.cwd);
           existing.status = item.status === 'completed' ? 'completed' : 'error';
         }
       }
@@ -851,7 +864,13 @@ function processPersistedToolCall(
       if (isCodexInternalToolCall(call.rawName)) {
         ctx.suppressedToolOutputIds.add(nestedCallId);
       } else {
-        processPersistedNormalizedToolCall(nestedCallId, call, timestamp, ctx);
+        processPersistedNormalizedToolCall(
+          nestedCallId,
+          call,
+          timestamp,
+          ctx,
+          call.rawInput.workdir ?? call.rawInput.cwd ?? call.rawInput.workingDirectory,
+        );
       }
       return nestedCallId;
     });
@@ -863,7 +882,13 @@ function processPersistedToolCall(
     const toolCallIds = execEnvelopeCalls.map((call, index) => {
       const nestedCallId = `${callId}:${index + 1}`;
       if (call.name === 'write_stdin' && isSilentWriteStdinInput(call.input)) return nestedCallId;
-      processPersistedNormalizedToolCall(nestedCallId, call, timestamp, ctx);
+      processPersistedNormalizedToolCall(
+        nestedCallId,
+        call,
+        timestamp,
+        ctx,
+        call.rawInput.workdir ?? call.rawInput.cwd ?? call.rawInput.workingDirectory,
+      );
       return nestedCallId;
     });
     ctx.execEnvelopeToolCallIds.set(callId, toolCallIds);
@@ -879,7 +904,18 @@ function processPersistedToolCall(
     return;
   }
 
-  processPersistedNormalizedToolCall(callId, normalizeCodexToolCall(payload.name, parsedArgs), timestamp, ctx);
+  processPersistedNormalizedToolCall(
+    callId,
+    normalizeCodexToolCall(payload.name, parsedArgs),
+    timestamp,
+    ctx,
+    execEnvelopeCalls?.[0]?.rawInput.workdir
+      ?? execEnvelopeCalls?.[0]?.rawInput.cwd
+      ?? execEnvelopeCalls?.[0]?.rawInput.workingDirectory
+      ?? parsedArgs.workdir
+      ?? parsedArgs.cwd
+      ?? parsedArgs.workingDirectory,
+  );
 }
 
 function processPersistedNormalizedToolCall(
@@ -887,6 +923,7 @@ function processPersistedNormalizedToolCall(
   normalized: { name: string; input: Record<string, unknown> },
   timestamp: number,
   ctx: PersistedParseContext,
+  cwd?: unknown,
 ): void {
   if (normalized.name === 'wait') {
     const cellId = readCodexExecCellIdArgument(normalized.input);
@@ -905,7 +942,13 @@ function processPersistedNormalizedToolCall(
     // An unowned poll may be the only surviving copy of a command's failure.
   }
 
-  pushPersistedNormalizedToolCall(callId, normalized, timestamp, ctx);
+  const presentation = normalized.name === 'Bash'
+    ? presentCodexCommand({
+      command: normalized.input.command,
+      cwd: cwd ?? ctx.workingDirectory,
+    })
+    : undefined;
+  pushPersistedNormalizedToolCall(callId, normalized, timestamp, ctx, presentation);
 }
 
 function pushPersistedNormalizedToolCall(
@@ -913,6 +956,7 @@ function pushPersistedNormalizedToolCall(
   normalized: { name: string; input: Record<string, unknown> },
   timestamp: number,
   ctx: PersistedParseContext,
+  presentation?: ToolCallInfo['presentation'],
 ): void {
   const turn = ensureTurn(
     ctx.turns,
@@ -927,6 +971,7 @@ function pushPersistedNormalizedToolCall(
     id: callId,
     name: normalized.name,
     input: normalized.input,
+    ...(presentation ? { presentation } : {}),
     status: 'running',
   };
 
@@ -2305,11 +2350,17 @@ function processLegacyItemInModernContext(
     }
 
     case 'command_execution': {
+      const presentation = presentCodexCommand({
+        command: item.command,
+        cwd: item.cwd,
+        commandActions: item.commandActions,
+      });
       if (eventType === 'item.started') {
         ensureModernLegacyToolCall(ctx, timestamp, item, () => ({
           id: item.id,
           name: normalizeCodexToolName(item.type),
           input: normalizeCodexToolInput(item.type, { command: item.command ?? '' }),
+          ...(presentation ? { presentation } : {}),
           status: 'running',
         }));
         break;
@@ -2320,8 +2371,10 @@ function processLegacyItemInModernContext(
           id: item.id,
           name: normalizeCodexToolName(item.type),
           input: normalizeCodexToolInput(item.type, { command: item.command ?? '' }),
+          ...(presentation ? { presentation } : {}),
           status: 'running',
         }));
+        if (presentation) toolCall.presentation = presentation;
         const rawOutput = item.aggregated_output ?? '';
         toolCall.result = normalizeCodexToolResult(toolCall.name, rawOutput);
         toolCall.status = item.exit_code === 0 ? 'completed' : 'error';
@@ -2339,6 +2392,7 @@ function processLegacyItemInModernContext(
         id: item.id,
         name: normalizeCodexToolName('file_change'),
         input: { changes },
+        presentation: presentCodexFileChange(changes, item.cwd),
         status: 'running',
       }));
 

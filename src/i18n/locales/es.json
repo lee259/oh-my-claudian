@@ -380,7 +380,7 @@
     "tabs": {
       "general": "General",
       "claude": "Claude Code",
-      "codex": "Codex CLI",
+      "codex": "Codex",
       "providers": "Proveedores"
     },
     "omp": {
@@ -829,15 +829,15 @@
     "codex": {
       "installationMethod": {
         "name": "Método de instalación",
-        "desc": "Cómo debe iniciar Oh My Claudian Codex CLI en Windows. Windows nativo usa una ruta de ejecutable de Windows. WSL inicia la CLI de Linux dentro de una distribución seleccionada.",
+        "desc": "Cómo debe iniciar Oh My Claudian Codex en Windows. Windows nativo usa una ruta de ejecutable de Windows. WSL inicia la CLI de Linux dentro de una distribución seleccionada.",
         "nativeWindows": "Windows nativo",
         "wsl": "WSL"
       },
       "cliPath": {
-        "name": "Ruta de la CLI de Codex CLI",
-        "descUnix": "Ruta personalizada a la CLI local de Codex CLI. Déjala vacía para preferir instalaciones conocidas de Codex CLI y luego PATH.",
-        "descWindows": "Ruta personalizada a la CLI local de Codex CLI. Déjala vacía para autodetectar desde PATH. Usa la ruta del ejecutable nativo de Windows, normalmente `codex.exe`.",
-        "descWsl": "Comando de Codex CLI del lado Linux o ruta absoluta para ejecutar dentro de WSL. Déjala vacía para buscar en PATH dentro de la distribución seleccionada.",
+        "name": "Ruta de la CLI de Codex",
+        "descUnix": "Ruta personalizada a la CLI local de Codex. Déjala vacía para preferir instalaciones conocidas de Codex y luego PATH.",
+        "descWindows": "Ruta personalizada a la CLI local de Codex. Déjala vacía para autodetectar desde PATH. Usa la ruta del ejecutable nativo de Windows, normalmente `codex.exe`.",
+        "descWsl": "Comando de Codex del lado Linux o ruta absoluta para ejecutar dentro de WSL. Déjala vacía para buscar en PATH dentro de la distribución seleccionada.",
         "validation": {
           "wslWindowsPath": "El modo WSL espera un comando Linux o una ruta absoluta de Linux, no una ruta de ejecutable de Windows."
         }
@@ -852,7 +852,7 @@
       },
       "customModels": {
         "name": "Modelos personalizados",
-        "desc": "Añade IDs de modelos Codex CLI al selector, uno por línea. `OPENAI_MODEL` sigue teniendo prioridad cuando está definido.",
+        "desc": "Añade IDs de modelos Codex al selector, uno por línea. `OPENAI_MODEL` sigue teniendo prioridad cuando está definido.",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -865,27 +865,27 @@
       },
       "ultraEffort": {
         "name": "Activar esfuerzo ultra",
-        "desc": "Muestra Ultra en el selector de esfuerzo para los modelos Codex CLI compatibles. Ultra usa el razonamiento máximo con delegación automática de tareas."
+        "desc": "Muestra Ultra en el selector de esfuerzo para los modelos Codex compatibles. Ultra usa el razonamiento máximo con delegación automática de tareas."
       },
       "skills": {
-        "name": "Habilidades de Codex CLI",
+        "name": "Habilidades de Codex",
         "desc": "Gestiona las habilidades compartidas del vault almacenadas únicamente en .agents/skills/.",
         "hiddenName": "Habilidades ocultas",
-        "hiddenDesc": "Oculta habilidades Codex CLI específicas del desplegable. Introduce nombres de habilidad sin el $ inicial, uno por línea.",
+        "hiddenDesc": "Oculta habilidades Codex específicas del desplegable. Introduce nombres de habilidad sin el $ inicial, uno por línea.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Subagentes de Codex CLI",
-        "desc": "Gestiona subagentes Codex CLI de nivel vault guardados en .codex/agents/. Cada archivo TOML define un agente personalizado."
+        "name": "Subagentes de Codex",
+        "desc": "Gestiona subagentes Codex de nivel vault guardados en .codex/agents/. Cada archivo TOML define un agente personalizado."
       },
       "mcp": {
-        "descBeforeCommand": "Codex CLI gestiona servidores MCP mediante su propia CLI. Configúralos con ",
+        "descBeforeCommand": "Codex gestiona servidores MCP mediante su propia CLI. Configúralos con ",
         "descAfterCommand": " y estarán disponibles en Oh My Claudian. ",
         "learnMore": "Más información"
       },
       "environment": {
-        "name": "Entorno de Codex CLI",
-        "desc": "Solo variables de ejecución propiedad de Codex CLI. Úsalo para ajustes OPENAI_* y CODEX_*. Si la autodetección de Codex CLI necesita ayuda, añade su directorio de instalación al PATH compartido en lugar de esta sección del proveedor."
+        "name": "Entorno de Codex",
+        "desc": "Solo variables de ejecución propiedad de Codex. Úsalo para ajustes OPENAI_* y CODEX_*. Si la autodetección de Codex necesita ayuda, añade su directorio de instalación al PATH compartido en lugar de esta sección del proveedor."
       }
     },
     "agentSkills": {
@@ -926,8 +926,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Editar habilidad de Codex CLI",
-        "titleAdd": "Añadir habilidad de Codex CLI",
+        "titleEdit": "Editar habilidad de Codex",
+        "titleAdd": "Añadir habilidad de Codex",
         "directory": "Directorio",
         "directoryDesc": "Dónde guardar la habilidad",
         "skillName": "Nombre de habilidad",
@@ -939,21 +939,21 @@
         "instructionsPlaceholder": "Analiza el código en busca de…"
       },
       "instructionsRequired": "Las instrucciones son obligatorias",
-      "saveFailed": "No se pudo guardar la habilidad de Codex CLI",
-      "header": "Habilidades de Codex CLI",
-      "noSkills": "No hay habilidades Codex CLI en el vault. Haz clic en + para crear una.",
+      "saveFailed": "No se pudo guardar la habilidad de Codex",
+      "header": "Habilidades de Codex",
+      "noSkills": "No hay habilidades Codex en el vault. Haz clic en + para crear una.",
       "skillBadge": "habilidad",
-      "deleted": "Habilidad de Codex CLI \"{name}\" eliminada",
-      "deleteFailed": "No se pudo eliminar la habilidad de Codex CLI",
-      "created": "Habilidad de Codex CLI \"{name}\" creada",
-      "updated": "Habilidad de Codex CLI \"{name}\" actualizada"
+      "deleted": "Habilidad de Codex \"{name}\" eliminada",
+      "deleteFailed": "No se pudo eliminar la habilidad de Codex",
+      "created": "Habilidad de Codex \"{name}\" creada",
+      "updated": "Habilidad de Codex \"{name}\" actualizada"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Editar subagente de Codex CLI",
-        "titleAdd": "Añadir subagente de Codex CLI",
-        "nameDesc": "Nombre de agente que Codex CLI usa al generarlo (minúsculas, guiones y guiones bajos)",
-        "descriptionDesc": "Cuándo debería usar Codex CLI este agente",
+        "titleEdit": "Editar subagente de Codex",
+        "titleAdd": "Añadir subagente de Codex",
+        "nameDesc": "Nombre de agente que Codex usa al generarlo (minúsculas, guiones y guiones bajos)",
+        "descriptionDesc": "Cuándo debería usar Codex este agente",
         "modelDesc": "Sobrescritura de modelo (vacío = heredar)",
         "namePlaceholder": "code_reviewer"
       },
@@ -991,8 +991,8 @@
         "nicknameInvalid": "Los candidatos de apodo solo pueden contener letras ASCII, números, espacios, guiones y guiones bajos",
         "nicknameDuplicate": "Los candidatos de apodo deben ser únicos"
       },
-      "header": "Subagentes de Codex CLI",
-      "noAgents": "No hay subagentes Codex CLI en el vault. Haz clic en + para crear uno."
+      "header": "Subagentes de Codex",
+      "noAgents": "No hay subagentes Codex en el vault. Haz clic en + para crear uno."
     },
     "providerArguments": {
       "name": "Argumentos CLI adicionales",

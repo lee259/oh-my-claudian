@@ -57,7 +57,12 @@ function getInputText(input: Record<string, unknown>, key: string, fallback = ''
   return stringifyToolValue(input[key]) || fallback;
 }
 
-export function getToolName(name: string, input: Record<string, unknown>): string {
+export function getToolName(
+  name: string,
+  input: Record<string, unknown>,
+  presentation?: ToolCallInfo['presentation'],
+): string {
+  if (presentation?.name) return presentation.name;
   switch (name) {
     case TOOL_TODO_WRITE: {
       const todos = input.todos as Array<{ status: string }> | undefined;
@@ -76,7 +81,12 @@ export function getToolName(name: string, input: Record<string, unknown>): strin
   }
 }
 
-export function getToolSummary(name: string, input: Record<string, unknown>): string {
+export function getToolSummary(
+  name: string,
+  input: Record<string, unknown>,
+  presentation?: ToolCallInfo['presentation'],
+): string {
+  if (presentation?.summary !== undefined) return presentation.summary;
   switch (name) {
     case TOOL_READ:
     case TOOL_WRITE:
@@ -116,7 +126,15 @@ export function getToolSummary(name: string, input: Record<string, unknown>): st
 }
 
 /** Combined name+summary for ARIA labels (collapsible regions need a single descriptive phrase). */
-export function getToolLabel(name: string, input: Record<string, unknown>): string {
+export function getToolLabel(
+  name: string,
+  input: Record<string, unknown>,
+  presentation?: ToolCallInfo['presentation'],
+): string {
+  if (presentation) {
+    const summary = presentation.summary?.trim();
+    return summary ? `${presentation.name}: ${summary}` : presentation.name;
+  }
   switch (name) {
     case TOOL_READ:
       return `Read: ${shortenPath(getInputText(input, 'file_path')) || 'file'}`;
@@ -930,11 +948,13 @@ export interface ToolCallRenderOptions {
 }
 
 export function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefined {
+  const displayedName = toolCall.presentation?.name;
+  const presentationFileTool = displayedName === TOOL_READ || displayedName === TOOL_WRITE || displayedName === TOOL_EDIT;
   const fileTools: string[] = [TOOL_READ, TOOL_WRITE, TOOL_EDIT];
-  if (!fileTools.includes(toolCall.name)) {
+  if (!presentationFileTool && !fileTools.includes(toolCall.name)) {
     return undefined;
   }
-  const filePath = toolCall.input.file_path;
+  const filePath = presentationFileTool ? toolCall.presentation?.summary : toolCall.input.file_path;
   return typeof filePath === 'string' && filePath.trim() ? parseFileReference(filePath) : undefined;
 }
 
@@ -979,14 +999,19 @@ function createToolElementStructure(
 
   const iconEl = header.createSpan({ cls: 'claudian-tool-icon' });
   iconEl.setAttribute('aria-hidden', 'true');
-  setToolIcon(iconEl, toolCall.name);
+  const iconToolName = toolCall.presentation?.name === 'Find'
+    ? TOOL_GREP
+    : toolCall.presentation?.name === 'List'
+      ? TOOL_LS
+      : toolCall.presentation?.name ?? toolCall.name;
+  setToolIcon(iconEl, iconToolName);
 
   const nameEl = header.createSpan({ cls: 'claudian-tool-name' });
-  nameEl.setText(getToolName(toolCall.name, toolCall.input));
-  nameEl.setAttribute('title', getToolName(toolCall.name, toolCall.input));
+  nameEl.setText(getToolName(toolCall.name, toolCall.input, toolCall.presentation));
+  nameEl.setAttribute('title', getToolName(toolCall.name, toolCall.input, toolCall.presentation));
 
   const summaryEl = header.createSpan({ cls: 'claudian-tool-summary' });
-  summaryEl.setText(getToolSummary(toolCall.name, toolCall.input));
+  summaryEl.setText(getToolSummary(toolCall.name, toolCall.input, toolCall.presentation));
   makeFileSummaryInteractive(summaryEl, getToolFilePath(toolCall), onOpenFile);
 
   const currentTaskEl = toolCall.name === TOOL_TODO_WRITE
@@ -1216,7 +1241,7 @@ export function renderToolCall(
     onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
       toolCall.isExpanded = expanded;
     }),
-    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input)
+    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)
   });
 
   return toolEl;

@@ -49,7 +49,7 @@ describe('CodexBinaryLocator', () => {
   });
 
   describeOnMac('GUI login-shell discovery', () => {
-    it('prefers the login-shell Codex CLI over a bundled app fallback in a GUI environment', () => {
+    it('prefers the login-shell Codex over a bundled app fallback in a GUI environment', () => {
       const binaryDirectory = path.join(tempDir, 'terminal-bin');
       const binary = path.join(binaryDirectory, 'codex');
       fs.mkdirSync(binaryDirectory, { recursive: true });
@@ -217,7 +217,7 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
 
-  it('falls back to the nested ChatGPT Codex CLI runtime', () => {
+  it('falls back to the nested ChatGPT Codex runtime', () => {
     process.env.HOME = tempDir;
     process.env.PATH = '';
     const runtimeDir = path.join(

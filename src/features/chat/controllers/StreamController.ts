@@ -545,13 +545,16 @@ export class StreamController {
         existingToolCall.name = refinedName;
       }
       mergeToolProviderPayload(existingToolCall, chunk.providerPayload);
+      const presentationChanged = chunk.presentation !== undefined
+        && JSON.stringify(existingToolCall.presentation) !== JSON.stringify(chunk.presentation);
+      if (chunk.presentation) existingToolCall.presentation = chunk.presentation;
       const newInput = chunk.input || {};
       const inputChanged = Object.keys(newInput).length > 0;
       if (inputChanged) {
         existingToolCall.input = { ...existingToolCall.input, ...newInput };
       }
 
-      if (nameChanged || inputChanged) {
+      if (nameChanged || inputChanged || presentationChanged) {
         // Re-parse TodoWrite on input updates (streaming may complete the input)
         if (existingToolCall.name === TOOL_TODO_WRITE) {
           const todos = parseTodoInput(existingToolCall.input);
@@ -565,7 +568,7 @@ export class StreamController {
           this.capturePlanFilePath(existingToolCall.input);
         }
 
-        const rendererRebuilt = nameChanged
+        const rendererRebuilt = (nameChanged || presentationChanged)
           && this.rebuildRenderedToolRenderer(existingToolCall);
 
         // If already rendered, update the header name + summary
@@ -574,12 +577,12 @@ export class StreamController {
           const nameEl = toolEl.querySelector('.claudian-tool-name')
             ?? toolEl.querySelector('.claudian-write-edit-name');
           if (nameEl) {
-            nameEl.setText(getToolName(existingToolCall.name, existingToolCall.input));
+            nameEl.setText(getToolName(existingToolCall.name, existingToolCall.input, existingToolCall.presentation));
           }
           const summaryEl = toolEl.querySelector('.claudian-tool-summary')
             ?? toolEl.querySelector('.claudian-write-edit-summary');
           if (summaryEl) {
-            summaryEl.setText(getToolSummary(existingToolCall.name, existingToolCall.input));
+            summaryEl.setText(getToolSummary(existingToolCall.name, existingToolCall.input, existingToolCall.presentation));
           }
         }
         // If still pending, the updated input is already in the toolCall object
@@ -597,6 +600,7 @@ export class StreamController {
       name: chunk.name,
       input: chunk.input,
       ...(providerPayload ? { providerPayload } : {}),
+      ...(chunk.presentation ? { presentation: chunk.presentation } : {}),
       status: 'running',
       isExpanded: false,
     };
@@ -2532,6 +2536,7 @@ export function providerOutputEventToStreamChunk(
           id: event.toolCallId,
           input: { ...event.input },
           name: event.name,
+          ...(event.presentation ? { presentation: event.presentation } : {}),
           ...(event.providerPayload ? { providerPayload: event.providerPayload } : {}),
           type: 'tool_use',
         };

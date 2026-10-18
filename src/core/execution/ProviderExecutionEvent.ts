@@ -3,6 +3,7 @@ import type {
   SDKToolUseResult,
   SubagentInfo,
   SubagentProgress,
+  ToolCallPresentation,
   ToolProviderPayload,
   TurnStats,
   UsageInfo,
@@ -132,6 +133,7 @@ export type ProviderToolStartedEvent = ProviderEventBase<
   ProviderToolIdentity & {
     readonly name: string;
     readonly input: Readonly<Record<string, unknown>>;
+    readonly presentation?: ToolCallPresentation;
     readonly providerPayload?: ToolProviderPayload;
   };
 

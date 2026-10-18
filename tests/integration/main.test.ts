@@ -452,7 +452,7 @@ describe('ClaudianPlugin', () => {
       const metadata = {
         id: 'codex-model-before-invalidation',
         providerId: 'codex' as const,
-        title: 'Codex CLI model before invalidation',
+        title: 'Codex model before invalidation',
         createdAt: 1,
         lastActivityAt: 2,
         sessionId: 'thread-before-invalidation',
@@ -1628,7 +1628,7 @@ describe('ClaudianPlugin', () => {
       await refresh;
     });
 
-    it('computes an initialized Codex CLI catalog fingerprint through owned CLI while gated', async () => {
+    it('computes an initialized Codex catalog fingerprint through owned CLI while gated', async () => {
       await plugin.onload();
       const discoveredModel = {
         defaultReasoningEffort: 'medium',
@@ -3241,13 +3241,13 @@ describe('ClaudianPlugin', () => {
   });
 
   describe('loadSettings with conversations', () => {
-    it('migrates a legacy Codex CLI fingerprint before reconciling persisted sessions', async () => {
+    it('migrates a legacy Codex fingerprint before reconciling persisted sessions', async () => {
       const timestamp = Date.now();
       const metadataPath = '.claudian/sessions/conv-codex-legacy.meta.json';
       const sessionMetadata = {
         id: 'conv-codex-legacy',
         providerId: 'codex',
-        title: 'Legacy Codex CLI Chat',
+        title: 'Legacy Codex Chat',
         createdAt: timestamp,
         lastActivityAt: timestamp,
         sessionId: 'codex-thread-123',

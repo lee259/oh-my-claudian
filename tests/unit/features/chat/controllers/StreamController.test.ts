@@ -3607,7 +3607,7 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'spawn-1',
         expect.objectContaining({
-          description: 'Codex CLI subagent (gpt-5.4-mini)',
+          description: 'Codex subagent (gpt-5.4-mini)',
           prompt: 'Inspect utils.ts and return the final patch summary.',
         }),
         expect.objectContaining({ onOpenFile: expect.any(Function) }),

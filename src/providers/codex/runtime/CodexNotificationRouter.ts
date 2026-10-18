@@ -22,6 +22,7 @@ import {
   readCodexExecCellIdArgument,
   stringifyCodexToolOutput,
 } from '../normalization/codexToolNormalization';
+import { presentCodexCommand, presentCodexFileChange } from '../normalization/CodexToolPresentation';
 import type {
   AgentMessageDeltaNotification,
   AgentMessageItem,
@@ -1586,9 +1587,20 @@ export class CodexNotificationRouter {
     const rawAction = item.commandActions?.[0]?.command ?? item.command;
     const normalizedName = normalizeCodexToolName('command_execution');
     const input = normalizeCodexToolInput('command_execution', { command: rawAction });
+    const presentation = presentCodexCommand({
+      command: rawAction,
+      cwd: item.cwd,
+      commandActions: item.commandActions,
+    });
 
     this.resetAssistantSegmentText();
-    this.emit({ type: 'tool_use', id: item.id, name: normalizedName, input });
+    this.emit({
+      type: 'tool_use',
+      id: item.id,
+      name: normalizedName,
+      input,
+      ...(presentation ? { presentation } : {}),
+    });
   }
 
   private emitToolResultFromCommand(
@@ -1627,6 +1639,7 @@ export class CodexNotificationRouter {
       id: item.id,
       name: normalizeCodexToolName('file_change'),
       input,
+      presentation: presentCodexFileChange(item.changes, this.workingDirectory),
     });
   }
 
@@ -1675,6 +1688,7 @@ export class CodexNotificationRouter {
       id: itemId,
       name: normalizeCodexToolName('file_change'),
       input,
+      presentation: presentCodexFileChange(params.changes, this.workingDirectory),
     });
     this.flushPendingCanonicalToolOutput(itemId);
   }

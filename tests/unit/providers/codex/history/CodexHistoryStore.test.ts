@@ -3116,6 +3116,39 @@ describe('CodexHistoryStore', () => {
         }),
       ]);
     });
+
+    it('restores Codex display presentation for command and file-change history', () => {
+      const content = [
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-presentation' } }),
+        JSON.stringify({ type: 'event', event: { type: 'item.started', item: {
+          id: 'read-history', type: 'command_execution', command: 'cat src/main.ts', cwd: '/workspace',
+          command_actions: [{ type: 'read', path: '/workspace/src/main.ts', command: 'cat src/main.ts' }],
+        } } }),
+        JSON.stringify({ type: 'event', event: { type: 'item.completed', item: {
+          id: 'read-history', type: 'command_execution', command: 'cat src/main.ts', cwd: '/workspace',
+          command_actions: [{ type: 'read', path: '/workspace/src/main.ts', command: 'cat src/main.ts' }],
+          aggregated_output: 'contents', exit_code: 0,
+        } } }),
+        JSON.stringify({ type: 'event', event: { type: 'item.completed', item: {
+          id: 'edit-history', type: 'file_change', cwd: '/workspace', status: 'completed',
+          changes: [{ path: '/workspace/src/other.ts', kind: 'update' }],
+        } } }),
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-presentation' } }),
+      ].join('\n');
+
+      const turns = parseCodexSessionTurns(content);
+      const toolCalls = turns.flatMap(turn => turn.messages.flatMap(message => message.toolCalls ?? []));
+      expect(toolCalls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Bash',
+          presentation: { name: 'Read', summary: 'src/main.ts' },
+        }),
+        expect.objectContaining({
+          name: 'apply_patch',
+          presentation: { name: 'Edit', summary: 'src/other.ts' },
+        }),
+      ]));
+    });
   });
 
   describe('parseCodexSessionContent - persisted mcp_tool_call', () => {
@@ -3224,6 +3257,84 @@ describe('CodexHistoryStore', () => {
         status: 'error',
         result: 'Permission denied',
       });
+    });
+  });
+
+  describe('parseCodexSessionContent - persisted shell tool presentation', () => {
+    it('restores a readable label for historical exec_command calls', () => {
+      const content = [
+        JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call',
+            name: 'exec_command',
+            call_id: 'call-read',
+            input: JSON.stringify({ cmd: 'cat src/main.ts' }),
+          },
+        }),
+        JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call_output',
+            call_id: 'call-read',
+            output: 'file contents',
+          },
+        }),
+      ].join('\n');
+
+      const toolCalls = parseCodexSessionContent(content)
+        .flatMap(message => message.toolCalls ?? []);
+
+      expect(toolCalls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Bash',
+          presentation: { name: 'Read', summary: 'src/main.ts' },
+        }),
+      ]));
+    });
+
+    it('labels historical rg file listings when the shell command is wrapped', () => {
+      const content = JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec_command',
+          call_id: 'call-list-files',
+          input: JSON.stringify({ cmd: `/usr/bin/zsh -lc "rg --files -g AGENTS.md"` }),
+        },
+      });
+
+      const toolCalls = parseCodexSessionContent(content)
+        .flatMap(message => message.toolCalls ?? []);
+
+      expect(toolCalls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Bash',
+          presentation: { name: 'Find', summary: 'files' },
+        }),
+      ]));
+    });
+
+    it('restores labels for a single command inside a historical exec envelope', () => {
+      const content = JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'call-envelope',
+          input: 'text(await tools.exec_command({cmd:"cat src/main.ts",workdir:"/workspace"}));',
+        },
+      });
+
+      const toolCalls = parseCodexSessionContent(content)
+        .flatMap(message => message.toolCalls ?? []);
+
+      expect(toolCalls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Bash',
+          presentation: { name: 'Read', summary: 'src/main.ts' },
+        }),
+      ]));
     });
   });
 

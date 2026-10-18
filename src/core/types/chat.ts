@@ -1,6 +1,6 @@
 import type { SDKToolUseResult } from './diff';
 import type { ProviderId } from './provider';
-import type { SubagentMode, ToolCallInfo, ToolProviderPayload } from './tools';
+import type { SubagentMode, ToolCallInfo, ToolCallPresentation, ToolProviderPayload } from './tools';
 
 /** Fork origin reference: identifies the source session and checkpoint. */
 export interface ForkSource {
@@ -280,6 +280,7 @@ export type StreamChunk =
       id: string;
       name: string;
       input: Record<string, unknown>;
+      presentation?: ToolCallPresentation;
       providerPayload?: ToolProviderPayload;
     }
   | {
