@@ -442,5 +442,5 @@ export function formatContextLimit(tokens: number): string {
   if (tokens >= 1000 && tokens % 1000 === 0) {
     return `${tokens / 1000}k`;
   }
-  return tokens.toLocaleString();
+  return tokens.toLocaleString('en-US');
 }
