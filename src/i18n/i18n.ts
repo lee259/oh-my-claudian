@@ -83,7 +83,9 @@ function normalizeLocale(locale: string): Locale | undefined {
     return exactMatch;
   }
 
-  const alias = OBSIDIAN_LOCALE_ALIASES[normalized];
+  const alias = Object.hasOwn(OBSIDIAN_LOCALE_ALIASES, normalized)
+    ? OBSIDIAN_LOCALE_ALIASES[normalized]
+    : undefined;
   if (alias) {
     return alias;
   }
@@ -167,6 +169,7 @@ function tFallback(key: TranslationKey, params?: Record<string, string | number>
  * @returns true if locale was set successfully, false if locale is invalid
  */
 export function setLocale(locale: Locale): boolean {
+  if (!AVAILABLE_LOCALES.includes(locale)) return false;
   const translation = translations[locale] ?? loadTranslation(locale);
   if (!translation) {
     return false;
@@ -206,5 +209,5 @@ export function getLocaleDisplayName(locale: Locale): string {
     'ru': 'Русский',
     'pt': 'Português',
   };
-  return names[locale] || locale;
+  return (Object.hasOwn(names, locale) ? names[locale] : undefined) || locale;
 }
