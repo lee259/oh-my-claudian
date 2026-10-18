@@ -248,7 +248,7 @@
 }
 
 .claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-header:hover {
-  background: transparent;
+  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
 }
 
 .claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) :is(.claudian-tool-name, .claudian-tool-summary) {
