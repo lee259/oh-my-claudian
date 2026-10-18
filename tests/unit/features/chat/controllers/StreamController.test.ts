@@ -3475,8 +3475,8 @@ describe('StreamController - Text Content', () => {
         expect.objectContaining({ file_path: 'updated.md' })
       );
       // getToolName/getToolSummary should have been called with updated input
-      expect(getToolName).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }));
-      expect(getToolSummary).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }));
+      expect(getToolName).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }), undefined);
+      expect(getToolSummary).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }), undefined);
       // Header texts should be updated
       expect(nameChild.textContent).toBe('Read');
       expect(summaryChild.textContent).toBe('updated.md');
@@ -3506,8 +3506,8 @@ describe('StreamController - Text Content', () => {
       );
 
       expect(msg.toolCalls![0].name).toBe('Read');
-      expect(getToolName).toHaveBeenCalledWith('Read', {});
-      expect(getToolSummary).toHaveBeenCalledWith('Read', {});
+      expect(getToolName).toHaveBeenCalledWith('Read', {}, undefined);
+      expect(getToolSummary).toHaveBeenCalledWith('Read', {}, undefined);
       expect(nameChild.textContent).toBe('Read');
       expect(summaryChild.textContent).toBe('');
     });
@@ -3607,7 +3607,7 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'spawn-1',
         expect.objectContaining({
-          description: 'Codex CLI subagent (gpt-5.4-mini)',
+          description: 'Codex subagent (gpt-5.4-mini)',
           prompt: 'Inspect utils.ts and return the final patch summary.',
         }),
         expect.objectContaining({ onOpenFile: expect.any(Function) }),

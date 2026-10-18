@@ -36,6 +36,7 @@ export function adaptCodexStreamChunk(
         toolScope: { kind: 'main' },
         name: chunk.name,
         input: chunk.input,
+        ...(chunk.presentation ? { presentation: chunk.presentation } : {}),
         ...(chunk.providerPayload ? { providerPayload: chunk.providerPayload } : {}),
       };
     case 'tool_output':

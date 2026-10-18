@@ -186,7 +186,7 @@ function createPlugin(): ProviderHost {
         codex: {
           discoveredModels: [{
             model: TEST_CODEX_MODEL,
-            displayName: 'Test Codex CLI',
+            displayName: 'Test Codex',
             description: '',
             supportedReasoningEfforts: [
               { value: 'low', description: '' },
@@ -382,7 +382,7 @@ async function createActiveSteerSession() {
     ([method]) => method === 'turn/start',
   ));
   if (!isSteerableExecutionSession(session)) {
-    throw new Error('Codex CLI session should be steerable');
+    throw new Error('Codex session should be steerable');
   }
   return { run, session };
 }
@@ -2960,7 +2960,7 @@ describe('CodexExecutionBackend', () => {
     await new Promise(resolve => setImmediate(resolve));
     expect(isSteerableExecutionSession(session)).toBe(true);
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Codex CLI session should be steerable');
+      throw new Error('Codex session should be steerable');
     }
     await expect(
       serverRequestHandlers.get('item/tool/call')?.('dynamic-request', {
@@ -3068,7 +3068,7 @@ describe('CodexExecutionBackend', () => {
     await expect(session.steer(createRequest(
       new AbortController().signal,
       { input: [{ type: 'text', text: 'redirect' }] },
-    ))).rejects.toThrow('Codex CLI returned an ambiguous steer acknowledgement.');
+    ))).rejects.toThrow('Codex returned an ambiguous steer acknowledgement.');
 
     run.cancel();
     await collectEvents(run.events);
@@ -3137,7 +3137,7 @@ describe('CodexExecutionBackend', () => {
     const session = new CodexExecutionBackend(createPlugin())
       .createSession(createSessionConfig());
     if (!isSteerableExecutionSession(session)) {
-      throw new Error('Codex CLI session should be steerable');
+      throw new Error('Codex session should be steerable');
     }
 
     await expect(session.steer(createRequest())).resolves.toBe(false);
@@ -3150,7 +3150,7 @@ describe('CodexExecutionBackend', () => {
   });
 });
 
-describe('Codex CLI provider execution contract', () => {
+describe('Codex provider execution contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     captureHandlers();

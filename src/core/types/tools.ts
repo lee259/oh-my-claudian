@@ -35,6 +35,12 @@ export interface ToolProviderPayload {
   rawOutput?: unknown;
 }
 
+/** Provider-supplied, display-only tool naming. Execution identity stays in `name`. */
+export interface ToolCallPresentation {
+  name: string;
+  summary?: string;
+}
+
 /** Image data returned by a provider tool. */
 export type ToolResultImage =
   | { kind: 'file'; path: string; alt?: string }
@@ -45,6 +51,7 @@ export interface ToolCallInfo {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  presentation?: ToolCallPresentation;
   status: 'running' | 'completed' | 'error' | 'blocked';
   result?: string;
   /** Provider-declared result presentation; plain results must not be parsed as numbered output. */

@@ -16,6 +16,48 @@ describe('CodexNotificationRouter', () => {
     );
   });
 
+  describe('Codex tool presentation', () => {
+    it('labels clear read commands while retaining Bash as the execution tool', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('item/started', { item: {
+        type: 'commandExecution',
+        id: 'read-1',
+        command: 'cat src/main.ts',
+        cwd: '/workspace',
+        processId: '1',
+        source: 'unifiedExecStartup',
+        status: 'inProgress',
+        commandActions: [{ type: 'read', path: '/workspace/src/main.ts', command: 'cat src/main.ts' }],
+        aggregatedOutput: null,
+        exitCode: null,
+        durationMs: null,
+      } });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_use')).toEqual([expect.objectContaining({
+        id: 'read-1',
+        name: 'Bash',
+        input: { command: 'cat src/main.ts' },
+        presentation: { name: 'Read', summary: 'src/main.ts' },
+      })]);
+    });
+
+    it('labels native file changes as Edit and retains apply_patch identity', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('item/started', { item: {
+        type: 'fileChange',
+        id: 'edit-1',
+        status: 'inProgress',
+        changes: [{ path: 'src/main.ts', kind: 'update', diff: '@@ -1 +1 @@' }],
+      } });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_use')).toEqual([expect.objectContaining({
+        id: 'edit-1',
+        name: 'apply_patch',
+        presentation: { name: 'Edit', summary: 'src/main.ts' },
+      })]);
+    });
+  });
+
   describe('text streaming', () => {
     it.each([false, true])('routes async agent questions to a question tool exactly once (notification first: %s)', notificationFirst => {
       router.beginTurn({ isPlanTurn: false });
@@ -3581,6 +3623,7 @@ describe('CodexNotificationRouter', () => {
           type: 'tool_use',
           id: 'call_fc_done',
           name: 'apply_patch',
+          presentation: { name: 'Edit', summary: 'foo.ts' },
           input: {
             changes: [
               {
@@ -3667,6 +3710,7 @@ describe('CodexNotificationRouter', () => {
           type: 'tool_use',
           id: 'call_patch',
           name: 'apply_patch',
+          presentation: { name: 'Edit', summary: 'foo.ts' },
           input: {
             changes: [
               {
@@ -3763,6 +3807,7 @@ describe('CodexNotificationRouter', () => {
           type: 'tool_use',
           id: 'call_patch',
           name: 'apply_patch',
+          presentation: { name: 'Edit', summary: 'foo.ts' },
           input: {
             patch: '*** Begin Patch\n*** Update File: /workspace/foo.ts\n@@\n-old\n+new\n*** End Patch',
             changes: [{ path: '/workspace/foo.ts', kind: 'update', type: 'update' }],
@@ -5258,6 +5303,7 @@ describe('CodexNotificationRouter', () => {
         type: 'tool_use',
         id: 'fc_add',
         name: 'apply_patch',
+        presentation: { name: 'Edit', summary: 'note.md' },
         input: {
           changes: [{
             path: '/workspace/note.md',

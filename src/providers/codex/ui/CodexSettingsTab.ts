@@ -43,14 +43,14 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const refreshCodexModelCatalog = async (): Promise<void> => {
       const result = await codexWorkspace.refreshModelCatalog?.();
       if (result?.diagnostics) {
-        new Notice(`Codex CLI model discovery failed: ${result.diagnostics}`);
+        new Notice(`Codex model discovery failed: ${result.diagnostics}`);
       }
     };
 
     const readinessPanel = renderProviderReadinessPanel({
       container,
       icon: OPENAI_PROVIDER_ICON,
-      providerName: 'Codex CLI',
+      providerName: 'Codex',
       async getSnapshot() {
         const current = getCodexProviderSettings(settingsBag);
         return assessProviderReadiness({
@@ -70,9 +70,9 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderProviderEnablementSetting({
       container: readinessPanel.enablement,
-      description: t('settings.providerEnablement.desc', { provider: 'Codex CLI' }),
+      description: t('settings.providerEnablement.desc', { provider: 'Codex' }),
       getValue: () => getCodexProviderSettings(settingsBag).enabled,
-      name: t('settings.providerEnablement.name', { provider: 'Codex CLI' }),
+      name: t('settings.providerEnablement.name', { provider: 'Codex' }),
       onChange: async (value) => {
         if (!ProviderSettingsCoordinator.canApplyProviderEnablement(
           settingsBag,
@@ -110,7 +110,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       getHasEnabledModels: () => getCodexModelOptions(settingsBag).length > 0,
       getIsEnabled: () => getCodexProviderSettings(settingsBag).enabled,
       providerId: 'codex',
-      providerName: 'Codex CLI',
+      providerName: 'Codex',
     });
 
     if (isWindowsHost) {

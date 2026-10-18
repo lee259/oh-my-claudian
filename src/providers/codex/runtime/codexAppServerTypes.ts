@@ -173,6 +173,8 @@ export interface CommandExecutionItem {
 export interface CommandAction {
   type: string;
   command: string;
+  path?: string;
+  query?: string;
 }
 
 export interface FileChangeItem {

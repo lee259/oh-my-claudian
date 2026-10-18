@@ -70,6 +70,7 @@ export {
   type ToolActivityInfo,
   type ToolActivitySubagentInfo,
   type ToolCallInfo,
+  type ToolCallPresentation,
   type ToolDiffData,
   type ToolProviderPayload,
   type ToolResultImage,

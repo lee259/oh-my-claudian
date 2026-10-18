@@ -406,7 +406,7 @@ describe('createInputToolbar', () => {
 
   it.each([
     ['Claude Code', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto'], []],
-    ['Codex CLI', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
+    ['Codex', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
     ['Cursor', 'cursor', cursorChatUIConfig, ['Agent', 'Ask', 'Plan'], []],
     ['Grok Build', 'grok', grokChatUIConfig, ['Auto', 'Ask', 'Plan', 'Accept edits', 'Always approve'], ['Always approve']],
     ['OMP', 'omp', ompChatUIConfig, ['Always ask', 'Write', 'YOLO'], ['YOLO']],

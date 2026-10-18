@@ -380,7 +380,7 @@
     "tabs": {
       "general": "General",
       "claude": "Claude Code",
-      "codex": "Codex CLI",
+      "codex": "Codex",
       "providers": "Providers"
     },
     "omp": {
@@ -829,15 +829,15 @@
     "codex": {
       "installationMethod": {
         "name": "Installation method",
-        "desc": "How Oh My Claudian should launch Codex CLI on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro.",
+        "desc": "How Oh My Claudian should launch Codex on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro.",
         "nativeWindows": "Native Windows",
         "wsl": "WSL"
       },
       "cliPath": {
-        "name": "Codex CLI path",
-        "descUnix": "Custom path to the local Codex CLI. Leave empty to prefer known Codex CLI installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
-        "descWindows": "Custom path to the local Codex CLI. Leave empty to auto-detect from PATH. Paste the output of \"where codex\" or use the native executable path, usually `codex.exe`.",
-        "descWsl": "Linux-side Codex CLI command or absolute path to run inside WSL. Leave empty for PATH lookup inside the selected distro.",
+        "name": "Codex path",
+        "descUnix": "Custom path to the local Codex. Leave empty to prefer known Codex installs, then PATH. Paste the output of \"which codex\" (or \"where codex\" on Windows).",
+        "descWindows": "Custom path to the local Codex. Leave empty to auto-detect from PATH. Paste the output of \"where codex\" or use the native executable path, usually `codex.exe`.",
+        "descWsl": "Linux-side Codex command or absolute path to run inside WSL. Leave empty for PATH lookup inside the selected distro.",
         "validation": {
           "wslWindowsPath": "WSL mode expects a Linux command or Linux absolute path, not a Windows executable path."
         }
@@ -852,7 +852,7 @@
       },
       "customModels": {
         "name": "Custom models",
-        "desc": "Append additional Codex CLI model IDs to the picker, one per line. `OPENAI_MODEL` still takes precedence when set.",
+        "desc": "Append additional Codex model IDs to the picker, one per line. `OPENAI_MODEL` still takes precedence when set.",
         "placeholder": "gpt-5.4\ngpt-5.3-codex-spark"
       },
       "reasoningSummary": {
@@ -865,27 +865,27 @@
       },
       "ultraEffort": {
         "name": "Enable ultra effort",
-        "desc": "Allow Ultra in the effort selector for Codex CLI models that advertise support. Ultra uses maximum reasoning with automatic task delegation."
+        "desc": "Allow Ultra in the effort selector for Codex models that advertise support. Ultra uses maximum reasoning with automatic task delegation."
       },
       "skills": {
-        "name": "Codex CLI skills",
+        "name": "Codex skills",
         "desc": "Manage shared vault-level skills stored only in .agents/skills/.",
         "hiddenName": "Hidden Skills",
-        "hiddenDesc": "Hide specific Codex CLI skills from the dropdown. Enter skill names without the leading $, one per line.",
+        "hiddenDesc": "Hide specific Codex skills from the dropdown. Enter skill names without the leading $, one per line.",
         "hiddenPlaceholder": "analyze\nexplain\nfix"
       },
       "subagents": {
-        "name": "Codex CLI subagents",
-        "desc": "Manage vault-level Codex CLI subagents stored in .codex/agents/. Each TOML file defines one custom agent."
+        "name": "Codex subagents",
+        "desc": "Manage vault-level Codex subagents stored in .codex/agents/. Each TOML file defines one custom agent."
       },
       "mcp": {
-        "descBeforeCommand": "Codex CLI manages MCP servers via its own CLI. Configure with ",
+        "descBeforeCommand": "Codex manages MCP servers via its own CLI. Configure with ",
         "descAfterCommand": " and they will be available in Oh My Claudian. ",
         "learnMore": "Learn more"
       },
       "environment": {
-        "name": "Codex CLI environment",
-        "desc": "Codex CLI-owned runtime variables only. Use this for OPENAI_* and CODEX_* settings. If Codex CLI auto-detection needs help, add its install directory to shared PATH instead of this provider section."
+        "name": "Codex environment",
+        "desc": "Codex-owned runtime variables only. Use this for OPENAI_* and CODEX_* settings. If Codex auto-detection needs help, add its install directory to shared PATH instead of this provider section."
       }
     },
     "agentSkills": {
@@ -926,8 +926,8 @@
     },
     "codexSkills": {
       "modal": {
-        "titleEdit": "Edit Codex CLI Skill",
-        "titleAdd": "Add Codex CLI Skill",
+        "titleEdit": "Edit Codex Skill",
+        "titleAdd": "Add Codex Skill",
         "directory": "Directory",
         "directoryDesc": "Where to store the skill",
         "skillName": "Skill name",
@@ -939,21 +939,21 @@
         "instructionsPlaceholder": "Analyze the code for..."
       },
       "instructionsRequired": "Instructions are required",
-      "saveFailed": "Failed to save Codex CLI skill",
-      "header": "Codex CLI Skills",
-      "noSkills": "No Codex CLI skills in vault. Click + to create one.",
+      "saveFailed": "Failed to save Codex skill",
+      "header": "Codex Skills",
+      "noSkills": "No Codex skills in vault. Click + to create one.",
       "skillBadge": "skill",
-      "deleted": "Codex CLI skill \"{name}\" deleted",
-      "deleteFailed": "Failed to delete Codex CLI skill",
-      "created": "Codex CLI skill \"{name}\" created",
-      "updated": "Codex CLI skill \"{name}\" updated"
+      "deleted": "Codex skill \"{name}\" deleted",
+      "deleteFailed": "Failed to delete Codex skill",
+      "created": "Codex skill \"{name}\" created",
+      "updated": "Codex skill \"{name}\" updated"
     },
     "codexSubagents": {
       "modal": {
-        "titleEdit": "Edit Codex CLI Subagent",
-        "titleAdd": "Add Codex CLI Subagent",
-        "nameDesc": "Agent name Codex CLI uses when spawning (lowercase, hyphens, underscores)",
-        "descriptionDesc": "When Codex CLI should use this agent",
+        "titleEdit": "Edit Codex Subagent",
+        "titleAdd": "Add Codex Subagent",
+        "nameDesc": "Agent name Codex uses when spawning (lowercase, hyphens, underscores)",
+        "descriptionDesc": "When Codex should use this agent",
         "modelDesc": "Model override (leave empty to inherit)",
         "namePlaceholder": "code_reviewer"
       },
@@ -991,8 +991,8 @@
         "nicknameInvalid": "Nickname candidates can only contain ASCII letters, numbers, spaces, hyphens, and underscores",
         "nicknameDuplicate": "Nickname candidates must be unique"
       },
-      "header": "Codex CLI Subagents",
-      "noAgents": "No Codex CLI subagents in vault. Click + to create one."
+      "header": "Codex Subagents",
+      "noAgents": "No Codex subagents in vault. Click + to create one."
     },
     "providerArguments": {
       "name": "Additional CLI arguments",

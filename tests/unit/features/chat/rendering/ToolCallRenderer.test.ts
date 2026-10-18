@@ -3,6 +3,7 @@ import { setIcon } from 'obsidian';
 
 import type { ToolCallInfo } from '@/core/types';
 import {
+  getToolFilePath,
   getToolLabel,
   getToolName,
   getToolSummary,
@@ -580,6 +581,20 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('getToolName', () => {
+    it('uses display-only presentation without changing the underlying tool identity', () => {
+      const toolCall = createToolCall({
+        name: 'Bash',
+        input: { command: 'cat src/main.ts' },
+        presentation: { name: 'Read', summary: 'src/main.ts' },
+      });
+
+      expect(toolCall.name).toBe('Bash');
+      expect(getToolName(toolCall.name, toolCall.input, toolCall.presentation)).toBe('Read');
+      expect(getToolSummary(toolCall.name, toolCall.input, toolCall.presentation)).toBe('src/main.ts');
+      expect(getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)).toBe('Read: src/main.ts');
+      expect(getToolFilePath(toolCall)).toEqual({ path: 'src/main.ts' });
+    });
+
     it('should return tool name for standard tools', () => {
       expect(getToolName('Read', {})).toBe('Read');
       expect(getToolName('Write', {})).toBe('Write');

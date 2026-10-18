@@ -29,11 +29,11 @@ Open **Settings → Community plugins → Browse**, search for **Oh My Claudian*
 
 Choose the CLI you already use. Verify that it can start and authenticate in your terminal, then configure that same provider in the plugin.
 
-| | Claude Code | Codex CLI |
+| | Claude Code | Codex |
 | --- | --- | --- |
-| Provider setup | Follow the [Claude Code quick start](https://code.claude.com/docs/en/quickstart). Run `claude` and complete its sign-in if needed. | Follow the [Codex CLI guide](https://developers.openai.com/codex/cli/). Run `codex` and complete its sign-in if needed. |
-| Existing account | Use an account or API configuration supported by Claude Code. | Use an account or API configuration supported by Codex CLI. |
-| Plugin settings | Open **Settings → Oh My Claudian → Providers → Claude Code** and enable the provider. | Open **Settings → Oh My Claudian → Providers → Codex CLI** and enable the provider. |
+| Provider setup | Follow the [Claude Code quick start](https://code.claude.com/docs/en/quickstart). Run `claude` and complete its sign-in if needed. | Follow the [Codex guide](https://developers.openai.com/codex/cli/). Run `codex` and complete its sign-in if needed. |
+| Existing account | Use an account or API configuration supported by Claude Code. | Use an account or API configuration supported by Codex. |
+| Plugin settings | Open **Settings → Oh My Claudian → Providers → Claude Code** and enable the provider. | Open **Settings → Oh My Claudian → Providers → Codex** and enable the provider. |
 | Readiness | Check **Readiness**, correct the CLI path if needed, and enable a chat model. | Check **Readiness**, load the model catalog, and enable a chat model. |
 
 Readiness checks the provider, CLI, model catalog, and selected models. It can offer an install or update action for supported CLIs; the command is shown for confirmation and its result is checked afterward. Authentication stays with the provider's own CLI.
@@ -80,7 +80,7 @@ Upstream evolves independently. See [Claudian's current README](https://github.c
 The built-in provider integrations are:
 
 - [Claude Code](https://code.claude.com/docs/en/overview)
-- [Codex CLI](https://github.com/openai/codex)
+- [Codex](https://github.com/openai/codex)
 - [Cursor Agent](https://cursor.com/docs/cli/overview)
 - [Grok Build](https://github.com/xai-org/grok-build)
 - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)

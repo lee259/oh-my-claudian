@@ -29,11 +29,11 @@
 
 选你已经在用的 CLI，在终端确认它能启动和完成认证，再配置插件中的同一提供商。
 
-| | Claude Code | Codex CLI |
+| | Claude Code | Codex |
 | --- | --- | --- |
-| 安装与认证 | 按 [Claude Code 官方快速开始](https://code.claude.com/docs/en/quickstart)安装；在终端运行 `claude`，按提示登录。 | 按 [Codex CLI 官方指南](https://developers.openai.com/codex/cli/)安装；在终端运行 `codex`，按提示登录。 |
-| 已有账号 | 沿用 Claude Code 支持的账号或 API 配置。 | 沿用 Codex CLI 支持的账号或 API 配置。 |
-| 插件设置 | 打开 **设置 → Oh My Claudian → 提供商 → Claude Code**，启用提供商。 | 打开 **设置 → Oh My Claudian → 提供商 → Codex CLI**，启用提供商。 |
+| 安装与认证 | 按 [Claude Code 官方快速开始](https://code.claude.com/docs/en/quickstart)安装；在终端运行 `claude`，按提示登录。 | 按 [Codex 官方指南](https://developers.openai.com/codex/cli/)安装；在终端运行 `codex`，按提示登录。 |
+| 已有账号 | 沿用 Claude Code 支持的账号或 API 配置。 | 沿用 Codex 支持的账号或 API 配置。 |
+| 插件设置 | 打开 **设置 → Oh My Claudian → 提供商 → Claude Code**，启用提供商。 | 打开 **设置 → Oh My Claudian → 提供商 → Codex**，启用提供商。 |
 | 就绪检查 | 检查 **就绪状态**，必要时设置 CLI 路径，并启用一个聊天模型。 | 检查 **就绪状态**，加载模型目录，并启用一个聊天模型。 |
 
 就绪状态会检查提供商是否启用、CLI 是否可用、模型目录是否可用，以及是否选择了聊天模型。受支持的 CLI 可以提供安装或更新操作，执行前展示命令供确认，执行后检查结果。认证由提供商自己的 CLI 完成。
@@ -79,7 +79,7 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 
 ## 支持的提供商
 
-内置 Claude Code、Codex CLI、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode 和 Pi。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
+内置 Claude Code、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode 和 Pi。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
 
 ## 常见问题
 

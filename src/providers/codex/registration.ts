@@ -23,7 +23,7 @@ import { codexChatUIConfig } from './ui/CodexChatUIConfig';
 export const codexProviderRegistration: ProviderModule = {
   cliLifecycle: codexCliLifecycle,
   id: 'codex',
-  displayName: 'Codex CLI',
+  displayName: 'Codex',
   blankTabOrder: 15,
   isEnabled: (settings) => getCodexProviderSettings(settings).enabled,
   setEnabled: (settings, enabled) => updateCodexProviderSettings(settings, { enabled }),
