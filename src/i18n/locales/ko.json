@@ -731,6 +731,8 @@
         "cancel": "취소"
       },
       "insert": "삽입",
+      "saveFailed": "환경 스니펫을 저장할 수 없습니다",
+      "updateFailed": "환경 스니펫을 업데이트할 수 없습니다",
       "insertFailed": "스니펫을 삽입하지 못했습니다",
       "deleteConfirm": "환경 변수 스니펫 \"{name}\"을(를) 삭제할까요?",
       "deleteFailed": "스니펫을 삭제하지 못했습니다"

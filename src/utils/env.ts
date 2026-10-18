@@ -201,6 +201,17 @@ function getExtraBinaryPaths(): string[] {
   return paths;
 }
 
+/** Reject unusable Node candidates without stopping discovery. */
+function isRunnableNodeFile(nodePath: string): boolean {
+  try {
+    if (!fs.existsSync(nodePath) || !fs.statSync(nodePath).isFile()) return false;
+    if (!isWindows) fs.accessSync(nodePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function* findNodeDirectories(additionalPaths?: string): Generator<string, undefined> {
   const executables = new Set<string>();
   const searchPaths = getExtraBinaryPaths();
@@ -212,17 +223,10 @@ function* findNodeDirectories(additionalPaths?: string): Generator<string, undef
 
   for (const dir of allPaths) {
     if (!dir) continue;
-    try {
-      const nodePath = path.join(dir, NODE_EXECUTABLE);
-      if (fs.existsSync(nodePath)) {
-        const stat = fs.statSync(nodePath);
-        if (stat.isFile() && !executables.has(nodePath)) {
-          executables.add(nodePath);
-          yield dir;
-        }
-      }
-    } catch {
-      // Inaccessible directory
+    const nodePath = path.join(dir, NODE_EXECUTABLE);
+    if (!executables.has(nodePath) && isRunnableNodeFile(nodePath)) {
+      executables.add(nodePath);
+      yield dir;
     }
   }
 
@@ -301,12 +305,9 @@ export function getEnhancedPath(additionalPaths?: string, cliPath?: string): str
     try {
       const cliDir = path.dirname(cliPath);
       const nodeInCliDir = path.join(cliDir, NODE_EXECUTABLE);
-      if (fs.existsSync(nodeInCliDir)) {
-        const stat = fs.statSync(nodeInCliDir);
-        if (stat.isFile()) {
-          segments.push(cliDir);
-          cliDirHasNode = true;
-        }
+      if (isRunnableNodeFile(nodeInCliDir)) {
+        segments.push(cliDir);
+        cliDirHasNode = true;
       }
     } catch {
       // Ignore errors checking CLI directory
