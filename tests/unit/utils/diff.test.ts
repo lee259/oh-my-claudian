@@ -188,6 +188,28 @@ describe('extractDiffData', () => {
 });
 
 describe('diffFromToolInput', () => {
+  it.each([
+    ['', []],
+    ['one', ['one']],
+    ['one\n', ['one']],
+    ['one\n\n', ['one', '']],
+    ['\n', ['']],
+  ])('counts content lines without inventing a terminal Write line for %j', (content, lines) => {
+    const result = diffFromToolInput(makeToolCall('Write', { content }), 'note.md');
+    expect(result?.diffLines.map(line => line.text)).toEqual(lines);
+    expect(result?.stats).toEqual({ added: lines.length, removed: 0 });
+  });
+
+  it('keeps interior blank replacement lines while ignoring the final separator', () => {
+    const result = diffFromToolInput(makeToolCall('Edit', {
+      old_string: 'old\n', new_string: 'new\n\n',
+    }), 'note.md');
+    expect(result?.diffLines.map(line => [line.type, line.text])).toEqual([
+      ['delete', 'old'], ['insert', 'new'], ['insert', ''],
+    ]);
+    expect(result?.stats).toEqual({ added: 2, removed: 1 });
+  });
+
   it('returns delete + insert lines for Edit with valid old_string/new_string', () => {
     const toolCall = makeToolCall('Edit', {
       file_path: 'src/a.ts',
