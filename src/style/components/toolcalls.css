@@ -241,7 +241,7 @@
   gap: 6px;
   padding-block: 6px;
   padding-inline-start: 0;
-  border-radius: 0;
+  border-radius: 6px;
   background: transparent;
   font-size: 14px;
   line-height: 1.5;
