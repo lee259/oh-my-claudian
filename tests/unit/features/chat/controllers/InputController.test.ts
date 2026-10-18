@@ -922,6 +922,26 @@ describe('InputController coordinator execution', () => {
     expect(fixture.deps.streamController.appendText).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['    keepIndented()\n', 'Retry request\n\n    keepIndented()\n'],
+    ['\n\nDraft with trailing spaces  \n', 'Retry request\n\n\n\nDraft with trailing spaces  \n'],
+    [' \n\t', 'Retry request'],
+  ])('preserves the current draft %j when an unsent request is restored', async (draft, expected) => {
+    const fixture = createFixture();
+    const submission = deferred<never>();
+    fixture.coordinator.execute.mockReturnValueOnce(submission.promise);
+    fixture.input.value = 'Retry request';
+
+    const sending = fixture.controller.sendMessage();
+    await waitForCall(fixture.coordinator.execute);
+    fixture.input.value = draft;
+    submission.reject(new ChatExecutionPreHandoffError(new Error('Request was not accepted')));
+    await sending;
+
+    expect(fixture.input.value).toBe(expected);
+    expect(fixture.state.messages).toEqual([]);
+  });
+
   it('restores the unsent turn after an asynchronous unaccepted configuration rejection', async () => {
     const fixture = createFixture();
     const rejection: ProviderExecutionEvent = {

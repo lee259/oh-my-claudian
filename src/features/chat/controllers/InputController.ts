@@ -33,7 +33,6 @@ import type { CanvasSelectionContext } from '../../../utils/canvas';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import type { EditorSelectionContext } from '../../../utils/editor';
-import { appendMarkdownSnippet } from '../../../utils/markdown';
 import type { FeatureHost } from '../../FeatureHost';
 import { COMPLETION_FLAVOR_WORDS } from '../constants';
 import {
@@ -62,7 +61,7 @@ import type { BrowserSelectionController } from './BrowserSelectionController';
 import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
 import { syncComposerAutoScroll } from './ComposerAutoScroll';
-import { captureComposerDraft } from './ComposerDraft';
+import { captureComposerDraft, mergeComposerDraftContent } from './ComposerDraft';
 import type { ConversationController } from './ConversationController';
 import { DeferredReviewableSettlement } from './DeferredReviewableSettlement';
 import { InputContainerVisibility } from './InputContainerVisibility';
@@ -1146,10 +1145,8 @@ export class InputController {
 
     const { content, images } = message;
     const inputEl = this.getComposer();
-    const currentContent = options.mergeWithComposer ? inputEl.value.trim() : '';
-    inputEl.value = currentContent
-      ? appendMarkdownSnippet(content, currentContent)
-      : content;
+    const currentContent = options.mergeWithComposer ? inputEl.value : '';
+    inputEl.value = mergeComposerDraftContent(content, currentContent);
     dispatchComposerInputEvent(inputEl);
 
     const imageContextManager = this.deps.getImageContextManager();
