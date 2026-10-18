@@ -1,12 +1,12 @@
 /** @jest-environment jsdom */
 
-import { readFile } from 'fs/promises';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 import { readSDKSessionFile } from '@/providers/claude/history/sdkSessionPaths';
 
-jest.mock('fs/promises');
 
-const mockReadFile = jest.mocked(readFile);
 
 describe('readSDKSessionFile', () => {
   beforeEach(() => {
@@ -26,19 +26,24 @@ describe('readSDKSessionFile', () => {
       parentUuid: null,
     };
     const records = [...userMessages.slice(0, 100), compactBoundary, ...userMessages.slice(100)];
-    mockReadFile.mockResolvedValue(records.map(record => JSON.stringify(record)).join('\n') as never);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-history-stream-'));
+    const file = path.join(dir, 'history.jsonl');
+    fs.writeFileSync(file, records.map(record => JSON.stringify(record)).join('\n'));
 
-    const parse = jest.spyOn(JSON, 'parse');
+    const original = JSON.parse;
     let parsedAtHeartbeat = 0;
-    const heartbeat = new Promise<void>((resolve) => {
-      window.setTimeout(() => {
+    let resolveHeartbeat!: () => void;
+    const heartbeat = new Promise<void>(resolve => { resolveHeartbeat = resolve; });
+    const parse = jest.spyOn(JSON, 'parse').mockImplementation((...args: Parameters<typeof JSON.parse>) => {
+      if (parse.mock.calls.length === 1) window.setTimeout(() => {
         parsedAtHeartbeat = parse.mock.calls.length;
-        resolve();
+        resolveHeartbeat();
       }, 0);
+      return original(...args);
     });
 
     try {
-      const result = await readSDKSessionFile('/session.jsonl');
+      const result = await readSDKSessionFile(file);
       await heartbeat;
 
       expect(result.messages).toHaveLength(records.length);
@@ -47,6 +52,7 @@ describe('readSDKSessionFile', () => {
       expect(parsedAtHeartbeat).toBeLessThan(records.length);
     } finally {
       parse.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });

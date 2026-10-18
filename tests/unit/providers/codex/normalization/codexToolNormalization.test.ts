@@ -9,6 +9,7 @@ import {
   normalizeCodexToolName,
   normalizeCodexToolResult,
   parseCodexArguments,
+  stringifyCodexToolOutput,
 } from '@/providers/codex/normalization/codexToolNormalization';
 
 describe('normalizeCodexToolName', () => {
@@ -495,5 +496,15 @@ describe('parseCodexArguments', () => {
 
   it('returns empty object for undefined', () => {
     expect(parseCodexArguments(undefined)).toEqual({});
+  });
+});
+
+
+describe('Codex image-only output projection', () => {
+  it('does not copy image payloads into result text and retains non-image structure', () => {
+    const image = { type: 'input_image', image_url: 'data:image/png;base64,private-payload' };
+    expect(stringifyCodexToolOutput([image])).toBe('');
+    expect(stringifyCodexToolOutput([image, { type: 'metadata', count: 1 }])).toBe('[{"type":"metadata","count":1}]');
+    expect(stringifyCodexToolOutput([image, { type: 'text', text: 'Visible output' }])).toBe('Visible output');
   });
 });

@@ -19,9 +19,10 @@ import {
   resolvePiSessionFileHint,
 } from './PiHistoryPathResolver';
 import {
+  type ParsedPiSessionEntries,
   parsePiSessionContent,
-  parsePiSessionEntries,
   parsePiSessionModel,
+  readPiSessionEntries,
   readPiSessionHeader,
   resolvePiTreeCursor,
 } from './PiHistoryStore';
@@ -71,14 +72,9 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     if (!sessionFile) return null;
 
     try {
-      const content = parsePiSessionEntries(await fs.readFile(sessionFile, 'utf8'));
-      const cursor = state.treeCursor
-        ? resolvePiTreeCursor(content.entries, state.treeCursor)
-        : null;
-      return parsePiSessionModel(
-        content,
-        isPendingFork ? state.forkSource!.resumeAt : (cursor ? cursor.leafId : state.leafEntryId),
-      );
+      const content = await readPiSessionEntries(sessionFile);
+      const cursor = state.treeCursor ? resolvePiTreeCursor(content.entries, state.treeCursor) : undefined;
+      return parsePiSessionModel(content, isPendingFork ? state.forkSource!.resumeAt : cursor ? cursor.leafId : state.leafEntryId);
     } catch {
       return null;
     }
@@ -116,7 +112,7 @@ export class PiConversationHistoryService implements ProviderConversationHistory
       }
 
       try {
-        const content = await fs.readFile(sourceSessionFile, 'utf-8');
+        const content = await readPiSessionEntries(sourceSessionFile);
         const messages = parsePiSessionContent(content, {
           leafEntryId: state.forkSource!.resumeAt,
           requireLeafEntryId: true,
@@ -129,8 +125,9 @@ export class PiConversationHistoryService implements ProviderConversationHistory
 
         conversation.messages = messages;
         this.hydratedKeys.set(conversation.id, `fork::${sourceSessionFile}::${state.forkSource!.resumeAt}`);
-      } catch {
+      } catch (error) {
         this.hydratedKeys.delete(conversation.id);
+        if (!isMissingFileError(error)) throw error;
       }
       return;
     }
@@ -211,8 +208,15 @@ export class PiConversationHistoryService implements ProviderConversationHistory
     const messages: ChatMessage[] = [];
     let readCurrent = false;
     for (const source of resolvedSources) {
+      let content: ParsedPiSessionEntries;
       try {
-        const content = parsePiSessionEntries(await fs.readFile(source.sessionFile, 'utf-8'));
+        content = await readPiSessionEntries(source.sessionFile);
+      } catch (error) {
+        // Previous segments may be unavailable; an unreadable current transcript must surface.
+        if (source.kind === 'current' && !isMissingFileError(error)) throw error;
+        continue;
+      }
+      try {
         const cursor = source.kind === 'current' && state.treeCursor
           ? resolvePiTreeCursor(content.entries, state.treeCursor)
           : null;
@@ -504,8 +508,8 @@ async function findForkSourceContainingCheckpoint(
 ): Promise<PiForkSourceCandidate | null> {
   for (const candidate of candidates) {
     try {
-      const content = await fs.readFile(candidate.sessionFile!, 'utf-8');
-      if (parsePiSessionEntries(content).entries.some(entry => entry.id === resumeAt)) {
+      const content = await readPiSessionEntries(candidate.sessionFile!);
+      if (content.entries.some(entry => entry.id === resumeAt)) {
         return candidate;
       }
     } catch {
@@ -513,6 +517,10 @@ async function findForkSourceContainingCheckpoint(
     }
   }
   return null;
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT';
 }
 
 function getLastPreviousSessionTarget(

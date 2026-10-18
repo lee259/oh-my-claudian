@@ -1,12 +1,23 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
+  loadGrokHistory,
   parseGrokHistoryContent,
   resolveGrokPromptIndexAfterAssistant,
 } from '@/providers/grok/history/GrokHistoryStore';
 
 describe('GrokHistoryStore', () => {
+  it('distinguishes a missing history from an unreadable one', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-read-'));
+    try {
+      await expect(loadGrokHistory(dir, 'session')).resolves.toEqual({ messages: [] });
+      fs.mkdirSync(path.join(dir, 'updates.jsonl'));
+      await expect(loadGrokHistory(dir, 'session')).rejects.toMatchObject({ code: 'EISDIR' });
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
   it('hydrates complete turns while tolerating malformed, unknown, and incomplete tails', () => {
     const content = fs.readFileSync(path.join(
       process.cwd(),
