@@ -80,7 +80,7 @@ export function createTabInputController(
     onDiagnosticError: options.onDiagnosticError,
     onFollowUpStateChanged: options.onFollowUpStateChanged,
     preflightExecution: async () => {
-      const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId);
+      const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId, { includeLatestVersion: false });
       if (installation?.operation?.status === 'running') return new Error('Wait for this provider’s CLI operation to finish.');
       if (installation?.status === 'missing' || installation?.status === 'broken') {
         return new Error(installation.error ?? 'Provider CLI not found.');

@@ -434,14 +434,11 @@ async function toggleTabServiceTier(
   });
 }
 
-function refreshTabProviderUI(tab: TabData, plugin: FeatureHost): void {
+export function refreshTabProviderUI(tab: TabData): void {
   tab.ui.modelSelector?.updateDisplay();
-  tab.ui.modelSelector?.renderOptions();
   tab.ui.modeSelector?.updateDisplay();
-  tab.ui.modeSelector?.renderOptions();
-  tab.ui.thinkingBudgetSelector?.updateDisplay();
+  // ModelSelector also owns reasoning and service-tier presentation.
   tab.ui.permissionToggle?.updateDisplay();
-  tab.ui.serviceTierToggle?.updateDisplay();
 }
 
 /**
@@ -593,7 +590,7 @@ export function onProviderAvailabilityChanged(tab: TabData, plugin: FeatureHost)
   syncTabProviderServices(tab, plugin);
   syncSlashCommandDropdownForProvider(tab, plugin);
   invalidateTabProviderCommands(tab);
-  refreshTabProviderUI(tab, plugin);
+  refreshTabProviderUI(tab);
   applyProviderUIGating(tab, plugin);
   return tab.draftModel !== previousDraftModel || tab.providerId !== previousProviderId;
 }
@@ -1318,7 +1315,7 @@ function initializeInputToolbar(
       tab.providerId = providerId;
       syncTabProviderServices(tab, plugin);
       syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
-      refreshTabProviderUI(tab, plugin);
+      refreshTabProviderUI(tab);
       applyProviderUIGating(tab, plugin);
     },
     initializeProvider: async (providerId) => {
@@ -1540,7 +1537,7 @@ function initializeInputToolbar(
     });
   });
 
-  refreshTabProviderUI(tab, plugin);
+  refreshTabProviderUI(tab);
 
   // Gate provider-specific UI elements
   applyProviderUIGating(tab, plugin);
@@ -1886,7 +1883,7 @@ export function initializeTabRuntimeControllers(
         return false;
       }
 
-      refreshTabProviderUI(tab, plugin);
+      refreshTabProviderUI(tab);
       applyProviderUIGating(tab, plugin);
       return true;
     } catch (error) {
@@ -1963,7 +1960,7 @@ export function initializeTabRuntimeControllers(
         ? createConversationExecutionBinding(conversation)
         : null);
 
-      refreshTabProviderUI(tab, plugin);
+      refreshTabProviderUI(tab);
       applyProviderUIGating(tab, plugin);
     },
     onNewConversation: () => {
@@ -1978,7 +1975,7 @@ export function initializeTabRuntimeControllers(
       if (tab.providerId !== previousProviderId) {
         syncTabProviderServices(tab, plugin);
       }
-      refreshTabProviderUI(tab, plugin);
+      refreshTabProviderUI(tab);
       applyProviderUIGating(tab, plugin);
       syncSlashCommandDropdownForProvider(tab, plugin, currentCatalog);
     },

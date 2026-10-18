@@ -11,7 +11,7 @@ import { piSettingsReconciler } from './env/PiSettingsReconciler';
 import { PiExecutionBackend } from './execution/PiExecutionBackend';
 import { PiConversationHistoryService } from './history/PiConversationHistoryService';
 import { piCliLifecycle } from './runtime/PiCliLifecycle';
-import { getPiProviderSettings, updatePiProviderSettings } from './settings';
+import { getPiProviderSettings, isPiProviderEnabled, updatePiProviderSettings } from './settings';
 import { ObsidianPiExtensionUiRenderer } from './ui/ObsidianPiExtensionUiRenderer';
 import { piChatUIConfig } from './ui/PiChatUIConfig';
 
@@ -36,7 +36,7 @@ export const piProviderRegistration: ProviderModule = {
   displayName: 'Pi',
   environmentKeyPatterns: [/^PI_/i],
   historyService: new PiConversationHistoryService(),
-  isEnabled: (settings) => getPiProviderSettings(settings).enabled,
+  isEnabled: isPiProviderEnabled,
   setEnabled: (settings, enabled) => updatePiProviderSettings(settings, { enabled }),
   settingsReconciler: piSettingsReconciler,
   settingsStorage: {

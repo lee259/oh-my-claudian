@@ -8,7 +8,7 @@ import { ompSettingsReconciler } from './env/OmpSettingsReconciler';
 import { OmpExecutionBackend } from './execution/OmpExecutionBackend';
 import { OmpConversationHistoryService } from './history/OmpConversationHistoryService';
 import { ompCliLifecycle } from './runtime/OmpCliLifecycle';
-import { getOmpProviderSettings, updateOmpProviderSettings } from './settings';
+import { getOmpProviderSettings, isOmpProviderEnabled, updateOmpProviderSettings } from './settings';
 import { ompChatUIConfig } from './ui/OmpChatUIConfig';
 
 export const ompProviderRegistration: ProviderModule = {
@@ -21,7 +21,7 @@ export const ompProviderRegistration: ProviderModule = {
   displayName: 'OMP',
   environmentKeyPatterns: [/^OMP_/i],
   historyService: new OmpConversationHistoryService(),
-  isEnabled: settings => getOmpProviderSettings(settings).enabled,
+  isEnabled: isOmpProviderEnabled,
   setEnabled: (settings, enabled) => updateOmpProviderSettings(settings, { enabled }),
   settingsReconciler: ompSettingsReconciler,
   settingsStorage: {

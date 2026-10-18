@@ -73,7 +73,8 @@ export interface ProviderCliLifecyclePort {
   getSnapshot(providerId: ProviderId): ProviderCliSnapshot | null;
   getSnapshots(): readonly ProviderCliSnapshot[];
   subscribe(listener: (snapshot: ProviderCliSnapshot) => void): () => void;
-  check(providerId: ProviderId, options?: { force?: boolean }): Promise<ProviderCliSnapshot>;
+  /** Set includeLatestVersion to false for execution readiness without update discovery. */
+  check(providerId: ProviderId, options?: { force?: boolean; includeLatestVersion?: boolean }): Promise<ProviderCliSnapshot>;
   checkEnabled(options?: { force?: boolean }): Promise<readonly ProviderCliSnapshot[]>;
   prepareAction(providerId: ProviderId, action: ProviderCliAction): Promise<ProviderCliActionPlan>;
   executeAction(plan: ProviderCliActionPlan): Promise<ProviderCliSnapshot>;
