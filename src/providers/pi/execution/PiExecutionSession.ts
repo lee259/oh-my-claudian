@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 
 import {
@@ -66,7 +65,7 @@ import {
   getPiConversationBranches,
   getPiTurnStats,
   parsePiSessionContent,
-  parsePiSessionEntries,
+  readPiSessionEntries,
   resolvePiActivePath,
   resolvePiTreeCursor,
   type rollbackCreatedPiForkSessionFile,
@@ -250,10 +249,9 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     await this.shutdownPromise;
     const state = getPiState(this.providerState);
     if (!state.sessionFile) return { branches: {}, userMessageIds: {} };
-    const content = await fsp.readFile(state.sessionFile, 'utf8');
-    const parsed = parsePiSessionEntries(content);
+    const parsed = await readPiSessionEntries(state.sessionFile);
     const cursor = state.treeCursor ? resolvePiTreeCursor(parsed.entries, state.treeCursor) : undefined;
-    const nativeMessages = parsePiSessionContent(content, {
+    const nativeMessages = parsePiSessionContent(parsed, {
       includeBranches: false,
       ...(cursor ? { leafEntryId: cursor.leafId, requireLeafEntryId: true } : {}),
     });
@@ -323,7 +321,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       const history = await this.readBranchHistory(encoded.model, active.abortController.signal);
       return this.branchMutationConfirmed ? history : { ...history, status: 'cancelled' };
     }
-    const parsed = parsePiSessionEntries(await fsp.readFile(state.sessionFile, 'utf8'));
+    const parsed = await readPiSessionEntries(state.sessionFile, { signal: active.abortController.signal });
     const branches = getPiConversationBranches(parsed.entries);
     if (!branches[request.userMessageId]) throw new Error('Pi prompt is missing.');
     const current = await this.treeRequest({ operation: 'inspect' }, active.abortController.signal);
@@ -413,7 +411,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
       throw new Error('Invalid Pi branch identity or cursor.');
     }
     if (payload.operation === 'restore' && result.leafId !== payload.leafId) {
-      const parsed = parsePiSessionEntries(await fsp.readFile(state.sessionFile!, 'utf8'));
+      const parsed = await readPiSessionEntries(state.sessionFile!, { signal });
       const anchor = parsed.entries.find(entry => entry.id === result.leafId);
       if (anchor?.type !== 'custom' || anchor.raw.customType !== 'claudian-tree-anchor' || anchor.parentId !== payload.leafId) {
         throw new Error('Pi navigation did not reach the selected branch.');
@@ -427,7 +425,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     let cursor = state.treeCursor;
     if (!cursor) return;
     if (state.sessionFile) {
-      const parsed = parsePiSessionEntries(await fsp.readFile(state.sessionFile, 'utf8'));
+      const parsed = await readPiSessionEntries(state.sessionFile, { signal });
       cursor = resolvePiTreeCursor(parsed.entries, cursor);
     }
     const result = await this.treeRequest({ operation: 'restore', ...cursor }, signal);
@@ -1273,8 +1271,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     const sessionFile = getPiState(this.providerState).sessionFile;
     if (!sessionFile) return;
     try {
-      const content = await fsp.readFile(sessionFile, 'utf8');
-      const parsed = parsePiSessionEntries(content);
+      const parsed = await readPiSessionEntries(sessionFile, { signal: active.abortController.signal });
       if (!this.isActive(active)) return;
       const treeState = getPiState(this.providerState);
       const treeResult = treeState.treeCursor

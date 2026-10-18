@@ -37,6 +37,24 @@ describe('CodexConversationHistoryService', () => {
     fs.rmSync(tempHome, { recursive: true, force: true });
   });
 
+  it('rejects unreadable history and permits retry after the source is repaired', async () => {
+    const file = path.join(tempHome, 'unreadable.jsonl');
+    fs.mkdirSync(file);
+    const conversation: Conversation = {
+      id: 'retry', providerId: 'codex', title: 'Retry', createdAt: 1, lastActivityAt: 1,
+      sessionId: 'thread', providerState: { threadId: 'thread', sessionFilePath: file }, messages: [],
+    };
+    const service = new CodexConversationHistoryService();
+    await expect(service.hydrateConversationHistory(conversation, null)).rejects.toMatchObject({ code: 'EISDIR' });
+    expect(conversation.messages).toEqual([]);
+    fs.rmdirSync(file);
+    fs.writeFileSync(file, JSON.stringify({ type: 'response_item', payload: {
+      type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Recovered' }],
+    } }));
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages[0]?.content).toBe('Recovered');
+  });
+
   it('keeps native history readable after runtime settings invalidate the binding', async () => {
     const transcriptPath = path.join(tempHome, 'invalidated-history.jsonl');
     fs.writeFileSync(transcriptPath, [

@@ -7,6 +7,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { forEachJSONLLine } from '@/utils/jsonlFile';
+
 import type {
   ChatMessage,
   CitationGroup,
@@ -149,7 +151,7 @@ interface PersistedCompactionPayload {
   encrypted_content?: string;
 }
 
-interface ParsedSessionRecord {
+export interface CodexSessionRecord {
   timestamp: number;
   type?: string;
   event?: CodexEvent;
@@ -511,7 +513,7 @@ function parseTimestamp(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function parseSessionRecord(line: string): ParsedSessionRecord | null {
+function parseSessionRecord(line: string): CodexSessionRecord | null {
   let parsed: {
     timestamp?: string;
     type?: string;
@@ -524,6 +526,7 @@ function parseSessionRecord(line: string): ParsedSessionRecord | null {
   } catch {
     return null;
   }
+  if (!parsed || typeof parsed !== 'object') return null;
 
   return {
     timestamp: parseTimestamp(parsed.timestamp),
@@ -1886,20 +1889,24 @@ export function parseCodexSessionFile(filePath: string): ChatMessage[] {
   return parseCodexSessionContent(content);
 }
 
-export async function parseCodexSessionFileAsync(
-  filePath: string,
-  timeoutMs = 10_000,
-): Promise<ChatMessage[]> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+export async function readCodexSessionRecords(filePath: string, timeoutMs = 10_000): Promise<CodexSessionRecord[] | null> {
+  const records: CodexSessionRecord[] = [];
   try {
-    const content = await fsp.readFile(filePath, { encoding: 'utf-8', signal: controller.signal });
-    return parseCodexSessionContent(content);
-  } catch {
-    return [];
-  } finally {
-    window.clearTimeout(timer);
+    await forEachJSONLLine(filePath, (line) => {
+      const record = parseSessionRecord(line);
+      if (record) records.push(record);
+    }, { timeoutMs });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return null;
+    throw error;
   }
+  return records;
+}
+
+/** Missing transcripts have no history; other read failures reject. */
+export async function parseCodexSessionFileAsync(filePath: string, timeoutMs = 10_000): Promise<ChatMessage[]> {
+  const records = await readCodexSessionRecords(filePath, timeoutMs);
+  return records ? parseCodexSessionTurns(records).flatMap(turn => turn.messages) : [];
 }
 
 export interface CodexParsedTurn {
@@ -1981,24 +1988,25 @@ export async function readCodexSessionModel(
   }
 }
 
-export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {
-  const records = content
-    .split('\n')
-    .filter(line => line.trim())
-    .map(parseSessionRecord)
-    .filter((record): record is ParsedSessionRecord => record !== null);
+export function parseCodexSessionRecordLines(lines: readonly string[]): CodexSessionRecord[] {
+  return lines.map(parseSessionRecord).filter((record): record is CodexSessionRecord => record !== null);
+}
 
-  // Detect format: legacy uses type=event, modern uses event_msg/response_item
-  let hasLegacy = false;
-  let hasModern = false;
-  for (const record of records) {
-    if (record.type === 'event') hasLegacy = true;
-    else if (record.type === 'event_msg' || record.type === 'response_item' || record.type === 'compacted') hasModern = true;
-    if (hasLegacy && hasModern) break;
+export function parseCodexSessionTurns(content: string | CodexSessionRecord[], throughTurnId?: string): CodexParsedTurn[] {
+  let records = typeof content === 'string' ? parseCodexSessionRecordLines(content.split('\n')) : content;
+  if (throughTurnId) {
+    let reached = false;
+    const nextTurn = records.findIndex(record => {
+      const payload = record.payload as Record<string, unknown> | undefined;
+      if (record.type !== 'event_msg' || payload?.type !== 'task_started') return false;
+      if (reached && payload.turn_id !== throughTurnId) return true;
+      if (payload.turn_id === throughTurnId) reached = true;
+      return false;
+    });
+    if (nextTurn >= 0) records = records.slice(0, nextTurn);
   }
-
-  // Pure legacy sessions use the old flat accumulator (no turn-level structure)
-  if (hasLegacy && !hasModern) {
+  const hasModern = records.some(record => record.type === 'event_msg' || record.type === 'response_item' || record.type === 'compacted');
+  if (!hasModern && records.some(record => record.type === 'event')) {
     const messages = parseLegacySession(records);
     return messages.length > 0 ? [{ turnId: null, messages }] : [];
   }
@@ -2011,7 +2019,7 @@ export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {
 // Legacy (event wrapper) parser — preserved for backward compat
 // ---------------------------------------------------------------------------
 
-function parseLegacySession(records: ParsedSessionRecord[]): ChatMessage[] {
+function parseLegacySession(records: CodexSessionRecord[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   let turn = newTurn();
   let msgIndex = 0;
@@ -2061,13 +2069,13 @@ function parseLegacySession(records: ParsedSessionRecord[]): ChatMessage[] {
 // Modern (response_item + event_msg) parser — bubble model
 // ---------------------------------------------------------------------------
 
-function parseModernSessionTurns(records: ParsedSessionRecord[]): CodexParsedTurn[] {
+function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn[] {
   const ctx = createPersistedParseContext();
   let threadId: string | undefined;
   const turnOutputTokens = new Map<string, number | undefined>();
   const rawCallIds = new Set<string>();
-  const compactedRecordsWithEvent = new Set<ParsedSessionRecord>();
-  let pendingCompactionRecord: ParsedSessionRecord | undefined;
+  const compactedRecordsWithEvent = new Set<CodexSessionRecord>();
+  let pendingCompactionRecord: CodexSessionRecord | undefined;
 
   // Index completed script failures before projecting their calls. Also pair
   // older compaction records with their explicit marker without replaying context.

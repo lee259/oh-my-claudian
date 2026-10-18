@@ -1,8 +1,17 @@
+import type * as nativeFsType from 'node:fs';
 import * as fs from 'node:fs/promises';
+import type * as streamType from 'node:stream';
 
 import { loadSDKSessionMessages } from '@/providers/claude/history/ClaudeHistoryStore';
 
 jest.mock('node:fs/promises');
+jest.mock('node:fs', () => ({
+  ...jest.requireActual<typeof nativeFsType>('node:fs'),
+  createReadStream: (file: string) => {
+    const { Readable } = jest.requireActual<typeof streamType>('node:stream');
+    return Readable.from((async function* () { yield await fs.readFile(file, 'utf-8'); })());
+  },
+}));
 
 const readFile = jest.mocked(fs.readFile);
 

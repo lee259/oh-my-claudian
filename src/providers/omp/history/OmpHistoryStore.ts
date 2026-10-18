@@ -1,23 +1,45 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { forEachJSONLLine } from '@/utils/jsonlFile';
+
 import type { ChatMessage, ContentBlock } from '../../../core/types';
 import type { ToolCallInfo } from '../../../core/types/tools';
 import { extractDiffData } from '../../../utils/diff';
 import { normalizeOmpToolInput, normalizeOmpToolName, normalizeOmpToolUseResult } from '../normalization/ompToolNormalization';
 
 export function parseOmpSessionContent(content: string): ChatMessage[] {
-  const entries: Record<string, unknown>[] = [];
-  for (const line of content.split(/\r?\n/u)) {
-    if (!line.trim()) continue;
-    try {
-      const parsed = JSON.parse(line) as unknown;
-      if (isRecord(parsed)) entries.push(parsed);
-    } catch {
-      continue;
-    }
-  }
+  return projectOmpEntries(content.split(/\r?\n/u).flatMap(line => {
+    const record = parseOmpRecord(line);
+    return record ? [record] : [];
+  }));
+}
 
+function parseOmpRecord(line: string): Record<string, unknown> | null {
+  if (!line.trim()) return null;
+  try {
+    const value: unknown = JSON.parse(line);
+    return isRecord(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function readOmpSessionFile(file: string): Promise<ChatMessage[]> {
+  const entries: Record<string, unknown>[] = [];
+  try {
+    await forEachJSONLLine(file, line => {
+      const record = parseOmpRecord(line);
+      if (record) entries.push(record);
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return [];
+    throw error;
+  }
+  return projectOmpEntries(entries);
+}
+
+function projectOmpEntries(entries: Record<string, unknown>[]): ChatMessage[] {
   const toolResults = getToolResults(entries);
   const messages: ChatMessage[] = [];
   for (const entry of entries) {

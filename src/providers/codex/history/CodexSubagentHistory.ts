@@ -1,7 +1,7 @@
-import * as fs from 'node:fs/promises';
+import { forEachJSONLLine } from '@/utils/jsonlFile';
 
 import type { ChatMessage, SubagentInfo } from '../../../core/types';
-import { findCodexSessionFileAsync, parseCodexSessionContent } from './CodexHistoryStore';
+import { findCodexSessionFileAsync, parseCodexSessionRecordLines, parseCodexSessionTurns } from './CodexHistoryStore';
 
 /** Reads completed child transcripts once during parent-history hydration. */
 export async function hydrateCodexSubagentHistory(
@@ -9,6 +9,7 @@ export async function hydrateCodexSubagentHistory(
   roots: string[],
   deadline: number,
 ): Promise<void> {
+  const contents = new Map<string, string[]>();
   for (const tool of messages.flatMap(message => message.toolCalls ?? [])) {
     const info = tool.subagent;
     if (info?.lifecycleSource !== 'session' || !info.agentId || !info.completedAt) continue;
@@ -17,29 +18,41 @@ export async function hydrateCodexSubagentHistory(
       if (remaining <= 0) return;
       const file = await findCodexSessionFileAsync(info.agentId, root, remaining);
       if (!file) continue;
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
       try {
-        const content = await fs.readFile(file, { encoding: 'utf8', signal: controller.signal });
-        tool.subagent = readCodexChildDetails(content, info);
+        const lines = contents.get(file) ?? await readLinesBeforeDeadline(file, deadline);
+        if (!lines) return;
+        contents.set(file, lines);
+        tool.subagent = readCodexChildDetails(lines, info);
         break;
       } catch {
-        // Keep the parent lifecycle usable when a child transcript is unavailable.
-      } finally {
-        window.clearTimeout(timeout);
+        // The parent lifecycle remains usable if a child was removed or is unavailable.
       }
     }
   }
 }
 
-function readCodexChildDetails(content: string, info: SubagentInfo): SubagentInfo {
+/** Streams a child transcript as lines; null when the hydration deadline passes mid-read. */
+async function readLinesBeforeDeadline(file: string, deadline: number): Promise<string[] | null> {
+  const lines: string[] = [];
+  let expired = false;
+  await forEachJSONLLine(file, (line) => {
+    if (Date.now() > deadline) {
+      expired = true;
+      return false;
+    }
+    lines.push(line);
+  }, { deadline });
+  return expired ? null : lines;
+}
+
+function readCodexChildDetails(lines: string[], info: SubagentInfo): SubagentInfo {
   let ownMetadataRead = false;
   let createdAt = -Infinity;
   const turnLines: string[] = [];
   let nickname: string | undefined;
   let role: string | undefined;
   let result: string | undefined;
-  for (const line of content.split('\n')) {
+  for (const line of lines) {
     let value: unknown;
     try {
       value = JSON.parse(line);
@@ -73,13 +86,9 @@ function readCodexChildDetails(content: string, info: SubagentInfo): SubagentInf
   }
   const label = nickname ?? info.description;
   const details = [role].filter(Boolean);
-  const toolCalls = parseCodexSessionContent(turnLines.join('\n')).flatMap(message => message.toolCalls ?? []);
-  return {
-    ...info,
-    toolCalls,
-    description: details.length ? `${label} (${details.join(', ')})` : label,
-    ...(result ? { result } : {}),
-  };
+  const toolCalls = parseCodexSessionTurns(parseCodexSessionRecordLines(turnLines))
+    .flatMap(turn => turn.messages).flatMap(message => message.toolCalls ?? []);
+  return { ...info, toolCalls, description: details.length ? `${label} (${details.join(', ')})` : label, ...(result ? { result } : {}) };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

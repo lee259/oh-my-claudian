@@ -1,10 +1,9 @@
-import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { ProviderConversationHistoryService, ProviderHistoryPathContext } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
-import { findOmpSessionFileInRoot, parseOmpSessionContent } from './OmpHistoryStore';
+import { findOmpSessionFileInRoot, readOmpSessionFile } from './OmpHistoryStore';
 
 export class OmpConversationHistoryService implements ProviderConversationHistoryService {
   async hydrateConversationHistory(
@@ -15,13 +14,8 @@ export class OmpConversationHistoryService implements ProviderConversationHistor
     if (!conversation.sessionId || conversation.messages.length > 0) return;
     const sessionFile = resolveOmpSessionFile(conversation.sessionId, context);
     if (!sessionFile) return;
-    try {
-      const content = await fs.readFile(sessionFile, 'utf8');
-      const messages = parseOmpSessionContent(content);
-      if (messages.length > 0) conversation.messages = messages;
-    } catch {
-      // OMP history remains provider-owned and is best-effort read-only input.
-    }
+    const messages = await readOmpSessionFile(sessionFile);
+    if (messages.length > 0) conversation.messages = messages;
   }
 
   resolveSessionIdForConversation(conversation: { sessionId: string | null } | null): string | null {
