@@ -63,6 +63,39 @@ describe('OpencodeHttpSessionKernel', () => {
     });
   });
 
+  it.each([false, true])('preserves own form-field keys and skips inherited answers (%s)', async inherited => {
+    const baseRequest = mockRequest.getMockImplementation()!;
+    let reply!: (body: unknown) => void;
+    const replied = new Promise(resolve => { reply = resolve; });
+    mockRequest.mockImplementation(async (route, options) => {
+      if (route.endsWith('/form/form-1/reply')) { reply(options.body); return; }
+      return baseRequest(route, options);
+    });
+    const kernel = new OpencodeHttpSessionKernel({
+      config: { vaultWorkingDirectory: '/vault', interactionPort: {
+        dismissInteraction: jest.fn(),
+        askUserQuestion: async (request: { interactionId: string }) => ({
+          interactionId: request.interactionId,
+          answers: inherited ? Object.create({ ['__proto__']: 'Yes' }) : JSON.parse('{"__proto__":"Yes"}'),
+        }),
+      } } as any,
+      getActiveTurnId: () => 'turn_test', onClosed: jest.fn(), onNotification: jest.fn(),
+      plugin: { settings: {}, getResolvedProviderCliPath: jest.fn(), mutateSettings: jest.fn() } as any,
+      sessionInstanceId: 'instance_test',
+    }, '/opencode', {});
+    try {
+      await kernel.connect({ profile: 'managed', systemInstructions: { kind: 'none' } });
+      await kernel.openSession();
+      emitEvent!({ type: 'form.created', data: { form: {
+        id: 'form-1', sessionID: 'ses_test', metadata: { kind: 'question' },
+        fields: [{ key: '__proto__', type: 'string', title: 'Continue?', options: [{ label: 'Yes' }] }],
+      } } });
+      expect(JSON.stringify(await replied)).toBe(inherited ? '{"answer":{}}' : '{"answer":{"__proto__":"Yes"}}');
+    } finally {
+      await kernel.dispose();
+    }
+  });
+
   it('resolves slash commands against the live v2 catalog', async () => {
     mockRequest.mockImplementation(async (route: string) => {
       if (route === '/api/model') return { data: [{ enabled: true, id: 'm', name: 'Model', providerID: 'test' }] };

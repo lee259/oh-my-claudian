@@ -192,12 +192,12 @@ function normalizeGrokQuestionAnswers(
   const questionText = typeof question.question === 'string' ? question.question : '';
   if (!questionText) return undefined;
   const questionId = typeof question.id === 'string' ? question.id : '';
-  if (parsed && (parsed[questionText] !== undefined || (questionId && parsed[questionId] !== undefined))) {
+  if (parsed && (Object.hasOwn(parsed, questionText) || (questionId && Object.hasOwn(parsed, questionId)))) {
     return parsed;
   }
   const answers: AskUserAnswers = { [questionText]: message };
   if (questionId) {
-    answers[questionId] = message;
+    Object.defineProperty(answers, questionId, { value: message, enumerable: true, writable: true, configurable: true });
   }
   return answers;
 }

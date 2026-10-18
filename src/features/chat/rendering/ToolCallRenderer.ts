@@ -1012,7 +1012,8 @@ function renderAskUserQuestionResult(container: HTMLElement, toolCall: ToolCallI
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     const answer = formatAnswer(
-      (q.id ? answers[q.id] : undefined) ?? answers[q.question]
+      (q.id && Object.hasOwn(answers, q.id) ? answers[q.id] : undefined)
+        ?? (Object.hasOwn(answers, q.question) ? answers[q.question] : undefined)
     );
     const pairEl = reviewEl.createDiv({ cls: 'claudian-ask-review-pair' });
     const bodyEl = pairEl.createDiv({ cls: 'claudian-ask-review-body' });

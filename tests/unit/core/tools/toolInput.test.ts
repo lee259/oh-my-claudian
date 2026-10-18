@@ -5,6 +5,13 @@ import {
 } from '@/core/tools/toolInput';
 
 describe('extractResolvedAnswers', () => {
+  it('keeps prototype-named question keys as serializable own answers', () => {
+    const raw = JSON.parse('{"__proto__":["Yes","Later"],"constructor":"No"}');
+    const answers = extractResolvedAnswers({ answers: raw });
+    expect(Object.getPrototypeOf(answers)).toBe(Object.prototype);
+    expect(JSON.stringify(answers)).toBe('{"__proto__":["Yes","Later"],"constructor":"No"}');
+  });
+
   it('returns undefined when result is not an object', () => {
     expect(extractResolvedAnswers('bad')).toBeUndefined();
     expect(extractResolvedAnswers(123)).toBeUndefined();
@@ -42,6 +49,13 @@ describe('extractResolvedAnswers', () => {
 });
 
 describe('extractResolvedAnswersFromResultText', () => {
+  it.each(['{"__proto__":"Yes"}', '"__proto__"="Yes"'])(
+    'keeps prototype-named answers when replaying %s', (text) => {
+      expect(JSON.stringify(extractResolvedAnswersFromResultText(text)))
+        .toBe('{"__proto__":"Yes"}');
+    },
+  );
+
   it('returns undefined for non-string or empty values', () => {
     expect(extractResolvedAnswersFromResultText(undefined)).toBeUndefined();
     expect(extractResolvedAnswersFromResultText(null)).toBeUndefined();

@@ -2,6 +2,7 @@ import {
   createOpencodeToolStreamAdapter,
   normalizeOpencodeToolInput,
   normalizeOpencodeToolName,
+  normalizeOpencodeToolUseResult,
   resolveOpencodeRawToolName,
 } from '../../../../src/providers/opencode/normalization/opencodeToolNormalization';
 
@@ -14,6 +15,15 @@ describe('normalizeOpencodeToolName', () => {
 });
 
 describe('normalizeOpencodeToolInput', () => {
+  it('keeps prototype-named OpenCode question ids and question text in replay answers', () => {
+    const result = normalizeOpencodeToolUseResult('question', {
+      questions: [{ id: '__proto__', question: 'constructor', options: [{ label: 'Yes' }] }],
+    }, { metadata: { answers: [['Yes']] } });
+    const answers = result?.answers;
+    expect(answers && Object.hasOwn(answers, '__proto__')).toBe(true);
+    expect(JSON.stringify(answers)).toBe('{"constructor":"Yes","__proto__":"Yes"}');
+  });
+
   it('maps websearch payloads to the WebSearch renderer shape', () => {
     expect(normalizeOpencodeToolInput('websearch', {
       action: {
