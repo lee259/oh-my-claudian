@@ -26,6 +26,7 @@ const locales = {
 } as const;
 
 const localizedKeys = [
+  'settings.environmentUpdateFailed',
   'chat.errors.piModelUnavailable',
   'settings.pi.modelsDesc',
   'chat.rewind.confirmMessageConversationOnly',
