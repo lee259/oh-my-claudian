@@ -949,10 +949,9 @@ ClaudeExecutionStrategySink {
       return {};
     }
     const nativeResumeSessionId = this.getNativeResumeSessionId();
+    if (!nativeResumeSessionId) return {};
     return {
-      ...(nativeResumeSessionId
-        ? { sessionId: nativeResumeSessionId }
-        : {}),
+      sessionId: nativeResumeSessionId,
       ...(this.resumeAt ? { resumeAt: this.resumeAt } : {}),
       ...(this.pendingFork ? { fork: true } : {}),
     };
