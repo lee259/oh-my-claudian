@@ -5,12 +5,13 @@ export interface ComposerFileMention {
   fullMatch: string;
   path: string;
   label: string;
+  isFolder: boolean;
 }
 
 /** Resolve full paths before deriving labels, so duplicate names never change identity. */
 export function findComposerFileMentions(
   text: string,
-  resolve: (path: string) => { path: string; name: string } | null,
+  resolve: (path: string) => { path: string; name: string; isFolder?: boolean } | null,
 ): ComposerFileMention[] {
   const tokens: ComposerFileMention[] = [];
   for (const match of text.matchAll(/(^|\s)@(?=\S)/g)) {
@@ -23,10 +24,18 @@ export function findComposerFileMentions(
     }
     for (const end of [...ends].sort((a, b) => b - a)) {
       const path = body.slice(0, end);
-      if (!path || path.endsWith('/') || /\s$/.test(path)) continue;
-      const file = resolve(path);
+      if (!path || /\s$/.test(path)) continue;
+      const isFolder = path.endsWith('/');
+      const file = resolve(isFolder ? path.slice(0, -1) : path);
       if (!file) continue;
-      tokens.push({ index, fullMatch: `@${path}`, path: file.path, label: file.name.replace(/\.md$/i, '') });
+      if (isFolder !== !!file.isFolder) continue;
+      tokens.push({
+        index,
+        fullMatch: `@${path}`,
+        path: file.path,
+        label: isFolder ? file.name : file.name.replace(/\.md$/i, ''),
+        isFolder,
+      });
       break;
     }
   }
