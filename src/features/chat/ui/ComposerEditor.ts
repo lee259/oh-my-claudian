@@ -13,6 +13,7 @@ import { type ComposerFileMention, findComposerFileMentions } from './ComposerMe
 const programmatic = Annotation.define<boolean>();
 const refreshPresentation = StateEffect.define<null>();
 const relationshipAttributes = ['aria-autocomplete', 'aria-activedescendant', 'aria-controls', 'aria-haspopup'];
+let nextComposerLabelId = 0;
 
 class FileMentionWidget extends WidgetType {
   constructor(private readonly mention: ComposerFileMention, private readonly app: App) { super(); }
@@ -79,6 +80,7 @@ class CommandWidget extends WidgetType {
 /** Owns canonical @path text; short labels are editor decorations, never stored aliases. */
 export class ComposerEditor {
   readonly element: ComposerInputElement;
+  private readonly accessibleLabel: HTMLSpanElement;
   private state: EditorState;
   private view: EditorView | null = null;
   private destroyed = false;
@@ -97,9 +99,12 @@ export class ComposerEditor {
   private readonly decorations: StateField<DecorationSet>;
 
   constructor(parent: HTMLElement, private readonly app: App) {
+    // Obsidian also treats aria-label as hover tooltip text on contenteditable elements.
+    const labelId = `claudian-composer-label-${++nextComposerLabelId}`;
+    this.accessibleLabel = parent.createSpan({ text: 'Message', attr: { id: labelId, hidden: '' } });
     const host = parent.createDiv({
       cls: 'claudian-input claudian-composer-editor',
-      attr: { role: 'textbox', 'aria-label': 'Message', 'aria-multiline': 'true', tabindex: '0', dir: 'auto' },
+      attr: { role: 'textbox', 'aria-labelledby': labelId, 'aria-multiline': 'true', tabindex: '0', dir: 'auto' },
     });
     this.element = host as unknown as ComposerInputElement;
     this.decorations = StateField.define<DecorationSet>({
@@ -112,7 +117,7 @@ export class ComposerEditor {
       this.historyConfig.of(history()),
       this.placeholderConfig.of(placeholder(this.placeholderText)),
       EditorView.lineWrapping,
-      EditorView.contentAttributes.of({ 'aria-label': 'Message', 'aria-multiline': 'true', role: 'textbox', spellcheck: 'true', autocorrect: 'on' }),
+      EditorView.contentAttributes.of({ 'aria-labelledby': labelId, 'aria-multiline': 'true', role: 'textbox', spellcheck: 'true', autocorrect: 'on' }),
       EditorView.domEventHandlers({
         input: event => { event.stopPropagation(); return false; },
         keydown: event => {
@@ -223,6 +228,7 @@ export class ComposerEditor {
     this.element.removeEventListener('claudian:mention-inserted', this.refresh);
     this.view?.destroy();
     this.view = null;
+    this.accessibleLabel.remove();
   }
 
   private readonly refresh = () => this.apply(this.state.update({ effects: refreshPresentation.of(null) }));
@@ -232,7 +238,7 @@ export class ComposerEditor {
       this.element.textContent = '';
       this.element.addClass('is-mounted');
       this.element.removeAttribute('role');
-      this.element.removeAttribute('aria-label');
+      this.element.removeAttribute('aria-labelledby');
       this.element.removeAttribute('aria-multiline');
       this.element.setAttribute('tabindex', '-1');
       this.view = new EditorView({ state: this.state, parent: this.element });

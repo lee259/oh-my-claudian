@@ -1096,6 +1096,7 @@
       "noticeTitle": "Oh My Claudian: {count} agents have updates",
       "review": "Review updates",
       "installation": "Installation details"
-    }
+    },
+    "environmentUpdateFailed": "No se pudo completar la actualización del entorno."
   }
 }

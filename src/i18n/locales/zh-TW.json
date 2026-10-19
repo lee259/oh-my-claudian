@@ -1096,6 +1096,7 @@
       "noticeTitle": "Oh My Claudian：{count} 個 Agent 有新版本",
       "review": "檢視更新",
       "installation": "安裝資訊"
-    }
+    },
+    "environmentUpdateFailed": "無法完成環境更新。"
   }
 }
