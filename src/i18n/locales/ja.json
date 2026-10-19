@@ -390,6 +390,8 @@
       "enableDesc": "Oh My Pi ACP プロバイダーを有効にします。",
       "cliPath": "CLI パス",
       "cliPathDesc": "このコンピューター上の OMP の絶対パスです。",
+      "modelRoles": "モデルロール",
+      "roleDefault": "ロールの既定値",
       "models": "モデル",
       "noModels": "OMP モデルがまだ見つかりません。",
       "catalogFailed": "OMP モデルカタログを読み込めませんでした。",

@@ -6,7 +6,9 @@
 
 - OMP launch policy, environment isolation, ACP sessions, model discovery, tool normalization, history, settings, and provider state remain in this directory.
 - Reuse `src/providers/acp/` for transport, permissions, session updates, and event normalization; do not assume ACP providers expose the same model or tool semantics.
-- OMP model discovery uses `omp models --json` as the complete catalog. ACP config options are used for session configuration such as thinking levels, not as a substitute for the full catalog.
+- Concrete model discovery uses `omp models --json`; configured chat roles come from `omp config get modelRoles --json`. Keep explicit enablement for both. ACP config options provide session thinking levels, not a substitute for the full catalog.
+- Persist roles as `omp:@role`, preserving case. Launch the real ACP process with `--model @role`; OMP owns prewalk, fallback, auxiliary roles, and native thinking. Do not reapply role models or unchanged reasoning on ordinary turns: ACP setters count as explicit choices and release native handoffs. Persist selection intent separately from OMP's actual model so resume respects the model restored by OMP, including its ephemeral-switch policy.
+- ACP model setters accept concrete IDs only. For an explicit role change on an existing transcript, resolve it once through an isolated metadata process with the same launch settings, then configure the resumed session. Never prompt that resolver. Follow `config_option_update` for actual-model projection; it must not overwrite the selected role.
 
 ## Isolation Rules
 

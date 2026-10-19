@@ -390,6 +390,8 @@
       "enableDesc": "啟用 Oh My Pi ACP 提供者。",
       "cliPath": "CLI 路徑",
       "cliPathDesc": "此電腦上的 OMP 絕對路徑，也會讓 Obsidian 使用其 Bun 執行環境。",
+      "modelRoles": "模型角色",
+      "roleDefault": "角色預設",
       "models": "模型",
       "noModels": "尚未發現 OMP 模型。請檢查 OMP 登入狀態，然後點擊「探索」。",
       "catalogFailed": "無法載入 OMP 模型目錄。請檢查 CLI 路徑與登入狀態。",

@@ -1,5 +1,6 @@
 import {
   OmpModelDiscoveryService,
+  parseOmpModelRolesOutput,
   parseOmpModelsOutput,
 } from '@/providers/omp/metadata/OmpModelDiscoveryService';
 
@@ -172,4 +173,107 @@ describe('OmpModelDiscoveryService', () => {
       { label: 'Claude Sonnet', rawId: 'anthropic/claude-sonnet' },
     ]);
   });
+});
+
+
+describe('parseOmpModelRolesOutput', () => {
+  it('discovers configured chat roles without copying non-chat roles into the chat catalog', () => {
+    expect(parseOmpModelRolesOutput(JSON.stringify({
+      key: 'modelRoles',
+      value: {
+        default: 'openai/gpt-5:auto',
+        smol: 'local/tiny,openai/gpt-5-mini:off',
+        CODE: 'anthropic/claude-sonnet:high',
+        '快速': 'openai/gpt-5-mini',
+        speech: 'local/kokoro:auto',
+        dictation: 'local/whisper-base:auto',
+        web: 'web/public',
+        empty: '',
+        invalid: 42,
+      },
+    }))).toEqual([
+      { rawId: '@default', label: '@default', description: 'openai/gpt-5:auto' },
+      { rawId: '@smol', label: '@smol', description: 'local/tiny,openai/gpt-5-mini:off' },
+      { rawId: '@CODE', label: '@CODE', description: 'anthropic/claude-sonnet:high' },
+      { rawId: '@快速', label: '@快速', description: 'openai/gpt-5-mini' },
+    ]);
+    expect(parseOmpModelRolesOutput('{')).toEqual([]);
+    expect(parseOmpModelRolesOutput('{"key":"other","value":{"default":"openai/gpt-5"}}')).toEqual([]);
+  });
+});
+
+
+it('combines configured role selectors with the complete concrete model catalog', async () => {
+  const kernel = {
+    cancel: jest.fn(), connect: jest.fn(), dispose: jest.fn().mockResolvedValue(undefined), prompt: jest.fn(),
+    setConfigOption: jest.fn(), setModel: jest.fn(),
+    openSession: jest.fn().mockResolvedValue({ sessionId: 'probe', configOptions: [] }),
+  };
+  const runner = { run: jest.fn(async ({ args }) => ({
+    exitCode: 0,
+    stdout: JSON.stringify(args[0] === 'config'
+      ? { key: 'modelRoles', value: { smol: 'openai/gpt-5-mini:off' } }
+      : { models: [{ provider: 'openai', id: 'gpt-5-mini' }] }),
+  })) };
+  const service = new OmpModelDiscoveryService({
+    settings: {}, app: { vault: { adapter: { basePath: '/vault' } } },
+    getResolvedProviderCliPath: async () => '/configured/omp',
+  } as never, { createKernel: () => kernel, runner });
+  const result = await service.discoverCatalog();
+  expect(result.models).toEqual([
+    { rawId: '@smol', label: '@smol', description: 'openai/gpt-5-mini:off' },
+    { rawId: 'openai/gpt-5-mini', label: 'openai/gpt-5-mini', description: 'openai/gpt-5-mini' },
+  ]);
+  expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({
+    args: ['config', 'get', 'modelRoles', '--json'], command: '/configured/omp', cwd: '/vault',
+  }));
+});
+
+it('resolves a role with native OMP selection and thinking without prompting or touching user history', async () => {
+  const kernel = {
+    cancel: jest.fn(), connect: jest.fn(), dispose: jest.fn().mockResolvedValue(undefined), prompt: jest.fn(),
+    setConfigOption: jest.fn(), setModel: jest.fn(),
+    openSession: jest.fn().mockResolvedValue({ sessionId: 'probe', configOptions: [
+      { id: 'model', type: 'select', currentValue: 'openai/gpt-5-mini', options: [] },
+      { id: 'thinking', category: 'thought_level', type: 'select', currentValue: 'off', options: [] },
+    ] }),
+  };
+  const createKernel = jest.fn(() => kernel);
+  const service = new OmpModelDiscoveryService({
+    settings: {}, app: { vault: { adapter: { basePath: '/vault' } } },
+  } as never, { createKernel, runner: createCatalogRunner() });
+  await expect(service.resolveRole('@smol', new AbortController().signal, '/vault/project')).resolves.toEqual({
+    modelId: 'openai/gpt-5-mini', thinking: 'off',
+  });
+  expect(createKernel).toHaveBeenCalledWith(expect.objectContaining({
+    modelSelector: '@smol', isolateNativeSessions: true, approvalMode: 'always-ask',
+    config: expect.objectContaining({ vaultWorkingDirectory: '/vault/project' }),
+  }));
+  expect(kernel.openSession).toHaveBeenCalledWith();
+  expect(kernel.prompt).not.toHaveBeenCalled();
+  expect(kernel.dispose).toHaveBeenCalledTimes(1);
+});
+
+it('bounds role resolution even if the native metadata request never finishes', async () => {
+  jest.useFakeTimers();
+  const kernel = {
+    cancel: jest.fn(), connect: jest.fn().mockResolvedValue(undefined),
+    dispose: jest.fn().mockResolvedValue(undefined), prompt: jest.fn(),
+    setConfigOption: jest.fn(), setModel: jest.fn(),
+    openSession: jest.fn(() => new Promise<never>(() => undefined)),
+  };
+  const service = new OmpModelDiscoveryService({
+    settings: {}, app: { vault: { adapter: { basePath: '/vault' } } },
+  } as never, { createKernel: () => kernel, runner: createCatalogRunner() });
+  try {
+    const pending = service.resolveRole('@smol', new AbortController().signal);
+    let settled = false;
+    const completed = pending.catch(error => { settled = true; return error; });
+    await jest.advanceTimersByTimeAsync(20_000);
+    expect(settled).toBe(true);
+    await expect(completed).resolves.toMatchObject({ message: 'OMP model role resolution timed out' });
+    expect(kernel.dispose).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });

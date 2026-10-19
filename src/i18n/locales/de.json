@@ -390,6 +390,8 @@
       "enableDesc": "Oh My Pi ACP-Anbieter aktivieren.",
       "cliPath": "CLI-Pfad",
       "cliPathDesc": "Absoluter OMP-Pfad auf diesem Computer.",
+      "modelRoles": "Modellrollen",
+      "roleDefault": "Rollenvorgabe",
       "models": "Modelle",
       "noModels": "Noch keine OMP-Modelle gefunden.",
       "catalogFailed": "OMP-Modellkatalog konnte nicht geladen werden.",

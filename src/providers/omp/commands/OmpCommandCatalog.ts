@@ -8,7 +8,7 @@ import type { SlashCommand } from '@/core/types';
  * type them, and can hide more through the provider settings.
  */
 export const OMP_HIDDEN_RUNTIME_COMMANDS: ReadonlySet<string> = new Set([
-  // Claudian re-applies the toolbar model and reasoning on every turn.
+  // Model and reasoning controls belong to the toolbar; role turns preserve native handoffs.
   'model', 'switch', 'effort', 'fast', 'slow', 'modelpreset',
   // Change the native session identity or location Claudian resumes from.
   'session', 'move', 'wt', 'rename', 'pin', 'fresh',

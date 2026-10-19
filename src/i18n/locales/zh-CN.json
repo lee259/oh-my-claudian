@@ -390,6 +390,8 @@
       "enableDesc": "启用 Oh My Pi ACP 提供商。",
       "cliPath": "CLI 路径",
       "cliPathDesc": "此电脑上的 OMP 绝对路径。可粘贴 \"which omp\" 的输出（Windows 使用 \"where omp\"）。留空使用自动检测。",
+      "modelRoles": "模型角色",
+      "roleDefault": "角色默认",
       "models": "模型",
       "noModels": "尚未发现 OMP 模型。请检查 OMP 登录状态，然后点击“发现”。",
       "catalogFailed": "无法加载 OMP 模型目录。请检查 CLI 路径和登录状态。",

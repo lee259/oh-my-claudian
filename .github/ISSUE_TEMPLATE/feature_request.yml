@@ -42,7 +42,9 @@ body:
         - Not provider-specific
         - Claude
         - Codex
+        - Cursor
         - Grok
+        - OMP (Oh My Pi)
         - OpenCode
         - Pi
         - Other or new provider

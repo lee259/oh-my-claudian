@@ -43,6 +43,7 @@ export interface OmpAcpSessionKernelOptions {
    * removed on dispose.
    */
   readonly isolateNativeSessions?: boolean;
+  readonly modelSelector?: string;
   readonly onClosed: (error: Error) => void;
   readonly onNotification: (notification: AcpSessionNotification) => void;
   readonly onPermissionDenied?: (toolCallId: string) => void;
@@ -107,6 +108,7 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       env: environment,
       ...(this.isolatedSessionDirectory ? { sessionDirectory: this.isolatedSessionDirectory } : {}),
       settings,
+      modelSelector: this.options.modelSelector,
     });
     const subprocess = new AcpSubprocess(spec);
     const stderrDecoder = new StringDecoder('utf8');
