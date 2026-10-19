@@ -18,7 +18,9 @@ class FileMentionWidget extends WidgetType {
   constructor(private readonly mention: ComposerFileMention, private readonly app: App) { super(); }
 
   eq(other: FileMentionWidget): boolean {
-    return this.mention.path === other.mention.path && this.mention.label === other.mention.label;
+    return this.mention.path === other.mention.path
+      && this.mention.label === other.mention.label
+      && this.mention.isFolder === other.mention.isFolder;
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -32,12 +34,17 @@ class FileMentionWidget extends WidgetType {
     link.setAttribute('title', this.mention.path);
     const icon = link.createSpan({ cls: 'claudian-composer-file-icon' });
     icon.setAttribute('aria-hidden', 'true');
-    setIcon(icon, 'file-text');
+    setIcon(icon, this.mention.isFolder ? 'folder' : 'file-text');
     link.createSpan({ cls: 'claudian-composer-file-name', text: this.mention.label });
     const open = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
-      void this.app.workspace.openLinkText(this.mention.path, '', 'tab');
+      if (this.mention.isFolder) {
+        const folder = this.app.vault.getAbstractFileByPath(this.mention.path);
+        for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
+          (leaf.view as unknown as { revealInFolder?: (target: unknown) => void }).revealInFolder?.(folder);
+        }
+      } else void this.app.workspace.openLinkText(this.mention.path, '', 'tab');
     };
     link.addEventListener('click', open);
     link.addEventListener('keydown', event => {
@@ -237,18 +244,20 @@ export class ComposerEditor {
     this.view.focus();
   };
 
-  private resolveFile(path: string): { path: string; name: string } | null {
+  private resolveMention(path: string): { path: string; name: string; isFolder: boolean } | null {
     const file = this.app.vault?.getAbstractFileByPath(path);
-    if (file && 'extension' in file) return file;
+    if (file) return { path: file.path, name: file.name, isFolder: !('extension' in file) };
     const linkedFile = this.app.metadataCache?.getFirstLinkpathDest(path, '');
     // Implicit .md lookup must not reinterpret bare MCP or agent mentions as files.
     const name = path.slice(path.lastIndexOf('/') + 1);
-    return linkedFile?.name.toLocaleLowerCase() === name.toLocaleLowerCase() ? linkedFile : null;
+    return linkedFile?.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+      ? { path: linkedFile.path, name: linkedFile.name, isFolder: false }
+      : null;
   }
 
   private decorate(state: EditorState, previous: DecorationSet): DecorationSet {
     const text = state.doc.toString();
-    const files = findComposerFileMentions(text, path => this.resolveFile(path));
+    const files = findComposerFileMentions(text, path => this.resolveMention(path));
     const ranges: Array<{ from: number; to: number; decoration: Decoration }> = [];
     const completed = (from: number, to: number) => {
       if (state.selection.ranges.some(range => range.from > from && range.from < to || range.to > from && range.to < to)) return false;

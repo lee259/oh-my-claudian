@@ -62,11 +62,8 @@
 }
 
 .claudian-composer-file {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.2em;
-  max-width: 100%;
-  vertical-align: bottom;
+  display: inline;
+  vertical-align: baseline;
   background: transparent;
   color: var(--link-color);
   cursor: pointer;
@@ -87,7 +84,8 @@
 
 .claudian-composer-file-icon {
   display: inline-flex;
-  align-self: center;
+  margin-inline-end: 0.2em;
+  vertical-align: -0.12em;
   color: var(--text-muted);
 }
 
@@ -97,10 +95,9 @@
 }
 
 .claudian-composer-file-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .claudian-composer-path-link {
