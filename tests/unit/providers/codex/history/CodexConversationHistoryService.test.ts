@@ -91,6 +91,43 @@ describe('CodexConversationHistoryService', () => {
     expect(service.resolveSessionIdForConversation(reopened)).toBeNull();
   });
 
+  it('hydrates history from legacy previous segments after reopening', async () => {
+    const transcriptPath = path.join(tempHome, 'legacy-history.jsonl');
+    fs.writeFileSync(transcriptPath, [
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'user',
+        content: [{ type: 'input_text', text: 'Previous question' }],
+      } }),
+      JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'assistant',
+        content: [{ type: 'output_text', text: 'Previous answer' }],
+      } }),
+    ].join('\n'));
+    const conversation: Conversation = {
+      id: 'legacy-history', providerId: 'codex', title: 'Legacy history',
+      createdAt: 1, lastActivityAt: 2, sessionId: null, messages: [],
+      providerState: { nativeConversationContextEstablished: false, previousSegments: [{
+        threadId: 'legacy-thread',
+        sessionFilePath: transcriptPath,
+        transcriptRootPath: tempHome,
+      }] },
+    };
+
+    await new CodexConversationHistoryService().hydrateConversationHistory(conversation, null);
+
+    expect(conversation.messages.map(message => message.content))
+      .toEqual(['Previous question', 'Previous answer']);
+    expect(conversation.providerState).not.toHaveProperty('previousSegments');
+    expect(conversation.providerState?.historySources).toEqual([{
+      sessionId: 'legacy-thread',
+      providerState: {
+        threadId: 'legacy-thread',
+        sessionFilePath: transcriptPath,
+        transcriptRootPath: tempHome,
+      },
+    }]);
+  });
+
   it('joins old history with a fresh binding and survives another settings change', async () => {
     const conversation: Conversation = {
       id: 'joined-history', providerId: 'codex', title: 'History',
