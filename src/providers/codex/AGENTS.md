@@ -43,7 +43,7 @@ Live execution state and replay state are separate authorities. Do not fill gaps
 - Runtime fingerprint changes invalidate existing Codex sessions. The fingerprint includes `OPENAI_MODEL`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `PATH`, explicit/host CLI-path inputs, installation method, and WSL distro override.
 - Invalidating a runtime binding must retain its native replay locator in `historySources`. These sources are read-only history segments; never promote them into a thread to resume, roll back, or archive. A fresh thread contributes a new segment after the retained history.
 - Existing threads require `thread/resume` before operations in a new app-server process.
-- For forks, resume the new fork thread before `thread/rollback`.
+- Fork with inclusive `lastTurnId`, then resume the owned child before trimming any later turns with `thread/revert`. Use legacy `thread/rollback` only after a structured method-not-found or exact legacy decoder rejection; never retry mutations on timeout or ambiguous transport errors.
 - Notifications can arrive before `turn/start` returns; preserve pending-turn buffering.
 - Compact turns get their ID from `turn/started`, not from the `thread/compact/start` response.
 
@@ -63,6 +63,6 @@ Live execution state and replay state are separate authorities. Do not fill gaps
 
 ## Invariants
 
-- A thread must be started or resumed before a turn, rollback, or compact operation targets it in the current app-server process.
+- A thread must be started or resumed before a turn, revert, legacy rollback, or compact operation targets it in the current app-server process.
 - Only current binding, provider generation, and turn notifications may update the active execution.
 - Provider state persists opaque Codex thread and fork metadata; feature code must not reconstruct it.
