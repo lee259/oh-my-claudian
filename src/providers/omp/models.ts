@@ -51,6 +51,10 @@ export function normalizeOmpThinkingConfig(value: unknown): OmpThinkingConfig | 
 
 const OMP_MODEL_PREFIX = 'omp:';
 
+export function isOmpRoleSelector(value: string): boolean {
+  return /^@[^\s,:/@]+$/u.test(value);
+}
+
 export function encodeOmpModelId(rawId: string): string {
   const normalized = rawId.trim();
   return normalized ? `${OMP_MODEL_PREFIX}${normalized}` : '';
@@ -155,8 +159,9 @@ export function normalizeOmpVisibleModels(
 }
 
 function canonicalizeOmpModelId(value: string): string {
-  return value.trim()
-    .replace(/^omp:/iu, '')
+  const rawId = value.trim().replace(/^omp:/iu, '');
+  if (isOmpRoleSelector(rawId)) return rawId;
+  return rawId
     .replace(/:+/gu, '/')
     .replace(/\/{2,}/gu, '/')
     .toLowerCase();

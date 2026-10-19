@@ -22,7 +22,7 @@ import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderR
 import { getHostnameKey } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { maybeGetOmpWorkspaceServices } from '../app/OmpWorkspaceServices';
-import { normalizeOmpVisibleModels } from '../models';
+import { isOmpRoleSelector, normalizeOmpVisibleModels } from '../models';
 import { ompCliMetadata } from '../runtime/OmpCliMetadata';
 import {
   getOmpProviderSettings,
@@ -198,6 +198,16 @@ function validateCliPath(value: string): string | null {
 function toPickerModel(
   model: ReturnType<typeof getOmpProviderSettings>['discoveredModels'][number],
 ): ProviderModelPickerModel {
+  if (isOmpRoleSelector(model.rawId)) {
+    return {
+      id: model.rawId,
+      name: model.label,
+      description: model.description,
+      isAvailable: true,
+      providerKey: 'roles',
+      providerLabel: t('settings.omp.modelRoles'),
+    };
+  }
   const [providerKey, ...modelIdParts] = model.rawId.split('/');
   const providerLabel = providerKey ? formatProviderLabel(providerKey) : undefined;
   return {

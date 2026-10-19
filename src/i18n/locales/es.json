@@ -390,6 +390,8 @@
       "enableDesc": "Activar el proveedor ACP de Oh My Pi.",
       "cliPath": "Ruta del CLI",
       "cliPathDesc": "Ruta absoluta a OMP en este equipo.",
+      "modelRoles": "Roles de modelo",
+      "roleDefault": "Predeterminado del rol",
       "models": "Modelos",
       "noModels": "Aún no se han descubierto modelos OMP.",
       "catalogFailed": "No se pudo cargar el catálogo de modelos OMP.",

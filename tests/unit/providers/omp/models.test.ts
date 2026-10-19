@@ -62,3 +62,9 @@ describe('OMP models', () => {
     )).toEqual(['bailian/deepseek-v4-flash', 'openrouter/gpt-5']);
   });
 });
+
+it('preserves case-sensitive role identities across catalog refreshes', () => {
+  expect(normalizeOmpVisibleModels(['@CODE', '@code', 'openai/gpt-5'], [
+    { rawId: '@CODE', label: '@CODE' }, { rawId: '@code', label: '@code' },
+  ])).toEqual(['@CODE', '@code', 'openai/gpt-5']);
+});

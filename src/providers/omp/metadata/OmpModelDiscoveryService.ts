@@ -9,6 +9,7 @@ import {
   type OmpAcpSessionKernelOptions,
 } from '../execution/OmpAcpSessionKernel';
 import {
+  isOmpRoleSelector,
   normalizeOmpConfigChoices,
   normalizeOmpConfigOptionModels,
   normalizeOmpDiscoveredModels,
@@ -89,9 +90,14 @@ export class OmpModelDiscoveryService {
       signal?.throwIfAborted();
       const thinking = normalizeOmpConfigChoices(session.configOptions, 'thought_level');
       const acpModels = normalizeOmpConfigOptionModels(session.configOptions);
-      const models = await this.discoverCliModels(signal).catch(() => acpModels);
+      const [models, roles] = await Promise.all([
+        this.discoverCliModels(signal).catch(() => acpModels),
+        this.readCliCatalog(['config', 'get', 'modelRoles', '--json'], signal)
+          .then(parseOmpModelRolesOutput).catch(() => []),
+      ]);
+      signal?.throwIfAborted();
       return {
-        models: models.length > 0 ? models : acpModels,
+        models: [...roles, ...(models.length > 0 ? models : acpModels)],
         thinking: thinking.configId
           ? {
             configId: thinking.configId,
@@ -106,24 +112,100 @@ export class OmpModelDiscoveryService {
     }
   }
 
+  /** Resolve selectors through OMP's own role grammar, without generating a turn. */
+  async resolveRole(
+    role: string,
+    signal: AbortSignal,
+    workingDirectory?: string,
+  ): Promise<{ modelId: string; thinking: string | null }> {
+    if (!isOmpRoleSelector(role)) throw new Error('Invalid OMP model role');
+    const timeout = new AbortController();
+    const combined = AbortSignal.any([signal, timeout.signal]);
+    combined.throwIfAborted();
+    const kernel = this.createKernel({
+      approvalMode: 'always-ask',
+      config: {
+        ...getOmpMetadataSessionConfig(this.plugin),
+        ...(workingDirectory ? { vaultWorkingDirectory: workingDirectory } : {}),
+      },
+      getActiveTurnId: () => null,
+      isolateNativeSessions: true,
+      modelSelector: role,
+      onClosed: () => undefined,
+      onNotification: () => undefined,
+      plugin: this.plugin,
+    });
+    let disposal: Promise<void> | undefined;
+    const dispose = (): Promise<void> => disposal ??= kernel.dispose();
+    let rejectAbort!: (reason: unknown) => void;
+    const aborted = new Promise<never>((_resolve, reject) => { rejectAbort = reject; });
+    const abort = (): void => {
+      void dispose().catch(() => undefined);
+      rejectAbort(combined.reason);
+    };
+    combined.addEventListener('abort', abort, { once: true });
+    // eslint-disable-next-line obsidianmd/prefer-window-timers -- Provider metadata probes also run outside the renderer.
+    const timer = setTimeout(() => timeout.abort(new Error('OMP model role resolution timed out')), MODEL_COMMAND_TIMEOUT_MS);
+    const resolve = async (): Promise<{ modelId: string; thinking: string | null }> => {
+      await kernel.connect();
+      combined.throwIfAborted();
+      const session = await kernel.openSession();
+      combined.throwIfAborted();
+      const model = session.configOptions?.find(option => option.id === 'model');
+      const modelId = model?.type === 'select' ? model.currentValue.trim() : '';
+      if (!modelId || modelId.startsWith('@')) throw new Error(`OMP did not resolve model role ${role}`);
+      const thinking = normalizeOmpConfigChoices(session.configOptions, 'thought_level').currentValue;
+      return { modelId, thinking };
+    };
+    try {
+      return await Promise.race([resolve(), aborted]);
+    } finally {
+      // eslint-disable-next-line obsidianmd/prefer-window-timers -- Match the provider-owned metadata timer.
+      clearTimeout(timer);
+      combined.removeEventListener('abort', abort);
+      await dispose();
+    }
+  }
+
   private async discoverCliModels(signal?: AbortSignal): Promise<OmpDiscoveredModel[]> {
+    return parseOmpModelsOutput(await this.readCliCatalog(['models', '--json'], signal));
+  }
+
+  private async readCliCatalog(args: string[], signal?: AbortSignal): Promise<string> {
     const command = await this.plugin.getResolvedProviderCliPath('omp') ?? 'omp';
     const env = await resolveOmpRuntimeEnvironment(
       process.env,
       getRuntimeEnvironmentVariables(this.plugin.settings, 'omp'),
     );
     const result = await this.runner.run({
-      args: ['models', '--json'],
+      args,
       command,
       cwd: getVaultPath(this.plugin.app) ?? process.cwd(),
       env,
       signal,
       timeoutMs: MODEL_COMMAND_TIMEOUT_MS,
     });
-    if (result.termination || result.exitCode !== 0) return [];
-    return parseOmpModelsOutput(result.stdout);
+    signal?.throwIfAborted();
+    if (result.termination || result.exitCode !== 0) return '';
+    return result.stdout;
   }
 
+}
+
+// OMP kind roles serve auxiliary runtimes rather than the chat agent.
+const NON_CHAT_ROLES = new Set(['web', 'image', 'speech', 'dictation', 'judge']);
+
+export function parseOmpModelRolesOutput(output: string): OmpDiscoveredModel[] {
+  let parsed: unknown;
+  try { parsed = JSON.parse(output); } catch { return []; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  const record = parsed as Record<string, unknown>;
+  if (record.key !== 'modelRoles' || !record.value || typeof record.value !== 'object' || Array.isArray(record.value)) return [];
+  return Object.entries(record.value).flatMap(([role, value]) => {
+    if (!isOmpRoleSelector(`@${role}`) || NON_CHAT_ROLES.has(role)) return [];
+    if (typeof value !== 'string' || !value.trim()) return [];
+    return [{ rawId: `@${role}`, label: `@${role}`, description: value.trim() }];
+  });
 }
 
 export function parseOmpModelsOutput(output: string): OmpDiscoveredModel[] {

@@ -9,6 +9,7 @@ import { buildInitialOmpUsageInfo } from '../execution/OmpExecutionSession';
 import {
   decodeOmpModelId,
   encodeOmpModelId,
+  isOmpRoleSelector,
 } from '../models';
 import { getOmpProviderSettings } from '../settings';
 
@@ -33,19 +34,28 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
     return rawId ? encodeOmpModelId(rawId) : null;
   },
   ownsModel: model => decodeOmpModelId(model) !== null,
-  isAdaptiveReasoningModel: (_model, settings) => getOmpProviderSettings(settings).thinking !== null,
-  getReasoningOptions: (_model, settings) => getOmpProviderSettings(settings).thinking?.options.map(option => ({
-    ...(option.description ? { description: option.description } : {}),
-    label: option.name,
-    value: option.id,
-  })) ?? [],
-  getDefaultReasoningValue: (_model, settings) => getOmpProviderSettings(settings).thinking?.currentValue ?? 'default',
+  isAdaptiveReasoningModel: (model, settings) => isRoleModel(model) || getOmpProviderSettings(settings).thinking !== null,
+  getReasoningOptions: (model, settings) => [
+    ...(isRoleModel(model) ? [{ label: t('settings.omp.roleDefault'), value: 'role-default' }] : []),
+    ...(getOmpProviderSettings(settings).thinking?.options.map(option => ({
+      ...(option.description ? { description: option.description } : {}),
+      label: option.name,
+      value: option.id,
+    })) ?? []),
+  ],
+  getDefaultReasoningValue: (model, settings) => isRoleModel(model)
+    ? 'role-default' : getOmpProviderSettings(settings).thinking?.currentValue ?? 'default',
   getInitialUsage(model) {
     return buildInitialOmpUsageInfo(decodeOmpModelId(model) ?? undefined);
   },
   getContextWindowSize: (_model, customLimits) => customLimits?.omp ?? 200_000,
   isDefaultModel: model => decodeOmpModelId(model) !== null,
-  applyModelDefaults: () => undefined,
+  applyModelDefaults(model, settings) {
+    if (isRoleModel(model) && settings && typeof settings === 'object' && !Array.isArray(settings)) {
+      (settings as Record<string, unknown>).effortLevel = 'role-default';
+    }
+  },
+  applyModelProjectionDefaults: () => undefined,
   normalizeModelVariant: model => model,
   getCustomModelIds: () => new Set<string>(),
   getPermissionModeToggle: (): ProviderPermissionModeToggleConfig => ({
@@ -92,3 +102,7 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
     target.permissionMode = value === 'yolo' || value === 'write' ? value : 'always-ask';
   },
 };
+
+function isRoleModel(model: string): boolean {
+  return isOmpRoleSelector(decodeOmpModelId(model) ?? '');
+}

@@ -17,6 +17,7 @@ import type { UsageInfo } from '@/core/types';
 import {
   type AcpContentBlock,
   AcpExecutionEventNormalizer,
+  type AcpSessionConfigOption,
   type AcpSessionNotification,
   type AcpUsageUpdate,
   buildAcpUsageInfo,
@@ -25,16 +26,17 @@ import {
 import { appendContextFiles, appendCurrentNote } from '@/utils/context';
 import { appendEditorContext } from '@/utils/editor';
 
+import { OmpModelDiscoveryService } from '../metadata/OmpModelDiscoveryService';
 import { decodeOmpModelId } from '../models';
 import { createOmpToolStreamAdapter } from '../normalization/ompToolNormalization';
 import type { OmpApprovalMode } from '../runtime/OmpLaunchSpec';
-import { getOmpProviderSettings } from '../settings';
 import {
   DefaultOmpAcpSessionKernel,
   type OmpAcpSessionKernel,
   type OmpAcpSessionKernelOptions,
 } from './OmpAcpSessionKernel';
 import { formatOmpExecutionError } from './OmpExecutionError';
+import { getOmpRoleSelector, type OmpSessionSelection, readOmpSessionSelection } from './OmpSessionSelection';
 
 class EventQueue<T> implements AsyncIterable<T>, AsyncIterator<T> {
   private closed = false;
@@ -77,6 +79,7 @@ class OmpExecutionRun implements ProviderExecutionRun {
   readonly queue: EventQueue<ProviderExecutionEvent>;
   readonly events: AsyncIterable<ProviderExecutionEvent>;
   terminal = false;
+  readonly controller = new AbortController();
   private sequence = 0;
 
   constructor(private readonly cancelRun: () => void) {
@@ -125,6 +128,10 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private snapshot: ProviderSessionSnapshot;
   private lastUsage: UsageInfo | null = null;
   private disposed = false;
+  private selection: OmpSessionSelection | null;
+  private kernelRoleSelector: string | undefined;
+  private nativeModelId: string | undefined;
+  private readonly roleResolutions = new Set<Promise<unknown>>();
 
   constructor(
     private readonly plugin: ProviderHost,
@@ -133,6 +140,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   ) {
     this.createKernel = options.createKernel ?? (kernelOptions => new DefaultOmpAcpSessionKernel(kernelOptions));
     this.nativeSessionId = config.resumeSeed?.providerSessionId ?? null;
+    this.selection = readOmpSessionSelection(config.resumeSeed?.providerState);
     this.snapshot = this.makeSnapshot('idle');
   }
 
@@ -159,19 +167,51 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.activeRun?.controller.abort();
     this.activeRun?.finish({ reason: 'session-disposed', scope: this.activeRun.scope(), type: 'cancelled' });
     this.activeRun = null;
     this.snapshot = this.makeSnapshot('disposed');
-    await this.kernel?.dispose();
+    await Promise.allSettled([
+      ...this.roleResolutions,
+      ...(this.kernel ? [this.kernel.dispose()] : []),
+    ]);
     this.kernel = null;
     this.listeners.clear();
   }
 
   private async startRun(run: OmpExecutionRun, request: ProviderExecutionRequest): Promise<void> {
     this.blockedToolCallIds.clear();
+    const abort = (): void => this.cancelRun(run);
+    request.signal.addEventListener('abort', abort, { once: true });
     try {
+      if (request.signal.aborted) this.cancelRun(run);
+      if (run.terminal) return;
+      const selectedModel = decodeOmpModelId(request.configuration.model ?? '') ?? undefined;
+      const role = getOmpRoleSelector(selectedModel ?? null);
+      const reasoning = request.configuration.reasoning ?? (role ? 'role-default' : null);
+      const selectionChanged = selectedModel !== this.selection?.model;
+      const reasoningChanged = reasoning !== this.selection?.reasoning;
+      const resuming = this.nativeSessionId !== null;
+      let modelToApply = role ? undefined : selectedModel;
+      let reasoningToApply = reasoning === 'role-default' ? undefined : reasoning ?? undefined;
+      // A new role session resolves natively at startup. Reconfiguration of an
+      // existing transcript is explicit; ordinary turns must preserve handoffs.
+      if (role && ((resuming && selectionChanged) || (!selectionChanged && reasoningChanged && reasoning === 'role-default'))) {
+        const pending = new OmpModelDiscoveryService(this.plugin, {
+          createKernel: this.createKernel,
+        }).resolveRole(role, run.controller.signal, this.config.vaultWorkingDirectory);
+        this.roleResolutions.add(pending);
+        const release = (): void => { this.roleResolutions.delete(pending); };
+        void pending.then(release, release);
+        const resolved = await pending;
+        if (run.terminal) return;
+        if (selectionChanged) modelToApply = resolved.modelId;
+        if (reasoning === 'role-default') reasoningToApply = resolved.thinking ?? undefined;
+      } else if (role && !selectionChanged && !reasoningChanged) {
+        reasoningToApply = undefined;
+      }
       const approvalMode = resolveOmpApprovalMode(request.configuration.permissionMode);
-      if (this.kernel && this.kernelApprovalMode !== approvalMode) {
+      if (this.kernel && (this.kernelApprovalMode !== approvalMode || this.kernelRoleSelector !== role)) {
         await this.kernel.dispose();
         this.kernel = null;
         this.kernelApprovalMode = null;
@@ -179,6 +219,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       if (!this.kernel) {
         this.kernel = this.createKernel({
           approvalMode,
+          modelSelector: role,
           config: this.config,
           getActiveTurnId: () => this.activeRun?.turnId ?? null,
           onClosed: error => {
@@ -193,17 +234,24 @@ export class OmpExecutionSession implements ProviderExecutionSession {
           plugin: this.plugin,
         });
         this.kernelApprovalMode = approvalMode;
+        this.kernelRoleSelector = role;
         await this.kernel.connect();
       }
+      if (run.terminal) return;
       const native = await this.kernel.openSession(this.nativeSessionId ?? undefined);
+      if (run.terminal) return;
       this.nativeSessionId = native.sessionId;
-      await this.applyConfiguration(native, request);
+      this.nativeModelId = readNativeModelId(native.configOptions) ?? this.nativeModelId;
+      await this.applyConfiguration(native, modelToApply, reasoningToApply);
+      if (run.terminal) return;
+      if (modelToApply) this.nativeModelId = modelToApply;
+      this.selection = selectedModel ? { model: selectedModel, reasoning } : null;
       this.snapshot = this.makeSnapshot('executing');
       this.emitSnapshot(run);
       const normalizer = new AcpExecutionEventNormalizer({
         mapUsage: usage => buildOmpUsageInfo(
           usage,
-          decodeOmpModelId(request.configuration.model ?? '') ?? undefined,
+          this.nativeModelId ?? selectedModel,
         ),
         isToolBlocked: toolCallId => this.blockedToolCallIds.has(toolCallId),
         scope: {
@@ -215,11 +263,10 @@ export class OmpExecutionSession implements ProviderExecutionSession {
         toolStreamAdapter: createOmpToolStreamAdapter(),
       });
       this.normalizers.set(run, normalizer);
-      const selectedModel = decodeOmpModelId(request.configuration.model ?? '')
-        ?? getOmpProviderSettings(this.plugin.settings).visibleModels[0]
-        ?? undefined;
-      if (!this.lastUsage) {
-        const initialUsage = buildInitialOmpUsageInfo(selectedModel);
+      if (!this.lastUsage || (this.nativeModelId && this.lastUsage.model !== this.nativeModelId)) {
+        const initialUsage = this.lastUsage
+          ? { ...this.lastUsage, model: this.nativeModelId }
+          : buildInitialOmpUsageInfo(this.nativeModelId ?? selectedModel);
         this.lastUsage = initialUsage;
         run.queue.push({
           scope: run.scope(),
@@ -241,6 +288,8 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       this.activeRun = null;
     } catch (error) {
       this.failRun(run, error);
+    } finally {
+      request.signal.removeEventListener('abort', abort);
     }
   }
 
@@ -248,25 +297,23 @@ export class OmpExecutionSession implements ProviderExecutionSession {
 
   private async applyConfiguration(
     native: Awaited<ReturnType<OmpAcpSessionKernel['openSession']>>,
-    request: ProviderExecutionRequest,
+    modelId?: string,
+    reasoning?: string,
   ): Promise<void> {
     if (!this.kernel) return;
-    const modelId = request.configuration.model
-      ? decodeOmpModelId(request.configuration.model)
-      : null;
     if (modelId) await this.kernel.setModel({ modelId, sessionId: native.sessionId });
 
     const thinking = extractAcpSessionThoughtLevelState({ configOptions: native.configOptions });
     if (
-      request.configuration.reasoning
+      reasoning
       && thinking.configId
-      && thinking.availableLevels.some(level => level.id === request.configuration.reasoning)
+      && thinking.availableLevels.some(level => level.id === reasoning)
     ) {
       await this.kernel.setConfigOption({
         configId: thinking.configId,
         sessionId: native.sessionId,
         type: 'select',
-        value: request.configuration.reasoning,
+        value: reasoning,
       });
     }
 
@@ -274,6 +321,16 @@ export class OmpExecutionSession implements ProviderExecutionSession {
 
   private handleNotification(run: OmpExecutionRun, notification: AcpSessionNotification): void {
     if (run.terminal || notification.sessionId !== this.nativeSessionId) return;
+    if (notification.update.sessionUpdate === 'config_option_update') {
+      const model = readNativeModelId(notification.update.configOptions);
+      if (model && model !== this.nativeModelId) {
+        this.nativeModelId = model;
+        if (this.lastUsage) {
+          this.lastUsage = { ...this.lastUsage, model };
+          run.queue.push({ type: 'usage_updated', usage: this.lastUsage, scope: run.scope() });
+        }
+      }
+    }
     const result = this.normalizers.get(run)?.normalize(notification.update);
     for (const event of result?.events ?? []) {
       if (event.type === 'usage_updated') {
@@ -285,6 +342,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
 
   private cancelRun(run: OmpExecutionRun): void {
     if (this.activeRun !== run || run.terminal) return;
+    run.controller.abort();
     if (this.nativeSessionId) this.kernel?.cancel(this.nativeSessionId);
     run.finish({ reason: 'cancelled', scope: run.scope(), type: 'cancelled' });
     this.activeRun = null;
@@ -315,6 +373,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
     const base = {
       providerId: this.providerId,
       providerSessionId: this.nativeSessionId ?? undefined,
+      ...(this.selection ? { providerState: { ompSelection: this.selection } } : {}),
       revision: Date.now(),
     };
     if (status === 'invalidated') {
@@ -380,4 +439,10 @@ export function buildInitialOmpUsageInfo(model?: string): UsageInfo {
 function resolveOmpApprovalMode(value: unknown): OmpApprovalMode {
   if (value === 'write' || value === 'yolo') return value;
   return 'always-ask';
+}
+
+function readNativeModelId(options?: readonly AcpSessionConfigOption[] | null): string | undefined {
+  const model = options?.find(option => option.id === 'model');
+  return model?.type === 'select' && typeof model.currentValue === 'string' && model.currentValue.trim()
+    ? model.currentValue.trim() : undefined;
 }
