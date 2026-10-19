@@ -308,6 +308,38 @@ describe('ClaudeExecutionBackend', () => {
     await session.dispose();
   });
 
+  it('replays recovery history without sending an orphaned native checkpoint', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'replacement-session' },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services, mcpManager } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig({
+        resumeSeed: {
+          resumeCheckpoint: 'retained-history-checkpoint',
+          providerState: { previousProviderSessionIds: ['invalidated-session'] },
+        },
+      }));
+
+    const events = await collectEvents(session.execute(createRequest({
+      conversationHistory: [
+        { id: 'user-1', role: 'user', content: 'Recovery question', timestamp: 1 },
+        { id: 'answer-1', role: 'assistant', content: 'Recovery answer', timestamp: 2 },
+      ],
+    })).events);
+
+    expect(events.at(-1)).toMatchObject({ type: 'turn_completed' });
+    const options = sdkMock.getLastOptions();
+    expect(options).not.toHaveProperty('resume');
+    expect(options).not.toHaveProperty('resumeSessionAt');
+    expect(options).not.toHaveProperty('forkSession');
+    const prompt = String(mcpManager.extractMentions.mock.calls.at(-1)?.[0]);
+    expect(prompt).toContain('Recovery question');
+    expect(prompt).toContain('Recovery answer');
+    await session.dispose();
+  });
+
   it('resumes and materializes a pending fork without losing opaque provider state', async () => {
     sdkMock.setMockMessages([
       { type: 'system', subtype: 'init', session_id: 'forked-session' },

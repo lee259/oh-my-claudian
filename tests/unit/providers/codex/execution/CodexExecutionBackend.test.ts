@@ -1499,7 +1499,7 @@ describe('CodexExecutionBackend', () => {
     await session.dispose();
   });
 
-  it('forks, resumes, and rolls back to the requested checkpoint before executing', async () => {
+  it('forks, resumes, and reverts to the requested checkpoint before executing', async () => {
     let turnAttempt = 0;
     mockTransportRequest.mockImplementation(async (method: string) => {
       if (method === 'initialize') {
@@ -1522,7 +1522,7 @@ describe('CodexExecutionBackend', () => {
           { id: 'later-turn' },
         ]);
       }
-      if (method === 'thread/rollback') return createThreadResult('thread-fork');
+      if (method === 'thread/revert') return createThreadResult('thread-fork');
       if (method === 'turn/start') {
         turnAttempt += 1;
         if (turnAttempt === 2) {
@@ -1554,12 +1554,16 @@ describe('CodexExecutionBackend', () => {
       'initialize',
       'thread/fork',
       'thread/resume',
-      'thread/rollback',
+      'thread/revert',
       'turn/start',
     ]);
     expect(mockTransportRequest).toHaveBeenCalledWith(
-      'thread/rollback',
-      { threadId: 'thread-fork', numTurns: 1 },
+      'thread/fork',
+      { threadId: 'thread-source', lastTurnId: 'checkpoint' },
+    );
+    expect(mockTransportRequest).toHaveBeenCalledWith(
+      'thread/revert',
+      { threadId: 'thread-fork', beforeTurnId: 'later-turn' },
     );
 
     const forkedSnapshot = session.getSnapshot();
@@ -1624,15 +1628,76 @@ describe('CodexExecutionBackend', () => {
   });
 
   it.each([
+    ['a checkpoint-bounded child', null, false],
+    ['an explicit unsupported revert method', new CodexRpcResponseError({
+      code: -32601, message: 'Method not found',
+    }), true],
+    ['a legacy request decoder rejecting revert', new CodexRpcResponseError({
+      code: -32600,
+      message: 'Invalid request: unknown variant `thread/revert`, expected `thread/rollback`',
+    }), true],
+    ['an unrelated invalid request', new CodexRpcResponseError({
+      code: -32600, message: 'Invalid request: invalid permission',
+    }), false],
+    ['a lost revert response', new Error('timeout after apply'), false],
+    ['an invalid revert request', new CodexRpcResponseError({
+      code: -32602, message: 'Invalid checkpoint',
+    }), false],
+    ['an unstructured method error', new Error('Method not found'), false],
+  ] as const)('handles %s without speculative fork mutations', async (_label, revertError, fallback) => {
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') return {
+        userAgent: 'test', codexHome: '/tmp/.codex', platformFamily: 'unix', platformOs: 'macos',
+      };
+      if (method === 'thread/fork') return createThreadResult('thread-fork-target');
+      if (method === 'thread/resume') {
+        return createThreadResult('thread-fork-target', [
+          { id: 'checkpoint' },
+          ...(revertError ? [{ id: 'later-1' }, { id: 'later-2' }] : []),
+        ]);
+      }
+      if (method === 'thread/revert') throw revertError;
+      if (method === 'thread/rollback') return createThreadResult('thread-fork-target');
+      if (method === 'turn/start') {
+        queueMicrotask(() => completeTurn('thread-fork-target', 'turn-fork'));
+        return createTurnResult('turn-fork');
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+    const session = new CodexExecutionBackend(createPlugin()).createSession(
+      createForkSessionConfig(),
+    );
+
+    const events = await collectEvents(session.execute(createRequest()).events);
+
+    expect(mockTransportRequest.mock.calls.filter(call => call[0] === 'thread/fork'))
+      .toHaveLength(1);
+    const succeeded = !revertError || fallback;
+    expect(mockTransportRequest.mock.calls.filter(call => call[0] === 'thread/rollback'))
+      .toEqual(fallback ? [['thread/rollback', { threadId: 'thread-fork-target', numTurns: 2 }]] : []);
+    expect(events.at(-1)).toMatchObject(succeeded
+      ? { type: 'turn_completed' }
+      : { type: 'execution_error', message: revertError?.message });
+    expect(mockTransportRequest.mock.calls.filter(call => call[0] === 'turn/start'))
+      .toHaveLength(succeeded ? 1 : 0);
+    expect(mockTransportRequest.mock.calls.filter(call => call[0] === 'thread/revert'))
+      .toHaveLength(revertError ? 1 : 0);
+    expect(session.getSnapshot().providerState?.pendingForkTarget).toEqual(succeeded
+      ? undefined
+      : { threadId: 'thread-fork-target', sessionFilePath: '/tmp/sessions/thread-fork-target.jsonl' });
+    await session.dispose();
+  });
+
+  it.each([
     ['checkpoint validation', 'checkpoint'] as const,
     ['thread resume', 'resume'] as const,
-    ['thread rollback', 'rollback'] as const,
+    ['thread revert', 'revert'] as const,
   ])(
     'retains one fork target across %s failure and retries its materialization',
     async (_description, failureBoundary) => {
       let forkCount = 0;
       let resumeCount = 0;
-      let rollbackCount = 0;
+      let revertCount = 0;
       mockTransportRequest.mockImplementation(async (method: string) => {
         if (method === 'initialize') {
           return {
@@ -1661,15 +1726,15 @@ describe('CodexExecutionBackend', () => {
             'thread-fork-target',
             failureBoundary === 'checkpoint' && resumeCount === 1
               ? [{ id: 'different-checkpoint' }]
-              : failureBoundary === 'rollback' && resumeCount > 1
+              : failureBoundary === 'revert' && resumeCount > 1
               ? [{ id: 'checkpoint' }]
               : [{ id: 'checkpoint' }, { id: 'later-turn' }],
           );
         }
-        if (method === 'thread/rollback') {
-          rollbackCount += 1;
-          if (failureBoundary === 'rollback' && rollbackCount === 1) {
-            throw new Error('rollback response lost after apply');
+        if (method === 'thread/revert') {
+          revertCount += 1;
+          if (failureBoundary === 'revert' && revertCount === 1) {
+            throw new Error('revert response lost after apply');
           }
           return createThreadResult('thread-fork-target', [{ id: 'checkpoint' }]);
         }
@@ -1692,7 +1757,7 @@ describe('CodexExecutionBackend', () => {
             ? /checkpoint not found/i
             : failureBoundary === 'resume'
               ? /resume rejected/i
-          : /rollback response lost/i,
+          : /revert response lost/i,
         ),
       });
       expectPendingForkOwnershipEvent(failedEvents);
@@ -1716,7 +1781,7 @@ describe('CodexExecutionBackend', () => {
       expect(retryEvents.at(-1)).toMatchObject({ type: 'turn_completed' });
       expect(forkCount).toBe(1);
       expect(resumeCount).toBeGreaterThanOrEqual(1);
-      expect(rollbackCount).toBe(1);
+      expect(revertCount).toBe(1);
       expect(session.getSnapshot()).toMatchObject({
         providerSessionId: 'thread-fork-target',
         providerState: {
@@ -1767,7 +1832,7 @@ describe('CodexExecutionBackend', () => {
             { id: 'later-turn' },
           ]);
       }
-      if (method === 'thread/rollback') {
+      if (method === 'thread/revert') {
         return createThreadResult('thread-fork-target', [{ id: 'checkpoint' }]);
       }
       if (method === 'turn/start') {
@@ -1838,7 +1903,7 @@ describe('CodexExecutionBackend', () => {
             { id: 'later-turn' },
           ]);
       }
-      if (method === 'thread/rollback') {
+      if (method === 'thread/revert') {
         return createThreadResult('thread-fork-target', [{ id: 'checkpoint' }]);
       }
       if (method === 'turn/start') {
@@ -1918,7 +1983,7 @@ describe('CodexExecutionBackend', () => {
             { id: 'later-turn' },
           ]);
       }
-      if (method === 'thread/rollback') {
+      if (method === 'thread/revert') {
         return createThreadResult('thread-fork-target', [{ id: 'checkpoint' }]);
       }
       if (method === 'turn/start') {
@@ -1991,7 +2056,7 @@ describe('CodexExecutionBackend', () => {
             { id: 'later-turn' },
           ]);
         }
-        if (method === 'thread/rollback') {
+        if (method === 'thread/revert') {
           return createThreadResult('thread-fork-target', [{ id: 'checkpoint' }]);
         }
         if (method === 'turn/start') {

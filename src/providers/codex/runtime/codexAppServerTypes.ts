@@ -512,9 +512,23 @@ export type ThreadResumeResult = ThreadStartResult;
 
 export interface ThreadForkParams {
   threadId: string;
+  lastTurnId?: string;
 }
 
 export type ThreadForkResult = ThreadStartResult;
+
+// ---------------------------------------------------------------------------
+// thread/revert (codex-cli 0.163.0 experimental schema, 2026-10-19)
+// ---------------------------------------------------------------------------
+
+export interface ThreadRevertParams {
+  threadId: string;
+  beforeTurnId: string;
+}
+
+export interface ThreadRevertResult {
+  thread: Thread;
+}
 
 // ---------------------------------------------------------------------------
 // thread/rollback
