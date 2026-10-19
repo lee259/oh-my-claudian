@@ -251,7 +251,8 @@
       "renameConversation": "Failed to rename conversation",
       "regenerateTitle": "Failed to regenerate title",
       "deleteConversation": "Failed to delete conversation",
-      "archiveSession": "Failed to archive session"
+      "archiveSession": "Failed to archive session",
+      "piModelUnavailable": "Pi cannot use {route} in its current environment ({reason}). Open settings → Pi, click {discover} or {refresh}, and choose an available model."
     },
     "rendering": {
       "noChanges": "No changes",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Pi environment variables",
         "desc": "Environment variables passed only to Pi."
-      }
+      },
+      "modelsDesc": "The model list comes from the current Pi environment; Pi’s enabledModels setting may further restrict available routes. Click {discover} or {refresh} to update the list. The provider/model route determines credentials and billing."
     },
     "providerReadiness": {
       "title": "Readiness",

@@ -408,6 +408,21 @@ describe('PiSettingsTab', () => {
     });
   });
 
+  it('explains native model route availability without changing the saved selection', () => {
+    const settings: Record<string, unknown> = {
+      providerConfigs: { pi: { enabled: true, visibleModels: ['pi:anthropic/claude-sonnet-4'] } },
+    };
+    render(settings);
+
+    const models = findSetting('Models');
+    expect(models.desc).toContain('enabledModels');
+    expect(models.desc).toContain('Discover');
+    expect(models.desc).toContain('Refresh');
+    expect(models.desc).toContain('credentials and billing');
+    expect(getPiProviderSettings(settings).visibleModels).toEqual(['pi:anthropic/claude-sonnet-4']);
+    expect(mockDiscoverModels).not.toHaveBeenCalled();
+  });
+
   it('updates provider config when Pi is enabled', async () => {
     const settings: Record<string, unknown> = { providerConfigs: { pi: { enabled: false } } };
     const context = render(settings);

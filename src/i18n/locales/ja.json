@@ -251,7 +251,8 @@
       "renameConversation": "会話の名前を変更できませんでした",
       "regenerateTitle": "タイトルを再生成できませんでした",
       "deleteConversation": "会話を削除できませんでした",
-      "archiveSession": "セッションをアーカイブできませんでした"
+      "archiveSession": "セッションをアーカイブできませんでした",
+      "piModelUnavailable": "現在の Pi 環境では {route} を使用できません（{reason}）。設定 → Pi を開き、{discover} または {refresh} をクリックして、利用可能なモデルを選択してください。"
     },
     "rendering": {
       "noChanges": "変更なし",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Pi 環境変数",
         "desc": "Pi にのみ渡す環境変数。"
-      }
+      },
+      "modelsDesc": "モデル一覧は現在の Pi 環境から取得されます。Pi の enabledModels 設定により、利用可能なルートがさらに制限される場合があります。{discover} または {refresh} で一覧を更新してください。provider/model ルートによって認証情報と課金先が決まります。"
     },
     "providerReadiness": {
       "title": "準備状況",

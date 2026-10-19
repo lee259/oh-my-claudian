@@ -251,7 +251,8 @@
       "renameConversation": "重新命名對話失敗",
       "regenerateTitle": "重新產生標題失敗",
       "deleteConversation": "刪除對話失敗",
-      "archiveSession": "封存工作階段失敗"
+      "archiveSession": "封存工作階段失敗",
+      "piModelUnavailable": "Pi 目前環境無法使用 {route}（{reason}）。請開啟設定 → Pi，點選「{discover}」或「{refresh}」，再選擇可用模型。"
     },
     "rendering": {
       "noChanges": "沒有變更",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Pi 環境變數",
         "desc": "僅傳遞給 Pi 的環境變數。"
-      }
+      },
+      "modelsDesc": "模型清單來自目前 Pi 環境；Pi 的 enabledModels 設定可能進一步限制可用路由。點選「{discover}」或「{refresh}」更新清單。provider/model 路由決定使用的憑證和計費方式。"
     },
     "providerReadiness": {
       "title": "就緒狀態",

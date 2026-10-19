@@ -251,7 +251,8 @@
       "renameConversation": "Échec du renommage de la conversation",
       "regenerateTitle": "Échec de la régénération du titre",
       "deleteConversation": "Échec de la suppression de la conversation",
-      "archiveSession": "Échec de l’archivage de la session"
+      "archiveSession": "Échec de l’archivage de la session",
+      "piModelUnavailable": "Pi ne peut pas utiliser {route} dans son environnement actuel ({reason}). Ouvrez Paramètres → Pi, cliquez sur {discover} ou {refresh}, puis choisissez un modèle disponible."
     },
     "rendering": {
       "noChanges": "Aucune modification",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Variables d'environnement Pi",
         "desc": "Variables d'environnement transmises uniquement à Pi."
-      }
+      },
+      "modelsDesc": "La liste des modèles provient de l’environnement Pi actuel. Le paramètre enabledModels de Pi peut restreindre davantage les routes disponibles. Cliquez sur {discover} ou {refresh} pour actualiser la liste. La route provider/model détermine les identifiants et la facturation."
     },
     "providerReadiness": {
       "title": "État de préparation",

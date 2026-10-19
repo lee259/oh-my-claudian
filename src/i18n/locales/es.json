@@ -251,7 +251,8 @@
       "renameConversation": "No se pudo cambiar el nombre de la conversación",
       "regenerateTitle": "No se pudo regenerar el título",
       "deleteConversation": "No se pudo eliminar la conversación",
-      "archiveSession": "No se pudo archivar la sesión"
+      "archiveSession": "No se pudo archivar la sesión",
+      "piModelUnavailable": "Pi no puede usar {route} en el entorno actual ({reason}). Abre Ajustes → Pi, pulsa {discover} o {refresh} y elige un modelo disponible."
     },
     "rendering": {
       "noChanges": "Sin cambios",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Variables de entorno de Pi",
         "desc": "Variables de entorno que se pasan solo a Pi."
-      }
+      },
+      "modelsDesc": "La lista de modelos procede del entorno Pi actual. El ajuste enabledModels de Pi puede restringir aún más las rutas disponibles. Pulsa {discover} o {refresh} para actualizar la lista. La ruta provider/model determina las credenciales y la facturación."
     },
     "providerReadiness": {
       "title": "Preparación",

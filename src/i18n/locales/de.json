@@ -251,7 +251,8 @@
       "renameConversation": "Unterhaltung konnte nicht umbenannt werden",
       "regenerateTitle": "Titel konnte nicht neu generiert werden",
       "deleteConversation": "Unterhaltung konnte nicht gelöscht werden",
-      "archiveSession": "Sitzung konnte nicht archiviert werden"
+      "archiveSession": "Sitzung konnte nicht archiviert werden",
+      "piModelUnavailable": "Pi kann {route} in der aktuellen Umgebung nicht verwenden ({reason}). Öffne Einstellungen → Pi, klicke auf {discover} oder {refresh} und wähle ein verfügbares Modell."
     },
     "rendering": {
       "noChanges": "Keine Änderungen",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Pi-Umgebungsvariablen",
         "desc": "Umgebungsvariablen, die nur an Pi übergeben werden."
-      }
+      },
+      "modelsDesc": "Die Modellliste stammt aus der aktuellen Pi-Umgebung. Die Pi-Einstellung enabledModels kann die verfügbaren Routen weiter einschränken. Aktualisiere die Liste mit {discover} oder {refresh}. Die provider/model-Route bestimmt Zugangsdaten und Abrechnung."
     },
     "providerReadiness": {
       "title": "Bereitschaft",
