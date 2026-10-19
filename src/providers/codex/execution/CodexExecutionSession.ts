@@ -67,6 +67,7 @@ import type {
   ThreadForkResult,
   ThreadReadResult,
   ThreadResumeResult,
+  ThreadRevertResult,
   ThreadRollbackResult,
   ThreadStartResult,
   ThreadStatusChangedNotification,
@@ -1313,20 +1314,39 @@ export class CodexExecutionSession
     if (checkpointIndex < 0) {
       throw new Error(`Fork checkpoint not found: ${fork.resumeAt}`);
     }
-    const rollbackCount = resumeResult.thread.turns.length - checkpointIndex - 1;
-    if (rollbackCount > 0) {
-      const rollbackResult = await transport.request<ThreadRollbackResult>(
-        'thread/rollback',
-        {
-          threadId: target.threadId,
-          numTurns: rollbackCount,
-        },
-      );
-      if (!this.isRunCurrent(run, generation)) {
-        throw new Error('Codex fork setup was interrupted while rolling back the child.');
+    const firstLaterTurn = resumeResult.thread.turns[checkpointIndex + 1];
+    if (firstLaterTurn) {
+      let revertResult: ThreadRevertResult;
+      try {
+        revertResult = await transport.request<ThreadRevertResult>(
+          'thread/revert',
+          { threadId: target.threadId, beforeTurnId: firstLaterTurn.id },
+        );
+      } catch (error) {
+        // Only an explicit method rejection proves no revert was applied.
+        const unsupported = error instanceof CodexRpcResponseError && (
+          error.code === -32601
+          || (error.code === -32600 && error.message.startsWith(
+            'Invalid request: unknown variant `thread/revert`, expected ',
+          ))
+        );
+        if (!unsupported) throw error;
+        if (!this.isRunCurrent(run, generation)) {
+          throw new Error('Codex fork setup was interrupted before legacy rollback.', { cause: error });
+        }
+        revertResult = await transport.request<ThreadRollbackResult>(
+          'thread/rollback',
+          {
+            threadId: target.threadId,
+            numTurns: resumeResult.thread.turns.length - checkpointIndex - 1,
+          },
+        );
       }
-      if (rollbackResult.thread.id !== target.threadId) {
-        throw new Error('Codex rolled back a different thread than the owned fork target.');
+      if (!this.isRunCurrent(run, generation)) {
+        throw new Error('Codex fork setup was interrupted while reverting the child.');
+      }
+      if (revertResult.thread.id !== target.threadId) {
+        throw new Error('Codex reverted a different thread than the owned fork target.');
       }
     }
 
@@ -1350,7 +1370,7 @@ export class CodexExecutionSession
     const pathMapper = this.launchSpec?.pathMapper;
     const identity = transport.request<ThreadForkResult>(
       'thread/fork',
-      { threadId: fork.sessionId },
+      { threadId: fork.sessionId, lastTurnId: fork.resumeAt },
     ).then((forkResult) => {
       this.setLoadedThreadSandbox(sandboxModeOf(forkResult.sandbox));
       const threadId = normalizeString(forkResult.thread.id);
