@@ -37,6 +37,7 @@ import {
 import { mapWithConcurrency } from '../../utils/concurrency';
 import { extractUserDisplayContent } from '../../utils/context';
 import { rewriteVaultPathAfterRename } from '../../utils/path';
+import { captureTurnModels, restoreTurnModels } from './ConversationTurnModels';
 
 interface ConversationRepositoryBaseDeps {
   getSettings: () => Record<string, unknown>;
@@ -1087,6 +1088,7 @@ export class ConversationRepository {
     await this.ensureSelectedModel(conversation);
     if (!this.isConversationCurrent(conversation, generation)) return null;
     await this.hydrateInputLedger(conversation);
+    restoreTurnModels(conversation);
     return this.isConversationCurrent(conversation, generation)
       ? conversation
       : null;
@@ -1109,6 +1111,7 @@ export class ConversationRepository {
     if (!this.isConversationCurrent(conversation, generation)) return null;
     await this.hydrateInputLedger(conversation);
     if (!this.isConversationCurrent(conversation, generation)) return null;
+    restoreTurnModels(conversation);
     this.hydratedConversationIds.add(id);
     return conversation;
   }
@@ -1774,6 +1777,10 @@ export class ConversationRepository {
       lastActivityAt: conversation.lastActivityAt,
       sessionId: conversation.sessionId,
       selectedModel: conversation.selectedModel,
+      turnModels: this.hydratedConversationIds.has(conversation.id)
+        || conversation.messages.some(message => message.modelName)
+        ? captureTurnModels(conversation.messages)
+        : conversation.turnModels,
       providerState:
         providerState && Object.keys(providerState).length > 0
           ? providerState

@@ -210,6 +210,7 @@ export function createConversationMetadataShell(meta: SessionMetadata): Conversa
     lastActivityAt: meta.lastActivityAt,
     sessionId: meta.sessionId !== undefined ? meta.sessionId : meta.id,
     selectedModel: meta.selectedModel,
+    turnModels: meta.turnModels,
     providerState: meta.providerState,
     task: meta.task,
     modelRecoverySource: meta.modelRecoverySource,
