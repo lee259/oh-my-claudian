@@ -166,6 +166,15 @@ export function isCanonicalUserMessage(message: ChatMessage): boolean {
     && !message.isRebuiltContext;
 }
 
+/** Claudian-owned display metadata correlated with a provider transcript turn. */
+export interface ConversationTurnModel {
+  modelName: string;
+  userTurnOrdinal: number;
+  inputDigest?: string;
+  userMessageId?: string;
+  assistantMessageId?: string;
+}
+
 /** Persisted conversation with messages and session state. */
 export interface Conversation {
   id: string;
@@ -177,6 +186,8 @@ export interface Conversation {
   sessionId: string | null;
   /** Conversation-owned model selection. Missing values are migrated lazily. */
   selectedModel?: string;
+  /** Historical turn labels, independent of the current model selection. */
+  turnModels?: ConversationTurnModel[];
   /** Opaque provider-owned state bag (session tracking, fork metadata, etc.). */
   providerState?: Record<string, unknown>;
   /** Claudian-owned task metadata; provider state never belongs here. */
@@ -245,6 +256,8 @@ export interface SessionMetadata {
   sessionId?: string | null;
   /** Conversation-owned model selection. */
   selectedModel?: string;
+  /** Historical turn labels, independent of the current model selection. */
+  turnModels?: ConversationTurnModel[];
   /** Opaque provider-owned state bag. */
   providerState?: Record<string, unknown>;
   /** Claudian-owned task metadata. */

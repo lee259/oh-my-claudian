@@ -10,6 +10,7 @@ export {
   type ConversationModelRecoverySource,
   type ConversationTask,
   type ConversationTaskStatus,
+  type ConversationTurnModel,
   type ExecutionInputBrowserSnapshot,
   type ExecutionInputCanvasSnapshot,
   type ExecutionInputContextSnapshot,

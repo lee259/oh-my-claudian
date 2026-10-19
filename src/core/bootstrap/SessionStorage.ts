@@ -10,6 +10,7 @@ import type {
   ConversationMeta,
   ConversationModelRecoverySource,
   ConversationTask,
+  ConversationTurnModel,
   SessionMetadata,
 } from '../types';
 import { CONVERSATION_TASK_SCHEMA_VERSION } from '../types';
@@ -285,6 +286,7 @@ export class SessionStorage implements SessionMetadataReader {
       selectedModel: rawSelectedModel,
       modelRecoverySource: rawModelRecoverySource,
       task: rawTask,
+      turnModels: rawTurnModels,
       currentNote: rawCurrentNote,
       ...metadataFields
     } = rawMetadata;
@@ -293,6 +295,7 @@ export class SessionStorage implements SessionMetadataReader {
       : undefined;
     const modelRecoverySource = this.parseModelRecoverySource(rawModelRecoverySource);
     const task = this.parseConversationTask(rawTask);
+    const turnModels = this.parseTurnModels(rawTurnModels);
     const currentNote = typeof rawCurrentNote === 'string'
       ? decodePromptXmlAttribute(rawCurrentNote)
       : undefined;
@@ -301,6 +304,7 @@ export class SessionStorage implements SessionMetadataReader {
       ...(selectedModel !== undefined ? { selectedModel } : {}),
       ...(modelRecoverySource ? { modelRecoverySource } : {}),
       ...(task ? { task } : {}),
+      ...(turnModels ? { turnModels } : {}),
       ...(currentNote !== undefined ? { currentNote } : {}),
       lastActivityAt,
     } as unknown as SessionMetadata;
@@ -312,6 +316,21 @@ export class SessionStorage implements SessionMetadataReader {
       || (rawTask !== undefined && task === undefined)
       || (rawCurrentNote !== undefined && currentNote !== rawCurrentNote);
     return { metadata, needsMigration, source };
+  }
+
+  private parseTurnModels(value: unknown): ConversationTurnModel[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const models = value.filter((item): item is ConversationTurnModel => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const model = item as Record<string, unknown>;
+      return typeof model.modelName === 'string' && model.modelName.trim().length > 0
+        && Number.isInteger(model.userTurnOrdinal) && (model.userTurnOrdinal as number) >= 0
+        && (model.inputDigest === undefined
+          || (typeof model.inputDigest === 'string' && /^[a-f0-9]{64}$/.test(model.inputDigest)))
+        && (model.userMessageId === undefined || typeof model.userMessageId === 'string')
+        && (model.assistantMessageId === undefined || typeof model.assistantMessageId === 'string');
+    });
+    return models.length > 0 ? models : undefined;
   }
 
   private parseModelRecoverySource(value: unknown): ConversationModelRecoverySource | undefined {
