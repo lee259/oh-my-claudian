@@ -86,5 +86,5 @@ export function getCodexState(
     ...(migratedSources.length > 0 || historySources.length > 0
       ? { historySources: [...migratedSources, ...historySources] }
       : {}),
-  } as CodexProviderState;
+  };
 }
