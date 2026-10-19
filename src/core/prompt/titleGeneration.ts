@@ -19,6 +19,14 @@ interface TitleGenerationLocaleSettings {
   titleGenerationLocale?: string;
 }
 
+function sliceAtCodeUnitLimit(value: string, limit: number): string {
+  const prefix = value.slice(0, limit);
+  if (/[\uD800-\uDBFF]$/.test(prefix) && /^[\uDC00-\uDFFF]/.test(value.slice(limit))) {
+    return prefix.slice(0, -1);
+  }
+  return prefix;
+}
+
 export function resolveTitleGenerationLocale(
   settings: TitleGenerationLocaleSettings,
   interfaceLocale?: string,
@@ -47,7 +55,7 @@ export const TITLE_GENERATION_SYSTEM_PROMPT = buildTitleGenerationSystemPrompt()
 
 export function buildTitleGenerationPrompt(userMessage: string): string {
   const truncated = userMessage.length > MAX_TITLE_INPUT_LENGTH
-    ? `${userMessage.slice(0, MAX_TITLE_INPUT_LENGTH)}...`
+    ? `${sliceAtCodeUnitLimit(userMessage, MAX_TITLE_INPUT_LENGTH)}...`
     : userMessage;
   return `User's request:\n"""\n${truncated}\n"""\n\nGenerate a title for this conversation:`;
 }
@@ -73,7 +81,7 @@ export function parseTitleGenerationResponse(responseText: string): string | nul
   }
 
   if (title.length > MAX_TITLE_LENGTH) {
-    title = `${title.slice(0, MAX_TITLE_LENGTH - 3)}...`;
+    title = `${sliceAtCodeUnitLimit(title, MAX_TITLE_LENGTH - 3)}...`;
   }
 
   return title || null;

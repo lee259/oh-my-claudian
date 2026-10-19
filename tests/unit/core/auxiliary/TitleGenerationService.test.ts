@@ -78,6 +78,42 @@ describe('TitleGenerationService', () => {
     expect(backend.sessions.map(session => session.disposeCalls)).toEqual([1, 1]);
   });
 
+  it.each([
+    ['crossing', 'a'.repeat(499) + '😀tail', 'a'.repeat(499) + '...'],
+    ['fitting', 'a'.repeat(498) + '😀tail', 'a'.repeat(498) + '😀...'],
+  ])('preserves whole surrogate pairs at the prompt boundary (%s)', async (_label, input, prefix) => {
+    const { backend, service } = createService();
+    const generation = service.generateTitle('unicode-input', input, jest.fn());
+    await waitFor(() => backend.sessions[0]?.requests.length === 1);
+    const request = backend.sessions[0].requests[0];
+    backend.sessions[0].emitText('Valid title');
+    backend.sessions[0].complete();
+    await generation;
+
+    expect(request.input).toEqual([{
+      type: 'text',
+      text: `User's request:\n"""\n${prefix}\n"""\n\nGenerate a title for this conversation:`,
+    }]);
+  });
+
+  it.each([
+    ['crossing', 'a'.repeat(46) + '😀tail', 'a'.repeat(46) + '...'],
+    ['fitting', 'a'.repeat(45) + '😀tail', 'a'.repeat(45) + '😀...'],
+    ['ASCII', 'a'.repeat(51), 'a'.repeat(47) + '...'],
+  ])('preserves the title limit without splitting surrogate pairs (%s)', async (_label, response, expectedTitle) => {
+    const { backend, service } = createService();
+    const callback = jest.fn();
+    const generation = service.generateTitle('unicode-output', 'Request', callback);
+    await waitFor(() => backend.sessions[0]?.requests.length === 1);
+    backend.sessions[0].emitText(response);
+    backend.sessions[0].complete();
+    await generation;
+
+    expect(callback).toHaveBeenCalledWith('unicode-output', {
+      success: true, title: expectedTitle,
+    });
+  });
+
   it('cancels only the matching active generation and releases its lease', async () => {
     const { backend, service } = createService();
     const callback = jest.fn();
