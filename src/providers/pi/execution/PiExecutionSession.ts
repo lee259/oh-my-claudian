@@ -38,6 +38,7 @@ import type {
   StreamChunk,
   TurnStats,
 } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
 import {
@@ -954,7 +955,17 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     if (!modelPayload || !this.kernel) {
       throw new PiConfigurationError('The selected Pi model is invalid.');
     }
-    await this.kernel.request('set_model', modelPayload, undefined, signal);
+    try {
+      await this.kernel.request('set_model', modelPayload, undefined, signal);
+    } catch (error) {
+      if (!(error instanceof PiRpcResponseError)) throw error;
+      throw new PiConfigurationError(t('chat.errors.piModelUnavailable', {
+        route: `${modelPayload.provider}/${modelPayload.modelId}`,
+        reason: error.message,
+        discover: t('settings.modelPicker.discover'),
+        refresh: t('common.refresh'),
+      }));
+    }
     if (encoded.thinkingLevel) {
       await this.kernel.request(
         'set_thinking_level',

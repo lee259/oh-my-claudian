@@ -160,7 +160,13 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
 
-    new Setting(container).setName('Models').setHeading();
+    new Setting(container)
+      .setName('Models')
+      .setDesc(t('settings.pi.modelsDesc', {
+        discover: t('settings.modelPicker.discover'),
+        refresh: t('common.refresh'),
+      }))
+      .setHeading();
     renderPiModelPicker(container, modelWarning.context, settingsBag);
 
     new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();

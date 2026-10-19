@@ -251,7 +251,8 @@
       "renameConversation": "Falha ao renomear a conversa",
       "regenerateTitle": "Falha ao regenerar o título",
       "deleteConversation": "Falha ao excluir a conversa",
-      "archiveSession": "Falha ao arquivar a sessão"
+      "archiveSession": "Falha ao arquivar a sessão",
+      "piModelUnavailable": "O Pi não pode usar {route} no ambiente atual ({reason}). Abra Configurações → Pi, clique em {discover} ou {refresh} e escolha um modelo disponível."
     },
     "rendering": {
       "noChanges": "Sem alterações",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Variáveis de ambiente do Pi",
         "desc": "Variáveis de ambiente passadas somente ao Pi."
-      }
+      },
+      "modelsDesc": "A lista de modelos vem do ambiente Pi atual. A configuração enabledModels do Pi pode restringir ainda mais as rotas disponíveis. Clique em {discover} ou {refresh} para atualizar a lista. A rota provider/model determina as credenciais e a cobrança."
     },
     "providerReadiness": {
       "title": "Prontidão",

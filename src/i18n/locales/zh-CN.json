@@ -251,7 +251,8 @@
       "renameConversation": "重命名对话失败",
       "regenerateTitle": "重新生成标题失败",
       "deleteConversation": "删除对话失败",
-      "archiveSession": "归档会话失败"
+      "archiveSession": "归档会话失败",
+      "piModelUnavailable": "Pi 当前环境无法使用 {route}（{reason}）。请打开设置 → Pi，点击“{discover}”或“{refresh}”，然后选择可用模型。"
     },
     "rendering": {
       "noChanges": "没有变化",
@@ -439,7 +440,8 @@
       "environment": {
         "name": "Pi 环境变量",
         "desc": "仅传递给 Pi 的环境变量。"
-      }
+      },
+      "modelsDesc": "模型列表来自当前 Pi 环境；Pi 的 enabledModels 设置可能进一步限制可用路由。点击“{discover}”或“{refresh}”更新列表。provider/model 路由决定使用的凭据和计费方式。"
     },
     "providerReadiness": {
       "title": "就绪状态",

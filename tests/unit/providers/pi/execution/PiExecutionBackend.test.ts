@@ -17,6 +17,7 @@ import {
   ProviderExecutionLifecycleRegistry,
 } from '@/core/execution';
 import type { Conversation } from '@/core/types';
+import { setLocale } from '@/i18n/i18n';
 import { createPiWorkspaceServices } from '@/providers/pi/app/PiWorkspaceServices';
 import {
   PiCommandMetadataProbe,
@@ -1330,6 +1331,47 @@ describe('PiExecutionBackend', () => {
     expect(prompts[0]).toContain('prior question');
     expect(prompts[0]).toContain('prior answer');
     expect(prompts[1]).toBe('Second follow up');
+  });
+
+  it.each([
+    ['en', 'Discover', 'Refresh'],
+    ['zh-CN', '发现', '刷新'],
+  ] as const)('guides a rejected saved model route in %s without invalidating its session', async (locale, discover, refresh) => {
+    setLocale(locale);
+    let rejectModel = true;
+    const harness = createHarness(createConfig(), undefined, async <T>(type: string): Promise<T> => {
+      if (type === 'set_model' && rejectModel) {
+        rejectModel = false;
+        throw new PiRpcResponseError(type, 'Model not found');
+      }
+      return harness.responses.get(type) as T;
+    });
+    const savedSettings = JSON.parse(JSON.stringify(harness.host.settings));
+    try {
+      const events = await collect(harness.session.execute(createRequest()).events);
+
+      expect(events.at(-1)).toMatchObject({
+        category: 'configuration', recoverable: false, type: 'execution_error',
+        message: expect.stringContaining('anthropic/claude-sonnet-4'),
+      });
+      const error = events.at(-1);
+      expect(error).toMatchObject({ message: expect.stringContaining(discover) });
+      expect(error).toMatchObject({ message: expect.stringContaining(refresh) });
+      expect(harness.session.getSnapshot().status).toBe('idle');
+      expect(getPromptMessages(harness.kernels[0])).toEqual([]);
+      expect(harness.host.settings).toEqual(savedSettings);
+
+      const retry = collect(harness.session.execute(createRequest()).events);
+      await waitFor(() => getPromptMessages(harness.kernels[0]).length === 1);
+      completeTurn(harness.kernels[0]);
+      expect((await retry).at(-1)).toMatchObject({ type: 'turn_completed' });
+      expect(harness.kernels).toHaveLength(1);
+      expect(harness.kernels[0].shutdown).not.toHaveBeenCalled();
+      expect(harness.host.settings).toEqual(savedSettings);
+    } finally {
+      await harness.session.dispose();
+      setLocale('en');
+    }
   });
 
   it.each([
