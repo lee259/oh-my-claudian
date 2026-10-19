@@ -390,6 +390,8 @@
       "enableDesc": "Oh My Pi ACP 공급자를 활성화합니다.",
       "cliPath": "CLI 경로",
       "cliPathDesc": "이 컴퓨터의 OMP 절대 경로입니다.",
+      "modelRoles": "모델 역할",
+      "roleDefault": "역할 기본값",
       "models": "모델",
       "noModels": "아직 OMP 모델을 찾지 못했습니다.",
       "catalogFailed": "OMP 모델 카탈로그를 불러오지 못했습니다.",

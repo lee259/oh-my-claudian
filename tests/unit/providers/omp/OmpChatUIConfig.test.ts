@@ -82,3 +82,34 @@ describe('OMP chat configuration', () => {
   });
 
 });
+
+it('only exposes explicitly enabled roles and preserves direct model selection', () => {
+  const settings = { providerConfigs: { omp: {
+    discoveredModels: [
+      { rawId: '@smol', label: '@smol', description: 'openai/gpt-5-mini:off' },
+      { rawId: '@default', label: '@default' },
+      { rawId: 'openai/gpt-5', label: 'GPT-5' },
+    ],
+    visibleModels: ['@smol', 'openai/gpt-5'],
+  } } };
+  expect(ompChatUIConfig.getModelOptions(settings).map(m => [m.value, m.label])).toEqual([
+    ['omp:openai/gpt-5', 'GPT-5'], ['omp:@smol', '@smol'],
+  ]);
+  expect(ompChatUIConfig.getDefaultModel?.(settings)).toBe('omp:@smol');
+  expect(ompChatUIConfig.getModelOptions({ providerConfigs: { omp: {
+    ...settings.providerConfigs.omp, visibleModels: [],
+  } } })).toEqual([]);
+  expect(ompChatUIConfig.getDefaultModel?.({})).toBeNull();
+});
+
+it('defaults role thinking to the native role while permitting a user override', () => {
+  const settings = { effortLevel: 'high', providerConfigs: { omp: { thinking: {
+    configId: 'thinking', currentValue: 'auto', options: [{ id: 'high', name: 'High' }],
+  } } } };
+  expect(ompChatUIConfig.getReasoningOptions('omp:@smol', settings)).toEqual([
+    { value: 'role-default', label: 'Role default' }, { value: 'high', label: 'High' },
+  ]);
+  expect(ompChatUIConfig.getDefaultReasoningValue('omp:@smol', settings)).toBe('role-default');
+  ompChatUIConfig.applyModelDefaults('omp:@smol', settings);
+  expect(settings.effortLevel).toBe('role-default');
+});

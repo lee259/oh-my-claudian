@@ -390,6 +390,8 @@
       "enableDesc": "Включить провайдер Oh My Pi ACP.",
       "cliPath": "Путь к CLI",
       "cliPathDesc": "Абсолютный путь к OMP на этом компьютере.",
+      "modelRoles": "Роли моделей",
+      "roleDefault": "По умолчанию для роли",
       "models": "Модели",
       "noModels": "Модели OMP пока не обнаружены.",
       "catalogFailed": "Не удалось загрузить каталог моделей OMP.",

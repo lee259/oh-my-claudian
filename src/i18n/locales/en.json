@@ -390,6 +390,8 @@
       "enableDesc": "Enable the Oh My Pi ACP provider.",
       "cliPath": "CLI path",
       "cliPathDesc": "Absolute path to OMP on this computer. Paste the output of \"which omp\" (or \"where omp\" on Windows). Leave empty to use automatic detection.",
+      "modelRoles": "Model roles",
+      "roleDefault": "Role default",
       "models": "Models",
       "noModels": "No OMP models discovered yet. Check OMP login and click Discover.",
       "catalogFailed": "Could not load the OMP model catalog. Check the CLI path and login state.",
