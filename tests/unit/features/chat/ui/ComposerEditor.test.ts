@@ -2,6 +2,7 @@
 
 import { redo, undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
+import { getByRole } from '@testing-library/dom';
 import { axe } from 'jest-axe';
 
 import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
@@ -39,6 +40,22 @@ describe('short-name composer editor', () => {
     const view = EditorView.findFromDOM(parent.querySelector('.cm-editor') as HTMLElement)!;
     return { editor, input, view, parent, app };
   }
+
+  it('keeps an accessible name before and after mounting without triggering Obsidian label tooltips', () => {
+    const parent = document.body.createDiv();
+    const editor = new ComposerEditor(parent, {} as any);
+    instances.push(editor);
+    const assertTextbox = () => {
+      const textbox = getByRole(parent, 'textbox', { name: 'Message' });
+      expect(textbox).toBe(editor.element.getAccessibleTextbox?.());
+      expect(textbox.hasAttribute('aria-label')).toBe(false);
+      expect(textbox.hasAttribute('title')).toBe(false);
+    };
+
+    assertTextbox();
+    editor.element.focus();
+    assertTextbox();
+  });
 
   it('displays short names and keeps distinct full paths in the canonical value and selection', () => {
     const text = 'Compare @one/plan.md and @two/plan.md ';
