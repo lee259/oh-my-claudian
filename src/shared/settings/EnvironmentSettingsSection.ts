@@ -1,9 +1,10 @@
-import { Setting } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 import { h } from 'preact';
 
 import { getEnvironmentReviewKeysForScope } from '../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type { EnvironmentScope } from '../../core/types/settings';
+import { t } from '../../i18n/i18n';
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import { EnvironmentVariableSettingsView } from './EnvironmentVariableSettingsView';
 import { EnvSnippetManager } from './EnvSnippetManager';
@@ -61,6 +62,19 @@ export function renderEnvironmentSettingsSection(
   let environmentHost: HTMLElement | null = null;
   let destroyed = false;
 
+  const applyEnvironment = async (value: string): Promise<boolean> => {
+    try {
+      await plugin.applyEnvironmentVariables(scope, value);
+      if (!destroyed && contextLimitsContainer) {
+        renderCustomContextLimits?.(contextLimitsContainer);
+      }
+      return true;
+    } catch {
+      new Notice(t('settings.environmentUpdateFailed'));
+      return false;
+    }
+  };
+
   if (usePreactEnvironmentField) {
     environmentHost = container.createDiv({ cls: 'claudian-environment-field-host' });
     environmentRoot = createPreactRoot(environmentHost);
@@ -71,10 +85,7 @@ export function renderEnvironmentSettingsSection(
       placeholder,
       initialValue: plugin.getEnvironmentVariablesForScope(scope),
       onApply: async (value) => {
-        await plugin.applyEnvironmentVariables(scope, value);
-        if (!destroyed && contextLimitsContainer) {
-          renderCustomContextLimits?.(contextLimitsContainer);
-        }
+        await applyEnvironment(value);
       },
     }));
   } else {
@@ -109,11 +120,9 @@ export function renderEnvironmentSettingsSection(
         text.inputEl.addEventListener('input', () => updateReviewWarning());
         text.inputEl.addEventListener('blur', () => {
           void (async (): Promise<void> => {
-            await plugin.applyEnvironmentVariables(scope, text.inputEl.value);
-            if (contextLimitsContainer) {
-              renderCustomContextLimits?.(contextLimitsContainer);
+            if (await applyEnvironment(text.inputEl.value)) {
+              updateReviewWarning();
             }
-            updateReviewWarning();
           })();
         });
         envTextarea = text.inputEl;
