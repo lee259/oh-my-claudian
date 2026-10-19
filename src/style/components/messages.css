@@ -1050,6 +1050,7 @@ button.claudian-activity-phase-header:focus-visible {
 
 .claudian-message-assistant > .claudian-message-actions {
   width: fit-content;
+  gap: 4px;
 }
 
 .claudian-message-actions .claudian-message-timestamp {
@@ -1057,10 +1058,13 @@ button.claudian-activity-phase-header:focus-visible {
   margin-inline-start: auto;
 }
 
-.claudian-message-actions .claudian-response-throughput {
+.claudian-message-actions .claudian-response-throughput,
+.claudian-message-assistant > .claudian-message-actions .claudian-message-timestamp {
+  margin-inline-start: 4px;
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: 12px;
   line-height: 16px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
