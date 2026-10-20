@@ -75,9 +75,11 @@ export class EnvSnippetModal extends Modal {
         const value = input.value.trim();
         if (value) {
           const parsed = parseContextLimit(value);
-          if (parsed !== null) {
-            contextLimits[modelId] = parsed;
+          if (parsed === null) {
+            new Notice(t('settings.customContextLimits.invalid'));
+            return;
           }
+          contextLimits[modelId] = parsed;
         }
       }
 
