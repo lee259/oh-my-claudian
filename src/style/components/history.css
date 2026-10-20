@@ -125,9 +125,12 @@
   width: 100%;
 }
 
-.claudian-history-menu .claudian-history-item-title {
+.claudian-history-menu .claudian-history-item-title-row {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.claudian-history-menu .claudian-history-item-title {
   font-size: 14px;
   font-weight: 400;
   line-height: 1.4;
@@ -354,12 +357,42 @@
 }
 
 .claudian-history-item-title {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-normal);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.claudian-history-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.claudian-history-item-provider,
+.claudian-home-conversation-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.claudian-history-item-provider svg,
+.claudian-home-conversation-provider svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-home-conversation-provider {
+  margin-inline-end: 8px;
 }
 
 .claudian-history-search-match {

@@ -1,8 +1,10 @@
 import { setIcon } from 'obsidian';
 
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderCapabilities } from '../../../core/providers/types';
-import type { ConversationMeta } from '../../../core/types';
+import type { ConversationMeta, ProviderId } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { createProviderIconSvg } from '../../../shared/icons';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { formatActivity } from '../utils/formatActivity';
 
@@ -63,6 +65,27 @@ function HomeConversationLoadingIndicator({ label }: { label: string }) {
       aria-label={label}
       ref={(element) => {
         if (element) setIcon(element, 'loader-2');
+      }}
+    />
+  );
+}
+
+function HomeConversationProviderIcon({ providerId }: { providerId: ProviderId }) {
+  const icon = ProviderRegistry.getRegisteredProviderIds().includes(providerId)
+    ? ProviderRegistry.getChatUIConfig(providerId).getProviderIcon?.()
+    : null;
+  if (!icon) return null;
+  const name = ProviderRegistry.getProviderDisplayName(providerId);
+  return (
+    <span
+      className="claudian-home-conversation-provider"
+      role="img"
+      aria-label={name}
+      title={name}
+      ref={element => {
+        if (!element) return;
+        element.replaceChildren();
+        createProviderIconSvg(icon, { parent: element, dataProvider: providerId, width: 16, height: 16 });
       }}
     />
   );
@@ -136,6 +159,7 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
                   options.onOpenConversation?.(conversation.id);
                 }}
               >
+                <HomeConversationProviderIcon providerId={conversation.providerId} />
                 <span className="claudian-home-conversation-title">{conversation.title}</span>
                 <span className="claudian-home-conversation-time">
                   {formatActivity(conversation.lastActivityAt)}

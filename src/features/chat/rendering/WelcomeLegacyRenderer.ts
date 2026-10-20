@@ -1,7 +1,9 @@
 import { setIcon } from 'obsidian';
 
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderCapabilities } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
+import { createProviderIconSvg } from '../../../shared/icons';
 import type { WelcomeHomeOptions, WelcomeProviderSummary } from '../ui/WelcomeView';
 import { formatActivity } from '../utils/formatActivity';
 
@@ -107,6 +109,19 @@ function renderLegacyHomeSurface(
       cls: 'claudian-home-conversation-open',
       attr: { type: 'button', 'aria-label': conversation.title },
     });
+    const providerIcon = ProviderRegistry.getRegisteredProviderIds().includes(conversation.providerId)
+      ? ProviderRegistry.getChatUIConfig(conversation.providerId).getProviderIcon?.()
+      : null;
+    if (providerIcon) {
+      const name = ProviderRegistry.getProviderDisplayName(conversation.providerId);
+      const providerEl = openButton.createSpan({
+        cls: 'claudian-home-conversation-provider',
+        attr: { role: 'img', 'aria-label': name, title: name },
+      });
+      createProviderIconSvg(providerIcon, {
+        parent: providerEl, dataProvider: conversation.providerId, width: 16, height: 16,
+      });
+    }
     openButton.createSpan({ cls: 'claudian-home-conversation-title', text: conversation.title });
     openButton.createSpan({
       cls: 'claudian-home-conversation-time',
