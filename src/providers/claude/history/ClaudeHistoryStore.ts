@@ -16,9 +16,11 @@ import {
   collectStructuredPatchResults,
   collectToolResults,
   extractXmlTag,
+  getSdkUserMessageTimestamp,
   hydrateFallbackAskUserAnswers,
   hydrateStructuredToolResults,
   isCanonicalSdkUserMessage,
+  isQueuedPromptAttachment,
   isSystemInjectedMessage,
   mergeAssistantMessage,
   parseSDKMessageToChat,
@@ -229,8 +231,19 @@ async function assembleSDKChatMessages(
     turnStats = new ClaudeTurnStats();
   };
 
+  // Progress parents disappear from the active projection but still date queued prompts.
+  const effectiveTimestamps = new Map<string, string | undefined>();
+  for (const entry of entries) {
+    if (entry.isSidechain || !entry.uuid) continue;
+    effectiveTimestamps.set(entry.uuid, getSdkUserMessageTimestamp(
+      entry, entry.parentUuid ? effectiveTimestamps.get(entry.parentUuid) : undefined,
+    ));
+  }
   // Preserve task notification boundaries without ending an unfinished response.
-  for (const sdkMsg of filteredEntries) {
+  for (const entry of filteredEntries) {
+    const timestamp = isQueuedPromptAttachment(entry) && entry.uuid && effectiveTimestamps.has(entry.uuid)
+      ? effectiveTimestamps.get(entry.uuid) : entry.timestamp;
+    const sdkMsg = timestamp === entry.timestamp ? entry : { ...entry, timestamp };
     const notification = parseTaskNotification(sdkMsg);
     if (notification !== null) {
       if (pendingAssistant && requestedResponsePending) {

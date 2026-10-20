@@ -45,6 +45,7 @@ The execution session owns the live provider snapshot. History services reconstr
 - Auto-triggered SDK turns can arrive without a registered handler; they buffer until the result event.
 - `MessageChannel` coalesces text-only queued messages and keeps only one queued attachment message.
 - Claude session files are tree-structured. Branch filtering must preserve the canonical branch plus relevant sibling tool results.
+- A late steer can report `queued_turn_count: 0` before its native turn starts. When session-state events are present, wait for native idle before settling unconsumed inputs; only explicit consumption lists confirm delivery on error results.
 - Task-notification timestamps mark enqueue time, not consumption. Preserve native notification boundaries across timestamp sorting and emit live notifications at their consumed or automatic-turn boundary.
 - `EnterPlanMode` does not hit `canUseTool`; `ExitPlanMode` does.
 - Context-window selection must handle multi-model runs by exact model match first, then family match, and null on ambiguity.

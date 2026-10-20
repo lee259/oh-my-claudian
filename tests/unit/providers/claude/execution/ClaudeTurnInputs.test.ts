@@ -33,12 +33,12 @@ describe('ClaudeTurnInputs', () => {
     inputs.observe(resultMessage({ user_message_uuid: 'primary' }));
 
     expect(inputs.settled).toBe(true);
-    expect(inputs.wasConsumed('primary')).toBe(true);
   });
 
   it('keeps a requested run open while a queued steer remains unconsumed', () => {
     const inputs = new ClaudeTurnInputs('primary');
-    inputs.addSteer('steer');
+    const delivery = { content: 'Continue', resolve: jest.fn(), reject: jest.fn() };
+    inputs.addSteer('steer', delivery);
 
     inputs.observe(resultMessage({
       queued_turn_count: 1,
@@ -46,14 +46,14 @@ describe('ClaudeTurnInputs', () => {
     }));
 
     expect(inputs.settled).toBe(false);
-    expect(inputs.wasConsumed('primary')).toBe(true);
-    expect(inputs.wasConsumed('steer')).toBe(false);
+    expect(delivery.resolve).not.toHaveBeenCalled();
   });
 
   it('uses replay events as delivery acknowledgement for a steer', () => {
     const inputs = new ClaudeTurnInputs('primary');
     const steerId = '00000000-0000-4000-8000-000000000001';
-    inputs.addSteer(steerId);
+    const delivery = { content: 'Continue', resolve: jest.fn(), reject: jest.fn() };
+    inputs.addSteer(steerId, delivery);
     const replay = {
       type: 'user',
       isReplay: true,
@@ -64,14 +64,16 @@ describe('ClaudeTurnInputs', () => {
     } as unknown as SDKMessage;
 
     expect(getReplayedUserMessageId(replay)).toBe(steerId);
-    expect(inputs.observe(replay)).toBe(steerId);
+    expect(inputs.deliver(getReplayedUserMessageId(replay)!)).toBe('Continue');
+    expect(delivery.resolve).toHaveBeenCalledWith(true);
     expect(inputs.hasUndeliveredSteers()).toBe(false);
     expect(inputs.settled).toBe(false);
   });
 
   it('settles consumed inputs when a result reports no queued turns', () => {
     const inputs = new ClaudeTurnInputs('primary');
-    inputs.addSteer('steer');
+    const delivery = { content: 'Continue', resolve: jest.fn(), reject: jest.fn() };
+    inputs.addSteer('steer', delivery);
 
     inputs.observe(resultMessage({
       queued_turn_count: 0,

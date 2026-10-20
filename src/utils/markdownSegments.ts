@@ -524,7 +524,7 @@ function splitInlineMarkdown(
       continue;
     }
 
-    const embeddedWikilink = char === '!' && line.startsWith('![[', index);
+    const embeddedWikilink = char === '!' && !isBackslashEscaped(line, index) && line.startsWith('![[', index);
     if (embeddedWikilink || char === '[') {
       const wikilinkStart = embeddedWikilink ? index + 1 : index;
       const wikilinkEnd = findWikilinkEnd(line, wikilinkStart);
