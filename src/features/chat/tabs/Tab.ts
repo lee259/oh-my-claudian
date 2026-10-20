@@ -1892,6 +1892,8 @@ export function initializeTabRuntimeControllers(
     }
   };
 
+  const replyNotes = new ReplyNoteController(plugin.app, plugin.replyNoteWriter);
+  dom.eventCleanups.push(() => replyNotes.dispose());
   initializeTabPresentationControllers(tab, {
     plugin,
     component,
@@ -1901,6 +1903,7 @@ export function initializeTabRuntimeControllers(
       ? (id) => handleForkRequest(tab, plugin, id, forkRequestCallback)
       : undefined,
     onCommitProvisional: () => commitProvisionalTab(tab),
+    onSaveReply: markdown => replyNotes.open(markdown),
   });
 
   tab.controllers.streamController ??= createTabStreamController(
@@ -2066,8 +2069,6 @@ export function initializeTabRuntimeControllers(
     }));
   };
 
-  const replyNotes = new ReplyNoteController(plugin.app, plugin.replyNoteWriter);
-  dom.eventCleanups.push(() => replyNotes.dispose());
   const messageQuoteController = new MessageQuoteController({
     messagesEl: dom.messagesEl,
     label: t('chat.quote.buttonLabel'),

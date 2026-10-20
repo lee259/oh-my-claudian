@@ -16,6 +16,7 @@ export interface TabPresentationControllerOptions {
   onRewind: (messageId: string, mode?: ChatRewindMode) => Promise<void>;
   onForkRequest?: (messageId: string) => Promise<void>;
   onCommitProvisional: () => void;
+  onSaveReply: (markdown: string) => void;
 }
 
 /**
@@ -48,6 +49,7 @@ export function initializeTabPresentationControllers(
     },
     () => tab.state.autoScrollEnabled,
     state => tab.controllers.streamController?.bindSubagentPresentation(state),
+    options.onSaveReply,
   );
 
   dom.eventCleanups.push(tab.session.messagePresentation.attach(tab.renderer, dom.messagesEl));

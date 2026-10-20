@@ -15,11 +15,18 @@ import type { FeatureHost } from '@/features/FeatureHost';
 HTMLElement.prototype.empty = function empty(): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function setText(text: string): void { this.textContent = text; };
 
-function createTurn(providerId: ProviderId = 'claude') {
+function createTurn(
+  providerId: ProviderId = 'claude',
+  onSaveReply?: (markdown: string) => void,
+  onFork?: (messageId: string) => Promise<void>,
+) {
   const messagesEl = document.createElement('div');
   document.body.appendChild(messagesEl);
   const component = new Component();
-  const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl, undefined, undefined, () => ProviderRegistry.getCapabilities(providerId));
+  const renderer = new MessageRenderer(
+    { app: {}, settings: {} } as FeatureHost, component, messagesEl, undefined, onFork,
+    () => ProviderRegistry.getCapabilities(providerId), undefined, undefined, undefined, undefined, onSaveReply,
+  );
   const user: ChatMessage = { id: 'user', role: 'user', content: 'Check the files.', timestamp: 1 };
   const assistant: ChatMessage = {
     id: 'assistant', role: 'assistant', content: 'The check is complete.', timestamp: 2,
@@ -80,14 +87,72 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
-  it('keeps note saving out of the completed answer action row', () => {
-    const { renderer, component, messagesEl, assistant, text } = createTurn();
+  it('saves the final Markdown answer from the action after copy and fork', () => {
+    const onSave = jest.fn();
+    const { renderer, component, messagesEl, assistant, text, tool } = createTurn('claude', onSave, jest.fn());
     try {
-      text('The answer can be selected and saved.');
+      assistant.assistantMessageId = 'native-answer';
+      text('Checking the files.');
+      tool('check', 'completed');
+      text('# Result\n\n**Done** with [[Source]].');
+      text('```ts\nconst ok = true;\n```');
       renderer.finalizeCompletedWork(assistant);
-      const actions = messagesEl.querySelector('.claudian-message-action-row')!;
-      expect(actions.querySelector('.claudian-text-copy-btn')).not.toBeNull();
-      expect(actions.querySelector('.claudian-save-note-btn')).toBeNull();
+      const actions = messagesEl.querySelector<HTMLElement>('.claudian-message-action-row')!;
+      const save = getByRole(actions, 'button', { name: 'Save to note' });
+      expect([...actions.querySelectorAll('button')].map(button => button.className)).toEqual([
+        'claudian-text-copy-btn', 'claudian-message-fork-btn', 'claudian-save-note-btn',
+      ]);
+      save.click();
+      expect(onSave).toHaveBeenCalledWith('# Result\n\n**Done** with [[Source]].\n\n```ts\nconst ok = true;\n```');
+      renderer.finalizeCompletedWork(assistant);
+      expect(actions.querySelectorAll('.claudian-save-note-btn')).toHaveLength(1);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it.each(['claude', 'codex', 'cursor', 'grok', 'omp', 'opencode', 'pi'] as const)(
+    'offers note saving for %s independently of forking', (providerId) => {
+      const onSave = jest.fn();
+      const { renderer, component, messagesEl, assistant, text } = createTurn(providerId, onSave);
+      try {
+        text('## Answer\n\n- Keep Markdown');
+        expect(messagesEl.querySelector('.claudian-save-note-btn')).toBeNull();
+        renderer.finalizeCompletedWork(assistant);
+        getByRole(messagesEl, 'button', { name: 'Save to note' }).click();
+        expect(onSave).toHaveBeenCalledWith('## Answer\n\n- Keep Markdown');
+      } finally { renderer.dispose(); component.unload(); }
+    },
+  );
+
+  it('saves restored legacy text and preserves answer text around citations', () => {
+    const onSave = jest.fn();
+    const { renderer, component, messagesEl } = createTurn('claude', onSave);
+    try {
+      renderer.renderStoredMessage({ id: 'legacy', role: 'assistant', content: '# Legacy answer', timestamp: 3 });
+      getByRole(messagesEl.querySelector<HTMLElement>('[data-message-id="legacy"]')!, 'button', { name: 'Save to note' }).click();
+      expect(onSave).toHaveBeenLastCalledWith('# Legacy answer');
+      renderer.renderStoredMessage({
+        id: 'cited', role: 'assistant', content: '', timestamp: 4,
+        contentBlocks: [
+          { type: 'thinking', content: 'Private reasoning' },
+          { type: 'text', content: '# Answer' },
+          { type: 'citations', citations: { kind: 'memory', entries: [] } },
+          { type: 'text', content: '| Key | Value |\n| --- | --- |\n| Ready | Yes |' },
+        ],
+      });
+      getByRole(messagesEl.querySelector<HTMLElement>('[data-message-id="cited"]')!, 'button', { name: 'Save to note' }).click();
+      expect(onSave).toHaveBeenLastCalledWith('# Answer\n\n| Key | Value |\n| --- | --- |\n| Ready | Yes |');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it.each(['work-only', 'interrupted', 'empty'] as const)('does not offer saving for a %s reply', (kind) => {
+    const { renderer, component, messagesEl, assistant, text, tool } = createTurn('claude', jest.fn());
+    try {
+      if (kind !== 'empty') text('Checking the files.');
+      else assistant.content = '';
+      if (kind === 'work-only') tool('check', 'completed');
+      if (kind === 'interrupted') assistant.isInterrupt = true;
+      renderer.finalizeCompletedWork(assistant);
+      expect(messagesEl.querySelector('.claudian-save-note-btn')).toBeNull();
     } finally { renderer.dispose(); component.unload(); }
   });
 
