@@ -337,7 +337,8 @@
       "defaultName": "Nota",
       "close": "Fechar",
       "selectionLabel": "Guardar numa nota"
-    }
+    },
+    "historyRecoveryUnavailable": "Parte do histórico está indisponível. Restaure o banco de dados original e reabra esta conversa antes de continuar."
   },
   "settings": {
     "title": "Configurações do Oh My Claudian",

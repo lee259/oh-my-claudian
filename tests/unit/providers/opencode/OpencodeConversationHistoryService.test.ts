@@ -19,7 +19,7 @@ describe('OpencodeConversationHistoryService', () => {
     rmSync(tmpRoot, { force: true, recursive: true });
   });
 
-  it('uses the current home database instead of a legacy Windows AppData database', async () => {
+  it('preserves an untrusted legacy locator without substituting the current home database', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const sessionId = 'session-windows-migration';
     const legacyDatabasePath = path.join(tmpRoot, 'AppData', 'Roaming', 'opencode', 'opencode.db');
@@ -41,11 +41,137 @@ describe('OpencodeConversationHistoryService', () => {
       },
     );
 
-    expect(conversation.messages.map(message => message.content)).toEqual(['Current prompt']);
+    expect(conversation.messages[0].id).toContain('opencode-hydration-error');
+    expect(conversation.messages[0].content).not.toContain('Current prompt');
     expect(conversation.providerState).toEqual({
-      databasePath: currentDatabasePath,
+      databasePath: legacyDatabasePath,
       futureResumeCursor: { token: 'cursor-1' },
     });
+  });
+
+  it('does not substitute another database when the recorded trusted database is missing', async () => {
+    const recorded = path.join(tmpRoot, 'xdg', 'opencode', 'old.db');
+    const current = path.join(tmpRoot, 'xdg', 'opencode', 'opencode.db');
+    seedDatabase(current, 'same-id', 'Wrong database');
+    const conversation = createConversation('same-id', recorded);
+    const service = new OpencodeConversationHistoryService();
+    const context = { environment: { XDG_DATA_HOME: path.join(tmpRoot, 'xdg'), OPENCODE_DB: current } };
+    await service.hydrateConversationHistory(conversation, null, context);
+    expect(conversation.providerState?.databasePath).toBe(recorded);
+    expect(conversation.messages[0].id).toContain('opencode-hydration-error');
+    expect(conversation.messages.map(message => message.content)).not.toContain('Wrong database');
+    await expect(service.recoverConversationModelSelection(conversation, null, context)).resolves.toBeNull();
+    seedDatabase(recorded, 'same-id', 'Recovered original');
+    await service.hydrateConversationHistory(conversation, null, context);
+    expect(conversation.messages.map(message => message.content)).toEqual(['Recovered original']);
+  });
+
+  it('round-trips retired sources, joins them before live history, and isolates their checkpoints', async () => {
+    const oldPath = path.join(tmpRoot, 'old.db');
+    const newPath = path.join(tmpRoot, 'new.db');
+    seedDatabase(oldPath, 'same-id', 'Old question');
+    seedDatabase(newPath, 'same-id', 'New question');
+    for (const databasePath of [oldPath, newPath]) {
+      const db = new DatabaseSync(databasePath);
+      db.prepare('insert into message values (?, ?, ?, ?)').run('same-answer', 'same-id', 2000,
+        JSON.stringify({ role: 'assistant', providerID: 'anthropic', modelID: 'claude' }));
+      db.prepare('insert into part values (?, ?, ?, ?)').run('answer-part', 'same-id', 'same-answer',
+        JSON.stringify({ type: 'text', text: databasePath === oldPath ? 'Old answer' : 'New answer' }));
+      db.close();
+    }
+    const service = new OpencodeConversationHistoryService();
+    const conversation = createConversation('same-id', newPath);
+    conversation.providerState = {
+      databasePath: newPath, future: 'keep',
+      historySources: [{ sessionId: 'same-id', databasePath: oldPath }],
+    };
+    const persisted = service.buildPersistedProviderState(conversation);
+    const reopened: Conversation = { ...conversation, providerState: JSON.parse(JSON.stringify(persisted)), messages: [] };
+    await service.hydrateConversationHistory(reopened, null);
+    expect(reopened.messages.map(message => message.content)).toEqual(['Old question', 'Old answer', 'New question', 'New answer']);
+    expect(new Set(reopened.messages.map(message => message.id)).size).toBe(4);
+    expect(reopened.messages[1].assistantMessageId).toBeUndefined();
+    expect(reopened.messages[3].assistantMessageId).toBe('same-answer');
+    expect(reopened.providerState?.future).toBe('keep');
+    await expect(service.recoverConversationModelSelection(reopened, null)).resolves.toBe('opencode:anthropic/claude');
+  });
+
+  it('does not consume replay intent when only the retired prefix has messages', async () => {
+    const oldPath = path.join(tmpRoot, 'old.db');
+    const livePath = path.join(tmpRoot, 'new.db');
+    seedDatabase(oldPath, 'old', 'Original question');
+    seedDatabase(livePath, 'placeholder', 'Other session');
+    const db = new DatabaseSync(livePath);
+    db.exec("CREATE TABLE session (id text); INSERT INTO session VALUES ('fresh');");
+    db.close();
+    const conversation = createConversation('fresh', livePath);
+    conversation.providerState = { databasePath: livePath, nativeConversationContextEstablished: false,
+      historySources: [{ sessionId: 'old', databasePath: oldPath }] };
+    await new OpencodeConversationHistoryService().hydrateConversationHistory(conversation, null);
+    expect(conversation.messages.map(message => message.content)).toEqual(['Original question']);
+    expect(conversation.providerState.nativeConversationContextEstablished).toBe(false);
+  });
+
+  it('preserves malformed recovery metadata and blocks a silently partial projection', async () => {
+    const dbPath = path.join(tmpRoot, 'live.db');
+    seedDatabase(dbPath, 'live', 'Live question');
+    const conversation = createConversation('live', dbPath);
+    const malformed = [{ sessionId: 42, databasePath: dbPath }];
+    conversation.providerState!.historySources = malformed;
+    const service = new OpencodeConversationHistoryService();
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages[0].id).toContain('opencode-hydration-error');
+    expect(service.buildPersistedProviderState(conversation)?.historySources).toEqual(malformed);
+  });
+
+  it('keeps retired-only history readable without re-establishing a live binding', async () => {
+    const databasePath = path.join(tmpRoot, 'retired.db');
+    seedDatabase(databasePath, 'old', 'Old question');
+    const conversation = createConversation('old', databasePath);
+    conversation.sessionId = null;
+    conversation.providerState = { nativeConversationContextEstablished: false,
+      historySources: [{ sessionId: 'old', databasePath }] };
+    const service = new OpencodeConversationHistoryService();
+    await service.hydrateConversationHistory(conversation, null);
+    expect(conversation.messages.map(message => message.content)).toEqual(['Old question']);
+    expect(service.resolveSessionIdForConversation(conversation)).toBeNull();
+    expect(conversation.providerState.nativeConversationContextEstablished).toBe(false);
+    expect(service.hasConversationModelRecoverySource(conversation)).toBe(true);
+  });
+
+  it('does not apply an async hydration after the live identity changes', async () => {
+    const dbPath = path.join(tmpRoot, 'old.db');
+    seedDatabase(dbPath, 'old', 'Old question');
+    const conversation = createConversation('old', dbPath);
+    const pending = new OpencodeConversationHistoryService().hydrateConversationHistory(conversation, null);
+    conversation.sessionId = 'replacement';
+    conversation.providerState = { sessionId: 'replacement' };
+    conversation.messages = [{ id: 'new', role: 'user', content: 'New question', timestamp: 3000 }];
+    await pending;
+    expect(conversation.messages.map(message => message.content)).toEqual(['New question']);
+  });
+
+  it.each([1, 2] as const)('inherits retired history without replacing the native v%i fork identity', async (nativeVersion) => {
+    const dbPath = path.join(tmpRoot, 'fork.db');
+    seedDatabase(dbPath, 'source', 'Current prompt');
+    const forkSession = jest.fn().mockResolvedValue('child');
+    const service = new OpencodeConversationHistoryService(forkSession);
+    const historySources = [{ sessionId: 'retired', databasePath: dbPath, nativeVersion }];
+    const state = await service.buildForkProviderState('source', 'checkpoint', {
+      sessionId: 'source', databasePath: dbPath, nativeVersion, historySources, future: 'keep',
+    }, tmpRoot);
+    expect(state).toMatchObject({ sessionId: 'child', databasePath: dbPath, nativeVersion,
+      historySources, future: 'keep', nativeConversationContextEstablished: true });
+    expect(forkSession).toHaveBeenCalledWith(expect.objectContaining({ sourceSessionId: 'source', nativeVersion }));
+  });
+
+  it('does not fork into a substituted store when the recorded database disappears', async () => {
+    const missing = path.join(tmpRoot, 'missing.db');
+    const forkSession = jest.fn();
+    await expect(new OpencodeConversationHistoryService(forkSession).buildForkProviderState(
+      'old', 'checkpoint', { databasePath: missing }, tmpRoot,
+    )).rejects.toThrow();
+    expect(forkSession).not.toHaveBeenCalled();
   });
 
   it('stores the native child session and version for a checkpoint fork', async () => {
@@ -195,7 +321,7 @@ describe('OpencodeConversationHistoryService', () => {
       .resolves.toBe('opencode:google/gemini-3.5-flash');
   });
 
-  it('does not open an out-of-root metadata database and uses the current local database', async () => {
+  it('preserves an out-of-root locator and reports unavailable history', async () => {
     const sessionId = 'session-trusted-path';
     const xdgDataHome = path.join(tmpRoot, 'xdg');
     const trustedPath = path.join(xdgDataHome, 'opencode', 'opencode.db');
@@ -211,9 +337,10 @@ describe('OpencodeConversationHistoryService', () => {
       { environment: { HOME: tmpRoot, XDG_DATA_HOME: xdgDataHome } },
     );
 
-    expect(conversation.messages.map(message => message.content)).toEqual(['Trusted prompt']);
+    expect(conversation.messages[0].id).toContain('opencode-hydration-error');
+    expect(conversation.messages[0].content).not.toContain('Trusted prompt');
     expect(conversation.providerState).toEqual({
-      databasePath: trustedPath,
+      databasePath: outsidePath,
       futureResumeCursor: { token: 'cursor-1' },
     });
   });
@@ -244,7 +371,7 @@ describe('OpencodeConversationHistoryService', () => {
 
       expect(conversation.sessionId).toBeNull();
       expect(conversation.providerState).toEqual({
-        databasePath: '/tmp/opencode.db',
+        historySources: [{ sessionId: 'missing-session', databasePath: '/tmp/opencode.db' }],
         futureResumeCursor: { token: 'cursor-1' },
         nativeConversationContextEstablished: false,
       });
@@ -306,7 +433,7 @@ describe('OpencodeConversationHistoryService', () => {
     expect(conversation.messages.map(message => message.content)).toEqual(['Configured prompt']);
   });
 
-  it('sanitizes an untrusted database path before a session is assigned', async () => {
+  it('sanitizes an unbound database path before a session is assigned', async () => {
     const xdgDataHome = path.join(tmpRoot, 'xdg');
     const trustedPath = path.join(xdgDataHome, 'opencode', 'opencode.db');
     const outsidePath = path.join(tmpRoot, 'synced-device', 'opencode.db');

@@ -57,7 +57,9 @@ export function restoreTurnModels(conversation: Conversation): void {
         // Contradictory native identities must not match a replacement branch.
         if (model.assistantMessageId && message.assistantMessageId) return false;
         if (model.userMessageId && anchor.userMessageId) {
-          return model.userMessageId === anchor.userMessageId;
+          return model.userMessageId === anchor.userMessageId
+            && model.userTurnOrdinal === anchor.userTurnOrdinal
+            && model.inputDigest === anchor.inputDigest;
         }
         return anchor.userTurnOrdinal > 0
           && model.userTurnOrdinal === anchor.userTurnOrdinal

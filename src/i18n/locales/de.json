@@ -337,7 +337,8 @@
       "defaultName": "Notiz",
       "close": "Schließen",
       "selectionLabel": "In Notiz speichern"
-    }
+    },
+    "historyRecoveryUnavailable": "Ein Teil des Gesprächsverlaufs ist nicht verfügbar. Stellen Sie die ursprüngliche Datenbank wieder her und öffnen Sie das Gespräch erneut, bevor Sie fortfahren."
   },
   "settings": {
     "title": "Oh My Claudian Einstellungen",

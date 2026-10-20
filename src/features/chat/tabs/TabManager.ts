@@ -207,6 +207,10 @@ export class TabManager implements TabManagerInterface {
     }
     if (this.destroyed) return null;
     if (runtime?.conversationId && !conversation) conversation = this.plugin.getCachedConversation(runtime.conversationId) ?? undefined;
+    if (runtime && conversation) {
+      await runtime.retryIncompleteHistory(conversation, () => this.plugin.getConversationById(conversation!.id));
+      if (this.destroyed) return null;
+    }
     const attachment = runtime && registry ? registry.attach(runtime.id, this.presentationOwnerId) : null;
     if (attachment?.kind === 'existing') {
       const owner = runtime?.presentation?.viewHost;

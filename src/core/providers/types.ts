@@ -589,6 +589,11 @@ export interface ProviderConversationHistoryService {
     missingProviderSessionId?: string,
     pathContext?: ProviderHistoryPathContext,
   ): Promise<'delete' | 'reset' | 'preserve'>;
+  /** Requests a retry or refresh when a provider-owned history projection is incomplete or stale. */
+  needsConversationHistoryHydration?(
+    conversation: Conversation,
+    options?: { projectionOnly?: boolean },
+  ): boolean;
   hydrateConversationHistory(
     conversation: Conversation,
     vaultPath: string | null,

@@ -1,15 +1,20 @@
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
+
 import { mergePersistedProviderState } from '../../../core/providers/providerState';
 import type {
   ProviderConversationHistoryService,
   ProviderHistoryPathContext,
 } from '../../../core/providers/types';
-import type { Conversation } from '../../../core/types';
+import type { ChatMessage, Conversation, ToolCallInfo } from '../../../core/types';
 import { OpencodeCliResolver } from '../runtime/OpencodeCliResolver';
 import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
-import { getOpencodeState, type OpencodeProviderState } from '../types';
+import { getOpencodeState, hasMalformedOpencodeHistorySources, type OpencodeHistorySource, retireOpencodeSession } from '../types';
 import { resolveOpencodeDatabasePathHint } from './OpencodeHistoryPathResolver';
 import {
-  isOpencodeSessionHydrationDiagnosticMessage,
+  createOpencodeHydrationDiagnosticMessage,
+  isOpencodeHydrationDiagnosticMessage,
   loadOpencodeSessionMessages,
   loadOpencodeSessionModel,
 } from './OpencodeHistoryStore';
@@ -17,6 +22,7 @@ import { forkOpencodeSession } from './OpencodeSessionFork';
 import { hydrateOpenCodeV2Children } from './OpencodeSubagentHistory';
 
 const OPENCODE_PROVIDER_STATE_KEYS = [
+  'historySources',
   'sessionId',
   'nativeVersion',
   'databasePath',
@@ -24,14 +30,23 @@ const OPENCODE_PROVIDER_STATE_KEYS = [
 ] as const;
 
 export class OpencodeConversationHistoryService implements ProviderConversationHistoryService {
-  private hydratedKeys = new Map<string, string>();
+  private hydratedKeys = new WeakMap<Conversation, string>();
+  private nativeContexts = new WeakSet<Conversation>();
 
   constructor(
     private readonly forkSession: typeof forkOpencodeSession = forkOpencodeSession,
   ) {}
 
   hasConversationModelRecoverySource(conversation: Conversation): boolean {
-    return !!(conversation.sessionId ?? getOpencodeState(conversation.providerState).sessionId);
+    return getHistorySegments(conversation).length > 0;
+  }
+
+  needsConversationHistoryHydration(conversation: Conversation, options?: { projectionOnly?: boolean }): boolean {
+    const incomplete = hasMalformedOpencodeHistorySources(conversation.providerState)
+      || conversation.messages.some(isOpencodeHydrationDiagnosticMessage);
+    if (options?.projectionOnly) return incomplete;
+    const segments = getHistorySegments(conversation);
+    return incomplete || segments.length > 0 && this.hydratedKeys.get(conversation) !== JSON.stringify(segments);
   }
 
   async recoverConversationModelSelection(
@@ -39,14 +54,14 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
     _vaultPath: string | null,
     pathContext?: ProviderHistoryPathContext,
   ): Promise<string | null> {
-    const state = getOpencodeState(conversation.providerState);
-    const sessionId = conversation.sessionId ?? state.sessionId;
-    if (!sessionId) return null;
-    const databasePath = resolveOpencodeDatabasePathHint(state.databasePath, pathContext);
+    if (hasMalformedOpencodeHistorySources(conversation.providerState)) return null;
+    const source = getHistorySegments(conversation).at(-1);
+    if (!source || (source.retired && !source.databasePath)) return null;
+    const databasePath = resolveOpencodeDatabasePathHint(source.databasePath, pathContext);
     if (!databasePath) return null;
-    return loadOpencodeSessionModel(sessionId, {
+    return loadOpencodeSessionModel(source.sessionId, {
       databasePath,
-      nativeVersion: state.nativeVersion,
+      nativeVersion: source.nativeVersion,
     }, pathContext?.environment);
   }
 
@@ -55,60 +70,73 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
     _vaultPath: string | null,
     pathContext?: ProviderHistoryPathContext,
   ): Promise<void> {
-    const state = getOpencodeState(conversation.providerState);
-    const databasePath = resolveOpencodeDatabasePathHint(state.databasePath, pathContext);
-    if (state.databasePath && state.databasePath !== databasePath) {
-      const providerState = { ...conversation.providerState };
-      if (databasePath) {
-        providerState.databasePath = databasePath;
-      } else {
-        delete providerState.databasePath;
-      }
-      conversation.providerState = Object.keys(providerState).length > 0
-        ? providerState
-        : undefined;
-    }
-    const sessionId = conversation.sessionId ?? state.sessionId ?? null;
-    if (!sessionId) {
-      this.hydratedKeys.delete(conversation.id);
+    if (hasMalformedOpencodeHistorySources(conversation.providerState)) {
+      conversation.messages = [createOpencodeHydrationDiagnosticMessage({
+        reason: 'The recorded OpenCode history sources are malformed.',
+      })];
+      this.hydratedKeys.delete(conversation);
       return;
     }
-
-    const hydrationKey = `${sessionId}::${databasePath ?? ''}`;
-    if (
-      conversation.messages.length > 0
-      && this.hydratedKeys.get(conversation.id) === hydrationKey
-    ) {
+    const segments = getHistorySegments(conversation);
+    if (!segments.length) {
+      // A path without a native identity is launch configuration, not historical provenance.
+      const state = getOpencodeState(conversation.providerState);
+      if (state.databasePath && !resolveOpencodeDatabasePathHint(state.databasePath, pathContext)) {
+        const providerState = { ...conversation.providerState };
+        const currentPath = resolveOpencodeDatabasePathHint(undefined, pathContext);
+        if (currentPath) providerState.databasePath = currentPath;
+        else delete providerState.databasePath;
+        conversation.providerState = providerState;
+      }
+      this.hydratedKeys.delete(conversation);
+      return;
+    }
+    const hydrationKey = JSON.stringify(segments);
+    if (conversation.messages.length > 0 && this.hydratedKeys.get(conversation) === hydrationKey
+      && !conversation.messages.some(isOpencodeHydrationDiagnosticMessage)) {
       this.markNativeConversationContextEstablished(conversation);
       return;
     }
-
-    const messages = await loadOpencodeSessionMessages(
-      sessionId,
-      {
-        databasePath: databasePath ?? undefined,
-        nativeVersion: state.nativeVersion,
-      },
-      pathContext?.environment,
-    );
-    if (messages.length === 0) {
-      this.hydratedKeys.delete(conversation.id);
-      return;
+    const initialState = conversation.providerState;
+    const initialSessionId = conversation.sessionId;
+    const initialMessages = conversation.messages;
+    const messages: ChatMessage[] = [];
+    let liveContext = false;
+    let resolvedLivePath: string | undefined;
+    for (const source of segments) {
+      const databasePath = source.retired && !source.databasePath
+        ? null : resolveOpencodeDatabasePathHint(source.databasePath, pathContext);
+      const segment = databasePath
+        ? await loadOpencodeSessionMessages(source.sessionId, { ...source, databasePath }, pathContext?.environment)
+        : [createOpencodeHydrationDiagnosticMessage({
+          sessionId: source.sessionId, databasePath: source.databasePath,
+          reason: source.databasePath
+            ? 'The recorded OpenCode database is outside the trusted locations.'
+            : 'The original OpenCode database location is unknown.',
+        })];
+      if (source.nativeVersion === 2 && databasePath) {
+        await hydrateOpenCodeV2Children(segment, databasePath, pathContext?.environment ?? process.env);
+      }
+      if (!source.retired && !segment.some(isOpencodeHydrationDiagnosticMessage)) {
+        liveContext = segment.some(message => message.role === 'user');
+        resolvedLivePath = databasePath ?? undefined;
+      }
+      messages.push(...(source.retired ? projectRetiredMessages(segment, source) : segment));
     }
-
-    if (state.nativeVersion === 2 && databasePath) {
-      await hydrateOpenCodeV2Children(messages, databasePath, pathContext?.environment ?? process.env);
-    }
+    // Native reads can yield while a settings transition, new snapshot, or hydration supersedes us.
+    if (conversation.providerState !== initialState || conversation.sessionId !== initialSessionId
+      || conversation.messages !== initialMessages || JSON.stringify(getHistorySegments(conversation)) !== hydrationKey) return;
     conversation.messages = messages;
-    if (
-      messages.length === 1
-      && isOpencodeSessionHydrationDiagnosticMessage(messages[0])
-    ) {
-      this.hydratedKeys.delete(conversation.id);
+    if (messages.some(isOpencodeHydrationDiagnosticMessage)) {
+      this.hydratedKeys.delete(conversation);
       return;
     }
-
-    this.hydratedKeys.set(conversation.id, hydrationKey);
+    if (resolvedLivePath && !getOpencodeState(conversation.providerState).databasePath) {
+      conversation.providerState = { ...conversation.providerState, databasePath: resolvedLivePath };
+    }
+    if (liveContext) this.nativeContexts.add(conversation);
+    else this.nativeContexts.delete(conversation);
+    this.hydratedKeys.set(conversation, JSON.stringify(getHistorySegments(conversation)));
     this.markNativeConversationContextEstablished(conversation);
   }
 
@@ -125,14 +153,10 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
       return 'preserve';
     }
 
+    conversation.providerState = retireOpencodeSession(conversation.providerState, conversation.sessionId);
     conversation.sessionId = null;
-    const providerState = { ...conversation.providerState };
-    delete providerState.sessionId;
-    conversation.providerState = {
-      ...providerState,
-      nativeConversationContextEstablished: false,
-    };
-    this.hydratedKeys.delete(conversation.id);
+    conversation.messages = conversation.messages.map(message => ({ ...message, assistantMessageId: undefined }));
+    this.hydratedKeys.delete(conversation);
     return 'reset';
   }
 
@@ -153,9 +177,12 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
   ): Promise<Record<string, unknown>> {
     const cwd = vaultPath ?? pathContext?.vaultPath;
     if (!cwd) throw new Error('OpenCode fork requires a workspace directory.');
+    if (hasMalformedOpencodeHistorySources(sourceProviderState)) {
+      throw new Error('OpenCode history sources are malformed.');
+    }
     const source = getOpencodeState(sourceProviderState);
     const databasePath = resolveOpencodeDatabasePathHint(source.databasePath, pathContext);
-    if (!databasePath || databasePath === ':memory:') {
+    if (!databasePath || databasePath === ':memory:' || !existsSync(databasePath)) {
       throw new Error('OpenCode fork requires a persistent native database.');
     }
     const settings = pathContext?.settings ?? {};
@@ -176,6 +203,7 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
       onNativeVersion: version => { nativeVersion = version ?? nativeVersion; },
     });
     return {
+      ...source,
       sessionId,
       databasePath,
       ...(nativeVersion ? { nativeVersion } : {}),
@@ -187,7 +215,10 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
     conversation: Conversation,
   ): Record<string, unknown> | undefined {
     const state = getOpencodeState(conversation.providerState);
-    const providerState: OpencodeProviderState = {
+    const providerState: Record<string, unknown> = {
+      ...(hasMalformedOpencodeHistorySources(conversation.providerState)
+        ? { historySources: conversation.providerState?.historySources }
+        : state.historySources ? { historySources: state.historySources } : {}),
       ...(state.sessionId ? { sessionId: state.sessionId } : {}),
       ...(state.nativeVersion ? { nativeVersion: state.nativeVersion } : {}),
       ...(state.databasePath ? { databasePath: state.databasePath } : {}),
@@ -210,10 +241,59 @@ export class OpencodeConversationHistoryService implements ProviderConversationH
     conversation: Conversation,
   ): void {
     const state = getOpencodeState(conversation.providerState);
-    if (state.nativeConversationContextEstablished !== false) return;
+    if (!this.nativeContexts.has(conversation) || !this.resolveSessionIdForConversation(conversation)
+      || state.nativeConversationContextEstablished !== false) return;
     conversation.providerState = {
       ...conversation.providerState,
       nativeConversationContextEstablished: true,
     };
   }
+}
+
+
+interface HistorySegment extends OpencodeHistorySource {
+  retired: boolean;
+}
+
+function sourceKey(source: OpencodeHistorySource): string {
+  return JSON.stringify([source.databasePath ? path.normalize(source.databasePath) : undefined, source.nativeVersion, source.sessionId]);
+}
+
+function getHistorySegments(conversation: Conversation): HistorySegment[] {
+  const state = getOpencodeState(conversation.providerState);
+  const sessionId = conversation.sessionId ?? state.sessionId;
+  const live = sessionId ? {
+    sessionId, databasePath: state.databasePath, nativeVersion: state.nativeVersion, retired: false,
+  } : null;
+  return [
+    ...(state.historySources ?? [])
+      .filter(source => !live || sourceKey(source) !== sourceKey(live))
+      .map(source => ({ ...source, retired: true })),
+    ...(live ? [live] : []),
+  ];
+}
+
+function projectRetiredMessages(messages: ChatMessage[], source: OpencodeHistorySource): ChatMessage[] {
+  const namespace = `opencode-history-${createHash('sha256').update(sourceKey(source)).digest('hex').slice(0, 24)}-`;
+  return messages.map(message => ({
+    ...message,
+    id: isOpencodeHydrationDiagnosticMessage(message) ? message.id + namespace : namespace + message.id,
+    assistantMessageId: undefined,
+    toolCalls: message.toolCalls?.map(tool => projectRetiredTool(tool, namespace)),
+    contentBlocks: message.contentBlocks?.map(block => block.type === 'tool_use'
+      ? { ...block, toolId: namespace + block.toolId } : block),
+  }));
+}
+
+
+function projectRetiredTool(tool: ToolCallInfo, namespace: string): ToolCallInfo {
+  return {
+    ...tool,
+    id: namespace + tool.id,
+    ...(tool.subagent ? { subagent: {
+      ...tool.subagent,
+      id: namespace + tool.subagent.id,
+      toolCalls: tool.subagent.toolCalls.map(child => projectRetiredTool(child, namespace)),
+    } } : {}),
+  };
 }

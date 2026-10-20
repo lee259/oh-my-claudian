@@ -337,7 +337,8 @@
       "defaultName": "노트",
       "close": "닫기",
       "selectionLabel": "노트에 저장"
-    }
+    },
+    "historyRecoveryUnavailable": "일부 대화 기록을 사용할 수 없습니다. 원래 데이터베이스를 복원하고 이 대화를 다시 연 후 계속하세요."
   },
   "settings": {
     "title": "Oh My Claudian 설정",

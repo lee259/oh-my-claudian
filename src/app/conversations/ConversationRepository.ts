@@ -1091,6 +1091,11 @@ export class ConversationRepository {
   ): Promise<Conversation | null> {
     await this.ensureSelectedModel(conversation);
     if (!this.isConversationCurrent(conversation, generation)) return null;
+    const historyService = ProviderRegistry.getConversationHistoryService(conversation.providerId);
+    if (historyService.needsConversationHistoryHydration?.(conversation)) {
+      await this.hydrateProviderHistory(conversation);
+      if (!this.isConversationCurrent(conversation, generation)) return null;
+    }
     await this.hydrateInputLedger(conversation);
     restoreTurnModels(conversation);
     return this.isConversationCurrent(conversation, generation)
@@ -1434,13 +1439,16 @@ export class ConversationRepository {
     conversation: Conversation,
   ): Promise<void> {
     const vaultPath = this.deps.getVaultPath();
-    await ProviderRegistry
-      .getConversationHistoryService(conversation.providerId)
-      .hydrateConversationHistory(
-        conversation,
-        vaultPath,
-        this.getHistoryPathContext(conversation.providerId, vaultPath),
-      );
+    const history = ProviderRegistry.getConversationHistoryService(conversation.providerId);
+    if (!history.needsConversationHistoryHydration?.(conversation, { projectionOnly: true })) {
+      const captured = captureTurnModels(conversation.messages);
+      if (captured) conversation.turnModels = captured;
+    }
+    await history.hydrateConversationHistory(
+      conversation,
+      vaultPath,
+      this.getHistoryPathContext(conversation.providerId, vaultPath),
+    );
   }
 
   private async hydrateInputLedger(
@@ -1554,6 +1562,9 @@ export class ConversationRepository {
             record.providerUserMessageId === message.userMessageId
             && !usedRecordIds.has(record.id),
         );
+        if (candidates.length > 1) {
+          candidates = candidates.filter(record => record.userTurnOrdinal === userTurnOrdinal);
+        }
       }
       if (candidates.length === 0) {
         const visibleText = message.displayContent
@@ -1781,10 +1792,11 @@ export class ConversationRepository {
       lastActivityAt: conversation.lastActivityAt,
       sessionId: conversation.sessionId,
       selectedModel: conversation.selectedModel,
-      turnModels: this.hydratedConversationIds.has(conversation.id)
-        || conversation.messages.some(message => message.modelName)
-        ? captureTurnModels(conversation.messages)
-        : conversation.turnModels,
+      turnModels: historyService.needsConversationHistoryHydration?.(conversation, { projectionOnly: true })
+        ? conversation.turnModels
+        : this.hydratedConversationIds.has(conversation.id) || conversation.messages.some(message => message.modelName)
+          ? captureTurnModels(conversation.messages)
+          : conversation.turnModels,
       providerState:
         providerState && Object.keys(providerState).length > 0
           ? providerState

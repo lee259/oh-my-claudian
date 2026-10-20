@@ -26,7 +26,9 @@
 - Only the v2 HTTP kernel can steer through the native inbox. Treat inbox delivery as acceptance, recall undelivered entries when a run ends, and keep the submitted prompt boundary ahead of steer boundaries; v1 ACP declines steering.
 - History hydration reads OpenCode's native SQLite database.
 - Historical selected-model recovery reads the session row's stored provider/model identifiers from the trusted database path. Preserve the raw historical selection even when it is no longer in the current model catalog, and never promote a recovery-only locator into a live ACP binding.
-- `providerState.databasePath` preserves the database used for a conversation until a typed history or environment transition replaces it. Keep it when building session updates.
+- `providerState.databasePath` identifies the live native database. Retiring a binding moves its locator into ordered, recovery-only `historySources`; those locators must never become resume seeds. Preserve unknown state and recovery sources in snapshots, metadata, and forks.
+- Fixed history sources must retain their recorded trusted database through message, model, and child-session reads. Missing or untrusted stores produce retryable diagnostics, never fallback reads of another database. Retired projections have source-scoped display identities and no executable assistant checkpoints.
+- Only live native input establishes conversation context. Loading a retired prefix or an empty fresh session must not consume replay intent. Recovery prompt envelopes must round-trip through native history without displaying the replay context, while preserving the current typed-text span for skills.
 - File requests are resolved and permission-checked against the kernel's configured vault working directory; do not recreate path policy in feature code.
 
 ## Launch and Settings

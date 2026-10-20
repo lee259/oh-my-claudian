@@ -274,6 +274,28 @@ describe('ConversationRepository input ledger', () => {
     expect(conversation.messages[2].executionInput).toBeUndefined();
   });
 
+  it('uses turn order to distinguish native user IDs repeated across history segments', async () => {
+    const conversation = createConversation();
+    const records = [1, 2].map(ordinal => createInputRecord({
+      id: `input-${ordinal}`, userTurnOrdinal: ordinal, state: 'accepted',
+      providerUserMessageId: 'repeated-native-id', rawDisplayText: `/command-${ordinal}`,
+      canonicalText: `Canonical command ${ordinal}`,
+    }));
+    const persistence = createPersistence({ status: 'loaded', ledger: createLedger(conversation.id, records) });
+    const { repository } = createRepository(conversation, persistence);
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory: async (target: Conversation) => {
+        target.messages = [1, 2].map(ordinal => ({ id: `segment-${ordinal}`, role: 'user', timestamp: ordinal,
+          content: `Expanded native prompt ${ordinal}`, userMessageId: 'repeated-native-id' }));
+      },
+    } as any);
+    await repository.ensureHydrated(conversation.id);
+    expect(conversation.messages.map(message => message.displayContent)).toEqual(['/command-1', '/command-2']);
+    expect(conversation.messages.map(message => message.executionInput?.canonicalText)).toEqual([
+      'Canonical command 1', 'Canonical command 2',
+    ]);
+  });
+
   it('does not apply ambiguous provider identities', async () => {
     const conversation = createConversation();
     const records = [

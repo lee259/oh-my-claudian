@@ -1,6 +1,6 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
-import type { ImageAttachment } from '../../../core/types';
+import type { Conversation, ImageAttachment } from '../../../core/types';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
 import { SubagentManager } from '../services/SubagentManager';
 import { ChatState } from '../state/ChatState';
@@ -33,6 +33,7 @@ export class ConversationRuntime {
   retainedQuotes: Array<{ id: string; text: string }> = [];
   retainedFileContext: { files: string[]; currentNoteSent: boolean; sessionStarted: boolean } | null = null;
   hydrationWork: Promise<void> | null = null;
+  private historyRetryWork: Promise<void> | null = null;
   readonly emptyUI = createEmptyPresentationUI();
   hydrationState: TabHydrationState;
   readonly controllers: Pick<TabControllers, 'inputController' | 'streamController' | 'conversationController'> = {
@@ -80,6 +81,34 @@ export class ConversationRuntime {
       onAttentionChanged: value => this.emit('onAttentionChanged', value),
       onAutoScrollChanged: value => this.emit('onAutoScrollChanged', value),
     };
+  }
+
+  /** Retries only an explicitly incomplete idle projection; ordinary reattachment stays in memory. */
+  retryIncompleteHistory(
+    conversation: Conversation,
+    load: () => Promise<Conversation | null>,
+  ): Promise<void> {
+    if (this.historyRetryWork) return this.historyRetryWork;
+    if (this.hydrationState !== 'ready' || this.hasWork || this.conversationId !== conversation.id) {
+      return Promise.resolve();
+    }
+    const history = ProviderRegistry.getConversationHistoryService(this.providerId);
+    if (!history.needsConversationHistoryHydration?.(
+      { ...conversation, messages: this.state.messages }, { projectionOnly: true },
+    )) return Promise.resolve();
+    const initialMessages = JSON.stringify(this.state.messages);
+    const lifecycle = this.lifecycleState;
+    const work = (async () => {
+      let refreshed: Conversation | null;
+      try { refreshed = await load(); } catch { return; }
+      if (!refreshed || refreshed.id !== this.conversationId || refreshed.providerId !== this.providerId
+        || this.hasWork || this.lifecycleState !== lifecycle || JSON.stringify(this.state.messages) !== initialMessages) return;
+      this.state.messages = structuredClone(refreshed.messages);
+    })();
+    const pending = work.finally(() => { if (this.historyRetryWork === pending) this.historyRetryWork = null; });
+    this.historyRetryWork = pending;
+    this.hydrationWork = pending;
+    return pending;
   }
 
   get isRunning(): boolean {

@@ -14,7 +14,7 @@ export function resolveOpencodeDatabasePathHint(
   context?: ProviderHistoryPathContext,
 ): string | null {
   if (!context) {
-    return resolveExistingOpencodeDatabasePath(persistedPath);
+    return persistedPath?.trim() || resolveExistingOpencodeDatabasePath();
   }
 
   const env = context.environment;
@@ -29,8 +29,6 @@ export function resolveOpencodeDatabasePathHint(
     || trustedRoots.some(root => isPathWithinRoot(persistedPath, root))
   );
 
-  return resolveExistingOpencodeDatabasePath(
-    isTrustedHint ? persistedPath : undefined,
-    env,
-  );
+  if (persistedPath?.trim()) return isTrustedHint ? persistedPath.trim() : null;
+  return resolveExistingOpencodeDatabasePath(undefined, env);
 }

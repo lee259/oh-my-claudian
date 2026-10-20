@@ -28,11 +28,14 @@ import {
   extractAcpSessionThoughtLevelState,
 } from '@/providers/acp';
 
+import { t } from '../../../i18n/i18n';
 import {
   compileHistoryContext,
   DEFAULT_HISTORY_REPLAY_BUDGET,
 } from '../../../utils/session';
 import type { OpencodeCommandCatalog } from '../commands/OpencodeCommandCatalog';
+import { OpencodeConversationHistoryService } from '../history/OpencodeConversationHistoryService';
+import { isOpencodeHydrationDiagnosticMessage } from '../history/OpencodeHistoryStore';
 import { loadOpencodeTurnStats } from '../history/OpencodeTurnStats';
 import { projectOpencodeMetadata } from '../metadata/OpencodeMetadataProjection';
 import { decodeOpencodeModelId } from '../models';
@@ -43,8 +46,9 @@ import {
 import { createOpencodeToolStreamAdapter } from '../normalization/opencodeToolNormalization';
 import { buildOpencodePrompt } from '../runtime/buildOpencodePrompt';
 import { ensureOpencodeModelAvailable } from '../runtime/OpencodeModelAvailability';
+import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
 import { getOpencodeProviderSettings } from '../settings';
-import { getOpencodeState } from '../types';
+import { getOpencodeState, hasMalformedOpencodeHistorySources } from '../types';
 import type {
   OpencodeExecutionProfile,
   OpencodeNativeOutput,
@@ -211,7 +215,11 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
       ?? ((kernelOptions) => new DefaultOpencodeSessionKernel(kernelOptions));
     const providerState = getOpencodeState(config.resumeSeed?.providerState);
     this.nativeSessionId = config.resumeSeed?.providerSessionId ?? providerState.sessionId ?? null;
-    this.seedProviderState = Object.freeze({ ...providerState });
+    this.seedProviderState = Object.freeze({
+      ...providerState,
+      ...(hasMalformedOpencodeHistorySources(config.resumeSeed?.providerState)
+        ? { historySources: config.resumeSeed?.providerState?.historySources } : {}),
+    });
     this.databasePath = providerState.databasePath ?? null;
     this.nativeVersion = providerState.nativeVersion;
     this.nativeConversationContextEstablished = typeof providerState
@@ -324,6 +332,24 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
     let phase: 'connect' | 'open' | 'run' = 'connect';
     let resumeAttempt: string | null = null;
     try {
+      const history = request.conversationHistory ?? [];
+      if (hasMalformedOpencodeHistorySources(this.seedProviderState)
+        || history.some(isOpencodeHydrationDiagnosticMessage)) {
+        throw new Error(t('chat.historyRecoveryUnavailable'));
+      }
+      if (!this.nativeConversationContextEstablished
+        && getOpencodeState(this.seedProviderState).historySources?.length && history.length === 0) {
+        // An empty request is safe only when the recorded history is genuinely empty.
+        const probe = {
+          id: this.sessionInstanceId, providerId: this.providerId, title: '', createdAt: 0, lastActivityAt: 0,
+          sessionId: this.nativeSessionId, providerState: { ...this.seedProviderState }, messages: [] as ChatMessage[],
+        };
+        await new OpencodeConversationHistoryService().hydrateConversationHistory(probe, this.config.vaultWorkingDirectory, {
+          environment: buildOpencodeRuntimeEnv(this.plugin.settings, ''),
+        });
+        if (!this.isRunCurrent(run, generation)) return;
+        if (probe.messages.length > 0) throw new Error(t('chat.historyRecoveryUnavailable'));
+      }
       const bridgeConnection = this.plugin.obsidianWorkspaceToolBridge
         ? await this.obsidianWorkspaceToolSession.activateForTurn(request.toolPolicy)
         : null;

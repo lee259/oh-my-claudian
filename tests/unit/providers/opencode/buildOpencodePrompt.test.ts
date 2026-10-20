@@ -1,4 +1,5 @@
 import type { ChatMessage } from '@/core/types';
+import { mapOpencodeMessages } from '@/providers/opencode/history/OpencodeHistoryStore';
 
 import { buildOpencodePrompt, buildOpencodePromptBlocks, buildOpencodePromptText } from '../../../../src/providers/opencode/runtime/buildOpencodePrompt';
 
@@ -87,6 +88,28 @@ describe('buildOpencodePromptText', () => {
     expect(prompt).toContain('User: Inspect the bug');
     expect(prompt).toContain('Assistant: I found the failing path');
     expect(prompt).toContain('User: Continue with the fix');
+  });
+});
+
+describe('OpenCode recovery prompt round-trip', () => {
+  it('shows only this input after native replay while retaining its typed skill span', () => {
+    const prompt = buildOpencodePrompt({ text: 'Continue /review', currentNotePath: 'notes/current.md' }, [
+      { id: 'u', role: 'user', content: 'Previous /old-skill', timestamp: 1 },
+      { id: 'a', role: 'assistant', content: 'Previous answer', timestamp: 2 },
+    ]);
+    const text = (prompt.blocks[0] as { text: string }).text;
+    const mapped = mapOpencodeMessages([{ info: { id: 'native-u', role: 'user' }, parts: [{ type: 'text', text }] }]);
+    expect(mapped[0].content).toBe('Continue /review');
+    expect(text.slice(prompt.userText!.start, prompt.userText!.end)).toBe('Continue /review');
+    expect(text).toContain('Previous /old-skill');
+    const tampered = text.replace('Previous answer', 'Changed answer');
+    const malformed = mapOpencodeMessages([{ info: { id: 'native-u', role: 'user' }, parts: [{ type: 'text', text: tampered }] }]);
+    expect(malformed[0].content).toContain('Changed answer');
+  });
+
+  it('leaves ordinary User/Assistant text unchanged', () => {
+    const text = 'User: Prior\n\nAssistant: Answer\n\nUser: Current';
+    expect(mapOpencodeMessages([{ info: { id: 'u', role: 'user' }, parts: [{ type: 'text', text }] }])[0].content).toBe(text);
   });
 });
 
