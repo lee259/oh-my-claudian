@@ -50,6 +50,36 @@ function createTurn(providerId: ProviderId = 'claude') {
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
 
+  it.each(['settled', 'stored'] as const)('folds all %s tools across invisible thinking blocks', (mode) => {
+    const { renderer, component, messagesEl, user, assistant, text, tool } = createTurn();
+    try {
+      tool('first-edit', 'completed');
+      assistant.contentBlocks!.push({ type: 'thinking', content: '' });
+      tool('second-edit', 'completed');
+      text('The check is complete.');
+      const source = JSON.stringify(assistant);
+
+      if (mode === 'settled') {
+        renderer.finalizeCompletedWork(assistant);
+      } else {
+        renderer.renderMessagesInto(messagesEl, [user, assistant]);
+      }
+
+      const fold = messagesEl.querySelector<HTMLElement>('.claudian-completed-work')!;
+      const history = fold.querySelector<HTMLElement>('.claudian-completed-work-history')!;
+      expect(history.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
+      expect([...messagesEl.querySelectorAll('.claudian-tool-call')]
+        .filter((element) => !history.contains(element))).toHaveLength(0);
+      expect(history.hidden).toBe(true);
+      const answer = messagesEl.querySelector('.claudian-message-assistant .claudian-text-block')!;
+      expect(history.contains(answer)).toBe(false);
+      expect(fold.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      fold.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!.click();
+      expect(history.hidden).toBe(false);
+      expect(JSON.stringify(assistant)).toBe(source);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it('keeps note saving out of the completed answer action row', () => {
     const { renderer, component, messagesEl, assistant, text } = createTurn();
     try {

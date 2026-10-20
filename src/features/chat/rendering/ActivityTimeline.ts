@@ -100,9 +100,9 @@ export function buildActivityTimeline(
     }
 
     const block = blocks[index];
-    // Streaming can commit whitespace between tool batches. It has no visible
-    // content and must not split the surrounding work into separate folds.
-    if (block.type === 'text' && !block.content.trim()) continue;
+    // Providers can commit empty text or thinking between tool batches. Neither
+    // renders visible content, so neither should split the surrounding work.
+    if ((block.type === 'text' || block.type === 'thinking') && !block.content.trim()) continue;
     if (isFailedSubagent(block, failedSubagentIds)) {
       flushActivity();
       const previous = items.at(-1);

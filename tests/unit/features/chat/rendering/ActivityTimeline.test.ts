@@ -31,6 +31,25 @@ function buildTimeline(
 }
 
 describe('buildActivityTimeline', () => {
+  it.each(['', ' \n '])('folds completed tools across an empty thinking block (%j)', (content) => {
+    const blocks: ContentBlock[] = [
+      { type: 'tool_use', toolId: 'first-edit' },
+      { type: 'thinking', content },
+      { type: 'tool_use', toolId: 'second-edit' },
+      { type: 'text', content: 'The final answer.' },
+    ];
+    const timeline = buildTimeline(blocks);
+
+    expect(timeline.items).toEqual([
+      expect.objectContaining({
+        type: 'activity',
+        phases: [expect.objectContaining({ stepIndexes: [0, 2] })],
+      }),
+      expect.objectContaining({ type: 'block', blockIndex: 3 }),
+    ]);
+    expect(timeline.fold).toEqual({ start: 0, end: 0 });
+  });
+
   it('folds work across whitespace-only text between completed tools', () => {
     const timeline = buildTimeline([
       { type: 'thinking', content: 'Inspecting the plan.' },
