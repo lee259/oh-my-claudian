@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Только для этого сеанса",
       "removeExternalFolder": "Удалить внешнюю папку",
       "contextPathNotInVault": "Этот файл или папка не находятся в хранилище.",
+      "fileOpenFailed": "Не удалось открыть файл.",
+      "contextRevealFailed": "Не удалось показать файл или папку.",
       "externalContextPickerTitle": "Выбрать файлы или папки",
       "externalContextInvalidPathsRemoved": "Удалено недопустимых путей внешнего контекста: {count} — {paths}",
       "externalContextCannotPersist": "Не удалось сохранить «{path}» между сеансами: папка больше не существует.",

@@ -3,6 +3,7 @@ import { Notice, TFile, TFolder } from 'obsidian';
 import * as path from 'path';
 
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+import { revealVaultItem } from '@/utils/vaultNavigation';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import { t } from '../../../i18n/i18n';
@@ -173,11 +174,7 @@ export class FileContextManager {
       return;
     }
 
-    const explorerLeaves = this.app.workspace.getLeavesOfType('file-explorer');
-    for (const leaf of explorerLeaves) {
-      (leaf.view as unknown as { revealInFolder?: (target: unknown) => void })
-        .revealInFolder?.(target);
-    }
+    void revealVaultItem(this.app, target);
   }
 
   addExternalFiles(paths: readonly string[]): void {

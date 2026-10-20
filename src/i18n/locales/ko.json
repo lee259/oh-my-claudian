@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "이번 세션에서만 사용",
       "removeExternalFolder": "외부 폴더 제거",
       "contextPathNotInVault": "이 파일 또는 폴더는 Vault에 없습니다.",
+      "fileOpenFailed": "파일을 열 수 없습니다.",
+      "contextRevealFailed": "파일 또는 폴더를 표시할 수 없습니다.",
       "externalContextPickerTitle": "파일 또는 폴더 선택",
       "externalContextInvalidPathsRemoved": "잘못된 외부 컨텍스트 경로 {count}개를 제거했습니다: {paths}",
       "externalContextCannotPersist": "폴더가 더 이상 존재하지 않아 \"{path}\"을(를) 세션 간 유지할 수 없습니다.",

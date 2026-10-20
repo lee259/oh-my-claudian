@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "仅用于当前会话",
       "removeExternalFolder": "移除外部文件夹",
       "contextPathNotInVault": "该文件或文件夹不在当前 Vault 中。",
+      "fileOpenFailed": "无法打开文件。",
+      "contextRevealFailed": "无法在文件列表中定位文件或文件夹。",
       "externalContextPickerTitle": "选择文件或文件夹",
       "externalContextInvalidPathsRemoved": "已移除 {count} 个无效的外部上下文路径：{paths}",
       "externalContextCannotPersist": "无法跨会话保留“{path}”：该目录已不存在。",

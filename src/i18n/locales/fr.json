@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Utiliser uniquement pour cette session",
       "removeExternalFolder": "Supprimer le dossier externe",
       "contextPathNotInVault": "Ce fichier ou dossier ne se trouve pas dans le coffre.",
+      "fileOpenFailed": "Impossible d’ouvrir le fichier.",
+      "contextRevealFailed": "Impossible d’afficher le fichier ou le dossier.",
       "externalContextPickerTitle": "Sélectionner des fichiers ou des dossiers",
       "externalContextInvalidPathsRemoved": "{count} chemin(s) de contexte externe invalide(s) supprimé(s) : {paths}",
       "externalContextCannotPersist": "Impossible de conserver « {path} » entre les sessions : le dossier n’existe plus.",

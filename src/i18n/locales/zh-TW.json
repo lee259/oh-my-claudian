@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "僅用於此工作階段",
       "removeExternalFolder": "移除外部資料夾",
       "contextPathNotInVault": "此檔案或資料夾不在目前的 Vault 中。",
+      "fileOpenFailed": "無法開啟檔案。",
+      "contextRevealFailed": "無法在檔案清單中定位檔案或資料夾。",
       "externalContextPickerTitle": "選擇檔案或資料夾",
       "externalContextInvalidPathsRemoved": "已移除 {count} 個無效的外部上下文路徑：{paths}",
       "externalContextCannotPersist": "無法跨對話保留「{path}」：目錄已不存在。",

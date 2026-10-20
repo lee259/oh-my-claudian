@@ -7,6 +7,7 @@ import type { ProviderCommandKind } from '@/core/providers/commands/ProviderComm
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 import { filterMarkdownTextTokens } from '@/utils/markdownTextTokens';
 import { isExternalTextFilePath, openAgentSkillByName, openVaultFile } from '@/utils/obsidianCompat';
+import { openVaultLink, revealVaultItem } from '@/utils/vaultNavigation';
 
 import { type ComposerFileMention, findComposerFileMentions } from './ComposerMentionTokens';
 
@@ -42,10 +43,8 @@ class FileMentionWidget extends WidgetType {
       event.stopPropagation();
       if (this.mention.isFolder) {
         const folder = this.app.vault.getAbstractFileByPath(this.mention.path);
-        for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
-          (leaf.view as unknown as { revealInFolder?: (target: unknown) => void }).revealInFolder?.(folder);
-        }
-      } else void this.app.workspace.openLinkText(this.mention.path, '', 'tab');
+        void revealVaultItem(this.app, folder);
+      } else void openVaultLink(this.app, this.mention.path);
     };
     link.addEventListener('click', open);
     link.addEventListener('keydown', event => {
@@ -301,9 +300,7 @@ export class ComposerEditor {
     const path = link.dataset.composerPath!;
     if (link.dataset.composerFolder === 'true') {
       const folder = this.app.vault.getAbstractFileByPath(path);
-      for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
-        (leaf.view as unknown as { revealInFolder?: (target: unknown) => void }).revealInFolder?.(folder);
-      }
+      void revealVaultItem(this.app, folder);
     } else void openVaultFile(this.app, path);
     return true;
   }
