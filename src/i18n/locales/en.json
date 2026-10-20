@@ -319,7 +319,7 @@
       "append": "Append to note",
       "destination": "Destination",
       "path": "Note path",
-      "answer": "Selected text",
+      "answer": "Note content",
       "preview": "Preview",
       "edit": "Edit",
       "open": "Open note",

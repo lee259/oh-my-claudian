@@ -39,7 +39,7 @@ describe('SaveReplyNoteModal', () => {
     const modal = new SaveReplyNoteModal(app, { save } satisfies ReplyNoteWriter, '# Original');
     modal.open();
     fireEvent.input(getByRole(document.body, 'textbox', { name: 'Note path' }), { target: { value: 'Summary.md' } });
-    fireEvent.input(getByRole(document.body, 'textbox', { name: 'Selected text' }), { target: { value: '# Reviewed\n\n[[Source]]' } });
+    fireEvent.input(getByRole(document.body, 'textbox', { name: 'Note content' }), { target: { value: '# Reviewed\n\n[[Source]]' } });
     getByRole(document.body, 'button', { name: 'Save' }).click();
     getByRole(document.body, 'button', { name: 'Save' }).click();
     await flush();
@@ -63,11 +63,11 @@ describe('SaveReplyNoteModal', () => {
     modal.open();
     fireEvent.change(getByRole(document.body, 'combobox', { name: 'Destination' }), { target: { value: 'append' } });
     fireEvent.input(getByRole(document.body, 'combobox', { name: 'Note path' }), { target: { value: 'Notes/Existing.md' } });
-    fireEvent.input(getByRole(document.body, 'textbox', { name: 'Selected text' }), { target: { value: 'Reviewed answer' } });
+    fireEvent.input(getByRole(document.body, 'textbox', { name: 'Note content' }), { target: { value: 'Reviewed answer' } });
     getByRole(document.body, 'button', { name: 'Save' }).click();
     await flush();
     expect(document.body.textContent).toContain('The chosen note is no longer available');
-    expect((getByRole(document.body, 'textbox', { name: 'Selected text' }) as HTMLTextAreaElement).value).toBe('Reviewed answer');
+    expect((getByRole(document.body, 'textbox', { name: 'Note content' }) as HTMLTextAreaElement).value).toBe('Reviewed answer');
     getByRole(document.body, 'button', { name: 'Save' }).click();
     await flush();
     expect(save).toHaveBeenLastCalledWith({ mode: 'append', path: 'Notes/Existing.md', content: 'Reviewed answer' });
@@ -78,14 +78,14 @@ describe('SaveReplyNoteModal', () => {
   it('previews the edited Markdown and returns to the same draft', async () => {
     const modal = new SaveReplyNoteModal({} as App, { save: jest.fn() }, '# Answer\n\n[[Source]]');
     modal.open();
-    const editor = getByRole(document.body, 'textbox', { name: 'Selected text' }) as HTMLTextAreaElement;
+    const editor = getByRole(document.body, 'textbox', { name: 'Note content' }) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: '# Reviewed\n\n[[Source]]' } });
     getByRole(document.body, 'button', { name: 'Preview' }).click();
     await flush();
     expect(MarkdownRenderer.render).toHaveBeenCalledWith(expect.anything(), '# Reviewed\n\n[[Source]]', expect.any(HTMLElement), expect.any(String), expect.anything());
     expect(editor.hidden || editor.closest<HTMLElement>('.claudian-save-note-field')?.hidden).toBe(true);
     getByRole(document.body, 'button', { name: 'Edit' }).click();
-    expect((getByRole(document.body, 'textbox', { name: 'Selected text' }) as HTMLTextAreaElement).value).toBe('# Reviewed\n\n[[Source]]');
+    expect((getByRole(document.body, 'textbox', { name: 'Note content' }) as HTMLTextAreaElement).value).toBe('# Reviewed\n\n[[Source]]');
     modal.close();
   });
 
