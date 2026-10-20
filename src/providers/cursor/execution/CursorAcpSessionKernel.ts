@@ -23,6 +23,7 @@ import {
   type AcpSessionNotification,
   AcpSubprocess,
   type AcpWriteTextFileRequest,
+  JsonRpcErrorResponse,
 } from '@/providers/acp';
 
 import { CURSOR_CLI_IDENTITY_PATTERN } from '../runtime/CursorCliIdentity';
@@ -30,6 +31,7 @@ import { buildCursorLaunchSpec } from '../runtime/CursorLaunchSpec';
 import { CursorExtensionInteractionRouter } from './CursorExtensionInteractionRouter';
 
 export interface CursorAcpSessionKernelOptions {
+  readonly parameterizedModels?: boolean;
   readonly config: ProviderSessionConfig;
   readonly getActiveTurnId: () => string | null;
   readonly onClosed: (error: Error) => void;
@@ -46,6 +48,7 @@ export interface CursorNativeSessionInfo {
 
 export interface CursorAcpSessionKernel {
   connect(): Promise<void>;
+  listAvailableModels(): Promise<unknown>;
   openSession(resumeSessionId?: string): Promise<CursorNativeSessionInfo>;
   setModel(request: { modelId: string; sessionId: string }): Promise<void>;
   setMode(request: { modeId: string; sessionId: string }): Promise<void>;
@@ -67,6 +70,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
   private interaction: AcpInteractionController | null = null;
   private extensionInteraction: CursorExtensionInteractionRouter | null = null;
   private extensionUnsubscribers: Array<() => void> = [];
+  private availableModelIds = new Set<string>();
   private disposed = false;
   private readonly abort = new AbortController();
 
@@ -130,6 +134,9 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
       sessionInstanceId: this.options.sessionInstanceId,
     });
     const connection = new AcpClientConnection({
+      ...(this.options.parameterizedModels ? {
+        clientCapabilities: { _meta: { parameterizedModelPicker: true } },
+      } : {}),
       clientInfo: {
         name: 'claudian',
         version: this.options.plugin.manifest?.version ?? '0.0.0',
@@ -157,6 +164,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
     };
     if (resumeSessionId) {
       const response = await this.connection.loadSession({ ...request, sessionId: resumeSessionId });
+      this.availableModelIds = new Set(response.models?.availableModels.map(model => model.modelId ?? model.id ?? ''));
       return {
         configOptions: response.configOptions,
         models: response.models,
@@ -164,6 +172,7 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
       };
     }
     const response = await this.connection.newSession(request);
+    this.availableModelIds = new Set(response.models?.availableModels.map(model => model.modelId ?? model.id ?? ''));
     return {
       configOptions: response.configOptions,
       models: response.models,
@@ -173,7 +182,34 @@ export class DefaultCursorAcpSessionKernel implements CursorAcpSessionKernel {
 
   async setModel(request: { modelId: string; sessionId: string }): Promise<void> {
     if (!this.connection) throw new Error('Cursor ACP kernel is not connected');
-    await this.connection.setModel(request);
+    const model = this.options.parameterizedModels ? /^(.*?)\[([^[\]]*)\]$/u.exec(request.modelId) : null;
+    // Older runtimes may ignore the extension and still advertise variant IDs.
+    if (!model || !this.availableModelIds.has(model[1])) {
+      await this.connection.setModel(request);
+      return;
+    }
+    await this.connection.setModel({ ...request, modelId: model[1] });
+    for (const parameter of model[2].split(',').filter(Boolean)) {
+      const separator = parameter.indexOf('=');
+      if (separator <= 0) continue;
+      await this.connection.setConfigOption({
+        configId: parameter.slice(0, separator),
+        sessionId: request.sessionId,
+        type: 'select',
+        value: parameter.slice(separator + 1),
+      });
+    }
+  }
+
+  async listAvailableModels(): Promise<unknown> {
+    if (!this.transport) throw new Error('Cursor ACP kernel is not connected');
+    try {
+      return await this.transport.request('cursor/list_available_models', {});
+    } catch (error) {
+      // Older Cursor versions only expose the standard model list.
+      if (error instanceof JsonRpcErrorResponse && error.code === -32601) return null;
+      throw error;
+    }
   }
 
   async setMode(request: { modeId: string; sessionId: string }): Promise<void> {

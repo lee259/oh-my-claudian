@@ -6,11 +6,13 @@ import type {
 import { t } from '../../../i18n/i18n';
 import { CURSOR_PROVIDER_ICON } from '../../../shared/icons';
 import { buildInitialCursorUsageInfo } from '../execution/CursorExecutionSession';
+import { CursorModelDiscoveryService } from '../metadata/CursorModelDiscoveryService';
 import {
   decodeCursorModelId,
   encodeCursorModelId,
+  getCursorModelReasoning,
 } from '../models';
-import { getCursorProviderSettings } from '../settings';
+import { getCursorProviderSettings, updateCursorProviderSettings } from '../settings';
 
 export const cursorChatUIConfig: ProviderChatUIConfig = {
   getProviderIcon() {
@@ -33,15 +35,38 @@ export const cursorChatUIConfig: ProviderChatUIConfig = {
     return rawId ? encodeCursorModelId(rawId) : null;
   },
   ownsModel: model => decodeCursorModelId(model) !== null,
-  isAdaptiveReasoningModel: () => false,
-  getReasoningOptions: () => [],
-  getDefaultReasoningValue: () => 'default',
+  isAdaptiveReasoningModel: (model, settings) => getModelReasoning(model, settings) !== undefined,
+  getReasoningOptions: (model, settings) => getModelReasoning(model, settings)?.options ?? [],
+  getDefaultReasoningValue: (model, settings) => getModelReasoning(model, settings)?.currentValue ?? 'default',
+  async prepareModelMetadata(model, _settings, { plugin }) {
+    const rawId = decodeCursorModelId(model);
+    const selected = getCursorProviderSettings(plugin.settings).discoveredModels.find(entry => entry.rawId === rawId);
+    if (!selected || selected.reasoning !== undefined) return;
+    try {
+      const catalog = await new CursorModelDiscoveryService(plugin).discoverCatalog();
+      await plugin.mutateSettings(settings => {
+        const current = getCursorProviderSettings(settings);
+        const discoveredModels = current.discoveredModels.map(entry => {
+          const metadata = catalog.models.find(model => model.rawId.split('[')[0] === entry.rawId.split('[')[0]);
+          return metadata?.reasoning !== undefined ? { ...entry, reasoning: metadata.reasoning } : entry;
+        });
+        updateCursorProviderSettings(settings, { discoveredModels, catalogTimestamp: Date.now() });
+      });
+    } catch {
+      // Older/offline runtimes keep their cached catalog usable.
+    }
+  },
   getInitialUsage(model) {
     return buildInitialCursorUsageInfo(decodeCursorModelId(model) ?? undefined);
   },
   getContextWindowSize: () => 200_000,
   isDefaultModel: model => decodeCursorModelId(model) !== null,
-  applyModelDefaults: () => undefined,
+  applyModelDefaults(model, settings) {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
+    const target = settings as Record<string, unknown>;
+    target.effortLevel = getModelReasoning(model, target)?.currentValue ?? 'default';
+  },
+  applyModelProjectionDefaults: () => undefined,
   normalizeModelVariant: model => model,
   getCustomModelIds: () => new Set<string>(),
   getPermissionModeToggle: (): ProviderPermissionModeToggleConfig => ({
@@ -91,3 +116,8 @@ export const cursorChatUIConfig: ProviderChatUIConfig = {
     target.permissionMode = value === 'plan' || value === 'ask' ? value : 'normal';
   },
 };
+
+function getModelReasoning(model: string, settings: Record<string, unknown>) {
+  const rawId = decodeCursorModelId(model);
+  return rawId ? getCursorModelReasoning(rawId, getCursorProviderSettings(settings).discoveredModels) : undefined;
+}
