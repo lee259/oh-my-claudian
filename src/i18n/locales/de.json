@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Nur für diese Sitzung verwenden",
       "removeExternalFolder": "Externen Ordner entfernen",
       "contextPathNotInVault": "Diese Datei oder dieser Ordner befindet sich nicht im Vault.",
+      "fileOpenFailed": "Datei konnte nicht geöffnet werden.",
+      "contextRevealFailed": "Datei oder Ordner konnte nicht angezeigt werden.",
       "externalContextPickerTitle": "Dateien oder Ordner auswählen",
       "externalContextInvalidPathsRemoved": "{count} ungültige Pfade für externen Kontext wurden entfernt: {paths}",
       "externalContextCannotPersist": "„{path}“ kann nicht sitzungsübergreifend gespeichert werden, da der Ordner nicht mehr existiert.",

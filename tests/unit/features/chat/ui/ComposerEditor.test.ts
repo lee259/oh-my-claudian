@@ -4,6 +4,7 @@ import { redo, undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { getByRole } from '@testing-library/dom';
 import { axe } from 'jest-axe';
+import { Notice } from 'obsidian';
 
 import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
 import { ComposerEditor } from '@/features/chat/ui/ComposerEditor';
@@ -28,7 +29,7 @@ describe('short-name composer editor', () => {
       path, name: path.slice(path.lastIndexOf('/') + 1), extension: 'md',
     }]));
     const app = {
-      vault: { getAbstractFileByPath: (path: string) => files.get(path) ?? null },
+      vault: { getAbstractFileByPath: (path: string) => path === 'projects' ? { path, name: 'projects' } : files.get(path) ?? null },
       metadataCache: { getFirstLinkpathDest: (path: string) => files.get(path) ?? files.get(`${path}.md`) ?? [...files.values()].find(file => file.name === path) ?? null },
       workspace: { openLinkText: jest.fn() },
     } as any;
@@ -83,6 +84,36 @@ describe('short-name composer editor', () => {
     const { parent, app } = fixture('@two/plan.md ');
     (parent.querySelector('.claudian-composer-file') as HTMLElement).click();
     expect(app.workspace.openLinkText).toHaveBeenCalledWith('two/plan.md', '', 'tab');
+  });
+
+  it.each(['click', 'Enter', ' '] as const)('handles failed folder activation by %s without changing the canonical draft', async action => {
+    jest.mocked(Notice).mockClear();
+    const { parent, app, input } = fixture('@projects/ ');
+    const reveal = jest.fn().mockRejectedValueOnce(new Error('PRIVATE_SENTINEL')).mockResolvedValue(undefined);
+    app.workspace.getLeavesOfType = () => [{ view: { revealInFolder: reveal } }];
+    const link = parent.querySelector<HTMLElement>('.claudian-composer-file')!;
+    const activate = () => action === 'click' ? link.click()
+      : link.dispatchEvent(new KeyboardEvent('keydown', { key: action, bubbles: true, cancelable: true }));
+    activate();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(Notice).toHaveBeenCalledWith('Could not reveal file or folder.');
+    expect(input.value).toBe('@projects/ ');
+    activate();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(reveal).toHaveBeenCalledTimes(2);
+    expect(Notice).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports failure from a marked folder path and retains its draft', async () => {
+    jest.mocked(Notice).mockClear();
+    const { view, app, input } = fixture('@projects/');
+    const reveal = jest.fn().mockImplementation(() => { throw new Error('PRIVATE_SENTINEL'); });
+    app.workspace.getLeavesOfType = () => [{ view: { revealInFolder: reveal } }];
+    const link = view.contentDOM.createSpan({ attr: { 'data-composer-path': 'projects', 'data-composer-folder': 'true' } });
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(Notice).toHaveBeenCalledWith('Could not reveal file or folder.');
+    expect(input.value).toBe('@projects/');
   });
 
   it('creates detached widgets through the owning window rather than appending to Document', () => {

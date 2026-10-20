@@ -1116,6 +1116,24 @@ describe('FileContextManager', () => {
       manager.destroy();
     });
 
+    it('reports a failed context reveal without removing the attachment and allows retry', async () => {
+      const { Notice: NoticeMock } = jest.requireMock('obsidian');
+      const app = createMockApp({ files: ['notes/guide.md'] });
+      app.revealInFolder.mockRejectedValueOnce(new Error('PRIVATE_SENTINEL')).mockResolvedValue(undefined);
+      const manager = new FileContextManager(app, containerEl as any, inputEl, createMockCallbacks());
+      try {
+        manager.addExternalFiles(['/vault/notes/guide.md']);
+        manager.activateContextPath('/vault/notes/guide.md');
+        await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+        expect(NoticeMock).toHaveBeenCalledWith('Could not reveal file or folder.');
+        expect(manager.getAttachedFiles().has('/vault/notes/guide.md')).toBe(true);
+        manager.activateContextPath('/vault/notes/guide.md');
+        await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+        expect(app.revealInFolder).toHaveBeenCalledTimes(2);
+        expect(NoticeMock).toHaveBeenCalledTimes(1);
+      } finally { manager.destroy(); }
+    });
+
     it('reveals a vault folder and shows a notice for paths outside the vault', () => {
       const { Notice: NoticeMock } = jest.requireMock('obsidian');
       const app = createMockApp({ folders: ['projects'] });

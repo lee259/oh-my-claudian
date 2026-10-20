@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Usar solo en esta sesión",
       "removeExternalFolder": "Quitar carpeta externa",
       "contextPathNotInVault": "Este archivo o carpeta no está en la bóveda.",
+      "fileOpenFailed": "No se pudo abrir el archivo.",
+      "contextRevealFailed": "No se pudo mostrar el archivo o la carpeta.",
       "externalContextPickerTitle": "Seleccionar archivos o carpetas",
       "externalContextInvalidPathsRemoved": "Se eliminaron {count} rutas de contexto externo no válidas: {paths}",
       "externalContextCannotPersist": "No se puede conservar «{path}» entre sesiones porque la carpeta ya no existe.",

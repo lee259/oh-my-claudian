@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "このセッションのみ使用",
       "removeExternalFolder": "外部フォルダーを削除",
       "contextPathNotInVault": "このファイルまたはフォルダーは Vault 内にありません。",
+      "fileOpenFailed": "ファイルを開けませんでした。",
+      "contextRevealFailed": "ファイルまたはフォルダーを表示できませんでした。",
       "externalContextPickerTitle": "ファイルまたはフォルダーを選択",
       "externalContextInvalidPathsRemoved": "無効な外部コンテキストパスを {count} 件削除しました：{paths}",
       "externalContextCannotPersist": "フォルダーが存在しないため、「{path}」をセッション間で保持できません。",

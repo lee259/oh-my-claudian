@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Use for this session only",
       "removeExternalFolder": "Remove external folder",
       "contextPathNotInVault": "This file or folder is not in the vault.",
+      "fileOpenFailed": "Could not open file.",
+      "contextRevealFailed": "Could not reveal file or folder.",
       "externalContextPickerTitle": "Select files or folders",
       "externalContextInvalidPathsRemoved": "Removed {count} invalid external context path(s): {paths}",
       "externalContextCannotPersist": "Cannot keep \"{path}\" across sessions because the directory no longer exists.",

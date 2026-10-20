@@ -10,6 +10,7 @@ import type { App, Component } from 'obsidian';
 import { parseFileReference } from './FileReference';
 import { getVaultFileByPath, isExternalTextFilePath, openVaultFile } from './obsidianCompat';
 import { getVaultPath, normalizePathForVault } from './path';
+import { openVaultLink, revealVaultItem } from './vaultNavigation';
 export { stripFileLineRange } from './FileReference';
 
 /**
@@ -249,15 +250,6 @@ function createWikilink(
   });
 }
 
-function revealFolder(app: App, folderPath: string): void {
-  const folder = app.vault.getAbstractFileByPath(folderPath);
-  if (!folder) return;
-  for (const leaf of app.workspace.getLeavesOfType('file-explorer')) {
-    const view = leaf.view as unknown as { revealInFolder?: (target: unknown) => void };
-    view.revealInFolder?.(folder);
-  }
-}
-
 function repairEmptyInternalLink(app: App, link: HTMLAnchorElement): void {
   if ((link.textContent || '').trim()) return;
 
@@ -293,9 +285,9 @@ export function registerFileLinkHandler(
       event.preventDefault();
       const linkTarget = link.dataset.href || link.getAttribute('href');
       if (linkTarget) {
-        if (link.dataset.claudianFolderLink === 'true') revealFolder(app, linkTarget);
+        if (link.dataset.claudianFolderLink === 'true') void revealVaultItem(app, app.vault.getAbstractFileByPath(linkTarget));
         else if (shouldOpenThroughFileCompatibility(linkTarget)) void openVaultFile(app, linkTarget);
-        else void app.workspace.openLinkText(linkTarget, '', 'tab');
+        else void openVaultLink(app, linkTarget);
       }
     }
   });

@@ -161,6 +161,8 @@
       "makeExternalFolderSessionOnly": "Usar apenas nesta sessão",
       "removeExternalFolder": "Remover pasta externa",
       "contextPathNotInVault": "Este arquivo ou pasta não está no cofre.",
+      "fileOpenFailed": "Não foi possível abrir o arquivo.",
+      "contextRevealFailed": "Não foi possível mostrar o arquivo ou a pasta.",
       "externalContextPickerTitle": "Selecionar arquivos ou pastas",
       "externalContextInvalidPathsRemoved": "{count} caminho(s) de contexto externo inválido(s) removido(s): {paths}",
       "externalContextCannotPersist": "Não é possível manter \"{path}\" entre sessões porque a pasta não existe mais.",
