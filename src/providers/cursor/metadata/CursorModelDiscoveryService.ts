@@ -5,6 +5,7 @@ import {
   DefaultCursorAcpSessionKernel,
 } from '../execution/CursorAcpSessionKernel';
 import {
+  attachCursorReasoningCatalog,
   type CursorDiscoveredModel,
   normalizeCursorDiscoveredModels,
 } from '../models';
@@ -59,8 +60,13 @@ export class CursorModelDiscoveryService {
       const session = await kernel.openSession();
       sessionId = session.sessionId;
       signal?.throwIfAborted();
+      const catalog = await kernel.listAvailableModels();
+      signal?.throwIfAborted();
       return {
-        models: normalizeCursorDiscoveredModels(session.models?.availableModels),
+        models: attachCursorReasoningCatalog(
+          normalizeCursorDiscoveredModels(session.models?.availableModels),
+          catalog,
+        ),
       };
     } finally {
       signal?.removeEventListener('abort', abort);

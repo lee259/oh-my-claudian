@@ -9,8 +9,9 @@ import { DefaultCursorAcpSessionKernel } from '@/providers/cursor/execution/Curs
 
 const mockSpawn = jest.mocked(spawn);
 
-function createKernel(cliPath: string | null = '/configured/agent') {
+function createKernel(cliPath: string | null = '/configured/agent', parameterizedModels = false) {
   return new DefaultCursorAcpSessionKernel({
+    parameterizedModels,
     config: { vaultWorkingDirectory: '/vault' } as ProviderSessionConfig,
     getActiveTurnId: () => null,
     onClosed: jest.fn(),
@@ -24,7 +25,8 @@ function createKernel(cliPath: string | null = '/configured/agent') {
   });
 }
 
-function serveCli(help: string, exitCode = 0) {
+function serveCli(help: string, exitCode = 0, extensionResult: unknown = { models: [] }, extensionError?: { code: number; message: string }, modelId = 'grok-4.7') {
+  const requests: Array<{ method: string; params: unknown }> = [];
   mockSpawn.mockImplementation((_command, args) => {
     const proc = createMockChildProcess();
     proc.kill.mockImplementation(() => {
@@ -40,15 +42,19 @@ function serveCli(help: string, exitCode = 0) {
     } else {
       proc.stdin.on('data', chunk => {
         const request = JSON.parse(String(chunk));
+        requests.push(request);
         proc.stdout.write(`${JSON.stringify({
           id: request.id,
           jsonrpc: '2.0',
-          result: request.method === 'initialize' ? { protocolVersion: 1 } : { sessionId: 'cursor-session' },
+          ...(request.method === 'cursor/list_available_models'
+            ? extensionError ? { error: extensionError } : { result: extensionResult }
+            : { result: request.method === 'initialize' ? { protocolVersion: 1 } : { sessionId: 'cursor-session', models: { availableModels: [{ modelId, name: modelId }] } } }),
         })}\n`);
       });
     }
     return proc;
   });
+  return requests;
 }
 
 describe('Cursor ACP executable verification', () => {
@@ -92,6 +98,65 @@ describe('Cursor ACP executable verification', () => {
     } finally {
       await kernel.dispose();
     }
+  });
+
+  it('negotiates parameterized models and configures each native parameter in order', async () => {
+    const requests = serveCli('Start the Cursor Agent');
+    const kernel = createKernel('/configured/agent', true);
+    try {
+      await kernel.connect();
+      await kernel.openSession();
+      await kernel.setModel({ sessionId: 'session', modelId: 'grok-4.7[context=256k,reasoning_effort=low,fast=true]' });
+      expect(requests).toEqual([
+        expect.objectContaining({ method: 'initialize', params: expect.objectContaining({ clientCapabilities: expect.objectContaining({ _meta: { parameterizedModelPicker: true } }) }) }),
+        expect.objectContaining({ method: 'session/new' }),
+        expect.objectContaining({ method: 'session/set_model', params: { sessionId: 'session', modelId: 'grok-4.7' } }),
+        ...[['context', '256k'], ['reasoning_effort', 'low'], ['fast', 'true']].map(([configId, value]) => expect.objectContaining({
+          method: 'session/set_config_option', params: { sessionId: 'session', configId, value, type: 'select' },
+        })),
+      ]);
+    } finally { await kernel.dispose(); }
+  });
+
+  it('retains the original model setter when an older runtime ignores parameterized model support', async () => {
+    const modelId = 'grok-4.7[reasoning_effort=high]';
+    const requests = serveCli('Start the Cursor Agent', 0, null, undefined, modelId);
+    const kernel = createKernel('/configured/agent', true);
+    try {
+      await kernel.connect();
+      await kernel.openSession();
+      await kernel.setModel({ sessionId: 'session', modelId });
+      expect(requests.at(-1)).toMatchObject({ method: 'session/set_model', params: { sessionId: 'session', modelId } });
+      expect(requests.some(request => request.method === 'session/set_config_option')).toBe(false);
+    } finally { await kernel.dispose(); }
+  });
+
+  it('reads Cursor model parameters through its native extension', async () => {
+    const catalog = { models: [{ value: 'grok-4.7', configOptions: [] }] };
+    serveCli('Start the Cursor Agent', 0, catalog);
+    const kernel = createKernel();
+    try {
+      await kernel.connect();
+      await expect(kernel.listAvailableModels()).resolves.toEqual(catalog);
+    } finally { await kernel.dispose(); }
+  });
+
+  it('ignores an unsupported extension on older Cursor versions', async () => {
+    serveCli('Start the Cursor Agent', 0, null, { code: -32601, message: 'Extension error' });
+    const kernel = createKernel();
+    try {
+      await kernel.connect();
+      await expect(kernel.listAvailableModels()).resolves.toBeNull();
+    } finally { await kernel.dispose(); }
+  });
+
+  it('propagates other extension failures', async () => {
+    serveCli('Start the Cursor Agent', 0, null, { code: -32603, message: 'Extension error' });
+    const kernel = createKernel();
+    try {
+      await kernel.connect();
+      await expect(kernel.listAvailableModels()).rejects.toThrow('Extension error');
+    } finally { await kernel.dispose(); }
   });
 
   it('aborts an identity probe on disposal without starting ACP', async () => {

@@ -25,7 +25,7 @@ import {
 import { appendContextFiles, appendCurrentNote } from '@/utils/context';
 import { appendEditorContext } from '@/utils/editor';
 
-import { decodeCursorModelId } from '../models';
+import { decodeCursorModelId, resolveCursorReasoningModelId } from '../models';
 import { getCursorProviderSettings } from '../settings';
 import {
   type CursorAcpSessionKernel,
@@ -166,6 +166,7 @@ export class CursorExecutionSession implements ProviderExecutionSession {
     try {
       if (!this.kernel) {
         this.kernel = this.createKernel({
+          parameterizedModels: true,
           config: this.config,
           getActiveTurnId: () => this.activeRun?.turnId ?? null,
           onClosed: error => {
@@ -249,7 +250,14 @@ export class CursorExecutionSession implements ProviderExecutionSession {
     const modelId = request.configuration.model
       ? decodeCursorModelId(request.configuration.model)
       : null;
-    if (modelId) await this.kernel.setModel({ modelId, sessionId: native.sessionId });
+    if (modelId) await this.kernel.setModel({
+      modelId: resolveCursorReasoningModelId(
+        modelId,
+        request.configuration.reasoning,
+        getCursorProviderSettings(this.plugin.settings).discoveredModels,
+      ),
+      sessionId: native.sessionId,
+    });
 
     const modeId = request.configuration.permissionMode === 'plan'
       ? 'plan'

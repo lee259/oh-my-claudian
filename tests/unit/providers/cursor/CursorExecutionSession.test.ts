@@ -31,6 +31,7 @@ describe('CursorExecutionSession', () => {
       prompt: jest.fn().mockReturnValue(prompt.promise),
       setConfigOption: jest.fn().mockResolvedValue(undefined),
       setMode: jest.fn().mockResolvedValue(undefined),
+      listAvailableModels: jest.fn().mockResolvedValue(null),
       setModel: jest.fn().mockResolvedValue(undefined),
     };
     const session = new CursorExecutionSession({ settings: {} } as never, {
@@ -106,6 +107,36 @@ describe('CursorExecutionSession', () => {
   });
 });
 
+describe('Cursor reasoning execution', () => {
+  it.each(['reasoning_effort', 'reasoning', 'effort'])('sends %s through the model setter while retaining other model parameters', async parameterId => {
+    const rawId = `native-model[thinking=true,context=300k,${parameterId}=high,fast=false]`;
+    const kernel = {
+      connect: jest.fn(), dispose: jest.fn(), cancel: jest.fn(), listAvailableModels: jest.fn(),
+      openSession: jest.fn().mockResolvedValue({ sessionId: 'reasoning-session' }),
+      prompt: jest.fn().mockResolvedValue({}), setModel: jest.fn(), setMode: jest.fn(), setConfigOption: jest.fn(),
+    };
+    const session = new CursorExecutionSession({ settings: { providerConfigs: { cursor: { discoveredModels: [{
+      label: 'Native', rawId, reasoning: { parameterId, currentValue: 'high', options: [{ label: 'Low', value: 'low' }, { label: 'High', value: 'high' }] },
+    }] } } } } as never, {
+      interactionPort: {} as never, lifecycle: 'persistent', nativePersistence: 'provider-default', vaultWorkingDirectory: '/vault',
+    }, { createKernel: () => kernel });
+    try {
+      for (const reasoning of ['low', 'high', null, 'invalid']) {
+        const run = session.execute({ configuration: { model: `cursor:${rawId}`, reasoning }, input: [], signal: new AbortController().signal } as never);
+        const events = [];
+        for await (const event of run.events) events.push(event);
+        expect(events).toContainEqual(expect.objectContaining({ type: 'turn_completed' }));
+        expect(kernel.setModel).toHaveBeenLastCalledWith({
+          modelId: rawId.replace(`${parameterId}=high`, `${parameterId}=${reasoning === 'low' ? 'low' : 'high'}`),
+          sessionId: 'reasoning-session',
+        });
+      }
+      expect(kernel.setConfigOption).not.toHaveBeenCalled();
+      expect(kernel.setModel.mock.invocationCallOrder[0]).toBeLessThan(kernel.prompt.mock.invocationCallOrder[0]);
+    } finally { await session.dispose(); }
+  });
+});
+
 describe('Cursor provider execution contract', () => {
   it.each(createProviderExecutionContractCases({
     createRequest: signal => ({
@@ -140,7 +171,8 @@ describe('Cursor provider execution contract', () => {
         }),
         setConfigOption: jest.fn().mockResolvedValue(undefined),
         setMode: jest.fn().mockResolvedValue(undefined),
-        setModel: jest.fn().mockResolvedValue(undefined),
+        listAvailableModels: jest.fn().mockResolvedValue(null),
+      setModel: jest.fn().mockResolvedValue(undefined),
       };
       return new CursorExecutionSession({ settings: {} } as never, {
         interactionPort: {} as never,

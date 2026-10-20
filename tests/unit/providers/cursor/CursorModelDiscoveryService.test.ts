@@ -9,7 +9,7 @@ describe('CursorModelDiscoveryService', () => {
       openSession: jest.fn().mockResolvedValue({
         models: {
           availableModels: [
-            { modelId: 'claude-4-sonnet', name: 'Claude 4 Sonnet' },
+            { modelId: 'claude-4-sonnet[effort=high]', name: 'Claude 4 Sonnet' },
             { id: 'gpt-5', name: 'GPT-5' },
           ],
           currentModelId: 'claude-4-sonnet',
@@ -19,6 +19,11 @@ describe('CursorModelDiscoveryService', () => {
       prompt: jest.fn(),
       setConfigOption: jest.fn(),
       setMode: jest.fn(),
+      listAvailableModels: jest.fn().mockResolvedValue({ models: [{ value: 'claude-4-sonnet', configOptions: [{
+        id: 'effort', category: 'thought_level', type: 'select', currentValue: 'high', options: [
+          { name: 'Low', value: 'low' }, { name: 'High', value: 'high' },
+        ],
+      }] }] }),
       setModel: jest.fn(),
     };
     const plugin = { app: { vault: { adapter: { basePath: '/vault' } } } } as never;
@@ -29,9 +34,12 @@ describe('CursorModelDiscoveryService', () => {
     });
 
     await expect(service.discover()).resolves.toEqual([
-      { label: 'Claude 4 Sonnet', rawId: 'claude-4-sonnet' },
+      { label: 'Claude 4 Sonnet', rawId: 'claude-4-sonnet[effort=high]', reasoning: {
+        parameterId: 'effort', currentValue: 'high', options: [{ label: 'Low', value: 'low' }, { label: 'High', value: 'high' }],
+      } },
       { label: 'GPT-5', rawId: 'gpt-5' },
     ]);
+    expect(kernel.listAvailableModels).toHaveBeenCalledTimes(1);
     expect(kernel.dispose).toHaveBeenCalledTimes(1);
     expect(removeProbeSession).toHaveBeenCalledWith('metadata-session');
   });

@@ -28,6 +28,7 @@ function createKernel(
     prompt: jest.fn(),
     setConfigOption: jest.fn(),
     setMode: jest.fn(),
+    listAvailableModels: jest.fn().mockResolvedValue(null),
     setModel: jest.fn(),
   };
 }
