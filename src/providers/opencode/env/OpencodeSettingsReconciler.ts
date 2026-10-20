@@ -25,7 +25,7 @@ import {
   normalizeOpencodeVisibleModels,
   updateOpencodeProviderSettings,
 } from '../settings';
-import { getOpencodeState } from '../types';
+import { getOpencodeState, retireOpencodeSession } from '../types';
 
 interface NormalizedSelection {
   baseModelId: string | null;
@@ -59,12 +59,13 @@ function invalidateOpencodeConversationSessions(conversations: Conversation[]): 
     }
 
     const state = getOpencodeState(conversation.providerState);
-    if (!conversation.sessionId && !state.databasePath) {
+    if (!conversation.sessionId && !state.sessionId && !state.databasePath) {
       continue;
     }
 
+    conversation.providerState = retireOpencodeSession(conversation.providerState, conversation.sessionId);
     conversation.sessionId = null;
-    conversation.providerState = undefined;
+    conversation.messages = (conversation.messages ?? []).map(message => ({ ...message, assistantMessageId: undefined }));
     invalidatedConversations.push(conversation);
   }
   return invalidatedConversations;

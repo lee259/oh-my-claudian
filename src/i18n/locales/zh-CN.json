@@ -337,7 +337,8 @@
       "defaultName": "笔记",
       "close": "关闭",
       "selectionLabel": "保存到笔记"
-    }
+    },
+    "historyRecoveryUnavailable": "部分会话历史不可用。请恢复原数据库并重新打开此对话后继续。"
   },
   "settings": {
     "title": "Oh My Claudian 设置",

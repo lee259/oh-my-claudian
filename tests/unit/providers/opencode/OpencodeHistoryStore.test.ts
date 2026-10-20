@@ -3,6 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { TOOL_SUBAGENT } from '@/core/tools/toolNames';
+import type { ChatMessage } from '@/core/types';
+import { hydrateOpenCodeV2Children } from '@/providers/opencode/history/OpencodeSubagentHistory';
+
 import {
   loadOpencodeSessionMessages,
   loadOpencodeSessionModel,
@@ -34,6 +38,8 @@ describe('mapOpencodeMessages', () => {
     );
 
     expect(message.content).toBe([
+      'Some conversation history is unavailable. Restore the original database and reopen this conversation before continuing.',
+      '',
       '```text',
       'Failed to hydrate OpenCode session.',
       'provider: OpenCode',
@@ -410,7 +416,9 @@ describe('mapOpencodeMessages', () => {
     expect(messages).toEqual([
       expect.objectContaining({
         content: [
-          '```text',
+          'Some conversation history is unavailable. Restore the original database and reopen this conversation before continuing.',
+      '',
+      '```text',
           'Failed to hydrate OpenCode session.',
           'provider: OpenCode',
           'messageId: msg-bad',
@@ -442,6 +450,37 @@ describe('loadOpencodeSessionMessages', () => {
 
   afterEach(() => {
     rmSync(tmpRoot, { force: true, recursive: true });
+  });
+
+  it('distinguishes a real empty session from a missing native session', async () => {
+    const dbPath = path.join(tmpRoot, 'sessions.db');
+    const db = new DatabaseSync(dbPath);
+    db.exec('CREATE TABLE session (id text); CREATE TABLE message (id text, session_id text, time_created integer, data text); CREATE TABLE part (id text, session_id text, message_id text, data text);');
+    db.prepare('INSERT INTO session VALUES (?)').run('empty');
+    db.close();
+    await expect(loadOpencodeSessionMessages('empty', { databasePath: dbPath })).resolves.toEqual([]);
+    const missing = await loadOpencodeSessionMessages('missing', { databasePath: dbPath });
+    expect(missing[0].id).toContain('opencode-hydration-error-session');
+    expect(missing[0].content).toContain('session is missing');
+  });
+
+  it('keeps model and child-session reads pinned when the original database disappears', async () => {
+    const currentPath = path.join(tmpRoot, 'current.db');
+    const missingPath = path.join(tmpRoot, 'missing.db');
+    const db = new DatabaseSync(currentPath);
+    db.exec('CREATE TABLE session_message(id text, session_id text, type text, time_created integer, data text, seq integer);');
+    db.prepare('INSERT INTO session_message VALUES (?, ?, ?, ?, ?, ?)').run('assistant', 'child', 'assistant', 1,
+      JSON.stringify({ providerID: 'wrong', modelID: 'model', content: [{ type: 'text', text: 'Wrong child history' },
+        { type: 'tool', id: 'wrong-tool', name: 'bash', state: { status: 'completed', input: { command: 'wrong' } } }] }), 1);
+    db.close();
+    const environment = { OPENCODE_DB: currentPath };
+    await expect(loadOpencodeSessionModel('child', { databasePath: missingPath, nativeVersion: 2 }, environment)).resolves.toBeNull();
+    const messages: ChatMessage[] = [{ id: 'parent', role: 'assistant', content: '', timestamp: 1,
+      toolCalls: [{ id: 'task', name: TOOL_SUBAGENT, input: { prompt: 'Child task' }, status: 'completed',
+        providerPayload: { rawOutput: { metadata: { sessionID: 'child' } } } }] }];
+    await hydrateOpenCodeV2Children(messages, missingPath, environment);
+    expect(messages[0].toolCalls![0].subagent?.toolCalls).toEqual([]);
+    expect(messages[0].toolCalls![0].subagent?.result).not.toContain('Wrong child history');
   });
 
   it('shows underlying SQLite failure as a history diagnostic', async () => {

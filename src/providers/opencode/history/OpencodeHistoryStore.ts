@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import { extractResolvedAnswersFromResultText } from '../../../core/tools/toolInput';
 import { isWriteEditTool, TOOL_ASK_USER_QUESTION } from '../../../core/tools/toolNames';
 import type { ChatMessage, ContentBlock, ImageAttachment, ToolCallInfo } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import { extractUserQuery } from '../../../utils/context';
 import { extractDiffData } from '../../../utils/diff';
 import {
@@ -16,9 +17,11 @@ import {
   normalizeOpencodeToolUseResult,
 } from '../normalization/opencodeToolNormalization';
 import { resolveExistingOpencodeDatabasePath } from '../runtime/OpencodePaths';
+import { unwrapOpencodeRecoveryPrompt } from '../runtime/OpencodeRecoveryPrompt';
 import type { OpencodeProviderState } from '../types';
 import {
   loadOpencodeSessionRows,
+  opencodeSessionExists,
   type StoredRow,
   type StoredSessionRows,
 } from './OpencodeSqliteReader';
@@ -43,9 +46,11 @@ export async function loadOpencodeSessionMessages(
   providerState?: OpencodeProviderState,
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<ChatMessage[]> {
-  const databasePath = resolveExistingOpencodeDatabasePath(providerState?.databasePath, environment);
+  const databasePath = providerState?.databasePath?.trim() || resolveExistingOpencodeDatabasePath(undefined, environment);
   if (!databasePath || databasePath === ':memory:' || !fs.existsSync(databasePath)) {
-    return [];
+    return providerState?.databasePath ? [createOpencodeHydrationDiagnosticMessage({
+      databasePath: databasePath ?? undefined, sessionId, reason: 'The recorded OpenCode database is unavailable.',
+    })] : [];
   }
 
   let rows: StoredSessionRows;
@@ -54,6 +59,16 @@ export async function loadOpencodeSessionMessages(
       environment,
       nativeVersion: providerState?.nativeVersion ?? 'auto',
     });
+    if (!rows.messageRows.length) {
+      const exists = await opencodeSessionExists(databasePath, sessionId, {
+        environment, nativeVersion: rows.nativeVersion ?? providerState?.nativeVersion ?? 1,
+      });
+      if (exists !== true) return [createOpencodeHydrationDiagnosticMessage({
+        databasePath, sessionId, reason: exists === false
+          ? 'The recorded OpenCode session is missing.'
+          : 'The recorded OpenCode session could not be verified.',
+      })];
+    }
   } catch (error) {
     return [createOpencodeHydrationDiagnosticMessage({
       databasePath,
@@ -73,7 +88,7 @@ export async function loadOpencodeSessionModel(
   providerState?: OpencodeProviderState,
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<string | null> {
-  const databasePath = resolveExistingOpencodeDatabasePath(providerState?.databasePath, environment);
+  const databasePath = providerState?.databasePath?.trim() || resolveExistingOpencodeDatabasePath(undefined, environment);
   if (!databasePath || databasePath === ':memory:' || !fs.existsSync(databasePath)) {
     return null;
   }
@@ -256,7 +271,7 @@ function mapStoredMessage(
     ?? Date.now();
 
   if (role === 'user') {
-    const promptText = extractUserQuery(getJoinedTextParts(message.parts));
+    const promptText = extractUserQuery(unwrapOpencodeRecoveryPrompt(getJoinedTextParts(message.parts)));
     const images = buildUserImages(message.parts, id);
     return {
       assistantMessageId: undefined,
@@ -368,7 +383,7 @@ function isInvalidStoredMessageData(info: StoredRow): boolean {
   return getNumber(info.data_valid) === 0;
 }
 
-function createOpencodeHydrationDiagnosticMessage(params: {
+export function createOpencodeHydrationDiagnosticMessage(params: {
   databasePath?: string;
   messageId?: string;
   reason: string;
@@ -386,7 +401,7 @@ function createOpencodeHydrationDiagnosticMessage(params: {
   const fenceLength = (details.match(/`+/g) ?? [])
     .reduce((length, run) => Math.max(length, run.length + 1), 3);
   const fence = '`'.repeat(fenceLength);
-  const content = `${fence}text\n${details}\n${fence}`;
+  const content = `${t('chat.historyRecoveryUnavailable')}\n\n${fence}text\n${details}\n${fence}`;
 
   return {
     assistantMessageId: undefined,
@@ -412,7 +427,7 @@ export function isOpencodeSessionHydrationDiagnosticMessage(message: ChatMessage
   return message.id.startsWith(`${OPENCODE_HYDRATION_DIAGNOSTIC_ID_PREFIX}-session-`);
 }
 
-function isOpencodeHydrationDiagnosticMessage(message: ChatMessage): boolean {
+export function isOpencodeHydrationDiagnosticMessage(message: ChatMessage): boolean {
   return message.id.startsWith(OPENCODE_HYDRATION_DIAGNOSTIC_ID_PREFIX);
 }
 

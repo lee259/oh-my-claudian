@@ -109,9 +109,44 @@ describe('opencodeSettingsReconciler.reconcileModelWithEnvironment', () => {
     expect(result.changed).toBe(true);
     expect(result.invalidatedConversations).toHaveLength(1);
     expect(conversations[0].sessionId).toBeNull();
-    expect(conversations[0].providerState).toBeUndefined();
+    expect(conversations[0].providerState).toEqual({
+      historySources: [{ sessionId: 'session-1', databasePath: '/old/opencode.db' }],
+      nativeConversationContextEstablished: false,
+    });
+    expect(opencodeSettingsReconciler.invalidateConversationSessions(conversations)).toEqual([]);
     const fingerprint = (settings.providerConfigs as any).opencode.environmentHash;
     expect(isVersionedRuntimeInputFingerprint(fingerprint)).toBe(true);
     expect(fingerprint).not.toContain('/new/opencode.db');
+  });
+});
+
+
+describe('opencodeSettingsReconciler.invalidateConversationSessions', () => {
+  it('retains corrupt history data instead of silently dropping an unavailable segment', () => {
+    const conversation = { providerId: 'opencode', sessionId: 'live',
+      providerState: { databasePath: '/old.db', historySources: [{ sessionId: 42 }] } } as any;
+    opencodeSettingsReconciler.invalidateConversationSessions([conversation]);
+    expect(conversation.providerState.historySources).toEqual([
+      { sessionId: 42 }, { sessionId: 'live', databasePath: '/old.db' },
+    ]);
+  });
+
+  it('preserves provider-owned identity and unknown fields without reviving retired bindings', () => {
+    const conversation = {
+      providerId: 'opencode', sessionId: null,
+      messages: [{ id: 'old-answer', role: 'assistant', content: 'Old answer', timestamp: 1, assistantMessageId: 'old-checkpoint' }],
+      providerState: { sessionId: 'native-1', databasePath: '/old.db', nativeVersion: 2,
+        future: { cursor: 1 }, historySources: [{ sessionId: 'earlier', databasePath: '/old.db', nativeVersion: 1 }] },
+    } as any;
+    opencodeSettingsReconciler.invalidateConversationSessions([conversation]);
+    expect(conversation.providerState).toEqual({
+      future: { cursor: 1 }, nativeConversationContextEstablished: false,
+      historySources: [
+        { sessionId: 'earlier', databasePath: '/old.db', nativeVersion: 1 },
+        { sessionId: 'native-1', databasePath: '/old.db', nativeVersion: 2 },
+      ],
+    });
+    expect(conversation.messages[0].assistantMessageId).toBeUndefined();
+    expect(opencodeSettingsReconciler.invalidateConversationSessions([conversation])).toEqual([]);
   });
 });

@@ -76,6 +76,23 @@ export async function loadOpencodeSessionRows(
   );
 }
 
+/** Distinguishes an existing empty session from an absent identity without guessing another store. */
+export async function opencodeSessionExists(
+  databasePath: string,
+  sessionId: string,
+  dependencies: OpencodeSqliteReaderDependencies = {},
+): Promise<boolean | null> {
+  const table = dependencies.nativeVersion === 2 ? 'session_v2' : 'session';
+  const schema = await querySessionRows(databasePath, sessionId, dependencies,
+    id => `SELECT name FROM sqlite_master WHERE name = '${table}' AND ${id} IS NOT NULL`,
+    id => `SELECT 1 WHERE ${id} IS NULL`);
+  if (!schema.messageRows.length) return null;
+  const session = await querySessionRows(databasePath, sessionId, dependencies,
+    id => `SELECT id FROM ${table} WHERE id = ${id}`,
+    id => `SELECT 1 WHERE ${id} IS NULL`);
+  return session.messageRows.length > 0;
+}
+
 async function querySessionRows(
   databasePath: string,
   sessionId: string,

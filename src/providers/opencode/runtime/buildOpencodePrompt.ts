@@ -18,6 +18,7 @@ import {
 } from '../../../utils/editor';
 import { buildContextFromHistory, buildPromptWithHistoryContext } from '../../../utils/session';
 import type { AcpContentBlock } from '../../acp';
+import { buildOpencodeRecoveryPrompt } from './OpencodeRecoveryPrompt';
 
 export interface OpencodePromptRequest {
   text: string;
@@ -82,28 +83,23 @@ function composeOpencodePromptText(
     prompt = appendContextFiles(prompt, request.contextFiles);
   }
 
-  let text = prompt;
-  if (conversationHistory.length > 0) {
-    const historyContext = historyContextOverride ?? buildContextFromHistory(conversationHistory);
-    text = buildPromptWithHistoryContext(
-      historyContext,
-      prompt,
-      prompt,
-      conversationHistory,
-    );
+  if (conversationHistory.length === 0) {
+    return { text: prompt, userText: { start: 0, end: request.text.length } };
   }
-
-  let start: number;
-  if (text === prompt) {
-    start = 0;
-  } else if (text.endsWith(`\n\nUser: ${prompt}`)) {
-    start = text.length - prompt.length;
-  } else {
-    return { text, userText: null };
+  let historyContext = historyContextOverride ?? buildContextFromHistory(conversationHistory);
+  const replay = buildPromptWithHistoryContext(historyContext, prompt, prompt, conversationHistory);
+  const alreadyIncluded = replay === historyContext;
+  const currentSuffix = `User: ${prompt}`;
+  if (alreadyIncluded && historyContext.endsWith(currentSuffix)) {
+    historyContext = historyContext.slice(0, -currentSuffix.length).trimEnd();
   }
+  const recovered = buildOpencodeRecoveryPrompt(historyContext, prompt);
   return {
-    text,
-    userText: { start, end: start + request.text.length },
+    text: recovered.text,
+    userText: alreadyIncluded ? null : {
+      start: recovered.promptStart,
+      end: recovered.promptStart + request.text.length,
+    },
   };
 }
 

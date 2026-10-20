@@ -337,7 +337,8 @@
       "defaultName": "Note",
       "close": "Close",
       "selectionLabel": "Save to note"
-    }
+    },
+    "historyRecoveryUnavailable": "Some conversation history is unavailable. Restore the original database and reopen this conversation before continuing."
   },
   "settings": {
     "title": "Oh My Claudian Settings",

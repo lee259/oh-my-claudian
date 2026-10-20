@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+
 import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 
 import type {
@@ -618,6 +623,47 @@ describe('OpencodeExecutionBackend', () => {
 
     harness.kernels[0].completePrompt();
     await collect(run.events);
+  });
+
+  it('can continue after retiring a genuinely empty native session', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'opencode-empty-recovery-'));
+    const databasePath = path.join(directory, 'old.db');
+    const db = new DatabaseSync(databasePath);
+    db.exec("CREATE TABLE session (id text); INSERT INTO session VALUES ('empty'); CREATE TABLE message (id text, session_id text, time_created integer, data text); CREATE TABLE part (id text, session_id text, message_id text, data text);");
+    db.close();
+    plugin.settings.providerConfigs.opencode.environmentVariables = `OPENCODE_DB=${databasePath}`;
+    const harness = createHarness(createConfig({ resumeSeed: { providerState: {
+      historySources: [{ sessionId: 'empty', databasePath, nativeVersion: 1 }],
+      nativeConversationContextEstablished: false,
+    } } }));
+    try {
+      const events = collect(harness.session.execute(createRequest()).events);
+      await new Promise(resolve => setImmediate(resolve));
+      await waitForCondition(() => harness.kernels.length > 0);
+      await waitForPrompt(harness.kernels[0]);
+      harness.kernels[0].completePrompt();
+      expect(await events).toContainEqual(expect.objectContaining({ type: 'turn_completed' }));
+    } finally {
+      await harness.session.dispose();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects incomplete recovery history before opening a native session', async () => {
+    const harness = createHarness(createConfig({ resumeSeed: {
+      providerState: { historySources: [{ sessionId: 'old', databasePath: '/missing/old.db' }],
+        nativeConversationContextEstablished: false },
+    } }));
+    const run = harness.session.execute(createRequest({ conversationHistory: [
+      { id: 'opencode-hydration-error-session-old', role: 'assistant', content: 'Unavailable', timestamp: 1 },
+    ] }));
+    const events = await collect(run.events);
+    expect(harness.kernels).toHaveLength(0);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'execution_error' }));
+    expect(harness.session.getSnapshot().providerState).toMatchObject({
+      historySources: [{ sessionId: 'old', databasePath: '/missing/old.db' }],
+      nativeConversationContextEstablished: false,
+    });
   });
 
   it('bootstraps canonical history when no native session exists', async () => {

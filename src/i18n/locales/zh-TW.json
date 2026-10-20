@@ -337,7 +337,8 @@
       "defaultName": "筆記",
       "close": "關閉",
       "selectionLabel": "儲存至筆記"
-    }
+    },
+    "historyRecoveryUnavailable": "部分對話歷史無法讀取。請還原原始資料庫並重新開啟此對話後繼續。"
   },
   "settings": {
     "title": "Oh My Claudian 設定",

@@ -337,7 +337,8 @@
       "defaultName": "ノート",
       "close": "閉じる",
       "selectionLabel": "ノートに保存"
-    }
+    },
+    "historyRecoveryUnavailable": "会話履歴の一部を読み込めません。元のデータベースを復元し、この会話を開き直してから続けてください。"
   },
   "settings": {
     "title": "Oh My Claudian 設定",

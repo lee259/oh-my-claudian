@@ -59,6 +59,24 @@ describe('ConversationRepository hydration', () => {
     jest.restoreAllMocks();
   });
 
+  it('retries provider-requested hydration for an already hydrated conversation', async () => {
+    const conversation = createConversation();
+    conversation.selectedModel = 'opus';
+    conversation.messages = [{ id: 'diagnostic', role: 'assistant', content: 'Unavailable', timestamp: 1 }];
+    const hydrateConversationHistory = jest.fn(async () => {
+      conversation.messages = [{ id: 'recovered', role: 'user', content: 'Recovered', timestamp: 2 }];
+    });
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      needsConversationHistoryHydration: () => conversation.messages[0].id === 'diagnostic',
+      hydrateConversationHistory,
+    } as any);
+    const { repository } = createRepository(conversation);
+    await repository.ensureHydrated(conversation.id);
+    await repository.ensureHydrated(conversation.id);
+    expect(hydrateConversationHistory).toHaveBeenCalledTimes(1);
+    expect(conversation.messages[0].content).toBe('Recovered');
+  });
+
   it('returns cached metadata without hydrating provider history', () => {
     const hydrateConversationHistory = jest.fn();
     jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
