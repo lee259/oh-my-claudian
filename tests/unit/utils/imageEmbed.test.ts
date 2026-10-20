@@ -108,6 +108,18 @@ describe('replaceImageEmbedsWithHtml', () => {
     });
   });
 
+  describe.each([true, false])('escaped image embeds with resolved file: %s', resolved => {
+    it.each([0, 1, 2, 3])('respects %i preceding backslashes without changing active neighbors', count => {
+      const app = createMockApp(resolved ? new Map([['image.png', 'app://local/image.png']]) : new Map());
+      const source = `${'\\'.repeat(count)}![[image.png]]`;
+      const active = resolved
+        ? '<span class="claudian-embedded-image"><img src="app://local/image.png" alt="image" loading="lazy"></span>'
+        : '<span class="claudian-embedded-image-fallback">![[image.png]]</span>';
+      expect(replaceImageEmbedsWithHtml(`${source} beside ![[image.png]]`, app))
+        .toBe(`${count % 2 ? source : '\\'.repeat(count) + active} beside ${active}`);
+    });
+  });
+
   describe('code syntax', () => {
     it('preserves image embed syntax in backtick and tilde fences', () => {
       const app = createMockApp(new Map([
