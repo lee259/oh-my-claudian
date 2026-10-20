@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
 
+import '@/providers';
+
 import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { Notice } from 'obsidian';
 import { deserialize, serialize } from 'v8';
@@ -133,4 +135,49 @@ describe.each([false, true])('environment snippet persistence (Preact: %s)', use
     expect(persist).toHaveBeenCalledTimes(1);
     expect(Notice).toHaveBeenCalledWith(`Environment snippet "New configuration" ${action === 'save' ? 'saved' : 'updated'}`);
   });
+});
+
+
+it.each([['Save', '64k'], ['Update', '64k'], ['Enter', '64k'], ['Update', ''], ['Update', '   ']] as const)(
+  'keeps invalid context drafts through %s and saves corrected value %p', async (action, corrected) => {
+  const envVars = 'ANTHROPIC_MODEL=custom\nANTHROPIC_DEFAULT_SONNET_MODEL=sibling';
+  const saved: EnvSnippet = { id: 'saved', name: 'Saved configuration', description: 'Before', envVars,
+    scope: 'provider:claude', contextLimits: { custom: 200000, sibling: 100000 } };
+  const settings = { envSnippets: action === 'Save' ? [] : [saved], customContextLimits: {}, customModelAliases: {} };
+  const persist = jest.fn().mockResolvedValue(undefined);
+  const coordinator = new SettingsCoordinator(settings, persist);
+  const host = { app: {}, settings, getEnvironmentVariablesForScope: () => envVars,
+    mutateSettings: (mutation: Parameters<typeof coordinator.mutate>[0]) => coordinator.mutate(mutation),
+  } as unknown as ProviderHost;
+  const container = document.body.createDiv();
+  managers.push(new EnvSnippetManager(container, host, 'provider:claude'));
+  fireEvent.click(within(container).getByRole('button', { name: action === 'Save'
+    ? t('settings.envSnippets.addBtn') : new RegExp(`^${t('settings.envSnippets.editBtn')}`) }));
+  const dialog = within(document.body).getByRole('dialog');
+  const fields = within(dialog);
+  const name = fields.getByRole<HTMLInputElement>('textbox', { name: t('settings.envSnippets.modal.name') });
+  fireEvent.input(name, { target: { value: 'Draft configuration' } });
+  const custom = fields.getByRole<HTMLInputElement>('textbox', { name: 'Context window for custom' });
+  const sibling = fields.getByRole<HTMLInputElement>('textbox', { name: 'Context window for sibling' });
+  fireEvent.input(custom, { target: { value: 'abc' } });
+  fireEvent.input(sibling, { target: { value: '128k' } });
+  const submit = () => action === 'Enter' ? fireEvent.keyDown(name, { key: 'Enter' })
+    : fireEvent.click(fields.getByRole('button', { name: t(action === 'Save'
+      ? 'settings.envSnippets.modal.save' : 'settings.envSnippets.modal.update') }));
+  submit();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(Notice).toHaveBeenCalledWith(t('settings.customContextLimits.invalid'));
+  expect(persist).not.toHaveBeenCalled();
+  expect(settings.envSnippets).toEqual(action === 'Save' ? [] : [saved]);
+  expect(dialog.isConnected).toBe(true);
+  expect(name.value).toBe('Draft configuration');
+  expect(custom.value).toBe('abc');
+  expect(sibling.value).toBe('128k');
+  fireEvent.input(custom, { target: { value: corrected } });
+  submit();
+  await waitFor(() => expect(settings.envSnippets[0]?.name).toBe('Draft configuration'));
+  expect(settings.envSnippets[0].contextLimits).toEqual(corrected.trim()
+    ? { custom: 64000, sibling: 128000 } : { sibling: 128000 });
+  expect(persist).toHaveBeenCalledTimes(1);
+  expect(dialog.isConnected).toBe(false);
 });
