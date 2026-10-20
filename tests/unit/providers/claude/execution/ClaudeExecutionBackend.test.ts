@@ -2605,14 +2605,15 @@ describe('ClaudeExecutionSession steering', () => {
     }
   });
 
-  it('keeps the requested run open when Claude Code runs a late steer as the next turn', async () => {
+  it.each([0, 1])('keeps a late steer in its requested run with queue count %i', async queuedCount => {
     const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
       const prompt = await nextInput();
       yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      if (queuedCount === 0) yield { type: 'system', subtype: 'session_state_changed', state: 'running' };
       yield replayOf(prompt);
       yield assistantText('assistant-1', 'Parser refactored.');
       const steer = await nextInput();
-      yield successResult([prompt.uuid!], 1);
+      yield successResult([prompt.uuid!], queuedCount);
       yield replayOf(steer);
       yield assistantText('assistant-2', 'Added tests too.');
       yield successResult([steer.uuid!], 0);
@@ -2633,6 +2634,71 @@ describe('ClaudeExecutionSession steering', () => {
       await dispose();
     }
   });
+
+  it('waits for idle before rejecting an undelivered steer and completes the owned run once', async () => {
+    const resultSeen = createDeferred<unknown>();
+    const releaseIdle = createDeferred<unknown>();
+    const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+      const prompt = await nextInput();
+      yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+      yield { type: 'system', subtype: 'session_state_changed', state: 'running' };
+      yield assistantText('assistant-1', 'Working.');
+      await nextInput();
+      yield successResult([prompt.uuid!], 0);
+      resultSeen.resolve(null);
+      await releaseIdle.promise;
+      yield { type: 'system', subtype: 'session_state_changed', state: 'idle' };
+      await keepOpen;
+    });
+    try {
+      await waitFor(() => events.some(event => event.type === 'text_delta'));
+      const acceptance = session.steer(steerRequest('Not delivered')).then(
+        value => value, (error: Error) => error,
+      );
+      await resultSeen.promise;
+      expect(session.getStatus()).toBe('executing');
+      expect(events.filter(event => event.type === 'turn_completed')).toHaveLength(0);
+      releaseIdle.resolve(null);
+      expect(await acceptance).toEqual(expect.objectContaining({ message: expect.stringContaining('before the steer was delivered') }));
+      await done;
+      expect(events.filter(event => event.type === 'turn_completed')).toHaveLength(1);
+      expect(session.getStatus()).toBe('idle');
+    } finally {
+      releaseIdle.resolve(null);
+      await dispose();
+    }
+  });
+
+  it.each(['none', 'singular', 'consumption-list'] as const)(
+    'confirms steer delivery on an error result only with a consumption list (%s)', async echo => {
+      const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {
+        await nextInput();
+        yield { type: 'system', subtype: 'init', session_id: 'session-1' };
+        yield assistantText('assistant-1', 'Working.');
+        const steer = await nextInput();
+        yield {
+          ...successResult([], 0) as Record<string, unknown>, subtype: 'error_during_execution', is_error: true,
+          errors: ['Synthetic native failure'],
+          ...(echo === 'singular' ? { user_message_uuid: steer.uuid } : {}),
+          ...(echo === 'consumption-list' ? { user_message_uuids: [steer.uuid] } : {}),
+        };
+        await keepOpen;
+      });
+      try {
+        await waitFor(() => events.some(event => event.type === 'text_delta'));
+        const acceptance = session.steer(steerRequest('Be brief')).then(
+          value => value, (error: Error) => error,
+        );
+        await done;
+        const outcome = await acceptance;
+        expect(outcome instanceof Error ? outcome.message : outcome).toBe(echo === 'consumption-list'
+          ? true : 'Claude Code run ended before the steer was delivered.');
+        expect(events.filter(event => event.type === 'execution_error')).toHaveLength(1);
+      } finally {
+        await dispose();
+      }
+    },
+  );
 
   it('accepts a steer when a result confirms consumption without replay', async () => {
     const { session, events, done, dispose } = await startSteerableSession(async function* (nextInput, keepOpen) {

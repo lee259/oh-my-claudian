@@ -159,6 +159,15 @@ export function parseSDKMessageToChat(
   sdkMsg: SDKNativeMessage,
   toolResults?: Map<string, { content: string; isError: boolean }>,
 ): ChatMessage | null {
+  if (sdkMsg.type === 'attachment') {
+    const attachment = sdkMsg.attachment;
+    if (!isQueuedPromptAttachment(sdkMsg)
+      || (typeof attachment?.prompt !== 'string' && !Array.isArray(attachment?.prompt))) return null;
+    return parseSDKMessageToChat({
+      type: 'user', uuid: attachment.source_uuid ?? sdkMsg.uuid,
+      timestamp: sdkMsg.timestamp, message: { content: attachment.prompt },
+    }, toolResults);
+  }
   if (sdkMsg.type === 'file-history-snapshot') {
     return null;
   }
@@ -335,10 +344,24 @@ export function extractXmlTag(content: string, tagName: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function isCanonicalSdkUserMessage(record: SDKNativeMessage): boolean {
-  const queuedPrompt = record.type === 'attachment'
-    && record.attachment?.type === 'queued_command'
+export function isQueuedPromptAttachment(record: SDKNativeMessage): boolean {
+  return record.type === 'attachment' && record.attachment?.type === 'queued_command'
     && record.attachment.commandMode === 'prompt';
+}
+
+/** Queued prompts keep enqueue timestamps; their parent marks native consumption. */
+export function getSdkUserMessageTimestamp(
+  record: SDKNativeMessage,
+  followedAt: string | undefined,
+): string | undefined {
+  if (!isQueuedPromptAttachment(record)) return record.timestamp;
+  const enqueuedAt = Date.parse(record.timestamp ?? '');
+  const consumedAt = Date.parse(followedAt ?? '');
+  return Number.isFinite(consumedAt) && !(enqueuedAt >= consumedAt) ? followedAt : record.timestamp;
+}
+
+export function isCanonicalSdkUserMessage(record: SDKNativeMessage): boolean {
+  const queuedPrompt = isQueuedPromptAttachment(record);
   if ((!queuedPrompt && record.type !== 'user') || isSystemInjectedMessage(record)) return false;
   const content = queuedPrompt ? record.attachment?.prompt : record.message?.content;
   const text = extractTextContent(content);

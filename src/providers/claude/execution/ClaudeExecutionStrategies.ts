@@ -13,7 +13,7 @@ import {
   type ClaudeSDKUserMessage,
 } from '../runtime/ClaudeUserMessageFactory';
 import type { ClaudeEncodedExecutionRequest } from './ClaudeExecutionRequestEncoder';
-import { ClaudeTurnInputs } from './ClaudeTurnInputs';
+import { type ClaudeSteerDelivery, ClaudeTurnInputs } from './ClaudeTurnInputs';
 
 const PLAN_MODE_CONTINUATION_PROMPT =
   'Continue the current user request in plan mode. Continue exploring the task and prepare the implementation plan. Do not wait for another user message.';
@@ -43,7 +43,7 @@ export interface ClaudeExecutionStrategy {
     request: ClaudeEncodedExecutionRequest,
     queryToken: number,
   ): Promise<void>;
-  steerTurn(message: ClaudeSDKUserMessage, queryToken: number): boolean;
+  steerTurn(message: ClaudeSDKUserMessage, queryToken: number, delivery: ClaudeSteerDelivery): boolean;
   cancel(queryToken: number | null, nativeTurnHandedOff: boolean): void;
   setMode(mode: Parameters<Query['setPermissionMode']>[0]): Promise<boolean>;
   getRewindQuery(): Query | null;
@@ -125,7 +125,7 @@ implements ClaudeExecutionStrategy {
     }
   }
 
-  steerTurn(message: ClaudeSDKUserMessage, queryToken: number): boolean {
+  steerTurn(message: ClaudeSDKUserMessage, queryToken: number, delivery: ClaudeSteerDelivery): boolean {
     const nativeTurn = this.activeNativeTurn;
     if (
       this.disposed
@@ -138,7 +138,7 @@ implements ClaudeExecutionStrategy {
     ) {
       return false;
     }
-    nativeTurn.inputs.addSteer(message.uuid!);
+    nativeTurn.inputs.addSteer(message.uuid!, delivery);
     this.messageChannel.enqueue({ ...message, priority: 'next' });
     return true;
   }
@@ -309,12 +309,15 @@ implements ClaudeExecutionStrategy {
         ) {
           this.messageChannel?.setSessionId(message.session_id);
         }
+        if (nativeTurn?.inputs.settled) {
+          this.finishNativeTurn(query, { type: 'completed' });
+        }
         if (message.type === 'result') {
           const nativeTurnToken = nativeTurn?.queryToken ?? queryToken;
           const shouldContinue = this.sink.shouldContinueAfterPlanMode(
             nativeTurnToken,
           );
-          if (!nativeTurn || nativeTurn.inputs.settled) {
+          if (!nativeTurn) {
             this.finishNativeTurn(query, { type: 'completed' });
           }
           if (shouldContinue) {
