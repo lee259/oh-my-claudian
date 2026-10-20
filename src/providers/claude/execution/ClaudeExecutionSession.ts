@@ -49,7 +49,7 @@ import {
 } from './ClaudeExecutionStrategies';
 import { ClaudeInteractionHandler } from './ClaudeInteractionHandler';
 import { ClaudeTaskNotificationQueue } from './ClaudeTaskNotificationQueue';
-import type { ClaudeTurnInputs } from './ClaudeTurnInputs';
+import type { ClaudeSteerDelivery, ClaudeTurnInputs } from './ClaudeTurnInputs';
 import { getReplayedUserMessageId } from './ClaudeTurnInputs';
 
 interface ActiveRequestedRun {
@@ -68,18 +68,12 @@ interface ActiveRequestedRun {
   historyReplayGeneration: number | null;
   nativeUserMessageId?: string;
   inputs: ClaudeTurnInputs | null;
-  readonly steers: Map<string, PendingClaudeSteer>;
+  lastResult?: { readonly turnStats: TurnStats | undefined };
   nativeAssistantId?: string;
   planModeEntered: boolean;
   planModeContinuationRequested: boolean;
   planCompleted: boolean;
   terminal: boolean;
-}
-
-interface PendingClaudeSteer {
-  readonly content: string;
-  resolve(accepted: boolean): void;
-  reject(error: Error): void;
 }
 
 interface BackgroundTurn {
@@ -231,7 +225,6 @@ ClaudeExecutionStrategySink {
       nativeHandedOff: false,
       historyReplayGeneration: null,
       inputs: null,
-      steers: new Map(),
       planModeEntered: false,
       planModeContinuationRequested: false,
       planCompleted: false,
@@ -305,18 +298,11 @@ ClaudeExecutionStrategySink {
       this.providerSessionId ?? '',
       encoded.images,
     );
+    let delivery!: ClaudeSteerDelivery;
     const acceptance = new Promise<boolean>((resolve, reject) => {
-      active.steers.set(message.uuid!, {
-        content: getInputText(request),
-        resolve,
-        reject,
-      });
+      delivery = { content: getInputText(request), resolve, reject };
     });
-    if (!this.strategy.steerTurn(message, active.queryToken)) {
-      active.steers.delete(message.uuid!);
-      return false;
-    }
-    return acceptance;
+    return this.strategy.steerTurn(message, active.queryToken, delivery) ? acceptance : false;
   }
 
   getSnapshot(): ProviderSessionSnapshot {
@@ -490,6 +476,7 @@ ClaudeExecutionStrategySink {
   bindNativeTurnInputs(inputs: ClaudeTurnInputs, queryToken: number): void {
     if (this.activeRun?.queryToken === queryToken) {
       this.activeRun.inputs = inputs;
+      this.activeRun.lastResult = undefined;
       this.activeRun.nativeUserMessageId = inputs.primaryId;
     }
   }
@@ -525,6 +512,12 @@ ClaudeExecutionStrategySink {
 
     this.taskNotifications.observe(message);
     const active = this.activeRun;
+    if (message.type === 'system' && message.subtype === 'session_state_changed') {
+      if (message.state === 'idle' && active?.queryToken === queryToken) {
+        await this.completeIfSettled(active, queryToken);
+      }
+      return;
+    }
     const nativeUser = message.type === 'user' ? message as unknown as {
       parent_tool_use_id?: string | null;
       uuid?: string;
@@ -698,33 +691,34 @@ ClaudeExecutionStrategySink {
         if (this.activeRun) {
           const current = this.activeRun;
           if (current.nativeHandedOff && inputMatch === false) continue;
-          if (current.inputs && !current.inputs.settled) continue;
-          this.settleConsumedSteers(current);
-          if (this.shouldDeferPlanModeCompletion(this.activeRun, queryToken)) {
-            continue;
-          }
-          const active = this.activeRun;
-          active.nativeCompleted = true;
-          let turnStats = normalized.turnStats;
-          if (turnStats && this.lastEncodedRequest?.options.persistSession !== false) {
-            const sessionId = this.providerSessionId;
-            if (sessionId && active.nativeAssistantId) {
-              const transcriptStats = await loadClaudeTurnStats(
-                this.config.vaultWorkingDirectory,
-                sessionId,
-                active.nativeAssistantId,
-                { environment: this.lastEncodedRequest?.options.env ?? process.env },
-              ).catch(() => undefined);
-              turnStats = transcriptStats ?? turnStats;
-            }
-          }
-          if (this.activeRun === active && !active.terminal) {
-            this.finishCompleted(active, 'completed', turnStats);
-          }
+          current.lastResult = { turnStats: normalized.turnStats };
+          await this.completeIfSettled(current, queryToken);
         } else if (this.backgroundTurn) {
           this.finishBackgroundTurn('completed');
         }
       }
+    }
+  }
+
+  private async completeIfSettled(active: ActiveRequestedRun, queryToken: number): Promise<void> {
+    const result = active.lastResult;
+    if (!result || active.terminal || active.nativeCompleted
+      || active.queryToken !== queryToken || (active.inputs && !active.inputs.settled)
+      || this.shouldDeferPlanModeCompletion(active, queryToken)) return;
+    active.nativeCompleted = true;
+    let turnStats = result.turnStats;
+    if (turnStats && this.lastEncodedRequest?.options.persistSession !== false) {
+      const sessionId = this.providerSessionId;
+      if (sessionId && active.nativeAssistantId) {
+        const transcriptStats = await loadClaudeTurnStats(
+          this.config.vaultWorkingDirectory, sessionId, active.nativeAssistantId,
+          { environment: this.lastEncodedRequest?.options.env ?? process.env },
+        ).catch(() => undefined);
+        turnStats = transcriptStats ?? turnStats;
+      }
+    }
+    if (this.activeRun === active && !active.terminal) {
+      this.finishCompleted(active, 'completed', turnStats);
     }
   }
 
@@ -1085,24 +1079,13 @@ ClaudeExecutionStrategySink {
   }
 
   private acceptDeliveredSteer(active: ActiveRequestedRun, nativeUserMessageId: string): void {
-    const steer = active.steers.get(nativeUserMessageId);
-    if (!steer || active.terminal) return;
-    active.steers.delete(nativeUserMessageId);
+    if (active.terminal) return;
+    const content = active.inputs?.deliver(nativeUserMessageId);
+    if (content === undefined) return;
     this.eventNormalizer.beginUserBoundary('requested');
     this.emitRequested(active, {
-      type: 'user_message_started',
-      content: steer.content,
-      nativeUserMessageId,
+      type: 'user_message_started', content, nativeUserMessageId,
     });
-    steer.resolve(true);
-  }
-
-  private settleConsumedSteers(active: ActiveRequestedRun): void {
-    for (const [id, steer] of active.steers) {
-      if (!active.inputs?.wasConsumed(id)) continue;
-      active.steers.delete(id);
-      steer.resolve(true);
-    }
   }
 
   private emitTurnOutput(
@@ -1299,10 +1282,7 @@ ClaudeExecutionStrategySink {
       active.onRequestAbort,
     );
     active.events.end();
-    for (const steer of active.steers.values()) {
-      steer.reject(new Error('Claude Code run ended before the steer was delivered.'));
-    }
-    active.steers.clear();
+    active.inputs?.abandon();
     if (this.activeRun === active) {
       this.activeRun = null;
     }

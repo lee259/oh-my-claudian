@@ -5,10 +5,15 @@ import { createTurnStats, isTokenCount, type TurnStats } from '@/core/types';
 
 import { filterActiveBranch } from './sdkBranchFilter';
 import type { SDKNativeMessage } from './sdkHistoryTypes';
-import { isCanonicalSdkUserMessage, isSystemInjectedMessage } from './sdkMessageParsing';
+import {
+  getSdkUserMessageTimestamp,
+  isCanonicalSdkUserMessage,
+  isQueuedPromptAttachment,
+  isSystemInjectedMessage,
+} from './sdkMessageParsing';
 import { getSDKSessionPath } from './sdkSessionPaths';
 
-/** Finalized JSONL response IDs can occur in several content-block records. */
+/** Finalized JSONL response IDs may occur in several content-block records. */
 export class ClaudeTurnStats {
   private readonly tokens = new Map<string, number>();
   private complete = true;
@@ -25,10 +30,8 @@ export class ClaudeTurnStats {
   finish(startedAt: number | undefined, completedAt: number | undefined): TurnStats | undefined {
     if (!this.complete || this.tokens.size === 0
       || !['end_turn', 'max_tokens', 'stop_sequence'].includes(this.stopReason ?? '')) return undefined;
-    return createTurnStats(
-      [...this.tokens.values()].reduce((sum, count) => sum + count, 0),
-      startedAt !== undefined && completedAt !== undefined ? completedAt - startedAt : undefined,
-    );
+    return createTurnStats([...this.tokens.values()].reduce((sum, count) => sum + count, 0),
+      startedAt !== undefined && completedAt !== undefined ? completedAt - startedAt : undefined);
   }
 }
 
@@ -43,8 +46,19 @@ export async function loadClaudeTurnStats(
   try {
     const records: SDKNativeMessage[] = [];
     let foundAssistant = false;
+    let measure: ((followedAt: string | undefined) => TurnStats | undefined) | null = null;
+    // A folded queued prompt is timed from the record it follows, through any consecutive folds.
+    const queuedPrompts: SDKNativeMessage[] = [];
     for await (const record of readBackwards(file)) {
       if (record.isSidechain) continue;
+      if (measure) {
+        if (record.uuid !== queuedPrompts.at(-1)?.parentUuid) continue;
+        if (isQueuedPromptAttachment(record) && record.parentUuid) {
+          queuedPrompts.push(record);
+          continue;
+        }
+        return measure(record.timestamp);
+      }
       if (record.uuid === assistantId) foundAssistant = true;
       const isUser = (record.type === 'user' && !isSystemInjectedMessage(record))
         || (record.type === 'attachment' && record.attachment?.commandMode === 'prompt');
@@ -61,10 +75,16 @@ export async function loadClaudeTurnStats(
           stats.add(entry);
           completedAt = timestamp(entry.timestamp);
         }
-        return stats.finish(timestamp(record.timestamp), completedAt);
+        measure = followedAt => {
+          let startedAt = followedAt;
+          for (const queued of queuedPrompts.reverse()) startedAt = getSdkUserMessageTimestamp(queued, startedAt);
+          return stats.finish(timestamp(startedAt), completedAt);
+        };
+        if (!isQueuedPromptAttachment(record) || !record.parentUuid) return stats.finish(timestamp(record.timestamp), completedAt);
+        queuedPrompts.push(record);
       }
     }
-    return undefined;
+    return measure?.(undefined);
   } finally {
     await file.close();
   }
@@ -94,6 +114,6 @@ async function* readBackwards(file: fs.FileHandle): AsyncGenerator<SDKNativeMess
 }
 
 function timestamp(value: string | undefined): number | undefined {
-  const parsed = value === undefined ? Number.NaN : Date.parse(value);
+  const parsed = value === undefined ? NaN : Date.parse(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
