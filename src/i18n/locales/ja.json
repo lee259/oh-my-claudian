@@ -319,7 +319,7 @@
       "append": "ノートに追記",
       "destination": "保存方法",
       "path": "ノートのパス",
-      "answer": "選択したテキスト",
+      "answer": "ノートの本文",
       "preview": "プレビュー",
       "edit": "編集",
       "open": "ノートを開く",

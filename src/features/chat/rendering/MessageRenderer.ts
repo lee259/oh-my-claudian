@@ -185,6 +185,7 @@ export class MessageRenderer {
     },
     private readonly shouldAutoFollow?: () => boolean,
     private readonly onSubagentRendered?: (state: SubagentState | AsyncSubagentState) => void,
+    private readonly onSaveReply?: (markdown: string) => void,
   ) {
     this.app = plugin.app;
     this.imagePreviewModal = new ImagePreviewModal(this.app);
@@ -1025,6 +1026,8 @@ export class MessageRenderer {
     allowFork = true,
   ): void {
     const copyContent = this.getAssistantCopyContent(msg);
+    const noteContent = this.onSaveReply && !msg.isInterrupt && !this.suppressConversationActions
+      ? this.getAssistantNoteContent(msg) : '';
     const turnStats = msg.role === 'assistant' && !msg.isInterrupt
       && this.getCapabilities().supportsResponseThroughput
       ? createTurnStats(msg.turnStats?.outputTokens, msg.turnStats?.durationMs)
@@ -1048,6 +1051,20 @@ export class MessageRenderer {
       this.addForkButton(msgEl, msg.id);
     }
 
+    toolbar.querySelector('.claudian-save-note-btn')?.remove();
+    if (noteContent) {
+      const label = t('chat.saveNote.selectionLabel');
+      const saveButton = toolbar.createEl('button', {
+        cls: 'claudian-save-note-btn',
+        attr: { type: 'button', 'aria-label': label, 'data-tooltip-position': 'top' },
+      });
+      setIcon(saveButton, 'file-plus');
+      saveButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.onSaveReply?.(noteContent);
+      });
+    }
+
     toolbar.querySelector('.claudian-response-throughput')?.remove();
     if (turnStats) {
       const rate = (turnStats.outputTokens / (turnStats.durationMs / 1000)).toFixed(1);
@@ -1062,11 +1079,27 @@ export class MessageRenderer {
 
     const copyButton = toolbar.querySelector('.claudian-text-copy-btn');
     const forkButton = toolbar.querySelector('.claudian-message-fork-btn');
+    const saveButton = toolbar.querySelector('.claudian-save-note-btn');
     const throughput = toolbar.querySelector('.claudian-response-throughput');
     const timestamp = toolbar.querySelector('.claudian-message-timestamp');
-    for (const action of [copyButton, forkButton, throughput, timestamp]) {
+    for (const action of [copyButton, forkButton, saveButton, throughput, timestamp]) {
       if (action) toolbar.appendChild(action);
     }
+  }
+
+  /** Only trailing answer text belongs in a note; earlier text narrates work. */
+  private getAssistantNoteContent(msg: ChatMessage): string {
+    if (!msg.contentBlocks?.length) return stripLegacyInterruptIndicator(msg.content).content.trim();
+    const answer: string[] = [];
+    for (const block of msg.contentBlocks) {
+      if (block.type === 'text') {
+        const text = stripLegacyInterruptIndicator(block.content).content.trim();
+        if (text) answer.push(text);
+      } else if (block.type !== 'citations') {
+        answer.length = 0;
+      }
+    }
+    return answer.join('\n\n');
   }
 
   private getAssistantCopyContent(msg: ChatMessage): string {
