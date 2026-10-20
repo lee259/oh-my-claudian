@@ -831,6 +831,7 @@ export class ConversationRepository {
     return this.enqueuePersistence(conversationId, async () => {
       if (
         this.executionBindings.get(conversationId) !== binding
+        || binding.closed
         || !binding.latestSnapshot
         || binding.latestSnapshot.revision <= binding.lastPersistedRevision
       ) {
@@ -842,11 +843,14 @@ export class ConversationRepository {
       }
       if (
         this.executionBindings.get(conversationId) !== binding
+        || binding.closed
         || !binding.latestSnapshot
         || binding.latestSnapshot.revision <= binding.lastPersistedRevision
       ) {
         return false;
       }
+
+      if (this.getSync(conversationId) !== current) return false;
 
       const latest = binding.latestSnapshot;
       this.applySnapshot(current, latest);

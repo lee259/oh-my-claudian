@@ -1265,7 +1265,7 @@ describe('ConversationRepository persistence queue and binding fences', () => {
     });
   });
 
-  it('rejects the wrong binding or generation and lets a released binding drain', async () => {
+  it('persists a final snapshot before release and rejects later submissions', async () => {
     const conversation = {
       ...createConversation(),
       providerState: { retainedFutureField: 'preserve-me' },
@@ -1303,8 +1303,8 @@ describe('ConversationRepository persistence queue and binding fences', () => {
       3,
       snapshot,
     );
-    repository.releaseExecutionBinding(conversation.id, 'binding-1');
     await expect(accepted).resolves.toBe(true);
+    repository.releaseExecutionBinding(conversation.id, 'binding-1');
     await expect(repository.persistExecutionSnapshot(
       conversation.id,
       'binding-1',
@@ -1322,6 +1322,35 @@ describe('ConversationRepository persistence queue and binding fences', () => {
       }),
     );
   });
+
+  it.each(['queued', 'checking-storage'] as const)(
+    'rejects an unapplied snapshot when its binding closes while %s',
+    async (phase) => {
+      const conversation = createConversation();
+      const persistence = createPersistence();
+      const entered = deferred<void>();
+      const barrier = deferred<boolean>();
+      persistence.isDeleted.mockImplementationOnce(async () => {
+        entered.resolve();
+        return barrier.promise;
+      });
+      const { repository } = createRepository(conversation, persistence);
+      repository.registerExecutionBinding(conversation.id, 'binding-1', 3);
+      const pending = repository.persistExecutionSnapshot(conversation.id, 'binding-1', 3, {
+        providerId: 'claude',
+        revision: 1,
+        providerSessionId: 'stale-native',
+        status: 'idle',
+      });
+      if (phase === 'checking-storage') await entered.promise;
+      repository.releaseExecutionBinding(conversation.id, 'binding-1');
+      barrier.resolve(false);
+
+      await expect(pending).resolves.toBe(false);
+      expect(conversation.sessionId).toBe('session-1');
+      expect(persistence.saveMetadata).not.toHaveBeenCalled();
+    },
+  );
 
   it('applies duplicate and absent state deletions before updates while preserving unknown fields', async () => {
     const conversation = {
