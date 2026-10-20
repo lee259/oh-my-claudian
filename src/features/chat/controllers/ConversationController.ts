@@ -5,6 +5,7 @@ import type {
   ChatRewindMode,
 } from '../../../core/execution';
 import { resolveProviderCustomContextLimit } from '../../../core/providers/modelSelection';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { TitleGenerationService } from '../../../core/providers/types';
 import type {
   ChatMessage,
@@ -14,6 +15,7 @@ import type {
   UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { createProviderIconSvg } from '../../../shared/icons';
 import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import type { FeatureHost } from '../../FeatureHost';
@@ -1384,6 +1386,7 @@ export class ConversationController {
     item.setAttribute('data-conversation-id', conversation.id);
     item.setAttribute('data-history-render-key', buildHistoryRenderKey({
       id: conversation.id,
+      providerId: conversation.providerId,
       title: conversation.title,
       createdAt: conversation.createdAt,
       lastActivityAt: conversation.lastActivityAt,
@@ -1414,7 +1417,24 @@ export class ConversationController {
     );
 
     const content = item.createDiv({ cls: 'claudian-history-item-content' });
-    const titleEl = content.createDiv({
+    const titleRow = content.createDiv({ cls: 'claudian-history-item-title-row' });
+    const providerIcon = ProviderRegistry.getRegisteredProviderIds().includes(conversation.providerId)
+      ? ProviderRegistry.getChatUIConfig(conversation.providerId).getProviderIcon?.()
+      : null;
+    if (providerIcon) {
+      const providerName = ProviderRegistry.getProviderDisplayName(conversation.providerId);
+      const providerEl = titleRow.createSpan({
+        cls: 'claudian-history-item-provider',
+        attr: { role: 'img', 'aria-label': providerName, title: providerName },
+      });
+      createProviderIconSvg(providerIcon, {
+        parent: providerEl,
+        dataProvider: conversation.providerId,
+        width: 16,
+        height: 16,
+      });
+    }
+    const titleEl = titleRow.createDiv({
       cls: 'claudian-history-item-title',
     });
     appendHighlightedHistoryTitle(titleEl, conversation.title, searchTerms);

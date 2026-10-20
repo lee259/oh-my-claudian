@@ -1,5 +1,8 @@
 /** @jest-environment jsdom */
 
+import '@/providers';
+
+import type { ProviderId } from '@/core/types';
 import {
   createWelcomeElement,
   refreshWelcomeContent,
@@ -24,6 +27,26 @@ const PROVIDER_SUMMARY = {
 };
 
 describe('Welcome', () => {
+  it('keeps recent conversations visible when a historical provider is no longer registered', () => {
+    const parentEl = document.createElement('div');
+    const welcomeEl = createWelcomeElement(parentEl, undefined, undefined, {
+      getConversations: () => ['claude', 'dsh', 'codex'].map(providerId => ({
+        id: providerId,
+        providerId: providerId as ProviderId,
+        title: `${providerId} conversation`,
+        createdAt: 1000,
+        lastActivityAt: 1000,
+        messageCount: 1,
+        preview: '',
+      })),
+    });
+
+    expect(welcomeEl.querySelectorAll('.claudian-home-conversation')).toHaveLength(3);
+    expect(welcomeEl.querySelectorAll('.claudian-home-conversation-provider')).toHaveLength(2);
+    expect(welcomeEl.querySelectorAll('.claudian-home-conversation-title')[1]?.textContent)
+      .toBe('dsh conversation');
+  });
+
   it('renders Oh My Claudian branding before the dynamic greeting', () => {
     const parentEl = document.createElement('div');
 
@@ -116,6 +139,10 @@ describe('Welcome', () => {
     const recent = welcomeEl.querySelector('.claudian-home-conversation');
     expect(recent?.querySelector('.claudian-home-conversation-title')?.textContent)
       .toBe('Recent conversation');
+    const providerLogo = recent?.querySelector<HTMLElement>('.claudian-home-conversation-provider');
+    expect(providerLogo?.getAttribute('aria-label')).toBe('Codex');
+    expect(providerLogo?.getAttribute('title')).toBe('Codex');
+    expect(providerLogo?.querySelector('svg')?.getAttribute('data-provider')).toBe('codex');
     expect(recent?.querySelector('.claudian-home-conversation-time')?.textContent)
       .toBe(new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(0, 'second'));
     expect(recent?.querySelector('.claudian-home-conversation-loading'))
@@ -123,7 +150,7 @@ describe('Welcome', () => {
     expect(recent?.querySelector('.claudian-home-conversation-loading')?.getAttribute('aria-label'))
       .toBe('Generating title...');
 
-    (recent?.querySelector('.claudian-home-conversation-open') as HTMLElement | null)?.click();
+    providerLogo?.click();
     expect(onOpenConversation).toHaveBeenCalledWith('recent');
 
     const archiveButton = recent?.querySelector<HTMLElement>('.claudian-home-conversation-archive');
