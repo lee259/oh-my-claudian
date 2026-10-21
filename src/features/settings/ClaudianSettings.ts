@@ -879,7 +879,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalNavigationMappingsRoot.render(h(NavigationMappingsView, {
       name: t('settings.navMappings.name'),
       description: t('settings.navMappings.desc'),
-      placeholder: 'Map w scrollup\nmap s scrolldown\nmap i focusinput',
+      placeholder: buildNavMappingText(this.plugin.settings.keyboardNavigation),
       initialValue: buildNavMappingText(this.plugin.settings.keyboardNavigation),
       validate: (value) => parseNavMappings(value).error ?? null,
       onSave: async (value) => {
