@@ -1008,7 +1008,7 @@ button.claudian-activity-phase-header:focus-visible {
 .claudian-message-action-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   margin-top: 4px;
   opacity: 0;
   transition: opacity var(--claudian-motion-standard, 180ms);
@@ -1062,16 +1062,14 @@ button.claudian-activity-phase-header:focus-visible {
 
 .claudian-message-assistant > .claudian-message-actions {
   width: fit-content;
-  gap: 4px;
 }
 
 .claudian-message-actions .claudian-message-timestamp {
   margin-top: 0;
-  margin-inline-start: auto;
 }
 
 .claudian-message-actions .claudian-response-throughput,
-.claudian-message-assistant > .claudian-message-actions .claudian-message-timestamp {
+.claudian-message-actions .claudian-message-timestamp {
   margin-inline-start: 4px;
   color: var(--text-muted);
   font-size: 12px;
@@ -1122,7 +1120,7 @@ button.claudian-activity-phase-header:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   transition: color var(--claudian-motion-standard, 180ms);
 }
 

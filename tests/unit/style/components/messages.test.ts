@@ -4,6 +4,36 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 describe('Message styles', () => {
+  it('uses the same action spacing and timestamp typography for both message roles', () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    document.head.appendChild(style);
+    const messages = ['user', 'assistant'].map(role => {
+      const message = document.createElement('div');
+      message.className = `claudian-message claudian-message-${role}`;
+      message.innerHTML = '<div class="claudian-message-action-row claudian-message-actions"><button>Copy</button><span class="claudian-message-timestamp">11:34</span></div>';
+      document.body.appendChild(message);
+      return message;
+    });
+
+    try {
+      const [user, assistant] = messages.map(message => ({
+        row: window.getComputedStyle(message.firstElementChild!),
+        timestamp: window.getComputedStyle(message.querySelector('.claudian-message-timestamp')!),
+        button: window.getComputedStyle(message.querySelector('button')!),
+      }));
+      expect(user.row.gap).toBe(assistant.row.gap);
+      for (const property of ['color', 'font-size', 'line-height', 'font-variant-numeric', 'margin-inline-start']) {
+        expect(user.timestamp.getPropertyValue(property)).toBe(assistant.timestamp.getPropertyValue(property));
+      }
+      expect(user.button.color).toBe('var(--text-muted)');
+      expect(assistant.button.color).toBe(user.button.color);
+    } finally {
+      messages.forEach(message => message.remove());
+      style.remove();
+    }
+  });
+
   it('lets expanded streaming work grow in the chat scroll container', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
     const historyRule = css.match(/\.claudian-streaming-work-history\s*{[^}]*}/)?.[0];
