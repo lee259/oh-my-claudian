@@ -848,13 +848,21 @@ button.claudian-completed-work-header:focus-visible {
   padding: 12px 0 0;
 }
 
-/* Expanded work participates in the main chat scroll instead of a nested viewport. */
+/* Work history stays in the transcript; activity phases own bounded scrolling. */
 .claudian-streaming-work-history {
   position: relative;
   box-sizing: border-box;
   margin: 0;
   padding: 12px 0 0;
   overflow-anchor: none;
+}
+
+.claudian-completed-work-history,
+.claudian-streaming-work-history {
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
 }
 
 .claudian-streaming-work-history > * {
@@ -962,7 +970,11 @@ button.claudian-activity-phase-header:focus-visible {
   min-width: 0;
   margin: 0;
   padding: 6px 0 8px;
-  overflow: hidden;
+  box-sizing: border-box;
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .claudian-activity-phase-details .claudian-thinking-header {
@@ -1178,25 +1190,45 @@ button.claudian-activity-phase-header:focus-visible {
   display: none;
 }
 
-/* Compact boundary indicator */
+/* Compaction is a quiet activity row, aligned with the surrounding tool records. */
 .claudian-compact-boundary {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 12px 0;
+  gap: 6px;
+  min-width: 0;
+  min-height: 33px;
+  box-sizing: border-box;
+  margin-block: 4px;
+  padding-block: 6px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .claudian-compact-boundary::before,
 .claudian-compact-boundary::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--background-modifier-border);
+  content: none;
+}
+
+.claudian-compact-boundary-icon {
+  display: flex;
+  align-items: center;
+  flex: 0 0 16px;
+  color: inherit;
+}
+
+.claudian-compact-boundary-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .claudian-compact-boundary-label {
-  color: var(--text-muted);
-  font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

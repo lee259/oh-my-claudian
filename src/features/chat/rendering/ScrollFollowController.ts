@@ -1,6 +1,6 @@
 /** Whether a nested region can consume this input before it reaches its parent. */
 export function isNestedScrollEvent(event: Event, container: HTMLElement): boolean {
-  const selectors = '.claudian-thinking-content, .claudian-streaming-work-history';
+  const selectors = '.claudian-thinking-content, .claudian-streaming-work-history, .claudian-completed-work-history, .claudian-activity-phase-details, .claudian-tool-content, .claudian-write-edit-content, .claudian-subagent-content, .claudian-subagent-tool-content';
   let region = (event.target as Element | null)?.closest?.<HTMLElement>(selectors);
   while (region && region !== container) {
     const deltaY = event.type === 'wheel' ? (event as WheelEvent).deltaY : 0;

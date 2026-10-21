@@ -57,6 +57,21 @@ function createTurn(
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
 
+  it('preserves a paused activity viewport when live tools rebuild the phase', () => {
+    const { renderer, component, content, tool, sync } = createTurn();
+    try {
+      tool('first', 'completed'); tool('second', 'running'); sync();
+      const details = content.querySelector<HTMLElement>('.claudian-activity-phase-details')!;
+      Object.defineProperties(details, { scrollHeight: { value: 1200 }, clientHeight: { value: 320 } });
+      details.scrollTop = 180;
+      details.dispatchEvent(new Event('scroll'));
+      tool('third', 'running'); sync();
+      const next = content.querySelector<HTMLElement>('.claudian-activity-phase-details')!;
+      expect(next).not.toBe(details);
+      expect(next.scrollTop).toBe(180);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['settled', 'stored'] as const)('folds all %s tools across invisible thinking blocks', (mode) => {
     const { renderer, component, messagesEl, user, assistant, text, tool } = createTurn();
     try {

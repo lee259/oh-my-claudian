@@ -12,94 +12,10 @@
 }
 
 @container (max-width: 360px) {
-  .claudian-messages .claudian-tool-call {
-    margin-block: 2px;
-  }
-
-  .claudian-messages .claudian-tool-header {
-    gap: 6px;
-    padding-block: 3px;
-  }
-
-  .claudian-messages .claudian-tool-icon svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .claudian-messages .claudian-tool-name,
-  .claudian-messages .claudian-tool-summary {
-    font-size: 12px;
-  }
-
   .claudian-messages .claudian-tool-content {
     margin-inline-start: 5px;
     padding-inline-start: 12px;
   }
-
-  .claudian-messages .claudian-tool-call-bash .claudian-tool-header {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'icon name name status'
-      'icon summary summary status';
-    align-items: center;
-  }
-
-  .claudian-messages .claudian-tool-call-bash .claudian-tool-icon {
-    grid-area: icon;
-  }
-
-  .claudian-messages .claudian-tool-call-bash .claudian-tool-name {
-    grid-area: name;
-  }
-
-  .claudian-messages .claudian-tool-call-bash .claudian-tool-summary:not(:empty) {
-    display: -webkit-box;
-    grid-area: summary;
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .claudian-messages .claudian-tool-call-bash .claudian-tool-status {
-    grid-area: status;
-    margin-left: 0;
-  }
-}
-
-.claudian-tool-header:hover {
-  opacity: 0.85;
-}
-
-.claudian-messages .claudian-tool-header {
-  position: relative;
-  padding-inline: 6px;
-  padding-inline-end: 22px;
-  border-radius: 6px;
-  transition: background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1)), opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
-}
-
-.claudian-messages .claudian-tool-header::after {
-  position: absolute;
-  inset-inline-end: 7px;
-  width: 6px;
-  height: 6px;
-  border-inline-end: 1.5px solid var(--text-faint);
-  border-block-end: 1.5px solid var(--text-faint);
-  content: '';
-  transform: rotate(-45deg);
-  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
-}
-
-.claudian-messages .claudian-tool-call.expanded > .claudian-tool-header::after {
-  transform: rotate(45deg);
-}
-
-.claudian-messages .claudian-tool-header:hover {
-  opacity: 1;
-  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
 }
 
 .claudian-tool-icon {
@@ -149,10 +65,6 @@
 .claudian-tool-file-link:hover,
 .claudian-tool-file-link:focus-visible {
   color: var(--text-accent);
-}
-
-.claudian-tool-call-bash.expanded .claudian-tool-summary {
-  display: none;
 }
 
 .claudian-tool-bash-command {
@@ -229,50 +141,6 @@
   border-inline-start: none;
   margin-inline-start: 0;
   padding-inline-start: 0;
-}
-
-/* Activity summaries share the transcript's flat, muted UI typography. */
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call {
-  margin-block: 0;
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-header {
-  display: flex;
-  gap: 6px;
-  padding-block: 6px;
-  padding-inline-start: 0;
-  border-radius: 6px;
-  background: transparent;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-header:hover {
-  background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) :is(.claudian-tool-name, .claudian-tool-summary) {
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) :is(.claudian-tool-icon, .claudian-tool-status.status-completed) {
-  color: var(--text-muted);
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-file-link:is(:hover, :focus-visible) {
-  color: var(--text-accent);
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call-bash:not(.expanded) .claudian-tool-summary:not(:empty) {
-  display: block;
-  white-space: nowrap;
-}
-
-.claudian-messages :is(.claudian-completed-work-history, .claudian-streaming-work-history) .claudian-tool-call-bash.expanded .claudian-tool-summary {
-  display: none;
 }
 
 /* Expanded content: per-line rendering */

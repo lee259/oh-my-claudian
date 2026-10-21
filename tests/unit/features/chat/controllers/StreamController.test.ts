@@ -622,6 +622,10 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.currentContentEl?.querySelector<HTMLElement>('.claudian-compact-boundary')
         ?.dataset.transcriptItemId)
         .toBe('assistant-1:block:0');
+      expect(deps.state.currentContentEl?.querySelector('.claudian-compact-boundary-icon')
+        ?.getAttribute('aria-hidden')).toBe('true');
+      expect(deps.state.currentContentEl?.querySelector('.claudian-compact-boundary-label')
+        ?.textContent).toBe('Conversation compacted');
     });
 
     it('does not let a later Claude Code sub-request lower usage in the same stream', () => {

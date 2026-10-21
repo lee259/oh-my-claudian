@@ -3253,6 +3253,10 @@ describe('MessageRenderer', () => {
       .toBe('assistant-transcript-identities:block:0');
     expect(contentEl.children[1].dataset.transcriptItemId)
       .toBe('assistant-transcript-identities:block:1');
+    expect(contentEl.children[1].querySelector('.claudian-compact-boundary-icon')
+      ?.getAttribute('aria-hidden')).toBe('true');
+    expect(contentEl.children[1].querySelector('.claudian-compact-boundary-label')
+      ?.textContent).toBe('Conversation compacted');
   });
 
   it('renders response duration footer when durationSeconds is present', () => {
