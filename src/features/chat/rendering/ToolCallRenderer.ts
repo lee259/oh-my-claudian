@@ -983,6 +983,32 @@ export function makeFileSummaryInteractive(
   });
 }
 
+/** Normalized read/navigation summaries do not expose redundant raw output. */
+export function canExpandToolCall(toolCall: ToolCallInfo): boolean {
+  if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.resultImages?.length) return true;
+  const name = toolCall.presentation?.name ?? toolCall.name;
+  const summaryTools: string[] = [TOOL_READ, TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_SKILL, 'Find', 'List'];
+  return !summaryTools.includes(name);
+}
+
+export function syncToolDisclosure(
+  toolEl: HTMLElement, header: HTMLElement, content: HTMLElement, toolCall: ToolCallInfo,
+): void {
+  const expandable = canExpandToolCall(toolCall);
+  toolEl.toggleClass('claudian-tool-call--expandable', expandable);
+  if (expandable) {
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+    header.setAttribute('aria-expanded', String(toolEl.hasClass('expanded')));
+    header.setAttribute('aria-label', `${getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)} - click to ${toolEl.hasClass('expanded') ? 'collapse' : 'expand'}`);
+  } else {
+    for (const attribute of ['role', 'tabindex', 'aria-expanded', 'aria-label']) header.removeAttribute(attribute);
+    toolEl.removeClass('expanded');
+    content.addClass('claudian-hidden');
+    toolCall.isExpanded = false;
+  }
+}
+
 function createToolElementStructure(
   parentEl: HTMLElement,
   toolCall: ToolCallInfo,
@@ -1232,18 +1258,20 @@ export function renderToolCall(
 
   renderToolContent(content, toolCall, 'Running...');
 
-  const initiallyExpanded = options.initiallyExpanded ?? false;
+  const initiallyExpanded = canExpandToolCall(toolCall) && (options.initiallyExpanded ?? false);
   const state = { isExpanded: initiallyExpanded };
   toolCall.isExpanded = initiallyExpanded;
   const todoStatusEl = toolCall.name === TOOL_TODO_WRITE ? statusEl : null;
   setupCollapsible(toolEl, header, content, state, {
     initiallyExpanded,
+    canToggle: () => toolEl.hasClass('claudian-tool-call--expandable'),
     onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
       toolCall.isExpanded = expanded;
     }),
     baseAriaLabel: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)
   });
 
+  syncToolDisclosure(toolEl, header, content, toolCall);
   return toolEl;
 }
 
@@ -1254,6 +1282,9 @@ export function updateToolCallResult(
 ) {
   const toolEl = toolCallElements.get(toolId);
   if (!toolEl) return;
+  const header = toolEl.querySelector<HTMLElement>('.claudian-tool-header');
+  const details = toolEl.querySelector<HTMLElement>('.claudian-tool-content');
+  if (header && details) syncToolDisclosure(toolEl, header, details, toolCall);
 
   if (toolCall.name === TOOL_TODO_WRITE) {
     const statusEl = toolEl.querySelector('.claudian-tool-status') as HTMLElement;
@@ -1329,15 +1360,17 @@ export function renderStoredToolCall(
   const state = { isExpanded: false };
   const todoStatusEl = toolCall.name === TOOL_TODO_WRITE ? statusEl : null;
   setupCollapsible(toolEl, header, content, state, {
-    initiallyExpanded: options.initiallyExpanded ?? false,
+    initiallyExpanded: canExpandToolCall(toolCall) && (options.initiallyExpanded ?? false),
+    canToggle: () => toolEl.hasClass('claudian-tool-call--expandable'),
     beforeToggle: (expanded) => {
       if (expanded) renderContentOnce();
     },
     onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
       toolCall.isExpanded = expanded;
     }),
-    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input)
+    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)
   });
 
+  syncToolDisclosure(toolEl, header, content, toolCall);
   return toolEl;
 }

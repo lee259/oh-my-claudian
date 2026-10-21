@@ -54,6 +54,7 @@ import { openVaultFile } from '../../../utils/obsidianCompat';
 import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { FLAVOR_TEXTS } from '../constants';
+import { renderCompactBoundary } from '../rendering/CompactBoundaryRenderer';
 import { hasDiagramFence } from '../rendering/DisplayOnlyCodeFences';
 import type { RenderContentOptions } from '../rendering/MessageRenderer';
 import { ScrollFollowController } from '../rendering/ScrollFollowController';
@@ -2285,9 +2286,7 @@ export class StreamController {
     const { state } = this.deps;
     if (!state.currentContentEl) return null;
     this.hideThinkingIndicator();
-    const el = state.currentContentEl.createDiv({ cls: 'claudian-compact-boundary' });
-    el.createSpan({ cls: 'claudian-compact-boundary-label', text: 'Conversation compacted' });
-    return el;
+    return renderCompactBoundary(state.currentContentEl);
   }
 
   // ============================================

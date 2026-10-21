@@ -183,6 +183,17 @@ describe('collapsible', () => {
       expect(setHidden).toHaveBeenLastCalledWith(false);
     });
 
+    it('animates to the bounded layout height rather than the full scroll content', () => {
+      const element = createMockEl() as unknown as HTMLElement;
+      element.addClass('claudian-hidden');
+      const animate = jest.fn((_frames: Keyframe[], _options: KeyframeAnimationOptions) => ({ cancel: jest.fn() }) as unknown as Animation);
+      Object.defineProperty(element, 'animate', { value: animate });
+      Object.defineProperty(element, 'scrollHeight', { value: 2400 });
+      element.getBoundingClientRect = jest.fn(() => ({ height: 320 }) as DOMRect);
+      setCollapsibleContentExpanded(element, true, jest.fn());
+      expect(animate.mock.calls[0][0][1].height).toBe('320px');
+    });
+
     it('skips animation when reduced motion is enabled', () => {
       const element = createMockEl() as unknown as HTMLElement;
       const animate = jest.fn();

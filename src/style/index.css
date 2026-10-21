@@ -41,6 +41,7 @@
 @import "./features/image-modal.css";
 @import "./features/inline-edit.css";
 @import "./features/diff.css";
+@import "./components/activity-rows.css";
 @import "./features/slash-commands.css";
 @import "./features/resume-session.css";
 @import "./features/ask-user-question.css";

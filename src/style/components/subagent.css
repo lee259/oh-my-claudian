@@ -28,23 +28,6 @@
   overflow: hidden;
 }
 
-.claudian-messages .claudian-subagent-header::after {
-  position: absolute;
-  inset-inline-end: 3px;
-  width: 6px;
-  height: 6px;
-  border-inline-end: 1.5px solid var(--text-faint);
-  border-block-end: 1.5px solid var(--text-faint);
-  content: '';
-  transform: rotate(-45deg);
-  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
-}
-
-.claudian-messages .claudian-subagent-list.expanded > .claudian-subagent-header::after,
-.claudian-messages .claudian-subagent-list.expanded > .claudian-subagent-header-row > .claudian-subagent-header::after {
-  transform: rotate(45deg);
-}
-
 /* Async cards keep the collapse toggle and the transcript entry as sibling
  * interactive controls (buttons inside buttons are invalid ARIA). The header
  * row is a plain flex container; the toggle button fills the row and the
@@ -150,8 +133,7 @@
   padding: 2px 16px 2px 0;
 }
 
-.claudian-messages .claudian-subagent-section-header::after,
-.claudian-messages .claudian-subagent-tool-header::after {
+.claudian-messages .claudian-subagent-section-header::after {
   position: absolute;
   inset-inline-end: 3px;
   width: 5px;
@@ -163,8 +145,7 @@
   transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
-.claudian-messages .claudian-subagent-section.expanded > .claudian-subagent-section-header::after,
-.claudian-messages .claudian-subagent-tool-item.expanded > .claudian-subagent-tool-header::after {
+.claudian-messages .claudian-subagent-section.expanded > .claudian-subagent-section-header::after {
   transform: rotate(45deg);
 }
 

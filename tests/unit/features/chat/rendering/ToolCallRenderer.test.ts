@@ -7,6 +7,7 @@ import {
   getToolLabel,
   getToolName,
   getToolSummary,
+  renderExpandedContent,
   renderStoredToolCall,
   renderTodoWriteResult,
   renderToolCall,
@@ -38,19 +39,15 @@ describe('ToolCallRenderer', () => {
     ['20→first\n21→second\n', ['first', 'second', ' ']],
     ['20→first\r\n21→second', ['first', 'second']],
   ])('strips legacy Read gutters only from a fully consecutive result: %j', (result, expected) => {
-    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
-      name: 'Read', status: 'completed', result,
-    }));
-    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    const toolEl: HTMLElement = createMockEl();
+    renderExpandedContent(toolEl, 'Read', result, {});
     expect(Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent))
       .toEqual(expected);
   });
 
   it('keeps numbered arrows in Read results explicitly marked as plain text', () => {
-    const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
-      name: 'Read', status: 'completed', resultFormat: 'plain', result: '1→first\n2→second',
-    }));
-    (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+    const toolEl: HTMLElement = createMockEl();
+    renderExpandedContent(toolEl, 'Read', '1→first\n2→second', {}, 'plain');
     expect(Array.from(toolEl.querySelectorAll('.claudian-tool-line')).map(line => line.textContent))
       .toEqual(['1→first', '2→second']);
   });
@@ -103,7 +100,7 @@ describe('ToolCallRenderer', () => {
 
     it('should set correct ARIA attributes for accessibility', () => {
       const parentEl = createMockEl();
-      const toolCall = createToolCall();
+      const toolCall = createToolCall({ name: 'CustomTool' });
       const toolCallElements = new Map<string, HTMLElement>();
 
       const toolEl = renderToolCall(parentEl, toolCall, toolCallElements);
@@ -154,7 +151,7 @@ describe('ToolCallRenderer', () => {
 
     it('should start expanded when requested', () => {
       const parentEl = createMockEl();
-      const toolCall = createToolCall();
+      const toolCall = createToolCall({ name: 'CustomTool' });
       const toolCallElements = new Map<string, HTMLElement>();
 
       const toolEl = renderToolCall(parentEl, toolCall, toolCallElements, { initiallyExpanded: true });
@@ -232,16 +229,16 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('renderStoredToolCall', () => {
-    it('renders plain Read text without stripping arrow-prefixed content', () => {
+    it('renders plain Read output without stripping arrow-prefixed content', () => {
       const toolCall = createToolCall({
         name: 'Read',
         result: '1→ actual file content',
         resultFormat: 'plain',
         status: 'completed',
       });
-      const toolEl = renderStoredToolCall(createMockEl(), toolCall, { initiallyExpanded: true });
-
-      expect(toolEl.querySelector('.claudian-tool-line')?.textContent).toBe('1→ actual file content');
+      const content = createMockEl();
+      renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input, toolCall.resultFormat);
+      expect(content.querySelector('.claudian-tool-line')?.textContent).toBe('1→ actual file content');
     });
 
     it('renders image-only tool results without a no-result placeholder', () => {
@@ -268,28 +265,18 @@ describe('ToolCallRenderer', () => {
       expect(setIcon).toHaveBeenCalledWith(expect.anything(), 'check');
     });
 
-    it('wraps long lines in expanded tool results', () => {
-      const parentEl = createMockEl();
-      const toolCall = createToolCall({
-        name: 'Read',
-        status: 'completed',
-        result: `short line\n${'x'.repeat(200)}\nanother line`,
-      });
-
-      const toolEl = renderStoredToolCall(parentEl, toolCall);
-      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
-      const lines = toolEl.querySelectorAll('.claudian-tool-line');
-
+    it('wraps long lines in Read output rendering', () => {
+      const content = createMockEl();
+      renderExpandedContent(content, 'Read', `short line\n${'x'.repeat(200)}\nanother line`, {});
+      const lines = content.querySelectorAll('.claudian-tool-line');
       expect(lines).toHaveLength(3);
-      for (const line of lines) {
-        expect(line.hasClass('claudian-tool-line-wrap')).toBe(true);
-      }
+      for (const line of lines) expect(line.hasClass('claudian-tool-line-wrap')).toBe(true);
     });
 
     it('defers completed tool content until the card is expanded', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
-        status: 'completed',
+        name: 'CustomTool', status: 'completed',
         result: 'stored output',
       });
 
@@ -303,7 +290,7 @@ describe('ToolCallRenderer', () => {
     });
 
     it('renders deferred tool content before measuring the first expansion transition', () => {
-      const toolCall = createToolCall({ status: 'completed', result: 'stored output' });
+      const toolCall = createToolCall({ name: 'CustomTool', status: 'completed', result: 'stored output' });
       const toolEl = renderStoredToolCall(createMockEl(), toolCall);
       const content = toolEl.querySelector('.claudian-tool-content') as HTMLElement;
       const header = toolEl.querySelector('.claudian-tool-header') as HTMLElement;
@@ -322,7 +309,7 @@ describe('ToolCallRenderer', () => {
     it('renders stored content immediately when requested expanded', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
-        status: 'completed',
+        name: 'CustomTool', status: 'completed',
         result: 'stored output',
       });
 

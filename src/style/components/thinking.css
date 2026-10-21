@@ -57,22 +57,6 @@
   overflow: hidden;
 }
 
-.claudian-messages .claudian-thinking-header::after {
-  position: absolute;
-  inset-inline-end: 3px;
-  width: 6px;
-  height: 6px;
-  border-inline-end: 1.5px solid var(--text-faint);
-  border-block-end: 1.5px solid var(--text-faint);
-  content: '';
-  transform: rotate(-45deg);
-  transition: transform var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
-}
-
-.claudian-messages .claudian-thinking-block.expanded > .claudian-thinking-header::after {
-  transform: rotate(45deg);
-}
-
 .claudian-thinking-label {
   flex: 1;
   min-width: 0;

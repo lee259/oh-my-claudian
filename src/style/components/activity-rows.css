@@ -1,0 +1,106 @@
+/* A shared row surface for live activity, replay, reasoning and file changes. */
+.claudian-messages :is(.claudian-tool-call, .claudian-thinking-block, .claudian-subagent-list, .claudian-write-edit-block) {
+  margin-block: 0;
+}
+
+.claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 33px;
+  box-sizing: border-box;
+  padding: 6px 22px 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 1;
+}
+
+.claudian-messages :is(.claudian-tool-name, .claudian-tool-summary, .claudian-thinking-label, .claudian-subagent-label, .claudian-subagent-result-summary, .claudian-write-edit-name, .claudian-write-edit-summary, .claudian-subagent-tool-name, .claudian-subagent-tool-summary) {
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-messages :is(.claudian-tool-icon, .claudian-subagent-icon, .claudian-write-edit-icon, .claudian-subagent-tool-icon) {
+  color: inherit;
+}
+
+.claudian-messages :is(.claudian-tool-icon, .claudian-subagent-icon, .claudian-write-edit-icon, .claudian-subagent-tool-icon) svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-messages :is(.claudian-tool-status, .claudian-subagent-status, .claudian-write-edit-status, .claudian-subagent-tool-status).status-completed {
+  display: none;
+}
+
+.claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header):is(:hover, :focus-visible) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  opacity: 1;
+}
+
+.claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header)[aria-expanded]::after {
+  position: absolute;
+  inset-inline-end: 7px;
+  width: 6px;
+  height: 6px;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  content: '';
+  opacity: 0;
+  transform: rotate(-45deg);
+  transition: opacity var(--claudian-motion-standard, 180ms), transform var(--claudian-motion-standard, 180ms);
+}
+
+.claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header)[aria-expanded='true']::after {
+  transform: rotate(45deg);
+}
+
+.claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header)[aria-expanded]:is(:hover, :focus-visible)::after {
+  opacity: 1;
+}
+
+.claudian-messages :is(.claudian-tool-call, .claudian-subagent-tool-item):not(.claudian-tool-call--expandable) > :is(.claudian-tool-header, .claudian-subagent-tool-header) {
+  cursor: default;
+  padding-inline-end: 0;
+}
+
+.claudian-messages :is(.claudian-tool-file-link, .claudian-write-edit-summary.claudian-tool-file-link):is(:hover, :focus-visible) {
+  color: var(--text-accent);
+}
+
+.claudian-messages :is(.claudian-tool-content, .claudian-write-edit-content, .claudian-subagent-content, .claudian-subagent-tool-content) {
+  box-sizing: border-box;
+  max-height: min(36vh, 300px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* The transcript plus one activity/detail viewport are the only scroll layers.
+ * Nested output uses its owning viewport, including subagent and diff details. */
+.claudian-messages :is(.claudian-activity-phase-details, .claudian-tool-content, .claudian-thinking-content, .claudian-write-edit-content, .claudian-subagent-content, .claudian-subagent-tool-content) :is(.claudian-activity-phase-details, .claudian-tool-content, .claudian-thinking-content, .claudian-write-edit-content, .claudian-write-edit-diff, .claudian-subagent-content, .claudian-subagent-tool-content, .claudian-subagent-result-output, .claudian-tool-web-summary) {
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
+}
+
+@media (hover: none) {
+  .claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header)[aria-expanded]::after {
+    opacity: 1;
+  }
+}

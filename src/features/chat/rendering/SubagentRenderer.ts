@@ -9,6 +9,7 @@ import type { FileReference } from '../../../utils/FileReference';
 import { OPEN_SUBAGENT_TRANSCRIPT_EVENT, type OpenSubagentTranscriptDetail } from '../OpenSubagentTranscriptEvent';
 import { setupCollapsible } from './collapsible';
 import {
+  canExpandToolCall,
   getToolFilePath,
   getToolLabel,
   getToolName,
@@ -16,6 +17,7 @@ import {
   makeFileSummaryInteractive,
   renderExpandedContent,
   setToolIcon,
+  syncToolDisclosure,
 } from './ToolCallRenderer';
 
 export interface SubagentRenderOptions {
@@ -154,9 +156,13 @@ function setSubagentToolStatus(view: SubagentToolView, status: ToolCallInfo['sta
 }
 
 function updateSubagentToolView(view: SubagentToolView, toolCall: ToolCallInfo): void {
-  view.wrapperEl.className = `claudian-subagent-tool-item claudian-subagent-tool-${toolCall.status}`;
-  view.nameEl.setText(getToolName(toolCall.name, toolCall.input));
-  view.summaryEl.setText(getToolSummary(toolCall.name, toolCall.input));
+  for (const status of ['running', 'completed', 'error', 'blocked']) {
+    view.wrapperEl.toggleClass(`claudian-subagent-tool-${status}`, toolCall.status === status);
+  }
+  const header = view.wrapperEl.querySelector<HTMLElement>('.claudian-subagent-tool-header');
+  if (header) syncToolDisclosure(view.wrapperEl, header, view.contentEl, toolCall);
+  view.nameEl.setText(getToolName(toolCall.name, toolCall.input, toolCall.presentation));
+  view.summaryEl.setText(getToolSummary(toolCall.name, toolCall.input, toolCall.presentation));
   setSubagentToolStatus(view, toolCall.status);
   renderSubagentToolContent(view.contentEl, toolCall);
 }
@@ -188,7 +194,8 @@ function createSubagentToolView(
 
   const collapseState = { isExpanded: toolCall.isExpanded ?? false };
   setupCollapsible(wrapperEl, headerEl, contentEl, collapseState, {
-    initiallyExpanded: toolCall.isExpanded ?? false,
+    initiallyExpanded: canExpandToolCall(toolCall) && (toolCall.isExpanded ?? false),
+    canToggle: () => wrapperEl.hasClass('claudian-tool-call--expandable'),
     onToggle: (expanded) => {
       toolCall.isExpanded = expanded;
     },

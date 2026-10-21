@@ -65,6 +65,7 @@ import {
 } from './ActivityTimeline';
 import { renderCitationGroup as renderCitationBlock } from './CitationRenderer';
 import { setCollapsibleContentExpanded } from './collapsible';
+import { renderCompactBoundary } from './CompactBoundaryRenderer';
 import {
   DIAGRAM_FENCE_LANGUAGES,
   DIAGRAM_SOURCE_CLASS,
@@ -152,6 +153,7 @@ export class MessageRenderer {
     nextSibling: HTMLElement | null;
   }>();
   private readonly activityPhaseOverrides = new Map<string, boolean>();
+  private readonly streamingPhaseViewports = new WeakMap<HTMLElement, ScrollFollowController>();
   private readonly streamingWorkViewports = new WeakMap<HTMLElement, ScrollFollowController>();
   private readonly transcriptExecutionScopes = new Map<string, { executionId?: string; turnId: string }>();
   private app: App;
@@ -1251,6 +1253,7 @@ export class MessageRenderer {
     ].join('::');
     const signatureKey = `${turnId}:${msg.id}`;
     if (this.streamingActivitySignatures.get(contentEl) === `${signatureKey}::${signature}`) {
+      this.restoreStreamingPhaseViewports(contentEl);
       for (const fold of contentEl.querySelectorAll<HTMLElement>('.claudian-streaming-work-fold')) {
         this.restoreStreamingWorkViewport(fold);
       }
@@ -1319,6 +1322,10 @@ export class MessageRenderer {
       const details = phase.querySelector<HTMLElement>('.claudian-activity-phase-details');
       const parent = phase.parentElement ?? contentEl;
       if (details) {
+        const first = details.firstElementChild as HTMLElement | null;
+        const viewport = first ? this.streamingPhaseViewports.get(first) : undefined;
+        viewport?.capture();
+        viewport?.dispose();
         for (const child of Array.from(details.children)) {
           this.restoreStreamingActivityElement(child as HTMLElement, parent, phase);
         }
@@ -1347,6 +1354,15 @@ export class MessageRenderer {
       fold.removeClass('claudian-streaming-work-fold');
       fold.removeAttribute('aria-controls');
       fold.querySelector<HTMLElement>('.claudian-completed-work-indicator')?.remove();
+    }
+  }
+
+  private restoreStreamingPhaseViewports(contentEl: HTMLElement): void {
+    for (const details of contentEl.querySelectorAll<HTMLElement>('.claudian-streaming-activity-phase .claudian-activity-phase-details')) {
+      const first = details.firstElementChild as HTMLElement | null;
+      if (first && !details.hidden) {
+        this.streamingPhaseViewports.get(first)?.restore(this.plugin.settings.enableAutoScroll ?? true);
+      }
     }
   }
 
@@ -1443,6 +1459,7 @@ export class MessageRenderer {
         );
       }
     });
+    this.restoreStreamingPhaseViewports(contentEl);
     if (statusEl) this.restoreStreamingWorkViewport(statusEl);
   }
 
@@ -1618,6 +1635,10 @@ export class MessageRenderer {
     for (const element of elements) {
       if (streaming) this.rememberStreamingActivityOrigin(element);
       detailsEl.appendChild(element);
+    }
+    if (streaming) {
+      const previous = this.streamingPhaseViewports.get(elements[0]);
+      this.streamingPhaseViewports.set(elements[0], new ScrollFollowController(detailsEl, previous));
     }
     headerEl.addEventListener('click', () => {
       if (requiresAttention) return;
@@ -2253,8 +2274,7 @@ export class MessageRenderer {
             renderedToolIds.add(toolCall.id);
           }
         } else if (block.type === 'context_compacted') {
-          const boundaryEl = contentEl.createDiv({ cls: 'claudian-compact-boundary' });
-          boundaryEl.createSpan({ cls: 'claudian-compact-boundary-label', text: 'Conversation compacted' });
+          renderCompactBoundary(contentEl);
         } else if (block.type === 'subagent') {
           const taskToolCall = msg.toolCalls?.find((toolCall) => {
             if (toolCall.id !== block.subagentId) return false;

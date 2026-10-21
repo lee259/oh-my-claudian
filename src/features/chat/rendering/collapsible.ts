@@ -7,6 +7,8 @@ export interface CollapsibleOptions {
   initiallyExpanded?: boolean;
   /** Runs before the transition so deferred content can be rendered and measured. */
   beforeToggle?: (isExpanded: boolean) => void;
+  /** Allows a live disclosure to become available when its result arrives. */
+  canToggle?: () => boolean;
   /** Callback when state changes */
   onToggle?: (isExpanded: boolean) => void;
   /** Base label for aria-label (will append "click to expand/collapse") */
@@ -35,7 +37,8 @@ export function setCollapsibleContentExpanded(
     return;
   }
 
-  const targetHeight = expanded ? contentEl.scrollHeight : 0;
+  const layoutHeight = contentEl.getBoundingClientRect().height;
+  const targetHeight = expanded ? Math.min(contentEl.scrollHeight, layoutHeight || contentEl.scrollHeight) : 0;
   const animation = contentEl.animate(
     [
       { height: `${currentHeight}px`, opacity: expanded ? 0 : 1 },
@@ -101,6 +104,7 @@ export function setupCollapsible(
 
   // Toggle handler
   const toggleExpand = () => {
+    if (options.canToggle && !options.canToggle()) return;
     const nextExpanded = !state.isExpanded;
     options.beforeToggle?.(nextExpanded);
     state.isExpanded = nextExpanded;
