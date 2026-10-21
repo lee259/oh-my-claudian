@@ -1255,7 +1255,7 @@ describe('ConversationController', () => {
 
         expect(item.createEl).toHaveBeenCalledWith('input', {
           cls: 'claudian-rename-input',
-          attr: { type: 'text', value: 'Test Title' },
+          attr: { type: 'text', value: 'Test Title', 'aria-label': 'Conversation title' },
         });
         expect(titleEl!.replaceWith).toHaveBeenCalledWith(mockInput);
       } finally {
@@ -1653,6 +1653,17 @@ describe('ConversationController - Title Generation', () => {
   });
 
   describe('generateFallbackTitle', () => {
+    it.each([
+      ['A'.repeat(49) + '😀tail', 'A'.repeat(49) + '...'],
+      ['A'.repeat(48) + '😀tail', 'A'.repeat(48) + '😀...'],
+      ['A'.repeat(48) + '😀', 'A'.repeat(48) + '😀'],
+      ['A'.repeat(50), 'A'.repeat(50)],
+      ['A'.repeat(49) + '中tail', 'A'.repeat(49) + '中...'],
+      ['  ' + 'A'.repeat(49) + '😀tail? Another sentence', 'A'.repeat(49) + '...'],
+    ])('preserves complete characters in the first-sentence budget (%#)', (input, expected) => {
+      expect(controller.generateFallbackTitle(input)).toBe(expected);
+    });
+
     it('should generate title from first sentence', () => {
       const title = controller.generateFallbackTitle('How do I set up React? I need help.');
 

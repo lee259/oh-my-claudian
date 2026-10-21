@@ -45,7 +45,7 @@ describe('VaultMentionDataProvider', () => {
     expect(app.vault.getAllLoadedFiles).toHaveBeenCalledTimes(2);
   });
 
-  it('initializes file and folder caches in background', () => {
+  it.each(['background', 'queued twice', 'foreground first'])('initializes both caches once with %s scheduling', ordering => {
     jest.useFakeTimers();
     const app = {
       vault: {
@@ -59,6 +59,11 @@ describe('VaultMentionDataProvider', () => {
 
     expect(app.vault.getFiles).not.toHaveBeenCalled();
     expect(app.vault.getAllLoadedFiles).not.toHaveBeenCalled();
+    if (ordering === 'queued twice') provider.initializeInBackground();
+    if (ordering === 'foreground first') {
+      provider.getCachedVaultFiles();
+      provider.getCachedVaultFolders();
+    }
 
     jest.runOnlyPendingTimers();
 
