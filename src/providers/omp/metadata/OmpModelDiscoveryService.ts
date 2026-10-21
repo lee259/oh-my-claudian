@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { ProviderInteractionPort, ProviderSessionConfig } from '../../../core/execution';
 import { ManagedCommandRunner, type ManagedCommandTermination } from '../../../core/process/ManagedCommandRunner';
 import { getRuntimeEnvironmentVariables } from '../../../core/providers/providerEnvironment';
@@ -80,6 +82,7 @@ export class OmpModelDiscoveryService {
       onClosed: () => undefined,
       onNotification: () => undefined,
       plugin: this.plugin,
+      sessionInstanceId: randomUUID(),
     });
     const abort = (): void => { void kernel.dispose().catch(() => undefined); };
     signal?.addEventListener('abort', abort, { once: true });
@@ -134,6 +137,7 @@ export class OmpModelDiscoveryService {
       onClosed: () => undefined,
       onNotification: () => undefined,
       plugin: this.plugin,
+      sessionInstanceId: randomUUID(),
     });
     let disposal: Promise<void> | undefined;
     const dispose = (): Promise<void> => disposal ??= kernel.dispose();

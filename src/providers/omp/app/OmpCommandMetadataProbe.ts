@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { OwnedProbeRegistry } from '@/core/providers/metadata/OwnedProbeRegistry';
 import { ProviderTransitionFence } from '@/core/providers/metadata/ProviderTransitionFence';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
@@ -113,6 +115,7 @@ export class OmpCommandMetadataProbe {
         for (const wake of [...waiters]) wake();
       },
       plugin: this.plugin,
+      sessionInstanceId: randomUUID(),
     });
 
     const waitForCommands = (sessionId: string, signal: AbortSignal): Promise<SlashCommand[]> => (
