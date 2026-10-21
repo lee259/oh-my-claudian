@@ -34,6 +34,7 @@ export class ResumeSessionDropdown {
   private conversations: ConversationMeta[];
   private currentConversationId: string | null;
   private selectedIndex = 0;
+  private selectingWithKeyboard = false;
   private onInput: () => void;
   private listboxId: string;
   private previousInputAttributes: Map<string, string | null>;
@@ -64,6 +65,7 @@ export class ResumeSessionDropdown {
       listClassName: 'claudian-resume-list',
       itemClassName: 'claudian-resume-item',
       emptyClassName: 'claudian-resume-empty',
+      scrollSelectedIntoView: false,
     });
     this.configureInputAccessibility();
     this.render();
@@ -134,6 +136,7 @@ export class ResumeSessionDropdown {
   }
 
   private navigate(direction: number): void {
+    this.selectingWithKeyboard = true;
     const maxIndex = this.conversations.length - 1;
     this.selectedIndex = Math.max(0, Math.min(maxIndex, this.selectedIndex + direction));
     this.updateSelection();
@@ -148,7 +151,7 @@ export class ResumeSessionDropdown {
         item.setAttribute('aria-selected', 'true');
         activeOptionId = item.getAttribute('id');
         if (scrollSelectedIntoView) {
-          (item as HTMLElement).scrollIntoView({ block: 'nearest' });
+          this.revealInList(item as HTMLElement);
         }
       } else {
         item.removeClass('selected');
@@ -160,6 +163,18 @@ export class ResumeSessionDropdown {
       this.inputEl.setAttribute('aria-activedescendant', activeOptionId);
     } else {
       this.inputEl.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  private revealInList(item: HTMLElement): void {
+    const list = item.parentElement;
+    if (!list) return;
+    const listRect = list.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    if (itemRect.top < listRect.top) {
+      list.scrollTop -= listRect.top - itemRect.top;
+    } else if (itemRect.bottom > listRect.bottom) {
+      list.scrollTop += itemRect.bottom - listRect.bottom;
     }
   }
 
@@ -195,8 +210,9 @@ export class ResumeSessionDropdown {
         this.selectItem();
       },
       onItemHover: (_conversation, index) => {
-        this.selectedIndex = index;
-        this.updateSelection();
+        // Scrolling can move a different row under a stationary pointer.
+        if (!this.selectingWithKeyboard) this.selectedIndex = index;
+        this.updateSelection(false);
       },
     });
 
@@ -210,6 +226,15 @@ export class ResumeSessionDropdown {
     items.forEach((item, index) => {
       item.setAttribute('id', `${this.listboxId}-option-${index}`);
       item.setAttribute('role', 'option');
+    });
+    list.addEventListener('mousemove', (event) => {
+      this.selectingWithKeyboard = false;
+      const item = (event.target as Element | null)?.closest('.claudian-resume-item');
+      if (!item) return;
+      const index = Array.from(items).indexOf(item);
+      if (index < 0 || index === this.selectedIndex) return;
+      this.selectedIndex = index;
+      this.updateSelection(false);
     });
 
     if (this.conversations.length === 0) {
