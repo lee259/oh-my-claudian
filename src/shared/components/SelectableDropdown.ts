@@ -10,6 +10,7 @@ export interface SelectableDropdownOptions {
   emptyClassName: string;
   fixed?: boolean;
   fixedClassName?: string;
+  scrollSelectedIntoView?: boolean;
   accessibility?: { inputEl: HTMLElement; label: string };
 }
 
@@ -176,7 +177,7 @@ export class SelectableDropdown<T> {
       if (this.options.accessibility) itemEl.setAttribute('aria-selected', String(index === this.selectedIndex));
       if (index === this.selectedIndex) {
         itemEl.addClass('selected');
-        itemEl.scrollIntoView({ block: 'nearest' });
+        if (this.options.scrollSelectedIntoView !== false) itemEl.scrollIntoView({ block: 'nearest' });
       } else {
         itemEl.removeClass('selected');
       }
