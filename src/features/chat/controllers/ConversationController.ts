@@ -1832,7 +1832,7 @@ export class ConversationController {
 
     const input = item.createEl('input', {
       cls: 'claudian-rename-input',
-      attr: { type: 'text', value: currentTitle },
+      attr: { type: 'text', value: currentTitle, 'aria-label': t('chat.history.conversationTitle') },
     });
 
     titleEl.replaceWith(input);

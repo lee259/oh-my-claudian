@@ -1255,7 +1255,7 @@ describe('ConversationController', () => {
 
         expect(item.createEl).toHaveBeenCalledWith('input', {
           cls: 'claudian-rename-input',
-          attr: { type: 'text', value: 'Test Title' },
+          attr: { type: 'text', value: 'Test Title', 'aria-label': 'Conversation title' },
         });
         expect(titleEl!.replaceWith).toHaveBeenCalledWith(mockInput);
       } finally {

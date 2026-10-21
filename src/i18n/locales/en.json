@@ -204,6 +204,7 @@
       "regenerateTitle": "Regenerate title",
       "restore": "Restore",
       "rename": "Rename",
+      "conversationTitle": "Conversation title",
       "delete": "Delete",
       "archiveAll": "Archive all sessions",
       "switchOpen": "Switch to open session",

@@ -103,15 +103,31 @@ describe('VaultFileCache', () => {
       jest.useRealTimers();
     });
 
-    it('should populate cache in background', () => {
+    it.each(['background', 'queued twice', 'foreground first'])('populates files once with %s initialization', ordering => {
       const cache = new VaultFileCache(mockApp);
       cache.initializeInBackground();
 
       expect(mockApp.vault.getFiles).not.toHaveBeenCalled();
+      if (ordering === 'queued twice') cache.initializeInBackground();
+      if (ordering === 'foreground first') cache.getFiles();
 
       jest.runAllTimers();
 
       expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves a dirty foreground cache until the next read after queued initialization', () => {
+      const cache = new VaultFileCache(mockApp);
+      cache.initializeInBackground();
+      expect(cache.getFiles()).toEqual(mockFiles);
+      const changed = [{ path: 'new.md' } as TFile];
+      jest.mocked(mockApp.vault.getFiles).mockReturnValue(changed);
+      cache.markDirty();
+      jest.runAllTimers();
+      expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
+      expect(cache.getFiles()).toEqual(changed);
+      expect(cache.getFiles()).toEqual(changed);
+      expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(2);
     });
 
     it('should not re-initialize if already initialized', () => {
@@ -157,12 +173,17 @@ describe('VaultFileCache', () => {
 
       const cache = new VaultFileCache(mockApp);
       cache.initializeInBackground();
+      cache.initializeInBackground();
       jest.runOnlyPendingTimers();
 
       cache.initializeInBackground();
       jest.runOnlyPendingTimers();
 
       expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
+      jest.mocked(mockApp.vault.getFiles).mockReturnValue(mockFiles);
+      expect(cache.getFiles()).toEqual(mockFiles);
+      expect(cache.getFiles()).toEqual(mockFiles);
+      expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(2);
     });
 
     it('should make cache available after initialization', () => {

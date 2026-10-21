@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export function validateReleaseVersions({ tag, packageVersion, manifestVersion }) {
-  if (typeof tag !== 'string' || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag)) {
+  if (typeof tag !== 'string' || !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)?$/.test(tag)) {
     throw new Error(`Invalid or missing release tag: ${JSON.stringify(tag)}`);
   }
   if (tag !== packageVersion || tag !== manifestVersion) {
