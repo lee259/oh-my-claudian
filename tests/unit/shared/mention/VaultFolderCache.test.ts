@@ -72,7 +72,7 @@ describe('VaultFolderCache', () => {
     expect(getAllLoadedFiles).toHaveBeenCalledTimes(2);
   });
 
-  it('supports lazy background initialization', () => {
+  it.each(['background', 'queued twice', 'foreground first'])('loads folders once with %s initialization', ordering => {
     jest.useFakeTimers();
     const getAllLoadedFiles = jest.fn(() => [createFolder('src')]);
     const app = {
@@ -82,6 +82,8 @@ describe('VaultFolderCache', () => {
 
     cache.initializeInBackground();
     expect(getAllLoadedFiles).not.toHaveBeenCalled();
+    if (ordering === 'queued twice') cache.initializeInBackground();
+    if (ordering === 'foreground first') cache.getFolders();
 
     jest.runOnlyPendingTimers();
     expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
@@ -89,6 +91,21 @@ describe('VaultFolderCache', () => {
     const folders = cache.getFolders().map(folder => folder.path);
     expect(folders).toEqual(['src']);
     expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps folders dirty when a foreground read overtakes background initialization', () => {
+    jest.useFakeTimers();
+    const getAllLoadedFiles = jest.fn(() => [createFolder('src')]);
+    const cache = new VaultFolderCache({ vault: { getAllLoadedFiles } } as any);
+    cache.initializeInBackground();
+    expect(cache.getFolders().map(folder => folder.path)).toEqual(['src']);
+    getAllLoadedFiles.mockReturnValue([createFolder('docs')]);
+    cache.markDirty();
+    jest.runOnlyPendingTimers();
+    expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
+    expect(cache.getFolders().map(folder => folder.path)).toEqual(['docs']);
+    expect(cache.getFolders().map(folder => folder.path)).toEqual(['docs']);
+    expect(getAllLoadedFiles).toHaveBeenCalledTimes(2);
   });
 
   it('returns stale folders if reload fails', () => {
@@ -125,7 +142,7 @@ describe('VaultFolderCache', () => {
 
   it('marks background initialization as attempted after failure', () => {
     jest.useFakeTimers();
-    const getAllLoadedFiles = jest.fn(() => {
+    const getAllLoadedFiles = jest.fn<TFolder[], []>(() => {
       throw new Error('Vault error');
     });
     const app = {
@@ -134,10 +151,15 @@ describe('VaultFolderCache', () => {
     const cache = new VaultFolderCache(app);
 
     cache.initializeInBackground();
+    cache.initializeInBackground();
     jest.runOnlyPendingTimers();
     cache.initializeInBackground();
     jest.runOnlyPendingTimers();
 
     expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
+    getAllLoadedFiles.mockReturnValue([]);
+    expect(cache.getFolders()).toEqual([]);
+    expect(cache.getFolders()).toEqual([]);
+    expect(getAllLoadedFiles).toHaveBeenCalledTimes(2);
   });
 });
