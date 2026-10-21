@@ -48,6 +48,7 @@ export interface OmpAcpSessionKernelOptions {
   readonly onNotification: (notification: AcpSessionNotification) => void;
   readonly onPermissionDenied?: (toolCallId: string) => void;
   readonly plugin: ProviderHost;
+  readonly sessionInstanceId: string;
 }
 
 export interface OmpNativeSessionInfo {
@@ -165,7 +166,7 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       interactionPort: this.options.config.interactionPort,
       onPermissionDenied: this.options.onPermissionDenied,
       presentPermission: presentOmpPermission,
-      sessionInstanceId: 'omp',
+      sessionInstanceId: this.options.sessionInstanceId,
     });
     const connection = new AcpClientConnection({
       clientInfo: {

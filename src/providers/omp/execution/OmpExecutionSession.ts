@@ -232,6 +232,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
           },
           onPermissionDenied: toolCallId => this.blockedToolCallIds.add(toolCallId),
           plugin: this.plugin,
+          sessionInstanceId: this.sessionInstanceId,
         });
         this.kernelApprovalMode = approvalMode;
         this.kernelRoleSelector = role;
