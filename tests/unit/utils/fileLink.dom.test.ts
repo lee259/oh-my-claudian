@@ -26,6 +26,27 @@ function createMockApp(existingFiles: string[], basePath?: string) {
 }
 
 describe('processFileLinks', () => {
+  describe.each(['span', 'code'] as const)('aliases in %s', tag => {
+    it.each([
+      ['[[note.md|Left | Right]]', 'Left | Right', 'note.md'],
+      ['[[note.md#section|Left | Right]]', 'Left | Right', 'note.md#section'],
+      ['[[note.md^block|Left | Right]]', 'Left | Right', 'note.md^block'],
+      ['[[note.md|Trailing |]]', 'Trailing |', 'note.md'],
+    ])('preserves the complete label of %s', (source, label, target) => {
+      const container = document.createElement('div');
+      const content = container.createEl(tag);
+      content.textContent = `Before ${source} after`;
+
+      processFileLinks(createMockApp(['note.md']), container);
+
+      const link = container.querySelector('a.claudian-file-link');
+      expect(link?.textContent).toBe(label);
+      expect(link?.getAttribute('data-href')).toBe(target);
+      expect(link?.getAttribute('href')).toBe(target);
+      expect(container.textContent).toBe(`Before ${label} after`);
+    });
+  });
+
   it('converts Codex file citations into vault links with PDF page anchors', () => {
     const app = createMockApp(['notes/Chapter-2.pdf'], '/vault');
     const container = document.createElement('div');

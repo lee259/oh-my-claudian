@@ -164,7 +164,7 @@ function buildWikilinkMatch(
   linkPath: string,
   index: number
 ): WikilinkMatch {
-  const pipeIndex = fullMatch.lastIndexOf('|');
+  const pipeIndex = fullMatch.indexOf('|');
   const displayText = pipeIndex > 0 ? fullMatch.slice(pipeIndex + 1, -2) : linkPath;
 
   return {
