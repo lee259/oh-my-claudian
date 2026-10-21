@@ -34,6 +34,7 @@ export class ImageContextManager {
   private readonly imagePreviewModal: ImagePreviewModal;
   private destroyed = false;
   private enabled = true;
+  private attachmentGeneration = 0;
 
   constructor(
     containerEl: HTMLElement,
@@ -60,6 +61,7 @@ export class ImageContextManager {
   }
 
   setEnabled(enabled: boolean): void {
+    if (this.enabled !== enabled) this.attachmentGeneration += 1;
     this.enabled = enabled;
     if (!enabled && this.attachedImages.size > 0) {
       this.clearImages();
@@ -75,6 +77,7 @@ export class ImageContextManager {
   }
 
   clearImages() {
+    this.attachmentGeneration += 1;
     this.attachedImages.clear();
     this.updateImagePreview();
     this.callbacks.onImagesChanged?.();
@@ -82,6 +85,7 @@ export class ImageContextManager {
 
   /** Sets images directly (used for queued messages). */
   setImages(images: ImageAttachment[]) {
+    this.attachmentGeneration += 1;
     this.attachedImages.clear();
     for (const image of images) {
       this.attachedImages.set(image.id, image);
@@ -91,6 +95,7 @@ export class ImageContextManager {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
     this.destroyed = true;
     this.imagePreviewModal.close();
     this.contextTray.clearItems('images');
@@ -133,6 +138,7 @@ export class ImageContextManager {
   }
 
   private handleDragEnter(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -142,11 +148,13 @@ export class ImageContextManager {
   }
 
   private handleDragOver(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
   }
 
   private handleDragLeave(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -168,6 +176,7 @@ export class ImageContextManager {
   }
 
   private async handleDrop(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
     this.dropOverlay?.removeClass('visible');
@@ -175,8 +184,9 @@ export class ImageContextManager {
     const files = e.dataTransfer?.files;
     if (!files) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    const generation = this.attachmentGeneration;
+    for (const file of Array.from(files)) {
+      if (this.destroyed || generation !== this.attachmentGeneration) return;
       if (this.isImageFile(file)) {
         await this.addImageFromFile(file, 'drop');
       }
@@ -186,23 +196,32 @@ export class ImageContextManager {
   private setupPasteHandler() {
     // Attachments must consume clipboard images before the editor inserts text.
     this.inputEl.addEventListener('paste', (e) => {
-      void (async (): Promise<void> => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            await this.addImageFromFile(file, 'paste');
-          }
-          return;
-        }
-      }
-      })();
+      void this.handlePaste(e);
     }, { capture: true });
+  }
+
+  private async handlePaste(e: ClipboardEvent): Promise<void> {
+    if (this.destroyed) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Clipboard items are only readable during dispatch, before the first await.
+    const files: File[] = [];
+    let hasImage = false;
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith('image/')) continue;
+      hasImage = true;
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    }
+    if (!hasImage) return;
+    e.preventDefault();
+
+    const generation = this.attachmentGeneration;
+    for (const file of files) {
+      if (this.destroyed || generation !== this.attachmentGeneration) return;
+      await this.addImageFromFile(file, 'paste');
+    }
   }
 
   private isImageFile(file: File): boolean {
@@ -215,6 +234,7 @@ export class ImageContextManager {
   }
 
   private async addImageFromFile(file: File, source: 'paste' | 'drop'): Promise<boolean> {
+    if (this.destroyed) return false;
     if (!this.enabled) {
       new Notice('Image attachments are not supported by this provider.');
       return false;
@@ -231,8 +251,10 @@ export class ImageContextManager {
       return false;
     }
 
+    const generation = this.attachmentGeneration;
     try {
       const base64 = await this.fileToBase64(file);
+      if (this.destroyed || !this.enabled || generation !== this.attachmentGeneration) return false;
 
       const attachment: ImageAttachment = {
         id: this.generateId(),
@@ -249,6 +271,7 @@ export class ImageContextManager {
       this.callbacks.onUserImagesChanged?.();
       return true;
     } catch (error) {
+      if (this.destroyed || !this.enabled || generation !== this.attachmentGeneration) return false;
       this.notifyImageError('Failed to attach image.', error);
       return false;
     }
