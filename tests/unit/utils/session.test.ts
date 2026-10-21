@@ -85,6 +85,15 @@ describe('session utilities', () => {
   });
 
   describe('formatToolCallForContext', () => {
+    it.each([
+      [{ path: 'A'.repeat(99) + '😀tail' }, 'path=' + 'A'.repeat(99) + '...'],
+      [{ path: 'A'.repeat(98) + '😀tail' }, 'path=' + 'A'.repeat(98) + '😀...'],
+      [{ a: 'A'.repeat(100), b: 'B'.repeat(93) + '😀tail' }, 'a=' + 'A'.repeat(100) + ', b=' + 'B'.repeat(93) + '...'],
+    ])('preserves surrogate pairs when truncating tool input (%#)', (input, expected) => {
+      expect(formatToolCallForContext({ id: 'tool-1', name: 'Read', input, status: 'completed' }))
+        .toBe(`[Tool Read input: ${expected} status=completed]`);
+    });
+
     it('formats successful tool call with input but without result', () => {
       const toolCall: ToolCallInfo = {
         id: 'tool-1',
@@ -246,6 +255,16 @@ describe('session utilities', () => {
   });
 
   describe('truncateToolResult', () => {
+    it.each([
+      ['A'.repeat(499) + '😀tail', 500, 'A'.repeat(499) + '... (truncated)'],
+      ['A'.repeat(498) + '😀tail', 500, 'A'.repeat(498) + '😀... (truncated)'],
+      ['A'.repeat(48) + '😀', 50, 'A'.repeat(48) + '😀'],
+      ['A'.repeat(49) + '😀tail', 50, 'A'.repeat(49) + '... (truncated)'],
+      ['A'.repeat(49) + '中tail', 50, 'A'.repeat(49) + '中... (truncated)'],
+    ])('preserves surrogate pairs within the configured result budget (%#)', (input, limit, expected) => {
+      expect(truncateToolResult(input, limit)).toBe(expected);
+    });
+
     it('returns unchanged result when under max length', () => {
       const result = truncateToolResult('short result', 100);
       expect(result).toBe('short result');

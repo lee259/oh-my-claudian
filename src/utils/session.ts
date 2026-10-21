@@ -60,6 +60,14 @@ export function isSessionExpiredError(error: unknown): boolean {
 // History Reconstruction
 // ============================================
 
+function sliceAtCodeUnitLimit(value: string, limit: number): string {
+  const prefix = value.slice(0, limit);
+  if (/[\uD800-\uDBFF]$/.test(prefix) && /^[\uDC00-\uDFFF]/.test(value.slice(limit))) {
+    return prefix.slice(0, -1);
+  }
+  return prefix;
+}
+
 /**
  * Formats tool input for inclusion in rebuilt context.
  * Includes all non-null parameters, truncates long string values.
@@ -74,7 +82,7 @@ function formatToolInput(input: Record<string, unknown>, maxLength = 200): strin
 
       let valueStr: string;
       if (typeof value === 'string') {
-        valueStr = value.length > 100 ? `${value.slice(0, 100)}...` : value;
+        valueStr = value.length > 100 ? `${sliceAtCodeUnitLimit(value, 100)}...` : value;
       } else if (typeof value === 'object') {
         valueStr = '[object]';
       } else if (typeof value === 'function') {
@@ -90,7 +98,7 @@ function formatToolInput(input: Record<string, unknown>, maxLength = 200): strin
     }
 
     const result = parts.join(', ');
-    return result.length > maxLength ? `${result.slice(0, maxLength)}...` : result;
+    return result.length > maxLength ? `${sliceAtCodeUnitLimit(result, maxLength)}...` : result;
   } catch {
     return '[input formatting error]';
   }
@@ -125,7 +133,7 @@ export function formatToolCallForContext(toolCall: ToolCallInfo, maxErrorLength 
 
 export function truncateToolResult(result: string, maxLength = 500): string {
   if (result.length > maxLength) {
-    return `${result.slice(0, maxLength)}... (truncated)`;
+    return `${sliceAtCodeUnitLimit(result, maxLength)}... (truncated)`;
   }
   return result;
 }
