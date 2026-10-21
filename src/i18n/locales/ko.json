@@ -204,6 +204,7 @@
       "regenerateTitle": "제목 다시 생성",
       "restore": "복원",
       "rename": "이름 변경",
+      "conversationTitle": "대화 제목",
       "delete": "삭제",
       "archiveAll": "모든 세션 보관",
       "switchOpen": "열린 세션으로 전환",

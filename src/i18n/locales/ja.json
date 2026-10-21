@@ -204,6 +204,7 @@
       "regenerateTitle": "タイトルを再生成",
       "restore": "復元",
       "rename": "名前を変更",
+      "conversationTitle": "会話のタイトル",
       "delete": "削除",
       "archiveAll": "すべてのセッションをアーカイブ",
       "switchOpen": "開いているセッションに切り替え",
