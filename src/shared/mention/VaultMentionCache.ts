@@ -19,6 +19,7 @@ export class VaultFileCache {
     if (this.isInitialized) return;
 
     window.setTimeout(() => {
+      if (this.isInitialized) return;
       this.tryRefreshFiles();
     }, 0);
   }
@@ -69,6 +70,7 @@ export class VaultFolderCache {
     if (this.isInitialized) return;
 
     window.setTimeout(() => {
+      if (this.isInitialized) return;
       this.tryRefreshFolders();
     }, 0);
   }
