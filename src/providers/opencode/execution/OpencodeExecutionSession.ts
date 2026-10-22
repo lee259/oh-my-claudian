@@ -17,6 +17,7 @@ import {
   type SteerableExecutionSession,
 } from '@/core/execution';
 import { ObsidianWorkspaceToolSession } from '@/core/obsidian/ObsidianWorkspaceToolSession';
+import { computeSystemPromptKey } from '@/core/prompt/mainAgent';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { ChatMessage } from '@/core/types';
 import {
@@ -45,6 +46,7 @@ import {
 } from '../modes';
 import { createOpencodeToolStreamAdapter } from '../normalization/opencodeToolNormalization';
 import { buildOpencodePrompt } from '../runtime/buildOpencodePrompt';
+import { getSystemPromptSettings } from '../runtime/OpencodeExecutionAgents';
 import { ensureOpencodeModelAvailable } from '../runtime/OpencodeModelAvailability';
 import { buildOpencodeRuntimeEnv } from '../runtime/OpencodeRuntimeEnvironment';
 import { getOpencodeProviderSettings } from '../settings';
@@ -366,6 +368,8 @@ export class OpencodeExecutionSession implements ProviderExecutionSession, Steer
         request,
         providerSettings,
         enableObsidianWorkspaceTool,
+        this.plugin,
+        this.config.vaultWorkingDirectory,
       );
       let kernel = this.kernel;
       let native = this.nativeInfo;
@@ -1137,13 +1141,21 @@ function buildKernelConfigurationKey(
   request: ProviderExecutionRequest,
   settings: ReturnType<typeof getOpencodeProviderSettings>,
   enableObsidianWorkspaceTool: boolean,
+  plugin: ProviderHost,
+  vaultWorkingDirectory: string,
 ): string {
   const instructions = request.configuration.systemInstructions;
   return JSON.stringify([
     resolveProfile(request, settings),
     enableObsidianWorkspaceTool,
     instructions.kind,
-    instructions.kind === 'explicit' ? instructions.instructions : null,
+    instructions.kind === 'explicit'
+      ? instructions.instructions
+      : instructions.kind === 'provider-default'
+        ? computeSystemPromptKey(getSystemPromptSettings(plugin, vaultWorkingDirectory), {
+          capabilities: { obsidianVaultTool: enableObsidianWorkspaceTool },
+        })
+        : null,
   ]);
 }
 
