@@ -7,7 +7,7 @@ import { t } from '../../../i18n/i18n';
 import { type FileReference,parseFileReference } from '../../../utils/FileReference';
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
-import { fileNameOnly } from './ToolCallRenderer';
+import { fileNameOnly, getToolName, getToolSummary, makeFileSummaryInteractive as makeToolFileSummaryInteractive } from './ToolCallRenderer';
 
 export interface WriteEditState {
   wrapperEl: HTMLElement;
@@ -20,6 +20,7 @@ export interface WriteEditState {
   toolCall: ToolCallInfo;
   isExpanded: boolean;
   diffLines?: DiffLine[];
+  refreshHeader: () => void;
 }
 
 export interface WriteEditRenderOptions {
@@ -32,25 +33,8 @@ function makeFileSummaryInteractive(
   filePath: string,
   onOpenFile: ((fileReference: FileReference) => void) | undefined,
 ): void {
-  if (!onOpenFile || !filePath || filePath === 'file') return;
-
-  summaryEl.addClass('claudian-tool-file-link');
-  summaryEl.setAttribute('role', 'link');
-  summaryEl.setAttribute('tabindex', '0');
-  const fileReference = parseFileReference(filePath);
-  summaryEl.setAttribute('title', `Open ${fileReference.path}`);
-  const open = (event: Event) => {
-    event.stopPropagation();
-    onOpenFile(fileReference);
-  };
-  summaryEl.addEventListener('click', open);
-  summaryEl.addEventListener('keydown', (event) => {
-    const keyboardEvent = event;
-    if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-      keyboardEvent.preventDefault();
-      open(event);
-    }
-  });
+  const reference = filePath && filePath !== 'file' ? parseFileReference(filePath) : undefined;
+  makeToolFileSummaryInteractive(summaryEl, reference, onOpenFile);
 }
 
 function shortenPath(filePath: string, maxLength = 40): string {
@@ -83,7 +67,6 @@ export function createWriteEditBlock(
 ): WriteEditState {
   const filePath = (toolCall.input.file_path as string) || 'file';
   const toolName = toolCall.name; // 'Write' or 'Edit'
-  const baseAriaLabel = `${toolName}: ${shortenPath(filePath)}`;
 
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-write-edit-block' });
   wrapperEl.dataset.toolId = toolCall.id;
@@ -129,12 +112,21 @@ export function createWriteEditBlock(
     statusEl,
     toolCall,
     isExpanded: false,
+    refreshHeader: () => {
+      const tool = state.toolCall;
+      const currentPath = (tool.input.file_path as string) || 'file';
+      nameEl.setText(getToolName(tool.name, tool.input, tool.presentation));
+      summaryEl.setText(getToolSummary(tool.name, tool.input, tool.presentation));
+      makeFileSummaryInteractive(summaryEl, currentPath, options.onOpenFile);
+      headerEl.setAttribute('aria-label', `${getAriaLabel()} - click to ${state.isExpanded ? 'collapse' : 'expand'}`);
+    },
   };
+  const getAriaLabel = () => `${state.toolCall.name}: ${shortenPath((state.toolCall.input.file_path as string) || 'file')}`;
 
   // Setup collapsible behavior (handles click, keyboard, ARIA, CSS)
   setupCollapsible(wrapperEl, headerEl, contentEl, state, {
     initiallyExpanded: options.initiallyExpanded ?? false,
-    baseAriaLabel,
+    baseAriaLabel: getAriaLabel,
   });
 
   return state;

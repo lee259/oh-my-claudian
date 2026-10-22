@@ -80,6 +80,7 @@ import {
 import {
   getToolName,
   getToolSummary,
+  refreshToolCallHeader,
   renderToolCall,
   updateToolCallResult,
 } from '../rendering/ToolCallRenderer';
@@ -581,16 +582,9 @@ export class StreamController {
         // If already rendered, update the header name + summary
         const toolEl = rendererRebuilt ? null : state.toolCallElements.get(chunk.id);
         if (toolEl) {
-          const nameEl = toolEl.querySelector('.claudian-tool-name')
-            ?? toolEl.querySelector('.claudian-write-edit-name');
-          if (nameEl) {
-            nameEl.setText(getToolName(existingToolCall.name, existingToolCall.input, existingToolCall.presentation));
-          }
-          const summaryEl = toolEl.querySelector('.claudian-tool-summary')
-            ?? toolEl.querySelector('.claudian-write-edit-summary');
-          if (summaryEl) {
-            summaryEl.setText(getToolSummary(existingToolCall.name, existingToolCall.input, existingToolCall.presentation));
-          }
+          const writeEditState = state.writeEditStates.get(chunk.id);
+          if (writeEditState) writeEditState.refreshHeader();
+          else refreshToolCallHeader(toolEl, existingToolCall);
         }
         // If still pending, the updated input is already in the toolCall object
       }

@@ -12,7 +12,7 @@ export interface CollapsibleOptions {
   /** Callback when state changes */
   onToggle?: (isExpanded: boolean) => void;
   /** Base label for aria-label (will append "click to expand/collapse") */
-  baseAriaLabel?: string;
+  baseAriaLabel?: string | (() => string);
 }
 
 const contentAnimations = new WeakMap<HTMLElement, Animation>();
@@ -84,9 +84,10 @@ export function setupCollapsible(
 
   // Helper to update aria-label based on expanded state
   const updateAriaLabel = (isExpanded: boolean) => {
-    if (baseAriaLabel) {
+    const label = typeof baseAriaLabel === 'function' ? baseAriaLabel() : baseAriaLabel;
+    if (label) {
       const action = isExpanded ? 'click to collapse' : 'click to expand';
-      headerEl.setAttribute('aria-label', `${baseAriaLabel} - ${action}`);
+      headerEl.setAttribute('aria-label', `${label} - ${action}`);
     }
   };
 

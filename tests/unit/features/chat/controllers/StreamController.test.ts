@@ -63,6 +63,7 @@ jest.mock('@/features/chat/rendering/ToolCallRenderer', () => ({
   getToolName: jest.fn().mockReturnValue('Read'),
   getToolSummary: jest.fn().mockReturnValue('file.md'),
   renderToolCall: jest.fn(),
+  refreshToolCallHeader: jest.fn(),
   updateToolCallResult: jest.fn(),
 }));
 
@@ -3475,7 +3476,7 @@ describe('StreamController - Text Content', () => {
     });
 
     it('second tool_use with same id updates existing tool input and header', async () => {
-      const { getToolName, getToolSummary } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
+      const { refreshToolCallHeader } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
 
@@ -3488,17 +3489,10 @@ describe('StreamController - Text Content', () => {
       // Flush the tool so it transitions from pending to rendered
       await controller.handleStreamChunk({ type: 'done' }, msg);
 
-      // Manually set up a rendered tool element with name + summary children
-      // (the mock renderToolCall doesn't actually populate toolCallElements)
+      // The renderer is mocked here; real card behavior is covered by the DOM integration suite.
       const toolEl = createMockEl();
-      const nameChild = toolEl.createDiv({ cls: 'claudian-tool-name' });
-      nameChild.setText('Read');
-      const summaryChild = toolEl.createDiv({ cls: 'claudian-tool-summary' });
-      summaryChild.setText('test.md');
       deps.state.toolCallElements.set('read-1', toolEl);
 
-      getToolName.mockReturnValueOnce('Read');
-      getToolSummary.mockReturnValueOnce('updated.md');
 
       // Second tool_use with same id - should update input and header
       await controller.handleStreamChunk(
@@ -3510,16 +3504,11 @@ describe('StreamController - Text Content', () => {
       expect(msg.toolCalls![0].input).toEqual(
         expect.objectContaining({ file_path: 'updated.md' })
       );
-      // getToolName/getToolSummary should have been called with updated input
-      expect(getToolName).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }), undefined);
-      expect(getToolSummary).toHaveBeenCalledWith('Read', expect.objectContaining({ file_path: 'updated.md' }), undefined);
-      // Header texts should be updated
-      expect(nameChild.textContent).toBe('Read');
-      expect(summaryChild.textContent).toBe('updated.md');
+      expect(refreshToolCallHeader).toHaveBeenCalledWith(toolEl, msg.toolCalls![0]);
     });
 
     it('refreshes a rendered header for a title-only name refinement', async () => {
-      const { getToolName, getToolSummary } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
+      const { refreshToolCallHeader } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();
 
@@ -3530,11 +3519,7 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'done' }, msg);
 
       const toolEl = createMockEl();
-      const nameChild = toolEl.createDiv({ cls: 'claudian-tool-name' });
-      const summaryChild = toolEl.createDiv({ cls: 'claudian-tool-summary' });
       deps.state.toolCallElements.set('title-only', toolEl);
-      getToolName.mockReturnValueOnce('Read');
-      getToolSummary.mockReturnValueOnce('');
 
       await controller.handleStreamChunk(
         { type: 'tool_use', id: 'title-only', name: 'Read', input: {} },
@@ -3542,10 +3527,7 @@ describe('StreamController - Text Content', () => {
       );
 
       expect(msg.toolCalls![0].name).toBe('Read');
-      expect(getToolName).toHaveBeenCalledWith('Read', {}, undefined);
-      expect(getToolSummary).toHaveBeenCalledWith('Read', {}, undefined);
-      expect(nameChild.textContent).toBe('Read');
-      expect(summaryChild.textContent).toBe('');
+      expect(refreshToolCallHeader).toHaveBeenCalledWith(toolEl, msg.toolCalls![0]);
     });
   });
 
