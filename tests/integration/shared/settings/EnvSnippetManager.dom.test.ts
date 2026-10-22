@@ -115,6 +115,55 @@ function createHarness(usePreactView: boolean, action: 'save' | 'update', fail: 
   return { container, persist, saved, settings };
 }
 
+function createButtonTypeHarness(usePreactView: boolean) {
+  const saved: EnvSnippet = {
+    id: 'saved', name: 'Saved configuration', description: '', envVars: 'DEMO_KEY=value', scope: 'shared',
+  };
+  const settings = { envSnippets: [saved], customContextLimits: {}, customModelAliases: {} };
+  const host = {
+    app: {},
+    settings,
+    getEnvironmentVariablesForScope: () => saved.envVars,
+  } as unknown as ProviderHost;
+  const container = document.body.createDiv();
+  managers.push(new EnvSnippetManager(container, host, 'shared', undefined, { usePreactView }));
+  return container;
+}
+
+it('declares legacy snippet list actions as non-submit buttons', () => {
+  const container = createButtonTypeHarness(false);
+  const buttons = [
+    within(container).getByRole('button', { name: t('settings.envSnippets.addBtn') }),
+    within(container).getByRole('button', { name: t('settings.envSnippets.insertBtn') }),
+    within(container).getByRole('button', { name: t('settings.envSnippets.editBtn') }),
+    within(container).getByRole('button', { name: t('settings.envSnippets.deleteBtn') }),
+  ];
+
+  for (const button of buttons) expect(button.getAttribute('type')).toBe('button');
+});
+
+it.each([false, true])('declares snippet modal actions as non-submit buttons (Preact: %s)', usePreactView => {
+  const container = createButtonTypeHarness(usePreactView);
+  fireEvent.click(within(container).getByRole('button', { name: t('settings.envSnippets.addBtn') }));
+  let dialog = within(document.body).getByRole('dialog');
+
+  expect(within(dialog).getByRole('button', { name: t('settings.envSnippets.modal.cancel') }).getAttribute('type'))
+    .toBe('button');
+  expect(within(dialog).getByRole('button', { name: t('settings.envSnippets.modal.save') }).getAttribute('type'))
+    .toBe('button');
+
+  fireEvent.click(within(dialog).getByRole('button', { name: t('settings.envSnippets.modal.cancel') }));
+  fireEvent.click(within(container).getByRole('button', {
+    name: new RegExp(`^${t('settings.envSnippets.editBtn')}`),
+  }));
+  dialog = within(document.body).getByRole('dialog');
+
+  expect(within(dialog).getByRole('button', { name: t('settings.envSnippets.modal.cancel') }).getAttribute('type'))
+    .toBe('button');
+  expect(within(dialog).getByRole('button', { name: t('settings.envSnippets.modal.update') }).getAttribute('type'))
+    .toBe('button');
+});
+
 describe.each([false, true])('environment snippet persistence (Preact: %s)', usePreactView => {
   it.each(['save', 'update'] as const)('reports a failed %s without publishing success or exposing environment data', async action => {
     const { container, persist, saved, settings } = createHarness(usePreactView, action, true);
