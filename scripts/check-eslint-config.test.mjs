@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
 
@@ -52,11 +54,12 @@ test('OMP role resolution uses timers without disabling Obsidian lint rules', as
   assert.deepEqual(results.flatMap(result => result.messages), []);
 });
 
-test('source compatibility boundaries avoid deprecated API references', async () => {
-  const eslint = new ESLint({ overrideConfig: {
-    rules: { '@typescript-eslint/no-deprecated': 'error' },
-  } });
-  const results = await eslint.lintFiles([
+test('source compatibility boundaries avoid deprecated API references', () => {
+  // CI single-run parsing treats repeated files as autofix passes and drops
+  // imported types. Keep this second source scan in a fresh parser process.
+  const eslintCli = fileURLToPath(new URL('../node_modules/eslint/bin/eslint.js', import.meta.url));
+  const result = spawnSync(process.execPath, [
+    eslintCli,
     'src/app/obsidian/ObsidianWorkspaceToolBridgeServer.ts',
     'src/features/chat/rendering/MessageRenderer.ts',
     'src/features/chat/rendering/WelcomeRenderer.ts',
@@ -69,10 +72,9 @@ test('source compatibility boundaries avoid deprecated API references', async ()
     'src/shared/mention/MentionDropdownController.ts',
     'src/shared/modals/ConfirmModal.ts',
     'src/shared/settings/SettingsTabBar.tsx',
-  ]);
-  const messages = results.flatMap(result => result.messages)
-    .filter(message => message.ruleId === '@typescript-eslint/no-deprecated');
-  assert.deepEqual(messages, []);
+    '--rule', '@typescript-eslint/no-deprecated:error',
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.error?.message ?? `${result.stdout}${result.stderr}`);
 });
 
 // ESLint hands the rule an absolute path using the host platform's separator, so the
