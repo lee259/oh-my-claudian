@@ -1497,8 +1497,8 @@ export class MessageRenderer {
     if (fold && foldedElements.length > 0 && statusEl) {
       const workId = `claudian-streaming-work-${MessageRenderer.nextCompletedWorkId++}`;
       statusEl.addClass('claudian-streaming-work-fold');
-      // The live turn is an always-visible status surface. Only settled turns
-      // expose an outer disclosure; individual activity phases remain interactive.
+      // Keep the ordered rail visible while leaving each activity phase
+      // independently collapsible.
       const headerEl = statusEl.querySelector<HTMLElement>('.claudian-streaming-work-header')
         ?? statusEl.createDiv({ cls: 'claudian-streaming-work-header' });
       const labelEl = statusEl.querySelector<HTMLElement>('.claudian-completed-work-label');
@@ -1613,13 +1613,9 @@ export class MessageRenderer {
     if (msg?.modelName) workEl.dataset.modelName = msg.modelName;
     if (summary.errorCount > 0) workEl.addClass('has-errors');
     if (!statusEl) contentEl.insertBefore(workEl, insertBeforeEl ?? workEls[0]);
-    // Keep the settled turn header visible and let the user open the ordered
-    // progress rail. The error marker remains visible in the header while the
-    // detailed phase expands automatically when the user opens the turn.
-    const isExpanded = Boolean(msg && timeline?.some((segment) =>
-      segment.type === 'phase'
-      && this.activityPhaseOverrides.get(`${msg.id}:${segment.id}`) === true
-    ));
+    // Keep narration and the activity rail visible. Individual phases remain
+    // collapsed, so conclusions stay readable without hiding the whole turn.
+    const isExpanded = true;
     const headerSummary = { actionCount: 0, errorCount: 0 };
     const headerEl = workEl.createEl('button', {
       cls: 'claudian-completed-work-header',
