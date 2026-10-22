@@ -911,6 +911,24 @@ describe('OpencodeExecutionBackend', () => {
     ]);
   });
 
+  it('reconnects and resumes when the rendered provider-default prompt changes', async () => {
+    const harness = createHarness();
+    const execute = async (expectedKernelCount: number): Promise<void> => {
+      const run = harness.session.execute(createRequest());
+      await waitForCondition(() => harness.kernels.length === expectedKernelCount);
+      const kernel = harness.kernels[expectedKernelCount - 1];
+      await waitForPrompt(kernel);
+      kernel.completePrompt();
+      await collect(run.events);
+    };
+
+    await execute(1);
+    plugin.settings.systemPrompt = 'Use the current project conventions.';
+    await execute(2);
+
+    expect(harness.kernels[1].openedResumeIds).toEqual(['native-session']);
+  });
+
   it.each([
     ['ephemeral', 'provider-default', undefined, ':memory:'],
     ['persistent', 'provider-default', '/persisted/opencode.db', '/persisted/opencode.db'],
