@@ -24,6 +24,57 @@ test('TypeScript promise rejections require Error reasons', async () => {
   ]);
 });
 
+test('TSX components use the same typed safety checks as TypeScript source', async () => {
+  const eslint = new ESLint();
+  const config = await eslint.calculateConfigForFile('src/features/chat/ui/ModelSelectorView.tsx');
+
+  assert.equal(config.rules['@typescript-eslint/no-misused-promises']?.[0], 2);
+  assert.equal(config.rules['@typescript-eslint/unbound-method']?.[0], 2);
+  assert.equal(config.rules['@typescript-eslint/no-unsafe-member-access']?.[0], 2);
+});
+
+test('dynamic editor decorations and Cursor catalogs have no unsafe member access', async () => {
+  const eslint = new ESLint({ overrideConfig: {
+    rules: { '@typescript-eslint/no-unsafe-member-access': 'error' },
+  } });
+  const results = await eslint.lintFiles([
+    'src/features/chat/ui/ComposerEditor.ts',
+    'src/providers/cursor/models.ts',
+  ]);
+  const messages = results.flatMap(result => result.messages)
+    .filter(message => message.ruleId === '@typescript-eslint/no-unsafe-member-access');
+  assert.deepEqual(messages, []);
+});
+
+test('OMP role resolution uses timers without disabling Obsidian lint rules', async () => {
+  const eslint = new ESLint({ overrideConfig: { linterOptions: { noInlineConfig: true } } });
+  const results = await eslint.lintFiles(['src/providers/omp/metadata/OmpModelDiscoveryService.ts']);
+  assert.deepEqual(results.flatMap(result => result.messages), []);
+});
+
+test('source compatibility boundaries avoid deprecated API references', async () => {
+  const eslint = new ESLint({ overrideConfig: {
+    rules: { '@typescript-eslint/no-deprecated': 'error' },
+  } });
+  const results = await eslint.lintFiles([
+    'src/app/obsidian/ObsidianWorkspaceToolBridgeServer.ts',
+    'src/features/chat/rendering/MessageRenderer.ts',
+    'src/features/chat/rendering/WelcomeRenderer.ts',
+    'src/features/chat/tabs/Tab.ts',
+    'src/features/chat/tabs/TabBar.ts',
+    'src/features/chat/ui/ComposerEditor.ts',
+    'src/features/settings/ClaudianSettings.ts',
+    'src/shared/components/SelectableDropdown.ts',
+    'src/shared/components/SelectableDropdownView.tsx',
+    'src/shared/mention/MentionDropdownController.ts',
+    'src/shared/modals/ConfirmModal.ts',
+    'src/shared/settings/SettingsTabBar.tsx',
+  ]);
+  const messages = results.flatMap(result => result.messages)
+    .filter(message => message.ruleId === '@typescript-eslint/no-deprecated');
+  assert.deepEqual(messages, []);
+});
+
 // ESLint hands the rule an absolute path using the host platform's separator, so the
 // basename has to be taken from either separator. Windows paths are used here on every
 // platform on purpose: they are what regressed, and CI only runs Linux.

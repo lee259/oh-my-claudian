@@ -1,7 +1,7 @@
 import { ObsidianIcon } from '../../../shared/ui/ObsidianIcon';
 import {
-  PermissionModeMenuView,
   type PermissionModeMenuOption,
+  PermissionModeMenuView,
 } from './PermissionModeMenuView';
 
 export type InputToolbarSlot =

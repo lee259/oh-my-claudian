@@ -2,6 +2,7 @@ import { createMockEl } from '@test/helpers/MockElement';
 
 let lastModalInstance: any;
 let createdButtons: any[] = [];
+let supportsDestructive = true;
 
 jest.mock('obsidian', () => {
   const actual = jest.requireActual('obsidian');
@@ -46,6 +47,7 @@ jest.mock('obsidian', () => {
         _onClick: null as null | (() => void),
         setButtonText: jest.fn().mockReturnThis(),
         setWarning: jest.fn().mockReturnThis(),
+        ...(supportsDestructive ? { setDestructive: jest.fn().mockReturnThis() } : {}),
         onClick: jest.fn((handler: () => void) => {
           btn._onClick = handler;
           return btn;
@@ -69,6 +71,7 @@ import { confirm, confirmDelete } from '@/shared/modals/ConfirmModal';
 beforeEach(() => {
   lastModalInstance = null;
   createdButtons = [];
+  supportsDestructive = true;
 });
 
 describe('ConfirmModal', () => {
@@ -81,10 +84,20 @@ describe('ConfirmModal', () => {
     expect(createdButtons).toHaveLength(2);
 
     const confirmBtn = createdButtons[1];
+    expect(confirmBtn.setDestructive).toHaveBeenCalledTimes(1);
+    expect(confirmBtn.setWarning).not.toHaveBeenCalled();
     confirmBtn._onClick();
 
     await expect(p).resolves.toBe(true);
     expect(lastModalInstance.contentEl.children).toHaveLength(0);
+  });
+
+  it('keeps destructive styling on Obsidian versions before setDestructive', async () => {
+    supportsDestructive = false;
+    const pending = confirmDelete(mockApp, 'Delete note?');
+    expect(createdButtons[1].setWarning).toHaveBeenCalledTimes(1);
+    createdButtons[1]._onClick();
+    await expect(pending).resolves.toBe(true);
   });
 
   it('confirmDelete resolves false when closed without confirming', async () => {

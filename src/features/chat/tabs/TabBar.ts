@@ -4,6 +4,11 @@ import type { TabBarItem, TabId } from './types';
 const EXPANDED_TITLE_MAX_LENGTH = 32;
 const TRUNCATED_TITLE_SUFFIX = '...';
 
+/** Normalize the optional legacy integration field at the presentation boundary. */
+function isTabWorking(item: { isWorking: boolean; isStreaming?: boolean }): boolean {
+  return item.isWorking || item.isStreaming === true;
+}
+
 /** Callbacks for TabBar interactions. */
 export interface TabBarCallbacks {
   /** Called when a tab badge is clicked. */
@@ -91,7 +96,7 @@ export class TabBar {
       stateClass = item.attention?.outcome === 'error'
         ? 'claudian-tab-badge-review-error'
         : 'claudian-tab-badge-attention';
-    } else if (item.isWorking || item.isStreaming) {
+    } else if (isTabWorking(item)) {
       stateClass = 'claudian-tab-badge-streaming';
     }
 

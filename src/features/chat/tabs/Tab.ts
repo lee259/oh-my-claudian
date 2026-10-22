@@ -1821,25 +1821,30 @@ async function handleForkAll(
   });
 }
 
-export function initializeTabRuntimeControllers(
-  tab: TabData,
-  plugin: FeatureHost,
-  component: Component,
-  forkRequestCallback?: (forkContext: ForkContext) => Promise<void>,
-  openConversation?: (conversationId: string) => Promise<void>,
-  getProviderCatalogConfig?: () => ProviderCatalogInfo,
-): void;
-/** @deprecated Legacy 7-arg overload — 4th arg was previously an MCP manager. */
-export function initializeTabRuntimeControllers(
-  tab: TabData,
-  plugin: FeatureHost,
-  component: Component,
-  _legacyArg: unknown,
-  forkRequestCallback?: (forkContext: ForkContext) => Promise<void>,
-  openConversation?: (conversationId: string) => Promise<void>,
-  getProviderCatalogConfig?: () => ProviderCatalogInfo,
-): void;
-export function initializeTabRuntimeControllers(
+interface TabControllerInitializer {
+  (
+    tab: TabData,
+    plugin: FeatureHost,
+    component: Component,
+    forkRequestCallback?: (forkContext: ForkContext) => Promise<void>,
+    openConversation?: (conversationId: string) => Promise<void>,
+    getProviderCatalogConfig?: () => ProviderCatalogInfo,
+  ): void;
+  /** @deprecated Legacy 7-arg overload — 4th arg was previously an MCP manager. */
+  (
+    tab: TabData,
+    plugin: FeatureHost,
+    component: Component,
+    _legacyArg: unknown,
+    forkRequestCallback?: (forkContext: ForkContext) => Promise<void>,
+    openConversation?: (conversationId: string) => Promise<void>,
+    getProviderCatalogConfig?: () => ProviderCatalogInfo,
+  ): void;
+}
+
+export const initializeTabRuntimeControllers: TabControllerInitializer = initializeTabRuntimeControllersImpl;
+
+function initializeTabRuntimeControllersImpl(
   tab: TabData,
   plugin: FeatureHost,
   component: Component,
@@ -2087,7 +2092,7 @@ export function initializeTabRuntimeControllers(
 }
 
 /** @deprecated Use initializeTabRuntimeControllers. */
-export const initializeTabControllers = initializeTabRuntimeControllers;
+export const initializeTabControllers: TabControllerInitializer = initializeTabRuntimeControllersImpl;
 
 /**
  * Wires up input event handlers for a tab.

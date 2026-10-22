@@ -215,6 +215,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.renderSettings();
+  }
+
+  private renderSettings(): void {
     this.disposeCliUpdates?.();
     this.disposeCliUpdates = null;
     const displayGeneration = ++this.displayGeneration;
@@ -514,7 +518,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             view.refreshComposerLocale();
           }
         }
-        this.display();
+        this.renderSettings();
       },
     }));
 
@@ -706,7 +710,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
         await this.plugin.mutateSettings((settings) => {
           settings.enableAutoTitleGeneration = value;
         });
-        this.display();
+        this.renderSettings();
       },
     }));
 

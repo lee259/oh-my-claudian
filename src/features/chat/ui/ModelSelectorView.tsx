@@ -121,6 +121,8 @@ export function ModelSelectorView({
   useEffect(() => {
     if (!open) return;
     const root = rootRef.current;
+    if (!root) return;
+    const ownerDocument = root.ownerDocument;
     if (openFromKeyboardRef.current) {
       const selectedOption = root?.querySelector<HTMLButtonElement>('.claudian-model-option[aria-pressed="true"]');
       (selectedOption ?? root?.querySelector<HTMLButtonElement>('.claudian-model-option'))?.focus();
@@ -139,11 +141,11 @@ export function ModelSelectorView({
       setOpen(false);
       triggerRef.current?.focus();
     };
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    document.addEventListener('keydown', handleKeydown, true);
+    ownerDocument.addEventListener('pointerdown', handlePointerDown, true);
+    ownerDocument.addEventListener('keydown', handleKeydown, true);
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true);
-      document.removeEventListener('keydown', handleKeydown, true);
+      ownerDocument.removeEventListener('pointerdown', handlePointerDown, true);
+      ownerDocument.removeEventListener('keydown', handleKeydown, true);
     };
   }, [open]);
 
@@ -395,17 +397,19 @@ export function ModelSelectorView({
                           type="range"
                           value={String(selectedIndex)}
                           onInput={updateReasoningPreview}
-                          onChange={async (event) => {
+                          onChange={(event) => {
                             const index = Number(event.currentTarget.value);
                             const option = reasoningOptions[index];
                             if (!option) return;
                             const interaction = ++reasoningInteractionRef.current;
                             setReasoningPreviewIndex(index);
-                            try {
-                              await onReasoningChange(option.value);
-                            } finally {
-                              if (reasoningInteractionRef.current === interaction) setReasoningPreviewIndex(null);
-                            }
+                            void (async () => {
+                              try {
+                                await onReasoningChange(option.value);
+                              } finally {
+                                if (reasoningInteractionRef.current === interaction) setReasoningPreviewIndex(null);
+                              }
+                            })();
                           }}
                         />
                       </div>

@@ -2,6 +2,12 @@ import { type App, Modal, Setting } from 'obsidian';
 
 import { t } from '../../i18n/i18n';
 
+// setDestructive was added in 1.13.0; older supported hosts still use setWarning.
+function styleDestructiveButton(button: { setDestructive?: () => unknown; setWarning: () => unknown }): void {
+  if (button.setDestructive) button.setDestructive();
+  else button.setWarning();
+}
+
 export function confirmDelete(app: App, message: string): Promise<boolean> {
   return new Promise(resolve => {
     new ConfirmModal(app, message, resolve).open();
@@ -39,16 +45,16 @@ class ConfirmModal extends Modal {
           .setButtonText(t('common.cancel'))
           .onClick(() => this.close())
       )
-      .addButton(btn =>
+      .addButton(btn => {
+        styleDestructiveButton(btn);
         btn
           .setButtonText(this.confirmText)
-          .setWarning()
           .onClick(() => {
             this.resolved = true;
             this.resolve(true);
             this.close();
-          })
-      );
+          });
+      });
   }
 
   onClose() {

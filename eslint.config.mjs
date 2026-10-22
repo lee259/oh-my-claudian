@@ -29,7 +29,7 @@ export const fileNamingRule = {
   create(context) {
     const filename = context.physicalFilename ?? context.filename;
     const base = filename.split(/[\\/]/).pop() ?? '';
-    if (!base.endsWith('.ts')) return {};
+    if (!base.endsWith('.ts') && !base.endsWith('.tsx')) return {};
     const first = base.split('.')[0];
     if (first === 'index' || first === 'types') return {};
     const isCamel = /^[a-z][a-zA-Z0-9]*$/.test(first);
@@ -123,7 +123,7 @@ export default defineConfig([
   },
   ...tseslint.configs['flat/recommended'],
   {
-    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
     plugins: {
       'simple-import-sort': simpleImportSort,
       local: localPlugin,
@@ -145,7 +145,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: {
         project: './tsconfig.json',
@@ -163,6 +163,7 @@ export default defineConfig([
         { selector: 'default', format: ['camelCase'], leadingUnderscore: 'allow', trailingUnderscore: 'allow' },
         { selector: 'variable', format: ['camelCase', 'UPPER_CASE', 'PascalCase'], leadingUnderscore: 'allow' },
         { selector: 'typeLike', format: ['PascalCase'] },
+        { selector: 'function', format: ['camelCase', 'PascalCase'] },
         { selector: 'enumMember', format: ['PascalCase'] },
         { selector: 'classProperty', format: ['camelCase', 'UPPER_CASE'], leadingUnderscore: 'allow', trailingUnderscore: 'allow' },
         { selector: 'import', format: ['camelCase', 'PascalCase'] },
@@ -175,12 +176,13 @@ export default defineConfig([
       '@typescript-eslint/no-unsafe-argument': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'error',
       '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       '@typescript-eslint/unbound-method': 'error',
     },
   },
   {
-    files: ['tests/**/*.ts'],
+    files: ['tests/**/*.{ts,tsx}'],
     ...jestRecommended,
     rules: {
       ...jestRecommended.rules,

@@ -1,7 +1,7 @@
-import { ProviderCliOperationReply } from './ProviderCliOperationReply';
 import type { CliVersionInfo } from '../../core/providers/cli/CliProviderMetadata';
 import type { ProviderCliOperation } from '../../core/providers/cli/ProviderCliLifecycle';
 import { t } from '../../i18n/i18n';
+import { ProviderCliOperationReply } from './ProviderCliOperationReply';
 
 export type CliLifecycleAction = 'install' | 'update' | 'check' | null;
 

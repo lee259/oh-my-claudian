@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { KeyboardEventHandler } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 
 export interface SettingsTabDefinition {
@@ -45,13 +45,13 @@ export function SettingsTabBar({
     }
   };
 
-  const handleKeyDown: JSX.KeyboardEventHandler<HTMLButtonElement> = event => {
+  const handleKeyDown: KeyboardEventHandler<HTMLButtonElement> = event => {
     const currentIndex = tabs.findIndex(tab => tab.id === activeTabId);
     if (currentIndex < 0) {
       return;
     }
 
-    let nextIndex: number | null = null;
+    let nextIndex: number;
     switch (event.key) {
       case 'ArrowRight':
       case 'ArrowDown':

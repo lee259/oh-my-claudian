@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { MouseEventHandler } from 'preact';
 
 export interface SelectableDropdownViewProps<T> {
   items: T[];
@@ -48,7 +48,7 @@ export function SelectableDropdownView<T>({
       renderItem(item, itemEl);
     };
 
-    const handleClick: JSX.MouseEventHandler<HTMLDivElement> = event => {
+    const handleClick: MouseEventHandler<HTMLDivElement> = event => {
       onItemClick?.(item, index, event);
     };
 

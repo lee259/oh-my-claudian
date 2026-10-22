@@ -74,9 +74,11 @@ export function attachCursorReasoningCatalog(
     const entry = entries.find(value => value && typeof value === 'object'
       && (value as Record<string, unknown>).value === baseId) as Record<string, unknown> | undefined;
     if (!entry || !Array.isArray(entry.configOptions)) return model;
-    const candidates = entry.configOptions.filter((value): value is Record<string, unknown> => Boolean(
-      value && typeof value === 'object' && value.type === 'select' && value.category === 'thought_level',
-    ));
+    const candidates = (entry.configOptions as unknown[]).filter((value): value is Record<string, unknown> => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+      const record = value as Record<string, unknown>;
+      return record.type === 'select' && record.category === 'thought_level';
+    });
     // Prefer effort over a separate thinking on/off switch when both exist.
     const option = candidates.find(value => value.id !== 'thinking') ?? candidates[0];
     if (!option || !Array.isArray(option.options)) return { ...model, reasoning: null };

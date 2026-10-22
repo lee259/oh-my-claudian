@@ -3,6 +3,7 @@ import { setIcon } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+import { isImeKeyEvent } from '@/utils/keyboard';
 
 import { buildExternalContextDisplayEntries } from '../../utils/externalContext';
 import { type ExternalContextFile, externalContextScanner } from '../../utils/externalContextScanner';
@@ -218,7 +219,7 @@ export class MentionDropdownController {
   }
 
   handleKeydown(e: KeyboardEvent): boolean {
-    if (this.composing || e.isComposing || e.keyCode === 229) return false;
+    if (this.composing || isImeKeyEvent(e)) return false;
     if (e.ctrlKey || e.metaKey || e.altKey) return false;
     if (e.shiftKey && (e.key === 'Tab' || e.key === 'Enter')) {
       this.hide();
