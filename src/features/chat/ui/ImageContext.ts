@@ -9,6 +9,7 @@ import { ComposerContextTray } from './ComposerContextTray';
 import { ImagePreviewModal } from './ImagePreviewModal';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const UNSUPPORTED_PROVIDER_NOTICE = 'Image attachments are not supported by this provider.';
 
 const IMAGE_EXTENSIONS: Record<string, ImageMediaType> = {
   '.jpg': 'image/jpeg',
@@ -183,9 +184,14 @@ export class ImageContextManager {
 
     const files = e.dataTransfer?.files;
     if (!files) return;
+    const batch = Array.from(files);
+    if (!this.enabled && batch.some(file => this.isImageFile(file))) {
+      new Notice(UNSUPPORTED_PROVIDER_NOTICE);
+      return;
+    }
 
     const generation = this.attachmentGeneration;
-    for (const file of Array.from(files)) {
+    for (const file of batch) {
       if (this.destroyed || generation !== this.attachmentGeneration) return;
       if (this.isImageFile(file)) {
         await this.addImageFromFile(file, 'drop');
@@ -216,6 +222,10 @@ export class ImageContextManager {
     }
     if (!hasImage) return;
     e.preventDefault();
+    if (!this.enabled && files.length > 0) {
+      new Notice(UNSUPPORTED_PROVIDER_NOTICE);
+      return;
+    }
 
     const generation = this.attachmentGeneration;
     for (const file of files) {
@@ -236,7 +246,7 @@ export class ImageContextManager {
   private async addImageFromFile(file: File, source: 'paste' | 'drop'): Promise<boolean> {
     if (this.destroyed) return false;
     if (!this.enabled) {
-      new Notice('Image attachments are not supported by this provider.');
+      new Notice(UNSUPPORTED_PROVIDER_NOTICE);
       return false;
     }
 
