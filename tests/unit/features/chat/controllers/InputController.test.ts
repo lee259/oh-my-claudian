@@ -15,6 +15,7 @@ import {
 } from '@/features/chat/execution/ChatExecutionCoordinator';
 import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
 import { ChatState } from '@/features/chat/state/ChatState';
+import type { AsyncQuestionInteractionRequest, ChatInteractionPresentation } from '@/features/chat/state/PendingChatInteractions';
 import { ComposerEditor } from '@/features/chat/ui/ComposerEditor';
 
 jest.mock('@/core/providers/ProviderRegistry', () => ({
@@ -26,6 +27,7 @@ jest.mock('@/core/providers/ProviderRegistry', () => ({
       supportsPlanMode: true,
       supportsTurnSteer: true,
     }),
+    formatQuestionReply: jest.fn().mockReturnValue({ content: 'Selected: Blue', displayContent: '' }),
   },
 }));
 
@@ -217,7 +219,112 @@ function createFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function presentAsyncQuestion(fixture: ReturnType<typeof createFixture>) {
+  let request!: AsyncQuestionInteractionRequest;
+  fixture.state.interactions.attachPresentation({
+    requestAsyncQuestion: (value: AsyncQuestionInteractionRequest) => {
+      request = value;
+      return new Promise(() => undefined);
+    },
+    dismissInteraction: () => undefined,
+  } as unknown as ChatInteractionPresentation);
+  const tool = {
+    id: 'question-1', name: 'AskUserQuestion', status: 'completed' as const,
+    input: { replyMode: 'user-message', questions: [{ question: 'Color', options: [{ label: 'Blue' }] }] },
+    resolvedAnswers: undefined as Record<string, string | string[]> | undefined,
+  };
+  fixture.state.addMessage({ id: 'question-message', role: 'assistant', content: '', timestamp: 1, toolCalls: [tool] });
+  fixture.controller.updateAsyncQuestion(tool);
+  return { request, tool };
+}
+
 describe('InputController coordinator execution', () => {
+  it('keeps a failed queued answer retryable without retaining a duplicate for later delivery', async () => {
+    jest.useFakeTimers();
+    const fixture = createFixture();
+    const execution = deferred<any>();
+    fixture.coordinator.execute.mockReturnValueOnce(execution.promise);
+    fixture.coordinator.steer.mockResolvedValueOnce(false);
+    const turn = fixture.controller.sendMessage({ content: 'Generate a cover' });
+    try {
+      await waitForCall(fixture.coordinator.execute);
+      const { request, tool } = presentAsyncQuestion(fixture);
+      const submission = request.onSubmit({ Color: 'Blue' });
+      const rejected = submission.catch((error: Error) => error);
+      await waitForCall(fixture.coordinator.steer);
+      fixture.coordinator.execute.mockResolvedValueOnce({ accepted: false, status: 'completed', planCompleted: false });
+      execution.resolve({ accepted: true, status: 'completed', planCompleted: false });
+      await turn;
+      await jest.runOnlyPendingTimersAsync();
+      expect(await rejected).toEqual(new Error('The answer was not sent. Please try again.'));
+      expect(tool.resolvedAnswers).toBeUndefined();
+      expect(fixture.state.requiresAction).toBe(true);
+      expect(fixture.state.followUps.items).toEqual([]);
+      await request.onSubmit({ Color: 'Blue' });
+      expect(fixture.coordinator.execute).toHaveBeenCalledTimes(3);
+    } finally {
+      fixture.state.followUps.clear();
+      execution.resolve({ accepted: true, status: 'completed', planCompleted: false });
+      await turn;
+      jest.useRealTimers();
+    }
+  });
+
+  it('drains a question answer after steering is rejected while unrelated work remains gated', async () => {
+    jest.useFakeTimers();
+    const fixture = createFixture();
+    const execution = deferred<any>();
+    fixture.coordinator.execute.mockReturnValueOnce(execution.promise);
+    fixture.coordinator.steer.mockResolvedValueOnce(false);
+    const turn = fixture.controller.sendMessage({ content: 'Generate a cover' });
+    try {
+      await waitForCall(fixture.coordinator.execute);
+      fixture.state.followUps.enqueue('ordinary', { content: 'Later request', editorContext: null, canvasContext: null });
+      fixture.state.beginActionRequired('unrelated-approval');
+      const { request, tool } = presentAsyncQuestion(fixture);
+      const submission = request.onSubmit({ Color: 'Blue' });
+      await waitForCall(fixture.coordinator.steer);
+      execution.resolve({ accepted: true, status: 'completed', planCompleted: false });
+      await turn;
+      await jest.runOnlyPendingTimersAsync();
+      expect(fixture.coordinator.execute.mock.calls.map(([value]) => value.canonicalText))
+        .toEqual(['Generate a cover', 'Selected: Blue']);
+      await submission;
+      expect(tool.resolvedAnswers).toEqual({ Color: 'Blue' });
+      expect(fixture.state.requiresAction).toBe(true);
+      expect(fixture.state.followUps.items.map(item => item.id)).toEqual(['ordinary']);
+    } finally {
+      fixture.state.followUps.clear();
+      execution.resolve({ accepted: true, status: 'completed', planCompleted: false });
+      await turn;
+      jest.useRealTimers();
+    }
+  });
+
+  it('delivers an async question answer to the active turn without waiting behind ordinary follow-ups', async () => {
+    const fixture = createFixture();
+    const execution = deferred<any>();
+    fixture.coordinator.execute.mockReturnValueOnce(execution.promise);
+    const turn = fixture.controller.sendMessage({ content: 'Generate a cover' });
+    await waitForCall(fixture.coordinator.execute);
+    fixture.state.followUps.enqueue('ordinary', { content: 'Later request', editorContext: null, canvasContext: null });
+    const { request, tool } = presentAsyncQuestion(fixture);
+    const submission = request.onSubmit({ Color: 'Blue' });
+    try {
+      await waitForCall(fixture.coordinator.steer);
+      await submission;
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      expect(fixture.coordinator.steer.mock.calls[0][0].canonicalText).toBe('Selected: Blue');
+      expect(tool.resolvedAnswers).toEqual({ Color: 'Blue' });
+      expect(fixture.state.requiresAction).toBe(false);
+      expect(fixture.state.followUps.items.find(item => item.id === 'ordinary')?.status).toBe('queued');
+    } finally {
+      fixture.state.followUps.clear();
+      execution.resolve({ accepted: true, status: 'completed', planCompleted: false });
+      await turn;
+    }
+  });
+
   it('submits full reference paths from the short-name editor without using display labels', async () => {
     const editor = new ComposerEditor(createMockEl() as any, {
       vault: { getAbstractFileByPath: (path: string) => ({ path, name: 'plan.md', extension: 'md' }) },

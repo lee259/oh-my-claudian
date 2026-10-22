@@ -181,6 +181,7 @@ export interface InputControllerDeps {
 }
 
 export interface SendMessageOptions {
+  answeringQuestionId?: string;
   deliveryMode?: 'queue' | 'steer';
   queuedInputId?: string;
   editorContextOverride?: EditorSelectionContext | null;
@@ -1038,13 +1039,14 @@ export class InputController {
       ? cloneChatTurnRequest(options.turnRequestOverride)
       : editingMessage ? this.buildEditedRequest(editingMessage, content, images ?? []) : built.turnRequest;
     const queued = createQueuedMessage(displayContent, turnRequest);
+    queued.answeringQuestionId = options?.answeringQuestionId;
     const onDelivery = options?.onDelivery ?? editingMessage?.onDelivery;
     if (onDelivery) {
       queued.onDelivery = onDelivery;
       this.deferredDeliveryCallbacks.add(onDelivery);
     }
     const itemId = this.deps.generateId();
-    if (priority) state.followUps.enqueuePriority(itemId, queued);
+    if (priority || queued.answeringQuestionId) state.followUps.enqueuePriority(itemId, queued);
     else state.followUps.enqueue(itemId, queued);
     if (shouldUseInput) state.followUps.finishEditing(editingMessage);
     if (shouldUseInput) {
@@ -1169,8 +1171,14 @@ export class InputController {
 
   private processQueuedMessage(): boolean {
     const { state } = this.deps;
-    if (state.isStreaming || state.requiresAction) return false;
-    const item = state.followUps.takeNextPriority() ?? state.followUps.takeNext();
+    if (state.isStreaming) return false;
+    // A pending question must not block delivery of its own answer.
+    const answer = state.followUps.takeNextPriority(candidate => {
+      const questionId = candidate.message.answeringQuestionId;
+      return questionId !== undefined && state.messages.some(message => message.toolCalls?.some(tool =>
+        tool.id === questionId && tool.questionStatus === 'pending' && !tool.resolvedAnswers));
+    });
+    const item = answer ?? (state.requiresAction ? null : state.followUps.takeNextPriority() ?? state.followUps.takeNext());
     if (!item) return false;
     const conversationId = state.currentConversationId;
     const stopGeneration = this.stopGeneration;
@@ -1185,6 +1193,7 @@ export class InputController {
         return;
       }
       void this.sendMessage({
+        answeringQuestionId: item.message.answeringQuestionId,
         content: item.message.content,
         queuedInputId: item.id,
         images: item.message.images,
@@ -1192,8 +1201,11 @@ export class InputController {
         onDelivery: accepted => {
           if (accepted) state.followUps.remove(item.id);
           else {
-            if (state.followUps.items.find(entry => entry.id === item.id)?.status !== 'uncertain') {
-              state.followUps.setStatus(item.id, 'queued');
+            const uncertain = state.followUps.items.find(entry => entry.id === item.id)?.status === 'uncertain';
+            if (!uncertain) {
+              // The question widget retains a rejected answer for retry.
+              if (item.message.answeringQuestionId) state.followUps.remove(item.id);
+              else state.followUps.setStatus(item.id, 'queued');
             }
             state.followUps.pause();
           }
@@ -1928,8 +1940,10 @@ export class InputController {
     });
     await new Promise<void>((resolve, reject) => {
       void this.sendMessage({
+        answeringQuestionId: tool.id,
         content: reply.content,
         displayContentOverride: reply.displayContent,
+        deliveryMode: 'steer',
         images: [],
         onDelivery: accepted => accepted
           ? resolve()
