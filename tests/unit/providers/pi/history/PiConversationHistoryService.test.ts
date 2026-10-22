@@ -21,6 +21,29 @@ function createConversation(sessionFile: string): Conversation {
 }
 
 describe('PiConversationHistoryService', () => {
+  it('hydrates literal POSIX backslashes from the configured root without changing native files', async () => {
+    if (process.platform === 'win32') return;
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-posix-history-'));
+    try {
+      const root = path.join(directory, 'sessions\\literal');
+      await fs.mkdir(root);
+      const sessionFile = path.join(root, 'session\\literal.jsonl');
+      const content = JSON.stringify({ id: 'u', type: 'message', message: { role: 'user', content: 'Exact history' } });
+      await fs.writeFile(sessionFile, content);
+      const conversation = createConversation(sessionFile);
+
+      await new PiConversationHistoryService().hydrateConversationHistory(conversation, null, {
+        environment: { PI_CODING_AGENT_SESSION_DIR: root },
+      });
+
+      expect(conversation.messages.map(message => message.content)).toEqual(['Exact history']);
+      expect(conversation.providerState?.sessionFile).toBe(sessionFile);
+      expect(await fs.readFile(sessionFile, 'utf8')).toBe(content);
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('rejects a current segment read error instead of marking empty history loaded', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-read-'));
     const file = path.join(dir, 'broken.jsonl');
