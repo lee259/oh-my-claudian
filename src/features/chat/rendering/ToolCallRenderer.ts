@@ -940,6 +940,15 @@ interface ToolElementStructure {
   statusEl: HTMLElement;
   content: HTMLElement;
   currentTaskEl: HTMLElement | null;
+  getAriaLabel: () => string;
+  setExpanded: (expanded: boolean) => void;
+}
+
+const toolHeaderRefreshers = new WeakMap<HTMLElement, (tool: ToolCallInfo) => void>();
+
+/** Updates input presentation without settling the tool or rendering its output. */
+export function refreshToolCallHeader(toolEl: HTMLElement | undefined, tool: ToolCallInfo): void {
+  if (toolEl) toolHeaderRefreshers.get(toolEl)?.(tool);
 }
 
 export interface ToolCallRenderOptions {
@@ -958,29 +967,47 @@ export function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefin
   return typeof filePath === 'string' && filePath.trim() ? parseFileReference(filePath) : undefined;
 }
 
+const fileSummaryBindings = new WeakMap<HTMLElement, {
+  reference: FileReference | undefined;
+  open: ((fileReference: FileReference) => void) | undefined;
+}>();
+
 export function makeFileSummaryInteractive(
   summaryEl: HTMLElement,
   fileReference: FileReference | undefined,
   onOpenFile: ((fileReference: FileReference) => void) | undefined,
 ): void {
-  if (!fileReference || !onOpenFile) return;
+  let binding = fileSummaryBindings.get(summaryEl);
+  if (!binding) {
+    if (!onOpenFile) return;
+    binding = { reference: fileReference, open: onOpenFile };
+    fileSummaryBindings.set(summaryEl, binding);
+    const current = binding;
+    const open = (event: Event) => {
+      if (!current.reference || !current.open) return;
+      event.stopPropagation();
+      current.open(current.reference);
+    };
+    summaryEl.addEventListener('click', open);
+    summaryEl.addEventListener('keydown', (event) => {
+      if ((event.key === 'Enter' || event.key === ' ') && current.reference && current.open) {
+        event.preventDefault();
+        open(event);
+      }
+    });
+  }
+  binding.reference = fileReference;
+  binding.open = onOpenFile;
+  if (!fileReference || !onOpenFile) {
+    summaryEl.removeClass('claudian-tool-file-link');
+    for (const name of ['role', 'tabindex', 'title']) summaryEl.removeAttribute(name);
+    return;
+  }
 
   summaryEl.addClass('claudian-tool-file-link');
   summaryEl.setAttribute('role', 'link');
   summaryEl.setAttribute('tabindex', '0');
   summaryEl.setAttribute('title', `Open ${fileReference.path}`);
-  const open = (event: Event) => {
-    event.stopPropagation();
-    onOpenFile(fileReference);
-  };
-  summaryEl.addEventListener('click', open);
-  summaryEl.addEventListener('keydown', (event) => {
-    const keyboardEvent = event;
-    if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-      keyboardEvent.preventDefault();
-      open(event);
-    }
-  });
 }
 
 /** Normalized read/navigation summaries do not expose redundant raw output. */
@@ -1014,6 +1041,7 @@ function createToolElementStructure(
   toolCall: ToolCallInfo,
   onOpenFile?: (fileReference: FileReference) => void,
 ): ToolElementStructure {
+  let currentTool = toolCall;
   const toolEl = parentEl.createDiv({ cls: 'claudian-tool-call' });
   if (toolCall.name === TOOL_BASH) {
     toolEl.addClass('claudian-tool-call-bash');
@@ -1048,7 +1076,18 @@ function createToolElementStructure(
 
   const content = toolEl.createDiv({ cls: 'claudian-tool-content' });
 
-  return { toolEl, header, iconEl, nameEl, summaryEl, statusEl, content, currentTaskEl };
+  const getAriaLabel = () => getToolLabel(currentTool.name, currentTool.input, currentTool.presentation);
+  toolHeaderRefreshers.set(toolEl, (tool) => {
+    currentTool = tool;
+    const name = getToolName(tool.name, tool.input, tool.presentation);
+    nameEl.setText(name);
+    nameEl.setAttribute('title', name);
+    summaryEl.setText(getToolSummary(tool.name, tool.input, tool.presentation));
+    makeFileSummaryInteractive(summaryEl, getToolFilePath(tool), onOpenFile);
+    syncToolDisclosure(toolEl, header, content, tool);
+  });
+  const setExpanded = (expanded: boolean) => { currentTool.isExpanded = expanded; };
+  return { toolEl, header, iconEl, nameEl, summaryEl, statusEl, content, currentTaskEl, getAriaLabel, setExpanded };
 }
 
 function formatAnswer(raw: unknown): string {
@@ -1248,7 +1287,7 @@ export function renderToolCall(
   toolCallElements: Map<string, HTMLElement>,
   options: ToolCallRenderOptions = {}
 ): HTMLElement {
-  const { toolEl, header, statusEl, content, currentTaskEl } =
+  const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
     createToolElementStructure(parentEl, toolCall, options.onOpenFile);
 
   toolEl.dataset.toolId = toolCall.id;
@@ -1265,10 +1304,8 @@ export function renderToolCall(
   setupCollapsible(toolEl, header, content, state, {
     initiallyExpanded,
     canToggle: () => toolEl.hasClass('claudian-tool-call--expandable'),
-    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
-      toolCall.isExpanded = expanded;
-    }),
-    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)
+    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, setExpanded),
+    baseAriaLabel: getAriaLabel,
   });
 
   syncToolDisclosure(toolEl, header, content, toolCall);
@@ -1282,6 +1319,7 @@ export function updateToolCallResult(
 ) {
   const toolEl = toolCallElements.get(toolId);
   if (!toolEl) return;
+  refreshToolCallHeader(toolEl, toolCall);
   const header = toolEl.querySelector<HTMLElement>('.claudian-tool-header');
   const details = toolEl.querySelector<HTMLElement>('.claudian-tool-content');
   if (header && details) syncToolDisclosure(toolEl, header, details, toolCall);
@@ -1337,7 +1375,7 @@ export function renderStoredToolCall(
   toolCall: ToolCallInfo,
   options: ToolCallRenderOptions = {}
 ): HTMLElement {
-  const { toolEl, header, statusEl, content, currentTaskEl } =
+  const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
     createToolElementStructure(parentEl, toolCall, options.onOpenFile);
 
   if (toolCall.name === TOOL_TODO_WRITE) {
@@ -1365,10 +1403,8 @@ export function renderStoredToolCall(
     beforeToggle: (expanded) => {
       if (expanded) renderContentOnce();
     },
-    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, (expanded) => {
-      toolCall.isExpanded = expanded;
-    }),
-    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)
+    onToggle: createTodoToggleHandler(currentTaskEl, todoStatusEl, setExpanded),
+    baseAriaLabel: getAriaLabel,
   });
 
   syncToolDisclosure(toolEl, header, content, toolCall);

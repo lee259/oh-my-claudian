@@ -34,6 +34,33 @@ function createFixture(attached: boolean, providerId: ProviderId = 'claude', mes
   } };
 }
 
+it.each([
+  { name: 'Bash', before: { command: 'echo before' }, after: { command: 'echo after' }, label: 'echo after' },
+  { name: 'Edit', before: { file_path: 'before.md' }, after: { file_path: 'after.md' }, label: 'after.md' },
+])('refreshes rendered $name input labels without settling or replacing its card', async ({ name, before, after, label }) => {
+  const fixture = createFixture(true);
+  try {
+    await fixture.controller.handleStreamChunk({ type: 'tool_use', id: 'refined', name, input: before }, fixture.message);
+    fixture.controller.flushPendingTools();
+    const element = fixture.state.toolCallElements.get('refined')!;
+    const header = element.querySelector<HTMLElement>('.claudian-tool-header, .claudian-write-edit-header')!;
+    header.click();
+    const content = element.querySelector('.claudian-tool-content, .claudian-write-edit-content')!;
+    const previousContent = content.innerHTML;
+
+    await fixture.controller.handleStreamChunk({ type: 'tool_use', id: 'refined', name, input: after }, fixture.message);
+
+    expect(fixture.state.toolCallElements.get('refined')).toBe(element);
+    expect(fixture.message.toolCalls![0].status).toBe('running');
+    expect(content.innerHTML).toBe(previousContent);
+    expect(header.getAttribute('aria-label')).toContain(label);
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    header.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(header.getAttribute('aria-label')).toContain(label);
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+  } finally { fixture.cleanup(); }
+});
+
 it('retains ordered text and thinking blocks without a presentation', async () => {
   const fixture = createFixture(false);
   const time = jest.spyOn(Date, 'now').mockReturnValue(1_000);

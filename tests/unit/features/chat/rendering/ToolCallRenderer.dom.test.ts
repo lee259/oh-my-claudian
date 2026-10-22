@@ -2,7 +2,7 @@
 
 import type { ToolCallInfo } from '@/core/types';
 import { addSubagentToolCall, createSubagentBlock, updateSubagentToolResult } from '@/features/chat/rendering/SubagentRenderer';
-import { renderStoredToolCall, renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
+import { refreshToolCallHeader, renderStoredToolCall, renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
 
 HTMLElement.prototype.empty = function empty(): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function setText(text: string): void { this.textContent = text; };
@@ -12,6 +12,44 @@ function call(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 }
 
 describe('Tool row disclosures', () => {
+  it('keeps refined result headers current through keyboard toggles without replacing the card', () => {
+    const tools = new Map<string, HTMLElement>();
+    const tool = call({ name: 'Bash', input: { command: 'echo before' } });
+    const element = renderToolCall(document.createElement('div'), tool, tools);
+    const header = element.querySelector<HTMLElement>('.claudian-tool-header')!;
+    const updated = { ...tool, input: { command: 'echo after' }, status: 'completed' as const, result: 'Latest output' };
+
+    updateToolCallResult(tool.id, updated, tools);
+
+    expect(tools.get(tool.id)).toBe(element);
+    expect(element.querySelector('.claudian-tool-summary')!.textContent).toContain('echo after');
+    expect(header.getAttribute('aria-label')).toContain('echo after');
+    header.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(header.getAttribute('aria-label')).toContain('echo after');
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(updated.isExpanded).toBe(true);
+    expect(element.querySelector('.claudian-tool-content')!.textContent).toContain('Latest output');
+    header.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(header.getAttribute('aria-label')).toContain('echo after');
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('updates file activation once when a rendered input refines its path', () => {
+    const open = jest.fn();
+    const tool = call();
+    const element = renderToolCall(document.createElement('div'), tool, new Map(), { onOpenFile: open });
+    const link = element.querySelector<HTMLElement>('.claudian-tool-summary')!;
+    refreshToolCallHeader(element, { ...tool, input: { file_path: 'notes/after.md:12' } });
+    refreshToolCallHeader(element, { ...tool, input: { file_path: 'notes/final.md:24' } });
+    link.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith({ path: 'notes/final.md', lineStart: 24, lineEnd: 24 });
+    expect(link.getAttribute('title')).toBe('Open notes/final.md');
+    expect(element.classList.contains('expanded')).toBe(false);
+    expect(element.querySelector('.claudian-tool-header')!.hasAttribute('aria-label')).toBe(false);
+  });
+
   it('applies the same disclosure policy to tools inside subagent results', () => {
     const state = createSubagentBlock(document.createElement('div'), 'agent', { description: 'Check files' });
     const tool = call();
