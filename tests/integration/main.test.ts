@@ -1,4 +1,4 @@
-import { TFile, TFolder } from 'obsidian';
+import { Notice, TFile, TFolder } from 'obsidian';
 
 import { createConversationMetadataShell } from '@/app/conversations/SessionMetadataCoordinator';
 import { ConversationPersistenceStore } from '@/core/bootstrap/ConversationPersistenceStore';
@@ -165,7 +165,102 @@ describe('ClaudianPlugin', () => {
     (plugin.loadData as jest.Mock).mockResolvedValue({});
   });
 
+  it('warns once in the configured language when an eager scan skips corrupt metadata', async () => {
+    const valid = JSON.stringify({ id: 'valid', title: 'Visible chat', createdAt: 1, lastActivityAt: 2 });
+    const paths = {
+      '.claudian/sessions/valid.meta.json': valid,
+      '.claudian/sessions/broken-one.meta.json': '{',
+      '.claudian/sessions/broken-two.meta.json': 'invalid JSON',
+    };
+    const files = installVaultFiles(paths);
+    files.set('.claudian/claudian-settings.json', JSON.stringify({ locale: 'zh-CN' }));
+    await mockApp.vault.adapter.mkdir('.claudian/sessions');
+    mockApp.vault.adapter.list.mockImplementation(async (directory: string) => ({
+      files: directory === '.claudian/sessions' ? Object.keys(paths) : [], folders: [],
+    }));
+
+    await plugin.loadSettings();
+
+    try {
+      expect(Notice).toHaveBeenCalledTimes(1);
+      expect(Notice).toHaveBeenCalledWith(expect.stringContaining('2'), 10_000);
+      expect(Notice).toHaveBeenCalledWith(expect.stringContaining('备份 .claudian/sessions'), 10_000);
+      expect(plugin.getCachedConversation('valid')?.title).toBe('Visible chat');
+      for (const [path, content] of Object.entries(paths)) expect(files.get(path)).toBe(content);
+    } finally {
+      plugin.onunload();
+    }
+  });
+
   describe('onload', () => {
+    it('warns only after the deferred metadata scan completes', async () => {
+      const paths = { '.claudian/sessions/broken.meta.json': '{' };
+      const files = installVaultFiles(paths);
+      await mockApp.vault.adapter.mkdir('.claudian/sessions');
+      mockApp.vault.adapter.list.mockImplementation(async (directory: string) => ({
+        files: directory === '.claudian/sessions' ? Object.keys(paths) : [], folders: [],
+      }));
+      await plugin.loadSettings({ deferNonRestoredSessionMetadata: true });
+      expect(Notice).not.toHaveBeenCalled();
+      try {
+        await plugin.refreshSessionMetadata();
+        expect(Notice).toHaveBeenCalledTimes(1);
+        expect(Notice).toHaveBeenCalledWith(expect.stringContaining('1'), 10_000);
+        expect(files.get('.claudian/sessions/broken.meta.json')).toBe('{');
+      } finally {
+        plugin.onunload();
+      }
+    });
+
+    it('does not warn about an incomplete metadata scan', async () => {
+      const paths = {
+        '.claudian/sessions/broken.meta.json': '{',
+        '.claudian/sessions/unreadable.meta.json': '{}',
+      };
+      installVaultFiles(paths);
+      await mockApp.vault.adapter.mkdir('.claudian/sessions');
+      mockApp.vault.adapter.list.mockImplementation(async (directory: string) => ({
+        files: directory === '.claudian/sessions' ? Object.keys(paths) : [], folders: [],
+      }));
+      const read = mockApp.vault.adapter.read.getMockImplementation();
+      mockApp.vault.adapter.read.mockImplementation(async (path: string) => {
+        if (path.endsWith('unreadable.meta.json')) throw new Error('Read unavailable');
+        return read(path);
+      });
+      try {
+        await plugin.loadSettings();
+        expect(Notice).not.toHaveBeenCalled();
+        expect(plugin.isSessionMetadataLoaded()).toBe(false);
+      } finally {
+        plugin.onunload();
+      }
+    });
+
+    it('suppresses metadata notices when a deferred scan finishes after unload', async () => {
+      const paths = { '.claudian/sessions/broken.meta.json': '{' };
+      installVaultFiles(paths);
+      await mockApp.vault.adapter.mkdir('.claudian/sessions');
+      mockApp.vault.adapter.list.mockImplementation(async (directory: string) => ({
+        files: directory === '.claudian/sessions' ? Object.keys(paths) : [], folders: [],
+      }));
+      let started!: () => void;
+      let finish!: (content: string) => void;
+      const reading = new Promise<void>(resolve => { started = resolve; });
+      const content = new Promise<string>(resolve => { finish = resolve; });
+      const read = mockApp.vault.adapter.read.getMockImplementation();
+      mockApp.vault.adapter.read.mockImplementation(async (path: string) => {
+        if (path.endsWith('broken.meta.json')) { started(); return content; }
+        return read(path);
+      });
+      await plugin.loadSettings({ deferNonRestoredSessionMetadata: true });
+      const scan = plugin.refreshSessionMetadata();
+      await reading;
+      plugin.onunload();
+      finish('{');
+      await scan;
+      expect(Notice).not.toHaveBeenCalled();
+    });
+
     it('defers the CLI update check until layout is ready and cancels it on unload', async () => {
       jest.useFakeTimers();
       try {

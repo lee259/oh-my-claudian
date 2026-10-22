@@ -231,7 +231,8 @@
       "newForNote": "New chat for {note}",
       "cannotArchiveRunning": "Cannot archive a running session",
       "autoArchived": "Archived {count} inactive conversation(s).",
-      "nativeArchiveFailed": "{provider} could not archive or restore its sessions: {reason}"
+      "nativeArchiveFailed": "{provider} could not archive or restore its sessions: {reason}",
+      "invalidMetadata": "Skipped {count} invalid conversation metadata files. The conversation list may be incomplete. Back up .claudian/sessions before inspecting or restoring its .meta.json files."
     },
     "status": {
       "loadingConversation": "Loading conversation…",

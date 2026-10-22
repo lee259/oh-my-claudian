@@ -231,7 +231,8 @@
       "newForNote": "{note} の新しいチャット",
       "cannotArchiveRunning": "実行中のセッションはアーカイブできません",
       "autoArchived": "{count} 件の非アクティブな会話をアーカイブしました。",
-      "nativeArchiveFailed": "{provider} のセッションをアーカイブまたは復元できませんでした：{reason}"
+      "nativeArchiveFailed": "{provider} のセッションをアーカイブまたは復元できませんでした：{reason}",
+      "invalidMetadata": "無効な会話メタデータファイルを {count} 件スキップしました。会話一覧が不完全な可能性があります。.meta.json ファイルを確認または復元する前に、.claudian/sessions をバックアップしてください。"
     },
     "status": {
       "loadingConversation": "会話を読み込み中…",
