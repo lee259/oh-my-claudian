@@ -2,6 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 function getPathModule(value: string): typeof path.posix {
+  if (process.platform !== 'win32' && path.posix.isAbsolute(value) && !value.startsWith('//')) {
+    return path.posix;
+  }
   return value.includes('\\') || /^[A-Za-z]:/.test(value)
     ? path.win32
     : path.posix;
