@@ -260,6 +260,25 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('removes blank live thinking rows and keeps their surrounding tool batches separate', () => {
+    const { renderer, component, content, assistant, tool, sync } = createTurn('pi');
+    try {
+      tool('first-read', 'completed');
+      tool('first-command', 'completed');
+      const blankThought = content.createDiv({ cls: 'claudian-thinking-block' });
+      blankThought.dataset.transcriptItemId = 'assistant:block:2';
+      blankThought.createDiv({ cls: 'claudian-thinking-label', text: 'Thinking' });
+      assistant.contentBlocks!.push({ type: 'thinking', content: ' \n ' });
+      tool('second-read', 'completed');
+      tool('second-command', 'completed');
+
+      sync();
+
+      expect(content.querySelector('.claudian-thinking-block')).toBeNull();
+      expect(content.querySelectorAll('.claudian-activity-phase')).toHaveLength(2);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it('saves the final Markdown answer from the action after copy and fork', () => {
     const onSave = jest.fn();
     const { renderer, component, messagesEl, assistant, text, tool } = createTurn('claude', onSave, jest.fn());

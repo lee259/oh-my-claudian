@@ -100,9 +100,13 @@ export function buildActivityTimeline(
     }
 
     const block = blocks[index];
-    // Providers can commit empty text or thinking between tool batches. Neither
-    // renders visible content, so neither should split the surrounding work.
-    if ((block.type === 'text' || block.type === 'thinking') && !block.content.trim()) continue;
+    // Empty text is streaming noise, while an empty thinking block marks the
+    // provider boundary between tool batches. Keep invisible, but preserve the
+    // batch boundary so adjacent command rounds do not merge into one phase.
+    if ((block.type === 'text' || block.type === 'thinking') && !block.content.trim()) {
+      if (block.type === 'thinking') flushActivity();
+      continue;
+    }
     if (isFailedSubagent(block, failedSubagentIds)) {
       flushActivity();
       const previous = items.at(-1);
