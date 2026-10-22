@@ -843,6 +843,12 @@ export class CodexExecutionSession
     }
 
     const scope = extractNotificationScope(method, params);
+    // Resume can replay usage from the previous turn before turn/start is acknowledged.
+    // Usage is not evidence that the requested turn has started.
+    if (method === 'thread/tokenUsage/updated' && !run.nativeTurnId) {
+      this.pendingTurnNotifications.push({ method, params });
+      return;
+    }
     if (scope) {
       if (!this.observeNativeTurn(scope.threadId, scope.turnId)) return;
       if (

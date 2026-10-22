@@ -953,6 +953,42 @@ describe('CodexExecutionBackend', () => {
     },
   );
 
+  it.each(['turn-previous', 'turn-current'])('waits for the new turn identity when early usage references %s', async usageTurnId => {
+    mockTransportRequest.mockImplementation(async (method: string) => {
+      if (method === 'initialize') return { userAgent: 'test', codexHome: '/tmp/.codex', platformFamily: 'unix', platformOs: 'macos' };
+      if (method === 'thread/resume') return createThreadResult('thread-existing', [{ id: 'turn-previous' }]);
+      if (method === 'turn/start') {
+        emitNotification('thread/tokenUsage/updated', {
+          threadId: 'thread-existing', turnId: usageTurnId,
+          tokenUsage: { total: { inputTokens: 50, outputTokens: 10, totalTokens: 60 }, last: { inputTokens: 50, outputTokens: 10, totalTokens: 60 } },
+        });
+        queueMicrotask(() => {
+          emitNotification('turn/started', { threadId: 'thread-existing', turn: createTurnResult('turn-current').turn });
+          emitNotification('item/completed', {
+            threadId: 'thread-existing', turnId: 'turn-current',
+            item: { type: 'agentMessage', id: 'question-current', text: 'Choose color?', delivery: 'async', questions: [{ title: 'Choose color?', options: ['Blue', 'Orange'] }] },
+          });
+          emitNotification('item/agentMessage/delta', { threadId: 'thread-existing', turnId: 'turn-current', itemId: 'answer-current', delta: 'Waiting for your answer.' });
+          completeTurn('thread-existing', 'turn-current');
+          completeTurn('thread-existing', 'turn-previous');
+        });
+        return createTurnResult('turn-current');
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+    const session = new CodexExecutionBackend(createPlugin()).createSession(createSessionConfig({
+      resumeSeed: { providerSessionId: 'thread-existing', providerState: { threadId: 'thread-existing' } },
+    }));
+    try {
+      const events = await collectEvents(session.execute(createRequest()).events);
+      expect(events).toContainEqual(expect.objectContaining({ type: 'turn_started', nativeTurnId: 'turn-current' }));
+      expect(events).toContainEqual(expect.objectContaining({ type: 'tool_started', name: 'AskUserQuestion', input: expect.objectContaining({ replyMode: 'user-message' }) }));
+      expect(events).toContainEqual(expect.objectContaining({ type: 'text_delta', text: 'Waiting for your answer.' }));
+      expect(events).not.toContainEqual(expect.objectContaining({ type: 'turn_started', nativeTurnId: 'turn-previous' }));
+      expect(events.filter(event => event.type === 'usage_updated')).toHaveLength(usageTurnId === 'turn-current' ? 1 : 0);
+    } finally { await session.dispose(); }
+  });
+
   it('resumes the fixed native seed and supports a continued turn on the same process', async () => {
     let turnIndex = 0;
     mockTransportRequest.mockImplementation(async (method: string) => {
