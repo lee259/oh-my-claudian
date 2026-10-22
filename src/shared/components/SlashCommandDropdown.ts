@@ -391,7 +391,9 @@ export class SlashCommandDropdown {
       }
     }
 
-    for (const entry of this.cachedProviderEntries) {
+    for (const entry of this.cachedProviderEntries.filter(
+      entry => entry.displayPrefix === this.activeTriggerChar,
+    )) {
       const nameLower = entry.name.toLowerCase();
       if (seenNames.has(nameLower) || this.hiddenCommands.has(nameLower)) {
         continue;
