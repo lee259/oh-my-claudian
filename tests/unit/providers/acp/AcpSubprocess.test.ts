@@ -59,6 +59,20 @@ describe('AcpSubprocess', () => {
     );
   });
 
+  it('retains split UTF-8 through its public stderr snapshot', () => {
+    const subprocess = new AcpSubprocess({ args: ['acp'], command: '/opt/provider', cwd: '/vault', env: {} });
+    subprocess.start();
+    proc.stderr.emit('data', Buffer.from([0xe4]));
+    expect(subprocess.getStderrSnapshot()).toBe('');
+    proc.stderr.emit('data', Buffer.from([0xb8, 0xad, 0xf0, 0x9f]));
+    expect(subprocess.getStderrSnapshot()).toBe('中');
+    proc.stderr.emit('data', Buffer.from([0x9a, 0x80]));
+    expect(subprocess.getStderrSnapshot()).toBe('中🚀');
+    expect(subprocess.stderr).toBe(proc.stderr);
+    proc.emit('close', 0, null);
+    expect(subprocess.getStderrSnapshot()).toBe('中🚀');
+  });
+
   it('kills the process tree when shutting down Windows .cmd shims', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const subprocess = new AcpSubprocess({
