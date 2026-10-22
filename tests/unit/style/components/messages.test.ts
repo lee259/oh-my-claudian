@@ -75,6 +75,14 @@ describe('Message styles', () => {
     expect(assistantRule).toContain('flex-shrink: 0;');
   });
 
+  it('preserves whitespace for plain-text performance fallback', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-streaming-plain-text\s*{[^}]*white-space:\s*pre-wrap;/,
+    );
+  });
+
   it('uses a responsive centered assistant column on wide views', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
     const assistantRule = css.match(/\.claudian-message-assistant\s*{[^}]*}/)?.[0];

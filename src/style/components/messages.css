@@ -550,6 +550,11 @@ button.claudian-message-selection-action svg {
   white-space: pre-wrap;
 }
 
+.claudian-streaming-plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 button.claudian-text-copy-btn {
   appearance: none;
   position: absolute;
