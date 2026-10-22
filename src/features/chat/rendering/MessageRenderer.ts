@@ -2842,7 +2842,9 @@ export class MessageRenderer {
         const header = wrapper.createDiv({ cls: 'claudian-code-header' });
         wrapper.insertBefore(header, pre);
         const code = pre.querySelector('code');
-        const language = code?.className.match(/language-([\w-]+)/)?.[1];
+        const language = Array.from(code?.classList ?? [])
+          .find(token => token.startsWith('language-') && token.length > 'language-'.length)
+          ?.slice('language-'.length);
         if (language) {
           wrapper.classList.add('has-language');
           header.createSpan({ cls: 'claudian-code-language', text: language });
