@@ -45,4 +45,24 @@ describe('catalogCommandDiscovery', () => {
       jest.useRealTimers();
     }
   });
+
+  it('optionally includes provider built-ins for sessionless chat catalogs', async () => {
+    const listDropdownEntries = jest.fn().mockResolvedValue([]);
+    const catalog = {
+      getDropdownConfig: () => ({
+        providerId: 'codex',
+        triggerChars: ['/', '$'],
+        builtInPrefix: '/',
+        skillPrefix: '$',
+        commandPrefix: '/',
+      }),
+      listDropdownEntries,
+    } as unknown as ProviderCommandCatalog;
+
+    await createCatalogCommandDiscoveryStore(catalog, { includeBuiltIns: true }).load();
+
+    expect(listDropdownEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ includeBuiltIns: true }),
+    );
+  });
 });

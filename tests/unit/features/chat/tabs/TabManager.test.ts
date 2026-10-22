@@ -686,6 +686,18 @@ describe('TabManager provider execution orchestration', () => {
     expect(commandLoader.loadCommands.mock.calls[0][0]).not.toHaveProperty('runtime');
   });
 
+  it('requests provider built-ins for main chat command discovery', async () => {
+    commandCatalog.listDropdownEntries.mockResolvedValueOnce([]);
+    const { manager } = createManager();
+    const tab = await manager.createTab();
+
+    await manager.getProviderCommandDiscovery(tab!.id);
+
+    expect(commandCatalog.listDropdownEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ includeBuiltIns: true }),
+    );
+  });
+
   it('reloads cached commands after the provider lifecycle generation advances', async () => {
     const executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
     const { manager } = createManager(createPlugin({

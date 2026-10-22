@@ -360,7 +360,7 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
-    it('shows provider entries on / while preserving Codex skill prefixes', async () => {
+    it('shows only slash command entries on /', async () => {
       const getProviderEntries = jest.fn().mockResolvedValue([CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES]);
       const dropdown = new SlashCommandDropdown(
         containerEl,
@@ -380,13 +380,75 @@ describe('SlashCommandDropdown - provider catalog', () => {
       const names = getRenderedCommandNames(containerEl);
       expect(names).toContain('/clear');
       expect(names).toContain('/compact');
-      expect(names).toContain('$analyze');
-      expect(names.indexOf('/compact')).toBeLessThan(names.indexOf('$analyze'));
-      const dropdownEl = containerEl.children.find((el: any) => el.hasClass('claudian-slash-dropdown'));
-      const skillItem = dropdownEl.querySelectorAll('.claudian-slash-item').find((item: any) =>
-        item.children.some((child: any) => child.hasClass('claudian-slash-kind--skill')),
+      expect(names).not.toContain('$analyze');
+
+      dropdown.destroy();
+    });
+
+    it('inserts the provider compact command from slash search', async () => {
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: createEntryDiscovery(async () => [CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES]),
+        },
       );
-      expect(skillItem).toBeDefined();
+
+      inputEl.value = '/co';
+      inputEl.selectionStart = inputEl.value.length;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      dropdown.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+
+      expect(inputEl.value).toBe('/compact ');
+      expect(callbacks.onSelect).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'command',
+        name: 'compact',
+      }));
+
+      dropdown.destroy();
+    });
+
+    it('filters entries by the active trigger before deduplicating names', async () => {
+      const command: ProviderCommandEntry = {
+        ...CODEX_ENTRIES[0],
+        id: 'command-review',
+        kind: 'command',
+        name: 'review',
+        displayPrefix: '/',
+        insertPrefix: '/',
+      };
+      const skill: ProviderCommandEntry = {
+        ...CODEX_ENTRIES[0],
+        name: 'review',
+      };
+      const dropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        {
+          providerConfig: CODEX_CONFIG,
+          providerDiscovery: createEntryDiscovery(async () => [skill, command]),
+        },
+      );
+
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(getRenderedCommandNames(containerEl)).toContain('/review');
+      expect(getRenderedCommandNames(containerEl)).not.toContain('$review');
+
+      inputEl.value = '$';
+      inputEl.selectionStart = 1;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(getRenderedCommandNames(containerEl)).toContain('$review');
+      expect(getRenderedCommandNames(containerEl)).not.toContain('/review');
 
       dropdown.destroy();
     });
@@ -456,7 +518,7 @@ describe('SlashCommandDropdown - provider catalog', () => {
         },
       );
 
-      inputEl.value = '/an';
+      inputEl.value = '$an';
       inputEl.selectionStart = inputEl.value.length;
       dropdown.handleInputChange();
       await new Promise(resolve => setTimeout(resolve, 10));

@@ -6,6 +6,10 @@ import { normalizeProviderCommandDiscoveryItems } from './ProviderCommandDiscove
 import { ProviderCommandDiscoveryStore } from './ProviderCommandDiscoveryStore';
 import type { ProviderCommandEntry } from './ProviderCommandEntry';
 
+export interface CatalogCommandDiscoveryOptions {
+  includeBuiltIns?: boolean;
+}
+
 /** Maps a catalog deadline onto the discovery store. */
 export function resolveCommandDiscoveryTimeoutMs(
   config: ProviderCommandDropdownConfig,
@@ -18,10 +22,14 @@ export function resolveCommandDiscoveryTimeoutMs(
 /** Catalog-only discovery for surfaces without a chat session. */
 export function createCatalogCommandDiscoveryStore(
   catalog: ProviderCommandCatalog,
+  options: CatalogCommandDiscoveryOptions = {},
 ): ProviderCommandDiscoveryStore<ProviderCommandEntry> {
   return new ProviderCommandDiscoveryStore(
     async signal => normalizeProviderCommandDiscoveryItems(
-      await catalog.listDropdownEntries({ includeBuiltIns: false, signal }),
+      await catalog.listDropdownEntries({
+        includeBuiltIns: options.includeBuiltIns ?? false,
+        signal,
+      }),
     ),
     {
       resolveTimeoutMs: () => resolveCommandDiscoveryTimeoutMs(

@@ -344,7 +344,7 @@ function getRegistryProviderCatalogInfo(providerId: ProviderId): ProviderCatalog
 
   return {
     config: catalog.getDropdownConfig(),
-    discovery: createCatalogCommandDiscoveryStore(catalog),
+    discovery: createCatalogCommandDiscoveryStore(catalog, { includeBuiltIns: true }),
   };
 }
 
