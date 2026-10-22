@@ -250,12 +250,14 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       expect(history.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
       expect([...messagesEl.querySelectorAll('.claudian-tool-call')]
         .filter((element) => !history.contains(element))).toHaveLength(0);
-      expect(history.hidden).toBe(true);
+      expect(fold.querySelector<HTMLButtonElement>('.claudian-completed-work-header')
+        ?.getAttribute('aria-expanded')).toBe('true');
+      expect(history.hidden).toBe(false);
       const answer = messagesEl.querySelector('.claudian-message-assistant .claudian-text-block')!;
       expect(history.contains(answer)).toBe(false);
       expect(fold.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       fold.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!.click();
-      expect(history.hidden).toBe(false);
+      expect(history.hidden).toBe(true);
       expect(JSON.stringify(assistant)).toBe(source);
     } finally { renderer.dispose(); component.unload(); }
   });
@@ -408,7 +410,6 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       }) });
       header.click();
       animations.at(-1)!.onfinish?.();
-      header.click();
       header.click();
       animations.at(-1)!.onfinish?.();
       expect(header.getAttribute('aria-expanded')).toBe('true');
@@ -574,7 +575,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       const history = messagesEl.querySelector<HTMLElement>('.claudian-completed-work-history')!;
       for (const element of [thought, read, denied, edit]) expect(history.contains(element)).toBe(true);
       expect(history.contains(answer)).toBe(false);
-      expect(history.hidden).toBe(true);
+      expect(history.hidden).toBe(false);
       expect(messagesEl.querySelector('.claudian-completed-work.has-errors')).not.toBeNull();
       expect(messagesEl.contains(answer)).toBe(true);
     } finally { renderer.dispose(); component.unload(); }
@@ -602,10 +603,10 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       const finalMessage = messagesEl.querySelector('[data-message-id="continuation"]')!;
       expect(finalMessage).not.toBeNull();
       expect(history.contains(finalMessage)).toBe(false);
-      expect(history.hidden).toBe(true);
+      expect(history.hidden).toBe(false);
       expect(messagesEl.querySelector('.claudian-completed-work.has-errors')).not.toBeNull();
       messagesEl.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!.click();
-      expect(history.hidden).toBe(false);
+      expect(history.hidden).toBe(true);
       expect(JSON.stringify(assistant.contentBlocks)).toBe(source);
     } finally { renderer.dispose(); component.unload(); }
   });
@@ -756,7 +757,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       renderer.finalizeTranscriptTurn(turn, assistant.id);
       const fold = messagesEl.querySelector<HTMLElement>('.claudian-completed-work')!;
       const history = fold.querySelector<HTMLElement>('.claudian-completed-work-history')!;
-      expect(history.hidden).toBe(true);
+      expect(history.hidden).toBe(false);
       for (const element of [read, background, tail, thought]) expect(history.contains(element)).toBe(true);
       for (const element of [answer, running, pending]) {
         expect(messagesEl.contains(element)).toBe(true);
@@ -766,7 +767,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(4);
       expect(messagesEl.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
       fold.querySelector<HTMLButtonElement>('.claudian-completed-work-header')!.click();
-      expect(history.hidden).toBe(false);
+      expect(history.hidden).toBe(true);
     } finally {
       renderer.dispose();
       component.unload();

@@ -338,10 +338,10 @@ describe('MessageRenderer', () => {
       expect(workEl?.querySelector('.claudian-completed-work-history')?.contains(thinkingEl)).toBe(true);
       expect(contentEl.contains(answerEl)).toBe(true);
       const history = workEl?.querySelector('.claudian-completed-work-history') as HTMLElement | null;
-      expect(history?.hidden).toBe(true);
+      expect(history?.hidden).toBe(false);
       expect(contentEl.contains(answerEl)).toBe(true);
       (workEl?.querySelector('.claudian-completed-work-header') as HTMLButtonElement | null)?.click();
-      expect(history?.hidden).toBe(false);
+      expect(history?.hidden).toBe(true);
       const phaseDetails = workEl?.querySelector('.claudian-activity-phase-details') as HTMLElement | null;
       expect(phaseDetails?.hidden).toBe(true);
       (workEl?.querySelector('.claudian-activity-phase-header') as HTMLButtonElement | null)?.click();
@@ -352,7 +352,7 @@ describe('MessageRenderer', () => {
       expect(contentEl.querySelector('.claudian-text-copy-btn')).toBeNull();
     });
 
-    it('keeps the turn header concise and marks failed work without opening it', () => {
+    it('keeps the turn header concise and marks failed work while the rail is visible', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -391,10 +391,10 @@ describe('MessageRenderer', () => {
       expect(label).not.toContain('actions');
       expect(label).not.toContain('error');
       expect(workEl?.hasClass('has-errors')).toBe(true);
-      expect(history?.hidden).toBe(true);
+      expect(history?.hidden).toBe(false);
       expect(workEl?.querySelector('.claudian-completed-work-error')).toBeTruthy();
       (workEl?.querySelector('.claudian-completed-work-header') as HTMLButtonElement | null)?.click();
-      expect(history?.hidden).toBe(false);
+      expect(history?.hidden).toBe(true);
       expect(history?.contains(failedTool)).toBe(true);
     });
 
@@ -477,7 +477,7 @@ describe('MessageRenderer', () => {
       } as ChatMessage);
 
       const workHistory = contentEl.querySelector('.claudian-completed-work-history');
-      expect(workHistory?.hidden).toBe(true);
+      expect(workHistory?.hidden).toBe(false);
       const phases = Array.from(
         workHistory?.querySelectorAll('.claudian-activity-phase') ?? [],
       ) as MockElement[];
@@ -1801,7 +1801,7 @@ describe('MessageRenderer', () => {
     expect(turnEl?.children[0]).toBe(user);
     expect(turnEl?.children[1]).toBe(turnEl?.querySelector('.claudian-completed-work'));
     const work = turnEl?.querySelector('.claudian-completed-work');
-    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(false);
     expect(work?.querySelectorAll('.claudian-tool-call')).toEqual([firstTool, secondTool]);
     expect(work?.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Explored the project');
     expect(first.parentElement).toBeNull();
@@ -1931,7 +1931,7 @@ describe('MessageRenderer', () => {
     expect(turnEl?.querySelectorAll('.claudian-message-assistant')).toHaveLength(1);
     expect(turnEl?.querySelectorAll('.claudian-completed-work')).toHaveLength(1);
     const work = turnEl?.querySelector('.claudian-completed-work');
-    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(true);
+    expect(work?.querySelector('.claudian-completed-work-history')?.hidden).toBe(false);
     expect(Array.from(toolElements.values()).every(tool => work?.contains(tool))).toBe(true);
   });
 
