@@ -1,5 +1,6 @@
 import type { ChildProcess, spawn as nodeSpawn } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
 
 import crossSpawn from 'cross-spawn';
 
@@ -48,6 +49,7 @@ export class ManagedStdioProcess {
   private spawnConfirmed = false;
   private startAttempted = false;
   private stderrBuffer = '';
+  private readonly stderrDecoder = new StringDecoder('utf8');
   private stderrDataListener: ((chunk: Buffer | string) => void) | null = null;
 
   constructor(private readonly options: ManagedStdioProcessOptions) {}
@@ -108,9 +110,12 @@ export class ManagedStdioProcess {
       && !proc.killed
     );
     this.stderrDataListener = (chunk: Buffer | string) => {
-      const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-      const limit = this.options.stderrBufferLimit ?? DEFAULT_STDERR_BUFFER_LIMIT;
-      this.stderrBuffer = `${this.stderrBuffer}${text}`.slice(-limit);
+      if (Buffer.isBuffer(chunk)) {
+        this.appendStderr(this.stderrDecoder.write(chunk));
+      } else if (chunk.length > 0) {
+        this.finalizeStderr();
+        this.appendStderr(chunk);
+      }
     };
     proc.stderr?.on('data', this.stderrDataListener);
     proc.on('spawn', this.handleSpawn);
@@ -243,6 +248,7 @@ export class ManagedStdioProcess {
     code: number | null,
     signal: NodeJS.Signals | null,
   ): void => {
+    this.finalizeStderr();
     this.alive = false;
     this.exitState = {
       closed: true,
@@ -280,6 +286,7 @@ export class ManagedStdioProcess {
 
   private cleanupProcessListeners(proc: ChildProcess | null): void {
     if (!proc) return;
+    this.finalizeStderr();
     proc.off('spawn', this.handleSpawn);
     proc.off('error', this.handleError);
     proc.off('exit', this.handleExit);
@@ -288,6 +295,15 @@ export class ManagedStdioProcess {
       proc.stderr?.off('data', this.stderrDataListener);
       this.stderrDataListener = null;
     }
+  }
+
+  private appendStderr(text: string): void {
+    const limit = this.options.stderrBufferLimit ?? DEFAULT_STDERR_BUFFER_LIMIT;
+    this.stderrBuffer = `${this.stderrBuffer}${text}`.slice(-limit);
+  }
+
+  private finalizeStderr(): void {
+    this.appendStderr(this.stderrDecoder.end());
   }
 
   private clearLifecycleListeners(): void {

@@ -161,6 +161,72 @@ describe('ManagedStdioProcess', () => {
     expect(proc.stderr.listenerCount('data')).toBe(0);
   });
 
+  it.each([
+    { text: '中', split: 1 },
+    { text: '中', split: 2 },
+    { text: '🚀', split: 1 },
+    { text: '🚀', split: 2 },
+    { text: '🚀', split: 3 },
+  ])('retains $text split after byte $split in stderr snapshots', ({ text, split }) => {
+    const managed = createManagedProcess();
+    managed.start();
+    const bytes = Buffer.from(text);
+    proc.stderr.emit('data', Buffer.from('prefix:'));
+    proc.stderr.emit('data', bytes.subarray(0, split));
+    expect(managed.getStderrSnapshot()).toBe('prefix:');
+    proc.stderr.emit('data', bytes.subarray(split));
+    expect(managed.getStderrSnapshot()).toBe(`prefix:${text}`);
+    expect(managed.stderr).toBe(proc.stderr);
+    proc.emit('close', 0, null);
+    expect(managed.getStderrSnapshot()).toBe(`prefix:${text}`);
+  });
+
+  it.each([
+    { chunks: [Buffer.from('中'), 'literal', Buffer.from('🚀')], expected: '中literal🚀' },
+    { chunks: [Buffer.from([0xe4]), 'literal', Buffer.from([0xb8, 0xad])], expected: '�literal��' },
+    { chunks: [Buffer.from([0xe4]), '', Buffer.from([0xb8, 0xad])], expected: '中' },
+  ])('preserves mixed buffer/string ordering: $expected', ({ chunks, expected }) => {
+    const managed = createManagedProcess();
+    managed.start();
+    for (const chunk of chunks) proc.stderr.emit('data', chunk);
+    expect(managed.getStderrSnapshot()).toBe(expected);
+    proc.emit('close', 0, null);
+    expect(managed.getStderrSnapshot()).toBe(expected);
+  });
+
+  it('finalizes incomplete stderr once before close observers', () => {
+    const managed = createManagedProcess();
+    const onClose = jest.fn(() => managed.getStderrSnapshot());
+    managed.onClose(onClose);
+    managed.start();
+    proc.stderr.emit('data', Buffer.from([0xe4, 0xb8]));
+    expect(managed.getStderrSnapshot()).toBe('');
+    proc.emit('close', 1, null);
+    expect(onClose).toHaveReturnedWith('�');
+    expect(proc.stderr.listenerCount('data')).toBe(0);
+    proc.emit('close', 1, null);
+    proc.stderr.emit('data', Buffer.from('late'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(managed.getStderrSnapshot()).toBe('�');
+  });
+
+  it('isolates pending bytes between processes and retains the configured decoded tail', () => {
+    const other = createMockChildProcess();
+    mockSpawn.mockReturnValueOnce(proc).mockReturnValueOnce(other);
+    const first = createManagedProcess({ stderrBufferLimit: 3 });
+    const second = createManagedProcess();
+    first.start();
+    second.start();
+    proc.stderr.emit('data', Buffer.from('prefix'));
+    proc.stderr.emit('data', Buffer.from([0xe4]));
+    other.stderr.emit('data', Buffer.from([0xb8, 0xad]));
+    proc.stderr.emit('data', Buffer.from([0xb8, 0xad]));
+    expect(first.getStderrSnapshot()).toBe('ix中');
+    expect(second.getStderrSnapshot()).toBe('��');
+    proc.emit('close', 0, null);
+    other.emit('close', 0, null);
+  });
+
   it('wraps Windows command shims and terminates their process tree', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const managed = createManagedProcess({
@@ -225,6 +291,8 @@ describe('ManagedStdioProcess', () => {
     jest.useFakeTimers();
     const managed = createManagedProcess();
     managed.start();
+    proc.stderr.emit('data', Buffer.from([0xe4, 0xb8]));
+    expect(managed.getStderrSnapshot()).toBe('');
 
     const shutdown = managed.shutdown();
     jest.advanceTimersByTime(3_000);
@@ -233,6 +301,10 @@ describe('ManagedStdioProcess', () => {
 
     jest.advanceTimersByTime(3_000);
     await expect(shutdown).resolves.toBeUndefined();
+    expect(managed.getStderrSnapshot()).toBe('�');
+    expect(proc.stderr.listenerCount('data')).toBe(0);
+    await managed.shutdown();
+    expect(managed.getStderrSnapshot()).toBe('�');
     expect(proc.listenerCount('error')).toBe(0);
     expect(proc.listenerCount('exit')).toBe(0);
     expect(proc.listenerCount('close')).toBe(0);
