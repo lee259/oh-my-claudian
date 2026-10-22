@@ -922,26 +922,15 @@ button.claudian-activity-phase-header:focus-visible {
   outline-offset: 2px;
 }
 
-@keyframes claudian-activity-live-pulse {
-  0%,
-  100% {
-    opacity: 0.62;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
 .claudian-activity-phase-label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
-.claudian-activity-phase[data-active='true'] .claudian-activity-phase-label {
-  animation: claudian-activity-live-pulse 1.6s ease-in-out infinite;
+.claudian-activity-phase[data-active='true'] > .claudian-activity-phase-header > .claudian-activity-phase-indicator {
+  color: var(--interactive-accent);
 }
 
 .claudian-activity-phase-error {
@@ -968,13 +957,18 @@ button.claudian-activity-phase-header:focus-visible {
 .claudian-activity-phase-details {
   position: relative;
   min-width: 0;
-  margin: 0;
-  padding: 6px 0 8px;
+  margin: 2px 0 0 6px;
+  padding: 4px 0 4px 12px;
+  border-inline-start: 1px solid var(--background-modifier-border);
   box-sizing: border-box;
   max-height: min(40vh, 320px);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   scrollbar-gutter: stable;
+}
+
+.claudian-activity-phase-details > :is(.claudian-tool-call, .claudian-write-edit-block, .claudian-thinking-block) {
+  margin-block: 4px;
 }
 
 .claudian-activity-phase-details .claudian-thinking-header {

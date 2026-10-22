@@ -486,6 +486,12 @@ export class StreamController {
     if (this.deps.subagentManager.subagentsSpawnedThisStream > 0) return;
     if (state.ignoreUsageUpdates) return;
 
+    // Session/model defaults must not erase the last measured context while
+    // the provider is resuming and has not reported its next native snapshot.
+    if (usage.contextUsageIsProvisional && state.usage && !state.usage.contextUsageIsProvisional) {
+      usage = { ...state.usage, ...(usage.model ? { model: usage.model } : {}) };
+    }
+
     const activeModel = this.getActiveProviderModel();
     const reportedUsage = activeModel && !usage.model
       ? { ...usage, model: activeModel }
@@ -1356,7 +1362,7 @@ export class StreamController {
     const { state } = this.deps;
     if (msg) state.response.messageId = msg.id;
     state.currentTextContent += text;
-    if (!state.currentContentEl) return;
+    if (!state.currentContentEl || !state.currentTextContent.trim()) return;
 
     this.hideThinkingIndicator();
 
@@ -1387,7 +1393,7 @@ export class StreamController {
     const { state } = this.deps;
     if (msg) state.response.messageId = msg.id;
     state.currentTextContent += text;
-    if (!state.currentContentEl) return;
+    if (!state.currentContentEl || !state.currentTextContent.trim()) return;
 
     this.hideThinkingIndicator();
     if (!state.currentTextEl) {
@@ -1502,7 +1508,7 @@ export class StreamController {
       state.currentThinkingState = thinkingState;
       this.thinkingViewport?.dispose();
       this.thinkingViewport = thinkingState.presentation === 'status'
-        ? null : new ScrollFollowController(thinkingState.contentEl);
+        ? null : new ScrollFollowController(thinkingState.contentEl, undefined, () => this.deps.plugin.settings.enableAutoScroll ?? true);
       this.deps.renderer.startCompletedWork?.(state.currentContentEl, state.responseStartTime);
       this.syncThinkingRenderAvailability();
     }
@@ -2503,6 +2509,8 @@ export class StreamController {
   }
 
   dispose(): void {
+    this.thinkingViewport?.dispose();
+    this.thinkingViewport = null;
     this.textRenderCoordinator.dispose();
     this.thinkingRenderCoordinator.dispose();
     this.cancelPendingToolOutputRenders();

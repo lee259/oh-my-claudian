@@ -87,7 +87,7 @@
   box-sizing: border-box;
   max-height: min(36vh, 300px);
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 /* The transcript plus one activity/detail viewport are the only scroll layers.

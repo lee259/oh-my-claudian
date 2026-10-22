@@ -251,6 +251,18 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Text streaming', () => {
+    it.each(['foreground', 'background'])('does not mount whitespace-only %s text between tools', async (mode) => {
+      const msg = createTestMessage();
+      if (mode === 'foreground') await controller.appendText(' \n\n', msg);
+      else controller.appendBackgroundText(' \n\n', msg);
+      expect(deps.state.currentTextEl).toBeNull();
+      expect(deps.state.currentTextContent).toBe(' \n\n');
+      if (mode === 'foreground') await controller.appendText('Answer', msg);
+      else controller.appendBackgroundText('Answer', msg);
+      expect(deps.state.currentTextEl).not.toBeNull();
+      expect(deps.state.currentTextContent).toBe(' \n\nAnswer');
+    });
+
     it('should append text content to message', async () => {
       const msg = createTestMessage();
 
@@ -1679,6 +1691,26 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-1' }, msg);
 
       expect(deps.state.usage).toEqual(usage);
+    });
+
+    it('preserves measured context across provisional model updates until the next native usage', () => {
+      const measured = createMockUsage({
+        model: 'previous-model', contextWindow: 1_000_000, contextWindowIsAuthoritative: true,
+        contextTokens: 99_000, percentage: 10,
+      });
+      deps.state.usage = measured;
+      controller.updateUsage(createMockUsage({
+        model: 'actual-model', contextWindow: 200_000, contextTokens: 0, percentage: 0,
+        contextUsageIsProvisional: true,
+      }));
+      expect(deps.state.usage).toEqual({ ...measured, model: 'actual-model' });
+
+      const native = createMockUsage({
+        model: 'actual-model', contextWindow: 1_000_000, contextTokens: 110_000, percentage: 11,
+        contextWindowIsAuthoritative: true,
+      });
+      controller.updateUsage(native);
+      expect(deps.state.usage).toEqual(native);
     });
 
     it('applies a custom context limit to live usage chunks', async () => {
