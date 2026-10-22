@@ -75,6 +75,25 @@ describe('ImageContextManager attachment lifetime', () => {
   });
 
   describe.each(['paste', 'drop'] as const)('%s batches', source => {
+    it('reports an unsupported provider once for the whole image batch', async () => {
+      const reads = [
+        jest.fn(async (): Promise<ArrayBuffer> => new Uint8Array([1]).buffer),
+        jest.fn(async (): Promise<ArrayBuffer> => new Uint8Array([2]).buffer),
+        jest.fn(async (): Promise<ArrayBuffer> => new Uint8Array([3]).buffer),
+      ];
+      manager.setEnabled(false);
+
+      const event = attach(source, input, reads.map((read, index) => createImage(`image-${index}.png`, read)));
+      await flush();
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(Notice).toHaveBeenCalledTimes(1);
+      expect(Notice).toHaveBeenCalledWith('Image attachments are not supported by this provider.');
+      for (const read of reads) expect(read).not.toHaveBeenCalled();
+      expect(manager.getAttachedImages()).toEqual([]);
+      expect(onUserImagesChanged).not.toHaveBeenCalled();
+    });
+
     it.each(['clear', 'replace', 'disable', 'reenable', 'destroy'] as const)(
       'discards a pending read and the remaining batch after %s', async action => {
         let finish!: (value: ArrayBuffer) => void;
