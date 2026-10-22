@@ -1013,7 +1013,7 @@ export class MessageRenderer {
       }
     }
     const transcriptTurn = msgEl.closest<HTMLElement>('.claudian-transcript-turn');
-    if (typeof transcriptTurn?.querySelectorAll === 'function') {
+    if (transcriptTurn && 'querySelectorAll' in transcriptTurn) {
       const turnWorkGroups = Array.from(
         transcriptTurn.querySelectorAll<HTMLElement>('.claudian-completed-work'),
       ).filter((workEl) => workEl.parentElement?.hasClass('claudian-message-content'));

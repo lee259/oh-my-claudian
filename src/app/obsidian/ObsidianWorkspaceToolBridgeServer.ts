@@ -114,10 +114,12 @@ export class ObsidianWorkspaceToolBridgeServer implements ObsidianWorkspaceToolB
     }
 
     const mcp = new McpServer({ name: 'claudian-obsidian', version: '1.0.0' });
-    mcp.tool(
+    mcp.registerTool(
       OBSIDIAN_VAULT_TOOL_NAME,
-      OBSIDIAN_WORKSPACE_TOOL_DESCRIPTION,
-      OBSIDIAN_WORKSPACE_TOOL_INPUT_SCHEMA,
+      {
+        description: OBSIDIAN_WORKSPACE_TOOL_DESCRIPTION,
+        inputSchema: OBSIDIAN_WORKSPACE_TOOL_INPUT_SCHEMA,
+      },
       async (input) => {
         if (!credential.allowedOperations.has(input.operation)) {
           return {

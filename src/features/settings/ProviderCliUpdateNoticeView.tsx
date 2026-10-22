@@ -2,7 +2,7 @@ import { t } from '@/i18n/i18n';
 
 export function ProviderCliUpdateNoticeView({ count, onReview }: {
   count: number;
-  onReview(): void;
+  onReview: () => void;
 }) {
   return (
     <div className="claudian-cli-update-notice">

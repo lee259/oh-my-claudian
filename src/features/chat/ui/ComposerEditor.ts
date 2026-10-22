@@ -5,6 +5,7 @@ import { type App, setIcon } from 'obsidian';
 
 import type { ProviderCommandKind } from '@/core/providers/commands/ProviderCommandEntry';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
+import { isImeKeyEvent } from '@/utils/keyboard';
 import { filterMarkdownTextTokens } from '@/utils/markdownTextTokens';
 import { isExternalTextFilePath, openAgentSkillByName, openVaultFile } from '@/utils/obsidianCompat';
 import { openVaultLink, revealVaultItem } from '@/utils/vaultNavigation';
@@ -15,6 +16,12 @@ const programmatic = Annotation.define<boolean>();
 const refreshPresentation = StateEffect.define<null>();
 const relationshipAttributes = ['aria-autocomplete', 'aria-activedescendant', 'aria-controls', 'aria-haspopup'];
 let nextComposerLabelId = 0;
+
+function hasComposerWidget(decoration: Decoration): boolean {
+  const spec: unknown = decoration.spec;
+  return typeof spec === 'object' && spec !== null && 'widget' in spec
+    && spec.widget instanceof WidgetType;
+}
 
 class FileMentionWidget extends WidgetType {
   constructor(private readonly mention: ComposerFileMention, private readonly app: App) { super(); }
@@ -89,7 +96,7 @@ export class ComposerEditor {
   private readonly compositionEnd = () => { this.composing = false; };
   private readonly guardComposition = (event: KeyboardEvent) => {
     // Stop shortcut routing without preventing the input method's default candidate action.
-    if (this.composing || event.isComposing || event.keyCode === 229) event.stopImmediatePropagation();
+    if (this.composing || isImeKeyEvent(event)) event.stopImmediatePropagation();
   };
   private placeholderText = 'Ask to make changes, @mention files, run /commands';
   private readonly placeholderConfig = new Compartment();
@@ -125,7 +132,7 @@ export class ComposerEditor {
           // Existing chat controllers decide completion, send and modes before editor defaults.
           const EventConstructor = host.ownerDocument.defaultView?.KeyboardEvent ?? KeyboardEvent;
           const routed = new EventConstructor('keydown', {
-            key: event.key, code: event.code, keyCode: event.keyCode, shiftKey: event.shiftKey,
+            key: event.key, code: event.code, shiftKey: event.shiftKey,
             altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey,
             isComposing: event.isComposing, repeat: event.repeat, bubbles: true, cancelable: true,
           });
@@ -143,7 +150,7 @@ export class ComposerEditor {
           if (!selection.empty) return false;
           let start: number | null = null;
           view.state.field(this.decorations).between(selection.head, selection.head, (from, to, decoration) => {
-            if (to === selection.head && decoration.spec.widget) start = from;
+            if (to === selection.head && hasComposerWidget(decoration)) start = from;
           });
           if (start === null) return false;
           view.dispatch({ changes: { from: start, to: selection.head }, selection: { anchor: start }, userEvent: 'delete.backward' });
@@ -188,7 +195,7 @@ export class ComposerEditor {
     this.element.isChipRange = (from, to) => {
       let found = false;
       this.state.field(this.decorations).between(from, to, (start, end, decoration) => {
-        if (start === from && end === to && decoration.spec.widget) found = true;
+        if (start === from && end === to && hasComposerWidget(decoration)) found = true;
       });
       return found;
     };
@@ -268,7 +275,7 @@ export class ComposerEditor {
       if (state.selection.ranges.some(range => range.from > from && range.from < to || range.to > from && range.to < to)) return false;
       if (to < text.length) return true;
       let wasWidget = false;
-      previous.between(from, to, (start, end, decoration) => { if (start === from && end === to && decoration.spec.widget) wasWidget = true; });
+      previous.between(from, to, (start, end, decoration) => { if (start === from && end === to && hasComposerWidget(decoration)) wasWidget = true; });
       return wasWidget;
     };
     for (const file of files) {

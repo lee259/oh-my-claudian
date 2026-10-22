@@ -16,7 +16,7 @@
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "check:performance": "node scripts/check-startup-performance.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"{src,tests}/**/*.ts\"",
+    "lint": "eslint \"{src,tests}/**/*.{ts,tsx}\"",
     "lint:fix": "pnpm run lint -- --fix",
     "test": "node scripts/run-tests.js",
     "test:unit": "node scripts/run-jest.js",

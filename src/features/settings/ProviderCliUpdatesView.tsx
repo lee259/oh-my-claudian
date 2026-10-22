@@ -1,13 +1,13 @@
-import { ProviderCliOperationReply } from '@/shared/settings/ProviderCliOperationReply';
 import type { ProviderCliSnapshot } from '@/core/providers/cli/ProviderCliLifecycle';
 import { t } from '@/i18n/i18n';
+import { ProviderCliOperationReply } from '@/shared/settings/ProviderCliOperationReply';
 
 export interface ProviderCliUpdatesViewProps {
   snapshots: readonly ProviderCliSnapshot[];
   preparing: boolean;
   error: string | null;
-  onUpdate(snapshots: readonly ProviderCliSnapshot[]): void;
-  onCheck(): void;
+  onUpdate: (snapshots: readonly ProviderCliSnapshot[]) => void;
+  onCheck: () => void;
   onDismiss?: () => void;
 }
 

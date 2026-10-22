@@ -51,7 +51,7 @@ function renderWelcomeView(
 
 function canMountPreact(welcomeEl: HTMLElement): boolean {
   return welcomeEl.nodeType === 1
-    && typeof welcomeEl.ownerDocument?.createElement === 'function';
+    && welcomeEl.ownerDocument?.nodeType === 9;
 }
 
 /** Renders or updates the Preact-owned welcome subtree in an existing host. */

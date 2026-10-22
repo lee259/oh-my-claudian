@@ -1,6 +1,7 @@
-import type { EnvironmentScope } from '../../core/types/settings';
-import { getEnvironmentReviewKeysForScope } from '../../core/providers/providerEnvironment';
 import { useState } from 'preact/hooks';
+
+import { getEnvironmentReviewKeysForScope } from '../../core/providers/providerEnvironment';
+import type { EnvironmentScope } from '../../core/types/settings';
 
 export interface EnvironmentVariableSettingsViewProps {
   scope: EnvironmentScope;

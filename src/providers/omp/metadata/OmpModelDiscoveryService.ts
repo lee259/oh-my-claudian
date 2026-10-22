@@ -148,8 +148,7 @@ export class OmpModelDiscoveryService {
       rejectAbort(combined.reason);
     };
     combined.addEventListener('abort', abort, { once: true });
-    // eslint-disable-next-line obsidianmd/prefer-window-timers -- Provider metadata probes also run outside the renderer.
-    const timer = setTimeout(() => timeout.abort(new Error('OMP model role resolution timed out')), MODEL_COMMAND_TIMEOUT_MS);
+    const timer = window.setTimeout(() => timeout.abort(new Error('OMP model role resolution timed out')), MODEL_COMMAND_TIMEOUT_MS);
     const resolve = async (): Promise<{ modelId: string; thinking: string | null }> => {
       await kernel.connect();
       combined.throwIfAborted();
@@ -164,8 +163,7 @@ export class OmpModelDiscoveryService {
     try {
       return await Promise.race([resolve(), aborted]);
     } finally {
-      // eslint-disable-next-line obsidianmd/prefer-window-timers -- Match the provider-owned metadata timer.
-      clearTimeout(timer);
+      window.clearTimeout(timer);
       combined.removeEventListener('abort', abort);
       await dispose();
     }

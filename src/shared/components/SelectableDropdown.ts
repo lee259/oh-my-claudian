@@ -241,6 +241,6 @@ export class SelectableDropdown<T> {
 
   private canMountPreact(): boolean {
     return this.containerEl.nodeType === 1
-      && typeof this.containerEl.ownerDocument?.createElement === 'function';
+      && this.containerEl.ownerDocument?.nodeType === 9;
   }
 }

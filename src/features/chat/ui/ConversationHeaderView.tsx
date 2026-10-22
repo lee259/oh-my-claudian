@@ -32,6 +32,8 @@ export function ConversationHeaderView({
 
   useEffect(() => {
     if (!isConversationMenuOpen) return undefined;
+    const ownerDocument = conversationMenuAnchorRef.current?.ownerDocument;
+    if (!ownerDocument) return undefined;
 
     const handlePointerDown = (event: PointerEvent): void => {
       if (!conversationMenuAnchorRef.current?.contains(event.target as Node)) {
@@ -42,11 +44,11 @@ export function ConversationHeaderView({
       if (event.key === 'Escape') setIsConversationMenuOpen(false);
     };
 
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    ownerDocument.addEventListener('pointerdown', handlePointerDown);
+    ownerDocument.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      ownerDocument.removeEventListener('pointerdown', handlePointerDown);
+      ownerDocument.removeEventListener('keydown', handleKeyDown);
     };
   }, [isConversationMenuOpen]);
 
