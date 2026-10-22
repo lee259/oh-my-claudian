@@ -4,6 +4,7 @@ import * as path from 'node:path';
 
 import {
   createPiForkSessionFile,
+  getPiTurnStats,
   parsePiSessionContent,
   parsePiSessionEntries,
   parsePiSessionModel,
@@ -14,6 +15,76 @@ import {
 } from '@/providers/pi/history/PiHistoryStore';
 
 describe('PiHistoryStore', () => {
+  it('retains a hidden notification inside an active tool continuation', () => {
+    const content = [
+      { id: 'u', type: 'message', timestamp: 1_000, message: { role: 'user', content: 'Work' } },
+      { id: 'a', parentId: 'u', type: 'message', timestamp: 2_000,
+        message: { role: 'assistant', stopReason: 'toolUse', usage: { output: 10 }, content: 'Working' } },
+      { id: 'trigger', parentId: 'a', type: 'custom_message', display: false, content: 'Notification', timestamp: 3_000 },
+      { id: 'result', parentId: 'trigger', type: 'message', timestamp: 4_000,
+        message: { role: 'toolResult', content: [] } },
+      { id: 'final', parentId: 'result', type: 'message', timestamp: 6_000,
+        message: { role: 'assistant', stopReason: 'stop', usage: { output: 5 }, content: 'Done' } },
+    ].map(entry => JSON.stringify(entry)).join('\n');
+
+    const messages = parsePiSessionContent(content);
+
+    expect(messages.map(message => message.content)).toEqual(['Work', 'WorkingDone']);
+    expect(messages[1]).toMatchObject({
+      id: 'a', assistantMessageId: 'final', durationSeconds: 5,
+      turnStats: { outputTokens: 15, durationMs: 5_000 },
+    });
+    expect(getPiTurnStats(parsePiSessionEntries(content).entries, 'final')).toEqual({
+      outputTokens: 15, durationMs: 5_000,
+    });
+  });
+
+  it.each([true, false])('keeps successive automatic replies separate with display=%s', (display) => {
+    const content = [
+      { id: 'first-trigger', type: 'custom_message', display, content: 'First: ', timestamp: 1_000 },
+      { id: 'a1', parentId: 'first-trigger', type: 'message', timestamp: 2_000,
+        message: { role: 'assistant', stopReason: 'stop', usage: { output: 2 }, content: 'One' } },
+      { id: 'second-trigger', parentId: 'a1', type: 'custom_message', display, content: 'Second: ', timestamp: 3_000 },
+      { id: 'a2', parentId: 'second-trigger', type: 'message', timestamp: 5_000,
+        message: { role: 'assistant', stopReason: 'stop', usage: { output: 4 }, content: 'Two' } },
+    ].map(entry => JSON.stringify(entry)).join('\n');
+
+    const messages = parsePiSessionContent(content);
+
+    expect(messages.map(message => message.content)).toEqual(display ? ['First: One', 'Second: Two'] : ['One', 'Two']);
+    expect(messages.map(message => message.assistantMessageId)).toEqual(['a1', 'a2']);
+    expect(messages.map(message => message.turnStats)).toEqual([
+      { outputTokens: 2, durationMs: 1_000 }, { outputTokens: 4, durationMs: 2_000 },
+    ]);
+  });
+
+  it.each(['aborted', 'stop'])(
+    'keeps a completed reply separate from a %s reply after a hidden trigger', (stopReason) => {
+      const content = [
+        { id: 'u1', type: 'message', timestamp: 1_000, message: { role: 'user', content: 'Hello' } },
+        { id: 'a1', parentId: 'u1', type: 'message', timestamp: 3_000,
+          message: { role: 'assistant', stopReason: 'stop', usage: { output: 10 }, content: 'Completed reply' } },
+        { id: 'trigger', parentId: 'a1', type: 'custom_message', timestamp: 5_000,
+          display: false, content: 'Hidden trigger' },
+        { id: 'a2', parentId: 'trigger', type: 'message', timestamp: 8_000,
+          message: { role: 'assistant', stopReason, usage: { output: 3 }, content: 'Later reply' } },
+      ].map(entry => JSON.stringify(entry)).join('\n');
+
+      const messages = parsePiSessionContent(content);
+
+      expect(messages.map(message => message.content)).toEqual(['Hello', 'Completed reply', 'Later reply']);
+      expect(messages[1]).toMatchObject({
+        id: 'a1', assistantMessageId: 'a1', durationSeconds: 2,
+        turnStats: { outputTokens: 10, durationMs: 2_000 },
+      });
+      expect(messages[2].assistantMessageId).toBe('a2');
+      expect(messages[2].turnStats).toEqual(stopReason === 'stop'
+        ? { outputTokens: 3, durationMs: 3_000 }
+        : undefined);
+      expect(getPiTurnStats(parsePiSessionEntries(content).entries, 'a2')).toEqual(messages[2].turnStats);
+    },
+  );
+
   it('reuses parsed entries for message and model projections', () => {
     const content = [
       JSON.stringify({ type: 'session', id: 's1' }),

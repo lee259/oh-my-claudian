@@ -53,7 +53,9 @@ export function parseConfiguredCustomModelIds(value: string): string[] {
 export function getCodexModelOptions(settings: Record<string, unknown>): ProviderUIOption[] {
   const codexSettings = getCodexProviderSettings(settings);
   const getModelLabel = (modelId: string, fallback: string): string => {
-    return codexSettings.modelAliases[modelId] ?? fallback;
+    return Object.prototype.hasOwnProperty.call(codexSettings.modelAliases, modelId)
+      ? codexSettings.modelAliases[modelId]
+      : fallback;
   };
   const visibleModelIds = getVisibleCodexModelIds(
     codexSettings.visibleModels,

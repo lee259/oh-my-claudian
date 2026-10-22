@@ -5,6 +5,30 @@ import * as path from 'node:path';
 import { isPathWithinRoot } from '@/core/storage/pathContainment';
 
 describe('isPathWithinRoot', () => {
+  it.each(['root', 'root\\literal'])('retains POSIX backslashes in files under %s', (rootName) => {
+    if (process.platform === 'win32') return;
+    const tempDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-posix-path-')));
+    try {
+      const root = path.join(tempDir, rootName);
+      fs.mkdirSync(root);
+      const file = path.join(root, 'session\\literal.jsonl');
+      fs.writeFileSync(file, '{}');
+
+      expect(isPathWithinRoot(file, root)).toBe(true);
+      expect(isPathWithinRoot(path.join(root, 'missing\\literal.jsonl'), root)).toBe(true);
+      expect(isPathWithinRoot(path.join(tempDir, `${rootName}-sibling`, 'session.jsonl'), root)).toBe(false);
+      expect(isPathWithinRoot(path.join(root, '..', 'outside.jsonl'), root)).toBe(false);
+
+      const outside = path.join(tempDir, 'outside');
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, 'session.jsonl'), '{}');
+      fs.symlinkSync(outside, path.join(root, 'escape'));
+      expect(isPathWithinRoot(path.join(root, 'escape', 'session.jsonl'), root)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('uses path segments instead of string prefixes', () => {
     expect(isPathWithinRoot('/home/user/.codex/sessions/a.jsonl', '/home/user/.codex/sessions')).toBe(true);
     expect(isPathWithinRoot('/home/user/.codex/sessions-evil/a.jsonl', '/home/user/.codex/sessions')).toBe(false);
