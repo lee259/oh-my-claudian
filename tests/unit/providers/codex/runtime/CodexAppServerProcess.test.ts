@@ -178,19 +178,23 @@ describe('CodexAppServerProcess', () => {
 
     it('waits for close before notifying so late stderr is included', () => {
       const server = new CodexAppServerProcess(createLaunchSpec());
-      const exitCallback = jest.fn(() => {
-        expect(server.getStderrSnapshot()).toContain('unknown variant priority');
-      });
+      const exitCallback = jest.fn(() => server.getStderrSnapshot());
       server.onExit(exitCallback);
       server.start();
 
       mockProc.emit('exit', 1, null);
       mockProc.stderr?.emit('data', 'unknown variant priority');
+      mockProc.stderr?.emit('data', Buffer.from([0x20, 0xe4]));
+      mockProc.stderr?.emit('data', Buffer.from([0xb8, 0xad, 0xf0, 0x9f]));
+      mockProc.stderr?.emit('data', Buffer.from([0x9a, 0x80, 0xe4]));
+      expect(server.getStderrSnapshot()).toBe('unknown variant priority 中🚀');
       expect(exitCallback).not.toHaveBeenCalled();
 
       mockProc.emit('close', 1, null);
 
       expect(exitCallback).toHaveBeenCalledWith(1, null);
+      expect(exitCallback).toHaveReturnedWith('unknown variant priority 中🚀�');
+      expect(mockProc.stderr?.listenerCount('data')).toBe(0);
     });
   });
 
