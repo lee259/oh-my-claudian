@@ -57,7 +57,40 @@ function createTurn(
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => document.body.replaceChildren());
 
-  it('preserves a paused activity viewport when live tools rebuild the phase', () => {
+  it.each(['claude', 'omp'] as const)('keeps a %s disclosure clickable while thinking tokens arrive', (providerId) => {
+    const { renderer, component, messagesEl, user, assistant, tool } = createTurn(providerId);
+    try {
+      tool('first', 'completed'); tool('second', 'completed');
+      const next: ChatMessage = { id: 'next-run', role: 'assistant', content: '', timestamp: 3, contentBlocks: [] };
+      const content = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant', attr: { 'data-message-id': next.id },
+      }).createDiv({ cls: 'claudian-message-content' });
+      content.createDiv({ cls: 'claudian-thinking-block', text: 'Checking' });
+      const sync = (liveBlock: Extract<ContentBlock, { type: 'thinking' }>) => renderer.syncStreamingActivity(
+        next, content, liveBlock, [user, assistant, next],
+      );
+      renderer.startCompletedWork(content);
+      sync({ type: 'thinking', content: 'Checking' });
+      const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      const details = content.querySelector<HTMLElement>('.claudian-activity-phase-details')!;
+      if (header.getAttribute('aria-expanded') !== 'true') header.click();
+      header.focus();
+      header.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+      sync({ type: 'thinking', content: 'Checking the next reference' });
+      header.click();
+
+      expect(content.querySelector('.claudian-activity-phase-header')).toBe(header);
+      expect(document.activeElement).toBe(header);
+      expect(header.getAttribute('aria-expanded')).toBe('false');
+      expect(details.hidden).toBe(true);
+      sync({ type: 'thinking', content: 'Checking the next reference carefully' });
+      expect(content.querySelector('.claudian-activity-phase-details')).toBe(details);
+      expect(details.hidden).toBe(true);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('keeps a focused, paused activity viewport mounted when live tools arrive', () => {
     const { renderer, component, content, tool, sync } = createTurn();
     try {
       tool('first', 'completed'); tool('second', 'running'); sync();
@@ -65,10 +98,135 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       Object.defineProperties(details, { scrollHeight: { value: 1200 }, clientHeight: { value: 320 } });
       details.scrollTop = 180;
       details.dispatchEvent(new Event('scroll'));
+      const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      header.focus();
+      const observer = new MutationObserver(() => {});
+      observer.observe(details, { childList: true });
       tool('third', 'running'); sync();
+      const removals = observer.takeRecords().flatMap(record => [...record.removedNodes]);
+      observer.disconnect();
       const next = content.querySelector<HTMLElement>('.claudian-activity-phase-details')!;
-      expect(next).not.toBe(details);
+      expect(next).toBe(details);
+      expect(document.activeElement).toBe(header);
       expect(next.scrollTop).toBe(180);
+      expect(removals).toEqual([]);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('keeps the live work rail mounted across OMP assistant-run boundaries', () => {
+    const { renderer, component, messagesEl, user, assistant, content, tool, text, sync } = createTurn('omp');
+    try {
+      tool('first', 'completed'); tool('second', 'completed');
+      text('Checking the result.');
+      renderer.startCompletedWork(content);
+      sync();
+      const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      const phase = header.parentElement!;
+      const parent = phase.parentElement;
+      if (header.getAttribute('aria-expanded') === 'true') header.click();
+      header.focus();
+      renderer.finalizeCompletedWork(assistant, false, false);
+      expect(phase.isConnected).toBe(true);
+
+      const next: ChatMessage = {
+        id: 'following-run', role: 'assistant', content: '', timestamp: 3,
+        contentBlocks: [{ type: 'thinking', content: 'Checking the next file' }],
+      };
+      const nextContent = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant', attr: { 'data-message-id': next.id },
+      }).createDiv({ cls: 'claudian-message-content' });
+      nextContent.createDiv({ cls: 'claudian-thinking-block', text: 'Checking the next file' });
+      renderer.startCompletedWork(nextContent);
+      renderer.syncStreamingActivity(next, nextContent, undefined, [user, assistant, next]);
+      expect(messagesEl.querySelector('.claudian-activity-phase-header')).toBe(header);
+      expect(phase.parentElement).toBe(parent);
+      expect(document.activeElement).toBe(header);
+      expect(header.getAttribute('aria-expanded')).toBe('false');
+      expect(messagesEl.querySelectorAll('.claudian-completed-work-status')).toHaveLength(1);
+
+      const currentHeader = nextContent.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      expect(currentHeader.getAttribute('aria-expanded')).toBe('true');
+      currentHeader.focus();
+      renderer.finalizeCompletedWork(next, false, false);
+      const third: ChatMessage = {
+        id: 'third-run', role: 'assistant', content: '', timestamp: 4,
+        contentBlocks: [{ type: 'thinking', content: 'Finishing the check' }],
+      };
+      const thirdContent = messagesEl.createDiv({
+        cls: 'claudian-message claudian-message-assistant', attr: { 'data-message-id': third.id },
+      }).createDiv({ cls: 'claudian-message-content' });
+      thirdContent.createDiv({ cls: 'claudian-thinking-block', text: 'Finishing the check' });
+      renderer.startCompletedWork(thirdContent);
+      renderer.syncStreamingActivity(third, thirdContent, undefined, [user, assistant, next, third]);
+      expect(currentHeader.isConnected).toBe(true);
+      expect(currentHeader.getAttribute('aria-expanded')).toBe('true');
+      expect(document.activeElement).toBe(currentHeader);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('summarizes canonical tool identities instead of repeating command presentation titles', () => {
+    const { renderer, component, content, tool, sync } = createTurn('omp');
+    try {
+      for (const id of ['first', 'second']) {
+        const node = tool(id, 'running');
+        node.querySelector('.claudian-tool-name')!.textContent = '$ npm view example versions --json';
+      }
+      sync();
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Ran 2 commands');
+      expect(content.querySelector('.claudian-activity-phase-header')?.firstElementChild?.className)
+        .toBe('claudian-activity-phase-indicator');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('keeps the previous text visible until its next Markdown snapshot is ready', async () => {
+    const { renderer, component, text } = createTurn('omp');
+    const node = text('Previous snapshot');
+    let complete!: () => void;
+    (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, target: HTMLElement) => {
+      await new Promise<void>(resolve => { complete = resolve; });
+      target.createEl('p', { text: 'Next snapshot' });
+    });
+    try {
+      const rendering = renderer.renderContent(node, 'Next snapshot');
+      expect(node.textContent).toBe('Previous snapshot');
+      complete();
+      await rendering;
+      expect(node.textContent).toBe('Next snapshot');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('follows delayed Markdown growth inside a retained earlier-run stage and respects a paused reader', async () => {
+    const { renderer, component, messagesEl, user, assistant, content, tool, text, sync } = createTurn('omp');
+    try {
+      tool('first', 'completed'); tool('second', 'running');
+      renderer.startCompletedWork(content);
+      sync();
+      const details = content.querySelector<HTMLElement>('.claudian-activity-phase-details')!;
+      let height = 600;
+      Object.defineProperties(details, { scrollHeight: { get: () => height }, clientHeight: { value: 320 } });
+      // The live stage is following before Markdown finishes asynchronously.
+      sync();
+      expect(details.scrollTop).toBe(600);
+      const thought = details.createDiv({ cls: 'claudian-thinking-content' });
+      (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, target: HTMLElement) => {
+        target.createEl('p', { text: 'Expanded Markdown' }); height = 900;
+      });
+      await renderer.renderContent(thought, 'Expanded Markdown');
+      expect(details.scrollTop).toBe(900);
+      details.dispatchEvent(new WheelEvent('wheel', { deltaY: -40, bubbles: true }));
+      details.scrollTop = 120; details.dispatchEvent(new Event('scroll'));
+      text('The first result.'); sync();
+      renderer.finalizeCompletedWork(assistant, false, false);
+      const next: ChatMessage = { id: 'follow-run', role: 'assistant', content: '', timestamp: 3,
+        contentBlocks: [{ type: 'thinking', content: 'More work' }] };
+      const nextContent = messagesEl.createDiv({ cls: 'claudian-message', attr: { 'data-message-id': next.id } })
+        .createDiv({ cls: 'claudian-message-content' });
+      nextContent.createDiv({ cls: 'claudian-thinking-block', text: 'More work' });
+      renderer.startCompletedWork(nextContent);
+      renderer.syncStreamingActivity(next, nextContent, undefined, [user, assistant, next]);
+      height = 1100;
+      renderer.syncStreamingActivity(next, nextContent, undefined, [user, assistant, next]);
+      expect(details.scrollTop).toBe(120);
     } finally { renderer.dispose(); component.unload(); }
   });
 

@@ -426,6 +426,7 @@ export function buildOmpUsageInfo(usage: AcpUsageUpdate, model?: string) {
 
 export function buildInitialOmpUsageInfo(model?: string): UsageInfo {
   return {
+    contextUsageIsProvisional: true,
     cacheCreationInputTokens: 0,
     cacheReadInputTokens: 0,
     contextTokens: 0,

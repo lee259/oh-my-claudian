@@ -7,7 +7,9 @@ export function isNestedScrollEvent(event: Event, container: HTMLElement): boole
     const canConsume = !deltaY || (deltaY < 0
       ? region.scrollTop > 0
       : region.scrollTop + region.clientHeight < region.scrollHeight);
-    if (region.scrollHeight > region.clientHeight && canConsume) return true;
+    const overflow = region.ownerDocument?.defaultView?.getComputedStyle?.(region).overflowY;
+    const canScroll = overflow === undefined || /^(auto|scroll|overlay)$/.test(overflow);
+    if (canScroll && region.scrollHeight > region.clientHeight && canConsume) return true;
     region = region.parentElement?.closest?.<HTMLElement>(selectors);
   }
   return false;
@@ -18,15 +20,38 @@ export class ScrollFollowController {
   scrollTop: number;
   following: boolean;
   version = 0;
+  private readonly contentObserver?: MutationObserver;
+  private readonly sizeObserver?: ResizeObserver;
   private readonly intentEvents = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const;
 
   constructor(
     readonly element: HTMLElement,
     previous?: { scrollTop: number; following: boolean },
+    private readonly isAutoScrollEnabled: () => boolean = () => true,
   ) {
     this.scrollTop = previous?.scrollTop ?? element.scrollTop;
     this.following = previous?.following
       ?? (element.scrollHeight - element.scrollTop - element.clientHeight <= 20);
+    const ownerWindow = element.ownerDocument?.defaultView;
+    const followGrowth = () => {
+      if (element.isConnected && !element.hidden && this.following && this.isAutoScrollEnabled()) this.restore(true);
+    };
+    const Resize = ownerWindow?.ResizeObserver;
+    if (Resize) this.sizeObserver = new Resize(followGrowth);
+    const observeSizes = () => {
+      this.sizeObserver?.disconnect();
+      this.sizeObserver?.observe(element);
+      for (const child of Array.from(element.children)) this.sizeObserver?.observe(child);
+    };
+    const Mutation = ownerWindow?.MutationObserver;
+    if (Mutation) {
+      this.contentObserver = new Mutation(records => {
+        if (records.some(record => record.type === 'childList' && record.target === element)) observeSizes();
+        followGrowth();
+      });
+      this.contentObserver.observe(element, { childList: true, subtree: true, characterData: true });
+    }
+    observeSizes();
     element.addEventListener('scroll', this.handleScroll, { passive: true });
     for (const event of this.intentEvents) {
       element.addEventListener(event, this.handleIntent, { passive: true });
@@ -69,6 +94,8 @@ export class ScrollFollowController {
   }
 
   dispose(): void {
+    this.contentObserver?.disconnect();
+    this.sizeObserver?.disconnect();
     this.element.removeEventListener('scroll', this.handleScroll);
     for (const event of this.intentEvents) this.element.removeEventListener(event, this.handleIntent);
   }

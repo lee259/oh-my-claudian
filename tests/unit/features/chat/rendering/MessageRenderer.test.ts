@@ -1453,7 +1453,8 @@ describe('MessageRenderer', () => {
       renderer.finalizeTranscriptTurn(projectTranscript(messages)[0], message.id);
       const fold = messagesEl.querySelector('.claudian-completed-work')!;
       const history = fold.querySelector('.claudian-completed-work-history')!;
-      for (const node of nodes.slice(0, -1)) expect(history.contains(node)).toBe(true);
+      expect(nodes.slice(0, -1).filter(node => !history.contains(node))
+        .map(node => node.dataset.toolId ?? node.textContent)).toEqual([]);
       expect(history.contains(nodes.at(-1)!)).toBe(false);
       expect(contentEl.children).toContain(nodes.at(-1));
       expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(3);

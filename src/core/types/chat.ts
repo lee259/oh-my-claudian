@@ -352,6 +352,8 @@ export interface UsageInfo {
   contextWindowIsAuthoritative?: boolean;
   /** True when this is an on-demand provider context-usage snapshot, not a streamed estimate. */
   contextUsageSnapshot?: boolean;
+  /** Model/capacity defaults only; the token count has not been measured by the provider. */
+  contextUsageIsProvisional?: boolean;
   contextTokens: number;
   percentage: number;
 }

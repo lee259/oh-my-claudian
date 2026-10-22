@@ -13,6 +13,49 @@ async function flush(): Promise<void> {
 }
 
 describe('OmpExecutionSession', () => {
+  it('marks resumed usage defaults as provisional until native usage arrives', async () => {
+    const prompt = deferred<{ userMessageId: string }>();
+    let notify: any;
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never,
+      lifecycle: 'persistent',
+      nativePersistence: 'provider-default',
+      vaultWorkingDirectory: '/vault',
+      resumeSeed: { providerSessionId: 'existing-session' },
+    }, {
+      createKernel: options => {
+        notify = options.onNotification;
+        return {
+          cancel: jest.fn(), connect: jest.fn().mockResolvedValue(undefined),
+          dispose: jest.fn().mockResolvedValue(undefined),
+          openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'existing-session' }),
+          prompt: jest.fn().mockReturnValue(prompt.promise),
+          setConfigOption: jest.fn().mockResolvedValue(undefined), setModel: jest.fn().mockResolvedValue(undefined),
+        } as never;
+      },
+    });
+    const run = session.execute({
+      configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ type: 'text', text: 'Continue' }], signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' },
+    } as never);
+    const events: any[] = [];
+    const collecting = (async () => { for await (const event of run.events) events.push(event); })();
+    await flush();
+    const initialEvents = [...events];
+    await notify({ sessionId: 'existing-session', update: { sessionUpdate: 'usage_update', size: 1_000_000, used: 99_000 } });
+    prompt.resolve({ userMessageId: 'continued' });
+    await collecting;
+    await session.dispose();
+
+    expect(initialEvents.filter(event => event.type === 'usage_updated')).toEqual([
+      expect.objectContaining({ usage: expect.objectContaining({ contextUsageIsProvisional: true }) }),
+    ]);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'usage_updated', usage: expect.objectContaining({ contextTokens: 99_000, contextWindow: 1_000_000 }),
+    }));
+  });
+
   it('records provider execution errors when diagnostic logging is available', async () => {
     const write = jest.fn().mockResolvedValue(undefined);
     const session = new OmpExecutionSession({

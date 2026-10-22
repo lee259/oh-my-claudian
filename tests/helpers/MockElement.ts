@@ -1,6 +1,7 @@
 export interface MockElement {
   tagName: string;
   children: MockElement[];
+  readonly childNodes: MockElement[];
   style: Record<string, string>;
   dataset: Record<string, string>;
   scrollTop: number;
@@ -27,7 +28,7 @@ export interface MockElement {
   firstChild: MockElement | null;
   remove: () => void;
   empty: () => void;
-  replaceChildren: () => void;
+  replaceChildren: (...nodes: MockElement[]) => void;
   contains: (node: any) => boolean;
   scrollIntoView: () => void;
   setAttribute: (name: string, value: string) => void;
@@ -289,9 +290,11 @@ export function createMockEl(tag = 'div'): any {
     appendChild(child: any) { children.push(child); return child; },
     insertBefore(el: MockElement, _ref: MockElement | null) { children.unshift(el); },
     get firstChild() { return children[0] || null; },
+    get childNodes() { return children; },
     remove() {},
-    replaceChildren() {
+    replaceChildren(...nodes: MockElement[]) {
       this.empty();
+      children.push(...nodes);
     },
     empty() {
       children.length = 0;
