@@ -231,7 +231,8 @@
       "newForNote": "Nouvelle conversation pour {note}",
       "cannotArchiveRunning": "Impossible d’archiver une session en cours",
       "autoArchived": "{count} conversation(s) inactive(s) archivée(s).",
-      "nativeArchiveFailed": "{provider} n’a pas pu archiver ou restaurer ses sessions : {reason}"
+      "nativeArchiveFailed": "{provider} n’a pas pu archiver ou restaurer ses sessions : {reason}",
+      "invalidMetadata": "{count} fichiers de métadonnées de conversation non valides ont été ignorés. La liste des conversations peut être incomplète. Sauvegardez .claudian/sessions avant de vérifier ou de restaurer ses fichiers .meta.json."
     },
     "status": {
       "loadingConversation": "Chargement de la conversation…",

@@ -23,6 +23,7 @@ export interface SessionMetadataCoordinatorOptions {
   recoverMissingConversationModels: () => Promise<Conversation[]>;
   completePendingSessionInvalidations: () => Promise<void>;
   notifyConversationViewsChanged: () => void;
+  onInvalidMetadata?: (count: number) => void;
 }
 
 export class SessionMetadataCoordinator {
@@ -33,6 +34,7 @@ export class SessionMetadataCoordinator {
   private readonly recoverMissingConversationModels: () => Promise<Conversation[]>;
   private readonly completePendingSessionInvalidations: () => Promise<void>;
   private readonly notifyConversationViewsChanged: () => void;
+  private readonly onInvalidMetadata?: (count: number) => void;
 
   constructor(options: SessionMetadataCoordinatorOptions) {
     this.sessions = options.sessions;
@@ -42,6 +44,7 @@ export class SessionMetadataCoordinator {
     this.recoverMissingConversationModels = options.recoverMissingConversationModels;
     this.completePendingSessionInvalidations = options.completePendingSessionInvalidations;
     this.notifyConversationViewsChanged = options.notifyConversationViewsChanged;
+    this.onInvalidMetadata = options.onInvalidMetadata;
   }
 
   async loadSessionMetadataWithSources(): Promise<{
@@ -50,8 +53,10 @@ export class SessionMetadataCoordinator {
     invalidMetadataCount: number;
   }> {
     const scan = await this.sessions.scanMetadata();
+    const records = await this.resolveMetadataSources(scan.metadata);
+    this.reportInvalidMetadata(scan);
     return {
-      records: await this.resolveMetadataSources(scan.metadata),
+      records,
       complete: scan.complete,
       invalidMetadataCount: scan.invalidMetadataCount,
     };
@@ -99,6 +104,8 @@ export class SessionMetadataCoordinator {
     if (this.isUnloading()) {
       return scan.complete;
     }
+
+    this.reportInvalidMetadata(scan);
 
     StartupProfiler.recordCount('session-metadata-count', scan.metadata.length);
     StartupProfiler.recordCount(
@@ -185,6 +192,12 @@ export class SessionMetadataCoordinator {
       await this.completePendingSessionInvalidations();
     }
     return scan.complete;
+  }
+
+  private reportInvalidMetadata(scan: { complete: boolean; invalidMetadataCount: number }): void {
+    if (!this.isUnloading() && scan.complete && scan.invalidMetadataCount > 0) {
+      this.onInvalidMetadata?.(scan.invalidMetadataCount);
+    }
   }
 
   private async resolveMetadataSources(

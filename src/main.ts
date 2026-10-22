@@ -543,6 +543,7 @@ export default class ClaudianPlugin extends Plugin {
       ...DEFAULT_CLAUDIAN_SETTINGS,
       ...claudian,
     };
+    setLocale(resolveLocale(this.settings.locale, getObsidianLanguage()));
     const archiveSetting = this.settings.sessionAutoArchiveAfter;
     const didNormalizeSessionAutoArchiveAfter = ![
       'off', '7d', '14d', '30d',
@@ -634,6 +635,9 @@ export default class ClaudianPlugin extends Plugin {
         this.sessionInvalidationCoordinator.getCompletable(),
       ),
       notifyConversationViewsChanged: () => this.notifyConversationViewsChanged(),
+      onInvalidMetadata: (count) => {
+        new Notice(t('chat.history.invalidMetadata', { count }), 10_000);
+      },
     });
 
     // Plan mode is ephemeral — normalize back to normal on load so the app
@@ -693,8 +697,6 @@ export default class ClaudianPlugin extends Plugin {
         recoveredModels.length,
       );
     }
-    setLocale(resolveLocale(this.settings.locale, getObsidianLanguage()));
-
     const reconciliation = this.reconcileModelWithEnvironment();
     const initialInvalidationGenerations = this.sessionInvalidationCoordinator.stage(
       this.settings,
