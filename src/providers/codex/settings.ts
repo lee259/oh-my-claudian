@@ -234,7 +234,7 @@ export function normalizeCodexModelAliases(
   }
 
   const knownModelIds = new Set(discoveredModels.map(model => model.model));
-  const normalized: Record<string, string> = {};
+  const entries: Array<[string, string]> = [];
   for (const [rawModelId, rawAlias] of Object.entries(value as Record<string, unknown>)) {
     if (typeof rawAlias !== 'string') {
       continue;
@@ -245,9 +245,9 @@ export function normalizeCodexModelAliases(
     if (!modelId || !alias || (knownModelIds.size > 0 && !knownModelIds.has(modelId))) {
       continue;
     }
-    normalized[modelId] = alias;
+    entries.push([modelId, alias]);
   }
-  return normalized;
+  return Object.fromEntries(entries);
 }
 
 export function createCodexVisibleModelFilter(
