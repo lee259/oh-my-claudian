@@ -2127,6 +2127,23 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Thinking block finalization', () => {
+    it('does not create or persist a whitespace-only thinking block', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      const msg = createTestMessage();
+      deps.state.currentContentEl = createMockEl();
+
+      await controller.handleStreamChunk({ type: 'thinking', content: ' \n ' }, msg);
+
+      expect(createThinkingBlock).not.toHaveBeenCalled();
+      expect(deps.state.currentThinkingState).toBeNull();
+
+      await controller.handleStreamChunk({ type: 'text', content: 'Answer' }, msg);
+      await controller.finalizeCurrentTextBlock(msg);
+      expect(msg.contentBlocks).toEqual([
+        expect.objectContaining({ type: 'text', content: 'Answer' }),
+      ]);
+    });
+
     it('uses Codex reasoning only as live status while preserving its transcript data', async () => {
       deps.getProviderId = () => 'codex';
       const msg = createTestMessage();

@@ -1476,7 +1476,7 @@ export class StreamController {
   async appendThinking(content: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
     const thinking = state.response.appendThinking(content);
-    if (!state.currentContentEl) return;
+    if (!state.currentContentEl || !thinking.content.trim()) return;
 
     this.hideThinkingIndicator();
     if (!state.currentThinkingState) {

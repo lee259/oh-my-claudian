@@ -1987,9 +1987,19 @@ export class MessageRenderer {
         return;
       }
       if (block.type === 'text' && !block.content.trim()) return;
+      if (block.type === 'thinking' && !block.content.trim()) {
+        const blankElement = children.find((candidate) => (
+          candidate.dataset.transcriptItemId === projectedBlock.id
+        ));
+        if (blankElement) {
+          suppressedElements.add(blankElement);
+          blankElement.remove();
+        }
+        return;
+      }
       if (block.type === 'thinking' && (
         ProviderRegistry.getChatUIConfig(this.getCapabilities().providerId).thinkingPresentation === 'status'
-        || !block.content.trim() || supersededInitialThinking.has(blockIndex)
+        || supersededInitialThinking.has(blockIndex)
       )) return;
       let element = children.find((candidate) => (
         candidate.dataset.transcriptItemId === projectedBlock.id
@@ -2123,6 +2133,7 @@ export class MessageRenderer {
 
     const unrepresentedWork = children.filter((element) => (
       !representedElements.has(element)
+      && !suppressedElements.has(element)
       && !element.hasClass('claudian-text-block')
       && !element.hasClass('claudian-citations')
       && !element.hasClass('claudian-response-footer')

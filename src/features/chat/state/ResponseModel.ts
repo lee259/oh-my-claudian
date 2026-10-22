@@ -27,7 +27,7 @@ export class ResponseModel {
   takeThinking(now = Date.now()): Extract<ContentBlock, { type: 'thinking' }> | null {
     const thinking = this.thinking;
     this.thinking = null;
-    return thinking?.content ? {
+    return thinking?.content.trim() ? {
       type: 'thinking', content: thinking.content,
       durationSeconds: Math.max(0, Math.floor((now - thinking.startTime) / 1_000)),
     } : null;
