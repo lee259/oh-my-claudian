@@ -231,7 +231,8 @@
       "newForNote": "Neuer Chat für {note}",
       "cannotArchiveRunning": "Eine laufende Sitzung kann nicht archiviert werden",
       "autoArchived": "{count} inaktive Unterhaltung(en) archiviert.",
-      "nativeArchiveFailed": "{provider} konnte Sitzungen nicht archivieren oder wiederherstellen: {reason}"
+      "nativeArchiveFailed": "{provider} konnte Sitzungen nicht archivieren oder wiederherstellen: {reason}",
+      "invalidMetadata": "{count} ungültige Metadatendateien für Unterhaltungen wurden übersprungen. Die Unterhaltungsliste ist möglicherweise unvollständig. Sichern Sie .claudian/sessions, bevor Sie die .meta.json-Dateien prüfen oder wiederherstellen."
     },
     "status": {
       "loadingConversation": "Unterhaltung wird geladen…",

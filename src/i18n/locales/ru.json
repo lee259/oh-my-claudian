@@ -231,7 +231,8 @@
       "newForNote": "Новый чат для {note}",
       "cannotArchiveRunning": "Нельзя архивировать выполняющийся сеанс",
       "autoArchived": "Архивировано бесед: {count}.",
-      "nativeArchiveFailed": "{provider} не удалось архивировать или восстановить сеансы: {reason}"
+      "nativeArchiveFailed": "{provider} не удалось архивировать или восстановить сеансы: {reason}",
+      "invalidMetadata": "Пропущено недопустимых файлов метаданных бесед: {count}. Список бесед может быть неполным. Создайте резервную копию .claudian/sessions перед проверкой или восстановлением файлов .meta.json."
     },
     "status": {
       "loadingConversation": "Загрузка разговора…",

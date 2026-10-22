@@ -231,7 +231,8 @@
       "newForNote": "Nuevo chat para {note}",
       "cannotArchiveRunning": "No se puede archivar una sesión en ejecución",
       "autoArchived": "Se archivaron {count} conversaciones inactivas.",
-      "nativeArchiveFailed": "{provider} no pudo archivar ni restaurar sus sesiones: {reason}"
+      "nativeArchiveFailed": "{provider} no pudo archivar ni restaurar sus sesiones: {reason}",
+      "invalidMetadata": "Se omitieron {count} archivos de metadatos de conversación no válidos. La lista de conversaciones puede estar incompleta. Haga una copia de seguridad de .claudian/sessions antes de revisar o restaurar sus archivos .meta.json."
     },
     "status": {
       "loadingConversation": "Cargando conversación…",

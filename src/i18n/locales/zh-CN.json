@@ -231,7 +231,8 @@
       "newForNote": "为 {note} 新建聊天",
       "cannotArchiveRunning": "运行中的会话无法归档",
       "autoArchived": "已归档 {count} 个闲置对话。",
-      "nativeArchiveFailed": "{provider} 无法归档或恢复会话：{reason}"
+      "nativeArchiveFailed": "{provider} 无法归档或恢复会话：{reason}",
+      "invalidMetadata": "已跳过 {count} 个无效的会话元数据文件。会话列表可能不完整。检查或恢复 .meta.json 文件前，请先备份 .claudian/sessions。"
     },
     "status": {
       "loadingConversation": "正在加载对话…",
