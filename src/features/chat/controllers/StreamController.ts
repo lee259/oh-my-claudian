@@ -46,6 +46,7 @@ import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
   type ScheduledAnimationFrame,
+  scheduleDelayedFrame,
 } from '../../../utils/animationFrame';
 import { formatDurationMmSs } from '../../../utils/date';
 import { extractDiffData } from '../../../utils/diff';
@@ -131,6 +132,7 @@ interface StreamingContentSnapshot {
   el: HTMLElement;
   content: string;
   shouldFollowScroll: boolean;
+  preferPlainText?: boolean;
   getOptions?: () => RenderContentOptions | undefined;
   options?: RenderContentOptions;
 }
@@ -147,6 +149,9 @@ function isAsyncSubagentState(
 }
 
 const STREAMING_RENDER_MIN_INTERVAL_MS = 150;
+/** Long accumulated Markdown becomes more expensive than a plain preview at high token rates. */
+export const STREAMING_RENDER_PLAIN_TEXT_THRESHOLD = 2_000;
+const STATUS_THINKING_LABEL_REFRESH_MS = 100;
 
 export class StreamController {
   private static readonly ASYNC_SUBAGENT_RESULT_RETRY_DELAYS_MS = [
@@ -162,6 +167,10 @@ export class StreamController {
   private viewportVisible = true;
   private pendingToolOutputFrames = new Map<string, ScheduledAnimationFrame>();
   private pendingScrollFrame: ScheduledAnimationFrame | null = null;
+  private pendingThinkingLabelFrame: ScheduledAnimationFrame | null = null;
+  private lastThinkingLabelRefreshAt = Number.NEGATIVE_INFINITY;
+  private readonly plainTextStreamingElements = new WeakSet<HTMLElement>();
+  private readonly plainTextLengths = new WeakMap<HTMLElement, number>();
   private thinkingViewport: ScrollFollowController | null = null;
   private highestContextUsage: {
     model?: string;
@@ -212,11 +221,18 @@ export class StreamController {
           && thinkingState.isExpanded
           && (this.deps.plugin.settings.enableAutoScroll ?? true)
           && viewport?.following;
-        const options = getOptions ? getOptions() : explicitOptions;
-        if (options) {
-          await this.deps.renderer.renderContent(el, content, options);
+        if (snapshot.preferPlainText) {
+          this.renderPlainTextStreaming(el, content);
         } else {
-          await this.deps.renderer.renderContent(el, content);
+          this.plainTextStreamingElements.delete(el);
+          this.plainTextLengths.delete(el);
+          el.removeClass('claudian-streaming-plain-text');
+          const options = getOptions ? getOptions() : explicitOptions;
+          if (options) {
+            await this.deps.renderer.renderContent(el, content, options);
+          } else {
+            await this.deps.renderer.renderContent(el, content);
+          }
         }
         if (followThinking
           && this.deps.state.currentThinkingState === thinkingState
@@ -240,8 +256,22 @@ export class StreamController {
       el,
       content,
       shouldFollowScroll: this.shouldFollowScroll(),
+      preferPlainText: content.length >= STREAMING_RENDER_PLAIN_TEXT_THRESHOLD,
       getOptions: () => this.getStreamingRenderOptions(content),
     };
+  }
+
+  private renderPlainTextStreaming(el: HTMLElement, content: string): void {
+    const renderedLength = this.plainTextLengths.get(el) ?? 0;
+    if (renderedLength === 0 || content.length < renderedLength) {
+      el.empty();
+      if (content) el.appendText(content);
+    } else if (content.length > renderedLength) {
+      el.appendText(content.slice(renderedLength));
+    }
+    this.plainTextLengths.set(el, content.length);
+    this.plainTextStreamingElements.add(el);
+    el.addClass('claudian-streaming-plain-text');
   }
 
   private shouldFollowScroll(): boolean {
@@ -308,6 +338,14 @@ export class StreamController {
   async handleStreamChunk(chunk: StreamChunk, msg: ChatMessage): Promise<void> {
     const { state } = this.deps;
     const shouldFollowScroll = this.shouldFollowScroll();
+    const hadText = Boolean(state.response.text);
+    const hadThinking = Boolean(state.response.thinking);
+    const hadTextEl = Boolean(state.currentTextEl);
+    const hadThinkingState = Boolean(state.currentThinkingState);
+    // Token growth keeps the same activity structure; sync only at block and work transitions.
+    let syncStreamingActivity = chunk.type !== 'thinking'
+      && chunk.type !== 'text'
+      && chunk.type !== 'usage';
     state.response.messageId = msg.id;
 
     switch (chunk.type) {
@@ -318,6 +356,8 @@ export class StreamController {
           await this.finalizeCurrentTextBlock(msg);
         }
         await this.appendThinking(chunk.content, msg);
+        syncStreamingActivity ||= (!hadThinkingState && !!state.currentThinkingState)
+          || (hadText && !state.response.text);
         break;
 
       case 'text':
@@ -328,6 +368,8 @@ export class StreamController {
         }
         msg.content += chunk.content;
         await this.appendText(chunk.content, msg);
+        syncStreamingActivity ||= (hadThinking && !state.response.thinking)
+          || (!hadTextEl && !!state.currentTextEl);
         break;
 
       case 'citations': {
@@ -470,7 +512,9 @@ export class StreamController {
       : state.response.thinking
         ? { type: 'thinking' as const, content: state.response.thinking.content }
         : undefined;
-    this.deps.renderer.syncStreamingActivity?.(msg, state.currentContentEl, liveBlock, state.messages);
+    if (syncStreamingActivity) {
+      this.deps.renderer.syncStreamingActivity?.(msg, state.currentContentEl, liveBlock, state.messages);
+    }
     if (shouldFollowScroll) this.scrollToBottom();
   }
 
@@ -1356,7 +1400,8 @@ export class StreamController {
     const { state } = this.deps;
     if (msg) state.response.messageId = msg.id;
     state.currentTextContent += text;
-    if (!state.currentContentEl || !state.currentTextContent.trim()) return;
+    if (!state.currentContentEl) return;
+    if (!state.currentTextEl && !state.currentTextContent.trim()) return;
 
     this.hideThinkingIndicator();
 
@@ -1387,7 +1432,8 @@ export class StreamController {
     const { state } = this.deps;
     if (msg) state.response.messageId = msg.id;
     state.currentTextContent += text;
-    if (!state.currentContentEl || !state.currentTextContent.trim()) return;
+    if (!state.currentContentEl) return;
+    if (!state.currentTextEl && !state.currentTextContent.trim()) return;
 
     this.hideThinkingIndicator();
     if (!state.currentTextEl) {
@@ -1419,11 +1465,16 @@ export class StreamController {
         this.getStreamingRenderOptions(content),
       );
     } else {
-      if (textEl && this.getStreamingRenderOptions(content)) {
+      const finalOptions = textEl ? this.getStreamingRenderOptions(content) : undefined;
+      if (textEl && (
+        this.plainTextStreamingElements.has(textEl)
+        || finalOptions
+      )) {
         this.textRenderCoordinator.request({
           el: textEl,
           content,
           shouldFollowScroll: this.shouldFollowScroll(),
+          preferPlainText: false,
         });
       }
       await this.textRenderCoordinator.flush();
@@ -1476,11 +1527,14 @@ export class StreamController {
   async appendThinking(content: string, msg?: ChatMessage): Promise<void> {
     const { state } = this.deps;
     const thinking = state.response.appendThinking(content);
-    if (!state.currentContentEl || !thinking.content.trim()) return;
+    if (!state.currentContentEl) return;
+    if (!state.currentThinkingState && !thinking.content.trim()) return;
 
     this.hideThinkingIndicator();
-    if (!state.currentThinkingState) {
+    const createdThinkingState = !state.currentThinkingState;
+    if (createdThinkingState) {
       this.thinkingRenderCoordinator.cancel();
+      this.cancelPendingThinkingLabelRefresh();
       const thinkingState = createThinkingBlock(state.currentContentEl, {
         startTime: thinking.startTime,
         presentation: ProviderRegistry.getChatUIConfig(this.getActiveProviderId()).thinkingPresentation,
@@ -1507,16 +1561,46 @@ export class StreamController {
       this.syncThinkingRenderAvailability();
     }
 
-    if (state.currentThinkingState.presentation === 'status') {
-      refreshThinkingLabel(state.currentThinkingState);
+    const activeThinkingState = state.currentThinkingState;
+    if (!activeThinkingState) return;
+    if (activeThinkingState.presentation === 'status') {
+      this.scheduleThinkingLabelRefresh(activeThinkingState, createdThinkingState);
       return;
     }
     this.thinkingRenderCoordinator.request(
       this.createStreamingSnapshot(
-        state.currentThinkingState.contentEl,
-        state.currentThinkingState.content
+        activeThinkingState.contentEl,
+        activeThinkingState.content
       )
     );
+  }
+
+  private scheduleThinkingLabelRefresh(
+    thinkingState: ThinkingBlockState,
+    immediate = false,
+  ): void {
+    const now = Date.now();
+    const elapsed = now - this.lastThinkingLabelRefreshAt;
+    if (immediate || elapsed >= STATUS_THINKING_LABEL_REFRESH_MS) {
+      this.cancelPendingThinkingLabelRefresh();
+      this.lastThinkingLabelRefreshAt = now;
+      refreshThinkingLabel(thinkingState);
+      return;
+    }
+    if (this.pendingThinkingLabelFrame) return;
+
+    this.pendingThinkingLabelFrame = scheduleDelayedFrame(() => {
+      this.pendingThinkingLabelFrame = null;
+      if (this.deps.state.currentThinkingState !== thinkingState) return;
+      this.lastThinkingLabelRefreshAt = Date.now();
+      refreshThinkingLabel(thinkingState);
+    }, STATUS_THINKING_LABEL_REFRESH_MS - elapsed, thinkingState.wrapperEl.ownerDocument?.defaultView ?? null);
+  }
+
+  private cancelPendingThinkingLabelRefresh(): void {
+    if (!this.pendingThinkingLabelFrame) return;
+    cancelScheduledAnimationFrame(this.pendingThinkingLabelFrame);
+    this.pendingThinkingLabelFrame = null;
   }
 
   async finalizeCurrentThinkingBlock(msg?: ChatMessage): Promise<void> {
@@ -1524,11 +1608,19 @@ export class StreamController {
     if (!state.response.thinking) return;
 
     const thinkingState = state.currentThinkingState;
-    if (thinkingState && thinkingState.presentation !== 'status' && this.getStreamingRenderOptions(thinkingState.content)) {
+    this.cancelPendingThinkingLabelRefresh();
+    const finalOptions = thinkingState && thinkingState.presentation !== 'status'
+      ? this.getStreamingRenderOptions(thinkingState.content)
+      : undefined;
+    if (thinkingState && thinkingState.presentation !== 'status' && (
+      this.plainTextStreamingElements.has(thinkingState.contentEl)
+      || finalOptions
+    )) {
       this.thinkingRenderCoordinator.request({
         el: thinkingState.contentEl,
         content: thinkingState.content,
         shouldFollowScroll: this.shouldFollowScroll(),
+        preferPlainText: false,
       });
     }
     await this.thinkingRenderCoordinator.flush();
@@ -2424,6 +2516,7 @@ export class StreamController {
     const { state } = this.deps;
     this.textRenderCoordinator.cancel();
     this.thinkingRenderCoordinator.cancel();
+    this.cancelPendingThinkingLabelRefresh();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.thinkingViewport?.dispose();
@@ -2479,6 +2572,7 @@ export class StreamController {
     const message = state.messages.find(candidate => candidate.id === state.response.messageId);
     this.textRenderCoordinator.cancel();
     this.thinkingRenderCoordinator.cancel();
+    this.cancelPendingThinkingLabelRefresh();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.thinkingViewport?.dispose();
@@ -2507,6 +2601,7 @@ export class StreamController {
     this.thinkingViewport = null;
     this.textRenderCoordinator.dispose();
     this.thinkingRenderCoordinator.dispose();
+    this.cancelPendingThinkingLabelRefresh();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.deps.clearToolActivities?.();

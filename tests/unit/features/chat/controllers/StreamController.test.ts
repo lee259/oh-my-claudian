@@ -17,6 +17,7 @@ import {
   providerOutputEventToStreamChunk,
   StreamController,
   type StreamControllerDeps,
+  STREAMING_RENDER_PLAIN_TEXT_THRESHOLD,
 } from '@/features/chat/controllers/StreamController';
 import { ChatState } from '@/features/chat/state/ChatState';
 
@@ -148,6 +149,7 @@ function createMockDeps(): MockStreamControllerDeps {
       addTextCopyButton: jest.fn(),
       renderCitationGroup: jest.fn(),
       renderTaskNotification: jest.fn(),
+      syncStreamingActivity: jest.fn(),
     } as any,
     subagentManager: {
       isAsyncTask: jest.fn().mockReturnValue(false),
@@ -302,6 +304,69 @@ describe('StreamController - Text Content', () => {
       }
 
       expect(msg.content).toBe('This is a test.');
+    });
+
+    it('does not project the transcript for ordinary token growth', async () => {
+      const msg = createTestMessage();
+
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Reasoning' }, msg);
+      expect(deps.renderer.syncStreamingActivity).toHaveBeenCalledTimes(1);
+
+      for (let index = 0; index < 200; index += 1) {
+        await controller.handleStreamChunk({ type: 'thinking', content: 'x' }, msg);
+      }
+      expect(deps.renderer.syncStreamingActivity).toHaveBeenCalledTimes(1);
+
+      await controller.handleStreamChunk({ type: 'text', content: 'Answer' }, msg);
+      expect(deps.renderer.syncStreamingActivity).toHaveBeenCalledTimes(2);
+
+      for (let index = 0; index < 200; index += 1) {
+        await controller.handleStreamChunk({ type: 'text', content: 'x' }, msg);
+      }
+      expect(deps.renderer.syncStreamingActivity).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders oversized live text as plain text and restores Markdown at finalization', async () => {
+      const msg = createTestMessage();
+      const contentEl = createMockEl();
+      const appendText = jest.spyOn(contentEl, 'appendText');
+      deps.state.currentTextEl = contentEl;
+      const content = 'x'.repeat(STREAMING_RENDER_PLAIN_TEXT_THRESHOLD + 1);
+
+      await controller.handleStreamChunk({ type: 'text', content }, msg);
+      await jest.advanceTimersByTimeAsync(16);
+
+      expect(appendText).toHaveBeenCalledWith(content);
+      expect(contentEl.hasClass('claudian-streaming-plain-text')).toBe(true);
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+
+      await controller.finalizeCurrentTextBlock(msg);
+
+      expect(contentEl.hasClass('claudian-streaming-plain-text')).toBe(false);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        contentEl,
+        content,
+      );
+    });
+
+    it('appends only new text while a large live block remains plain', async () => {
+      const msg = createTestMessage();
+      const contentEl = createMockEl();
+      const appendText = jest.spyOn(contentEl, 'appendText');
+      deps.state.currentTextEl = contentEl;
+
+      await controller.handleStreamChunk({
+        type: 'text',
+        content: 'x'.repeat(STREAMING_RENDER_PLAIN_TEXT_THRESHOLD),
+      }, msg);
+      await jest.advanceTimersByTimeAsync(16);
+      appendText.mockClear();
+
+      await controller.handleStreamChunk({ type: 'text', content: ' next' }, msg);
+      await jest.advanceTimersByTimeAsync(200);
+
+      expect(appendText).toHaveBeenCalledTimes(1);
+      expect(appendText).toHaveBeenCalledWith(' next');
     });
 
     it('should coalesce text renders until the next animation frame', async () => {
@@ -2151,6 +2216,8 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.currentThinkingState?.presentation).toBe('status');
       expect(deps.state.currentThinkingState?.labelEl.textContent).toBe('Reviewing guidance');
       await controller.handleStreamChunk({ type: 'thinking', content: '\n\nChecking references' }, msg);
+      expect(deps.state.currentThinkingState?.labelEl.textContent).toBe('Reviewing guidance');
+      await jest.advanceTimersByTimeAsync(100);
       expect(deps.state.currentThinkingState?.labelEl.textContent).toBe('Checking references');
       await controller.finalizeCurrentThinkingBlock(msg);
       expect(deps.state.currentThinkingState).toBeNull();
@@ -2158,6 +2225,23 @@ describe('StreamController - Text Content', () => {
         type: 'thinking', content: 'Reviewing guidance\n\nChecking references',
       }));
       expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+    });
+
+    it('coalesces high-volume Codex reasoning into one label update per interval', async () => {
+      deps.getProviderId = () => 'codex';
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Initial' }, msg);
+      const labelEl = deps.state.currentThinkingState!.labelEl;
+      const setText = jest.spyOn(labelEl, 'setText');
+
+      for (let index = 0; index < 200; index += 1) {
+        await controller.handleStreamChunk({ type: 'thinking', content: ` ${index}` }, msg);
+      }
+
+      expect(setText).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(100);
+      expect(setText).toHaveBeenCalledTimes(1);
+      expect(labelEl.textContent).toContain('199');
     });
 
     it('should finalize thinking block and add to contentBlocks', async () => {
@@ -2443,6 +2527,34 @@ describe('StreamController - Text Content', () => {
 
       expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
       expect(deps.renderer.renderContent).toHaveBeenCalledWith(contentEl, 'Hidden reasoning');
+    });
+
+    it('renders oversized expanded thinking as plain text and restores Markdown at finalization', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      const msg = createTestMessage();
+      const contentEl = createMockEl();
+      const appendText = jest.spyOn(contentEl, 'appendText');
+      createThinkingBlock.mockReturnValueOnce({
+        wrapperEl: createMockEl(),
+        contentEl,
+        labelEl: createMockEl(),
+        content: '',
+        startTime: Date.now(),
+        isExpanded: true,
+      });
+      const content = 'x'.repeat(STREAMING_RENDER_PLAIN_TEXT_THRESHOLD + 1);
+
+      await controller.handleStreamChunk({ type: 'thinking', content }, msg);
+      await jest.advanceTimersByTimeAsync(16);
+
+      expect(appendText).toHaveBeenCalledWith(content);
+      expect(contentEl.hasClass('claudian-streaming-plain-text')).toBe(true);
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+
+      await controller.finalizeCurrentThinkingBlock(msg);
+
+      expect(contentEl.hasClass('claudian-streaming-plain-text')).toBe(false);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(contentEl, content);
     });
 
     it('should render accumulated thinking through the coordinator when expanded', async () => {
