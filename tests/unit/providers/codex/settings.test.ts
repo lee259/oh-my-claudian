@@ -131,6 +131,26 @@ describe('codex settings', () => {
     });
   });
 
+  it('round-trips prototype-named aliases through settings and visible-model filtering', () => {
+    const discoveredModels = ['__proto__', 'constructor', 'toString'].map(model => ({
+      ...TEST_CODEX_CATALOG[0], model, displayName: model,
+    }));
+    const aliases = JSON.parse('{"__proto__":"  Primary  ","constructor":"Builder","toString":"Text"}');
+    const settingsBag: Record<string, unknown> = {
+      providerConfigs: { codex: { discoveredModels, visibleModels: ['__proto__', 'constructor', 'toString'] } },
+    };
+
+    updateCodexProviderSettings(settingsBag, { modelAliases: aliases });
+    const stored = getCodexProviderSettings(settingsBag).modelAliases;
+    expect(Object.prototype.hasOwnProperty.call(stored, '__proto__')).toBe(true);
+    expect(stored.__proto__).toBe('Primary');
+    expect(stored.constructor).toBe('Builder');
+    expect(stored.toString).toBe('Text');
+
+    updateCodexProviderSettings(settingsBag, { visibleModels: ['__proto__'] });
+    expect(Object.entries(getCodexProviderSettings(settingsBag).modelAliases)).toEqual([['__proto__', 'Primary']]);
+  });
+
   it('persists aliases only for visible models', () => {
     const settingsBag: Record<string, unknown> = {
       providerConfigs: {
