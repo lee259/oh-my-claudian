@@ -354,7 +354,12 @@ export function parseEnvironmentVariables(input: string): Record<string, string>
         value = value.slice(1, -1);
       }
       if (key) {
-        result[key] = value;
+        Object.defineProperty(result, key, {
+          value,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
     }
   }
