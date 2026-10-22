@@ -29,6 +29,8 @@ export interface ChatTurnRequest {
 
 /** Queued message waiting to be sent after current streaming completes. */
 export interface QueuedMessage {
+  /** Runtime-only identity of the async question this message answers. */
+  answeringQuestionId?: string;
   /** Transient send observer; never persisted with conversation history. */
   onDelivery?: (accepted: boolean) => void;
   content: string;

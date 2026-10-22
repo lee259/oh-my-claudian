@@ -92,9 +92,9 @@ export class FollowUpQueue {
     return this.takeNextPriority() ?? this.takeNextQueued(item => !this.priorityEntryIds.has(item.id));
   }
 
-  takeNextPriority(): FollowUpItem | null {
+  takeNextPriority(predicate: (item: FollowUpItem) => boolean = () => true): FollowUpItem | null {
     if (this.entries.some(item => item.status === 'sending')) return null;
-    return this.takeNextQueued(item => this.priorityEntryIds.has(item.id));
+    return this.takeNextQueued(item => this.priorityEntryIds.has(item.id) && predicate(item));
   }
 
   isPriority(id: string): boolean {
