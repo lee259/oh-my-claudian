@@ -473,26 +473,36 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     }
   });
 
-  it('preserves hyphens in code language labels', async () => {
-    const messagesEl = document.createElement('div');
-    document.body.appendChild(messagesEl);
-    const component = new Component();
-    const renderer = new MessageRenderer({ app: {}, settings: {} } as FeatureHost, component, messagesEl);
+  it.each([
+    { classes: 'language-objective-c', language: 'objective-c' },
+    { classes: 'not-language-decoy language-c++', language: 'c++' },
+    { classes: 'language-c#', language: 'c#' },
+    { classes: 'not-language-decoy', language: null },
+    { classes: 'decoy\u00a0language-c++', language: null },
+    { classes: 'language-', language: null },
+  ])('uses the complete language class token in $classes', async ({ classes, language }) => {
+    const { renderer, component, messagesEl } = createTurn();
     (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
-      const pre = document.createElement('pre');
-      const code = document.createElement('code');
-      code.className = 'language-objective-c';
-      code.textContent = 'int main(void) {}';
-      pre.appendChild(code);
-      element.appendChild(pre);
+      const pre = element.createEl('pre');
+      const code = pre.createEl('code', { text: 'int main(void) {}' });
+      code.className = classes;
     });
     try {
-      await renderer.renderContent(messagesEl, 'Objective-C example');
-      expect(messagesEl.querySelector('.claudian-code-language')?.textContent).toBe('objective-c');
+      await renderer.renderContent(messagesEl, 'Code example');
+      expect(messagesEl.querySelector('.claudian-code-language')?.textContent ?? null).toBe(language);
+      expect(messagesEl.querySelector('.claudian-code-wrapper')?.classList.contains('has-language')).toBe(language !== null);
+      expect(getByRole(messagesEl, 'button', { name: language ? `Copy ${language} code` : 'Copy code' })).not.toBeNull();
+      expect(messagesEl.querySelector('code')?.className).toBe(classes);
     } finally { renderer.dispose(); component.unload(); }
   });
 
-  it.each([true, false])('keeps code copy controls outside code text with streaming=%s', async (streaming) => {
+  it.each([
+    { streaming: true, language: 'typescript' },
+    { streaming: false, language: 'typescript' },
+    { streaming: true, language: 'c++' },
+    { streaming: false, language: 'c#' },
+  ])('copies $language without including controls with streaming=$streaming', async ({ streaming, language }) => {
+    jest.useFakeTimers();
     const { renderer, component, content } = createTurn();
     const writeText = jest.fn().mockResolvedValue(undefined);
     const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
@@ -500,24 +510,32 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     const source = 'const value = "a long first line";';
     (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
       const pre = element.createEl('pre');
-      pre.createEl('code', { cls: 'language-typescript', text: source });
+      pre.createEl('code', { cls: `language-${language}`, text: source });
       pre.createEl('button', { cls: 'copy-code-button' });
     });
     try {
-      await renderer.renderContent(content, `\`\`\`typescript\n${source}\n\`\`\``, { deferDiagrams: streaming });
+      await renderer.renderContent(content, `\`\`\`${language}\n${source}\n\`\`\``, { deferDiagrams: streaming });
       const pre = content.querySelector('pre')!;
       const header = content.querySelector<HTMLElement>('.claudian-code-header')!;
       expect(header).not.toBeNull();
       expect(header.parentElement).toBe(pre.parentElement);
       expect(header.nextElementSibling).toBe(pre);
       expect(pre.querySelector('button')).toBeNull();
-      getByRole<HTMLButtonElement>(header, 'button', { name: 'Copy typescript code' }).click();
+      const button = getByRole<HTMLButtonElement>(header, 'button', { name: `Copy ${language} code` });
+      button.focus();
+      button.click();
       await Promise.resolve();
       expect(writeText).toHaveBeenCalledWith(source);
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(button.getAttribute('aria-label')).toBe('Copied!');
+      expect(document.activeElement).toBe(button);
+      jest.advanceTimersByTime(1500);
+      expect(button.getAttribute('aria-label')).toBe(`Copy ${language} code`);
     } finally {
       renderer.dispose(); component.unload();
       if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
       else Reflect.deleteProperty(navigator, 'clipboard');
+      jest.useRealTimers();
     }
   });
 
