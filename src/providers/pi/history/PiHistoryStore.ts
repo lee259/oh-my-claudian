@@ -540,20 +540,27 @@ function mapPiSessionEntries(
 ): ChatMessage[] {
   const messages: ChatMessage[] = [];
   let turnStartedAt: number | undefined;
+  let responseStart = 0;
   const stats = new PiTurnStats();
 
   for (const entry of entries) {
+    // Hidden native triggers still separate automatic replies from a completed response.
+    if (entry.type === 'custom_message' && !stats.isRunning) {
+      responseStart = messages.length;
+      turnStartedAt = parsePiTimestamp(entry.raw.timestamp);
+    }
+    const turnStats = stats.add(entry);
     const mapped = mapPiSessionEntry(entry, messages, syntheticIdNamespace);
     if (mapped) {
       const previous = messages[messages.length - 1];
-      if (isAssistantMessageEntry(entry) && canMergeAssistantContinuation(previous, mapped)) {
+      if (isAssistantMessageEntry(entry) && messages.length > responseStart
+        && canMergeAssistantContinuation(previous, mapped)) {
         mergeAssistantContinuation(previous, mapped);
       } else {
         messages.push(mapped);
       }
 
       const nativeMessage = entry.message ?? entry.raw;
-      const turnStats = stats.add(entry);
       if (mapped.role === 'user') {
         turnStartedAt = parsePiTimestamp(nativeMessage.timestamp) ?? parsePiTimestamp(entry.raw.timestamp);
       } else if (isBoundaryMessage(mapped)) {
@@ -575,16 +582,27 @@ function mapPiSessionEntries(
 }
 
 class PiTurnStats {
+  private running = false;
   private startedAt: number | undefined;
   private outputTokens: number | undefined = 0;
+
+  get isRunning(): boolean {
+    return this.running;
+  }
+
+  private startTurn(timestamp: number | undefined): void {
+    this.running = true;
+    this.startedAt = timestamp;
+    this.outputTokens = 0;
+  }
 
   add(entry: PiSessionEntry): TurnStats | undefined {
     const message = entry.message ?? entry.raw;
     const role = getString(message.role) ?? inferRole(entry.type);
-    if (role === 'user') {
-      this.startedAt = parsePiTimestamp(message.timestamp) ?? parsePiTimestamp(entry.raw.timestamp);
-      this.outputTokens = 0;
+    if (role === 'user' || (entry.type === 'custom_message' && !this.running)) {
+      this.startTurn(parsePiTimestamp(message.timestamp) ?? parsePiTimestamp(entry.raw.timestamp));
     } else if (entry.type === 'compaction') {
+      this.running = false;
       this.startedAt = undefined;
     } else if (role === 'assistant') {
       const output = getRecord(message.usage)?.output;
@@ -592,6 +610,7 @@ class PiTurnStats {
         ? this.outputTokens + output
         : undefined;
       const stopReason = getString(message.stopReason);
+      this.running = !stopReason || stopReason === 'toolUse';
       const completedAt = parsePiTimestamp(entry.raw.timestamp);
       const result = (stopReason === 'stop' || stopReason === 'length')
         && this.startedAt !== undefined && completedAt !== undefined
