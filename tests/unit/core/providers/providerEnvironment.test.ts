@@ -6,6 +6,7 @@ import {
   getEnvironmentScopeUpdates,
   getProviderEnvironmentVariables,
   getRuntimeEnvironmentText,
+  getRuntimeEnvironmentVariables,
   getSharedEnvironmentVariables,
   inferEnvironmentSnippetScope,
   resolveEnvironmentSnippetScope,
@@ -55,6 +56,28 @@ describe('providerEnvironment', () => {
   });
 
   describe('runtime env accessors', () => {
+    it('preserves explicit shared and provider keys with provider assignments taking precedence', () => {
+      const settings: Record<string, unknown> = {
+        sharedEnvironmentVariables: '__proto__=shared\nconstructor=shared-builder\nSHARED_ONLY=kept',
+        providerConfigs: {
+          codex: { environmentVariables: '__proto__=codex\ntoString=codex-text' },
+          pi: { environmentVariables: '__proto__=pi' },
+        },
+      };
+
+      const codex = getRuntimeEnvironmentVariables(settings, 'codex');
+      const pi = getRuntimeEnvironmentVariables(settings, 'pi');
+
+      expect(Object.entries(codex)).toEqual([
+        ['__proto__', 'codex'], ['constructor', 'shared-builder'], ['SHARED_ONLY', 'kept'], ['toString', 'codex-text'],
+      ]);
+      expect(Object.entries(pi)).toEqual([
+        ['__proto__', 'pi'], ['constructor', 'shared-builder'], ['SHARED_ONLY', 'kept'],
+      ]);
+      expect(Object.getPrototypeOf(codex)).toBe(Object.prototype);
+      expect(Object.getPrototypeOf(pi)).toBe(Object.prototype);
+    });
+
     it('reads split shared/provider env from settings', () => {
       const settings: Record<string, unknown> = {
         sharedEnvironmentVariables: 'PATH=/usr/local/bin',

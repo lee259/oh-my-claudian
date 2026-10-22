@@ -23,6 +23,25 @@ const isWindows = process.platform === 'win32';
 const SEP = isWindows ? ';' : ':';
 
 describe('parseEnvironmentVariables', () => {
+  it('retains explicit prototype-named keys as ordinary enumerable data', () => {
+    const parsed = parseEnvironmentVariables([
+      '__proto__=first', 'export __proto__="literal value"', 'constructor=builder', 'toString=text', 'EMPTY=',
+    ].join('\n'));
+
+    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+    expect(Object.entries(parsed)).toEqual([
+      ['__proto__', 'literal value'], ['constructor', 'builder'], ['toString', 'text'], ['EMPTY', ''],
+    ]);
+    expect(Object.getOwnPropertyDescriptor(parsed, '__proto__')).toEqual({
+      value: 'literal value', enumerable: true, writable: true, configurable: true,
+    });
+    // Execute native object spread because the test compiler targets ES6.
+    const copy = new Function('value', 'return { ...value };')(parsed);
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(copy, '__proto__')).toBe(true);
+    expect(copy.__proto__).toBe('literal value');
+  });
+
   it('parses simple KEY=VALUE pairs', () => {
     const input = 'FOO=bar\nBAZ=qux';
     expect(parseEnvironmentVariables(input)).toEqual({ FOO: 'bar', BAZ: 'qux' });
