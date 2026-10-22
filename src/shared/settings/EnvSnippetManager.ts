@@ -200,13 +200,15 @@ export class EnvSnippetModal extends Modal {
 
     const cancelBtn = buttonContainer.createEl('button', {
       text: t('settings.envSnippets.modal.cancel'),
-      cls: 'claudian-cancel-btn'
+      cls: 'claudian-cancel-btn',
+      attr: { type: 'button' },
     });
     cancelBtn.addEventListener('click', () => this.close());
 
     const saveBtn = buttonContainer.createEl('button', {
       text: this.snippet ? t('settings.envSnippets.modal.update') : t('settings.envSnippets.modal.save'),
-      cls: 'claudian-save-btn'
+      cls: 'claudian-save-btn',
+      attr: { type: 'button' },
     });
     saveBtn.addEventListener('click', () => saveSnippet());
 
@@ -296,7 +298,7 @@ export class EnvSnippetManager {
 
     const saveBtn = headerEl.createEl('button', {
       cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': t('settings.envSnippets.addBtn') },
+      attr: { type: 'button', 'aria-label': t('settings.envSnippets.addBtn') },
     });
     setIcon(saveBtn, 'plus');
     saveBtn.addEventListener('click', () => {
@@ -328,7 +330,7 @@ export class EnvSnippetManager {
 
       const restoreBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': t('settings.envSnippets.insertBtn') },
+        attr: { type: 'button', 'aria-label': t('settings.envSnippets.insertBtn') },
       });
       setIcon(restoreBtn, 'clipboard-paste');
       restoreBtn.addEventListener('click', () => {
@@ -343,7 +345,7 @@ export class EnvSnippetManager {
 
       const editBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': t('settings.envSnippets.editBtn') },
+        attr: { type: 'button', 'aria-label': t('settings.envSnippets.editBtn') },
       });
       setIcon(editBtn, 'pencil');
       editBtn.addEventListener('click', () => {
@@ -352,7 +354,7 @@ export class EnvSnippetManager {
 
       const deleteBtn = actionsEl.createEl('button', {
         cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-        attr: { 'aria-label': t('settings.envSnippets.deleteBtn') },
+        attr: { type: 'button', 'aria-label': t('settings.envSnippets.deleteBtn') },
       });
       setIcon(deleteBtn, 'trash-2');
       deleteBtn.addEventListener('click', () => {
