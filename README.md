@@ -86,6 +86,9 @@ The built-in provider integrations are:
 - [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)
 - [OpenCode](https://github.com/anomalyco/opencode)
 - [Pi](https://github.com/earendil-works/pi)
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+
+For DeepSeek Harness, configure `dsh web` or open DeepSeek Harness Desktop once before enabling it in **Providers → DeepSeek Harness**. Discover the native model catalog, then explicitly select the models to show in chat. Auto prefers `dsh`; set the Desktop `.app` path or Windows installation folder to use its bundled runtime. The integration reuses your native profile, credentials and MCP servers. It supports native history/resume, images, permissions and Stop, with optional code mode and additional preset plugins. Planning and Obsidian-native vault tools are not exposed by this integration.
 
 Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude, Codex, OpenCode, and Pi.
 

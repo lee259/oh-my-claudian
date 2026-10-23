@@ -342,7 +342,12 @@
       "close": "閉じる",
       "selectionLabel": "ノートに保存"
     },
-    "historyRecoveryUnavailable": "会話履歴の一部を読み込めません。元のデータベースを復元し、この会話を開き直してから続けてください。"
+    "historyRecoveryUnavailable": "会話履歴の一部を読み込めません。元のデータベースを復元し、この会話を開き直してから続けてください。",
+    "approval": {
+      "deepseekRequest": "DeepSeek が権限を要求しています。",
+      "allowOnce": "今回のみ許可",
+      "deny": "拒否"
+    }
   },
   "settings": {
     "title": "Oh My Claudian 設定",
@@ -1102,6 +1107,38 @@
       "review": "Review updates",
       "installation": "Installation details"
     },
-    "environmentUpdateFailed": "環境の更新を完了できませんでした。"
+    "environmentUpdateFailed": "環境の更新を完了できませんでした。",
+    "deepseek": {
+      "installation": {
+        "desc": "自動検出は dsh を優先し、次に macOS または Windows の Desktop を探します。両方がインストールされている場合、Desktop の .app パスまたは Windows のインストールフォルダーを入力すると選択できます。最初に Desktop を開いて初期設定を完了してください。",
+        "desktop": "ネイティブの Desktop プロファイルを使用します。",
+        "web": "ネイティブの Web プロファイルを使用します。",
+        "updateWeb": "dsh を更新するには、インストール時に使用したパッケージマネージャー（npm、pnpm など）を使ってください。",
+        "updateDesktop": "更新は DeepSeek Harness Desktop で行ってください。"
+      },
+      "preset": "プリセット",
+      "codeMode": {
+        "name": "コードモードを有効化",
+        "desc": "既存の会話を含め、各会話の次のターンから適用されます。直接ツールに加えてネイティブの run_code を追加します。"
+      },
+      "presetPlugins": {
+        "name": "追加のプリセットプラグイン",
+        "desc": "詳細設定。チャットプリセットに追加するネイティブ dsh プラグインの YAML リストです。各行には id と name が必要で、組み込み行は置換できません。セッションが待機中の場合のみ適用でき、Host が再起動します。Claudian に対応する画面がないプラグインは動作しない場合があります。"
+      },
+      "presetPreview": "プリセットのプレビュー",
+      "environment": {
+        "name": "DeepSeek Harness 環境変数",
+        "desc": "DeepSeek Harness にのみ渡される環境変数。選択したネイティブの Web または Desktop プロファイル、認証情報、モデル、MCP サーバーを使用します。"
+      },
+      "models": {
+        "empty": "DeepSeek モデルはまだ検出されていません。「検出」でネイティブカタログを読み込みます。",
+        "failed": "DeepSeek モデルを読み込めません。CLI パスとネイティブプロファイルを確認してください。",
+        "loading": "DeepSeek モデルを読み込み中..."
+      },
+      "hiddenCommands": {
+        "name": "非表示の DeepSeek コマンドとスキル",
+        "desc": "ネイティブのコマンドやスキルをメニューから非表示にします。"
+      }
+    }
   }
 }

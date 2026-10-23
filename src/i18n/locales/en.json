@@ -342,7 +342,12 @@
       "close": "Close",
       "selectionLabel": "Save to note"
     },
-    "historyRecoveryUnavailable": "Some conversation history is unavailable. Restore the original database and reopen this conversation before continuing."
+    "historyRecoveryUnavailable": "Some conversation history is unavailable. Restore the original database and reopen this conversation before continuing.",
+    "approval": {
+      "deepseekRequest": "DeepSeek requests permission.",
+      "allowOnce": "Allow once",
+      "deny": "Deny"
+    }
   },
   "settings": {
     "title": "Oh My Claudian Settings",
@@ -1102,6 +1107,38 @@
       "review": "Review updates",
       "installation": "Installation details"
     },
-    "environmentUpdateFailed": "Could not complete environment update."
+    "environmentUpdateFailed": "Could not complete environment update.",
+    "deepseek": {
+      "installation": {
+        "desc": "Auto prefers dsh, then discovers Desktop on macOS or Windows. To use Desktop when both are installed, enter its .app path or Windows install folder. Open Desktop once to complete setup.",
+        "desktop": "Using your native Desktop profile.",
+        "web": "Using your native Web profile.",
+        "updateWeb": "To update dsh, use the package manager you installed it with (such as npm or pnpm).",
+        "updateDesktop": "To update, use DeepSeek Harness Desktop."
+      },
+      "preset": "Preset",
+      "codeMode": {
+        "name": "Enable code mode",
+        "desc": "Applies from each conversation's next turn, including existing conversations. Adds native run_code alongside direct tools."
+      },
+      "presetPlugins": {
+        "name": "Additional preset plugins",
+        "desc": "Advanced. A YAML list of native dsh plugin rows appended to the chat preset. Each row needs an id and name and cannot replace built-in rows. Apply only while sessions are idle; a provider runtime change restarts the Host. Plugins without a Claudian interface, such as plan mode, may not work."
+      },
+      "presetPreview": "Preset preview",
+      "environment": {
+        "name": "DeepSeek Harness environment variables",
+        "desc": "Environment variables passed only to DeepSeek Harness. Uses your selected native Web or Desktop profile, credentials, models and MCP servers."
+      },
+      "models": {
+        "empty": "No DeepSeek models discovered yet. Click Discover to load the native catalog.",
+        "failed": "Could not load DeepSeek models. Check the CLI path and native profile setup.",
+        "loading": "Loading DeepSeek models..."
+      },
+      "hiddenCommands": {
+        "name": "Hidden DeepSeek commands and skills",
+        "desc": "Hide native commands or skills from the command menu."
+      }
+    }
   }
 }

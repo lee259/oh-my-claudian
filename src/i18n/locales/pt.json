@@ -342,7 +342,12 @@
       "close": "Fechar",
       "selectionLabel": "Guardar numa nota"
     },
-    "historyRecoveryUnavailable": "Parte do histórico está indisponível. Restaure o banco de dados original e reabra esta conversa antes de continuar."
+    "historyRecoveryUnavailable": "Parte do histórico está indisponível. Restaure o banco de dados original e reabra esta conversa antes de continuar.",
+    "approval": {
+      "deepseekRequest": "DeepSeek solicita permissão.",
+      "allowOnce": "Permitir uma vez",
+      "deny": "Negar"
+    }
   },
   "settings": {
     "title": "Configurações do Oh My Claudian",
@@ -1102,6 +1107,38 @@
       "review": "Review updates",
       "installation": "Installation details"
     },
-    "environmentUpdateFailed": "Não foi possível concluir a atualização do ambiente."
+    "environmentUpdateFailed": "Não foi possível concluir a atualização do ambiente.",
+    "deepseek": {
+      "installation": {
+        "desc": "A detecção automática prioriza dsh e depois procura Desktop no macOS ou no Windows. Se ambos estiverem instalados, informe o caminho .app do Desktop ou a pasta de instalação no Windows para selecioná-lo. Abra o Desktop primeiro para concluir a configuração.",
+        "desktop": "Usando seu perfil nativo do Desktop.",
+        "web": "Usando seu perfil Web nativo.",
+        "updateWeb": "Para atualizar o dsh, use o gerenciador de pacotes usado na instalação (como npm ou pnpm).",
+        "updateDesktop": "Atualize pelo DeepSeek Harness Desktop."
+      },
+      "preset": "Preset",
+      "codeMode": {
+        "name": "Ativar modo código",
+        "desc": "Aplica-se a partir do próximo turno de cada conversa, incluindo as existentes. Adiciona run_code nativo junto às ferramentas diretas."
+      },
+      "presetPlugins": {
+        "name": "Plugins adicionais do preset",
+        "desc": "Avançado. Lista YAML de plugins nativos do dsh adicionados ao perfil de conversa. Cada linha precisa de id e name e não pode substituir linhas integradas. Aplique apenas com sessões inativas; o Host será reiniciado. Plugins sem interface no Claudian podem não funcionar."
+      },
+      "presetPreview": "Pré-visualização do preset",
+      "environment": {
+        "name": "Variáveis de ambiente do DeepSeek Harness",
+        "desc": "Variáveis de ambiente passadas apenas para o DeepSeek Harness. Usa o perfil nativo Web ou Desktop selecionado, suas credenciais, modelos e servidores MCP."
+      },
+      "models": {
+        "empty": "Nenhum modelo DeepSeek descoberto. Clique em Descobrir para carregar o catálogo nativo.",
+        "failed": "Não foi possível carregar os modelos DeepSeek. Verifique o caminho da CLI e o perfil nativo.",
+        "loading": "Carregando modelos DeepSeek..."
+      },
+      "hiddenCommands": {
+        "name": "Comandos e habilidades ocultos do DeepSeek",
+        "desc": "Ocultar comandos ou habilidades nativos do menu de comandos."
+      }
+    }
   }
 }

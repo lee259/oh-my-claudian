@@ -77,7 +77,7 @@ export function CliLifecycleView({
           ) : statusText ? statusText : null}
         </div>
         <div className="claudian-cli-lifecycle-actions">
-          {updateHint && <span className="claudian-cli-lifecycle-hint">{updateHint}</span>}
+          {updateHint && <span className="claudian-cli-lifecycle-note">{updateHint}</span>}
           {info?.installedButBroken && (
             <span className="claudian-cli-lifecycle-hint">
               {t('settings.cliLifecycle.checkEnv')}

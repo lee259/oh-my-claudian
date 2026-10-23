@@ -342,7 +342,12 @@
       "close": "Schließen",
       "selectionLabel": "In Notiz speichern"
     },
-    "historyRecoveryUnavailable": "Ein Teil des Gesprächsverlaufs ist nicht verfügbar. Stellen Sie die ursprüngliche Datenbank wieder her und öffnen Sie das Gespräch erneut, bevor Sie fortfahren."
+    "historyRecoveryUnavailable": "Ein Teil des Gesprächsverlaufs ist nicht verfügbar. Stellen Sie die ursprüngliche Datenbank wieder her und öffnen Sie das Gespräch erneut, bevor Sie fortfahren.",
+    "approval": {
+      "deepseekRequest": "DeepSeek fordert eine Berechtigung an.",
+      "allowOnce": "Einmal erlauben",
+      "deny": "Ablehnen"
+    }
   },
   "settings": {
     "title": "Oh My Claudian Einstellungen",
@@ -1102,6 +1107,38 @@
       "review": "Review updates",
       "installation": "Installation details"
     },
-    "environmentUpdateFailed": "Die Aktualisierung der Umgebung konnte nicht abgeschlossen werden."
+    "environmentUpdateFailed": "Die Aktualisierung der Umgebung konnte nicht abgeschlossen werden.",
+    "deepseek": {
+      "installation": {
+        "desc": "Die automatische Suche bevorzugt dsh und sucht danach unter macOS oder Windows nach Desktop. Sind beide installiert, wähle Desktop durch Angabe des .app-Pfads oder des Windows-Installationsordners. Öffne Desktop zunächst, um die Einrichtung abzuschließen.",
+        "desktop": "Dein natives Desktop-Profil wird verwendet.",
+        "web": "Dein natives Web-Profil wird verwendet.",
+        "updateWeb": "Verwenden Sie zum Aktualisieren von dsh den Paketmanager, mit dem Sie es installiert haben (z. B. npm oder pnpm).",
+        "updateDesktop": "Aktualisieren Sie über DeepSeek Harness Desktop."
+      },
+      "preset": "Preset",
+      "codeMode": {
+        "name": "Code-Modus aktivieren",
+        "desc": "Gilt ab dem nächsten Zug jeder Unterhaltung, auch für bestehende Unterhaltungen. Fügt natives run_code neben den direkten Werkzeugen hinzu."
+      },
+      "presetPlugins": {
+        "name": "Zusätzliche Preset-Plugins",
+        "desc": "Erweitert. Eine YAML-Liste nativer dsh-Plugins für die Chat-Voreinstellung. Jede Zeile benötigt id und name und darf keine integrierten Zeilen ersetzen. Änderungen sind nur bei inaktiven Sitzungen möglich und starten den Host neu. Plugins ohne Claudian-Oberfläche funktionieren möglicherweise nicht."
+      },
+      "presetPreview": "Preset-Vorschau",
+      "environment": {
+        "name": "DeepSeek-Harness-Umgebungsvariablen",
+        "desc": "Umgebungsvariablen, die nur an DeepSeek Harness übergeben werden. Verwendet das ausgewählte native Web- oder Desktop-Profil, deine Anmeldedaten, Modelle und MCP-Server."
+      },
+      "models": {
+        "empty": "Noch keine DeepSeek-Modelle gefunden. Klicken Sie auf Entdecken, um den nativen Katalog zu laden.",
+        "failed": "DeepSeek-Modelle konnten nicht geladen werden. Prüfen Sie den CLI-Pfad und das native Profil.",
+        "loading": "DeepSeek-Modelle werden geladen..."
+      },
+      "hiddenCommands": {
+        "name": "Ausgeblendete DeepSeek-Befehle und Skills",
+        "desc": "Native Befehle oder Skills im Befehlsmenü ausblenden."
+      }
+    }
   }
 }

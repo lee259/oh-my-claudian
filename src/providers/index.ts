@@ -3,6 +3,7 @@ import { ProviderWorkspaceRegistry } from '../core/providers/ProviderWorkspaceRe
 import { claudeProviderRegistration } from './claude/registration';
 import { codexProviderRegistration } from './codex/registration';
 import { cursorProviderRegistration } from './cursor/registration';
+import { deepseekProviderRegistration } from './deepseek/registration';
 import { grokProviderRegistration } from './grok/registration';
 import { ompProviderRegistration } from './omp/registration';
 import { opencodeProviderRegistration } from './opencode/registration';
@@ -18,6 +19,7 @@ export const BUILT_IN_PROVIDER_MODULES = [
   opencodeProviderRegistration,
   ompProviderRegistration,
   piProviderRegistration,
+  deepseekProviderRegistration,
 ] as const;
 
 export function registerBuiltInProviders(): void {

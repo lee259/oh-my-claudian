@@ -6,6 +6,8 @@ export {
   type ConversationBranchState,
   isBranchableExecutionSession,
 } from './BranchableExecutionSession';
+export * from './ExecutionEventQueue';
+export * from './PendingInteractionLedger';
 export {
   type ProviderExecutionBackend,
   type ProviderNativePersistence,
@@ -17,6 +19,7 @@ export {
   reportHistoryReplay,
   reportResolvedTurnPrompt,
 } from './ProviderExecutionDiagnostics';
+export type { WithoutEventScope } from './ProviderExecutionEvent';
 export {
   type ProviderAssistantMessageStartedEvent,
   type ProviderAsyncSubagentCompletedEvent,
@@ -109,6 +112,7 @@ export {
   type ProviderSessionSnapshot,
   type ProviderSessionStatus,
 } from './ProviderSessionSnapshot';
+export * from './RequestedRunChannel';
 export {
   type ChatRewindConflict,
   type ChatRewindMode,
@@ -122,3 +126,4 @@ export {
   type RewindableExecutionSession,
   type SteerableExecutionSession,
 } from './RewindableExecutionSession';
+export * from './SessionSnapshotState';
