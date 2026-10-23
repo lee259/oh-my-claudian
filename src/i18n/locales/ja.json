@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek が権限を要求しています。",
       "allowOnce": "今回のみ許可",
       "deny": "拒否"
+    },
+    "zen": {
+      "regionLabel": "Claudian チャット",
+      "showHistory": "会話を表示",
+      "hideHistory": "会話を折りたたむ",
+      "working": "処理中…",
+      "actionRequired": "入力が必要です",
+      "toolRunning": "{tool} · 実行中",
+      "thinking": "思考中…",
+      "move": "チャットパネルを移動",
+      "savePositionFailed": "Zen パネルの位置を保存できませんでした。"
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "非表示の DeepSeek コマンドとスキル",
         "desc": "ネイティブのコマンドやスキルをメニューから非表示にします。"
       }
+    },
+    "enableZenMode": {
+      "name": "Zen モードを有効化",
+      "desc": "サイドバーが非表示のときも、最小限のチャット UI を表示します。"
     }
   }
 }

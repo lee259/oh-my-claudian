@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek requests permission.",
       "allowOnce": "Allow once",
       "deny": "Deny"
+    },
+    "zen": {
+      "regionLabel": "Claudian chat",
+      "showHistory": "Show conversation",
+      "hideHistory": "Collapse conversation",
+      "working": "Working…",
+      "actionRequired": "Needs your input",
+      "toolRunning": "{tool} · running",
+      "thinking": "Thinking…",
+      "move": "Move chat panel",
+      "savePositionFailed": "Could not save the Zen panel position."
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "Hidden DeepSeek commands and skills",
         "desc": "Hide native commands or skills from the command menu."
       }
+    },
+    "enableZenMode": {
+      "name": "Enable zen mode",
+      "desc": "Keep a minimal chat interface visible when the sidebar is hidden."
     }
   }
 }

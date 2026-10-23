@@ -81,6 +81,7 @@ import {
 import { registerFileMenu } from './features/chat/fileMenu';
 import { InactiveSessionArchiver } from './features/chat/session-manager/InactiveSessionArchiver';
 import { ConversationRuntimeRegistry } from './features/chat/sessions/ConversationRuntimeRegistry';
+import { ZenModeController } from './features/chat/zen/ZenModeController';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { resolveLocale, setLocale, t } from './i18n/i18n';
@@ -143,6 +144,15 @@ export default class ClaudianPlugin extends Plugin {
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private providerChatOptionsChangeTail: Promise<void> = Promise.resolve();
   private isUnloading = false;
+  readonly zenMode = new ZenModeController({
+    app: this.app,
+    isEnabled: () => this.settings?.enableZenMode !== false,
+    getPosition: () => this.settings?.zenModePosition ?? null,
+    savePosition: position => {
+      void this.mutateSettings(settings => { settings.zenModePosition = position; })
+        .catch(() => new Notice(t('chat.zen.savePositionFailed')));
+    },
+  });
 
   get executionPersistence(): ChatExecutionPersistence {
     return this.conversationRepository;
@@ -376,6 +386,7 @@ export default class ClaudianPlugin extends Plugin {
       });
 
       this.addSettingTab(new ClaudianSettingTab(this.app, this));
+      this.zenMode.start();
       const cliAvailability = new Map<ProviderId, string>();
       this.cliLifecycle.subscribe(snapshot => {
         if (this.isUnloading || snapshot.status === 'checking') return;
@@ -404,6 +415,7 @@ export default class ClaudianPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
+    this.zenMode.dispose();
     if (this.cliUpdateTimer !== null) {
       window.clearTimeout(this.cliUpdateTimer);
       this.cliUpdateTimer = null;
@@ -843,6 +855,7 @@ export default class ClaudianPlugin extends Plugin {
     onCommitted?: SettingsCommit<ClaudianSettings>,
   ): Promise<void> {
     await this.settingsCoordinator.mutate(mutation, onCommitted);
+    this.zenMode.refresh();
   }
 
   getAgentSkillResourceGeneration(): number {

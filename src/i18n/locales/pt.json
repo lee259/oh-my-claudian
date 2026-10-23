@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek solicita permissão.",
       "allowOnce": "Permitir uma vez",
       "deny": "Negar"
+    },
+    "zen": {
+      "regionLabel": "Chat do Claudian",
+      "showHistory": "Mostrar conversa",
+      "hideHistory": "Recolher conversa",
+      "working": "Trabalhando…",
+      "actionRequired": "Sua resposta é necessária",
+      "toolRunning": "{tool} · em execução",
+      "thinking": "Pensando…",
+      "move": "Mover o painel de chat",
+      "savePositionFailed": "Não foi possível salvar a posição do painel Zen."
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "Comandos e habilidades ocultos do DeepSeek",
         "desc": "Ocultar comandos ou habilidades nativos do menu de comandos."
       }
+    },
+    "enableZenMode": {
+      "name": "Ativar modo zen",
+      "desc": "Mantém uma interface de chat mínima visível quando a barra lateral está oculta."
     }
   }
 }

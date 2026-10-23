@@ -15,6 +15,7 @@ import type { ChatExecutionPersistence } from './chat/execution/ChatExecutionCoo
 import type { WarmExecutionPool } from './chat/execution/WarmExecutionPool';
 import type { ConversationRuntimeRegistry } from './chat/sessions/ConversationRuntimeRegistry';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
+import type { ZenModeController } from './chat/zen/ZenModeController';
 
 export interface FeatureTabManagerHost {
   getAllTabs(): TabData[];
@@ -48,6 +49,7 @@ export interface ChatModelSelectionPort {
 /** Application capabilities consumed by user-facing features. */
 export interface FeatureHost {
   readonly app: App;
+  readonly zenMode?: Pick<ZenModeController, 'register' | 'refresh'>;
   readonly chatModelSelection: ChatModelSelectionPort;
   readonly executionPersistence: ChatExecutionPersistence;
   readonly providerHost: ProviderHost;

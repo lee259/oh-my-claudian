@@ -34,6 +34,7 @@
 @import "./toolbar/mcp-selector.css";
 
 /* Features */
+@import "./features/zen-mode.css";
 @import "./features/file-context.css";
 @import "./features/file-link.css";
 @import "./features/image-context.css";
