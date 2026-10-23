@@ -41,6 +41,7 @@ import type { TabData, TabId } from './tabs/types';
 import { ConversationRenameModal } from './ui/ConversationRenameModal';
 import { HistorySearchView } from './ui/HistorySearchView';
 import { recalculateUsageForModel } from './utils/usageInfo';
+import { getZenActivityPreview } from './zen/activityPreview';
 
 type LoadableView = {
   containerEl?: HTMLElement;
@@ -53,6 +54,7 @@ export class ClaudianView extends ItemView {
   private plugin: FeatureHost;
 
   // Tab management
+  private releaseZen: (() => void) | null = null;
   private tabManager: TabManager | null = null;
   private mentionCacheCoordinator: MentionCacheCoordinator | null = null;
   private chatPanelEl: HTMLElement | null = null;
@@ -309,9 +311,19 @@ export class ClaudianView extends ItemView {
     this.attachNavRowContentToInputFooter();
     this.updateInputLocation();
     this.updateTabBarVisibility();
+    if (this.viewContainerEl) {
+      this.releaseZen = this.plugin.zenMode?.register({
+        leaf: this.leaf,
+        surface: this.viewContainerEl,
+        scope: this.scope,
+        getPreview: () => getZenActivityPreview(this.getActiveTab()?.state),
+      }) ?? null;
+    }
   }
 
   async onClose() {
+    this.releaseZen?.();
+    this.releaseZen = null;
     this.cancelHistoryRendering();
     this.destroyHistorySurface();
     if (this.pendingHistorySurfaceUpdate) {
@@ -617,6 +629,7 @@ export class ClaudianView extends ItemView {
   }
 
   private updateTabBar(): void {
+    this.plugin.zenMode?.refresh();
     // Internal tab state remains available to the runtime, but numbered tab
     // navigation is no longer rendered in the composer.
   }
@@ -1131,7 +1144,7 @@ export class ClaudianView extends ItemView {
     });
 
     // View-level Shift+Tab cycles the active provider's permission modes.
-    this.registerDomEvent(this.containerEl, 'keydown', (e: KeyboardEvent) => {
+    this.registerDomEvent(this.viewContainerEl ?? this.containerEl, 'keydown', (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.shiftKey && !e.isComposing) {
         const activeTab = this.tabManager?.getActiveTab();
         if (!activeTab) return;

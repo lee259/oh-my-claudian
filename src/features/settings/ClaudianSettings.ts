@@ -639,6 +639,12 @@ export class ClaudianSettingTab extends PluginSettingTab {
       saveLabels: this.getSettingsSaveLabels(),
       items: [
         {
+          id: 'enable-zen-mode',
+          name: t('settings.enableZenMode.name'),
+          description: t('settings.enableZenMode.desc'),
+          value: this.plugin.settings.enableZenMode !== false,
+        },
+        {
           id: 'enable-auto-scroll',
           name: t('settings.enableAutoScroll.name'),
           description: t('settings.enableAutoScroll.desc'),
@@ -665,6 +671,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
       ],
       onChange: async (id, value) => {
         switch (id) {
+          case 'enable-zen-mode':
+            await this.plugin.mutateSettings(settings => { settings.enableZenMode = value; });
+            return;
           case 'enable-auto-scroll':
             await this.plugin.mutateSettings((settings) => {
               settings.enableAutoScroll = value;

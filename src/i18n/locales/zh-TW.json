@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek 請求授權。",
       "allowOnce": "允許一次",
       "deny": "拒絕"
+    },
+    "zen": {
+      "regionLabel": "Claudian 聊天",
+      "showHistory": "顯示對話",
+      "hideHistory": "收合對話",
+      "working": "處理中…",
+      "actionRequired": "需要你的輸入",
+      "toolRunning": "{tool} · 執行中",
+      "thinking": "思考中…",
+      "move": "移動聊天面板",
+      "savePositionFailed": "無法儲存浮動面板位置。"
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "隱藏的 DeepSeek 命令和技能",
         "desc": "從命令選單中隱藏原生命令或技能。"
       }
+    },
+    "enableZenMode": {
+      "name": "啟用禪模式",
+      "desc": "側邊欄隱藏時，保持顯示精簡的聊天介面。"
     }
   }
 }

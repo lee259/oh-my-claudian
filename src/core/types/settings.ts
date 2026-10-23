@@ -171,6 +171,8 @@ export interface ClaudianSettings {
   lastCustomModel?: string;
 
   // UI preferences
+  enableZenMode?: boolean;
+  zenModePosition?: { x: number; y: number } | null;
   maxWarmAgentProcesses: number;
   providerDiagnosticLogsEnabled: boolean;
   providerDiagnosticLogDirectory: string;

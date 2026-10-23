@@ -283,6 +283,13 @@ function mergeLegacyClaudeHiddenCommands(
   };
 }
 
+function normalizeZenModePosition(value: unknown): { x: number; y: number } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const { x, y } = value as Record<string, unknown>;
+  return typeof x === 'number' && Number.isFinite(x) && Math.abs(x) <= 1
+    && typeof y === 'number' && Number.isFinite(y) && Math.abs(y) <= 1 ? { x, y } : null;
+}
+
 function trimStoredString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -395,6 +402,8 @@ export class ClaudianSettingsStorage {
       hiddenProviderCommands,
       providerConfigs,
       chatViewPlacement,
+      enableZenMode: typeof stored.enableZenMode === 'boolean' ? stored.enableZenMode : true,
+      zenModePosition: normalizeZenModePosition(stored.zenModePosition),
       lastSelectedChatModel,
       favoriteModels: normalizeFavoriteModels(stored.favoriteModels),
     };

@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek fordert eine Berechtigung an.",
       "allowOnce": "Einmal erlauben",
       "deny": "Ablehnen"
+    },
+    "zen": {
+      "regionLabel": "Claudian-Chat",
+      "showHistory": "Unterhaltung anzeigen",
+      "hideHistory": "Unterhaltung einklappen",
+      "working": "Arbeitet…",
+      "actionRequired": "Deine Eingabe wird benötigt",
+      "toolRunning": "{tool} · läuft",
+      "thinking": "Denkt nach…",
+      "move": "Chat-Bereich verschieben",
+      "savePositionFailed": "Die Position des Zen-Panels konnte nicht gespeichert werden."
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "Ausgeblendete DeepSeek-Befehle und Skills",
         "desc": "Native Befehle oder Skills im Befehlsmenü ausblenden."
       }
+    },
+    "enableZenMode": {
+      "name": "Zen-Modus aktivieren",
+      "desc": "Hält eine reduzierte Chat-Oberfläche sichtbar, wenn die Seitenleiste ausgeblendet ist."
     }
   }
 }

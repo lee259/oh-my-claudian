@@ -53,6 +53,17 @@ describe('ClaudianSettingsStorage', () => {
   });
 
   describe('load', () => {
+    it('normalizes malformed Zen preferences and retains valid workspace-relative placement', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.read.mockResolvedValue(JSON.stringify({ enableZenMode: 'false', zenModePosition: { x: 'bad', y: 0 } }));
+      const invalid = await storage.load();
+      expect(invalid.enableZenMode).toBe(true);
+      expect(invalid.zenModePosition).toBeNull();
+      mockAdapter.read.mockResolvedValue(JSON.stringify({ enableZenMode: false, zenModePosition: { x: -0.2, y: -0.3 } }));
+      const valid = await storage.load();
+      expect(valid.enableZenMode).toBe(false);
+      expect(valid.zenModePosition).toEqual({ x: -0.2, y: -0.3 });
+    });
     it('round-trips provider-qualified favorites without exposing malformed entries', async () => {
       mockAdapter.exists.mockResolvedValue(true);
       mockAdapter.read.mockResolvedValue(JSON.stringify({

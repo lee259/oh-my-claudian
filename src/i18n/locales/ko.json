@@ -347,6 +347,17 @@
       "deepseekRequest": "DeepSeek이 권한을 요청합니다.",
       "allowOnce": "한 번 허용",
       "deny": "거부"
+    },
+    "zen": {
+      "regionLabel": "Claudian 채팅",
+      "showHistory": "대화 표시",
+      "hideHistory": "대화 접기",
+      "working": "작업 중…",
+      "actionRequired": "입력이 필요합니다",
+      "toolRunning": "{tool} · 실행 중",
+      "thinking": "생각 중…",
+      "move": "채팅 패널 이동",
+      "savePositionFailed": "Zen 패널 위치를 저장하지 못했습니다."
     }
   },
   "settings": {
@@ -1139,6 +1150,10 @@
         "name": "숨겨진 DeepSeek 명령과 스킬",
         "desc": "명령 메뉴에서 네이티브 명령이나 스킬을 숨깁니다."
       }
+    },
+    "enableZenMode": {
+      "name": "젠 모드 활성화",
+      "desc": "사이드바가 숨겨져 있을 때도 최소한의 채팅 인터페이스를 표시합니다."
     }
   }
 }

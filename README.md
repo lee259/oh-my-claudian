@@ -100,6 +100,12 @@ Type `@` to choose vault files or provider resources, or drag files and folders 
 
 Type `/` to discover commands and skills supported by the selected provider. Instruction mode and Mermaid rendering are also available; provider-specific resources and controls depend on that provider's capabilities.
 
+### Keep chat available while reading
+
+On desktop, collapse the sidebar containing Oh My Claudian to move its existing chat into a floating panel over your notes. Click the activity preview to expand or collapse the conversation; reopen the sidebar to restore the full view. Drafts, running responses and pending approvals stay in the same session.
+
+Drag the handle below the panel to move it, or focus the handle and use arrow keys (Shift for larger steps). Press Home or double-click the handle to return to the bottom-center dock. The position is remembered. Disable **Enable zen mode** in the plugin's general settings to keep the sidebar-only behavior. Main-area chat tabs and popout windows do not float.
+
 ### Read a conversation and inspect changes
 
 The chat uses one conversation panel with history and session navigation. Start a new conversation or choose an earlier session to continue it. Resume, fork, and compact behavior depends on the selected provider.
