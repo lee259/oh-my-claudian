@@ -310,3 +310,50 @@ describe('ManagedStdioProcess', () => {
     expect(proc.listenerCount('close')).toBe(0);
   });
 });
+
+describe('explicitly owned process trees', () => {
+  const platform = process.platform;
+  afterEach(() => { Object.defineProperty(process, 'platform', { value: platform }); jest.restoreAllMocks(); });
+
+  it('isolates and terminates a POSIX provider process group without changing ordinary process defaults', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    const proc = createMockChildProcess();
+    const spawnOwned = jest.fn(() => proc);
+    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+    const managed = createManagedProcess({ killProcessTree: true, spawn: spawnOwned as never });
+    managed.start();
+    expect(spawnOwned).toHaveBeenCalledWith('/usr/bin/provider', ['serve', '--stdio'], expect.objectContaining({ detached: true }));
+    const stopped = managed.shutdown();
+    expect(kill).toHaveBeenCalledWith(-12345, 'SIGTERM');
+    expect(proc.kill).not.toHaveBeenCalled();
+    proc.emit('exit', 0, 'SIGTERM');
+    await stopped;
+  });
+
+  it('terminates a Windows native executable tree even when it is not an npm shim', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const proc = createMockChildProcess();
+    mockSpawn.mockReturnValue(proc);
+    const managed = createManagedProcess({ command: 'C:\\DeepSeek Harness.exe', killProcessTree: true });
+    managed.start();
+    const stopped = managed.shutdown();
+    expect(mockSpawn).toHaveBeenLastCalledWith('taskkill.exe', ['/pid', '12345', '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+    proc.emit('exit', 0, null);
+    await stopped;
+  });
+});
+
+describe('owned process groups after native graceful exit', () => {
+  it('reaps leftover POSIX children even when the root exited before shutdown', async () => {
+    if (process.platform === 'win32') return;
+    const proc = createMockChildProcess();
+    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+    try {
+      const managed = createManagedProcess({ killProcessTree: true, spawn: jest.fn(() => proc) as never });
+      managed.start();
+      proc.emit('exit', 0, null);
+      await managed.shutdown();
+      expect(kill).toHaveBeenCalledWith(-12345, 'SIGKILL');
+    } finally { kill.mockRestore(); }
+  });
+});

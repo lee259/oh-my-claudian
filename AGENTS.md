@@ -2,7 +2,7 @@
 
 ## Project
 
-Claudian is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Claude is the default provider. The built-in selectable providers are Claude, Codex, Cursor, Grok, OMP (Oh My Pi), OpenCode, and Pi; ACP is shared transport infrastructure, not a selectable provider. All providers plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`.
+Claudian is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Claude is the default provider. The built-in selectable providers are Claude, Codex, Cursor, Grok, OMP (Oh My Pi), OpenCode, Pi, and DeepSeek Harness; ACP is shared transport infrastructure, not a selectable provider. All providers plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`.
 
 Do not assume provider parity. Check each provider's `capabilities.ts`, `registration.ts`, and UI config before wiring shared behavior.
 
@@ -24,6 +24,7 @@ Do not assume provider parity. Check each provider's `capabilities.ts`, `registr
   - `src/providers/omp/AGENTS.md`
   - `src/providers/opencode/AGENTS.md`
   - `src/providers/pi/AGENTS.md`
+  - `src/providers/deepseek/AGENTS.md`
   - `src/style/AGENTS.md`
 
 ## AGENTS.md Maintenance

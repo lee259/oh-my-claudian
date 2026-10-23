@@ -28,3 +28,16 @@ it('keeps failed CLI output below the version and action overview', () => {
   overview?.querySelector('button')?.click();
   expect(onUpdate).toHaveBeenCalledTimes(1);
 });
+
+it('presents external update instructions as a neutral note while keeping broken-install warnings', () => {
+  const container = document.createElement('div');
+  render(h(CliLifecycleView, {
+    info: { version: '0.2.1-rc.2', latestVersion: null, installedButBroken: true, error: 'Probe failed' },
+    updateHint: 'Update through your original package manager.',
+    statusText: '', canInstall: false, canUpdate: false, isUpdateAvailable: false, pendingAction: null,
+    onInstall: jest.fn(), onUpdate: jest.fn(), onCheckAgain: jest.fn(),
+  }), container);
+  expect(container.querySelector('.claudian-cli-lifecycle-note')?.textContent).toBe('Update through your original package manager.');
+  expect(container.querySelector('.claudian-cli-lifecycle-hint')?.textContent).not.toContain('package manager');
+  render(null, container);
+});

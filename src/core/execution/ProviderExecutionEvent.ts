@@ -372,3 +372,6 @@ export type ProviderSessionEvent =
   | ProviderPromptSuggestionEvent;
 
 export type ProviderExecutionEvent = ProviderRequestedExecutionEvent;
+
+/** Preserve event discriminants while removing their correlation scope. */
+export type WithoutEventScope<T> = T extends unknown ? Omit<T, 'scope'> : never;

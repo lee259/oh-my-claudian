@@ -53,6 +53,13 @@
   font-size: var(--font-ui-small);
 }
 
+/* External update ownership is informational, not an installation warning. */
+.claudian-cli-lifecycle-note {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+
 .claudian-cli-lifecycle-version-not-installed {
   color: var(--text-muted);
 }

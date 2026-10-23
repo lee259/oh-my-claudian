@@ -1,5 +1,5 @@
 import esbuild from 'esbuild';
-import { builtinModules } from 'node:module';
+import { builtinModules, createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import path from 'path';
 import process from 'process';
@@ -184,6 +184,8 @@ const external = [
 
 const mainContext = await esbuild.context({
   entryPoints: ['src/main.ts'],
+  // Obsidian is a Node-enabled renderer. ws's browser export cannot authenticate native loopback sockets.
+  alias: { ws: createRequire(import.meta.url).resolve('ws') },
   bundle: true,
   plugins: [
     patchSdkImportMeta,

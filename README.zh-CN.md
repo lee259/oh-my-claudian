@@ -79,7 +79,9 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 
 ## 支持的提供商
 
-内置 Claude Code、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode 和 Pi。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
+内置 Claude Code、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode、Pi 和 DeepSeek Harness。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
+
+DeepSeek Harness 需先配置好 `dsh web`，或打开一次 DeepSeek Harness Desktop 完成设置，再在 **提供商 → DeepSeek Harness** 中启用、发现模型并手动选择聊天模型。自动发现优先使用 `dsh`；要使用 Desktop，请填写 `.app` 路径或 Windows 安装目录。集成复用原生配置、凭证和 MCP，支持历史恢复、图片、权限、停止、可选代码模式及附加预设插件；目前不提供规划模式和 Obsidian 原生笔记工具。
 
 ## 常见问题
 

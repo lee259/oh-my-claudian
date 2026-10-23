@@ -20,6 +20,7 @@ describe('built-in ProviderModule catalog', () => {
       'opencode',
       'omp',
       'pi',
+      'deepseek',
     ]);
     for (const module of BUILT_IN_PROVIDER_MODULES) {
       expect(module.workspace.initialize).toEqual(expect.any(Function));
@@ -70,6 +71,7 @@ describe('built-in ProviderModule catalog', () => {
       opencode: false,
       omp: false,
       pi: false,
+      deepseek: false,
     };
 
     for (const module of BUILT_IN_PROVIDER_MODULES) {

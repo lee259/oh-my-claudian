@@ -78,8 +78,8 @@
   border-color: var(--claudian-brand-codex, #d0d0d0);
 }
 
-.claudian-tab-badge-streaming[data-provider="dsh"] {
-  border-color: var(--claudian-brand-dsh, #5786FE);
+.claudian-tab-badge-streaming[data-provider="deepseek"] {
+  border-color: var(--claudian-brand-deepseek);
 }
 
 .claudian-tab-badge-streaming[data-provider="opencode"] {

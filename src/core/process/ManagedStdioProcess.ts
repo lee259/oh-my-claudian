@@ -1,4 +1,4 @@
-import type { ChildProcess, spawn as nodeSpawn } from 'node:child_process';
+import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 
@@ -17,6 +17,8 @@ const spawn = crossSpawn as typeof nodeSpawn;
 
 export interface ManagedStdioProcessOptions {
   args: string[];
+  directSpawn?: boolean;
+  killProcessTree?: boolean;
   command: string;
   cwd: string;
   env: NodeJS.ProcessEnv;
@@ -79,15 +81,17 @@ export class ManagedStdioProcess {
     this.startAttempted = true;
 
     const resolvedSpawnSpec = resolveWindowsCmdShimSpawnSpec(this.options);
+    if (this.options.killProcessTree && process.platform === 'win32') resolvedSpawnSpec.killProcessTree = true;
     this.resolvedSpawnSpec = resolvedSpawnSpec;
 
     let proc: ChildProcess;
     try {
-      proc = (this.options.spawn ?? spawn)(resolvedSpawnSpec.command, resolvedSpawnSpec.args, {
+      proc = (this.options.spawn ?? (this.options.directSpawn ? nodeSpawn : spawn))(resolvedSpawnSpec.command, resolvedSpawnSpec.args, {
         cwd: this.options.cwd,
         env: this.options.env,
         stdio: this.options.stdio ?? 'pipe',
         windowsHide: true,
+        ...(this.options.killProcessTree && process.platform !== 'win32' ? { detached: true } : {}),
       });
     } catch (error) {
       const spawnError = toError(error);
@@ -168,6 +172,7 @@ export class ManagedStdioProcess {
 
     const proc = this.proc;
     if (!proc || !this.alive) {
+      if (proc) this.reapOwnedProcessGroup(proc);
       this.shutdownPromise = Promise.resolve();
       return this.shutdownPromise;
     }
@@ -182,6 +187,7 @@ export class ManagedStdioProcess {
       const finish = (): void => {
         if (settled) return;
         settled = true;
+        this.reapOwnedProcessGroup(proc);
         if (killTimer !== null) window.clearTimeout(killTimer);
         if (finalTimer !== null) window.clearTimeout(finalTimer);
         unsubscribeExit?.();
@@ -270,8 +276,16 @@ export class ManagedStdioProcess {
     return this.proc;
   }
 
+  private reapOwnedProcessGroup(proc: ChildProcess): void {
+    if (!this.options.killProcessTree || process.platform === 'win32' || !proc.pid) return;
+    try { process.kill(-proc.pid, 'SIGKILL'); } catch { /* The owned group already exited. */ }
+  }
+
   private killProcess(proc: ChildProcess, signal: NodeJS.Signals): boolean {
     try {
+      if (this.options.killProcessTree && process.platform !== 'win32' && proc.pid) {
+        try { process.kill(-proc.pid, signal); return true; } catch { return proc.kill(signal); }
+      }
       return terminateSpawnedProcess(proc, signal, spawn, this.resolvedSpawnSpec);
     } catch {
       return false;
