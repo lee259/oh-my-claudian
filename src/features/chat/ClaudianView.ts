@@ -316,6 +316,7 @@ export class ClaudianView extends ItemView {
         leaf: this.leaf,
         surface: this.viewContainerEl,
         scope: this.scope,
+        focusInput: () => this.focusActiveInput(),
         getPreview: () => getZenActivityPreview(this.getActiveTab()?.state),
       }) ?? null;
     }

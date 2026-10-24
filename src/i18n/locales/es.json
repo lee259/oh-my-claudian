@@ -349,6 +349,8 @@
       "deny": "Denegar"
     },
     "zen": {
+      "toggleHistory": "Alternar el historial de conversación Zen",
+      "toggleVisibility": "Mostrar u ocultar el panel Zen",
       "regionLabel": "Chat de Claudian",
       "showHistory": "Mostrar conversación",
       "hideHistory": "Contraer conversación",

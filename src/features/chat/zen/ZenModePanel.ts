@@ -24,6 +24,7 @@ export class ZenModePanel {
     host: HTMLElement,
     private readonly source: ZenModeSource,
     private readonly options: ZenModeControllerOptions,
+    private readonly history: { expanded: boolean; onChange(expanded: boolean): void },
   ) {
     const doc = host.ownerDocument;
     this.root = host.createDiv();
@@ -38,10 +39,10 @@ export class ZenModePanel {
     setIcon(icon, 'messages-square');
     this.preview = this.disclosure.createSpan();
     this.preview.className = 'claudian-zen-preview';
-    const history = source.surface.querySelector<HTMLElement>('.claudian-tab-content-container') ?? source.surface;
-    history.id ||= `claudian-zen-history-${++sequence}`;
-    this.disclosure.setAttribute('aria-controls', history.id);
-    this.disclosure.addEventListener('click', () => this.setExpanded(!this.expanded));
+    const historyEl = source.surface.querySelector<HTMLElement>('.claudian-tab-content-container') ?? source.surface;
+    historyEl.id ||= `claudian-zen-history-${++sequence}`;
+    this.disclosure.setAttribute('aria-controls', historyEl.id);
+    this.disclosure.addEventListener('click', () => this.toggleHistory());
     this.captureScroll();
     this.root.appendChild(source.surface);
     source.surface.classList.add('claudian-zen-surface');
@@ -58,22 +59,38 @@ export class ZenModePanel {
     grip.title = t('chat.zen.move');
     setIcon(grip, 'grip-horizontal');
     this.dock = new ZenPanelDock(host, this.root, grip, options.getPosition(), position => options.savePosition(position));
-    this.setExpanded(false);
+    this.setExpanded(history.expanded);
     this.refresh();
   }
 
   refresh(): void {
     if (this.destroyed) return;
     const activity = this.source.getPreview();
+    const hasHistory = activity.hasMessages || activity.requiresAction;
+    this.root.classList.toggle('has-history', hasHistory);
+    this.disclosure.hidden = !hasHistory;
+    this.disclosure.disabled = !hasHistory;
     this.preview.textContent = activity.text || t('chat.zen.working');
     this.root.dataset.working = String(activity.working);
     this.root.dataset.attention = String(activity.requiresAction);
     if (activity.requiresAction && !this.expanded) this.setExpanded(true);
   }
 
+  toggleHistory(): boolean {
+    const activity = this.source.getPreview();
+    if (!activity.hasMessages || activity.requiresAction) return false;
+    this.setExpanded(!this.expanded);
+    return true;
+  }
+
   private setExpanded(expanded: boolean): void {
-    if (!expanded && this.expanded) this.captureScroll();
+    if (!expanded && this.expanded) {
+      this.captureScroll();
+      const historyEl = this.source.surface.querySelector('.claudian-tab-content-container');
+      if (historyEl?.contains(this.root.ownerDocument.activeElement)) this.disclosure.focus({ preventScroll: true });
+    }
     this.expanded = expanded;
+    this.history.onChange(expanded);
     this.root.classList.toggle('is-expanded', expanded);
     this.disclosure.setAttribute('aria-expanded', String(expanded));
     this.disclosure.setAttribute('aria-label', t(expanded ? 'chat.zen.hideHistory' : 'chat.zen.showHistory'));

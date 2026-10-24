@@ -349,6 +349,8 @@
       "deny": "Отклонить"
     },
     "zen": {
+      "toggleHistory": "Переключить историю беседы Zen",
+      "toggleVisibility": "Показать или скрыть панель Zen",
       "regionLabel": "Чат Claudian",
       "showHistory": "Показать разговор",
       "hideHistory": "Свернуть беседу",

@@ -349,6 +349,8 @@
       "deny": "拒否"
     },
     "zen": {
+      "toggleHistory": "Zen の会話履歴を切り替え",
+      "toggleVisibility": "Zen パネルの表示を切り替え",
       "regionLabel": "Claudian チャット",
       "showHistory": "会話を表示",
       "hideHistory": "会話を折りたたむ",

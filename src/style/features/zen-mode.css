@@ -36,6 +36,7 @@
   overflow: visible;
 }
 
+.claudian-zen:not(.has-history) .claudian-tab-content-container,
 .claudian-zen:not(.is-expanded) .claudian-tab-content-container {
   display: none;
 }
@@ -152,6 +153,7 @@
 }
 
 /* Compact only the presentation; the original editor document remains the owner. */
+.claudian-zen:not(.has-history) .claudian-view-input-nav-row,
 .claudian-zen:not(.is-expanded) .claudian-view-input-nav-row {
   height: 0;
   overflow: hidden;
@@ -165,4 +167,23 @@
 
 .claudian-zen .oh-my-claudian-root .claudian-composer-editor .cm-scroller {
   max-height: min(24vh, 220px);
+}
+
+.claudian-zen > .claudian-zen-disclosure[hidden] {
+  display: none;
+}
+
+.claudian-zen:not(.has-history) .claudian-zen-surface.oh-my-claudian-root.claudian-container {
+  border-radius: 16px;
+}
+
+.claudian-zen .claudian-model-dropdown,
+.claudian-zen .claudian-permission-mode-popover {
+  max-height: min(480px, var(--claudian-zen-menu-height, 60vh));
+}
+
+.claudian-zen.opens-below .claudian-model-dropdown,
+.claudian-zen.opens-below .claudian-permission-mode-popover {
+  top: calc(100% + 8px);
+  bottom: auto;
 }

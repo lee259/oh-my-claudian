@@ -349,6 +349,8 @@
       "deny": "Deny"
     },
     "zen": {
+      "toggleHistory": "Toggle Zen conversation history",
+      "toggleVisibility": "Toggle Zen panel",
       "regionLabel": "Claudian chat",
       "showHistory": "Show conversation",
       "hideHistory": "Collapse conversation",
