@@ -71,7 +71,7 @@ Alongside the inherited foundation, this project focuses on the workflows below:
 | Cursor Agent or Oh My Pi in your vault | Choose either integration alongside Claude Code, Codex, Grok Build, OpenCode, and Pi. |
 | Help getting a local agent ready | Provider-specific Readiness checks and supported CLI install/update actions. |
 | Easier review of longer conversations | Expand completed work, inspect edit diffs, and keep your position while reading. |
-| Actions that understand Obsidian's vault structure | Claude, Codex, OpenCode, and Pi can inspect backlinks, manage frontmatter, and move files with Obsidian link updates. |
+| Actions that understand Obsidian's vault structure | Claude, Codex, DeepSeek Harness, OpenCode, and Pi can inspect backlinks, manage frontmatter, and move files with Obsidian link updates. |
 
 Upstream evolves independently. See [Claudian's current README](https://github.com/YishenTu/claudian#readme) when comparing available features. There is no need to migrate if your current setup already meets your needs.
 
@@ -88,9 +88,9 @@ The built-in provider integrations are:
 - [Pi](https://github.com/earendil-works/pi)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
-For DeepSeek Harness, configure `dsh web` or open DeepSeek Harness Desktop once before enabling it in **Providers → DeepSeek Harness**. Discover the native model catalog, then explicitly select the models to show in chat. Auto prefers `dsh`; set the Desktop `.app` path or Windows installation folder to use its bundled runtime. The integration reuses your native profile, credentials and MCP servers. It supports native history/resume, images, permissions and Stop, with optional code mode and additional preset plugins. Planning and Obsidian-native vault tools are not exposed by this integration.
+For DeepSeek Harness, configure `dsh web` or open DeepSeek Harness Desktop once before enabling it in **Providers → DeepSeek Harness**. Discover the native model catalog, then explicitly select the models to show in chat. Auto prefers `dsh`; set the Desktop `.app` path or Windows installation folder to use its bundled runtime. The integration reuses your native profile, credentials and MCP servers. It supports native history/resume, images, permissions and Stop, with optional code mode and additional preset plugins. Chat presets include Obsidian-native vault tools through a session-scoped local bridge. Planning is not exposed by this integration.
 
-Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude, Codex, OpenCode, and Pi.
+Provider capabilities are intentionally different. The plugin exposes controls only when the selected provider supports them; model discovery, permissions, history, planning, MCP, and runtime behavior remain provider-specific. The Obsidian-native vault actions below are currently available in Claude, Codex, DeepSeek Harness, OpenCode, and Pi.
 
 ## Usage
 
@@ -130,7 +130,9 @@ Only models enabled in provider settings appear in the composer. The button show
 
 ### Use Obsidian-native vault actions
 
-Claude, Codex, OpenCode, and Pi can inspect backlinks, update or remove note frontmatter properties, move or rename vault files while Obsidian handles link updates, and send files to Obsidian trash.
+Claude, Codex, DeepSeek Harness, OpenCode, and Pi can inspect backlinks, update or remove note frontmatter properties, move or rename vault files while Obsidian handles link updates, and send files to Obsidian trash.
+
+DeepSeek exposes these actions as `obsidian_vault` in chat presets. Passive and read-only auxiliary presets do not receive this tool. See [DeepSeek tool integration](docs/deepseek-obsidian-tools.md) for lifecycle and packaging boundaries.
 
 The UI is available in 10 locales, including Simplified and Traditional Chinese.
 

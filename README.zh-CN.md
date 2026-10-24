@@ -69,7 +69,7 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 | 在仓库中使用 Cursor Agent 或 Oh My Pi | 与 Claude Code、Codex、Grok Build、OpenCode 和 Pi 一起提供内置集成。 |
 | 配置本地 Agent 时需要指引 | 提供商专属的就绪状态，以及受支持的 CLI 安装／更新入口。 |
 | 长对话中方便查看过程和修改 | 展开已完成工作摘要、文件 diff，并保留阅读位置。 |
-| 操作 Obsidian 的笔记结构 | Claude、Codex、OpenCode 和 Pi 可以检查反向链接、管理属性，以及通过 Obsidian 移动文件并更新链接。 |
+| 操作 Obsidian 的笔记结构 | Claude、Codex、DeepSeek Harness、OpenCode 和 Pi 可以检查反向链接、管理属性，以及通过 Obsidian 移动文件并更新链接。 |
 
 这些是本项目的维护重点。上游独立演进，对比时请查看 [Claudian 当前 README](https://github.com/YishenTu/claudian#readme)。已有配置满足需要时，可以继续使用原来的版本。
 
@@ -81,7 +81,7 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 
 内置 Claude Code、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode、Pi 和 DeepSeek Harness。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
 
-DeepSeek Harness 需先配置好 `dsh web`，或打开一次 DeepSeek Harness Desktop 完成设置，再在 **提供商 → DeepSeek Harness** 中启用、发现模型并手动选择聊天模型。自动发现优先使用 `dsh`；要使用 Desktop，请填写 `.app` 路径或 Windows 安装目录。集成复用原生配置、凭证和 MCP，支持历史恢复、图片、权限、停止、可选代码模式及附加预设插件；目前不提供规划模式和 Obsidian 原生笔记工具。
+DeepSeek Harness 需先配置好 `dsh web`，或打开一次 DeepSeek Harness Desktop 完成设置，再在 **提供商 → DeepSeek Harness** 中启用、发现模型并手动选择聊天模型。自动发现优先使用 `dsh`；要使用 Desktop，请填写 `.app` 路径或 Windows 安装目录。集成复用原生配置、凭证和 MCP，支持历史恢复、图片、权限、停止、可选代码模式及附加预设插件；聊天预设通过会话隔离的本地桥接提供 Obsidian 原生笔记工具，辅助预设保持原有策略；目前不提供规划模式。
 
 ## 常见问题
 
