@@ -4,6 +4,29 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 describe('Message styles', () => {
+  it('animates only the active phase label and stops when the phase settles', () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    document.head.appendChild(style);
+    const phase = document.createElement('div');
+    phase.className = 'claudian-activity-phase';
+    phase.innerHTML = '<button class="claudian-activity-phase-header"><span class="claudian-activity-phase-label">Explored the project</span></button><div class="claudian-activity-phase-details">Tool output</div>';
+    document.body.appendChild(phase);
+    const label = phase.querySelector('.claudian-activity-phase-label')!;
+
+    try {
+      expect(window.getComputedStyle(label).animation).toBe('');
+      phase.dataset.active = 'true';
+      expect(window.getComputedStyle(label).animation).toContain('claudian-activity-live-pulse');
+      expect(window.getComputedStyle(phase.lastElementChild!).animation).toBe('');
+      phase.removeAttribute('data-active');
+      expect(window.getComputedStyle(label).animation).toBe('');
+    } finally {
+      phase.remove();
+      style.remove();
+    }
+  });
+
   it('uses the same action spacing and timestamp typography for both message roles', () => {
     const style = document.createElement('style');
     style.textContent = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
