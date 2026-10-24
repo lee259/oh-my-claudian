@@ -38,3 +38,22 @@ it('does not persist a cancelled pointer drag and clamps an out-of-bounds move',
   dock.destroy();
   host.remove();
 });
+
+it('opens composer menus toward available workspace space after moving the panel', () => {
+  const host = document.body.appendChild(document.createElement('div'));
+  const root = host.appendChild(document.createElement('div'));
+  const toolbar = root.appendChild(document.createElement('div'));
+  toolbar.className = 'claudian-input-toolbar';
+  const grip = root.appendChild(document.createElement('button'));
+  host.getBoundingClientRect = () => ({ top: 100, bottom: 700, left: 0, width: 800, height: 600 }) as DOMRect;
+  root.getBoundingClientRect = () => ({ top: 100 + (parseFloat(root.style.top) || 0), width: 400, height: 160 }) as DOMRect;
+  toolbar.getBoundingClientRect = () => ({ top: 200 + parseFloat(root.style.top), bottom: 240 + parseFloat(root.style.top) }) as DOMRect;
+  const dock = new ZenPanelDock(host, root, grip, { x: 0, y: -1 }, jest.fn());
+  expect(root.classList.contains('opens-below')).toBe(true);
+  expect(root.style.getPropertyValue('--claudian-zen-menu-height')).toBe('436px');
+  grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+  expect(root.classList.contains('opens-below')).toBe(false);
+  expect(root.style.getPropertyValue('--claudian-zen-menu-height')).toBe('484px');
+  dock.destroy();
+  host.remove();
+});

@@ -349,6 +349,8 @@
       "deny": "拒绝"
     },
     "zen": {
+      "toggleHistory": "展开或收起禅模式对话",
+      "toggleVisibility": "显示或隐藏禅模式面板",
       "regionLabel": "Claudian 聊天",
       "showHistory": "显示对话",
       "hideHistory": "收起对话",

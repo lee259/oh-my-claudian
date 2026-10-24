@@ -26,7 +26,7 @@ function fixture() {
   const surface = parent.appendChild(document.createElement('div'));
   const input = surface.appendChild(document.createElement('textarea'));
   input.value = 'Keep my draft';
-  const source: ZenModeSource = { leaf, surface, getPreview: () => ({ text: 'Working', working: true, requiresAction: false }) };
+  const source: ZenModeSource = { leaf, surface, focusInput: () => input.focus(), getPreview: () => ({ text: 'Working', hasMessages: true, working: true, requiresAction: false }) };
   let enabled = true;
   const controller = new ZenModeController({ app, isEnabled: () => enabled, getPosition: () => null, savePosition: jest.fn() });
   controller.start();
@@ -54,7 +54,7 @@ it('moves the same live surface on sidebar collapse and restores its draft when 
 it('shows bounded live activity and expands for an interaction without replacing the input', () => {
   const f = fixture();
   let requiresAction = false;
-  f.source.getPreview = () => ({ text: requiresAction ? 'Approval needed' : 'Reading note', working: true, requiresAction });
+  f.source.getPreview = () => ({ text: requiresAction ? 'Approval needed' : 'Reading note', hasMessages: true, working: true, requiresAction });
   f.sidebar.collapsed = true;
   f.controller.refresh();
   const toggle = f.center.querySelector<HTMLButtonElement>('.claudian-zen-disclosure')!;
@@ -147,7 +147,7 @@ it('keeps the reading position chosen in the expanded transcript when returning 
 it('refreshes streamed preview text from the existing presentation without another execution', async () => {
   const f = fixture();
   let text = 'Reading';
-  f.source.getPreview = () => ({ text, working: true, requiresAction: false });
+  f.source.getPreview = () => ({ text, hasMessages: true, working: true, requiresAction: false });
   f.sidebar.collapsed = true;
   f.controller.refresh();
   text = 'Reading the next note';
@@ -167,5 +167,109 @@ it('reattaches to a replaced central workspace without duplicating the editor', 
   f.controller.refresh();
   expect(nextHost.contains(f.input)).toBe(true);
   expect(nextHost.querySelectorAll('.claudian-zen')).toHaveLength(1);
+  f.controller.dispose();
+});
+
+it('offers history only after the first message and hides it again when the conversation clears', () => {
+  const f = fixture();
+  let hasMessages = false;
+  f.source.getPreview = () => ({ text: 'Chat', hasMessages, working: false, requiresAction: false });
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const root = f.center.querySelector('.claudian-zen')!;
+  const toggle = root.querySelector<HTMLButtonElement>('.claudian-zen-disclosure')!;
+  expect(toggle.hidden).toBe(true);
+  expect(root.classList.contains('has-history')).toBe(false);
+  hasMessages = true;
+  f.controller.refresh();
+  expect(toggle.hidden).toBe(false);
+  toggle.click();
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  hasMessages = false;
+  f.controller.refresh();
+  expect(toggle.hidden).toBe(true);
+  expect(root.classList.contains('has-history')).toBe(false);
+  expect(f.input.value).toBe('Keep my draft');
+  f.controller.dispose();
+});
+
+it('keeps a pending interaction accessible even before a message is rendered', () => {
+  const f = fixture();
+  f.source.getPreview = () => ({ text: 'Approval needed', hasMessages: false, working: false, requiresAction: true });
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const root = f.center.querySelector('.claudian-zen')!;
+  expect(root.classList.contains('has-history')).toBe(true);
+  expect(root.querySelector('.claudian-zen-disclosure')?.getAttribute('aria-expanded')).toBe('true');
+  f.controller.dispose();
+});
+
+it('temporarily hides and restores the same composer through commands without changing the sidebar preference', () => {
+  const f = fixture();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const command = f.controller.createCommands().find(command => command.id === 'toggle-zen-mode')!;
+  const toggle = command.checkCallback!;
+  expect(toggle(true)).toBe(true);
+  expect(f.center.contains(f.input)).toBe(true);
+  toggle(false);
+  expect(f.center.querySelector('.claudian-zen')).toBeNull();
+  expect(f.parent.contains(f.input)).toBe(true);
+  f.controller.refresh();
+  expect(f.center.querySelector('.claudian-zen')).toBeNull();
+  toggle(false);
+  expect(f.center.contains(f.input)).toBe(true);
+  expect(document.activeElement).toBe(f.input);
+  expect(f.input.value).toBe('Keep my draft');
+  expect(f.sidebar.collapsed).toBe(true);
+  toggle(false);
+  f.sidebar.collapsed = false;
+  f.controller.refresh();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  expect(f.center.contains(f.input)).toBe(true);
+  f.release();
+  expect(toggle(true)).toBe(false);
+  f.controller.dispose();
+});
+
+it('toggles history without losing composer focus and remembers expansion across presentation changes', () => {
+  const f = fixture();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const command = f.controller.createCommands().find(command => command.id === 'toggle-zen-mode-history')!;
+  const toggle = command.checkCallback!;
+  f.input.focus();
+  expect(toggle(true)).toBe(true);
+  expect(f.center.querySelector('.claudian-zen-disclosure')?.getAttribute('aria-expanded')).toBe('false');
+  toggle(false);
+  expect(f.center.querySelector('.claudian-zen-disclosure')?.getAttribute('aria-expanded')).toBe('true');
+  expect(document.activeElement).toBe(f.input);
+  f.sidebar.collapsed = false;
+  f.controller.refresh();
+  expect(toggle(true)).toBe(false);
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  expect(f.center.querySelector('.claudian-zen-disclosure')?.getAttribute('aria-expanded')).toBe('true');
+  toggle(false);
+  expect(f.center.querySelector('.claudian-zen-disclosure')?.getAttribute('aria-expanded')).toBe('false');
+  f.source.getPreview = () => ({ text: 'Chat', hasMessages: false, working: false, requiresAction: false });
+  f.controller.refresh();
+  expect(toggle(true)).toBe(false);
+  f.controller.dispose();
+});
+
+it('returns focus to the disclosure before the history command hides a focused transcript', () => {
+  const f = fixture();
+  const history = f.source.surface.appendChild(document.createElement('div'));
+  history.className = 'claudian-tab-content-container';
+  const action = history.appendChild(document.createElement('button'));
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const toggle = f.controller.createCommands().find(command => command.id === 'toggle-zen-mode-history')!.checkCallback!;
+  toggle(false);
+  action.focus();
+  toggle(false);
+  expect(document.activeElement).toBe(f.center.querySelector('.claudian-zen-disclosure'));
   f.controller.dispose();
 });

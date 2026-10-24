@@ -349,6 +349,8 @@
       "deny": "거부"
     },
     "zen": {
+      "toggleHistory": "Zen 대화 기록 전환",
+      "toggleVisibility": "Zen 패널 표시 전환",
       "regionLabel": "Claudian 채팅",
       "showHistory": "대화 표시",
       "hideHistory": "대화 접기",

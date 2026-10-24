@@ -106,6 +106,8 @@ On desktop, collapse the sidebar containing Oh My Claudian to move its existing 
 
 Drag the handle below the panel to move it, or focus the handle and use arrow keys (Shift for larger steps). Press Home or double-click the handle to return to the bottom-center dock. The position is remembered. Disable **Enable zen mode** in the plugin's general settings to keep the sidebar-only behavior. Main-area chat tabs and popout windows do not float.
 
+An empty conversation shows only the composer. Assign hotkeys to **Toggle Zen panel** to temporarily hide or restore it, and **Toggle Zen conversation history** to expand or collapse existing messages. Restoring the panel focuses the same composer; reopening its sidebar resets temporary hiding. Model and permission menus open toward available workspace space.
+
 ### Read a conversation and inspect changes
 
 The chat uses one conversation panel with history and session navigation. Start a new conversation or choose an earlier session to continue it. Resume, fork, and compact behavior depends on the selected provider.

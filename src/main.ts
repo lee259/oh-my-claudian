@@ -264,6 +264,7 @@ export default class ClaudianPlugin extends Plugin {
         getActiveDocument: () => typeof activeDocument === 'undefined' ? null : activeDocument,
         getPreferredInput: () => this.getView()?.getActiveTab()?.dom.inputEl ?? null,
       }));
+      for (const command of this.zenMode.createCommands()) this.addCommand(command);
 
       this.addCommand({
         id: 'inline-edit',

@@ -20,3 +20,11 @@ it('projects action-required state independently of hidden message DOM', () => {
   state.response.text = 'Reading a note';
   expect(getZenActivityPreview(state)).toMatchObject({ text: 'Reading a note', requiresAction: false, working: true });
 });
+
+it('does not split a supplementary character at the bounded scan edge', () => {
+  const state = new ChatState();
+  state.response.text = ' '.repeat(999) + '🙂';
+  const preview = getZenActivityPreview(state);
+  expect(preview.text).not.toContain('\ud83d');
+  expect(preview.text).toBe('');
+});

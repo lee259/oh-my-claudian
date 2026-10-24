@@ -44,6 +44,12 @@ export class ZenPanelDock {
     const left = Math.max(8, Math.min(g.maxX, g.homeX + (this.position?.x ?? 0) * g.width));
     const top = Math.max(8, Math.min(g.maxY, g.homeY + (this.position?.y ?? 0) * g.height));
     Object.assign(this.root.style, { left: `${left}px`, top: `${top}px`, bottom: 'auto', transform: 'none' });
+    const host = this.host.getBoundingClientRect();
+    const anchor = (this.root.querySelector('.claudian-input-toolbar') ?? this.root).getBoundingClientRect();
+    const above = anchor.top - host.top;
+    const below = host.bottom - anchor.bottom;
+    this.root.classList.toggle('opens-below', below > above);
+    this.root.style.setProperty('--claudian-zen-menu-height', `${Math.max(0, Math.max(above, below) - 16)}px`);
   }
 
   private move(left: number, top: number, persist: boolean): void {

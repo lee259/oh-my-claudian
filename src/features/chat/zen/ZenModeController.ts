@@ -1,12 +1,14 @@
-import type { App, EventRef, Scope, WorkspaceLeaf } from 'obsidian';
+import type { App, Command, EventRef, Scope, WorkspaceLeaf } from 'obsidian';
 import { Platform } from 'obsidian';
 
 import { VIEW_TYPE_CLAUDIAN } from '@/core/types';
+import { t } from '@/i18n/i18n';
 
 import { ZenModePanel } from './ZenModePanel';
 
 export interface ZenPreview {
   text: string;
+  hasMessages: boolean;
   working: boolean;
   requiresAction: boolean;
 }
@@ -15,6 +17,7 @@ export interface ZenModeSource {
   readonly leaf: WorkspaceLeaf;
   readonly surface: HTMLElement;
   readonly scope?: Scope | null;
+  focusInput(): void;
   getPreview(): ZenPreview;
 }
 
@@ -36,8 +39,46 @@ export class ZenModeController {
   private disposed = false;
   private preferredSource: ZenModeSource | null = null;
   private loadRequested = new WeakSet<WorkspaceLeaf>();
+  private hidden: { source: ZenModeSource; root: ReturnType<WorkspaceLeaf['getRoot']> } | null = null;
+  private historyExpanded = new WeakMap<ZenModeSource, boolean>();
 
   constructor(private readonly options: ZenModeControllerOptions) {}
+
+  createCommands(): Command[] {
+    return [{
+      id: 'toggle-zen-mode',
+      name: t('chat.zen.toggleVisibility'),
+      checkCallback: checking => {
+        if (this.disposed || !this.options.isEnabled() || (!this.active && !this.hidden)) return false;
+        if (checking) return true;
+        if (this.active) {
+          this.hidden = { source: this.active.source, root: this.active.source.leaf.getRoot() };
+          this.refresh();
+        } else {
+          this.restoreHidden();
+        }
+        return true;
+      },
+    }, {
+      id: 'toggle-zen-mode-history',
+      name: t('chat.zen.toggleHistory'),
+      checkCallback: checking => {
+        const panel = this.active?.panel;
+        const activity = this.active?.source.getPreview();
+        if (!panel || !activity?.hasMessages || activity.requiresAction) return false;
+        return checking || panel.toggleHistory();
+      },
+    }];
+  }
+
+  private restoreHidden(): void {
+    const source = this.hidden?.source;
+    if (!source) return;
+    this.hidden = null;
+    this.preferredSource = source;
+    this.refresh();
+    if (this.active?.source === source) source.focusInput();
+  }
 
   start(): void {
     this.options.app.workspace.onLayoutReady(() => {
@@ -60,6 +101,7 @@ export class ZenModeController {
     this.refresh();
     return () => {
       this.sources.delete(source);
+      if (this.hidden?.source === source) this.hidden = null;
       if (this.preferredSource === source) this.preferredSource = null;
       if (this.active?.source === source) this.detach();
       this.refresh();
@@ -68,6 +110,9 @@ export class ZenModeController {
 
   refresh(): void {
     if (this.disposed) return;
+    if (this.hidden && (!this.options.isEnabled() || !this.sources.has(this.hidden.source)
+      || this.hidden.source.leaf.getRoot() !== this.hidden.root
+      || (this.hidden.root as { collapsed?: boolean }).collapsed !== true)) this.hidden = null;
     const { workspace } = this.options.app;
     const host = (workspace as { containerEl?: HTMLElement }).containerEl
       ?.querySelector<HTMLElement>(':scope > .workspace-split.mod-root');
@@ -76,12 +121,12 @@ export class ZenModeController {
       return source.surface.ownerDocument === host?.ownerDocument && (root === workspace.leftSplit || root === workspace.rightSplit)
         && (root as { collapsed?: boolean }).collapsed === true;
     };
-    const target = this.started && !Platform.isMobile && host && this.options.isEnabled()
+    const target = !this.hidden && this.started && !Platform.isMobile && host && this.options.isEnabled()
       ? (this.preferredSource && this.sources.has(this.preferredSource) && eligible(this.preferredSource)
         ? this.preferredSource
         : this.active && eligible(this.active.source) ? this.active.source : [...this.sources].find(eligible))
       : undefined;
-    if (!target && this.started && !Platform.isMobile && host && this.options.isEnabled()) {
+    if (!target && !this.hidden && this.started && !Platform.isMobile && host && this.options.isEnabled()) {
       const leaf = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN).find(leaf => {
         const root = leaf.getRoot();
         return leaf.isDeferred && !this.loadRequested.has(leaf)
@@ -98,7 +143,10 @@ export class ZenModeController {
     if (!target || !host) return;
     const marker = target.surface.ownerDocument.createComment('Zen presentation origin');
     target.surface.before(marker);
-    const panel = new ZenModePanel(host, target, this.options);
+    const panel = new ZenModePanel(host, target, this.options, {
+      expanded: this.historyExpanded.get(target) ?? false,
+      onChange: expanded => this.historyExpanded.set(target, expanded),
+    });
     this.active = { source: target, marker, panel };
   }
 
@@ -111,6 +159,7 @@ export class ZenModeController {
 
   dispose(): void {
     this.disposed = true;
+    this.hidden = null;
     this.detach();
     for (const ref of this.refs) this.options.app.workspace.offref(ref);
     this.refs = [];

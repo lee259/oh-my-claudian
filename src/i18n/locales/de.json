@@ -349,6 +349,8 @@
       "deny": "Ablehnen"
     },
     "zen": {
+      "toggleHistory": "Zen-Gesprächsverlauf umschalten",
+      "toggleVisibility": "Zen-Panel ein-/ausblenden",
       "regionLabel": "Claudian-Chat",
       "showHistory": "Unterhaltung anzeigen",
       "hideHistory": "Unterhaltung einklappen",
