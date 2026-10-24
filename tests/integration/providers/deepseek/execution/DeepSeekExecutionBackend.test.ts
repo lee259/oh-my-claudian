@@ -1662,3 +1662,19 @@ it('omits a stale shared reasoning value for a native model without reasoning co
   expect(peer.calls.find(call => call.method === 'session/selectModel')?.args.request).not.toHaveProperty('reasoningEffort');
   expect(events.at(-1)?.type).toBe('turn_completed');
 });
+
+it('authorizes the claimed chat before admission and revokes its Obsidian credential on disposal', async () => {
+  const bridge = {
+    createConnection: jest.fn(async () => ({ endpoint: 'http://127.0.0.1:1234/mcp', token: 'session-secret' })),
+    setAllowedOperations: jest.fn(), releaseConnection: jest.fn(),
+  };
+  const toolsHost = { ...host, obsidianWorkspaceToolBridge: bridge };
+  session = new DeepSeekExecutionBackend(toolsHost, () => deepseek).createSession({
+    lifecycle: 'persistent', nativePersistence: 'enabled', vaultWorkingDirectory: '/vault', interactionPort: port,
+  }) as typeof session;
+  await completeRequest();
+  expect(bridge.setAllowedOperations).toHaveBeenCalledWith('session-secret', ['backlinks', 'move', 'set-property', 'trash']);
+  expect(lifecycle.obsidianConnections).toContainEqual({ sessionId: 'root', connection: { endpoint: 'http://127.0.0.1:1234/mcp', token: 'session-secret' } });
+  await session.dispose();
+  expect(bridge.releaseConnection).toHaveBeenCalledWith('session-secret');
+});

@@ -11,6 +11,8 @@ export interface DeepSeekPresetPlugin {
 
 /** Launch files the bundled compatibility plugin reads; the preview shows placeholders instead. */
 export interface DeepSeekPresetPaths {
+  readonly obsidian?: string;
+  readonly connectionDirectory?: string;
   readonly compatibility: string;
   readonly codeModeFile: string;
   readonly promptDirectory: string;
@@ -44,7 +46,7 @@ function assertEntryValue(value: unknown, path: string): void {
 }
 
 const PREVIEW_PATHS: DeepSeekPresetPaths = {
-  compatibility: '<claudian-compatibility.mjs>', codeModeFile: '<code mode>', promptDirectory: '<session prompts>',
+  obsidian: '<claudian-obsidian.mjs>', connectionDirectory: '<session connections>', compatibility: '<claudian-compatibility.mjs>', codeModeFile: '<code mode>', promptDirectory: '<session prompts>',
 };
 
 /**
@@ -72,6 +74,7 @@ export function buildDeepSeekPresetPlugins(
     plugin('tool-fs-search', { sampleOverCapGlobResults: false }),
     // Read-only tasks (Inline Edit) take a user's `/skill` gestures; their `allow` policy still hides the skill tool.
     ...(preset !== 'claudian-passive' ? [plugin('skill-filesystem'), plugin('tool-skill')] : []),
+    ...(!auxiliary && paths.obsidian ? [{ id: 'claudian-obsidian', name: paths.obsidian, config: { connectionDirectory: paths.connectionDirectory } }] : []),
     ...(!auxiliary ? [
       // Native mounts only the platform's shell executor (PowerShell on Windows); its tool must match.
       plugin(process.platform === 'win32' ? 'tool-pwsh' : 'tool-bash'),

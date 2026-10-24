@@ -13,6 +13,7 @@ import {
   type WithoutEventScope,
 } from '@/core/execution';
 import type { ProviderExecutionContext } from '@/core/execution/ProviderExecutionRequest';
+import { ObsidianWorkspaceToolSession } from '@/core/obsidian/ObsidianWorkspaceToolSession';
 import { buildSystemPrompt } from '@/core/prompt/mainAgent';
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import { getActionDescription } from '@/core/security/approvalRules';
@@ -100,6 +101,7 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
   private readonly snapshots: SessionSnapshotState;
   private readonly interactions: PendingInteractionLedger;
   private readonly lifetime = new AbortController();
+  private obsidianTools: ObsidianWorkspaceToolSession;
   private lease?: DeepSeekHostLease;
   private observer?: DeepSeekSessionObserver;
   private nativeId?: string;
@@ -137,6 +139,7 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
     private readonly deepseek: DeepSeekHost,
     private readonly commandCatalog?: { setCommandSnapshot(commands: SlashCommand[]): void },
   ) {
+    this.obsidianTools = new ObsidianWorkspaceToolSession(host.obsidianWorkspaceToolBridge);
     this.nativeId = config.resumeSeed?.providerSessionId;
     this.snapshots = new SessionSnapshotState({ providerId: this.providerId, sessionInstanceId: this.sessionInstanceId,
       providerState: config.resumeSeed?.providerState, readProviderSessionId: () => this.nativeId,
@@ -307,6 +310,9 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
       }
       return;
     }
+    const connection = await this.obsidianTools.activateForTurn(input.toolPolicy, !isDeepSeekAuxiliaryPreset(this.binding!.preset));
+    this.assertRequest(requested);
+    await lease.writeObsidianConnection(this.nativeId!, connection);
     await lease.writePrompt(this.nativeId!, prompt);
     if (!isDeepSeekAuxiliaryPreset(this.binding!.preset)) await lease.writeCodeMode(getDeepSeekProviderSettings(this.host.settings).codeMode);
     this.assertRequest(requested);
@@ -331,7 +337,7 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
     const input = requested.input;
     const policy: DeepSeekPreset | undefined = input.toolPolicy.kind === 'passive' ? 'claudian-passive' : input.toolPolicy.kind === 'read-only' ? 'claudian-read-only' : undefined;
     const prompt = resolveProviderSystemInstructions(input.configuration.systemInstructions, () =>
-      buildSystemPrompt({ customPrompt: settings.systemPrompt, mediaFolder: settings.mediaFolder, userName: settings.userName, vaultPath: this.config.vaultWorkingDirectory })) ?? '';
+      buildSystemPrompt({ customPrompt: settings.systemPrompt, mediaFolder: settings.mediaFolder, userName: settings.userName, vaultPath: this.config.vaultWorkingDirectory }, { capabilities: { obsidianVaultTool: !!this.host.obsidianWorkspaceToolBridge && !policy } })) ?? '';
     // A retained binding only serves Stop and closing; sending rebinds with fresh native baselines. Its conversation
     // state already ended with the failure, so releasing it leaves this request alone.
     if (this.retained) this.release();
@@ -1028,6 +1034,8 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
 
   /** Ends this conversation's view of the binding; the observer keeps tracking native work while it is retained. */
   private endBinding(): void {
+    this.obsidianTools.dispose();
+    this.obsidianTools = new ObsidianWorkspaceToolSession(this.host.obsidianWorkspaceToolBridge);
     ++this.generation;
     this.requested?.abort.abort();
     for (const steer of [...this.steers.values()]) { steer.answer(new Error('DeepSeek connection ended before the steered message was confirmed.')); steer.release(); }

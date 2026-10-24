@@ -4,15 +4,20 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import type { ObsidianWorkspaceToolBridgeConnection } from '@/core/obsidian/ObsidianWorkspaceToolBridge';
+
 import { DEEPSEEK_PRESETS } from '../types';
 import { DEEPSEEK_COMPATIBILITY_SOURCE, DEEPSEEK_EPHEMERAL_SOURCE, DEEPSEEK_LIFECYCLE_SOURCE } from './DeepSeekCompatibility';
+import { DEEPSEEK_OBSIDIAN_TOOLS_SOURCE } from './DeepSeekObsidianTools';
 import { buildDeepSeekPresetPlugins, type DeepSeekPresetPlugin } from './DeepSeekPresetPlugins';
 
 /** Launch-only overlay for one shared Host: every Claudian preset, the lifecycle tether and ephemeral sessions. */
 export interface DeepSeekLaunchArtifacts {
   readonly patchPath: string;
   readonly desktopRunnerPath: string;
-  /** Replaces one native session's literal prompt; native applies it from that session's next turn. */
+  /** Session-scoped local tool credentials; null revokes the launch-file binding. */
+  writeObsidianConnection(sessionId: string, connection: ObsidianWorkspaceToolBridgeConnection | null): Promise<void>;
+  /** Replaces one native session's literal prompt at its next turn. */
   writePrompt(sessionId: string, text: string): Promise<void>;
   /** Removes a released session's prompt; a turn already running keeps the prompt it started with. */
   removePrompt(sessionId: string): Promise<void>;
@@ -34,6 +39,9 @@ export async function prepareDeepSeekLaunchArtifacts(
   const root = await mkdtemp(join(directory, 'claudian-deepseek-'));
   const compatibilityPath = join(root, 'claudian-compatibility.mjs');
   const lifecyclePath = join(root, 'claudian-lifecycle.mjs');
+  const obsidianPath = join(root, 'claudian-obsidian.mjs');
+  const connectionDirectory = join(root, 'obsidian');
+  const connectionPath = (sessionId: string): string => join(connectionDirectory, deepseekPromptFileName(sessionId).replace('.txt', '.json'));
   const promptDirectory = join(root, 'prompts');
   const promptPath = (sessionId: string): string => join(promptDirectory, deepseekPromptFileName(sessionId));
   const codeModePath = join(root, 'code-mode');
@@ -66,6 +74,7 @@ export async function prepareDeepSeekLaunchArtifacts(
     writes = task.catch(() => {});
     return task;
   };
+  const writeObsidianConnection = (sessionId: string, connection: ObsidianWorkspaceToolBridgeConnection | null): Promise<void> => connection ? replace(connectionPath(sessionId), JSON.stringify(connection)) : remove(connectionPath(sessionId));
   const writePrompt = (sessionId: string, text: string): Promise<void> => replace(promptPath(sessionId), text);
   const removePrompt = (sessionId: string): Promise<void> => remove(promptPath(sessionId));
   const writeCodeMode = (enabled: boolean): Promise<void> => replace(codeModePath, enabled ? 'both' : 'native');
@@ -85,8 +94,9 @@ export async function prepareDeepSeekLaunchArtifacts(
         && ready.spillGuard === true && ready.attachmentGuard === true;
     } catch { return false; }
   };
-  const paths = { compatibility: compatibilityPath, codeModeFile: codeModePath, promptDirectory };
+  const paths = { obsidian: obsidianPath, connectionDirectory, compatibility: compatibilityPath, codeModeFile: codeModePath, promptDirectory };
   try {
+    await mkdir(connectionDirectory, { mode: 0o700 });
     await mkdir(promptDirectory, { mode: 0o700 });
     const patch = [
       { id: 'config-editor', disabled: true },
@@ -103,6 +113,7 @@ export async function prepareDeepSeekLaunchArtifacts(
       { insert: [{ id: 'claudian-ephemeral', name: ephemeralPath, config: { stateFile: ephemeralStatePath, readyFile: ephemeralReadyPath, spillRoot: ephemeralSpillPath, attachmentRoot: ephemeralAttachmentPath } }] },
     ];
     await Promise.all([
+      writeFile(obsidianPath, DEEPSEEK_OBSIDIAN_TOOLS_SOURCE, { mode: 0o600 }),
       writeFile(compatibilityPath, DEEPSEEK_COMPATIBILITY_SOURCE, { mode: 0o600 }),
       writeFile(lifecyclePath, DEEPSEEK_LIFECYCLE_SOURCE, { mode: 0o600 }),
       writeFile(ephemeralPath, DEEPSEEK_EPHEMERAL_SOURCE, { mode: 0o600 }),
@@ -115,7 +126,7 @@ export async function prepareDeepSeekLaunchArtifacts(
     await removeRoot(root);
     throw error;
   }
-  return { patchPath, desktopRunnerPath, writePrompt, removePrompt, writeCodeMode, offerEphemeralFork, readEphemeralReady, dispose: () => removeRoot(root) };
+  return { patchPath, desktopRunnerPath, writeObsidianConnection, writePrompt, removePrompt, writeCodeMode, offerEphemeralFork, readEphemeralReady, dispose: () => removeRoot(root) };
 }
 
 /** Native session ids are not file names on every platform; the compatibility plugin derives the same name. */

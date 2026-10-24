@@ -927,11 +927,26 @@ button.claudian-activity-phase-header:focus-visible {
   outline-offset: 2px;
 }
 
+@keyframes claudian-activity-live-pulse {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .claudian-activity-phase-label {
   min-width: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.claudian-activity-phase[data-active='true'] > .claudian-activity-phase-header > .claudian-activity-phase-label {
+  animation: claudian-activity-live-pulse 1.6s ease-in-out infinite;
 }
 
 .claudian-activity-phase[data-active='true'] > .claudian-activity-phase-header > .claudian-activity-phase-indicator {

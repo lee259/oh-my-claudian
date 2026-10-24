@@ -28,6 +28,7 @@ export interface NativePeerLifecycle {
   /** Prompt writes and removals (`text: null`) per native session. */
   readonly prompts: Array<{ sessionId: string; text: string | null }>;
   /** Code-mode preferences written to the Host, with how many prompts native had received at that point. */
+  readonly obsidianConnections: Array<{ sessionId: string; connection: { endpoint: string; token: string } | null }>;
   readonly codeModes: Array<{ enabled: boolean; promptsSent: number }>;
   /** Ephemeral fork tokens offered to the Host, with how many forks native had received at offer and at withdrawal. */
   readonly ephemeralForks: Array<{ parent: string; atSeq: number; forksAtOffer: number; forksAtWithdraw?: number }>;
@@ -103,7 +104,7 @@ export class NativePeer {
   /** A production shared Host whose process is this peer, recording only process lifecycle, launch files and fork tokens. */
   host(options: NativePeerHostOptions = {}): { deepseek: DeepSeekHost; lifecycle: NativePeerLifecycle } {
     const exits = new Set<() => void>();
-    const lifecycle: NativePeerLifecycle = { starts: 0, disposed: 0, prompts: [], codeModes: [], ephemeralForks: [], exit: () => { for (const listener of [...exits]) listener(); } };
+    const lifecycle: NativePeerLifecycle = { starts: 0, disposed: 0, prompts: [], obsidianConnections: [], codeModes: [], ephemeralForks: [], exit: () => { for (const listener of [...exits]) listener(); } };
     const deepseek = new DeepSeekHost(async () => ({ cliPath: '/bin/dsh', cwd: '/vault', environment: process.env }), async (_options, signal) => {
       lifecycle.starts++;
       await options.beforeStart?.(signal);
@@ -111,6 +112,7 @@ export class NativePeer {
       return {
         client, profile: options.profile ?? 'web',
         onExit: listener => { exits.add(listener); return () => exits.delete(listener); },
+        writeObsidianConnection: async (sessionId, connection) => { lifecycle.obsidianConnections.push({ sessionId, connection }); },
         writePrompt: async (sessionId, text) => { lifecycle.prompts.push({ sessionId, text }); await options.launchArtifacts?.writePrompt(sessionId, text); },
         removePrompt: async sessionId => { await options.launchArtifacts?.removePrompt(sessionId); lifecycle.prompts.push({ sessionId, text: null }); },
         writeCodeMode: async enabled => { lifecycle.codeModes.push({ enabled, promptsSent: this.calls.filter(call => call.method === 'session/prompt').length }); },

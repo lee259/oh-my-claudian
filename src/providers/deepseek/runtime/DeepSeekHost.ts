@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { ObsidianWorkspaceToolBridgeConnection } from '@/core/obsidian/ObsidianWorkspaceToolBridge';
 import { ProviderTransitionFence } from '@/core/providers/metadata/ProviderTransitionFence';
 
 import { type DeepSeekReader, type DeepSeekRemoteClient, DeepSeekRemoteError, isRecord } from '../remote/DeepSeekRemoteClient';
@@ -9,7 +10,7 @@ import { getDeepSeekHome } from './DeepSeekHome';
 import type { DeepSeekHostProcess, DeepSeekLaunchOptions } from './DeepSeekHostProcess';
 import { DeepSeekRoster } from './DeepSeekRoster';
 
-export type DeepSeekProcess = Pick<DeepSeekHostProcess, 'client' | 'profile' | 'onExit' | 'dispose' | 'writePrompt' | 'removePrompt' | 'writeCodeMode' | 'offerEphemeralFork' | 'readEphemeralReady'>;
+export type DeepSeekProcess = Pick<DeepSeekHostProcess, 'client' | 'profile' | 'onExit' | 'dispose' | 'writePrompt' | 'writeObsidianConnection' | 'removePrompt' | 'writeCodeMode' | 'offerEphemeralFork' | 'readEphemeralReady'>;
 export type DeepSeekProcessFactory = (options: DeepSeekLaunchOptions, signal: AbortSignal) => Promise<DeepSeekProcess>;
 export type DeepSeekHostLoss = 'process-exited' | 'transport';
 
@@ -30,7 +31,9 @@ export interface DeepSeekHostLease {
    * signal only stops the caller waiting: native forks cannot be cancelled, so the Host keeps the token until it settles.
    */
   fork(request: { readonly sessionId: string; readonly atSeq: number }, ephemeral: boolean, signal?: AbortSignal): Promise<string>;
-  /** Literal prompt of a session this lease claims, from its next native turn; releasing the claim removes it. */
+  /** Session-scoped local tool credentials; null revokes the launch-file binding. */
+  writeObsidianConnection(sessionId: string, connection: ObsidianWorkspaceToolBridgeConnection | null): Promise<void>;
+  /** Literal prompt of a claimed session; releasing the claim removes it. */
   writePrompt(sessionId: string, text: string): Promise<void>;
   /** Shared by every chat agent of this generation; each applies it at its next turn. */
   writeCodeMode(enabled: boolean): Promise<void>;
@@ -155,6 +158,10 @@ export class DeepSeekHost {
         generation.forks = run.catch(() => undefined);
         return abortable(run, signal);
       },
+      writeObsidianConnection: (sessionId, connection) => {
+        if (released || !claims.has(sessionId)) return Promise.reject(new Error('DeepSeek can only authorize Obsidian tools for a claimed session.'));
+        return process.writeObsidianConnection(sessionId, connection);
+      },
       writePrompt: (sessionId, text) => {
         if (released || !claims.has(sessionId)) return Promise.reject(new Error('DeepSeek can only write the prompt of a claimed session.'));
         return process.writePrompt(sessionId, text);
@@ -168,7 +175,7 @@ export class DeepSeekHost {
       release: () => {
         if (released) return;
         released = true;
-        for (const [sessionId, off] of claims) { off(); void process.removePrompt(sessionId).catch(() => undefined); }
+        for (const [sessionId, off] of claims) { off(); void process.writeObsidianConnection(sessionId, null).catch(() => undefined); void process.removePrompt(sessionId).catch(() => undefined); }
         claims.clear();
         lost.clear(); generation.lost.delete(relay);
         this.leave(generation);
