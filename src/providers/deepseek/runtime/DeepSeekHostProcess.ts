@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
+import type { ObsidianWorkspaceToolBridgeConnection } from '@/core/obsidian/ObsidianWorkspaceToolBridge';
 import { ManagedStdioProcess, type ManagedStdioProcessOptions } from '@/core/process/ManagedStdioProcess';
 import { findNodeExecutable, getEnhancedPath } from '@/utils/env';
 
@@ -82,6 +83,8 @@ export class DeepSeekHostProcess {
       throw error;
     }
   }
+
+  writeObsidianConnection(sessionId: string, connection: ObsidianWorkspaceToolBridgeConnection | null): Promise<void> { return this.artifacts.writeObsidianConnection(sessionId, connection); }
 
   writePrompt(sessionId: string, text: string): Promise<void> { return this.artifacts.writePrompt(sessionId, text); }
 
