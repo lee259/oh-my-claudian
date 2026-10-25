@@ -170,6 +170,39 @@ it('reattaches to a replaced central workspace without duplicating the editor', 
   f.controller.dispose();
 });
 
+it('retains controls, editor selection and native handlers across preview updates and remounts', () => {
+  const f = fixture();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  const disclosure = f.center.querySelector<HTMLButtonElement>('.claudian-zen-disclosure')!;
+  const grip = f.center.querySelector<HTMLButtonElement>('.claudian-zen-grip')!;
+  const onInput = jest.fn();
+  f.input.addEventListener('input', onInput);
+  f.input.focus();
+  f.input.setSelectionRange(2, 6);
+  for (const text of ['Reading', 'Editing', 'Done']) {
+    f.source.getPreview = () => ({ text, hasMessages: true, working: text !== 'Done', requiresAction: false });
+    f.controller.refresh();
+    expect(f.center.querySelector('.claudian-zen-disclosure')).toBe(disclosure);
+    expect(f.center.querySelector('.claudian-zen-grip')).toBe(grip);
+    expect(document.activeElement).toBe(f.input);
+    expect([f.input.selectionStart, f.input.selectionEnd]).toEqual([2, 6]);
+  }
+  disclosure.click();
+  expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+  disclosure.click();
+  expect(disclosure.getAttribute('aria-expanded')).toBe('false');
+  f.sidebar.collapsed = false;
+  f.controller.refresh();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  expect(f.center.querySelector('textarea')).toBe(f.input);
+  f.input.dispatchEvent(new Event('input'));
+  expect(onInput).toHaveBeenCalledTimes(1);
+  f.controller.dispose();
+  expect(f.parent.querySelector('textarea')).toBe(f.input);
+});
+
 it('offers history only after the first message and hides it again when the conversation clears', () => {
   const f = fixture();
   let hasMessages = false;
