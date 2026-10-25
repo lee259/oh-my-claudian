@@ -853,7 +853,7 @@ export class McpServerSelector {
 
     // Header
     const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-header' });
-    headerEl.setText('Mcp servers');
+    headerEl.setText(t('settings.mcp.selectorTitle'));
 
     // Server list
     const listEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-list' });
@@ -900,7 +900,7 @@ export class McpServerSelector {
     if (server.contextSaving) {
       const csEl = infoEl.createSpan({ cls: 'claudian-mcp-selector-cs-badge' });
       csEl.setText('@');
-      csEl.setAttribute('title', 'Context-saving: can also enable via @' + server.name);
+      csEl.setAttribute('title', t('settings.mcp.selectorContextHint', { server: server.name }));
     }
 
     // Click to toggle (use mousedown for more reliable capture)
@@ -958,7 +958,7 @@ export class McpServerSelector {
 
     if (count > 0) {
       this.iconEl.addClass('active');
-      this.iconEl.setAttribute('title', `${count} MCP server${count > 1 ? 's' : ''} enabled (click to manage)`);
+      this.iconEl.setAttribute('title', t(count === 1 ? 'settings.mcp.selectorEnabledOne' : 'settings.mcp.selectorEnabledMany', { count }));
 
       // Show badge only when more than 1
       if (count > 1) {
@@ -969,7 +969,7 @@ export class McpServerSelector {
       }
     } else {
       this.iconEl.removeClass('active');
-      this.iconEl.setAttribute('title', 'Mcp servers (click to enable)');
+      this.iconEl.setAttribute('title', t('settings.mcp.selectorHint'));
       this.badgeEl.removeClass('visible');
     }
   }
@@ -984,7 +984,7 @@ export class ContextUsageMeter {
   constructor(parentEl: HTMLElement) {
     this.container = parentEl.createDiv({ cls: 'claudian-context-meter' });
     this.container.setAttribute('role', 'progressbar');
-    this.container.setAttribute('aria-label', 'Context usage');
+    this.container.setAttribute('aria-label', t('chat.composer.contextUsage'));
     this.container.setAttribute('aria-valuemin', '0');
     this.container.setAttribute('aria-valuemax', '100');
     this.render();

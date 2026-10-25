@@ -26,6 +26,20 @@ const locales = {
 } as const;
 
 const localizedKeys = [
+  'chat.composer.placeholder',
+  'chat.activity.explored',
+  'chat.activity.ranMany',
+  'chat.modelPicker.search',
+  'chat.modelPicker.noMatches',
+  'chat.questions.custom',
+  'chat.planApproval.feedbackPlaceholder',
+  'chat.instructions.placeholder',
+  'chat.approval.title',
+  'chat.approval.allow',
+  'inlineEdit.insert',
+  'settings.mcp.name',
+  'settings.slashCommands.promptTemplate',
+  'settings.opencodeAgents.descriptionDesc',
   'settings.environmentUpdateFailed',
   'chat.errors.piModelUnavailable',
   'settings.pi.modelsDesc',
@@ -164,6 +178,17 @@ describe('locale files', () => {
       const localeKeys = Object.keys(flattenTranslations(translations as unknown as TranslationTree)).sort();
       expect(localeKeys).toEqual(englishKeys);
       expect(locale).toBeTruthy();
+    }
+  });
+
+  it('preserves interpolation parameters in every translation', () => {
+    const parameters = (text: string) => [...text.matchAll(/\{(\w+)\}/g)]
+      .map(match => match[1]).sort();
+    for (const [name, translations] of Object.entries(locales)) {
+      for (const [key, value] of Object.entries(flattenTranslations(translations as unknown as TranslationTree))) {
+        expect({ locale: name, key, parameters: parameters(value) })
+          .toEqual({ locale: name, key, parameters: parameters(english[key]) });
+      }
     }
   });
 

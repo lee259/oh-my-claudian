@@ -1,10 +1,11 @@
+import { t } from '@/i18n/i18n';
+
 /**
  * Oh My Claudian - Built-in slash commands
  *
  * System commands that perform actions (not prompt expansions).
  * These are handled separately from user-defined slash commands.
  */
-
 import { ProviderRegistry } from '../providers/ProviderRegistry';
 import type { ProviderCapabilities, ProviderId } from '../providers/types';
 
@@ -40,31 +41,31 @@ export const BUILT_IN_COMMANDS: BuiltInCommand[] = [
   {
     name: 'clear',
     aliases: ['new'],
-    description: 'Start a new conversation',
+    get description() { return t('chat.commands.clear'); },
     action: 'clear',
   },
   {
     name: 'add-dir',
-    description: 'Add external context directory',
+    get description() { return t('chat.commands.addDir'); },
     action: 'add-dir',
     hasArgs: true,
     argumentHint: '[path/to/directory]',
   },
   {
     name: 'resume',
-    description: 'Resume a previous conversation',
+    get description() { return t('chat.commands.resume'); },
     action: 'resume',
     requiredCapability: 'supportsNativeHistory',
   },
   {
     name: 'fork',
-    description: 'Fork entire conversation to new session',
+    get description() { return t('chat.commands.fork'); },
     action: 'fork',
     requiredCapability: 'supportsFork',
   },
   {
     name: 'fast',
-    description: 'Toggle fast mode',
+    get description() { return t('chat.commands.fast'); },
     action: 'fast',
     supportedProviderIds: ['codex'],
   },

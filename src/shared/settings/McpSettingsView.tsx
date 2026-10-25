@@ -1,5 +1,7 @@
 import { setIcon } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 export interface McpSettingsViewServer {
   name: string;
   type: string;
@@ -40,12 +42,12 @@ export function McpSettingsView({
   return (
     <div className="claudian-mcp-settings">
       <div className="claudian-mcp-header">
-        <span className="claudian-mcp-label">MCP Servers</span>
+        <span className="claudian-mcp-label">{t('settings.mcp.title')}</span>
         <div className="claudian-mcp-add-container">
           <button
             type="button"
             className="claudian-settings-action-btn"
-            aria-label="Add"
+            aria-label={t('common.add')}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls={menuId}
@@ -61,15 +63,15 @@ export function McpSettingsView({
             role="menu"
             hidden={!menuOpen}
           >
-            <MenuOption icon="terminal" label="stdio (local command)" onClick={onAddStdio} />
-            <MenuOption icon="globe" label="http / sse (remote)" onClick={onAddHttp} />
-            <MenuOption icon="clipboard-paste" label="Paste configuration" onClick={onImport} />
+            <MenuOption icon="terminal" label={t('settings.mcp.localOption')} onClick={onAddStdio} />
+            <MenuOption icon="globe" label={t('settings.mcp.remoteOption')} onClick={onAddHttp} />
+            <MenuOption icon="clipboard-paste" label={t('settings.mcp.paste')} onClick={onImport} />
           </div>
         </div>
       </div>
       {servers.length === 0 ? (
         <div className="claudian-mcp-empty">
-          No mcp servers configured. Click "add" to add one.
+          {t('settings.mcp.empty')}
         </div>
       ) : (
         <div className="claudian-mcp-list">
@@ -80,7 +82,7 @@ export function McpSettingsView({
             >
               <div
                 className={`claudian-mcp-status claudian-mcp-status-${server.enabled ? 'enabled' : 'disabled'}`}
-                aria-label={server.enabled ? 'Enabled' : 'Disabled'}
+                aria-label={server.enabled ? t('common.enabled') : t('common.disabled')}
               />
               <div className="claudian-mcp-info">
                 <div className="claudian-mcp-name-row">
@@ -102,22 +104,22 @@ export function McpSettingsView({
               <div className="claudian-mcp-actions">
                 <IconButton
                   icon="zap"
-                  label="Verify (show tools)"
+                  label={t('settings.mcp.verify')}
                   onClick={() => onTest(server.name)}
                 />
                 <IconButton
                   icon={server.enabled ? 'toggle-right' : 'toggle-left'}
-                  label={server.enabled ? 'Disable' : 'Enable'}
+                  label={server.enabled ? t('common.disable') : t('common.enable')}
                   onClick={() => onToggleServer(server.name)}
                 />
                 <IconButton
                   icon="pencil"
-                  label="Edit"
+                  label={t('common.edit')}
                   onClick={() => onEdit(server.name)}
                 />
                 <IconButton
                   icon="trash-2"
-                  label="Delete"
+                  label={t('common.delete')}
                   className="claudian-mcp-delete-btn"
                   onClick={() => onDelete(server.name)}
                 />

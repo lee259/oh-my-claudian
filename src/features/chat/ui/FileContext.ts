@@ -366,7 +366,7 @@ export class FileContextManager {
     if (typeof (target as HTMLElement & { createDiv?: unknown }).createDiv !== 'function') return;
     const overlay = target.createDiv({
       cls: 'claudian-file-drop-overlay claudian-hidden',
-      text: 'Drop files or folders to attach',
+      text: t('chat.composer.dropFiles'),
     });
     let dragDepth = 0;
     this.dragEnterHandler = (event) => {

@@ -1,3 +1,5 @@
+import { t } from '@/i18n/i18n';
+
 import type { CitationGroup } from '../../../core/types';
 import { setupCollapsible } from './collapsible';
 
@@ -20,10 +22,10 @@ export function renderCitationGroup(
   headerEl.setAttribute('role', 'button');
 
   headerEl.createSpan({ cls: 'claudian-citations-chevron', text: '\u203a' });
-  headerEl.createSpan({ cls: 'claudian-citations-label', text: 'Memory used' });
+  headerEl.createSpan({ cls: 'claudian-citations-label', text: t('chat.rendering.memory') });
   headerEl.createSpan({
     cls: 'claudian-citations-count',
-    text: `${citations.entries.length} ${citations.entries.length === 1 ? 'source' : 'sources'}`,
+    text: t(citations.entries.length === 1 ? 'chat.rendering.sourceOne' : 'chat.rendering.sourceMany', { count: citations.entries.length }),
   });
 
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-citations-content' });
@@ -39,7 +41,7 @@ export function renderCitationGroup(
   }
 
   setupCollapsible(wrapperEl, headerEl, contentEl, { isExpanded: false }, {
-    baseAriaLabel: `Memory used, ${citations.entries.length} ${citations.entries.length === 1 ? 'source' : 'sources'}`,
+    baseAriaLabel: t('chat.rendering.memorySummary', { sources: t(citations.entries.length === 1 ? 'chat.rendering.sourceOne' : 'chat.rendering.sourceMany', { count: citations.entries.length }) }),
   });
 
   return wrapperEl;

@@ -91,7 +91,7 @@ export function createWriteEditBlock(
   const statsEl = headerEl.createDiv({ cls: 'claudian-write-edit-stats' });
 
   const statusEl = headerEl.createDiv({ cls: 'claudian-write-edit-status status-running' });
-  statusEl.setAttribute('aria-label', 'Status: running');
+  statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.running') }));
 
   // Content area (collapsed by default)
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-write-edit-content' });
@@ -118,7 +118,7 @@ export function createWriteEditBlock(
       nameEl.setText(getToolName(tool.name, tool.input, tool.presentation));
       summaryEl.setText(getToolSummary(tool.name, tool.input, tool.presentation));
       makeFileSummaryInteractive(summaryEl, currentPath, options.onOpenFile);
-      headerEl.setAttribute('aria-label', `${getAriaLabel()} - click to ${state.isExpanded ? 'collapse' : 'expand'}`);
+      headerEl.setAttribute('aria-label', t(state.isExpanded ? 'chat.rendering.collapse' : 'chat.rendering.expand', { label: getAriaLabel() }));
     },
   };
   const getAriaLabel = () => `${state.toolCall.name}: ${shortenPath((state.toolCall.input.file_path as string) || 'file')}`;
@@ -156,14 +156,14 @@ export function finalizeWriteEditBlock(state: WriteEditState, isError: boolean):
   if (isError) {
     state.statusEl.addClass('status-error');
     setIcon(state.statusEl, 'x');
-    state.statusEl.setAttribute('aria-label', 'Status: error');
+    state.statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.error') }));
 
     // Show error in content if no diff was shown
     if (!state.diffLines) {
       state.contentEl.empty();
       const row = state.contentEl.createDiv({ cls: 'claudian-write-edit-diff-row' });
       const errorEl = row.createDiv({ cls: 'claudian-write-edit-error' });
-      errorEl.setText(state.toolCall.result || 'Error');
+      errorEl.setText(state.toolCall.result || t('common.error'));
     }
   } else if (!state.diffLines) {
     // Success but no diff data - clear the "Writing..." loading text and show DONE
@@ -243,7 +243,7 @@ export function renderStoredWriteEdit(
       errorEl.setText(toolCall.result);
     } else {
       const doneEl = row.createDiv({ cls: 'claudian-write-edit-done-text' });
-      doneEl.setText(isError ? 'ERROR' : 'DONE');
+      doneEl.setText(isError ? t('chat.rendering.errorResult') : t('chat.rendering.done'));
     }
     contentRendered = true;
   };

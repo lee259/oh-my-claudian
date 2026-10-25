@@ -102,7 +102,7 @@ export function renderEnvironmentSettingsSection(
         return;
       }
 
-      reviewEl.setText(`Review environment ownership for: ${reviewKeys.join(', ')}`);
+      reviewEl.setText(t('settings.environmentOwnership', { keys: reviewKeys.join(', ') }));
       reviewEl.toggleClass('claudian-hidden', false);
     };
 

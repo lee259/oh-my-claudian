@@ -36,7 +36,7 @@ export class InlinePlanApproval {
     implementRow.addClass('is-focused');
     implementRow.createSpan({ text: '\u203A', cls: 'claudian-ask-cursor' });
     implementRow.createSpan({ text: '1. ', cls: 'claudian-ask-item-num' });
-    implementRow.createSpan({ text: 'Implement', cls: 'claudian-ask-item-label' });
+    implementRow.createSpan({ text: t('chat.planApproval.implement'), cls: 'claudian-ask-item-label' });
     implementRow.addEventListener('click', () => {
       this.focusedIndex = 0;
       this.updateFocus();
@@ -51,7 +51,7 @@ export class InlinePlanApproval {
     this.feedbackInput = reviseRow.createEl('input', {
       type: 'text',
       cls: 'claudian-ask-custom-text',
-      placeholder: 'Enter feedback to revise plan...',
+      placeholder: t('chat.planApproval.revisePlaceholder'),
     });
     this.feedbackInput.addEventListener('focus', () => { this.isInputFocused = true; });
     this.feedbackInput.addEventListener('blur', () => { this.isInputFocused = false; });
@@ -65,7 +65,7 @@ export class InlinePlanApproval {
     const cancelRow = actionsEl.createDiv({ cls: 'claudian-ask-item' });
     cancelRow.createSpan({ text: '\u00A0', cls: 'claudian-ask-cursor' });
     cancelRow.createSpan({ text: '3. ', cls: 'claudian-ask-item-num' });
-    cancelRow.createSpan({ text: 'Cancel', cls: 'claudian-ask-item-label' });
+    cancelRow.createSpan({ text: t('common.cancel'), cls: 'claudian-ask-item-label' });
     cancelRow.addEventListener('click', () => {
       this.focusedIndex = 2;
       this.updateFocus();

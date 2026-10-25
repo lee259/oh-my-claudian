@@ -1,6 +1,7 @@
 import { createMockEl } from '@test/helpers/MockElement';
 
 import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '@/features/chat/rendering/InlineAskUserQuestion';
+import { setLocale } from '@/i18n/i18n';
 
 beforeAll(() => {
   globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
@@ -60,6 +61,15 @@ function findItems(container: any): any[] {
 }
 
 describe('InlineAskUserQuestion', () => {
+  it('localizes the form shell while preserving provider questions and choices', () => {
+    setLocale('zh-CN');
+    const { container, widget } = renderWidget(makeInput([{ question: 'Choose a color', options: [{ label: 'Blue' }], isOther: true }]));
+    try {
+      expect(container.querySelector('.claudian-ask-inline-title')?.textContent).toBe('问题');
+      expect(container.querySelector('.claudian-ask-question-text')?.textContent).toBe('Choose a color');
+      expect(container.querySelector('.claudian-ask-custom-text')?.getAttribute('placeholder')).toBe('输入自定义回答…');
+    } finally { widget.destroy(); setLocale('en'); }
+  });
   it.each(['immediate', 'single', 'multi'])(
     'submits an own __proto__ question key in %s mode', (mode) => {
       const { container, resolve, widget } = renderWidget({ questions: [{

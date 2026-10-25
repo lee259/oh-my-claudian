@@ -43,7 +43,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const refreshCodexModelCatalog = async (): Promise<void> => {
       const result = await codexWorkspace.refreshModelCatalog?.();
       if (result?.diagnostics) {
-        new Notice(`Codex model discovery failed: ${result.diagnostics}`);
+        new Notice(t('settings.modelDiscoveryFailed', { provider: 'Codex', error: result.diagnostics }));
       }
     };
 

@@ -30,6 +30,21 @@ const getTextByClass = (el: MockElement, cls: string): string[] => {
   return results;
 };
 
+it('localizes a stored orphan marker without rewriting the stored result', () => {
+  setLocale('zh-CN');
+  const subagent: SubagentInfo = {
+    id: 'orphan', description: 'Native task', status: 'error', toolCalls: [],
+    isExpanded: false, mode: 'async', asyncStatus: 'orphaned',
+    result: 'Conversation ended before task completed',
+  };
+  try {
+    const wrapper = renderStoredAsyncSubagent(createMockEl() as any, subagent) as unknown as MockElement;
+    expect(getTextByClass(wrapper, 'claudian-subagent-result-summary')).toEqual(['任务完成前会话已结束']);
+    expect(getTextByClass(wrapper, 'claudian-subagent-result-output')).toEqual(['任务完成前会话已结束']);
+    expect(subagent.result).toBe('Conversation ended before task completed');
+  } finally { setLocale('en'); }
+});
+
 describe('Sync Subagent Renderer', () => {
   let parentEl: MockElement;
 

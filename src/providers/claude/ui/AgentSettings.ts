@@ -334,7 +334,7 @@ export class AgentSettings {
         fresh = await this.agentStorage.load(existingAgent) ?? existingAgent;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
-        new Notice(`Failed to load subagent "${existingAgent.name}": ${message}`);
+        new Notice(t('settings.loadSubagentFailed', { name: existingAgent.name, message }));
         return;
       }
     } else {

@@ -1,5 +1,7 @@
 import { Platform, setIcon } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import type { TodoItem } from '../../../core/tools/todo';
 import { getToolIcon, MCP_ICON_MARKER } from '../../../core/tools/toolIcons';
 import { extractResolvedAnswersFromResultText } from '../../../core/tools/toolInput';
@@ -346,7 +348,7 @@ function getWebSearchActionSummary(data: WebSearchActionDisplayData): string {
     case 'open_page':
       return `Open ${data.url || 'page'}`;
     case 'find_in_page': {
-      const target = data.pattern ? `Find "${data.pattern}"` : 'Find in page';
+      const target = data.pattern ? t('chat.tools.find', { pattern: data.pattern }) : t('chat.tools.findPage');
       const suffix = data.url ? ` in ${data.url}` : '';
       return target + suffix;
     }
@@ -426,23 +428,23 @@ function renderWebSearchActionLines(
 ): void {
   switch (data.actionType) {
     case 'open_page':
-      linesEl.createDiv({ cls: 'claudian-tool-line', text: 'Open page' });
+      linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.openPage') });
       if (data.url) {
         appendToolLink(linesEl, data.url, data.url);
       } else {
-        linesEl.createDiv({ cls: 'claudian-tool-line', text: 'URL unavailable' });
+        linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.urlUnavailable') });
       }
       return;
 
     case 'find_in_page':
-      linesEl.createDiv({ cls: 'claudian-tool-line', text: 'Find in page' });
+      linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.findPage') });
       if (data.url) {
         appendToolLink(linesEl, data.url, data.url);
       } else {
-        linesEl.createDiv({ cls: 'claudian-tool-line', text: 'URL unavailable' });
+        linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.urlUnavailable') });
       }
       if (data.pattern) {
-        linesEl.createDiv({ cls: 'claudian-tool-line', text: `Pattern: ${data.pattern}` });
+        linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.pattern', { pattern: data.pattern }) });
       }
       return;
 
@@ -464,7 +466,7 @@ function renderWebSearchActionLines(
 
       const alternateQueries = data.queries.filter(query => query !== primaryQuery);
       for (const query of alternateQueries.slice(0, 4)) {
-        linesEl.createDiv({ cls: 'claudian-tool-line', text: `Alt query: ${query}` });
+        linesEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.tools.altQuery', { query }) });
       }
       if (alternateQueries.length > 4) {
         linesEl.createDiv({
@@ -530,12 +532,12 @@ function renderWebSearchExpanded(
     return;
   }
 
-  container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
+  container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
 }
 
 function renderFileSearchExpanded(container: HTMLElement, result: string): void {
   if (!result.trim()) {
-    container.createDiv({ cls: 'claudian-tool-empty', text: 'No matches found' });
+    container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noMatches') });
     return;
   }
   renderLinesExpanded(container, result, 15, true);
@@ -681,7 +683,7 @@ function renderApplyPatchExpanded(
     return;
   }
 
-  container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
+  container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
 }
 
 function renderApplyPatchDiffSections(
@@ -692,12 +694,12 @@ function renderApplyPatchDiffSections(
     const sectionEl = container.createDiv({ cls: 'claudian-tool-patch-section' });
 
     if (fileDiff.operation === 'delete' && fileDiff.diffLines.length === 0) {
-      sectionEl.createDiv({ cls: 'claudian-tool-empty', text: 'File deleted' });
+      sectionEl.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.fileDeleted') });
       continue;
     }
 
     if (fileDiff.diffLines.length === 0) {
-      sectionEl.createDiv({ cls: 'claudian-tool-empty', text: 'No textual diff available' });
+      sectionEl.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noDiff') });
       continue;
     }
 
@@ -737,7 +739,7 @@ function getApplyPatchDiffStats(input: Record<string, unknown>): DiffStats | und
 }
 
 function getDiffStatsAriaLabel(stats: DiffStats): string {
-  return `Changes: +${stats.added} -${stats.removed}`;
+  return t('chat.tools.changes', { added: stats.added, removed: stats.removed });
 }
 
 function renderAgentLifecycleExpanded(container: HTMLElement, result: string): void {
@@ -779,7 +781,7 @@ export function renderExpandedContent(
 ): void {
   const hasImages = resultImages.length > 0;
   if (!result && !hasImages && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH) {
-    container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
+    container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
     return;
   }
 
@@ -879,13 +881,13 @@ const STATUS_ICONS: Record<string, string> = {
 function setTodoWriteStatus(statusEl: HTMLElement, input: Record<string, unknown>): void {
   const isComplete = areAllTodosCompleted(input);
   const status = isComplete ? 'completed' : 'running';
-  const ariaLabel = isComplete ? 'Status: completed' : 'Status: in progress';
+  const ariaLabel = t('chat.bangBash.statusLabel', { status: t(isComplete ? 'chat.toolStatus.completed' : 'chat.toolStatus.inProgress') });
   resetStatusElement(statusEl, `status-${status}`, ariaLabel);
   if (isComplete) setIcon(statusEl, 'check');
 }
 
 function setToolStatus(statusEl: HTMLElement, status: ToolCallInfo['status']): void {
-  resetStatusElement(statusEl, `status-${status}`, `Status: ${status}`);
+  resetStatusElement(statusEl, `status-${status}`, t('chat.bangBash.statusLabel', { status: t(`chat.toolStatus.${status}`) }));
   const icon = STATUS_ICONS[status];
   if (icon) setIcon(statusEl, icon);
 }
@@ -924,7 +926,7 @@ export function renderTodoWriteResult(
   const todos = input.todos as TodoItem[] | undefined;
   if (!todos || !Array.isArray(todos)) {
     const item = container.createSpan({ cls: 'claudian-tool-result-item' });
-    item.setText('Tasks updated');
+    item.setText(t('chat.tools.tasksUpdated'));
     return;
   }
 
@@ -1027,7 +1029,7 @@ export function syncToolDisclosure(
     header.setAttribute('role', 'button');
     header.setAttribute('tabindex', '0');
     header.setAttribute('aria-expanded', String(toolEl.hasClass('expanded')));
-    header.setAttribute('aria-label', `${getToolLabel(toolCall.name, toolCall.input, toolCall.presentation)} - click to ${toolEl.hasClass('expanded') ? 'collapse' : 'expand'}`);
+    header.setAttribute('aria-label', t(toolEl.hasClass('expanded') ? 'chat.rendering.collapse' : 'chat.rendering.expand', { label: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation) }));
   } else {
     for (const attribute of ['role', 'tabindex', 'aria-expanded', 'aria-label']) header.removeAttribute(attribute);
     toolEl.removeClass('expanded');
@@ -1160,7 +1162,7 @@ function renderAskUserQuestionFallback(container: HTMLElement, toolCall: ToolCal
     bodyEl.createDiv({ text: question.question, cls: 'claudian-ask-review-q-text' });
 
     if (!Array.isArray(question.options) || question.options.length === 0) {
-      bodyEl.createDiv({ cls: 'claudian-ask-review-empty', text: 'No options recorded' });
+      bodyEl.createDiv({ cls: 'claudian-ask-review-empty', text: t('chat.tools.noOptions') });
       continue;
     }
 
@@ -1216,7 +1218,7 @@ function renderBashContent(
   } else if (result) {
     renderLinesExpanded(container, result, 20);
   } else if (!hasResultImages) {
-    container.createDiv({ cls: 'claudian-tool-empty', text: 'No result' });
+    container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
   }
 }
 

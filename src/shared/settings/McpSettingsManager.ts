@@ -2,6 +2,8 @@ import type { App } from 'obsidian';
 import { Notice } from 'obsidian';
 import { h } from 'preact';
 
+import { t } from '@/i18n/i18n';
+
 import { tryParseClipboardConfig } from '../../core/mcp/McpConfigParser';
 import type { AppMcpStorage } from '../../core/providers/types';
 import { isNotifiedMutationError } from '../../core/storage/NotifiedMutationError';
@@ -91,7 +93,7 @@ export class McpSettingsManager {
         type,
         enabled: server.enabled,
         contextSaving: server.contextSaving,
-        contextSavingTitle: `Context-saving: mention with @${server.name} to enable`,
+        contextSavingTitle: t('settings.mcp.contextHint', { server: server.name }),
         preview: this.getServerPreview(server, type),
         description: server.description,
       };
@@ -121,7 +123,7 @@ export class McpSettingsManager {
         const server = this.servers.find(item => item.name === name);
         if (server) {
           void this.toggleServer(server).catch((error: unknown) => {
-            this.showMutationError(error, 'Failed to update MCP server');
+            this.showMutationError(error, t('settings.mcp.updateFailed'));
           });
         }
       },
@@ -133,7 +135,7 @@ export class McpSettingsManager {
         const server = this.servers.find(item => item.name === name);
         if (server) {
           void this.deleteServer(server).catch((error: unknown) => {
-            this.showMutationError(error, 'Failed to delete MCP server');
+            this.showMutationError(error, t('settings.mcp.deleteFailed'));
           });
         }
       },
@@ -175,7 +177,7 @@ export class McpSettingsManager {
       const result = await testMcpServer(server);
       modal.setResult(result);
     } catch (error) {
-      modal.setError(error instanceof Error ? error.message : 'Verification failed');
+      modal.setError(error instanceof Error ? error.message : t('settings.mcp.verificationFailed'));
     }
   }
 
@@ -198,7 +200,7 @@ export class McpSettingsManager {
       await this.broadcastMcpReload();
     } catch {
       // Save succeeded but reload failed - don't rollback since disk has correct state
-      new Notice('Setting saved but reload failed. Changes will apply on next session.');
+      new Notice(t('settings.mcp.reloadFailed'));
     }
   }
 
@@ -242,7 +244,7 @@ export class McpSettingsManager {
       existing,
       (server) => {
         void this.saveServer(server, existing).catch((error: unknown) => {
-          this.showMutationError(error, 'Failed to save MCP server');
+          this.showMutationError(error, t('settings.mcp.saveFailed'));
         });
       },
       initialType
@@ -262,7 +264,7 @@ export class McpSettingsManager {
     try {
       const parsed = tryParseClipboardConfig(text);
       if (!parsed || parsed.servers.length === 0) {
-        new Notice('No valid mcp configuration found');
+        new Notice(t('settings.mcp.invalidConfig'));
         return false;
       }
 
@@ -274,7 +276,7 @@ export class McpSettingsManager {
           null,
           (savedServer) => {
             void this.saveServer(savedServer, null).catch((error: unknown) => {
-              this.showMutationError(error, 'Failed to save MCP server');
+              this.showMutationError(error, t('settings.mcp.saveFailed'));
             });
           },
           type,
@@ -282,7 +284,7 @@ export class McpSettingsManager {
         );
         modal.open();
         if (parsed.needsName) {
-          new Notice('Enter a name for the server');
+          new Notice(t('settings.mcp.enterName'));
         }
         return true;
       }
@@ -290,7 +292,7 @@ export class McpSettingsManager {
       await this.importServers(parsed.servers);
       return true;
     } catch (error) {
-      this.showMutationError(error, 'Failed to import MCP configuration');
+      this.showMutationError(error, t('settings.mcp.importFailed'));
       return false;
     }
   }
@@ -303,7 +305,7 @@ export class McpSettingsManager {
         if (server.name !== existing.name) {
           const conflict = this.servers.find((s) => s.name === server.name);
           if (conflict) {
-            new Notice(`Server "${server.name}" already exists`);
+            new Notice(t('settings.mcp.duplicate', { name: server.name }));
             return;
           }
         }
@@ -312,7 +314,7 @@ export class McpSettingsManager {
     } else {
       const conflict = this.servers.find((s) => s.name === server.name);
       if (conflict) {
-        new Notice(`Server "${server.name}" already exists`);
+        new Notice(t('settings.mcp.duplicate', { name: server.name }));
         return;
       }
       this.servers.push(server);
@@ -326,7 +328,7 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(existing ? `MCP server "${server.name}" updated` : `MCP server "${server.name}" added`);
+    new Notice(t(existing ? 'settings.mcp.updated' : 'settings.mcp.added', { name: server.name }));
   }
 
   private async importServers(servers: Array<{ name: string; config: McpServerConfig }>) {
@@ -357,7 +359,7 @@ export class McpSettingsManager {
     }
 
     if (added.length === 0) {
-      new Notice('No new mcp servers imported');
+      new Notice(t('settings.mcp.noNewServers'));
       return;
     }
 
@@ -370,9 +372,9 @@ export class McpSettingsManager {
     await this.broadcastMcpReload();
     this.render();
 
-    let message = `Imported ${added.length} MCP server${added.length > 1 ? 's' : ''}`;
+    let message = t(added.length === 1 ? 'settings.mcp.importedOne' : 'settings.mcp.importedMany', { count: added.length });
     if (skipped.length > 0) {
-      message += ` (${skipped.length} skipped)`;
+      message += t('settings.mcp.skipped', { count: skipped.length });
     }
     new Notice(message);
   }
@@ -388,7 +390,7 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(`MCP server "${server.name}" ${server.enabled ? 'enabled' : 'disabled'}`);
+    new Notice(t(server.enabled ? 'settings.mcp.enabled' : 'settings.mcp.disabled', { name: server.name }));
   }
 
   private async deleteServer(server: ManagedMcpServer) {
@@ -406,7 +408,7 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(`MCP server "${server.name}" deleted`);
+    new Notice(t('settings.mcp.deleted', { name: server.name }));
   }
 
   /** Refresh the server list (call after external changes). */

@@ -159,13 +159,13 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
 
-    new Setting(container).setName('Models').setHeading();
+    new Setting(container).setName(t('settings.models')).setHeading();
     renderOpencodeModelPicker(container, modelWarning.context, settingsBag);
 
     new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
     context.renderAgentSkillSettings(container, 'opencode');
 
-    new Setting(container).setName('Commands').setHeading();
+    new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'opencode', {
       name: 'Hidden Commands and Skills',
       desc: 'Hide specific OpenCode commands and skills from the dropdown. Enter names without the leading slash, one per line.',
@@ -173,12 +173,12 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     if (opencodeWorkspace?.agentStorage) {
-      new Setting(container).setName('Subagents').setHeading();
+      new Setting(container).setName(t('settings.subagents.name')).setHeading();
 
       const subagentsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
       subagentsDesc.createEl('p', {
         cls: 'setting-item-description',
-        text: 'Manage vault-level OpenCode subagents from .opencode/agent/ and legacy .opencode/agents/. New entries are saved as subagent-only files and appear in the @mention menu.',
+        text: t('settings.opencodeAgents.manageDesc'),
       });
 
       const subagentsContainer = container.createDiv({ cls: 'claudian-slash-commands-container' });

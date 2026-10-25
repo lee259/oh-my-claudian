@@ -9,6 +9,7 @@ import { Notice } from 'obsidian';
 import { RuntimeComposer } from '@/features/chat/sessions/RuntimeComposer';
 import { ComposerEditor } from '@/features/chat/ui/ComposerEditor';
 import { ImageContextManager } from '@/features/chat/ui/ImageContext';
+import { setLocale } from '@/i18n/i18n';
 import { MentionDropdownController } from '@/shared/mention/MentionDropdownController';
 
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -19,8 +20,19 @@ HTMLElement.prototype.scrollIntoView ??= jest.fn();
 describe('short-name composer editor', () => {
   const instances: ComposerEditor[] = [];
   afterEach(() => {
+    setLocale('en');
     for (const editor of instances.splice(0)) editor.destroy();
     document.body.replaceChildren();
+  });
+
+  it('localizes the empty input and its accessible name without changing the draft', () => {
+    setLocale('zh-CN');
+    const { input, parent } = fixture('');
+    expect(input.placeholder).toBe('描述修改需求，@引用文件，运行 /命令');
+    expect(parent.querySelector('.cm-placeholder')?.textContent).toBe(input.placeholder);
+    expect(getByRole(parent, 'textbox', { name: '消息' })).toBe(input.getAccessibleTextbox?.());
+    input.value = 'Please keep this draft in English';
+    expect(input.value).toBe('Please keep this draft in English');
   });
 
   function fixture(text: string) {

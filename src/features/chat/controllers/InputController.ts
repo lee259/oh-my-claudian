@@ -86,7 +86,6 @@ import {
 } from './StreamController';
 import {
   hasSuspiciousCommandText,
-  SUSPICIOUS_COMMAND_WARNING,
 } from './suspiciousCommandText';
 import { TurnCompletionCoordinator } from './TurnCompletionCoordinator';
 import type { ActiveTurnOwner } from './TurnCoordinator';
@@ -116,7 +115,9 @@ interface ApprovalCallbackOptions {
 
 const DEFAULT_APPROVAL_DECISION_OPTIONS: ApprovalDecisionOption[] =
   Object.entries(APPROVAL_OPTION_MAP).map(([label, decision]) => ({
-    label,
+    get label() {
+      return t(decision === 'deny' ? 'chat.approval.deny' : decision === 'allow' ? 'chat.approval.allow' : 'chat.approval.always');
+    },
     value: label,
     decision,
   }));
@@ -712,7 +713,7 @@ export class InputController {
         return;
       }
       if (!ready) {
-        new Notice('Failed to initialize agent execution. Please try again.');
+        new Notice(t('chat.errors.initializeExecution'));
         restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         this.activeStreamingAssistantMessage = null;
@@ -724,7 +725,7 @@ export class InputController {
 
     const coordinator = this.getExecutionCoordinator();
     if (!coordinator) {
-      new Notice('Agent execution is not available. Please reload the plugin.');
+      new Notice(t('chat.errors.executionUnavailable'));
       restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       this.activeStreamingAssistantMessage = null;
@@ -800,7 +801,7 @@ export class InputController {
         );
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         didRollbackUnsentTurn = true;
-        new Notice('Message was not sent. Please try again.');
+        new Notice(t('chat.errors.notSent'));
         this.deps.onDiagnosticError?.(error);
         this.reportDeferredReviewableSettlement();
       } else {
@@ -1791,7 +1792,7 @@ export class InputController {
       headerEl.createDiv({ text: approvalOptions.blockedPath, cls: 'claudian-ask-approval-blocked-path' });
     }
     if (approvalOptions?.agentID) {
-      headerEl.createDiv({ text: `Agent: ${approvalOptions.agentID}`, cls: 'claudian-ask-approval-agent' });
+      headerEl.createDiv({ text: t('chat.approval.agent', { agent: approvalOptions.agentID }), cls: 'claudian-ask-approval-agent' });
     }
 
     const command = typeof approvalInput.command === 'string'
@@ -1799,7 +1800,7 @@ export class InputController {
       : description;
     if (hasSuspiciousCommandText(command)) {
       headerEl.createDiv({
-        text: SUSPICIOUS_COMMAND_WARNING,
+        text: t('chat.approval.suspicious'),
         cls: 'claudian-ask-approval-warning',
       });
     }
@@ -1808,7 +1809,7 @@ export class InputController {
       text: description,
       cls: 'claudian-ask-approval-desc',
     });
-    descriptionEl.setAttribute('aria-label', `${toolName} approval details`);
+    descriptionEl.setAttribute('aria-label', t('chat.approval.details', { tool: toolName }));
     descriptionEl.setAttribute('role', 'region');
     descriptionEl.setAttribute('tabindex', '0');
     descriptionEl.addEventListener('keydown', (event) => {
@@ -1832,7 +1833,7 @@ export class InputController {
     });
     const input = {
       questions: [{
-        question: 'Allow this action?',
+        question: t('chat.approval.question'),
         options: questionOptions,
         isOther: false,
         isSecret: false,
@@ -1845,14 +1846,14 @@ export class InputController {
       input,
       (inline) => { this.pendingApprovalInline = inline; },
       signal,
-      { title: 'Permission required', headerEl, showCustomInput: false, immediateSelect: true },
+      { title: t('chat.approval.title'), headerEl, showCustomInput: false, immediateSelect: true },
     );
 
     if (!result) return 'cancel';
     const selected = Object.values(result)[0];
     const selectedValue = Array.isArray(selected) ? selected[0] : selected;
     if (typeof selectedValue !== 'string') {
-      new Notice(`Unexpected approval selection: "${String(selectedValue)}"`);
+      new Notice(t('chat.approval.unexpected', { value: String(selectedValue) }));
       return 'cancel';
     }
 

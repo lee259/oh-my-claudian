@@ -1,5 +1,7 @@
 import { type App, Scope } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import type { ImageAttachment } from '../../../core/types';
 
 function getFocusableActiveElement(ownerDocument: Document): HTMLElement | null {
@@ -45,7 +47,7 @@ export class ImagePreviewModal {
     const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', `Image preview: ${name}`);
+    modal.setAttribute('aria-label', t('chat.images.preview', { name }));
 
     modal.createEl('img', {
       attr: {
@@ -57,7 +59,7 @@ export class ImagePreviewModal {
     const closeButton = modal.createEl('button', {
       cls: 'claudian-image-modal-close',
       attr: {
-        'aria-label': 'Close image preview',
+        'aria-label': t('chat.images.close'),
         type: 'button',
       },
     });

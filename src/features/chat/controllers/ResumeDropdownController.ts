@@ -1,5 +1,6 @@
 import { Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 
 import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
@@ -43,7 +44,7 @@ export class ResumeDropdownController {
     if (!container || !input) return;
     const conversations = this.deps.plugin.getConversationList();
     if (conversations.length === 0) {
-      new Notice('No conversations to resume');
+      new Notice(t('chat.errors.noResume'));
       return;
     }
     const openConversation = this.deps.openConversation
@@ -59,7 +60,7 @@ export class ResumeDropdownController {
           this.destroy();
           openConversation(id).catch((error: unknown) => {
             const message = error instanceof Error ? error.message : String(error);
-            new Notice(`Failed to open conversation: ${message}`);
+            new Notice(t('common.errorDetails', { message: t('chat.errors.openConversation'), error: message }));
           });
         },
       },

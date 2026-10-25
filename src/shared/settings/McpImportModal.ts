@@ -1,6 +1,8 @@
 import type { App } from 'obsidian';
 import { Modal, Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 export type McpConfigImportHandler = (config: string) => Promise<boolean>;
 
 export class McpImportModal extends Modal {
@@ -16,17 +18,17 @@ export class McpImportModal extends Modal {
   }
 
   onOpen(): void {
-    this.setTitle('Import mcp configuration');
+    this.setTitle(t('settings.mcp.importTitle'));
     this.modalEl.addClass('claudian-mcp-modal');
 
     this.contentEl.createEl('p', {
-      text: 'Paste an mcp server JSON configuration below.',
+      text: t('settings.mcp.importDesc'),
     });
 
     const textarea = this.contentEl.createEl('textarea', {
       cls: 'claudian-mcp-import-textarea',
       attr: {
-        'aria-label': 'Mcp configuration JSON',
+        'aria-label': t('settings.mcp.configJson'),
         placeholder: '{\n  "mcpServers": {\n    "server-name": { "command": "..." }\n  }\n}',
       },
     });
@@ -43,13 +45,13 @@ export class McpImportModal extends Modal {
 
     const buttonContainer = this.contentEl.createDiv({ cls: 'claudian-mcp-buttons' });
     const cancelButton = buttonContainer.createEl('button', {
-      text: 'Cancel',
+      text: t('common.cancel'),
       cls: 'claudian-cancel-btn',
     });
     cancelButton.addEventListener('click', () => this.close());
 
     this.submitButtonEl = buttonContainer.createEl('button', {
-      text: 'Import',
+      text: t('common.import'),
       cls: 'claudian-save-btn mod-cta',
     });
     this.submitButtonEl.addEventListener('click', () => {
@@ -67,7 +69,7 @@ export class McpImportModal extends Modal {
   private async submit(): Promise<void> {
     const config = this.pastedConfig.trim();
     if (!config) {
-      new Notice('Paste an mcp configuration first');
+      new Notice(t('settings.mcp.pasteFirst'));
       return;
     }
     if (this.submitting) {

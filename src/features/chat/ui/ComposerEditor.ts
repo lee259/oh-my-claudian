@@ -4,6 +4,7 @@ import { Decoration, type DecorationSet, EditorView, keymap, placeholder, Widget
 import { type App, setIcon } from 'obsidian';
 
 import type { ProviderCommandKind } from '@/core/providers/commands/ProviderCommandEntry';
+import { t } from '@/i18n/i18n';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 import { isImeKeyEvent } from '@/utils/keyboard';
 import { filterMarkdownTextTokens } from '@/utils/markdownTextTokens';
@@ -98,7 +99,7 @@ export class ComposerEditor {
     // Stop shortcut routing without preventing the input method's default candidate action.
     if (this.composing || isImeKeyEvent(event)) event.stopImmediatePropagation();
   };
-  private placeholderText = 'Ask to make changes, @mention files, run /commands';
+  private placeholderText = t('chat.composer.placeholder');
   private readonly placeholderConfig = new Compartment();
   private readonly historyConfig = new Compartment();
   private commandResolver: ((token: string, atInputStart: boolean) => ProviderCommandKind | null) | null = null;
@@ -107,7 +108,7 @@ export class ComposerEditor {
   constructor(parent: HTMLElement, private readonly app: App) {
     // Obsidian also treats aria-label as hover tooltip text on contenteditable elements.
     const labelId = `claudian-composer-label-${++nextComposerLabelId}`;
-    this.accessibleLabel = parent.createSpan({ text: 'Message', attr: { id: labelId, hidden: '' } });
+    this.accessibleLabel = parent.createSpan({ text: t('chat.composer.message'), attr: { id: labelId, hidden: '' } });
     const host = parent.createDiv({
       cls: 'claudian-input claudian-composer-editor',
       attr: { role: 'textbox', 'aria-labelledby': labelId, 'aria-multiline': 'true', tabindex: '0', dir: 'auto' },

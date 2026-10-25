@@ -157,7 +157,7 @@ export class EnvSnippetModal extends Modal {
           cls: 'claudian-snippet-limit-input',
         });
         input.value = existingLimits[modelId] ? formatContextLimit(existingLimits[modelId]) : '';
-        input.setAttribute('aria-label', `Context window for ${modelId}`);
+        input.setAttribute('aria-label', t('settings.envSnippets.contextWindow', { model: modelId }));
         contextLimitInputs.set(modelId, input);
       }
     };
@@ -411,7 +411,7 @@ export class EnvSnippetManager {
             return;
           }
           this.render();
-          new Notice(`Environment snippet "${snippet.name}" saved`);
+          new Notice(t('settings.envSnippets.savedNotice', { name: snippet.name }));
         })();
       }
     );
@@ -491,7 +491,7 @@ export class EnvSnippetManager {
               return;
             }
             this.render();
-            new Notice(`Environment snippet "${updatedSnippet.name}" updated`);
+            new Notice(t('settings.envSnippets.updatedNotice', { name: updatedSnippet.name }));
           }
         })();
       }
@@ -504,7 +504,7 @@ export class EnvSnippetManager {
       settings.envSnippets = settings.envSnippets.filter(s => s.id !== snippet.id);
     });
     this.render();
-    new Notice(`Environment snippet "${snippet.name}" deleted`);
+    new Notice(t('settings.envSnippets.deletedNotice', { name: snippet.name }));
   }
 
   public refresh() {

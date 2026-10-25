@@ -1,5 +1,7 @@
 import { setIcon } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
@@ -122,7 +124,7 @@ export class ComposerContextTray {
     moreButton.removeClass('claudian-hidden');
     if (this.expanded) {
       this.containerEl.addClass('claudian-context-row--expanded');
-      moreButton.textContent = 'Show less';
+      moreButton.textContent = t('chat.composer.showLess');
       moreButton.setAttribute('aria-expanded', 'true');
       return;
     }
@@ -144,8 +146,8 @@ export class ComposerContextTray {
     }
 
     const hiddenCount = chips.length - visibleCount;
-    moreButton.textContent = `+${hiddenCount} more`;
-    moreButton.setAttribute('aria-label', `Show ${hiddenCount} more context items`);
+    moreButton.textContent = t('chat.composer.more', { count: hiddenCount });
+    moreButton.setAttribute('aria-label', t('chat.composer.showMore', { count: hiddenCount }));
   }
 
   destroy(): void {

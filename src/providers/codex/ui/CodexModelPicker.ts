@@ -1,5 +1,7 @@
 import { Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRendererContext } from '../../../core/providers/types';
 import {
@@ -128,7 +130,7 @@ export function renderCodexModelPicker(
         );
       }
       if (result.diagnostics) {
-        new Notice(`Codex model discovery failed: ${result.diagnostics}`);
+        new Notice(t('settings.modelDiscoveryFailed', { provider: 'Codex', error: result.diagnostics }));
         return 'failed';
       }
       if (result.refreshed) {
