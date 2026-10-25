@@ -5,10 +5,11 @@
  * - {CLAUDE_CONFIG_DIR}/plugins/installed_plugins.json: install paths for scanning agents
  * - settings.json: enabled state (project overrides global)
  */
-
 import { promises as fs } from 'fs';
 import { Notice } from 'obsidian';
 import * as path from 'path';
+
+import { t } from '@/i18n/i18n';
 
 import type { PluginInfo, PluginScope } from '../../../core/types';
 import { resolveClaudeConfigDir } from '../config/ClaudeConfigDir';
@@ -114,7 +115,7 @@ export class PluginManager {
 
         const entriesArray = Array.isArray(entries) ? entries : [entries];
         if (!Array.isArray(entries)) {
-          new Notice(`Oh My Claudian: plugin "${pluginId}" has malformed entry in installed_plugins.json (expected array, got ${typeof entries})`);
+          new Notice(t('settings.plugins.malformedEntry', { name: pluginId, type: typeof entries }));
         }
         const entry = await selectInstalledPluginEntry(entriesArray, normalizedVaultPath);
         if (!entry) continue;

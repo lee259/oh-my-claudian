@@ -240,17 +240,17 @@ export default class ClaudianPlugin extends Plugin {
       registerFileMenu(this);
       this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
         void this.handleLinkedNoteRename(file, oldPath).catch(() => {
-          new Notice('Failed to update linked session note paths');
+          new Notice(t('chat.errors.linkedPaths'));
         });
       }));
 
-      this.addRibbonIcon('bot', 'Open Oh My Claudian', () => {
+      this.addRibbonIcon('bot', t('commands.openPlugin'), () => {
         void this.activateView();
       });
 
       this.addCommand({
         id: 'open-view',
-        name: 'Open chat view',
+        name: t('commands.openChat'),
         callback: () => {
           void this.activateView();
         },
@@ -268,13 +268,13 @@ export default class ClaudianPlugin extends Plugin {
 
       this.addCommand({
         id: 'inline-edit',
-        name: 'Inline edit',
+        name: t('commands.inlineEdit'),
         editorCallback: async (editor: Editor, ctx) => {
           const view = ctx instanceof MarkdownView
             ? ctx
             : this.app.workspace.getActiveViewOfType(MarkdownView);
           if (!view) {
-            new Notice('Inline edit unavailable: could not access the active Markdown view.');
+            new Notice(t('inlineEdit.viewUnavailable'));
             return;
           }
 
@@ -314,7 +314,7 @@ export default class ClaudianPlugin extends Plugin {
 
       this.addCommand({
         id: 'new-tab',
-        name: 'New',
+        name: t('commands.new'),
         checkCallback: (checking: boolean) => {
           if (!this.canCreateNewTab()) return false;
 
@@ -327,7 +327,7 @@ export default class ClaudianPlugin extends Plugin {
 
       this.addCommand({
         id: 'new-session',
-        name: 'Replace current conversation',
+        name: t('commands.replace'),
         checkCallback: (checking: boolean) => {
           const view = this.getView();
           if (!view) return false;
@@ -349,7 +349,7 @@ export default class ClaudianPlugin extends Plugin {
 
       this.addCommand({
         id: 'close-current-tab',
-        name: 'Close current tab',
+        name: t('commands.closeTab'),
         checkCallback: (checking: boolean) => {
           const view = this.getView();
           if (!view) return false;
@@ -369,7 +369,7 @@ export default class ClaudianPlugin extends Plugin {
 
       this.addCommand({
         id: 'copy-startup-diagnostics',
-        name: 'Copy startup diagnostics',
+        name: t('commands.copyDiagnostics'),
         callback: async () => {
           const copied = await StartupProfiler.copyToClipboard();
           new Notice(copied ? 'Startup diagnostics copied to clipboard.' : 'Failed to copy startup diagnostics.');
@@ -992,11 +992,11 @@ export default class ClaudianPlugin extends Plugin {
             );
 
             const noticeText = reconciliation.sessionInvalidationProviderIds.length > 0
-              ? 'Environment variables applied. Sessions will be rebuilt on next message.'
-              : 'Environment variables applied.';
+              ? t('settings.environmentRebuild')
+              : t('settings.environmentApplied');
             new Notice(noticeText);
             if (modelCatalogDiagnostics.length > 0) {
-              new Notice(`Model catalog refresh failed:\n${modelCatalogDiagnostics.join('\n')}`);
+              new Notice(t('settings.modelCatalogFailed', { error: modelCatalogDiagnostics.join('\n') }));
             }
           },
         },

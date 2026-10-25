@@ -338,7 +338,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       content.empty();
       content.createDiv({
         cls: 'claudian-settings-provider-loading',
-        text: `Loading ${ProviderRegistry.getProviderDisplayName(providerId)} settings...`,
+        text: t('settings.loadingProvider', { provider: ProviderRegistry.getProviderDisplayName(providerId) }),
       });
 
       try {

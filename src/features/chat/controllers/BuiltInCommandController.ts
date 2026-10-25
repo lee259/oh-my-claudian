@@ -27,7 +27,7 @@ export class BuiltInCommandController {
   async execute(command: BuiltInCommand, args: string): Promise<void> {
     const capabilities = this.deps.getCapabilities();
     if (!isBuiltInCommandSupported(command, capabilities)) {
-      new Notice(`/${command.name} is not supported by this provider.`);
+      new Notice(t('chat.errors.commandUnsupported', { command: command.name }));
       return;
     }
 
@@ -40,7 +40,7 @@ export class BuiltInCommandController {
       case 'add-dir': {
         const selector = this.deps.getExternalContextSelector();
         if (!selector) {
-          new Notice('External context selector not available.');
+          new Notice(t('chat.errors.contextUnavailable'));
           return;
         }
         const result = selector.addExternalContext(args);
@@ -54,9 +54,9 @@ export class BuiltInCommandController {
         return;
       case 'fork':
         if (!capabilities.supportsFork) {
-          new Notice('Fork is not supported by this provider.');
+          new Notice(t('chat.errors.forkUnsupported'));
         } else if (!this.deps.onForkAll) {
-          new Notice('Fork not available.');
+          new Notice(t('chat.errors.forkUnavailable'));
         } else {
           await this.deps.onForkAll();
         }
@@ -65,17 +65,17 @@ export class BuiltInCommandController {
         try {
           const toggled = await this.deps.toggleFastMode?.() ?? false;
           if (!toggled) {
-            new Notice('Fast mode is not available for this model.');
+            new Notice(t('chat.errors.fastUnavailable'));
           }
         } catch {
-          new Notice('Failed to toggle fast mode.');
+          new Notice(t('chat.errors.fastFailed'));
         }
         return;
       default: {
         const action = typeof (command as { action?: unknown }).action === 'string'
           ? (command as { action: string }).action
           : 'unknown';
-        new Notice(`Unknown command: ${action}`);
+        new Notice(t('chat.errors.unknownCommand', { command: action }));
       }
     }
   }

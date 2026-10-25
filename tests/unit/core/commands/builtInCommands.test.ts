@@ -1,5 +1,7 @@
 import '@/providers';
 
+import { setLocale } from '@/i18n/i18n';
+
 import {
   BUILT_IN_COMMANDS,
   detectBuiltInCommand,
@@ -8,6 +10,17 @@ import {
 } from '../../../../src/core/commands/builtInCommands';
 
 describe('builtInCommands', () => {
+  it('resolves command descriptions in the current language without translating command syntax', () => {
+    try {
+      setLocale('zh-CN');
+      expect(getBuiltInCommandsForDropdown('codex').find(command => command.name === 'clear')?.description)
+        .toBe('开始新会话');
+      expect(detectBuiltInCommand('/add-dir /tmp/context')?.args).toBe('/tmp/context');
+      setLocale('en');
+      expect(getBuiltInCommandsForDropdown('codex').find(command => command.name === 'clear')?.description)
+        .toBe('Start a new conversation');
+    } finally { setLocale('en'); }
+  });
   describe('detectBuiltInCommand', () => {
     it.each(['\n', '\r', '\u2028', '\u2029'])(
       'leaves multiline prompts containing %p to provider execution', (separator) => {

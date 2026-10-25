@@ -1,5 +1,7 @@
 import { setIcon } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 export interface ScopePreviewModel {
   label: string;
   detail: string;
@@ -20,15 +22,15 @@ export function buildScopePreviewModel(
   if (!note && folders.length === 0) return null;
 
   const parts = [
-    ...(note ? [`note: ${note}`] : []),
+    ...(note ? [t('chat.composer.scopeNote', { note })] : []),
     ...(folders.length > 0
-      ? [`folder${folders.length === 1 ? '' : 's'}: ${folders.join(', ')}`]
+      ? [t(folders.length === 1 ? 'chat.composer.scopeFolder' : 'chat.composer.scopeFolders', { folders: folders.join(', ') })]
       : []),
   ];
   return {
-    label: 'Context scope',
+    label: t('chat.composer.scope'),
     detail: parts.join(' · '),
-    title: `${parts.join(' · ')}. Writes remain governed by the selected provider's permissions.`,
+    title: t('chat.composer.scopePermissions', { scope: parts.join(' · ') }),
   };
 }
 

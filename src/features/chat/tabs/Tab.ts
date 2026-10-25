@@ -682,12 +682,12 @@ function createTabExecutionCoordinator(
             void plugin.handleMissingProviderSession(conversationId)
               .then((resolution) => {
                 if (resolution === 'deleted' || resolution === 'not_found') {
-                  new Notice('The provider session record was removed. Send the message again to start a new session.');
+                  new Notice(t('chat.errors.sessionRemoved'));
                   return;
                 }
                 return tab.controllers.inputController?.sendMessage();
               })
-              .catch(() => new Notice('Could not rebuild the provider session.'));
+              .catch(() => new Notice(t('chat.errors.rebuildSession')));
           }
         : undefined;
       void ProviderRegistry.collectDiagnostics(tab.providerId, {
@@ -1393,7 +1393,7 @@ function initializeInputToolbar(
       const boundProvider = tab.providerId;
       const modelProvider = getProviderForModel(model, plugin.settings);
       if (modelProvider !== boundProvider) {
-        new Notice('Cannot switch provider on a bound session. Start a new conversation instead.');
+        new Notice(t('chat.errors.boundProvider'));
         tab.ui.modelSelector?.updateDisplay();
         return;
       }
@@ -1717,7 +1717,7 @@ async function handleForkRequest(
   const { state } = tab;
 
   if (!getTabCapabilities(tab, plugin).supportsFork) {
-    new Notice('Fork is not supported by this provider.');
+    new Notice(t('chat.errors.forkUnsupported'));
     return;
   }
 
@@ -1771,7 +1771,7 @@ async function handleForkAll(
   const { state } = tab;
 
   if (!getTabCapabilities(tab, plugin).supportsFork) {
-    new Notice('Fork is not supported by this provider.');
+    new Notice(t('chat.errors.forkUnsupported'));
     return;
   }
 
@@ -2435,7 +2435,7 @@ export async function destroyTab(tab: TabData): Promise<void> {
     try {
       await tab.controllers.conversationController?.save(cancelledActiveTurn);
     } catch {
-      new Notice('Background task state could not be saved before closing the tab.');
+      new Notice(t('chat.errors.saveBackground'));
     }
   }
   tab.services.subagentManager.clear();
@@ -2544,7 +2544,7 @@ export async function detachTabPresentation(tab: TabData): Promise<void> {
 
   const failures = await cleanup.dispose();
   for (const failure of failures) {
-    new Notice(`Tab cleanup failed for ${failure.resource}.`);
+    new Notice(t('chat.errors.tabCleanup', { resource: failure.resource }));
   }
 }
 

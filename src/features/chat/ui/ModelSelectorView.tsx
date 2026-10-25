@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 
+import { t } from '@/i18n/i18n';
+
 import type {
   ProviderIconSvg,
   ProviderId,
@@ -200,10 +202,10 @@ export function ModelSelectorView({
         </button>
         {onFavoriteToggle && (
           <button
-            aria-label={`${favorite ? 'Remove' : 'Add'} ${model.label} ${favorite ? 'from' : 'to'} favorites`}
+            aria-label={t(favorite ? 'chat.modelPicker.removeNamedFavorite' : 'chat.modelPicker.addNamedFavorite', { model: model.label })}
             aria-pressed={favorite}
             className={`claudian-model-favorite${favorite ? ' is-favorite' : ''}`}
-            title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            title={favorite ? t('chat.modelPicker.removeFavorite') : t('chat.modelPicker.addFavorite')}
             type="button"
             onClick={() => {
               if (activeFilter === 'favorites') searchRef.current?.focus();
@@ -279,7 +281,7 @@ export function ModelSelectorView({
       </button>
 
       <div
-        aria-label="Model options"
+        aria-label={t('chat.modelPicker.options')}
         className="claudian-model-dropdown"
         hidden={!open}
         id={id}
@@ -287,19 +289,19 @@ export function ModelSelectorView({
         tabIndex={-1}
       >
         <div className="claudian-model-browser">
-          <nav aria-label="Filter models by provider" className="claudian-model-provider-rail">
-            {renderFilter('favorites', 'Favorite models', undefined, 'star')}
-            {renderFilter('all', 'All models')}
+          <nav aria-label={t('chat.modelPicker.filter')} className="claudian-model-provider-rail">
+            {renderFilter('favorites', t('chat.modelPicker.favorites'), undefined, 'star')}
+            {renderFilter('all', t('chat.modelPicker.all'))}
             <div className="claudian-model-provider-divider" />
-            {providers.map(provider => renderFilter(provider.id, provider.label || 'Current provider', provider.icon))}
+            {providers.map(provider => renderFilter(provider.id, provider.label || t('chat.modelPicker.currentProvider'), provider.icon))}
           </nav>
           <div className="claudian-model-browser-main">
             <div className="claudian-model-search">
               <ObsidianIcon icon="search" />
               <input
-                aria-label="Search models"
+                aria-label={t('chat.modelPicker.search')}
                 autoComplete="off"
-                placeholder="Search models"
+                placeholder={t('chat.modelPicker.search')}
                 ref={searchRef}
                 spellcheck={false}
                 type="search"
@@ -315,7 +317,7 @@ export function ModelSelectorView({
               />
               {query && (
                 <button
-                  aria-label="Clear search"
+                  aria-label={t('chat.modelPicker.clearSearch')}
                   className="claudian-model-search-clear"
                   type="button"
                   onClick={() => { setQuery(''); searchRef.current?.focus(); }}
@@ -326,23 +328,23 @@ export function ModelSelectorView({
             </div>
             <div className="claudian-model-options">
               {visibleModels.length > 0
-                ? <div aria-label="Model" className="claudian-model-list" role="list">{visibleModels.map(renderModelOption)}</div>
+                ? <div aria-label={t('chat.modelPicker.model')} className="claudian-model-list" role="list">{visibleModels.map(renderModelOption)}</div>
                 : <div className="claudian-model-empty" role="status">{
                   models.length === 0
-                    ? 'No models available. Check provider settings and refresh the model list if discovery failed.'
+                    ? t('chat.modelPicker.empty')
                     : normalizedQuery
-                      ? 'No matching models.'
-                      : 'No favorite models available. Use the star beside a model to add it.'
+                      ? t('chat.modelPicker.noMatches')
+                      : t('chat.modelPicker.noFavorites')
                 }</div>}
             </div>
             {selectedModelIndex !== -1 && (reasoningHasChoice || serviceTier) && (
-              <section aria-label="Current model settings" className="claudian-model-menu-footer">
+              <section aria-label={t('chat.modelPicker.currentSettings')} className="claudian-model-menu-footer">
                 <div className="claudian-model-settings-heading">
                   <span className="claudian-model-settings-name" title={displayModelLabel}>{displayModelLabel}</span>
                   {serviceTier && (
                     <button
                       aria-checked={isServiceTierActive}
-                      aria-label="Fast mode"
+                      aria-label={t('chat.modelPicker.fastMode')}
                       className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
                       role="switch"
                       title={serviceTier.description ?? (isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel)}
@@ -350,7 +352,7 @@ export function ModelSelectorView({
                       onClick={onServiceTierToggle}
                     >
                       <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
-                      <span>Fast</span>
+                      <span>{t('chat.modelPicker.fast')}</span>
                       <span aria-hidden="true" className="claudian-toggle-switch" />
                     </button>
                   )}
@@ -363,8 +365,8 @@ export function ModelSelectorView({
                         <span className="claudian-model-slider-value">{displayReasoning}</span>
                       </div>
                       <div className="claudian-model-slider-endpoints" aria-hidden="true">
-                        <span>Faster</span>
-                        <span>Smarter</span>
+                        <span>{t('chat.modelPicker.faster')}</span>
+                        <span>{t('chat.modelPicker.smarter')}</span>
                       </div>
                       <div className="claudian-model-slider">
                         <div aria-hidden="true" className="claudian-model-slider-track">

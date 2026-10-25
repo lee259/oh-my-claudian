@@ -104,7 +104,7 @@ export class BangBashModeManager {
       this.clear();
       await this.callbacks.onSubmit(rawCommand);
     } catch (e) {
-      new Notice(`Command failed: ${e instanceof Error ? e.message : String(e)}`);
+      new Notice(t('common.errorDetails', { message: t('chat.errors.commandFailed'), error: e instanceof Error ? e.message : String(e) }));
     } finally {
       this.isSubmitting = false;
     }

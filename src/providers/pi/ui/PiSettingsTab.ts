@@ -65,7 +65,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
         const result = await new PiModelDiscoveryService(context.plugin).discoverModels();
         if (result.kind === 'skipped') return;
         if (result.diagnostics) {
-          new Notice(`Pi discovery failed: ${result.diagnostics}`);
+          new Notice(t('settings.discoveryFailed', { provider: 'Pi', error: result.diagnostics }));
           return;
         }
         const current = getPiProviderSettings(settingsBag);
@@ -161,7 +161,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
 
     new Setting(container)
-      .setName('Models')
+      .setName(t('settings.models'))
       .setDesc(t('settings.pi.modelsDesc', {
         discover: t('settings.modelPicker.discover'),
         refresh: t('common.refresh'),
@@ -172,7 +172,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
     context.renderAgentSkillSettings(container, 'pi');
 
-    new Setting(container).setName('Commands').setHeading();
+    new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'pi', {
       name: 'Hidden Pi commands and skills',
       desc: 'Hide runtime commands and skills advertised by Pi from the command dropdown. Enter exact names without the leading slash, one per line.',
@@ -244,7 +244,7 @@ function renderPiModelPicker(
         return getPiProviderSettings(settingsBag).discoveredModels.length > 0 ? 'loaded' : 'empty';
       }
       if (result.diagnostics) {
-        new Notice(`Pi discovery failed: ${result.diagnostics}`);
+        new Notice(t('settings.discoveryFailed', { provider: 'Pi', error: result.diagnostics }));
         return 'failed';
       }
 

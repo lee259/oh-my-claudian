@@ -6,9 +6,10 @@
  * - Clarification (agent asks question)
  * - Confirmation (final instruction review)
  */
-
 import type { App } from 'obsidian';
 import { Modal, TextAreaComponent } from 'obsidian';
+
+import { t } from '@/i18n/i18n';
 
 export type InstructionDecision = 'accept' | 'reject';
 
@@ -59,12 +60,12 @@ export class InstructionModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.addClass('claudian-instruction-modal');
-    this.setTitle('Add custom instruction');
+    this.setTitle(t('chat.instructions.title'));
 
     // User input section (always visible)
     const inputSection = contentEl.createDiv({ cls: 'claudian-instruction-section' });
     const inputLabel = inputSection.createDiv({ cls: 'claudian-instruction-label' });
-    inputLabel.setText('Your input:');
+    inputLabel.setText(t('chat.instructions.input'));
     const inputText = inputSection.createDiv({ cls: 'claudian-instruction-original' });
     inputText.setText(this.rawInstruction);
 
@@ -74,7 +75,7 @@ export class InstructionModal extends Modal {
     // Loading state
     this.loadingEl = this.contentSectionEl.createDiv({ cls: 'claudian-instruction-loading' });
     this.loadingEl.createDiv({ cls: 'claudian-instruction-spinner' });
-    this.loadingEl.createSpan({ text: 'Processing your instruction...' });
+    this.loadingEl.createSpan({ text: t('chat.instructions.processingInstruction') });
 
     // Clarification state (hidden initially)
     this.clarificationEl = this.contentSectionEl.createDiv({ cls: 'claudian-instruction-clarification-section' });
@@ -83,12 +84,12 @@ export class InstructionModal extends Modal {
 
     const responseSection = this.clarificationEl.createDiv({ cls: 'claudian-instruction-section' });
     const responseLabel = responseSection.createDiv({ cls: 'claudian-instruction-label' });
-    responseLabel.setText('Your response:');
+    responseLabel.setText(t('chat.instructions.response'));
 
     this.responseTextarea = new TextAreaComponent(responseSection);
     this.responseTextarea.inputEl.addClass('claudian-instruction-response-textarea');
     this.responseTextarea.inputEl.rows = 3;
-    this.responseTextarea.inputEl.placeholder = 'Provide more details...';
+    this.responseTextarea.inputEl.placeholder = t('chat.instructions.details');
 
     this.responseTextarea.inputEl.addEventListener('keydown', (e) => {
       // Check !e.isComposing for IME support (Chinese, Japanese, Korean, etc.)
@@ -105,7 +106,7 @@ export class InstructionModal extends Modal {
     // Refined instruction display/edit
     const refinedSection = this.confirmationEl.createDiv({ cls: 'claudian-instruction-section' });
     const refinedLabel = refinedSection.createDiv({ cls: 'claudian-instruction-label' });
-    refinedLabel.setText('Refined snippet:');
+    refinedLabel.setText(t('chat.instructions.refined'));
 
     this.refinedDisplayEl = refinedSection.createDiv({ cls: 'claudian-instruction-refined' });
     this.editContainerEl = refinedSection.createDiv({ cls: 'claudian-instruction-edit-container' });
@@ -158,7 +159,7 @@ export class InstructionModal extends Modal {
     if (this.loadingEl) {
       this.loadingEl.querySelector('.claudian-instruction-spinner');
       const text = this.loadingEl.querySelector('span');
-      if (text) text.textContent = 'Processing...';
+      if (text) text.textContent = t('chat.instructions.processing');
     }
     this.showState('loading');
   }
@@ -184,33 +185,33 @@ export class InstructionModal extends Modal {
     this.buttonsEl.empty();
 
     const cancelBtn = this.buttonsEl.createEl('button', {
-      text: 'Cancel',
+      text: t('common.cancel'),
       cls: 'claudian-instruction-btn claudian-instruction-reject-btn',
-      attr: { 'aria-label': 'Cancel' }
+      attr: { 'aria-label': t('common.cancel') }
     });
     cancelBtn.addEventListener('click', () => this.handleReject());
 
     if (this.state === 'clarification') {
       const submitBtn = this.buttonsEl.createEl('button', {
-        text: 'Submit',
+        text: t('common.submit'),
         cls: 'claudian-instruction-btn claudian-instruction-accept-btn',
-        attr: { 'aria-label': 'Submit response' }
+        attr: { 'aria-label': t('chat.instructions.submitResponse') }
       });
       submitBtn.addEventListener('click', () => {
         void this.submitClarification();
       });
     } else if (this.state === 'confirmation') {
       this.editBtnEl = this.buttonsEl.createEl('button', {
-        text: 'Edit',
+        text: t('common.edit'),
         cls: 'claudian-instruction-btn claudian-instruction-edit-btn',
-        attr: { 'aria-label': 'Edit instruction' }
+        attr: { 'aria-label': t('chat.instructions.edit') }
       });
       this.editBtnEl.addEventListener('click', () => this.toggleEdit());
 
       const acceptBtn = this.buttonsEl.createEl('button', {
-        text: 'Accept',
+        text: t('common.accept'),
         cls: 'claudian-instruction-btn claudian-instruction-accept-btn',
-        attr: { 'aria-label': 'Accept instruction' }
+        attr: { 'aria-label': t('chat.instructions.accept') }
       });
       acceptBtn.addEventListener('click', () => this.handleAccept());
       acceptBtn.focus();
@@ -238,7 +239,7 @@ export class InstructionModal extends Modal {
     if (this.isEditing) {
       this.refinedDisplayEl?.addClass('claudian-hidden');
       this.editContainerEl?.removeClass('claudian-hidden');
-      if (this.editBtnEl) this.editBtnEl.setText('Preview');
+      if (this.editBtnEl) this.editBtnEl.setText(t('common.preview'));
       this.editTextarea?.inputEl.focus();
     } else {
       const edited = this.editTextarea?.getValue() || this.refinedInstruction;
@@ -248,7 +249,7 @@ export class InstructionModal extends Modal {
         this.refinedDisplayEl.removeClass('claudian-hidden');
       }
       this.editContainerEl?.addClass('claudian-hidden');
-      if (this.editBtnEl) this.editBtnEl.setText('Edit');
+      if (this.editBtnEl) this.editBtnEl.setText(t('common.edit'));
     }
   }
 

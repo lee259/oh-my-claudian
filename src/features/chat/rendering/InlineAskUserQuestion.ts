@@ -1,3 +1,5 @@
+import { t } from '@/i18n/i18n';
+
 import type { AskUserQuestionItem, AskUserQuestionOption } from '../../../core/types/tools';
 
 const CHECK_GLYPH = '\u2713';
@@ -50,7 +52,7 @@ export class InlineAskUserQuestion {
     this.signal = signal;
     this.config = {
       onSubmit: config?.onSubmit,
-      title: config?.title ?? 'Question',
+      title: config?.title ?? t('chat.questions.title'),
       headerEl: config?.headerEl,
       showCustomInput: config?.showCustomInput ?? true,
       immediateSelect: config?.immediateSelect ?? false,
@@ -87,7 +89,7 @@ export class InlineAskUserQuestion {
     if (!this.config.immediateSelect) {
       this.tabBar = this.rootEl.createDiv({ cls: 'claudian-ask-tab-bar' });
       this.tabBar.setAttribute('role', 'group');
-      this.tabBar.setAttribute('aria-label', 'Questions');
+      this.tabBar.setAttribute('aria-label', t('chat.questions.questions'));
       this.renderTabBar();
     }
     this.contentArea = this.rootEl.createDiv({ cls: 'claudian-ask-content' });
@@ -213,8 +215,8 @@ export class InlineAskUserQuestion {
     const allAnswered = this.questions.every((_, i) => this.isQuestionAnswered(i));
     const submitTab = this.tabBar.createEl('button', { cls: 'claudian-ask-tab claudian-ask-tab--submit' });
     submitTab.setAttribute('type', 'button');
-    submitTab.setAttribute('aria-label', 'Review answers');
-    submitTab.createSpan({ text: 'Submit', cls: 'claudian-ask-tab-label' });
+    submitTab.setAttribute('aria-label', t('chat.questions.review'));
+    submitTab.createSpan({ text: t('common.submit'), cls: 'claudian-ask-tab-label' });
     if (allAnswered) submitTab.addClass('is-ready');
     if (this.activeTabIndex === this.questions.length) {
       submitTab.addClass('is-active');
@@ -314,7 +316,7 @@ export class InlineAskUserQuestion {
       });
       inputEl.setAttribute('type', q.isSecret ? 'password' : 'text');
       inputEl.setAttribute('aria-label', q.question);
-      inputEl.setAttribute('placeholder', q.isSecret ? 'Enter secret…' : 'Type your own answer…');
+      inputEl.setAttribute('placeholder', q.isSecret ? t('chat.questions.secret') : t('chat.questions.custom'));
 
       inputEl.addEventListener('input', () => {
         this.customInputs.set(idx, inputEl.value);
@@ -347,7 +349,7 @@ export class InlineAskUserQuestion {
 
   private renderSubmitTab(): void {
     this.contentArea.createDiv({
-      text: 'Review your answers',
+      text: t('chat.questions.reviewTitle'),
       cls: 'claudian-ask-review-title',
     });
 
@@ -359,18 +361,18 @@ export class InlineAskUserQuestion {
 
       const pairEl = reviewEl.createEl('button', { cls: 'claudian-ask-review-pair' });
       pairEl.setAttribute('type', 'button');
-      pairEl.setAttribute('aria-label', `Edit answer for ${q.question}`);
+      pairEl.setAttribute('aria-label', t('chat.questions.editAnswer', { question: q.question }));
       const bodyEl = pairEl.createSpan({ cls: 'claudian-ask-review-body' });
       bodyEl.createSpan({ text: q.question, cls: 'claudian-ask-review-q-text' });
       bodyEl.createSpan({
-        text: answerText || 'Not answered',
+        text: answerText || t('chat.questions.unanswered'),
         cls: answerText ? 'claudian-ask-review-a-text' : 'claudian-ask-review-empty',
       });
       pairEl.addEventListener('click', () => this.switchTab(idx));
     }
 
     this.contentArea.createDiv({
-      text: 'Ready to submit your answers?',
+      text: t('chat.questions.ready'),
       cls: 'claudian-ask-review-prompt',
     });
 
@@ -380,12 +382,12 @@ export class InlineAskUserQuestion {
     const submitRow = actionsEl.createEl('button', { cls: 'claudian-ask-item claudian-ask-action claudian-ask-action--primary' });
     submitRow.setAttribute('type', 'button');
     submitRow.setAttribute('aria-disabled', `${!allAnswered}`);
-    submitRow.setAttribute('aria-label', 'Submit answers');
+    submitRow.setAttribute('aria-label', t('chat.questions.submit'));
     if (this.focusedItemIndex === 0) submitRow.addClass('is-focused');
     if (!allAnswered) submitRow.addClass('is-disabled');
     submitRow.disabled = this.submitting || !allAnswered;
-    submitRow.setAttribute('aria-label', this.submitting ? 'Sending...' : 'Submit answers');
-    submitRow.createSpan({ text: this.submitting ? 'Sending...' : 'Submit answers', cls: 'claudian-ask-item-label' });
+    submitRow.setAttribute('aria-label', this.submitting ? t('chat.questions.sending') : t('chat.questions.submit'));
+    submitRow.createSpan({ text: this.submitting ? t('chat.questions.sending') : t('chat.questions.submit'), cls: 'claudian-ask-item-label' });
     submitRow.addEventListener('click', () => {
       this.focusedItemIndex = 0;
       this.updateFocusIndicator();
@@ -395,10 +397,10 @@ export class InlineAskUserQuestion {
 
     const cancelRow = actionsEl.createEl('button', { cls: 'claudian-ask-item claudian-ask-action' });
     cancelRow.setAttribute('type', 'button');
-    cancelRow.setAttribute('aria-label', 'Cancel');
+    cancelRow.setAttribute('aria-label', t('common.cancel'));
     cancelRow.disabled = this.submitting;
     if (this.focusedItemIndex === 1) cancelRow.addClass('is-focused');
-    cancelRow.createSpan({ text: 'Cancel', cls: 'claudian-ask-item-label' });
+    cancelRow.createSpan({ text: t('common.cancel'), cls: 'claudian-ask-item-label' });
     cancelRow.addEventListener('click', () => {
       if (this.submitting) return;
       this.focusedItemIndex = 1;
@@ -697,7 +699,7 @@ export class InlineAskUserQuestion {
     }).catch((error: unknown) => {
       if (this.resolved) return;
       this.submitting = false;
-      this.submissionError = error instanceof Error ? error.message : 'Could not send the answer. Please try again.';
+      this.submissionError = error instanceof Error ? error.message : t('chat.questions.failed');
       this.rootEl.setAttribute('aria-busy', 'false');
       this.renderTabContent();
     });

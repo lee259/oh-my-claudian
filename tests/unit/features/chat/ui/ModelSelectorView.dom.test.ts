@@ -5,6 +5,7 @@ import { h, render } from 'preact';
 import { act } from 'preact/test-utils';
 
 import { ModelSelectorView, type ModelSelectorViewProps } from '@/features/chat/ui/ModelSelectorView';
+import { setLocale } from '@/i18n/i18n';
 
 describe('ModelSelectorView browsing', () => {
   let container: HTMLDivElement;
@@ -56,8 +57,21 @@ describe('ModelSelectorView browsing', () => {
   });
 
   afterEach(() => {
+    setLocale('en');
     render(null, container);
     container.remove();
+  });
+
+  it('localizes model browsing controls and empty search results', async () => {
+    setLocale('zh-CN');
+    await act(() => render(h(ModelSelectorView, { ...props }), container));
+    const input = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    expect(input.placeholder).toBe('搜索模型');
+    expect(input.getAttribute('aria-label')).toBe('搜索模型');
+    expect(container.textContent).toContain('更快');
+    await search('missing-model');
+    expect(container.querySelector('.claudian-model-empty')?.textContent).toBe('没有匹配的模型。');
+    expect(props.onModelChange).not.toHaveBeenCalled();
   });
 
   it('opens on the selected provider and only browses when a provider is clicked', async () => {

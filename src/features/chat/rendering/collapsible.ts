@@ -1,3 +1,5 @@
+import { t } from '@/i18n/i18n';
+
 export interface CollapsibleState {
   isExpanded: boolean;
 }
@@ -86,8 +88,7 @@ export function setupCollapsible(
   const updateAriaLabel = (isExpanded: boolean) => {
     const label = typeof baseAriaLabel === 'function' ? baseAriaLabel() : baseAriaLabel;
     if (label) {
-      const action = isExpanded ? 'click to collapse' : 'click to expand';
-      headerEl.setAttribute('aria-label', `${label} - ${action}`);
+      headerEl.setAttribute('aria-label', t(isExpanded ? 'chat.rendering.collapse' : 'chat.rendering.expand', { label }));
     }
   };
 

@@ -1892,11 +1892,11 @@ export class MessageRenderer {
       const otherCount = names.filter(name => !knownNames.has(name)).length;
 
       const labels: string[] = [];
-      if (reads > 0 && searches > 0) labels.push('Explored the project');
-      else if (searches > 0) labels.push('Searched the project');
-      else if (reads > 0) labels.push(`Read ${reads} ${reads === 1 ? 'file' : 'files'}`);
-      if (commands > 0) labels.push(`Ran ${commands} ${commands === 1 ? 'command' : 'commands'}`);
-      if (edits > 0) labels.push(`Edited ${edits} ${edits === 1 ? 'file' : 'files'}`);
+      if (reads > 0 && searches > 0) labels.push(t('chat.activity.explored'));
+      else if (searches > 0) labels.push(t('chat.activity.searched'));
+      else if (reads > 0) labels.push(t(reads === 1 ? 'chat.activity.readOne' : 'chat.activity.readMany', { count: reads }));
+      if (commands > 0) labels.push(t(commands === 1 ? 'chat.activity.ranOne' : 'chat.activity.ranMany', { count: commands }));
+      if (edits > 0) labels.push(t(edits === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: edits }));
       if (otherCount > 0) labels.push(t(otherCount === 1
         ? 'chat.completedWork.actionOne' : 'chat.completedWork.actions', { count: otherCount }).replace(/^\s*·\s*/, ''));
       if (labels.length > 0) return labels.join(' · ');
@@ -1910,11 +1910,11 @@ export class MessageRenderer {
     }
     if (elements.some((element) => element.hasClass('claudian-compact-boundary'))) {
       return elements.find((element) => element.hasClass('claudian-compact-boundary'))
-        ?.textContent?.trim() || 'Conversation compacted';
+        ?.textContent?.trim() || t('chat.activity.compacted');
     }
-    if (kind === 'agent') return 'Agent work';
-    if (kind === 'run') return `Ran ${summary.actionCount} ${summary.actionCount === 1 ? 'command' : 'commands'}`;
-    if (kind === 'edit') return `Edited ${summary.actionCount} ${summary.actionCount === 1 ? 'file' : 'files'}`;
+    if (kind === 'agent') return t('chat.activity.agentWork');
+    if (kind === 'run') return t(summary.actionCount === 1 ? 'chat.activity.ranOne' : 'chat.activity.ranMany', { count: summary.actionCount });
+    if (kind === 'edit') return t(summary.actionCount === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: summary.actionCount });
     return this.getCompletedWorkLabel(undefined, false, summary);
   }
 
@@ -2272,7 +2272,7 @@ export class MessageRenderer {
     const historyId = `claudian-task-notification-${MessageRenderer.nextCompletedWorkId++}`;
     const header = wrapper.createEl('button', {
       cls: 'claudian-work-header',
-      text: 'Task notification',
+      text: t('chat.rendering.taskNotification'),
       attr: { type: 'button', 'aria-expanded': 'false', 'aria-controls': historyId },
     });
     const history = wrapper.createDiv({
@@ -2388,7 +2388,7 @@ export class MessageRenderer {
 
   appendInterruptIndicator(contentEl: HTMLElement): void {
     const textEl = contentEl.createDiv({ cls: 'claudian-text-block' });
-    textEl.createSpan({ cls: 'claudian-interrupted', text: 'Interrupted' });
+    textEl.createSpan({ cls: 'claudian-interrupted', text: t('chat.rendering.interrupted') });
     textEl.appendText(' ');
     textEl.createSpan({
       cls: 'claudian-interrupted-hint',
@@ -2925,7 +2925,7 @@ export class MessageRenderer {
         imageEl.classList.add('claudian-message-image-previewable');
         imageEl.setAttribute('role', 'button');
         imageEl.setAttribute('tabindex', '0');
-        imageEl.setAttribute('aria-label', `Preview ${imageEl.alt || 'image'}`);
+        imageEl.setAttribute('aria-label', t('chat.images.previewNamed', { name: imageEl.alt || t('chat.images.image') }));
 
         imageEl.addEventListener('click', (event) => {
           event.preventDefault();
@@ -2945,7 +2945,7 @@ export class MessageRenderer {
       el.empty();
       el.createDiv({
         cls: 'claudian-render-error',
-        text: 'Failed to render message content.',
+        text: t('chat.rendering.renderFailed'),
       });
     } finally {
       if (isCurrent()) {
@@ -3016,7 +3016,7 @@ export class MessageRenderer {
     const copyBtn = textEl.createEl('button', {
       cls: 'claudian-text-copy-btn',
       attr: {
-        'aria-label': 'Copy message',
+        'aria-label': t('chat.rendering.copyMessage'),
         type: 'button',
       },
     });
@@ -3165,7 +3165,7 @@ export class MessageRenderer {
       attr: { type: 'button' },
     });
     setIcon(copyBtn, 'copy');
-    copyBtn.setAttribute('aria-label', 'Copy message');
+    copyBtn.setAttribute('aria-label', t('chat.rendering.copyMessage'));
 
     let feedbackTimeout: number | null = null;
 

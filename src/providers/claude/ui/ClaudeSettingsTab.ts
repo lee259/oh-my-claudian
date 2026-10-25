@@ -69,7 +69,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         }
         const modelCatalogResult = await claudeWorkspace.refreshModelCatalog?.();
         if (modelCatalogResult?.diagnostics) {
-          new Notice(`Claude Code model refresh failed: ${modelCatalogResult.diagnostics}`);
+          new Notice(t('settings.modelRefreshFailed', { provider: 'Claude Code', error: modelCatalogResult.diagnostics }));
         }
         refreshDefaultModelOptions();
         context.notifyProviderModelOptionsChanged('claude');
@@ -188,8 +188,8 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container).setName(t('settings.models')).setHeading();
 
     new Setting(container)
-      .setName('Default model')
-      .setDesc('Used when a new conversation needs a Claude Code fallback model.')
+      .setName(t('settings.claude.defaultModel'))
+      .setDesc(t('settings.claude.defaultModelDesc'))
       .addDropdown((dropdown) => {
         const populateOptions = (): void => {
           dropdown.selectEl.replaceChildren();
@@ -294,7 +294,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const descP = slashCommandsDesc.createEl('p', { cls: 'setting-item-description' });
     descP.appendText(t('settings.slashCommands.desc') + ' ');
     descP.createEl('a', {
-      text: 'Learn more',
+      text: t('settings.learnMore'),
       href: 'https://code.claude.com/docs/en/skills',
     });
 

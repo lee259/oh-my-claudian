@@ -1,6 +1,8 @@
 import type { App } from 'obsidian';
 import { Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../../../app/settings/ClaudianSettingsStorage';
 import { SESSIONS_PATH, SessionStorage } from '../../../core/bootstrap/SessionStorage';
 import { CLAUDIAN_STORAGE_PATH } from '../../../core/bootstrap/storagePaths';
@@ -143,7 +145,7 @@ export class StorageService {
       data.tabManagerState = state;
       await this.plugin.saveData(data);
     } catch {
-      new Notice('Failed to save tab layout');
+      new Notice(t('settings.saveTabLayoutFailed'));
     }
   }
 }

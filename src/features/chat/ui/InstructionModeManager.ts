@@ -1,3 +1,4 @@
+import { t } from '@/i18n/i18n';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 
 export interface InstructionModeCallbacks {
@@ -10,7 +11,6 @@ export interface InstructionModeState {
   rawInstruction: string;
 }
 
-const INSTRUCTION_MODE_PLACEHOLDER = '# Save in custom system prompt';
 
 export class InstructionModeManager {
   private inputEl: ComposerInputElement;
@@ -67,7 +67,7 @@ export class InstructionModeManager {
 
     wrapper.addClass('claudian-input-instruction-mode');
     this.state = { active: true, rawInstruction: '' };
-    this.inputEl.placeholder = INSTRUCTION_MODE_PLACEHOLDER;
+    this.inputEl.placeholder = t('chat.instructions.placeholder');
     return true;
   }
 

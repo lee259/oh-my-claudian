@@ -6,6 +6,7 @@ import type { ProviderApprovalInteractionRequest } from '@/core/execution/Provid
 import type { ToolCallInfo } from '@/core/types';
 import { InputController, type InputControllerDeps } from '@/features/chat/controllers/InputController';
 import { ChatState } from '@/features/chat/state/ChatState';
+import { setLocale } from '@/i18n/i18n';
 
 HTMLElement.prototype.empty = function (): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function (text: string): void { this.textContent = text; };
@@ -41,6 +42,23 @@ const approval: ProviderApprovalInteractionRequest = {
 };
 
 async function tick() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
+
+it.each([['拒绝', 'deny'], ['允许一次', 'allow'], ['始终允许', 'allow-always']])(
+  'localizes the default approval %s without changing its decision', async (label, decision) => {
+    setLocale('zh-CN');
+    const f = fixture();
+    try {
+      const result = f.state.interactions.requestApproval(approval, new AbortController().signal);
+      expect(f.parent.textContent).toContain('需要权限');
+      expect(f.parent.textContent).toContain('List notes');
+      const button = [...f.parent.querySelectorAll<HTMLElement>('.claudian-ask-item')]
+        .find(el => el.textContent?.includes(label));
+      expect(button).toBeDefined();
+      button!.click();
+      await expect(result).resolves.toEqual({ interactionId: 'approval-1', decision });
+    } finally { f.cleanup(); setLocale('en'); }
+  },
+);
 
 it('keeps async user-message questions pending without a mounted composer', async () => {
   const f = fixture(false);

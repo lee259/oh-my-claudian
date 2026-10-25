@@ -367,7 +367,7 @@ export class StatusPanel {
     // Label
     this.todoHeaderEl.createSpan({
       cls: 'claudian-status-panel-label',
-      text: `Tasks (${completedCount}/${totalCount})`,
+      text: t('chat.rendering.tasks', { completed: completedCount, total: totalCount }),
     });
 
     // Collapsed-only elements: status indicator and current task preview

@@ -121,7 +121,7 @@ class CodexSubagentModal extends Modal {
       .addText(text => {
         this._descInput = text.inputEl;
         text.setValue(this.existing?.description ?? '')
-          .setPlaceholder('Reviews code for correctness and security');
+          .setPlaceholder(t('settings.codexSubagents.modal.descriptionPlaceholder'));
       });
 
     // Advanced options
@@ -145,7 +145,7 @@ class CodexSubagentModal extends Modal {
       .addText(text => {
         this._modelInput = text.inputEl;
         text.setValue(this.existing?.model ?? '')
-          .setPlaceholder('Model ID');
+          .setPlaceholder(t('settings.codexSubagents.modal.modelPlaceholder'));
       });
 
     new Setting(details)

@@ -1,5 +1,7 @@
 import { type App, Modal, Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import type {
   PiExtensionUiConfirmRequest,
   PiExtensionUiEditorRequest,
@@ -177,7 +179,7 @@ class PiSelectModal extends PiExtensionModal<{ cancelled?: boolean; value?: stri
   }
 
   private renderCancelButton(): void {
-    const cancelButton = this.contentEl.createEl('button', { text: 'Cancel' });
+    const cancelButton = this.contentEl.createEl('button', { text: t('common.cancel') });
     cancelButton.addEventListener('click', () => {
       this.finish({ cancelled: true });
       this.close();
@@ -193,12 +195,12 @@ class PiConfirmModal extends PiExtensionModal<{ cancelled?: boolean; confirmed?:
   protected render(): void {
     this.renderHeader('Pi extension');
     const actionsEl = this.contentEl.createDiv({ cls: 'claudian-pi-extension-actions' });
-    const confirmButton = actionsEl.createEl('button', { text: 'Confirm' });
+    const confirmButton = actionsEl.createEl('button', { text: t('common.confirm') });
     confirmButton.addEventListener('click', () => {
       this.finish({ confirmed: true });
       this.close();
     });
-    const cancelButton = actionsEl.createEl('button', { text: 'Cancel' });
+    const cancelButton = actionsEl.createEl('button', { text: t('common.cancel') });
     cancelButton.addEventListener('click', () => {
       this.finish({ confirmed: false });
       this.close();
@@ -236,12 +238,12 @@ class PiTextModal extends PiExtensionModal<{ cancelled?: boolean; value?: string
     }
 
     const actionsEl = this.contentEl.createDiv({ cls: 'claudian-pi-extension-actions' });
-    const submitButton = actionsEl.createEl('button', { text: 'Submit' });
+    const submitButton = actionsEl.createEl('button', { text: t('common.submit') });
     submitButton.addEventListener('click', () => {
       this.finish({ value: input.value });
       this.close();
     });
-    const cancelButton = actionsEl.createEl('button', { text: 'Cancel' });
+    const cancelButton = actionsEl.createEl('button', { text: t('common.cancel') });
     cancelButton.addEventListener('click', () => {
       this.finish({ cancelled: true });
       this.close();

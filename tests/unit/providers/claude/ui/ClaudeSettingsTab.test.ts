@@ -579,7 +579,7 @@ describe('ClaudeSettingsTab', () => {
 
     claudeSettingsTabRenderer.render(createContainer(), context);
 
-    const setting = findSetting('Default model');
+    const setting = findSetting('settings.claude.defaultModel');
     const dropdown = setting.dropdownComponents[0];
     expect(dropdown.value).toBe('claude-code/claude-opus-4-6');
     expect(dropdown.options).toEqual(expect.arrayContaining([
@@ -604,7 +604,7 @@ describe('ClaudeSettingsTab', () => {
 
     claudeSettingsTabRenderer.render(createContainer(), context);
 
-    const dropdown = findSetting('Default model').dropdownComponents[0];
+    const dropdown = findSetting('settings.claude.defaultModel').dropdownComponents[0];
     expect(dropdown.value).toBe('claude-code/claude-opus-enterprise');
 
     await dropdown.onChangeCallback?.('claude-code/claude-sonnet-enterprise');

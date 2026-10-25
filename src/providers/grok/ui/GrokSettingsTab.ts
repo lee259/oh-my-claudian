@@ -56,7 +56,7 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const refreshModelCatalog = async (): Promise<'empty' | 'failed' | 'loaded'> => {
       const result = await workspace.refreshModelCatalog();
       if (result.diagnostics) {
-        new Notice(`Grok Build model discovery failed: ${result.diagnostics}`);
+        new Notice(t('settings.modelDiscoveryFailed', { provider: 'Grok Build', error: result.diagnostics }));
         return 'failed';
       }
       modelWarning.context.notifyProviderModelOptionsChanged(GROK_PROVIDER_ID);
@@ -175,13 +175,13 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
 
-    new Setting(container).setName('Models').setHeading();
+    new Setting(container).setName(t('settings.models')).setHeading();
     renderGrokModelPicker(container, modelWarning.context, settingsBag, refreshModelCatalog);
 
     new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
     context.renderAgentSkillSettings(container, GROK_PROVIDER_ID);
 
-    new Setting(container).setName('Commands').setHeading();
+    new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, GROK_PROVIDER_ID, {
       name: 'Hidden Grok Build commands',
       desc: 'Hide runtime commands advertised by Grok Build from the command dropdown. Enter names without the leading slash, one per line.',

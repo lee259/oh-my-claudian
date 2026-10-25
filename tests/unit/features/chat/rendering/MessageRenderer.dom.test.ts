@@ -11,6 +11,7 @@ import { projectTranscript } from '@/core/transcript/TranscriptProjection';
 import type { ChatMessage, ContentBlock } from '@/core/types';
 import { MessageRenderer } from '@/features/chat/rendering/MessageRenderer';
 import type { FeatureHost } from '@/features/FeatureHost';
+import { setLocale } from '@/i18n/i18n';
 
 HTMLElement.prototype.empty = function empty(): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function setText(text: string): void { this.textContent = text; };
@@ -55,7 +56,21 @@ function createTurn(
 }
 
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
-  afterEach(() => document.body.replaceChildren());
+  afterEach(() => { setLocale('en'); document.body.replaceChildren(); });
+
+  it('localizes the activity summary while preserving its collapse behavior', () => {
+    setLocale('zh-CN');
+    const { renderer, component, content, tool, sync } = createTurn('omp');
+    try {
+      tool('first', 'running'); tool('second', 'running');
+      sync();
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('执行了 2 条命令');
+      const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
+      const expanded = header.getAttribute('aria-expanded');
+      header.click();
+      expect(header.getAttribute('aria-expanded')).not.toBe(expanded);
+    } finally { renderer.dispose(); component.unload(); }
+  });
 
   it.each(['claude', 'omp'] as const)('keeps a %s disclosure clickable while thinking tokens arrive', (providerId) => {
     const { renderer, component, messagesEl, user, assistant, tool } = createTurn(providerId);

@@ -30,6 +30,7 @@ jest.mock('@/shared/settings/McpTestModal', () => ({
 }));
 
 import type { ManagedMcpServer } from '@/core/types';
+import { setLocale } from '@/i18n/i18n';
 import {
   destroyMcpSettingsManagers,
   McpSettingsManager,
@@ -38,6 +39,23 @@ import {
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('McpSettingsManager settings view', () => {
+  it('localizes the empty list and add menu', async () => {
+    setLocale('zh-CN');
+    const container = document.createElement('div');
+    new McpSettingsManager(container, {
+      app: {} as never,
+      mcpStorage: { load: async () => [], save: async () => {} },
+      broadcastMcpReload: async () => {},
+    });
+    try {
+      await tick();
+      const button = container.querySelector<HTMLButtonElement>('[aria-label="添加"]');
+      expect(button).not.toBeNull();
+      button!.click();
+      expect(container.textContent).toContain('粘贴配置');
+      expect(container.textContent).toContain('尚未配置 MCP 服务器');
+    } finally { destroyMcpSettingsManagers(container); setLocale('en'); }
+  });
   it('opens the add menu and closes it with Escape', async () => {
     const container = document.createElement('div');
     new McpSettingsManager(container, {

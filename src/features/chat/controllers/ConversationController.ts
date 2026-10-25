@@ -996,7 +996,7 @@ export class ConversationController {
     const firstUser = state.messages.find(item => item.role === 'user' && !item.isInterrupt && !item.isRebuiltContext);
     if (firstUser === message) return;
     if (!message.userMessageId) {
-      new Notice('Branch navigation is available after this prompt is saved.');
+      new Notice(t('chat.errors.branchAfterSave'));
       return;
     }
     if (branchMessageId) {
@@ -1006,7 +1006,7 @@ export class ConversationController {
     const inputEl = this.deps.getInputEl();
     const images = this.deps.getImageContextManager()?.getAttachedImages() ?? [];
     if (inputEl.value.trim() || images.length > 0) {
-      new Notice('Save or clear the current draft before branching.');
+      new Notice(t('chat.errors.branchDraft'));
       return;
     }
     this.branchPreview = {
@@ -1087,7 +1087,7 @@ export class ConversationController {
           this.updateWelcomeVisibility();
           try { await this.save(); } catch (error) {
             this.branchRecoveryRequired = true;
-            new Notice(`Could not save branch navigation: ${String(error)}`);
+            new Notice(t('common.errorDetails', { message: t('chat.errors.saveBranch'), error: String(error) }));
             return 'failed';
           }
         }
@@ -1103,7 +1103,7 @@ export class ConversationController {
       return 'failed';
     } catch (error) {
       this.branchRecoveryRequired = true;
-      new Notice(`Could not recover conversation branch: ${String(error)}`);
+      new Notice(t('common.errorDetails', { message: t('chat.errors.recoverBranch'), error: String(error) }));
       return 'failed';
     } finally {
       state.isRewinding = false;

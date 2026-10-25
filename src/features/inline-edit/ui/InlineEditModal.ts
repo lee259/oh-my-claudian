@@ -4,6 +4,8 @@ import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { App, Component, Editor, MarkdownView } from 'obsidian';
 import { Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import { createCatalogCommandDiscoveryStore } from '../../../core/providers/commands/catalogCommandDiscovery';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import { resolveConversationModel } from '../../../core/providers/conversationModel';
@@ -326,7 +328,7 @@ export class InlineEditModal {
     }
 
     if (!editorView) {
-      new Notice('Inline edit unavailable: could not access the active editor. Try reopening the note.');
+      new Notice(t('inlineEdit.editorUnavailable'));
       return { decision: 'reject' };
     }
 
@@ -338,7 +340,7 @@ export class InlineEditModal {
         'inline-edit',
       );
     } catch {
-      new Notice(`Inline edit unavailable: failed to initialize the ${providerContext.providerId} provider.`);
+      new Notice(t('inlineEdit.providerFailed', { provider: providerContext.providerId }));
       return { decision: 'reject' };
     }
 
@@ -411,7 +413,7 @@ export class InlineEditSession {
     this.resolvedProviderId = providerId;
     this.mentionDataProvider = new VaultMentionDataProvider(this.app, {
       onFileLoadError: () => {
-        new Notice('Failed to load vault files. Vault @-mentions may be unavailable.');
+        new Notice(t('inlineEdit.filesUnavailable'));
       },
     });
     this.mentionDataProvider.initializeInBackground();
@@ -532,7 +534,7 @@ export class InlineEditSession {
       cls: 'claudian-inline-input',
       attr: {
         type: 'text',
-        placeholder: this.mode === 'cursor' ? 'Insert instructions...' : 'Edit instructions...',
+        placeholder: this.mode === 'cursor' ? t('inlineEdit.insert') : t('inlineEdit.edit'),
         spellcheck: 'false',
       },
     });
@@ -591,7 +593,7 @@ export class InlineEditSession {
 
     const actionsEl = previewEl.createDiv({ cls: 'claudian-inline-preview-actions' });
     actionsEl.setAttribute('role', 'toolbar');
-    actionsEl.setAttribute('aria-label', 'Inline edit actions');
+    actionsEl.setAttribute('aria-label', t('inlineEdit.actions'));
     actionsEl.appendChild(this.createPreviewActionButton('Reject', 'reject', () => this.reject()));
     actionsEl.appendChild(this.createPreviewActionButton('Accept', 'accept', () => this.accept()));
 
@@ -610,7 +612,7 @@ export class InlineEditSession {
       attr: {
         type: 'button',
         'aria-label': `${label} inline edit`,
-        title: variant === 'accept' ? 'Accept (enter)' : 'Reject (esc)',
+        title: variant === 'accept' ? t('inlineEdit.accept') : t('inlineEdit.reject'),
       },
     });
     button.addEventListener('click', (event: MouseEvent) => {
@@ -708,7 +710,7 @@ export class InlineEditSession {
       }
     } catch (error) {
       if (this.isGenerationActive(generation)) {
-        this.handleError(error instanceof Error ? error.message : 'Error - try again');
+        this.handleError(error instanceof Error ? error.message : t('inlineEdit.retry'));
       }
       return;
     } finally {
@@ -737,17 +739,17 @@ export class InlineEditSession {
         this.isConversing = true;
         this.inputEl.disabled = false;
         this.inputEl.value = '';
-        this.inputEl.placeholder = 'Reply to continue...';
+        this.inputEl.placeholder = t('inlineEdit.reply');
         this.inputEl.focus();
       } else {
-        this.handleError('No response from agent');
+        this.handleError(t('inlineEdit.noResponse'));
       }
     } else {
       if (result.resetRequired) {
         this.isConversing = false;
         this.inlineEditService.resetConversation();
       }
-      this.handleError(result.error || 'Error - try again');
+      this.handleError(result.error || t('inlineEdit.retry'));
     }
   }
 
@@ -944,7 +946,7 @@ export class InlineEditSession {
     if (this.settled) {
       return;
     }
-    new Notice('Inline edit was not applied because the source document or selection changed.');
+    new Notice(t('inlineEdit.sourceChanged'));
     this.settled = true;
     this.cleanup();
     this.focusEditor();
@@ -997,7 +999,7 @@ export class InlineEditSession {
       const vaultPath = getVaultPath(this.app);
       return normalizePathForVaultUtil(rawPath, vaultPath);
     } catch {
-      new Notice('Failed to attach file: invalid path');
+      new Notice(t('inlineEdit.invalidPath'));
       return null;
     }
   }

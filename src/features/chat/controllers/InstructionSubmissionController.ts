@@ -1,5 +1,7 @@
 import { Notice } from 'obsidian';
 
+import { t } from '@/i18n/i18n';
+
 import { stringifyDiagnosticError } from '../../../core/providers/ProviderDiagnostics';
 import type { InstructionRefineService } from '../../../core/providers/types';
 import { InstructionModal } from '../../../shared/modals/InstructionConfirmModal';
@@ -24,7 +26,7 @@ export class InstructionSubmissionController {
     if (this.deps.ensureExecutionInitialized) {
       const ready = await this.deps.ensureExecutionInitialized();
       if (!ready) {
-        new Notice('Failed to initialize instruction refinement. Please try again.');
+        new Notice(t('chat.instructions.initializeFailed'));
         return;
       }
     }
@@ -47,7 +49,7 @@ export class InstructionSubmissionController {
                 finalInstruction,
               );
             });
-            new Notice('Instruction added to custom system prompt');
+            new Notice(t('chat.instructions.added'));
             instructionModeManager?.clear();
           })();
         },
@@ -85,7 +87,7 @@ export class InstructionSubmissionController {
     } catch (error) {
       instructionRefineService.cancel();
       const errorMessage = stringifyDiagnosticError(error);
-      new Notice(`Error: ${errorMessage}`);
+      new Notice(t('common.errorDetails', { message: t('common.error'), error: errorMessage }));
       modal?.showError(errorMessage);
       instructionModeManager?.clear();
     }
@@ -117,8 +119,8 @@ export class InstructionSubmissionController {
       modal?.showConfirmation(result.refinedInstruction);
     } else {
       instructionRefineService.cancel();
-      new Notice('No instruction received');
-      modal?.showError('No instruction received');
+      new Notice(t('chat.instructions.empty'));
+      modal?.showError(t('chat.instructions.empty'));
       instructionModeManager?.clear();
     }
   }

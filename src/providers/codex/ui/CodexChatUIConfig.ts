@@ -47,7 +47,7 @@ const CODEX_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   activeValue: 'yolo',
   activeLabel: t('chat.composer.modeFullAccess'),
   planValue: 'plan',
-  planLabel: 'Plan',
+  planLabel: t('chat.composer.plan'),
 };
 
 const DEFAULT_SERVICE_TIER_LABEL = 'Standard';
@@ -206,7 +206,7 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       },
       {
         value: 'plan',
-        label: 'Plan',
+        label: t('chat.composer.plan'),
         description: t('chat.composer.modePlanGenericDescription'),
         icon: 'clipboard-list',
         isPlanMode: true,

@@ -1,6 +1,7 @@
 import { type App, Notice } from 'obsidian';
 import * as path from 'path';
 
+import { t } from '@/i18n/i18n';
 import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 import { normalizeImageMediaType } from '@/utils/imageAttachment';
 
@@ -126,7 +127,7 @@ export class ImageContextManager {
     line.setAttribute('y1', '3');
     line.setAttribute('x2', '12');
     line.setAttribute('y2', '15');
-    dropContent.createSpan({ text: 'Drop image here' });
+    dropContent.createSpan({ text: t('chat.composer.dropImage') });
 
     const dropZone = inputWrapper;
 
@@ -307,9 +308,9 @@ export class ImageContextManager {
     this.contextTray.setItems('images', images.map(([id, image], index) => ({
       id,
       kind: 'image' as const,
-      label: images.length === 1 ? 'Image' : `Image ${index + 1}`,
+      label: images.length === 1 ? t('chat.images.image') : t('chat.images.numbered', { count: index + 1 }),
       title: `${image.name} · ${this.formatSize(image.size)}`,
-      ariaLabel: `Image attachment: ${image.name}`,
+      ariaLabel: t('chat.images.attachment', { name: image.name }),
       onActivate: () => this.showFullImage(image),
       onRemove: () => {
         this.attachedImages.delete(id);
