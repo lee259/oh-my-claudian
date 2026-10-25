@@ -32,6 +32,11 @@
   border-radius: 0 0 16px 16px;
 }
 
+/* Keep the retained chat in the overlay's flex layout across Preact updates. */
+.claudian-zen-surface-slot {
+  display: contents;
+}
+
 .claudian-zen .claudian-chat-panel {
   overflow: visible;
 }
