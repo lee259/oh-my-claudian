@@ -113,6 +113,22 @@ describe('Claude subagent save and reopen', () => {
       .toEqual({ [taskId]: running });
   });
 
+  it('removes MCP image bytes from legacy cached reports and tools while preserving the native input', () => {
+    const full = child('sync');
+    full.result = JSON.stringify([{ type: 'image', mimeType: 'image/png', data: 'native-image-bytes' }]);
+    full.toolCalls = [{ id: 'image-tool', name: 'mcp__images__read', input: {}, status: 'completed', result: full.result }];
+    const saved = new ClaudeConversationHistoryService().buildPersistedProviderState(
+      conversation({ subagentData: { [taskId]: full } }), options(),
+    );
+    const persisted = (saved?.subagentData as Record<string, SubagentInfo>)[taskId];
+    const expected = JSON.stringify([{ type: 'image', mimeType: 'image/png', data: '' }]);
+
+    expect(persisted.result).toBe(expected);
+    expect(persisted.toolCalls[0].result).toBe(expected);
+    expect(full.result).toContain('native-image-bytes');
+    expect(full.toolCalls[0].result).toContain('native-image-bytes');
+  });
+
   it('uses the native toolUseId index for legacy records without an agentId', () => {
     const { sidecar } = nativeFiles('sync');
     fs.writeFileSync(path.join(sidecar, 'agent-' + agentId + '.meta.json'), JSON.stringify({ toolUseId: taskId }));
