@@ -202,6 +202,28 @@ describe('parsePathEntries', () => {
 });
 
 describe('translateMsysPath', () => {
+  it.each(['/c', '/c/', '/D', '/D/'])('preserves the absolute Windows drive root in %s', value => {
+    const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    try {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      const translated = translateMsysPath(value);
+      expect(translated).toBe(`${value[1].toUpperCase()}:\\`);
+      expect(path.win32.isAbsolute(translated)).toBe(true);
+    } finally {
+      Object.defineProperty(process, 'platform', original);
+    }
+  });
+
+  it('preserves a POSIX one-letter directory on non-Windows hosts', () => {
+    const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    try {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      expect(translateMsysPath('/c')).toBe('/c');
+    } finally {
+      Object.defineProperty(process, 'platform', original);
+    }
+  });
+
   if (!isWindows) {
     it('returns value unchanged on non-Windows', () => {
       expect(translateMsysPath('/c/Users/test')).toBe('/c/Users/test');
