@@ -67,6 +67,57 @@ describe('ImageContextManager', () => {
     manager = new ImageContextManager(container, inputEl, callbacks);
   });
 
+  it.each(['', 'image/png'])('attaches a PNG through the drop event with MIME %s', async mime => {
+    const file = { name: 'probe.png', type: mime, size: 4,
+      arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer };
+    const wrapper = container.querySelector('.claudian-input-wrapper');
+    wrapper.dispatchEvent({ type: 'drop', preventDefault: jest.fn(), stopPropagation: jest.fn(),
+      dataTransfer: { files: [file] } });
+    await new Promise(resolve => setImmediate(resolve));
+    try { expect(manager.getAttachedImages()).toHaveLength(1); }
+    finally { manager.destroy(); }
+  });
+
+  it.each([
+    ['probe.png', 'text/plain'], ['probe.bmp', ''],
+  ])('rejects an unsupported dropped image combination: %s / %s', async (name, type) => {
+    const file = { name, type, size: 4, arrayBuffer: jest.fn() };
+    container.querySelector('.claudian-input-wrapper').dispatchEvent({
+      type: 'drop', preventDefault: jest.fn(), stopPropagation: jest.fn(), dataTransfer: { files: [file] },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(manager.getAttachedImages()).toHaveLength(0);
+    manager.destroy();
+  });
+
+  it('keeps MIME-less drop reads disabled for an unsupported provider', async () => {
+    manager.setEnabled(false);
+    const file = { name: 'probe.png', type: '', size: 4, arrayBuffer: jest.fn() };
+    container.querySelector('.claudian-input-wrapper').dispatchEvent({
+      type: 'drop', preventDefault: jest.fn(), stopPropagation: jest.fn(), dataTransfer: { files: [file] },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(manager.getAttachedImages()).toHaveLength(0);
+    manager.destroy();
+  });
+
+  it('does not restore a MIME-less drop after the user clears images during a read', async () => {
+    let release!: (value: ArrayBuffer) => void;
+    const pending = new Promise<ArrayBuffer>(resolve => { release = resolve; });
+    const file = { name: 'probe.png', type: '', size: 4, arrayBuffer: jest.fn(() => pending) };
+    container.querySelector('.claudian-input-wrapper').dispatchEvent({
+      type: 'drop', preventDefault: jest.fn(), stopPropagation: jest.fn(), dataTransfer: { files: [file] },
+    });
+    expect(file.arrayBuffer).toHaveBeenCalledTimes(1);
+    manager.clearImages();
+    release(new ArrayBuffer(4));
+    await new Promise(resolve => setImmediate(resolve));
+    expect(manager.getAttachedImages()).toHaveLength(0);
+    manager.destroy();
+  });
+
   describe('initial state', () => {
     it('should start with no images', () => {
       expect(manager.hasImages()).toBe(false);
