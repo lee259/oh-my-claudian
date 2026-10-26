@@ -403,7 +403,7 @@ export function processFileLinks(app: App, container: HTMLElement): void {
 
   // Wikilinks in inline code aren't rendered by Obsidian's MarkdownRenderer
   container.querySelectorAll('code').forEach((codeEl) => {
-    if (codeEl.parentElement?.tagName === 'PRE') return;
+    if (codeEl.closest('pre, a, .claudian-file-link, .internal-link')) return;
 
     const text = codeEl.textContent;
     if (!text || !text.includes('[[')) return;
