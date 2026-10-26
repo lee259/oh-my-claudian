@@ -45,7 +45,10 @@ export class ZenPanelDock {
     const top = Math.max(8, Math.min(g.maxY, g.homeY + (this.position?.y ?? 0) * g.height));
     Object.assign(this.root.style, { left: `${left}px`, top: `${top}px`, bottom: 'auto', transform: 'none' });
     const host = this.host.getBoundingClientRect();
-    const anchor = (this.root.querySelector('.claudian-input-toolbar') ?? this.root).getBoundingClientRect();
+    // Retained inactive chats also contain toolbars, but have no rendered geometry.
+    const anchor = Array.from(this.root.querySelectorAll('.claudian-input-toolbar'))
+      .map(toolbar => toolbar.getBoundingClientRect())
+      .find(rect => rect.width > 0 && rect.height > 0) ?? this.root.getBoundingClientRect();
     const above = anchor.top - host.top;
     const below = host.bottom - anchor.bottom;
     this.root.classList.toggle('opens-below', below > above);
