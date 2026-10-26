@@ -4055,6 +4055,7 @@ describe('MessageRenderer', () => {
       renderer.addTextCopyButton(textEl, 'markdown content');
 
       const copyBtn = textEl.children[0];
+      Object.defineProperty(copyBtn.ownerDocument.defaultView, 'navigator', { get: () => globalThis.navigator });
       expect(copyBtn.hasClass('claudian-text-copy-btn')).toBe(true);
 
       // Simulate click
@@ -4082,6 +4083,7 @@ describe('MessageRenderer', () => {
       renderer.addTextCopyButton(textEl, 'content');
 
       const copyBtn = textEl.children[0];
+      Object.defineProperty(copyBtn.ownerDocument.defaultView, 'navigator', { get: () => globalThis.navigator });
       const clickHandlers = copyBtn._eventListeners.get('click');
 
       // Should not throw
@@ -4517,6 +4519,7 @@ describe('MessageRenderer', () => {
       renderer.addTextCopyButton(textEl, 'content to copy');
 
       const copyBtn = textEl.children[0];
+      Object.defineProperty(copyBtn.ownerDocument.defaultView, 'navigator', { get: () => globalThis.navigator });
       const clickHandlers = copyBtn._eventListeners.get('click');
       expect(clickHandlers).toBeDefined();
 
@@ -4541,6 +4544,7 @@ describe('MessageRenderer', () => {
       renderer.addTextCopyButton(textEl, 'content to copy');
 
       const copyBtn = textEl.children[0];
+      Object.defineProperty(copyBtn.ownerDocument.defaultView, 'navigator', { get: () => globalThis.navigator });
       const originalInnerHTML = copyBtn.innerHTML;
       const clickHandlers = copyBtn._eventListeners.get('click');
 
