@@ -136,7 +136,7 @@ interface PersistedMcpToolCallPayload {
   status?: string;
   arguments?: string | Record<string, unknown>;
   result?: { content?: Array<{ type?: string; text?: string }> } | null;
-  error?: string | null;
+  error?: { message: string } | string | null;
   duration_ms?: number | null;
 }
 

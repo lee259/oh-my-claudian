@@ -14,6 +14,7 @@ import {
   formatCodexWebSearchResults,
   isCodexInternalToolCall,
   isCodexToolOutputError,
+  normalizeCodexMcpToolState,
   normalizeCodexToolCall,
   normalizeCodexToolInput,
   normalizeCodexToolName,
@@ -1789,24 +1790,12 @@ export class CodexNotificationRouter {
   }
 
   private emitToolResultFromMcp(item: McpToolCallItem): void {
-    let content = '';
-    if (item.error) {
-      content = item.error;
-    } else if (item.result?.content) {
-      content = item.result.content
-        .map(c => c.text ?? '')
-        .filter(Boolean)
-        .join('\n');
-    }
-    if (!content) {
-      content = item.status === 'completed' ? 'Completed' : 'Failed';
-    }
-
+    const state = normalizeCodexMcpToolState(item.status, item.result, item.error);
     this.emit({
       type: 'tool_result',
       id: item.id,
-      content,
-      isError: item.status === 'failed' || item.status === 'error',
+      content: state.result ?? 'Failed',
+      isError: state.isError,
     });
   }
 
