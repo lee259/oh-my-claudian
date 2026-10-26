@@ -14,6 +14,8 @@ export function structuredPatchToDiffLines(hunks: StructuredPatchHunk[]): DiffLi
     let newLineNum = hunk.newStart;
 
     for (const line of hunk.lines) {
+      // Backslash-prefixed unified diff lines describe metadata, not source lines.
+      if (line.startsWith('\\')) continue;
       const prefix = line[0];
       const text = line.slice(1);
 
