@@ -360,7 +360,7 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
-    it('shows only slash command entries on /', async () => {
+    it('shows native skills alongside slash command entries on /', async () => {
       const getProviderEntries = jest.fn().mockResolvedValue([CODEX_COMPACT_ENTRY, ...CODEX_ENTRIES]);
       const dropdown = new SlashCommandDropdown(
         containerEl,
@@ -380,8 +380,25 @@ describe('SlashCommandDropdown - provider catalog', () => {
       const names = getRenderedCommandNames(containerEl);
       expect(names).toContain('/clear');
       expect(names).toContain('/compact');
-      expect(names).not.toContain('$analyze');
+      expect(names).toContain('$analyze');
 
+      dropdown.destroy();
+    });
+
+    it('finds a native skill from slash search and inserts its native prefix', async () => {
+      const dropdown = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        providerConfig: CODEX_CONFIG,
+        providerDiscovery: createEntryDiscovery(async () => CODEX_ENTRIES),
+      });
+      inputEl.value = '/analyze';
+      inputEl.selectionStart = inputEl.value.length;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(getRenderedCommandNames(containerEl)).toContain('$analyze');
+      dropdown.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+      expect(inputEl.value).toBe('$analyze ');
+      expect(callbacks.onSelect).toHaveBeenCalledWith(expect.objectContaining({ name: 'analyze', kind: 'skill' }));
       dropdown.destroy();
     });
 
@@ -411,7 +428,25 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
-    it('filters entries by the active trigger before deduplicating names', async () => {
+    it('keeps a skill whose native invocation differs from a built-in with the same name', async () => {
+      const dropdown = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        providerConfig: CODEX_CONFIG,
+        providerDiscovery: createEntryDiscovery(async () => [{ ...CODEX_ENTRIES[0], name: 'clear' }]),
+      });
+      inputEl.value = '/clear';
+      inputEl.selectionStart = inputEl.value.length;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(getRenderedCommandNames(containerEl)).toEqual(['/clear', '$clear']);
+      dropdown.handleKeydown({ key: 'ArrowDown', preventDefault: jest.fn() } as any);
+      dropdown.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+      expect(inputEl.value).toBe('$clear ');
+      expect(dropdown.resolveCommandKind('$clear', true)).toBe('skill');
+      dropdown.destroy();
+    });
+
+    it('keeps distinct native prefixes in slash discovery and filters the skill-only trigger', async () => {
       const command: ProviderCommandEntry = {
         ...CODEX_ENTRIES[0],
         id: 'command-review',
@@ -440,7 +475,7 @@ describe('SlashCommandDropdown - provider catalog', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(getRenderedCommandNames(containerEl)).toContain('/review');
-      expect(getRenderedCommandNames(containerEl)).not.toContain('$review');
+      expect(getRenderedCommandNames(containerEl)).toContain('$review');
 
       inputEl.value = '$';
       inputEl.selectionStart = 1;
@@ -714,6 +749,10 @@ describe('SlashCommandDropdown - provider catalog', () => {
       ['grok', ['/'], 'claudian-v2-shared', '/'],
       ['pi', ['/'], 'skill:claudian-v2-shared', '/'],
       ['opencode', ['/'], 'claudian-v2-shared', '/'],
+      ['claude', ['/'], 'claudian-v2-shared', '/'],
+      ['cursor', ['/'], 'claudian-v2-shared', '/'],
+      ['omp', ['/'], 'claudian-v2-shared', '/'],
+      ['deepseek', ['/'], 'claudian-v2-shared', '/'],
     ] as const)(
       'settles discovery and renders every %s protocol entry before a prompt',
       async (providerId, triggerChars, commandName, displayPrefix) => {

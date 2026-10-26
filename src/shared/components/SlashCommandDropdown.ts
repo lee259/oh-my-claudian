@@ -368,15 +368,15 @@ export class SlashCommandDropdown {
   }
 
   private buildItemList(includeBuiltIns: boolean): DropdownItem[] {
-    const seenNames = new Set<string>();
+    const seenInvocations = new Set<string>();
     const items: DropdownItem[] = [];
 
     if (includeBuiltIns) {
       const builtIns = getBuiltInCommandsForDropdown(this.providerId ?? undefined);
       for (const cmd of builtIns) {
-        const nameLower = cmd.name.toLowerCase();
-        if (!seenNames.has(nameLower)) {
-          seenNames.add(nameLower);
+        const invocation = `/${cmd.name.toLowerCase()}`;
+        if (!seenInvocations.has(invocation)) {
+          seenInvocations.add(invocation);
           items.push({
             name: cmd.name,
             description: cmd.description,
@@ -392,13 +392,15 @@ export class SlashCommandDropdown {
     }
 
     for (const entry of this.cachedProviderEntries.filter(
-      entry => entry.displayPrefix === this.activeTriggerChar,
+      entry => entry.displayPrefix === this.activeTriggerChar
+        || (this.activeTriggerChar === '/' && entry.kind === 'skill'),
     )) {
       const nameLower = entry.name.toLowerCase();
-      if (seenNames.has(nameLower) || this.hiddenCommands.has(nameLower)) {
+      const invocation = `${entry.insertPrefix}${nameLower}`;
+      if (seenInvocations.has(invocation) || this.hiddenCommands.has(nameLower)) {
         continue;
       }
-      seenNames.add(nameLower);
+      seenInvocations.add(invocation);
       items.push({
         name: entry.name,
         description: entry.description,
