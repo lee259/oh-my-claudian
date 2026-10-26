@@ -1,6 +1,6 @@
 /**
  * Extracts the final textual result from subagent JSONL output.
- * Prefers the latest assistant text block and falls back to top-level result.
+ * Prefers all visible text blocks in the latest assistant message and falls back to top-level result.
  */
 export function extractFinalResultFromSubagentJsonl(content: string): string | null {
   const collector = createSubagentFinalResultCollector();
@@ -37,6 +37,7 @@ export function createSubagentFinalResultCollector(): { addLine(line: string): v
       return;
     }
 
+    const messageText: string[] = [];
     for (const blockRaw of record.message.content) {
       if (!blockRaw || typeof blockRaw !== 'object') {
         continue;
@@ -44,9 +45,10 @@ export function createSubagentFinalResultCollector(): { addLine(line: string): v
 
       const block = blockRaw as { type?: unknown; text?: unknown };
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) {
-        lastAssistantText = block.text.trim();
+        messageText.push(block.text.trim());
       }
     }
+    if (messageText.length > 0) lastAssistantText = messageText.join('\n');
   };
 
   return { addLine, result: () => lastAssistantText ?? lastResultText };
