@@ -21,10 +21,20 @@ function resolveExistingPath(value: string, pathModule: typeof path.posix): stri
     return pathModule.resolve(value);
   }
 
-  try {
-    return fs.realpathSync.native(value);
-  } catch {
-    return pathModule.resolve(value);
+  // A missing transcript can still have an existing symlinked ancestor.
+  let current = pathModule.isAbsolute(value)
+    ? value
+    : `${process.cwd()}${pathModule.sep}${value}`;
+  const suffix: string[] = [];
+  for (;;) {
+    try {
+      return pathModule.join(fs.realpathSync.native(current), ...suffix.reverse());
+    } catch {
+      const parent = pathModule.dirname(current);
+      if (parent === current) return pathModule.resolve(value);
+      suffix.push(pathModule.basename(current));
+      current = parent;
+    }
   }
 }
 
