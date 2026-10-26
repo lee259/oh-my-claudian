@@ -583,11 +583,11 @@ describe('sdkSession', () => {
   });
 
   describe('loadSubagentFinalResult', () => {
-    it('returns the latest assistant text from sidecar JSONL', async () => {
+    it('returns all visible text blocks from the latest assistant message in sidecar JSONL', async () => {
       mockExistsSync.mockReturnValue(true);
       mockFsPromises.readFile.mockResolvedValue([
         '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"First"}]}}',
-        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Final answer"}]}}',
+        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Final answer"},{"type":"thinking","thinking":"Private reasoning"},{"type":"text","text":" "},{"type":"text","text":"Further details"}]}}',
       ].join('\n'));
 
       const result = await loadSubagentFinalResult(
@@ -596,7 +596,7 @@ describe('sdkSession', () => {
         'a123'
       );
 
-      expect(result).toBe('Final answer');
+      expect(result).toBe('Final answer\nFurther details');
       expect(mockFsPromises.readFile).toHaveBeenCalledWith(
         '/Users/test/.claude/projects/-Users-test-vault/session-abc/subagents/agent-a123.jsonl',
         'utf-8'
