@@ -789,3 +789,67 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     }
   });
 });
+
+describe('MessageRenderer clipboard window', () => {
+  it('uses the code button owner window after moving into a popout document', async () => {
+    const frame = document.createElement('iframe'); document.body.appendChild(frame);
+    const secondary = frame.contentDocument!;
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const mainWrite = jest.fn().mockResolvedValue(undefined);
+    const popoutWrite = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: mainWrite } });
+    Object.defineProperty(frame.contentWindow!.navigator, 'clipboard', { configurable: true, value: { writeText: popoutWrite } });
+    const { renderer, component, messagesEl } = createTurn();
+    try {
+      (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element: HTMLElement) => {
+        element.createEl('pre').createEl('code', { text: 'example code' });
+      });
+      await renderer.renderContent(messagesEl, 'Code example');
+      secondary.body.appendChild(secondary.adoptNode(messagesEl));
+      const button = messagesEl.querySelector<HTMLButtonElement>('.claudian-code-copy-btn')!;
+      expect(button.ownerDocument.defaultView).toBe(frame.contentWindow);
+      button.click(); await Promise.resolve(); await Promise.resolve();
+      expect(popoutWrite).toHaveBeenCalledWith('example code');
+      expect(mainWrite).not.toHaveBeenCalled();
+    } finally { renderer.dispose(); component.unload(); frame.remove();
+      if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor); else Reflect.deleteProperty(navigator, 'clipboard'); document.body.replaceChildren(); }
+  });
+});
+
+
+describe('MessageRenderer message copy ownership', () => {
+  it.each(['assistant', 'user'] as const)('copies %s text and resets feedback using the owning window', async role => {
+    const frame = document.createElement('iframe'); document.body.appendChild(frame);
+    const owner = frame.contentWindow!;
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const mainWrite = jest.fn().mockResolvedValue(undefined);
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: mainWrite } });
+    Object.defineProperty(owner.navigator, 'clipboard', { configurable: true, value: { writeText } });
+    const timeout = jest.spyOn(owner, 'setTimeout').mockReturnValue(17);
+    const clear = jest.spyOn(owner, 'clearTimeout');
+    const { renderer, component, messagesEl, content } = createTurn();
+    try {
+      if (role === 'assistant') renderer.addTextCopyButton(content, '**Original Markdown**');
+      else renderer.addMessage({ id: 'copy-user', role: 'user', content: '**Original Markdown**', timestamp: 1 });
+      frame.contentDocument!.body.appendChild(frame.contentDocument!.adoptNode(messagesEl));
+      const button = messagesEl.querySelector<HTMLButtonElement>(role === 'assistant' ? '.claudian-text-copy-btn' : '.claudian-user-msg-copy-btn')!;
+      button.click(); await Promise.resolve();
+      button.click(); await Promise.resolve();
+      expect(writeText.mock.calls).toEqual([['**Original Markdown**'], ['**Original Markdown**']]);
+      expect(mainWrite).not.toHaveBeenCalled();
+      expect(clear).toHaveBeenCalledWith(17);
+      expect(timeout).toHaveBeenLastCalledWith(expect.any(Function), 1500);
+      expect(button.classList.contains('copied')).toBe(true);
+      (timeout.mock.calls.at(-1)![0] as () => void)();
+      expect(button.classList.contains('copied')).toBe(false);
+      Object.defineProperty(owner.navigator, 'clipboard', { configurable: true, value: undefined });
+      button.click(); await Promise.resolve();
+      expect(mainWrite).not.toHaveBeenCalled();
+      expect(button.classList.contains('copied')).toBe(false);
+    } finally {
+      timeout.mockRestore(); clear.mockRestore(); renderer.dispose(); component.unload(); frame.remove(); messagesEl.remove();
+      if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor); else Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
+});

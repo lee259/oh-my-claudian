@@ -2861,18 +2861,22 @@ export class MessageRenderer {
           attr: { type: 'button', 'aria-label': language ? `Copy ${language} code` : 'Copy code' },
         });
         setIcon(copyButton, 'copy');
+        let feedbackTimeout: { owner: Window; id: number } | null = null;
         copyButton.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
           runRendererAction(async () => {
             try {
-              await navigator.clipboard.writeText(code?.textContent ?? pre.textContent ?? '');
+              const owner = copyButton.ownerDocument.defaultView ?? window;
+              await owner.navigator.clipboard.writeText(code?.textContent ?? pre.textContent ?? '');
+              if (feedbackTimeout) feedbackTimeout.owner.clearTimeout(feedbackTimeout.id);
               setIcon(copyButton, 'check');
               copyButton.setAttribute('aria-label', t('chat.rendering.copied'));
-              window.setTimeout(() => {
+              feedbackTimeout = { owner, id: owner.setTimeout(() => {
                 setIcon(copyButton, 'copy');
                 copyButton.setAttribute('aria-label', language ? `Copy ${language} code` : 'Copy code');
-              }, 1500);
+                feedbackTimeout = null;
+              }, 1500) };
             } catch {
               // Clipboard API may fail in non-secure contexts.
             }
@@ -3022,14 +3026,14 @@ export class MessageRenderer {
     });
     setIcon(copyBtn, 'copy');
 
-    let feedbackTimeout: number | null = null;
+    let feedbackTimeout: { owner: Window; id: number } | null = null;
 
     copyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       runRendererAction(async () => {
-
+        const owner = copyBtn.ownerDocument.defaultView ?? window;
         try {
-          await navigator.clipboard.writeText(markdown);
+          await owner.navigator.clipboard.writeText(markdown);
         } catch {
           // Clipboard API may fail in non-secure contexts
           return;
@@ -3037,7 +3041,7 @@ export class MessageRenderer {
 
         // Clear any pending timeout from rapid clicks
         if (feedbackTimeout) {
-          window.clearTimeout(feedbackTimeout);
+          feedbackTimeout.owner.clearTimeout(feedbackTimeout.id);
         }
 
         // Show "copied!" feedback
@@ -3045,12 +3049,12 @@ export class MessageRenderer {
         copyBtn.setText(t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
 
-        feedbackTimeout = window.setTimeout(() => {
+        feedbackTimeout = { owner, id: owner.setTimeout(() => {
           copyBtn.empty();
           setIcon(copyBtn, 'copy');
           copyBtn.classList.remove('copied');
           feedbackTimeout = null;
-        }, 1500);
+        }, 1500) };
       });
     });
   }
@@ -3167,26 +3171,27 @@ export class MessageRenderer {
     setIcon(copyBtn, 'copy');
     copyBtn.setAttribute('aria-label', t('chat.rendering.copyMessage'));
 
-    let feedbackTimeout: number | null = null;
+    let feedbackTimeout: { owner: Window; id: number } | null = null;
 
     copyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       runRendererAction(async () => {
+        const owner = copyBtn.ownerDocument.defaultView ?? window;
         try {
-          await navigator.clipboard.writeText(content);
+          await owner.navigator.clipboard.writeText(content);
         } catch {
           return;
         }
-        if (feedbackTimeout) window.clearTimeout(feedbackTimeout);
+        if (feedbackTimeout) feedbackTimeout.owner.clearTimeout(feedbackTimeout.id);
         copyBtn.empty();
         copyBtn.setText(t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
-        feedbackTimeout = window.setTimeout(() => {
+        feedbackTimeout = { owner, id: owner.setTimeout(() => {
           copyBtn.empty();
           setIcon(copyBtn, 'copy');
           copyBtn.classList.remove('copied');
           feedbackTimeout = null;
-        }, 1500);
+        }, 1500) };
       });
     });
   }
