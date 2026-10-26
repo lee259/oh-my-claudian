@@ -26,6 +26,21 @@ function createMockApp(existingFiles: string[], basePath?: string) {
 }
 
 describe('processFileLinks', () => {
+  it.each([
+    '<a href="https://example.com"><code>[[note.md]]</code></a>',
+    '<a class="internal-link" href="other.md"><code>[[note.md]]</code></a>',
+    '<span class="claudian-file-link"><code>[[note.md]]</code></span>',
+    '<pre><span><code>[[note.md]]</code></span></pre>',
+  ])('preserves inline code inside an existing link or code block: %s', markup => {
+    const box = document.createElement('div');
+    box.innerHTML = markup;
+    const original = box.innerHTML;
+    processFileLinks(createMockApp(['note.md']), box);
+    processFileLinks(createMockApp(['note.md']), box);
+    expect(box.innerHTML).toBe(original);
+    expect(box.querySelector('a a')).toBeNull();
+  });
+
   describe.each(['span', 'code'] as const)('aliases in %s', tag => {
     it.each([
       ['[[note.md|Left | Right]]', 'Left | Right', 'note.md'],
