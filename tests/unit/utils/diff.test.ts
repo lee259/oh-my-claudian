@@ -25,6 +25,22 @@ describe('extractDiffData', () => {
     expect(result!.stats).toEqual({ added: 1, removed: 1 });
   });
 
+  it('omits EOF metadata without shifting following structured patch lines', () => {
+    const result = extractDiffData({
+      structuredPatch: [{ oldStart: 7, newStart: 11, oldLines: 2, newLines: 2, lines: [
+        '-old', '\\ No newline at end of file',
+        '+new', '\\ No newline at end of file',
+        ' \\literal source',
+      ] }],
+    }, makeToolCall('Edit', { file_path: 'file.txt' }));
+    expect(result?.diffLines).toEqual([
+      { type: 'delete', text: 'old', oldLineNum: 7 },
+      { type: 'insert', text: 'new', newLineNum: 11 },
+      { type: 'equal', text: '\\literal source', oldLineNum: 8, newLineNum: 12 },
+    ]);
+    expect(result?.stats).toEqual({ added: 1, removed: 1 });
+  });
+
   it('returns ToolDiffData from Pi result details.diff', () => {
     const toolCall = makeToolCall('Edit', { file_path: 'src/pi.ts' });
     const toolUseResult = {

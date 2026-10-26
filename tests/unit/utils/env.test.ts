@@ -1081,6 +1081,18 @@ describe('formatContextLimit', () => {
 });
 
 describe('parseContextLimit with comma-formatted input', () => {
+  it.each(['1,2,000', '12,,000', ',12000', '12000,', '1234,000', '1.2,000', '1,23.45k'])(
+    'rejects malformed comma grouping in %s', input => {
+      expect(parseContextLimit(input)).toBeNull();
+    },
+  );
+
+  it.each([
+    ['12,000', 12000], ['1,234.5k', 1234500], ['1,000 k', 1000000],
+  ])('preserves valid grouped values and suffixes in %s', (input, expected) => {
+    expect(parseContextLimit(input as string)).toBe(expected);
+  });
+
   it('should parse "256,500" to 256500', () => {
     expect(parseContextLimit('256,500')).toBe(256500);
   });

@@ -420,14 +420,14 @@ export const MIN_CONTEXT_LIMIT = 1_000;
 export const MAX_CONTEXT_LIMIT = 10_000_000;
 
 export function parseContextLimit(input: string): number | null {
-  const trimmed = input.trim().toLowerCase().replace(/,/g, '');
+  const trimmed = input.trim().toLowerCase();
   if (!trimmed) return null;
 
-  // Match number with optional suffix (k, m)
-  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(k|m)?$/);
+  // Accept plain digits or correctly grouped thousands, with an optional decimal and suffix.
+  const match = trimmed.match(/^((?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?)\s*(k|m)?$/);
   if (!match) return null;
 
-  const value = parseFloat(match[1]);
+  const value = parseFloat(match[1].replace(/,/g, ''));
   const suffix = match[2];
 
   if (isNaN(value) || value <= 0) return null;
