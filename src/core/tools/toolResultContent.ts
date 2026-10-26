@@ -24,7 +24,12 @@ export function extractToolResultContent(
 export function omitToolResultImageData(_key: string, value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   const record = value as Record<string, unknown>;
-  if (record.type !== 'image' || !record.source || typeof record.source !== 'object') {
+  if (record.type !== 'image') return value;
+  if (typeof record.data === 'string' && record.data.length > 0
+    && typeof record.mimeType === 'string' && record.mimeType.startsWith('image/')) {
+    return { ...record, data: '' };
+  }
+  if (!record.source || typeof record.source !== 'object') {
     return value;
   }
 
