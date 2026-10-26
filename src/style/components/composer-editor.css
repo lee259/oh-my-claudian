@@ -27,6 +27,8 @@
   box-sizing: border-box;
   padding: 13px 15px 4px;
   white-space: pre-wrap;
+  max-height: var(--claudian-textarea-max-height, none);
+  overflow-y: auto;
 }
 
 .claudian-composer-editor .cm-editor {
