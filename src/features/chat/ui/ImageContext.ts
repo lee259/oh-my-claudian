@@ -236,7 +236,7 @@ export class ImageContextManager {
   }
 
   private isImageFile(file: File): boolean {
-    return file.type.startsWith('image/') && this.getMediaType(file.name) !== null;
+    return (!file.type || file.type.startsWith('image/')) && this.getMediaType(file.name) !== null;
   }
 
   private getMediaType(filename: string): ImageMediaType | null {
