@@ -1840,35 +1840,43 @@ export class ConversationController {
     input.select();
 
     let isFinishing = false;
+    const ownsInput = () => this.activeInlineRename?.input === input && input.isConnected;
+    const clearOwnership = () => {
+      if (this.activeInlineRename?.input === input) this.activeInlineRename = null;
+    };
     const cancelRename = () => {
       input.value = currentTitle;
-      input.blur();
+      clearOwnership();
+      if (input.isConnected) options.onRerender();
     };
     this.activeInlineRename = { cancel: cancelRename, input };
     const finishRename = async () => {
-      if (isFinishing) return;
+      if (isFinishing || !ownsInput()) return;
       isFinishing = true;
       const newTitle = input.value.trim();
       if (!newTitle || newTitle === currentTitle) {
-        isFinishing = false;
+        clearOwnership();
         options.onRerender();
         return;
       }
 
       try {
         await this.deps.plugin.renameConversation(convId, newTitle);
-        options.onRerender();
+        if (ownsInput()) {
+          clearOwnership();
+          options.onRerender();
+        }
       } catch {
-        new Notice(t('chat.errors.renameConversation'));
+        if (ownsInput()) {
+          new Notice(t('chat.errors.renameConversation'));
+          input.focus();
+        }
       } finally {
         isFinishing = false;
       }
     };
 
     input.addEventListener('blur', () => {
-      if (this.activeInlineRename?.input === input) {
-        this.activeInlineRename = null;
-      }
       runConversationAction(finishRename, 'Failed to rename conversation');
     });
     input.addEventListener('keydown', (e) => {
