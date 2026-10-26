@@ -112,11 +112,15 @@ export function ProviderModelPickerView({
   const catalogStatus = catalogLoadFailed ? 'failed' : state.catalogStatus ?? 'empty';
 
   const persistAlias = async (modelId: string, value: string): Promise<void> => {
-    const existing = state.aliases[modelId] ?? '';
+    const existing = Object.hasOwn(state.aliases, modelId) ? state.aliases[modelId] : '';
     const next = value.trim();
     if (next === existing) return;
     const aliases = { ...state.aliases };
-    if (next) aliases[modelId] = next;
+    if (next) {
+      Object.defineProperty(aliases, modelId, {
+        value: next, enumerable: true, configurable: true, writable: true,
+      });
+    }
     else delete aliases[modelId];
     await onAliasesChange(aliases);
   };
@@ -206,7 +210,7 @@ export function ProviderModelPickerView({
           <label className="claudian-provider-model-picker-selected-alias-field">
             <span className="claudian-provider-model-picker-selected-alias-label">{t('settings.modelPicker.aliasLabel')}</span>
             <ModelAliasInput
-              savedValue={state.aliases[model.id] ?? ''}
+              savedValue={Object.hasOwn(state.aliases, model.id) ? state.aliases[model.id] : ''}
               defaultLabel={defaultLabel}
               onCommit={value => persistAlias(model.id, value)}
             />
