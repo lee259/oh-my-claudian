@@ -611,7 +611,7 @@ export class FileContextManager {
       fileTags.push(...cache.tags.map(t => t.tag.replace(/^#/, '')));
     }
 
-    const normalizedExcluded = new Set(excludedTags.map(tag => tag.replace(/^#/, '')));
-    return fileTags.some(tag => normalizedExcluded.has(tag)) ? 'excluded' : 'not-excluded';
+    const normalizedExcluded = new Set(excludedTags.map(tag => tag.replace(/^#/, '').toLowerCase()));
+    return fileTags.some(tag => normalizedExcluded.has(tag.toLowerCase())) ? 'excluded' : 'not-excluded';
   }
 }

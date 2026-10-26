@@ -287,6 +287,27 @@ describe('FileContextManager', () => {
     manager.destroy();
   });
 
+  it.each(['Private', '#PRIVATE', 'private'])('excludes matching tag %s without case sensitivity', tag => {
+    const app = createMockApp({ files: ['notes/secret.md'], activeFilePath: 'notes/secret.md',
+      fileCacheByPath: new Map([['notes/secret.md', { frontmatter: { tags: [tag] } }]]) });
+    const manager = new FileContextManager(app, containerEl as any, inputEl,
+      createMockCallbacks({ excludedTags: ['private'] }));
+    try { manager.autoAttachActiveFile(); expect(manager.getCurrentNotePath()).toBeNull(); }
+    finally { manager.destroy(); }
+  });
+
+  it.each([
+    { frontmatter: { tags: 'PrIvAtE' } },
+    { tags: [{ tag: '#PrIvAtE' }] },
+  ])('excludes mixed-case string and inline tags: %j', cache => {
+    const app = createMockApp({ files: ['notes/secret.md'], activeFilePath: 'notes/secret.md',
+      fileCacheByPath: new Map([['notes/secret.md', cache]]) });
+    const manager = new FileContextManager(app, containerEl as any, inputEl,
+      createMockCallbacks({ excludedTags: ['#PRIVATE'] }));
+    try { manager.autoAttachActiveFile(); expect(manager.getCurrentNotePath()).toBeNull(); }
+    finally { manager.destroy(); }
+  });
+
   it('auto-attaches active file unless excluded by tag', () => {
     const fileCacheByPath = new Map<string, any>([
       ['notes/private.md', { frontmatter: { tags: ['private'] } }],
