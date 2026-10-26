@@ -662,6 +662,48 @@ describe('MentionDropdownController', () => {
       expect(agentService.searchAgents).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps external directory scans debounced while cached vault results use the next task', () => {
+      const { externalContextScanner } = jest.requireMock('@/utils/externalContextScanner');
+      (callbacks.getExternalContexts as jest.Mock).mockReturnValue(['/tmp/project']);
+      inputEl.value = '@project/src';
+      inputEl.selectionStart = inputEl.value.length;
+      controller.handleInputChange();
+      jest.advanceTimersByTime(0);
+      expect(externalContextScanner.scanPaths).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(99);
+      expect(externalContextScanner.scanPaths).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(1);
+      expect(externalContextScanner.scanPaths).toHaveBeenCalledWith(['/tmp/project']);
+    });
+
+    it('cancels an external scan when the query changes to ready vault results', () => {
+      const { externalContextScanner } = jest.requireMock('@/utils/externalContextScanner');
+      (callbacks.getExternalContexts as jest.Mock).mockReturnValue(['/tmp/project']);
+      (callbacks.getCachedVaultFiles as jest.Mock).mockReturnValue([
+        { name: 'plan.md', path: 'notes/plan.md', stat: { mtime: 1 } },
+      ]);
+      inputEl.value = '@project/src'; inputEl.selectionStart = inputEl.value.length;
+      controller.handleInputChange(); jest.advanceTimersByTime(0);
+      inputEl.value = '@plan'; inputEl.selectionStart = inputEl.value.length;
+      controller.handleInputChange(); jest.advanceTimersByTime(0);
+      expect(getLatestDropdownRenderOptions().items.map((item: { name: string }) => item.name)).toEqual(['plan.md']);
+      jest.advanceTimersByTime(200);
+      expect(externalContextScanner.scanPaths).not.toHaveBeenCalled();
+    });
+
+    it('does not let lazy service completion render an old query ahead of pending input', async () => {
+      let resolve!: () => void;
+      const service = { ...createMockAgentService(), ensureLoaded: jest.fn(() => new Promise<void>(done => { resolve = done; })) };
+      controller.setAgentService(service);
+      inputEl.value = '@old'; inputEl.selectionStart = 4;
+      controller.handleInputChange(); jest.advanceTimersByTime(0);
+      inputEl.value = 'ordinary text'; inputEl.selectionStart = inputEl.value.length;
+      controller.handleInputChange();
+      resolve(); await Promise.resolve();
+      jest.advanceTimersByTime(0);
+      expect(controller.isVisible()).toBe(false);
+    });
+
     it('clears pending timer on destroy', () => {
       inputEl.value = '@test';
       inputEl.selectionStart = 5;
@@ -673,7 +715,7 @@ describe('MentionDropdownController', () => {
       }).not.toThrow();
     });
 
-    it('processes input after debounce delay', () => {
+    it('renders cached sources on the next task without a fixed delay', () => {
       const agentService = createMockAgentService([
         { id: 'Explore', name: 'Explore', source: 'builtin' },
       ]);
@@ -683,10 +725,7 @@ describe('MentionDropdownController', () => {
       inputEl.selectionStart = 8;
       controller.handleInputChange();
 
-      jest.advanceTimersByTime(99);
-      expect(agentService.searchAgents).not.toHaveBeenCalled();
-
-      jest.advanceTimersByTime(1);
+      jest.advanceTimersByTime(0);
       expect(agentService.searchAgents).toHaveBeenCalled();
     });
   });

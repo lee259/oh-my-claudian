@@ -176,8 +176,8 @@ export class MentionDropdownController {
 
     this.debounceTimer = window.setTimeout(() => {
       this.debounceTimer = null;
-      this.refreshQuery();
-    }, 100);
+      this.refreshQuery(true);
+    }, 0);
   }
 
   private clearDebounce(): void {
@@ -185,7 +185,7 @@ export class MentionDropdownController {
     this.debounceTimer = null;
   }
 
-  private refreshQuery(): void {
+  private refreshQuery(deferExternalScan = false): void {
     if (this.destroyed || this.composing) return;
     const text = this.inputEl.value;
 
@@ -215,7 +215,7 @@ export class MentionDropdownController {
     }
     this.mentionStartIndex = lastAtIndex;
     this.activeMentionSearchText = searchText;
-    this.showMentionDropdown(searchText);
+    this.showMentionDropdown(searchText, deferExternalScan);
   }
 
   handleKeydown(e: KeyboardEvent): boolean {
@@ -269,7 +269,7 @@ export class MentionDropdownController {
     return false;
   }
 
-  private showMentionDropdown(searchText: string): void {
+  private showMentionDropdown(searchText: string, deferExternalScan = false): void {
     if (this.destroyed) return;
     this.ensureAgentServiceLoaded();
     this.ensureMcpServiceLoaded();
@@ -324,6 +324,13 @@ export class MentionDropdownController {
     }
 
     if (this.activeContextFilter && isFilterSearch) {
+      if (deferExternalScan) {
+        this.debounceTimer = window.setTimeout(() => {
+          this.debounceTimer = null;
+          this.refreshQuery();
+        }, 100);
+        return;
+      }
       const contextFiles = externalContextScanner.scanPaths([this.activeContextFilter.contextRoot]);
       this.filteredContextFiles = contextFiles
         .filter(file => {
@@ -440,6 +447,7 @@ export class MentionDropdownController {
         !this.destroyed
         &&
         this.agentService === service
+        && this.debounceTimer === null
         && this.activeMentionSearchText !== null
         && this.mentionStartIndex >= 0
       ) {
@@ -473,6 +481,7 @@ export class MentionDropdownController {
       if (
         !this.destroyed
         && this.mcpManager === service
+        && this.debounceTimer === null
         && this.activeMentionSearchText !== null
         && this.mentionStartIndex >= 0
       ) {
