@@ -5,6 +5,19 @@ import {
 } from '@/utils/markdownMath';
 
 describe('markdownMath', () => {
+  it.each([
+    "[guide](https://example.com/it's/$id)",
+    '[guide](https://example.com/say"hi/$id)',
+    '[guide](<https://example.com/a(b/$id>)',
+    '[guide](<https://example.com/a)b/$id> "title")',
+    "[guide](https://example.com/it's/$id 'title with ) inside')",
+    '[guide](<https://example.com/a(b/$id> "title with ) inside")',
+    '[guide](  <https://example.com/a)b/$id> "title")',
+  ])('preserves URL punctuation while escaping visible math: %s', destination => {
+    expect(escapeMathDelimitersForStreaming(`${destination} and $visible$`))
+      .toBe(`${destination} and \\$visible\\$`);
+  });
+
   describe('normalizeLatexMathDelimiters', () => {
     it('normalizes inline and display LaTeX delimiters', () => {
       const markdown = [
