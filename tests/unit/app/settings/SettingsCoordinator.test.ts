@@ -148,23 +148,38 @@ describe('SettingsCoordinator', () => {
     expect(persisted).toEqual([1, 2]);
   });
 
-  it('keeps conditional mutations serialized and persists only when requested', async () => {
-    const settings: Record<string, unknown> = { transient: 0, persisted: 0 };
+  it.each([false, true])('discards rejected conditional changes before the next mutation (async: %s)', async (asynchronous) => {
+    const settings: Record<string, unknown> = {
+      transient: 0, persisted: 0, retained: true,
+      providers: { claude: { enabled: true }, codex: { enabled: false } },
+    };
     const persisted: Array<Record<string, unknown>> = [];
     const coordinator = new SettingsCoordinator(settings, async current => {
       persisted.push({ ...current });
     });
 
-    await coordinator.mutateConditionally(current => {
+    const rejected = coordinator.mutateConditionally(current => {
       current.transient = 1;
-      return false;
+      delete current.retained;
+      current.added = true;
+      (current.providers as Record<string, unknown>).claude = { enabled: false };
+      return asynchronous ? Promise.resolve(false) : false;
     });
-    await coordinator.mutateConditionally(current => {
+    const accepted = coordinator.mutateConditionally(current => {
+      expect(current).toEqual({
+        transient: 0, persisted: 0, retained: true,
+        providers: { claude: { enabled: true }, codex: { enabled: false } },
+      });
       current.persisted = 2;
       return true;
     });
+    await Promise.all([rejected, accepted]);
 
-    expect(settings).toEqual({ transient: 1, persisted: 2 });
-    expect(persisted).toEqual([{ transient: 1, persisted: 2 }]);
+    const expected = {
+      transient: 0, persisted: 2, retained: true,
+      providers: { claude: { enabled: true }, codex: { enabled: false } },
+    };
+    expect(settings).toEqual(expected);
+    expect(persisted).toEqual([expected]);
   });
 });
