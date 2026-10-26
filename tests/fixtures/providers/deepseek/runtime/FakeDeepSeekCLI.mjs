@@ -27,7 +27,10 @@ if (mode === 'serve' || mode === 'untethered') {
   // FAKE_DSH_SPLIT is the offset into the URL where the first chunk ends (default: after the origin).
   const url = process.env.FAKE_DSH_URL;
   const split = Number(process.env.FAKE_DSH_SPLIT ?? new URL(url).origin.length);
+  const output = process.env.FAKE_DSH_URL_STREAM === 'stderr' ? process.stderr : process.stdout;
+  const diagnostics = output === process.stdout ? process.stderr : process.stdout;
   process.stderr.write('loading MCP servers\n');
-  process.stdout.write(`dsh web listening on ${url.slice(0, split)}`);
-  setTimeout(() => process.stdout.write(`${url.slice(split)}${process.env.FAKE_DSH_EOL ?? '\n'}`), 50);
+  output.write(`dsh web listening on ${url.slice(0, split)}`);
+  if (process.env.FAKE_DSH_GAP_LOG) setTimeout(() => diagnostics.write(`${process.env.FAKE_DSH_GAP_LOG}\n`), 10);
+  setTimeout(() => output.write(`${url.slice(split)}${process.env.FAKE_DSH_EOL ?? '\n'}`), 50);
 }
