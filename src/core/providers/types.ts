@@ -444,6 +444,8 @@ export interface ProviderCommandLoaderContext {
 }
 
 export interface ProviderCommandLoader {
+  /** Evicts provider-owned workspace metadata before an explicit discovery retry. */
+  invalidate?(): void;
   /**
    * Returns a provider-owned, non-secret identity for inputs that affect command discovery.
    * Raw settings, environment values, session state, and external paths must not be included.

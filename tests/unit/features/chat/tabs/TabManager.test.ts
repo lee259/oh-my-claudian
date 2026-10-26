@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 
 import { ProviderExecutionLifecycleRegistry } from '@/core/execution';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
+import { initializeTabUI } from '@/features/chat/tabs/Tab';
 import { TabManager } from '@/features/chat/tabs/TabManager';
 
 const mockInitializeTabExecution = jest.fn().mockResolvedValue(undefined);
@@ -81,6 +82,7 @@ jest.mock('@/shared/modals/ForkTargetModal', () => ({
 }));
 
 const commandLoader = {
+  invalidate: jest.fn(),
   getCacheFingerprint: jest.fn().mockReturnValue('commands-v1'),
   isAvailable: jest.fn().mockReturnValue(true),
   loadCommands: jest.fn().mockResolvedValue({
@@ -684,6 +686,20 @@ describe('TabManager provider execution orchestration', () => {
       externalContextPaths: [],
     }));
     expect(commandLoader.loadCommands.mock.calls[0][0]).not.toHaveProperty('runtime');
+  });
+
+  it('evicts provider-owned metadata before retrying command discovery', async () => {
+    const { manager } = createManager();
+    await manager.createTab();
+    const options = jest.mocked(initializeTabUI).mock.calls[0][2]!;
+    const discovery = options.getProviderCatalogConfig!()!.discovery;
+    await discovery.load();
+    await discovery.retry();
+    expect(commandLoader.invalidate).toHaveBeenCalledTimes(1);
+    expect(commandLoader.loadCommands).toHaveBeenCalledTimes(2);
+    expect(commandLoader.invalidate.mock.invocationCallOrder[0]).toBeLessThan(
+      commandLoader.loadCommands.mock.invocationCallOrder[1],
+    );
   });
 
   it('requests provider built-ins for main chat command discovery', async () => {
