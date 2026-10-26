@@ -247,7 +247,7 @@ export interface McpToolCallItem {
   status?: string;
   arguments?: Record<string, unknown>;
   result?: { content?: Array<{ type?: string; text?: string }> } | null;
-  error?: string | null;
+  error?: { message: string } | string | null;
   durationMs?: number | null;
 }
 

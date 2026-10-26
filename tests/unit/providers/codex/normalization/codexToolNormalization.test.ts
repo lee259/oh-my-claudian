@@ -394,16 +394,25 @@ describe('Codex MCP normalization helpers', () => {
     });
   });
 
-  it('normalizes MCP failed state with error text', () => {
+  it.each(['Permission denied', { message: 'Permission denied' }])('preserves native MCP error details: %j', error => {
     expect(normalizeCodexMcpToolState(
       'failed',
       undefined,
-      'Permission denied',
+      error,
     )).toEqual({
       isTerminal: true,
       isError: true,
       status: 'error',
       result: 'Permission denied',
+    });
+  });
+
+  it.each([null, { message: 42 }, ['error'], { detail: 'not a native message' }])('ignores malformed MCP errors: %j', error => {
+    expect(normalizeCodexMcpToolState('completed', { content: [{ text: 'Saved' }] }, error)).toEqual({
+      isTerminal: true,
+      isError: false,
+      status: 'completed',
+      result: 'Saved',
     });
   });
 });
