@@ -359,15 +359,21 @@ function findLinkDestinationEnd(line: string, start: number): number | null {
 
   let depth = 0;
   let quote: '"' | "'" | null = null;
+  let inAngleDestination = false;
+  const destinationStart = start + 1 + (line.slice(start + 1).match(/^[ \t]*/)?.[0].length ?? 0);
   for (let index = start; index < line.length; index += 1) {
     const char = line[index];
     if (char === '\\' && line[index + 1]) {
       index += 1;
+    } else if (inAngleDestination) {
+      if (char === '>') inAngleDestination = false;
+    } else if (index === destinationStart && char === '<') {
+      inAngleDestination = true;
     } else if (quote) {
       if (char === quote) {
         quote = null;
       }
-    } else if (char === '"' || char === "'") {
+    } else if ((char === '"' || char === "'") && /\s/.test(line[index - 1] ?? '')) {
       quote = char;
     } else if (char === '(') {
       depth += 1;
