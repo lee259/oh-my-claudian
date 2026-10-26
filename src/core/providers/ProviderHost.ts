@@ -35,6 +35,7 @@ export interface ProviderHost {
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void>;
+  /** Returning false discards the mutation without persisting any settings changes. */
   mutateSettingsConditionally(
     mutation: (settings: ClaudianSettings) => boolean | Promise<boolean>,
   ): Promise<void>;
