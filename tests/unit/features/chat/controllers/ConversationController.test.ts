@@ -1280,6 +1280,7 @@ describe('ConversationController', () => {
       title.replaceWith = jest.fn();
       item.querySelector('.claudian-history-item-actions')!.children[0].click();
       const input = item.querySelector('.claudian-rename-input')!;
+      Object.defineProperty(input, 'isConnected', { value: true });
       input.value = 'New title';
       input.blur();
       await Promise.resolve();
@@ -1306,6 +1307,7 @@ describe('ConversationController', () => {
       title.replaceWith = jest.fn();
       item.querySelector('.claudian-history-item-actions')!.children[0].click();
       const input = item.querySelector('.claudian-rename-input')!;
+      Object.defineProperty(input, 'isConnected', { value: true });
       input.value = '  Original title  ';
       input.blur();
       await Promise.resolve();
@@ -1331,6 +1333,7 @@ describe('ConversationController', () => {
       title.replaceWith = jest.fn();
       item.querySelector('.claudian-history-item-actions')!.children[0].click();
       const input = item.querySelector('.claudian-rename-input')!;
+      Object.defineProperty(input, 'isConnected', { value: true });
       input.value = 'Unsaved title';
 
       expect(controller.cancelInlineRename()).toBe(true);
