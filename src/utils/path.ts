@@ -237,7 +237,7 @@ export function translateMsysPath(value: string): string {
   const msysMatch = value.match(/^\/([a-zA-Z])(\/.*)?$/);
   if (msysMatch) {
     const driveLetter = msysMatch[1].toUpperCase();
-    const restOfPath = msysMatch[2] ?? '';
+    const restOfPath = msysMatch[2] ?? '/';
     return `${driveLetter}:${restOfPath.replace(/\//g, '\\')}`;
   }
 

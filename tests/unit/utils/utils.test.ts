@@ -760,7 +760,7 @@ describe('utils.ts', () => {
       });
 
       it('should handle root drive paths', () => {
-        expect(translateMsysPath('/c')).toBe('C:');
+        expect(translateMsysPath('/c')).toBe('C:\\');
         expect(translateMsysPath('/c/')).toBe('C:\\');
       });
 
@@ -808,7 +808,7 @@ describe('utils.ts', () => {
 
         expect(translateMsysPath('/c/Users/test')).toBe('C:\\Users\\test');
         expect(translateMsysPath('/d/Projects/vault')).toBe('D:\\Projects\\vault');
-        expect(translateMsysPath('/c')).toBe('C:');
+        expect(translateMsysPath('/c')).toBe('C:\\');
         expect(translateMsysPath('/c/')).toBe('C:\\');
       });
 
