@@ -5,6 +5,8 @@ import type { ProviderCommandEntry } from './ProviderCommandEntry';
 export interface ProviderCommandDropdownConfig {
   providerId: ProviderId;
   triggerChars: string[];
+  /** Provider-owned native commands that remain available without runtime discovery. */
+  builtInCommands?: readonly ProviderCommandEntry[];
   builtInPrefix: string;
   skillPrefix: string;
   commandPrefix: string;

@@ -1,12 +1,19 @@
+import type { ProviderCommandEntry } from '@/core/providers/commands/ProviderCommandEntry';
 import { RuntimeCommandCatalog } from '@/core/providers/commands/RuntimeCommandCatalog';
 import type { SlashCommand } from '@/core/types';
 
 import { type DeepSeekReader, isRecord } from '../remote/DeepSeekRemoteClient';
 
+const DEEPSEEK_COMPACT_COMMAND: ProviderCommandEntry = {
+  id: 'deepseek:builtin:compact', providerId: 'deepseek', name: 'compact', kind: 'command',
+  content: '', scope: 'builtin', source: 'builtin', displayPrefix: '/', insertPrefix: '/',
+  isEditable: false, isDeletable: false,
+};
+
 export class DeepSeekCommandCatalog extends RuntimeCommandCatalog {
   constructor() {
     super({
-      dropdownConfig: { providerId: 'deepseek', triggerChars: ['/'], builtInPrefix: '/', commandPrefix: '/', skillPrefix: '/' },
+      dropdownConfig: { providerId: 'deepseek', triggerChars: ['/'], builtInPrefix: '/', commandPrefix: '/', skillPrefix: '/', builtInCommands: [DEEPSEEK_COMPACT_COMMAND] },
       projectEntry: command => ({ ...command, providerId: 'deepseek', kind: command.kind ?? 'command', scope: 'runtime',
         source: 'sdk', isEditable: false, isDeletable: false, displayPrefix: '/', insertPrefix: '/' }),
     });
