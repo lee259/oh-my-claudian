@@ -1430,7 +1430,13 @@ export class TabManager implements TabManagerInterface {
     const discovery = new ProviderCommandDiscoveryStore(
       signal => this.getProviderCommandDiscovery(tabId, signal),
       {
-        onBeforeRetry: () => this.advanceTabCommandContextRevision(tabId),
+        onBeforeRetry: () => {
+          const tab = this.tabs.get(tabId);
+          if (tab) {
+            ProviderWorkspaceRegistry.getCommandLoader(getTabProviderId(tab, this.plugin))?.invalidate?.();
+          }
+          this.advanceTabCommandContextRevision(tabId);
+        },
         resolveTimeoutMs: () => {
           const tab = this.tabs.get(tabId);
           if (!tab) return undefined;

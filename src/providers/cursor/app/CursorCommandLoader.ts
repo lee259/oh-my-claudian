@@ -10,7 +10,11 @@ import { getCursorProviderSettings } from '../settings';
 import type { CursorCommandMetadataProbe } from './CursorCommandMetadataProbe';
 
 export class CursorCommandLoader implements ProviderCommandLoaderContract {
-  constructor(private readonly metadataProbe: Pick<CursorCommandMetadataProbe, 'load'>) {}
+  constructor(private readonly metadataProbe: Pick<CursorCommandMetadataProbe, 'load' | 'invalidate'>) {}
+
+  invalidate(): void {
+    this.metadataProbe.invalidate();
+  }
 
   getCacheFingerprint(settings: Record<string, unknown>): string {
     const providerSettings = getCursorProviderSettings(settings);

@@ -3,6 +3,7 @@ import { ProviderTransitionFence } from '@/core/providers/metadata/ProviderTrans
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { SlashCommand } from '@/core/types';
 import { type AcpSessionNotification, normalizeAcpAvailableCommands } from '@/providers/acp';
+import { toAbortError } from '@/utils/abort';
 
 import {
   type CursorAcpSessionKernel,
@@ -20,6 +21,14 @@ const SKILL_SCOPE_SUFFIX = /\s*\((?:builtin|project|user|team|plugin) skill\)\s*
 const DISPOSED_MESSAGE = 'Cursor command metadata probe is disposed.';
 // Cursor advertises commands several seconds after session/new (~4s locally).
 const DEFAULT_COMMAND_TIMEOUT_MS = 20_000;
+const COMMAND_CACHE_TTL_MS = 60_000;
+
+interface CursorCommandDiscoveryFlight {
+  readonly controller: AbortController;
+  readonly promise: Promise<SlashCommand[]>;
+  consumers: number;
+  settled: boolean;
+}
 
 interface CursorCommandProbeResource {
   readonly kernel: CursorAcpSessionKernel;
@@ -41,6 +50,8 @@ export interface CursorCommandMetadataProbeOptions {
 export class CursorCommandMetadataProbe {
   private readonly commandTimeoutMs: number;
   private readonly createKernel: (options: CursorAcpSessionKernelOptions) => CursorAcpSessionKernel;
+  private cachedCommands: { items: SlashCommand[]; expiresAt: number } | null = null;
+  private discoveryFlight: CursorCommandDiscoveryFlight | null = null;
   private disposeFlight: Promise<void> | null = null;
   private readonly probes: OwnedProbeRegistry<CursorCommandProbeResource>;
   private readonly removeProbeSession: (sessionId: string) => Promise<void>;
@@ -73,7 +84,24 @@ export class CursorCommandMetadataProbe {
       if (!available) throw new Error(DISPOSED_MESSAGE);
     }
 
-    return await this.probes.run({
+    signal?.throwIfAborted();
+    if (this.cachedCommands && Date.now() < this.cachedCommands.expiresAt) {
+      return structuredClone(this.cachedCommands.items);
+    }
+    const flight = this.discoveryFlight ?? this.startDiscovery();
+    return await this.joinDiscovery(flight, signal);
+  }
+
+  invalidate(): void {
+    this.cachedCommands = null;
+    const flight = this.discoveryFlight;
+    this.discoveryFlight = null;
+    flight?.controller.abort(new Error(ABORT_MESSAGE));
+  }
+
+  private startDiscovery(): CursorCommandDiscoveryFlight {
+    const controller = new AbortController();
+    const promise = this.probes.run({
       create: () => this.createResource(),
       initialize: resource => resource.kernel.connect(),
       query: async (resource, ownedSignal) => {
@@ -82,11 +110,46 @@ export class CursorCommandMetadataProbe {
         ownedSignal.throwIfAborted();
         return await resource.waitForCommands(session.sessionId, ownedSignal);
       },
-    }, signal);
+    }, controller.signal).then(items => {
+      controller.signal.throwIfAborted();
+      this.cachedCommands = { items: structuredClone(items), expiresAt: Date.now() + COMMAND_CACHE_TTL_MS };
+      return items;
+    }).finally(() => {
+      flight.settled = true;
+      if (this.discoveryFlight === flight) this.discoveryFlight = null;
+    });
+    const flight: CursorCommandDiscoveryFlight = { controller, promise, consumers: 0, settled: false };
+    this.discoveryFlight = flight;
+    return flight;
+  }
+
+  private async joinDiscovery(
+    flight: CursorCommandDiscoveryFlight,
+    signal?: AbortSignal,
+  ): Promise<SlashCommand[]> {
+    flight.consumers++;
+    let onAbort: (() => void) | undefined;
+    try {
+      const aborted = new Promise<never>((_resolve, reject) => {
+        if (!signal) return;
+        onAbort = () => reject(toAbortError(signal, ABORT_MESSAGE));
+        signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) onAbort();
+      });
+      return structuredClone(await Promise.race([flight.promise, aborted]));
+    } finally {
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
+      flight.consumers--;
+      if (flight.consumers === 0 && !flight.settled) {
+        if (this.discoveryFlight === flight) this.discoveryFlight = null;
+        flight.controller.abort(new Error(ABORT_MESSAGE));
+      }
+    }
   }
 
   beginEnvironmentTransition(): void {
     this.transitionFence.beginTransition();
+    this.invalidate();
   }
 
   endEnvironmentTransition(): void {
@@ -94,6 +157,7 @@ export class CursorCommandMetadataProbe {
   }
 
   quiesceForEnvironmentChange(): Promise<void> {
+    this.invalidate();
     return this.probes.quiesce();
   }
 
