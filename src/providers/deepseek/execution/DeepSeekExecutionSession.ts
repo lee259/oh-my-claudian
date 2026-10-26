@@ -293,7 +293,7 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
     await this.selectModel(input);
     this.assertRequest(requested);
     const text = input.input.filter(block => block.type === 'text').map(block => block.text).join('\n');
-    if (/^\/compact(?:\s|$)/.test(text) && this.commands?.some(command => command.kind === 'command' && command.name === 'compact')) {
+    if (/^\/compact(?:\s|$)/.test(text)) {
       if (input.input.some(block => block.type === 'image') || input.context?.currentNote || input.context?.contextFiles?.length || captureSelectionSnapshots(input.context).length) throw new AdmissionError('DeepSeek /compact does not accept attachments or linked context.');
       if (!observer.permissionBoundaryAvailable()) throw new AdmissionError('Use Stop before compacting an active DeepSeek conversation.');
       requested.command = true;
@@ -432,7 +432,13 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
       this.offLease.push(this.observer.onChange(() => { this.publish(); this.drainInteractions(); }));
       await this.observer.start(signal);
       await this.followQueue;
-      this.commands = await readDeepSeekCommands(lease.client, this.nativeId);
+      try {
+        this.commands = await readDeepSeekCommands(lease.client, this.nativeId);
+      } catch {
+        // Optional discovery must not block native commands or normal turn admission.
+        this.assertRequest(requested);
+        this.commands = undefined;
+      }
       this.commandCatalog?.setCommandSnapshot(this.commands ?? []);
       this.assertRequest(requested);
     } catch (error) {

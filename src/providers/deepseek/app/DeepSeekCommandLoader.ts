@@ -16,7 +16,7 @@ const CATALOG_CANDIDATES = 20;
 
 /**
  * Native skills are keyed by session cwd and preset, and `skills/list` reads saved sessions without
- * activating them. Commands need a live Agent, so `/compact` joins once the conversation binds.
+ * activating them. Native `/compact` is declared separately and does not depend on this discovery.
  */
 export function createDeepSeekCommandLoader(deepseek: DeepSeekHost): ProviderCommandLoader {
   return {

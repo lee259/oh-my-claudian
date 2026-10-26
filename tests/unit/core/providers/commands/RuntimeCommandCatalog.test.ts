@@ -29,6 +29,21 @@ function createCatalog(isHidden?: (command: SlashCommand) => boolean): RuntimeCo
 }
 
 describe('RuntimeCommandCatalog', () => {
+  it('defensively clones provider-owned built-ins before discovery', () => {
+    const entry = {
+      id: 'pi:fixed', providerId: 'pi' as const, kind: 'command' as const, name: 'fixed',
+      content: '', scope: 'builtin' as const, source: 'builtin' as const,
+      isEditable: false, isDeletable: false, displayPrefix: '/', insertPrefix: '/',
+    };
+    const config = { ...createCatalog().getDropdownConfig(), builtInCommands: [entry] };
+    const catalog = new RuntimeCommandCatalog({ dropdownConfig: config, projectEntry: () => entry });
+    entry.name = 'changed input';
+    const first = catalog.getDropdownConfig();
+    expect(first.builtInCommands?.[0].name).toBe('fixed');
+    first.builtInCommands![0].name = 'changed output';
+    expect(catalog.getDropdownConfig().builtInCommands?.[0].name).toBe('fixed');
+  });
+
   it('omits provider-hidden commands from dropdown entries', async () => {
     const catalog = createCatalog(command => command.name === 'session');
     catalog.setCommandSnapshot([

@@ -152,6 +152,53 @@ const CODEX_COMPACT_ENTRY: ProviderCommandEntry = {
 };
 
 describe('SlashCommandDropdown - provider catalog', () => {
+  it.each(['duplicate', 'middle', 'disabled', 'hidden'] as const)(
+    'respects provider built-in placement, visibility and deduplication: %s', async mode => {
+      const entry = { ...CODEX_COMPACT_ENTRY, providerId: 'pi' as const };
+      const discovery = createEntryDiscovery(async () => mode === 'duplicate' ? [entry] : []);
+      await discovery.load();
+      const dropdown = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        includeBuiltIns: mode !== 'disabled',
+        providerConfig: { ...CODEX_CONFIG, providerId: 'pi', builtInCommands: [entry] },
+        providerDiscovery: discovery,
+      });
+      try {
+        if (mode === 'hidden') dropdown.setHiddenCommands(new Set(['compact']));
+        inputEl.value = mode === 'middle' ? 'note /compact' : '/compact';
+        inputEl.selectionStart = inputEl.value.length;
+        dropdown.handleInputChange();
+        expect(getRenderedCommandNames(containerEl)).toEqual(mode === 'duplicate' ? ['/compact'] : []);
+        expect(dropdown.resolveCommandKind('/compact', mode !== 'middle')).toBe(mode === 'duplicate' ? 'command' : null);
+      } finally { dropdown.destroy(); discovery.invalidate(); }
+    },
+  );
+
+  it.each(['loading', 'requires-session', 'error', 'empty'] as const)(
+    'keeps provider-declared built-ins selectable while discovery is %s', async status => {
+      const entry = { ...CODEX_COMPACT_ENTRY, providerId: 'pi' as const };
+      const discovery = new ProviderCommandDiscoveryStore<ProviderCommandEntry>(async () => {
+        if (status === 'loading') return new Promise(() => {});
+        if (status === 'error') return { status, message: 'Unavailable', retryable: true };
+        if (status === 'requires-session') return { status, message: 'No session' };
+        return { status };
+      }, { timeoutMs: 0 });
+      if (status !== 'loading') await discovery.load();
+      const dropdown = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        providerConfig: { ...CODEX_CONFIG, providerId: 'pi', builtInCommands: [entry] },
+        providerDiscovery: discovery,
+      });
+      try {
+        inputEl.value = '/compact'; inputEl.selectionStart = 8;
+        dropdown.handleInputChange();
+        expect(getRenderedCommandNames(containerEl)).toEqual(['/compact']);
+        expect(dropdown.resolveCommandKind('/compact', true)).toBe('command');
+        dropdown.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+        expect(inputEl.value).toBe('/compact ');
+        expect(callbacks.onSelect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'command' }));
+      } finally { dropdown.destroy(); discovery.invalidate(); }
+    },
+  );
+
   let containerEl: any;
   let inputEl: any;
   let callbacks: SlashCommandDropdownCallbacks;

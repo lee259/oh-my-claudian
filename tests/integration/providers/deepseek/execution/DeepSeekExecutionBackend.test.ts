@@ -1678,3 +1678,51 @@ it('authorizes the claimed chat before admission and revokes its Obsidian creden
   await session.dispose();
   expect(bridge.releaseConnection).toHaveBeenCalledWith('session-secret');
 });
+
+it.each(['ready', 'empty', 'error'])('executes native compact independently of command discovery: %s', async discovery => {
+  const previous = peer.onCall;
+  peer.onCall = (method, args) => {
+    if (method === 'commands/list' && discovery === 'empty') return [];
+    if (method === 'commands/list' && discovery === 'error') throw new Error('Command discovery failed');
+    if (method === 'commands/execute' && args.line === '/compact') return { result: { kind: 'success', text: 'Compacted' } };
+    return previous(method, args);
+  };
+  create();
+  const run = session.execute(request('/compact'));
+  const events: ProviderExecutionEvent[] = [];
+  const done = collect(run.events, events);
+  await until(() => peer.calls.some(c => c.method === 'commands/execute' || c.method === 'session/prompt')
+    || events.some(e => e.type === 'execution_error'));
+  if (peer.calls.some(c => c.method === 'session/prompt')) { begin(run.executionId); answer('Literal prompt'); }
+  await done;
+  expect(peer.calls.some(c => c.method === 'commands/execute' && c.args.line === '/compact')).toBe(true);
+  expect(peer.calls.some(c => c.method === 'session/prompt')).toBe(false);
+  expect(events.at(-1)?.type).toBe('turn_completed');
+});
+
+it.each(['empty', 'error'])('rejects linked context during compact even when discovery is %s', async discovery => {
+  const previous = peer.onCall;
+  peer.onCall = (method, args) => {
+    if (method === 'commands/list') {
+      if (discovery === 'error') throw new Error('Command discovery failed');
+      return [];
+    }
+    return previous(method, args);
+  };
+  create(); const events: ProviderExecutionEvent[] = [];
+  await collect(session.execute({ ...request('/compact'), context: { currentNote: { path: 'note.md' } } }).events, events);
+  expect(events.at(-1)).toMatchObject({ type: 'execution_error', category: 'configuration', message: expect.stringContaining('attachments') });
+  expect(peer.calls.some(c => c.method === 'commands/execute' || c.method === 'session/prompt')).toBe(false);
+});
+
+it('keeps normal turn admission available when optional command discovery fails', async () => {
+  const previous = peer.onCall;
+  peer.onCall = (method, args) => {
+    if (method === 'commands/list') throw new Error('Command discovery failed');
+    return previous(method, args);
+  };
+  create();
+  await completeRequest('still available');
+  expect(peer.calls.filter(c => c.method === 'session/prompt')).toHaveLength(1);
+  expect(peer.calls.some(c => c.method === 'commands/execute')).toBe(false);
+});

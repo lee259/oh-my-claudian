@@ -138,7 +138,7 @@ export class SlashCommandDropdown {
       }
     }
 
-    const entry = this.cachedProviderEntries.find(candidate =>
+    const entry = this.getProviderEntries(this.includeBuiltIns && atInputStart).find(candidate =>
       !this.hiddenCommands.has(candidate.name.toLocaleLowerCase())
       && `${candidate.insertPrefix}${candidate.name}`.toLocaleLowerCase() === key);
     return entry?.kind ?? null;
@@ -367,6 +367,12 @@ export class SlashCommandDropdown {
     this.render();
   }
 
+  private getProviderEntries(includeBuiltIns: boolean): readonly ProviderCommandEntry[] {
+    return includeBuiltIns
+      ? [...(this.providerConfig?.builtInCommands ?? []), ...this.cachedProviderEntries]
+      : this.cachedProviderEntries;
+  }
+
   private buildItemList(includeBuiltIns: boolean): DropdownItem[] {
     const seenInvocations = new Set<string>();
     const items: DropdownItem[] = [];
@@ -391,7 +397,7 @@ export class SlashCommandDropdown {
       }
     }
 
-    for (const entry of this.cachedProviderEntries.filter(
+    for (const entry of this.getProviderEntries(includeBuiltIns).filter(
       entry => entry.displayPrefix === this.activeTriggerChar
         || (this.activeTriggerChar === '/' && entry.kind === 'skill'),
     )) {

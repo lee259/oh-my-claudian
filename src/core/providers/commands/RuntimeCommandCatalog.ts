@@ -51,6 +51,9 @@ function cloneDropdownConfig(
   return {
     ...config,
     triggerChars: [...config.triggerChars],
+    ...(config.builtInCommands
+      ? { builtInCommands: config.builtInCommands.map(cloneProviderCommandEntry) }
+      : {}),
   };
 }
 
