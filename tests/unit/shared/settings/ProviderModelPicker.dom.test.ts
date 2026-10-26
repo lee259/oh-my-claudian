@@ -50,6 +50,50 @@ function createPickerState(): ProviderModelPickerState {
 }
 
 describe('ProviderModelPicker public renderer', () => {
+  it.each(['__proto__', 'constructor', 'toString'])('edits and clears the own alias for %s', async modelId => {
+    const container = document.body.appendChild(document.createElement('div'));
+    const state = createPickerState();
+    state.models = [{ id: modelId, name: 'Native model' }];
+    state.selectedIds = [modelId];
+    const onAliasesChange = jest.fn(async aliases => { state.aliases = aliases; });
+    const picker = renderProviderModelPicker({
+      container, emptyCatalogText: 'empty', failedCatalogText: 'failed', getState: () => state,
+      loadCatalog: async () => 'loaded', loadingCatalogText: 'loading', modifier: 'test',
+      onAliasesChange, onSelectedIdsChange: async () => {}, providerName: 'Test',
+    });
+    try {
+      const input = container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-selected-alias')!;
+      expect(input.value).toBe('');
+      await act(async () => {
+        input.focus();
+        input.value = 'My alias';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => { input.blur(); });
+      expect(Object.hasOwn(state.aliases, modelId)).toBe(true);
+      expect(JSON.parse(JSON.stringify(state.aliases))[modelId]).toBe('My alias');
+      expect(Object.getPrototypeOf(state.aliases)).toBe(Object.prototype);
+      await act(async () => { picker.refresh(); });
+      expect(input.value).toBe('My alias');
+      await act(async () => {
+        input.focus(); input.value = 'Discard';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => {
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(input.value).toBe('My alias');
+      expect(onAliasesChange).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        input.focus(); input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => { input.blur(); });
+      expect(Object.hasOwn(state.aliases, modelId)).toBe(false);
+      expect(Object.getPrototypeOf(state.aliases)).toBe(Object.prototype);
+    } finally { picker.dispose(); container.remove(); }
+  });
+
   it('retains a focused alias draft and caret across refresh, then saves on Enter', async () => {
     const container = document.body.appendChild(document.createElement('div'));
     const state = createPickerState();
