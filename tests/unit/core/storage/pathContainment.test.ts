@@ -56,4 +56,26 @@ describe('isPathWithinRoot', () => {
     expect(isPathWithinRoot(path.join(root, 'escape', 'session.jsonl'), root)).toBe(false);
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  it('resolves existing symlinked ancestors before admitting missing history paths', () => {
+    const tempDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-missing-path-')));
+    try {
+      const root = path.join(tempDir, 'root');
+      const outside = path.join(tempDir, 'outside');
+      fs.mkdirSync(root);
+      fs.mkdirSync(outside);
+      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+      fs.symlinkSync(outside, path.join(root, 'escape'), linkType);
+      fs.symlinkSync(root, path.join(tempDir, 'root-alias'), linkType);
+
+      expect(isPathWithinRoot(path.join(root, 'escape', 'missing', 'session.jsonl'), root)).toBe(false);
+      expect(isPathWithinRoot(`${path.join(root, 'escape')}${path.sep}..${path.sep}missing.jsonl`, root)).toBe(false);
+      expect(isPathWithinRoot(path.join(tempDir, 'root-alias', 'missing', 'session.jsonl'), root)).toBe(true);
+      expect(isPathWithinRoot(path.join(root, 'missing', 'session.jsonl'), path.join(tempDir, 'root-alias'))).toBe(true);
+      expect(isPathWithinRoot(path.relative(process.cwd(), path.join(root, 'escape', 'missing.jsonl')), root)).toBe(false);
+      expect(isPathWithinRoot(path.relative(process.cwd(), path.join(root, 'missing.jsonl')), root)).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
