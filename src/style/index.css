@@ -71,6 +71,7 @@
 @import "./settings/cli-lifecycle.css";
 @import "./settings/getting-started.css";
 @import "./settings/provider-capability-matrix.css";
+@import "./settings/provider-browser.css";
 
 /* Accessibility */
 @import "./accessibility.css";

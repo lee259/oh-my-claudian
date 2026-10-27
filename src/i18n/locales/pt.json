@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "Começar",
       "desc": "Siga estas três etapas para enviar seu primeiro chat com um provedor.",
-      "stepProvider": "Escolha a aba de um provedor e ative-o.",
+      "stepProvider": "Abra Provedores, selecione um provedor na lista e habilite-o.",
       "stepReadiness": "Use o painel de prontidão para confirmar que a CLI, o catálogo de modelos e a seleção de modelo estão prontos.",
       "stepChat": "Abra a visualização de chat e envie sua primeira mensagem.",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "Abrir registos de diagnóstico do fornecedor"
     },
     "providerSettings": {
+      "enabledOnly": "Somente habilitados",
+      "search": "Buscar provedores",
+      "noMatches": "Nenhum provedor correspondente.",
+      "allProviders": "Todos os provedores",
       "unavailable": "As configurações do provedor não estão disponíveis.",
       "loadFailed": "Não foi possível carregar as configurações do provedor: {message}"
     },

@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "Commencer",
       "desc": "Suivez ces trois étapes pour envoyer votre premier message avec un fournisseur.",
-      "stepProvider": "Choisissez un onglet de fournisseur et activez-le.",
+      "stepProvider": "Ouvrez Fournisseurs, sélectionnez un fournisseur dans la liste et activez-le.",
       "stepReadiness": "Vérifiez dans le panneau de disponibilité que la CLI, le catalogue de modèles et le modèle sélectionné sont prêts.",
       "stepChat": "Ouvrez la vue de chat et envoyez votre premier message.",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "Ouvrir les journaux de diagnostic des fournisseurs"
     },
     "providerSettings": {
+      "enabledOnly": "Activés uniquement",
+      "search": "Rechercher des fournisseurs",
+      "noMatches": "Aucun fournisseur correspondant.",
+      "allProviders": "Tous les fournisseurs",
       "unavailable": "Les réglages du fournisseur ne sont pas disponibles.",
       "loadFailed": "Impossible de charger les réglages du fournisseur : {message}"
     },

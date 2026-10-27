@@ -1,0 +1,231 @@
+.claudian-provider-browser-list[hidden] {
+  display: none;
+}
+
+.claudian-provider-browser-list {
+  container-type: inline-size;
+}
+
+.claudian-provider-browser-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2) var(--size-4-4);
+  margin: var(--size-4-4) 0;
+}
+
+.claudian-provider-browser-search-field {
+  display: flex;
+  flex: 1 1 180px;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-modifier-form-field);
+  color: var(--text-muted);
+}
+
+.claudian-provider-browser-search-field:focus-within {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-provider-browser-search-field svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-settings .claudian-provider-browser-search-field input.claudian-provider-browser-search,
+.claudian-settings .claudian-provider-browser-search-field input.claudian-provider-browser-search:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: var(--font-ui-small);
+}
+
+.claudian-provider-browser-search::placeholder {
+  color: var(--text-muted);
+}
+
+.claudian-settings .claudian-provider-browser-search-field input.claudian-provider-browser-search:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-provider-browser-filter {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-height: 36px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+.claudian-provider-browser-filter input {
+  margin: 0;
+}
+
+.claudian-provider-browser-list ul {
+  list-style: none;
+  margin: 0;
+  padding: var(--size-4-1);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+}
+
+.claudian-provider-browser-list li {
+  margin: 0;
+  padding: 0;
+}
+
+.claudian-provider-browser-list li + li {
+  border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+}
+
+.claudian-settings button.claudian-provider-browser-row,
+.claudian-settings button.claudian-provider-browser-back,
+.claudian-settings button.claudian-provider-browser-row:is(:hover, :focus, :focus-visible, :active, :disabled),
+.claudian-settings button.claudian-provider-browser-back:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-ui-small);
+  text-align: start;
+  cursor: pointer;
+}
+
+.claudian-settings button.claudian-provider-browser-row {
+  width: 100%;
+  min-height: 56px;
+  height: auto;
+  padding: var(--size-4-3);
+  border-radius: var(--radius-m);
+  white-space: normal;
+}
+
+.claudian-settings button.claudian-provider-browser-back {
+  padding: var(--size-4-2) 0;
+}
+
+.claudian-settings button.claudian-provider-browser-row:is(:hover, :focus-visible),
+.claudian-settings button.claudian-provider-browser-back:is(:hover, :focus-visible) {
+  color: var(--text-normal);
+}
+
+.claudian-settings button.claudian-provider-browser-row--navigation:is(:hover, :focus-visible) {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-settings button.claudian-provider-browser-row:focus-visible,
+.claudian-settings button.claudian-provider-browser-back:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.claudian-settings button.claudian-provider-browser-row:disabled,
+.claudian-settings button.claudian-provider-browser-back:disabled {
+  background: transparent;
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.claudian-provider-browser-row svg,
+.claudian-provider-browser-back svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
+.claudian-provider-browser-row .claudian-obsidian-icon {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.claudian-provider-browser-icon {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.claudian-provider-browser-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.claudian-provider-browser-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-normal);
+  font-weight: var(--font-medium);
+}
+
+.claudian-provider-browser-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.2;
+}
+
+.claudian-provider-browser-status[data-enabled="true"] {
+  background: color-mix(in srgb, var(--interactive-accent) 9%, transparent);
+  color: var(--text-muted);
+}
+
+.claudian-provider-browser-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.claudian-provider-browser-status[data-enabled="true"] .claudian-provider-browser-status-dot {
+  background: var(--interactive-accent);
+}
+
+.claudian-provider-browser-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--size-4-4);
+  margin: var(--size-4-2) 0 var(--size-4-4);
+}
+
+.claudian-provider-browser-detail-header h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  overflow-wrap: anywhere;
+}

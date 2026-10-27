@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "Get started",
       "desc": "Follow these three steps to send your first provider-backed chat.",
-      "stepProvider": "Choose a provider tab and enable a provider.",
+      "stepProvider": "Open Providers, select a provider from the list, and enable it.",
       "stepReadiness": "Use the Readiness panel to confirm the CLI, model catalog, and model selection are ready.",
       "stepChat": "Open the chat view and send your first message.",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "Open provider diagnostic logs"
     },
     "providerSettings": {
+      "enabledOnly": "Enabled only",
+      "search": "Search providers",
+      "noMatches": "No matching providers.",
+      "allProviders": "All providers",
       "unavailable": "Provider settings are unavailable.",
       "loadFailed": "Could not load provider settings: {message}"
     },

@@ -68,6 +68,7 @@ import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
 import { mountProviderCliUpdateCheck } from './ProviderCliUpdates';
+import { ProviderSettingsBrowser } from './ProviderSettingsBrowser';
 
 type SettingsTabId = string;
 type CapabilityMatrixKey = keyof Pick<
@@ -177,7 +178,10 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
-  private providerTabsRoot: PreactRoot | null = null;
+  private providerBrowserRoot: PreactRoot | null = null;
+  private providerListScrollTop = 0;
+  private providerSearchQuery = '';
+  private providerEnabledOnly = false;
   private generalSettingsRoot: PreactRoot | null = null;
   private generalGettingStartedRoot: PreactRoot | null = null;
   private generalCapabilityMatrixRoot: PreactRoot | null = null;
@@ -254,8 +258,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     this.generalSettingsRoot = null;
     this.settingsTabsRoot?.unmount();
     this.settingsTabsRoot = null;
-    this.providerTabsRoot?.unmount();
-    this.providerTabsRoot = null;
+    this.providerBrowserRoot?.unmount();
+    this.providerBrowserRoot = null;
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass('claudian-settings', 'oh-my-claudian-settings');
@@ -268,8 +272,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     if (!tabIds.includes(this.activeTab)) {
       this.activeTab = 'general';
     }
-    if (!this.activeProviderTab || !providerTabs.includes(this.activeProviderTab)) {
-      this.activeProviderTab = providerTabs[0] ?? null;
+    if (this.activeProviderTab && !providerTabs.includes(this.activeProviderTab)) {
+      this.activeProviderTab = null;
     }
 
     const tabBar = containerEl.createDiv({ cls: 'claudian-settings-tabs' });
@@ -428,50 +432,56 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     const providersContent = tabContents.get('providers');
     if (providersContent) {
-      const providerTabBar = providersContent.createDiv({
-        cls: 'claudian-settings-tabs claudian-settings-provider-tabs',
-      });
-      providerTabBar.setAttribute('role', 'tablist');
-      providerTabBar.setAttribute('aria-label', t('settings.tabs.providers'));
-
-      const providerTabDefinitions: SettingsTabDefinition[] = providerTabs.map(id => ({
-        id,
-        label: ProviderRegistry.getProviderSettingsTabLabel(id),
-        contentId: getSettingsTabContentId(`provider-${id}`),
-      }));
-
+      const browserMount = providersContent.createDiv();
       for (const providerId of providerTabs) {
         const content = providersContent.createDiv({
           cls: `claudian-settings-provider-content${providerId === this.activeProviderTab ? ' claudian-settings-provider-content--active' : ''}`,
         });
         content.id = getSettingsTabContentId(`provider-${providerId}`);
-        content.setAttribute('role', 'tabpanel');
-        content.setAttribute('aria-labelledby', `claudian-settings-tab-${providerId}`);
+        content.setAttribute('role', 'region');
+        content.setAttribute('aria-labelledby', `claudian-settings-provider-title-${providerId}`);
         content.hidden = providerId !== this.activeProviderTab;
         providerContents.set(providerId, content);
       }
 
-      this.providerTabsRoot = createPreactRoot(providerTabBar);
-      this.providerTabsRoot.render(h(SettingsTabBar, {
-        tabs: providerTabDefinitions,
-        initialActiveTabId: this.activeProviderTab ?? '',
-        onTabChange: (providerId) => {
-          if (!providerTabs.includes(providerId)) {
-            return;
-          }
-          const selectedProviderId = providerId;
-          this.activeProviderTab = selectedProviderId;
-          for (const candidate of providerTabs) {
-            const content = providerContents.get(candidate);
-            const isActive = candidate === selectedProviderId;
-            content?.toggleClass('claudian-settings-provider-content--active', isActive);
-            if (content) {
-              content.hidden = !isActive;
-            }
-          }
-          void renderProviderTab(selectedProviderId);
-        },
-      }));
+      const selectProvider = (providerId: ProviderId | null): void => {
+        if (providerId && !providerTabs.includes(providerId)) return;
+        if (providerId) this.providerListScrollTop = containerEl.scrollTop;
+        this.activeProviderTab = providerId;
+        for (const [id, content] of providerContents) {
+          const isActive = id === providerId;
+          content.toggleClass('claudian-settings-provider-content--active', isActive);
+          content.hidden = !isActive;
+        }
+        renderBrowser();
+        containerEl.scrollTop = providerId ? 0 : this.providerListScrollTop;
+        if (providerId) void renderProviderTab(providerId);
+      };
+      const renderBrowser = (): void => {
+        this.providerBrowserRoot?.render(h(ProviderSettingsBrowser, {
+          providers: providerTabs.map(id => ({
+            id,
+            name: ProviderRegistry.getProviderDisplayName(id),
+            enabled: ProviderRegistry.isEnabled(id, this.plugin.settings),
+            icon: ProviderRegistry.getChatUIConfig(id).getProviderIcon?.(),
+          })),
+          activeProviderId: this.activeProviderTab,
+          query: this.providerSearchQuery,
+          enabledOnly: this.providerEnabledOnly,
+          onEnabledOnlyChange: (enabledOnly: boolean) => {
+            this.providerEnabledOnly = enabledOnly;
+            renderBrowser();
+          },
+          onQueryChange: (query: string) => {
+            this.providerSearchQuery = query;
+            renderBrowser();
+          },
+          onSelect: selectProvider,
+          onBack: () => selectProvider(null),
+        }));
+      };
+      this.providerBrowserRoot = createPreactRoot(browserMount);
+      renderBrowser();
     }
 
     this.renderGeneralTab(tabContents.get('general')!);

@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "使い始める",
       "desc": "次の 3 つの手順で、プロバイダーを使った最初のチャットを送信できます。",
-      "stepProvider": "プロバイダーのタブを選び、プロバイダーを有効にします。",
+      "stepProvider": "「プロバイダー」を開き、一覧からプロバイダーを選択して有効にします。",
       "stepReadiness": "準備状況パネルで CLI、モデルカタログ、モデル選択が準備できていることを確認します。",
       "stepChat": "チャットビューを開いて最初のメッセージを送信します。",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "プロバイダー診断ログを開く"
     },
     "providerSettings": {
+      "enabledOnly": "有効なもののみ",
+      "search": "プロバイダーを検索",
+      "noMatches": "一致するプロバイダーはありません。",
+      "allProviders": "すべてのプロバイダー",
       "unavailable": "プロバイダー設定を利用できません。",
       "loadFailed": "プロバイダー設定を読み込めませんでした: {message}"
     },

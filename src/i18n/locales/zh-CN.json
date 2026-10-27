@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "开始使用",
       "desc": "按以下三个步骤发送第一条由提供商支持的聊天消息。",
-      "stepProvider": "选择一个提供商标签页并启用提供商。",
+      "stepProvider": "打开“提供商”，从列表中选择一个提供商并启用。",
       "stepReadiness": "使用就绪状态面板确认 CLI、模型目录和模型选择均已准备好。",
       "stepChat": "打开聊天视图并发送第一条消息。",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "打开提供商诊断日志"
     },
     "providerSettings": {
+      "enabledOnly": "仅显示已启用",
+      "search": "搜索提供商",
+      "noMatches": "没有匹配的提供商。",
+      "allProviders": "全部提供商",
       "unavailable": "提供商设置不可用。",
       "loadFailed": "无法加载提供商设置：{message}"
     },
