@@ -49,6 +49,20 @@ describe('mention picker interactions', () => {
     jest.advanceTimersByTime(200);
   }
 
+  it('shows ready vault rows on the next task and rejects a click from the previous query', () => {
+    input.value = '@plan'; input.selectionStart = input.selectionEnd = input.value.length;
+    input.dispatchEvent(new Event('input'));
+    expect(container.querySelector('[role="option"]')).toBeNull();
+    jest.advanceTimersByTime(0);
+    const oldRow = container.querySelector<HTMLElement>('[role="option"]')!;
+    expect(oldRow).not.toBeNull();
+    input.value = '@missing'; input.selectionStart = input.selectionEnd = input.value.length;
+    input.dispatchEvent(new Event('input'));
+    oldRow.click();
+    expect(input.value).toBe('@missing');
+    expect(container.querySelector('[role="option"]')).toBeNull();
+  });
+
   it('distinguishes duplicate filenames and inserts the keyboard-selected full path', async () => {
     type('@plan');
     const rows = [...container.querySelectorAll('[role="option"]')];
