@@ -4,6 +4,26 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 describe('Message styles', () => {
+  it('keeps long activity phase summaries on one line with an ellipsis', () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    document.head.appendChild(style);
+    const label = document.createElement('span');
+    label.className = 'claudian-activity-phase-label';
+    document.body.appendChild(label);
+
+    try {
+      const computed = window.getComputedStyle(label);
+      expect(computed.whiteSpace).toBe('nowrap');
+      expect(computed.overflow).toBe('hidden');
+      expect(computed.textOverflow).toBe('ellipsis');
+      expect(computed.minWidth).toBe('0');
+    } finally {
+      label.remove();
+      style.remove();
+    }
+  });
+
   it('animates only the active phase label and stops when the phase settles', () => {
     const style = document.createElement('style');
     style.textContent = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
