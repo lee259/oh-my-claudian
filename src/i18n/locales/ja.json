@@ -335,6 +335,21 @@
       "collapse": "{label} - クリックして折りたたむ",
       "errorResult": "エラー"
     },
+    "scenePrompts": {
+      "label": "場面別の提案",
+      "explain": "選択範囲を説明",
+      "explainPrompt": "選択した文章をわかりやすく説明してください。",
+      "polish": "選択範囲を推敲",
+      "polishPrompt": "選択した文章の意味と語調を保って推敲してください。",
+      "shorten": "選択範囲を短縮",
+      "shortenPrompt": "選択した文章の要点を保って短くしてください。",
+      "summarize": "ノートを要約",
+      "summarizePrompt": "現在のノートをいくつかの要点にまとめてください。",
+      "tasks": "タスクを整理",
+      "tasksPrompt": "現在のノートからタスクと次のステップを整理してください。",
+      "related": "関連ノートを探す",
+      "relatedPrompt": "関連するノートを探し、現在のノートとの関係を説明してください。"
+    },
     "promptSuggestion": {
       "label": "次の提案：{suggestion}"
     },

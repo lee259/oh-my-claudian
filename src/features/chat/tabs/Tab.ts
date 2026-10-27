@@ -76,6 +76,7 @@ import { InstructionModeManager as InstructionModeManagerClass } from '../ui/Ins
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { PromptSuggestionController } from '../ui/PromptSuggestionController';
 import { renderProviderDiagnosticCard } from '../ui/ProviderDiagnosticCard';
+import { ScenePromptController } from '../ui/ScenePromptController';
 import { StatusPanel } from '../ui/StatusPanel';
 import { installTextareaSizing } from '../ui/textareaSizing';
 import { InputHistoryController } from './InputHistoryController';
@@ -1499,6 +1500,7 @@ function initializeInputToolbar(
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
   tab.ui.refreshComposerLocale = () => {
     toolbarComponents.refreshLocale();
+    tab.ui.scenePrompts?.refresh();
     updateSendButton(tab);
     tab.controllers.inputController?.updateQueueIndicator();
   };
@@ -1566,6 +1568,7 @@ export function initializeTabUI(
   tab.ui.contextTray = new ComposerContextTray(dom.contextRowEl, {
     onDidChange: () => {
       tab.renderer?.scrollToBottomIfNeeded();
+      tab.ui.scenePrompts?.refresh();
     },
   });
   // Track the editor's height cap without measuring layout on every keystroke.
@@ -1597,6 +1600,13 @@ export function initializeTabUI(
 
   initializeInstructionAndTodo(tab, plugin);
   tab.ui.promptSuggestion = new PromptSuggestionController(dom.inputComposerEl, dom.inputEl);
+  if (typeof document !== 'undefined' && dom.inputComposerEl.ownerDocument) {
+    tab.ui.scenePrompts = new ScenePromptController(dom.inputComposerEl, dom.inputEl, dom.messagesEl, () => ({
+      hasSelection: tab.controllers.selectionController?.hasSelection() ?? false,
+      hasCurrentNote: !!tab.ui.fileContextManager?.getCurrentNotePath(),
+      hasMessages: tab.state.messages.length > 0 || tab.state.isStreaming,
+    }));
+  }
   initializeInputToolbar(
     tab,
     plugin,
@@ -2503,6 +2513,10 @@ export async function detachTabPresentation(tab: TabData): Promise<void> {
   cleanup.register('tab prompt suggestion', () => {
     ui.promptSuggestion?.destroy();
     ui.promptSuggestion = null;
+  });
+  cleanup.register('tab scene prompts', () => {
+    ui.scenePrompts?.destroy();
+    ui.scenePrompts = null;
   });
 
 
