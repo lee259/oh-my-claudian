@@ -1,6 +1,8 @@
 import { NativePeer } from '@test/helpers/deepseek/NativePeer';
+import { createMockEl } from '@test/helpers/MockElement';
 import { testDate } from '@test/helpers/testClock';
 
+import { renderStoredWriteEdit } from '@/features/chat/rendering/WriteEditRenderer';
 import { DeepSeekConversationHistoryService } from '@/providers/deepseek/history/DeepSeekConversationHistoryService';
 import { getDeepSeekHome } from '@/providers/deepseek/runtime/DeepSeekHome';
 import type { DeepSeekHost } from '@/providers/deepseek/runtime/DeepSeekHost';
@@ -296,3 +298,20 @@ async function hydrate(input: Parameters<DeepSeekConversationHistoryService['hyd
   await history.hydrateConversationHistory(input, vaultPath);
   return { messages: input.messages };
 }
+
+it.each([
+  ['blank prior line', '', 1],
+  ['created file', null, 0],
+  ['ordinary replacement', 'before', 1],
+])('restores %s from native applied hunks', async (_label, oldText, removed) => {
+  records = [wire(0, 'turn/start', { turn: 0 }),
+    wire(1, 'tool/call', { callId: 'edit', name: 'edit', arguments: '{"file_path":"note.md"}' }),
+    wire(2, 'tool/result', { message: { toolCallId: 'edit', content: [{ type: 'text', text: 'updated' }] }, meta: { diffs: [{ path: 'note.md', oldText, newText: 'after' }] } }),
+    wire(3, 'turn/end', { turn: 0, reason: { kind: 'completed' } })];
+  const result = await hydrate(input, '/vault');
+  const tool = result.messages?.[0].toolCalls?.[0];
+  expect(tool?.diffData?.stats).toEqual({ added: 1, removed });
+  const card = renderStoredWriteEdit(createMockEl(), tool!, { initiallyExpanded: true });
+  expect(card.querySelectorAll('.claudian-diff-delete')).toHaveLength(removed);
+  expect(card.querySelectorAll('.claudian-diff-insert')).toHaveLength(1);
+});
