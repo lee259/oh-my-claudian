@@ -426,9 +426,9 @@ function reconcileToolUpdate(turn: PendingTurn, update: Record<string, unknown>)
     title: readString(update.title),
   });
   const rawName = rawNameResolution.rawName;
-  const rawInput = update.rawInput !== undefined ? update.rawInput : current?.rawInput;
+  const rawInput = update.rawInput !== undefined && (update.rawInput !== null || !current) ? update.rawInput : current?.rawInput;
   const renderedContent = renderToolContent(update.content);
-  const rawOutput = update.rawOutput !== undefined
+  const rawOutput = update.rawOutput !== undefined && (update.rawOutput !== null || !current)
     ? update.rawOutput
     : current?.rawOutput;
   const normalized = normalizeGrokToolCall({
@@ -440,7 +440,7 @@ function reconcileToolUpdate(turn: PendingTurn, update: Record<string, unknown>)
   const status = normalizeToolStatus(readString(update.status), current?.status);
   const nativeToolUseResult = extractAcpDiffToolUseResult(update.content)
     ?? current?.toolUseResult;
-  const output = renderedContent || (update.rawOutput === undefined
+  const output = renderedContent || (update.rawOutput == null
     ? current?.output || normalized.output
     : normalized.output || current?.output) || '';
 
