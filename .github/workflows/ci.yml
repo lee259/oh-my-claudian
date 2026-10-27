@@ -160,6 +160,9 @@ jobs:
           tests/unit/utils/path.test.ts
           tests/unit/utils/utils.test.ts
 
+      - name: Test durable JSON writes
+        run: pnpm exec jest --runInBand tests/integration/core/bootstrap/JsonWriteRecovery.test.ts
+
       - name: Build
         run: pnpm run build
 

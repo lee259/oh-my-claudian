@@ -469,7 +469,7 @@ export class ClaudianSettingsStorage {
       null,
       2,
     );
-    await this.adapter.write(CLAUDIAN_SETTINGS_PATH, content);
+    await this.adapter.writeDurable(CLAUDIAN_SETTINGS_PATH, content);
     await this.deleteLegacyFileIfPresent();
   }
 

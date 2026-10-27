@@ -29,7 +29,7 @@ jest.mock('@/utils/env', () => ({
 const mockAdapter = {
   exists: jest.fn(),
   read: jest.fn(),
-  write: jest.fn(),
+  writeDurable: jest.fn(),
   delete: jest.fn(),
 } as unknown as jest.Mocked<VaultFileAdapter>;
 
@@ -42,7 +42,7 @@ describe('ClaudianSettingsStorage', () => {
     // Reset mock implementations to default resolved values
     mockAdapter.exists.mockResolvedValue(false);
     mockAdapter.read.mockResolvedValue('{}');
-    mockAdapter.write.mockResolvedValue(undefined);
+    mockAdapter.writeDurable.mockResolvedValue(undefined);
     mockAdapter.delete.mockResolvedValue(undefined);
     mockGetHostnameKey.mockReturnValue('host-a');
     storage = new ClaudianSettingsStorage(mockAdapter);
@@ -82,7 +82,7 @@ describe('ClaudianSettingsStorage', () => {
         { providerId: 'codex', model: 'same-model' },
       ]);
       await storage.save(settings);
-      const saved = JSON.parse(mockAdapter.write.mock.calls.at(-1)![1]);
+      const saved = JSON.parse(mockAdapter.writeDurable.mock.calls.at(-1)![1]);
       mockAdapter.read.mockResolvedValue(JSON.stringify(saved));
       expect((await storage.load()).favoriteModels).toEqual(settings.favoriteModels);
     });
@@ -127,7 +127,7 @@ describe('ClaudianSettingsStorage', () => {
 
       expect(result.model).toBe('claude-opus-4-5');
       expect(result.userName).toBe('MigratedUser');
-      expect(mockAdapter.write).toHaveBeenCalledWith(
+      expect(mockAdapter.writeDurable).toHaveBeenCalledWith(
         CLAUDIAN_SETTINGS_PATH,
         expect.any(String),
       );
@@ -175,7 +175,7 @@ describe('ClaudianSettingsStorage', () => {
       const result = await storage.load();
 
       expect(result.lastSelectedChatModel).toBeNull();
-      expect(mockAdapter.write).not.toHaveBeenCalled();
+      expect(mockAdapter.writeDurable).not.toHaveBeenCalled();
     });
 
     it('normalizes a malformed stored chat model selection to null', async () => {
@@ -188,7 +188,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.lastSelectedChatModel).toBeNull();
       expect(writtenContent.lastSelectedChatModel).toBeNull();
@@ -213,7 +213,7 @@ describe('ClaudianSettingsStorage', () => {
         providerId: 'codex',
         model: 'codex/gpt-5.7',
       });
-      expect(mockAdapter.write).toHaveBeenCalled();
+      expect(mockAdapter.writeDurable).toHaveBeenCalled();
     });
 
     it('uses the saved provider model when the legacy live projection is empty', async () => {
@@ -289,7 +289,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.chatViewPlacement).toBe('main-tab');
       expect(writtenContent.chatViewPlacement).toBe('main-tab');
@@ -303,7 +303,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.chatViewPlacement).toBe('right-sidebar');
       expect(writtenContent.chatViewPlacement).toBe('right-sidebar');
@@ -317,7 +317,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.chatViewPlacement).toBe('right-sidebar');
       expect(writtenContent.chatViewPlacement).toBe('right-sidebar');
@@ -335,7 +335,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       for (const key of [
         'enableDualPane',
@@ -361,7 +361,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect('enableBlocklist' in result).toBe(false);
       expect('blockedCommands' in result).toBe(false);
@@ -494,7 +494,7 @@ describe('ClaudianSettingsStorage', () => {
         'host-a': '/custom/pi-a',
         'host-b': '/custom/pi-b',
       });
-      expect(mockAdapter.write).not.toHaveBeenCalled();
+      expect(mockAdapter.writeDurable).not.toHaveBeenCalled();
     });
 
     it('clears Codex Windows installation settings on non-Windows hosts during normalization', async () => {
@@ -520,7 +520,7 @@ describe('ClaudianSettingsStorage', () => {
 
       const result = await storage.load();
       const codexSettings = getCodexProviderSettings(result);
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(codexSettings.cliPathsByHost).toEqual({
         'host-a': '/opt/homebrew/bin/codex',
@@ -570,7 +570,7 @@ describe('ClaudianSettingsStorage', () => {
 
       const result = await storage.load();
       const grokSettings = getGrokProviderSettings(result);
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(grokSettings.cliPathsByHost).toEqual({
         'host-a': '/custom/grok-a',
@@ -608,7 +608,7 @@ describe('ClaudianSettingsStorage', () => {
 
       const result = await storage.load();
       const codexConfig = result.providerConfigs.codex as Record<string, unknown>;
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(getCodexProviderSettings(result).installationMethod).toBe('native-windows');
       expect(getCodexProviderSettings(result).wslDistroOverride).toBe('');
@@ -704,7 +704,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(writtenContent.model).toBe('sonnet');
       expect(writtenContent.hiddenProviderCommands).toEqual({});
@@ -720,7 +720,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(writtenContent).not.toHaveProperty('enableOpus1M');
       expect(writtenContent).not.toHaveProperty('enableSonnet1M');
@@ -738,7 +738,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(writtenContent.providerConfigs.claude).not.toHaveProperty('enableOpus1M');
       expect(writtenContent.providerConfigs.claude).not.toHaveProperty('enableSonnet1M');
@@ -752,7 +752,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect('slashCommands' in result).toBe(false);
       expect(writtenContent.model).toBe('sonnet');
@@ -767,7 +767,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.hiddenProviderCommands).toEqual({
         claude: ['commit', 'review'],
@@ -787,7 +787,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.hiddenProviderCommands).toEqual({
         claude: ['existing'],
@@ -810,7 +810,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.envSnippets).toEqual([{
         id: 'snippet-1',
@@ -845,7 +845,7 @@ describe('ClaudianSettingsStorage', () => {
       }));
 
       const result = await storage.load();
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
 
       expect(result.customModelAliases).toEqual({
         'custom-model': 'Friendly model',
@@ -885,11 +885,11 @@ describe('ClaudianSettingsStorage', () => {
 
       await storage.save(settings);
 
-      expect(mockAdapter.write).toHaveBeenCalledWith(
+      expect(mockAdapter.writeDurable).toHaveBeenCalledWith(
         CLAUDIAN_SETTINGS_PATH,
         expect.any(String)
       );
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
       expect(writtenContent.model).toBe('claude-opus-4-5');
       expect(writtenContent.providerConfigs.codex).not.toHaveProperty('installationMethod');
       expect(writtenContent.providerConfigs.codex.installationMethodsByHost).toEqual({});
@@ -906,7 +906,7 @@ describe('ClaudianSettingsStorage', () => {
 
       await storage.save(settings as any);
 
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
       expect(writtenContent.model).toBe('claude-opus-4-5');
       expect(writtenContent).not.toHaveProperty('slashCommands');
     });
@@ -926,7 +926,7 @@ describe('ClaudianSettingsStorage', () => {
 
       await storage.save(settings);
 
-      const writtenContent = JSON.parse(mockAdapter.write.mock.calls[0][1]);
+      const writtenContent = JSON.parse(mockAdapter.writeDurable.mock.calls[0][1]);
       expect(writtenContent.providerConfigs.codex.discoveredModels).toEqual(TEST_CODEX_CATALOG);
       expect(writtenContent.providerConfigs.codex.visibleModels).toEqual(['gpt-5.4-mini']);
       expect(getCodexProviderSettings(settings).discoveredModels).toEqual(TEST_CODEX_CATALOG);
@@ -949,7 +949,7 @@ describe('ClaudianSettingsStorage', () => {
       };
 
       await storage.save(settings);
-      const persistedContent = mockAdapter.write.mock.calls[0][1];
+      const persistedContent = mockAdapter.writeDurable.mock.calls[0][1];
       const persistedSettings = JSON.parse(persistedContent);
       expect(persistedSettings.providerConfigs.codex.discoveredModels).toEqual(TEST_CODEX_CATALOG);
       expect(persistedSettings.providerConfigs.codex.modelAliases).toEqual({
@@ -977,7 +977,7 @@ describe('ClaudianSettingsStorage', () => {
 
       await storage.save(DEFAULT_SETTINGS);
 
-      expect(mockAdapter.write).toHaveBeenCalledWith(
+      expect(mockAdapter.writeDurable).toHaveBeenCalledWith(
         CLAUDIAN_SETTINGS_PATH,
         expect.any(String),
       );
@@ -985,7 +985,7 @@ describe('ClaudianSettingsStorage', () => {
     });
 
     it('should throw on write error', async () => {
-      mockAdapter.write.mockRejectedValue(new Error('Write failed'));
+      mockAdapter.writeDurable.mockRejectedValue(new Error('Write failed'));
 
       await expect(storage.save(DEFAULT_SETTINGS)).rejects.toThrow('Write failed');
     });
@@ -1035,7 +1035,7 @@ describe('ClaudianSettingsStorage', () => {
 
       await storage.update({ model: 'claude-opus-4-5' });
 
-      const writeCall = mockAdapter.write.mock.calls[0];
+      const writeCall = mockAdapter.writeDurable.mock.calls[0];
       const writtenContent = JSON.parse(writeCall[1]);
       expect(writtenContent.model).toBe('claude-opus-4-5');
       expect(writtenContent.userName).toBe('ExistingUser');
