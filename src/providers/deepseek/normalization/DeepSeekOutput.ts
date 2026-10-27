@@ -333,7 +333,7 @@ function appliedDiff(meta: unknown): DeepSeekResultDetails['diff'] | undefined {
   const diffLines: DiffLine[] = [];
   for (const hunk of hunks) {
     if (typeof hunk.newText !== 'string' || (hunk.oldText !== null && typeof hunk.oldText !== 'string')) return undefined;
-    const before = hunk.oldText ? hunk.oldText.split('\n') : [];
+    const before = hunk.oldText === null ? [] : hunk.oldText.split('\n');
     const after = hunk.newText ? hunk.newText.split('\n') : [];
     let prefix = 0;
     while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix++;
