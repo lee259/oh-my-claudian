@@ -335,6 +335,21 @@
       "collapse": "{label} — clique para recolher",
       "errorResult": "ERRO"
     },
+    "scenePrompts": {
+      "label": "Sugestões",
+      "explain": "Explicar seleção",
+      "explainPrompt": "Explique o texto selecionado de forma clara e simples.",
+      "polish": "Aprimorar seleção",
+      "polishPrompt": "Aprimore o texto selecionado preservando o sentido e o tom.",
+      "shorten": "Encurtar seleção",
+      "shortenPrompt": "Encurte o texto selecionado preservando os pontos principais.",
+      "summarize": "Resumir nota",
+      "summarizePrompt": "Resuma a nota atual em alguns pontos principais.",
+      "tasks": "Listar tarefas",
+      "tasksPrompt": "Extraia as tarefas e próximos passos da nota atual.",
+      "related": "Buscar notas relacionadas",
+      "relatedPrompt": "Encontre notas relacionadas e explique sua relação com a nota atual."
+    },
     "promptSuggestion": {
       "label": "Sugestão para continuar: {suggestion}"
     },

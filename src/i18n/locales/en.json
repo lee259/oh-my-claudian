@@ -335,6 +335,21 @@
       "collapse": "{label} - click to collapse",
       "errorResult": "ERROR"
     },
+    "scenePrompts": {
+      "label": "Suggested prompts",
+      "explain": "Explain selection",
+      "explainPrompt": "Explain the selected text in clear, plain language.",
+      "polish": "Polish selection",
+      "polishPrompt": "Polish the selected text while preserving its meaning and tone.",
+      "shorten": "Shorten selection",
+      "shortenPrompt": "Shorten the selected text while preserving its key points.",
+      "summarize": "Summarize note",
+      "summarizePrompt": "Summarize the current note in a few key points.",
+      "tasks": "List tasks",
+      "tasksPrompt": "Extract the tasks and next steps from the current note.",
+      "related": "Find related notes",
+      "relatedPrompt": "Find related notes and explain how they relate to the current note."
+    },
     "promptSuggestion": {
       "label": "Suggested follow-up: {suggestion}"
     },

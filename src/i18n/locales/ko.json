@@ -335,6 +335,21 @@
       "collapse": "{label} - 클릭하여 접기",
       "errorResult": "오류"
     },
+    "scenePrompts": {
+      "label": "상황별 제안",
+      "explain": "선택 내용 설명",
+      "explainPrompt": "선택한 내용을 알기 쉽게 설명해 주세요.",
+      "polish": "선택 내용 다듬기",
+      "polishPrompt": "선택한 내용의 의미와 어조를 유지하며 다듬어 주세요.",
+      "shorten": "선택 내용 줄이기",
+      "shortenPrompt": "핵심을 유지하면서 선택한 내용을 줄여 주세요.",
+      "summarize": "노트 요약",
+      "summarizePrompt": "현재 노트를 몇 가지 핵심으로 요약해 주세요.",
+      "tasks": "할 일 정리",
+      "tasksPrompt": "현재 노트에서 할 일과 다음 단계를 정리해 주세요.",
+      "related": "관련 노트 찾기",
+      "relatedPrompt": "관련 노트를 찾아 현재 노트와의 관계를 설명해 주세요."
+    },
     "promptSuggestion": {
       "label": "추천 후속 작업: {suggestion}"
     },

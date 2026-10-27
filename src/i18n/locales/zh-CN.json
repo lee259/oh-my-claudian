@@ -335,6 +335,21 @@
       "collapse": "{label} - 点击收起",
       "errorResult": "错误"
     },
+    "scenePrompts": {
+      "label": "场景建议",
+      "explain": "解释选区",
+      "explainPrompt": "用通俗易懂的语言解释选中的文字。",
+      "polish": "润色选区",
+      "polishPrompt": "润色选中的文字，保留原意和语气。",
+      "shorten": "压缩选区",
+      "shortenPrompt": "精简选中的文字，保留关键信息。",
+      "summarize": "提炼要点",
+      "summarizePrompt": "用几条要点总结当前笔记。",
+      "tasks": "整理待办",
+      "tasksPrompt": "从当前笔记中整理待办和下一步。",
+      "related": "找相关笔记",
+      "relatedPrompt": "查找相关笔记，并说明它们与当前笔记的联系。"
+    },
     "promptSuggestion": {
       "label": "建议继续：{suggestion}"
     },
