@@ -941,8 +941,9 @@ button.claudian-activity-phase-header:focus-visible {
 .claudian-activity-phase-label {
   min-width: 0;
   font-weight: 600;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .claudian-activity-phase[data-active='true'] > .claudian-activity-phase-header > .claudian-activity-phase-label {
