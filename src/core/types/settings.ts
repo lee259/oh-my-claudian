@@ -131,6 +131,7 @@ export interface ClaudianSettings {
 
   // Content settings
   excludedTags: string[];
+  autoAttachFocusedNote: boolean;
   mediaFolder: string;
   systemPrompt: string;
   useClaudianSystemPrompt: boolean;

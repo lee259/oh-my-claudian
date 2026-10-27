@@ -785,6 +785,10 @@
       "name": "Wie soll Oh My Claudian dich nennen?",
       "desc": "Dein Name für personalisierte Begrüßungen (leer lassen für allgemeine Begrüßungen)"
     },
+    "autoAttachFocusedNote": {
+      "name": "Aktive Notiz automatisch hinzufügen",
+      "desc": "Die aktive Notiz automatisch zum Chat-Kontext hinzufügen. Deaktivieren, um Notizen manuell hinzuzufügen."
+    },
     "excludedTags": {
       "name": "Ausgeschlossene Tags",
       "desc": "Notizen mit diesen Tags werden nicht automatisch als Kontext geladen (einer pro Zeile, ohne #)"

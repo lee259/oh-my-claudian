@@ -17,6 +17,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   titleGenerationModel: '',
 
   excludedTags: [],
+  autoAttachFocusedNote: true,
   mediaFolder: '',
   systemPrompt: '',
   useClaudianSystemPrompt: true,

@@ -31,7 +31,7 @@ export class ConversationRuntime {
   releaseRegistration: (() => void) | null = null;
   retainedImages: ImageAttachment[] = [];
   retainedQuotes: Array<{ id: string; text: string }> = [];
-  retainedFileContext: { files: string[]; currentNoteSent: boolean; sessionStarted: boolean } | null = null;
+  retainedFileContext: { files: string[]; manualFiles?: string[]; currentNoteSent: boolean; sessionStarted: boolean } | null = null;
   hydrationWork: Promise<void> | null = null;
   private historyRetryWork: Promise<void> | null = null;
   readonly emptyUI = createEmptyPresentationUI();

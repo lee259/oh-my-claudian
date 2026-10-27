@@ -1164,6 +1164,7 @@ function initializeContextManagers(
     dom.inputEl,
     {
       getExcludedTags: () => plugin.settings.excludedTags,
+      getAutoAttachFocusedNote: () => plugin.settings.autoAttachFocusedNote !== false,
       getExternalContexts: () => tab.ui.externalContextSelector?.getExternalContexts() || [],
       onUserChipsChanged: onUserModified,
       onCurrentNoteChanged: (notePath) => {
@@ -2464,6 +2465,7 @@ export async function detachTabPresentation(tab: TabData): Promise<void> {
   runtime.retainedQuotes = ui.quotedMessages.map(quote => ({ ...quote }));
   if (ui.fileContextManager) runtime.retainedFileContext = {
     files: [...ui.fileContextManager.getAttachedFiles()],
+    manualFiles: ui.fileContextManager.getManualFiles(),
     currentNoteSent: !ui.fileContextManager.shouldSendCurrentNote(),
     sessionStarted: ui.fileContextManager.isSessionStarted(),
   };
