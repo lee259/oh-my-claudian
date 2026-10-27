@@ -596,6 +596,8 @@ describe('GrokHistoryStore', () => {
         sessionUpdate: 'tool_call_update',
       },
       {
+        rawInput: null,
+        rawOutput: null,
         status: 'completed',
         toolCallId: 'tool-future',
         sessionUpdate: 'tool_call_update',

@@ -69,10 +69,10 @@ export class AcpToolStreamAdapter {
     const result: StreamChunk[] = [];
     const providerPayloadFields = this.buildProviderPayloadFields(state);
     if (
-      toolCallUpdate.rawInput !== undefined
+      (toolCallUpdate.rawInput != null || (!current && toolCallUpdate.rawInput === null))
       || state.rawName !== current?.rawName
       || (
-        toolCallUpdate.rawOutput !== undefined
+        (toolCallUpdate.rawOutput != null || (!current && toolCallUpdate.rawOutput === null))
         && providerPayloadFields.providerPayload !== undefined
       )
     ) {
@@ -106,10 +106,10 @@ export class AcpToolStreamAdapter {
       rawName: current.rawName,
     } : undefined, update);
     const nextInput = current?.input ?? {};
-    const rawInput = update.rawInput !== undefined ? update.rawInput : current?.rawInput;
-    const rawOutput = update.rawOutput !== undefined ? update.rawOutput : current?.rawOutput;
+    const rawInput = update.rawInput !== undefined && (update.rawInput !== null || !current) ? update.rawInput : current?.rawInput;
+    const rawOutput = update.rawOutput !== undefined && (update.rawOutput !== null || !current) ? update.rawOutput : current?.rawOutput;
 
-    if (update.rawInput !== undefined) {
+    if (update.rawInput != null || (!current && update.rawInput === null)) {
       const normalizedRawInput = normalizeRawToolInput(update.rawInput);
       return this.buildToolState(
         nextRawName,

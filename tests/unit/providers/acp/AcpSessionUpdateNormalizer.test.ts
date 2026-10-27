@@ -159,6 +159,8 @@ describe('AcpSessionUpdateNormalizer', () => {
       toolCallId: 'tool-future',
     });
     const completed = normalizer.normalize({
+      rawInput: null,
+      rawOutput: null,
       sessionUpdate: 'tool_call_update',
       status: 'completed',
       toolCallId: 'tool-future',

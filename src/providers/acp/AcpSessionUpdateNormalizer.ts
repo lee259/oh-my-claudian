@@ -217,11 +217,11 @@ export class AcpSessionUpdateNormalizer {
       current.name = normalizeToolName(undefined, toolCallUpdate.kind);
     }
 
-    if (toolCallUpdate.rawInput !== undefined) {
+    if (toolCallUpdate.rawInput != null) {
       current.input = normalizeToolInput(toolCallUpdate.rawInput);
       current.rawInput = toolCallUpdate.rawInput;
     }
-    if (toolCallUpdate.rawOutput !== undefined) {
+    if (toolCallUpdate.rawOutput != null) {
       current.rawOutput = toolCallUpdate.rawOutput;
     }
     const toolUseResult = extractAcpDiffToolUseResult(toolCallUpdate.content);
@@ -232,7 +232,7 @@ export class AcpSessionUpdateNormalizer {
       };
     }
 
-    const nextOutput = renderToolPayload(toolCallUpdate.content ?? undefined, toolCallUpdate.rawOutput)
+    const nextOutput = renderToolPayload(toolCallUpdate.content ?? undefined, toolCallUpdate.rawOutput ?? undefined)
       || current.output;
     const streamChunks: StreamChunk[] = [];
 
