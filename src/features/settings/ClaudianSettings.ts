@@ -794,7 +794,20 @@ export class ClaudianSettingTab extends PluginSettingTab {
     // --- Content ---
 
     const content = section('content');
-    this.mountGeneralControl(content, h(SettingsTextFieldsView, {
+    this.mountGeneralControl(content.createDiv(), h(SettingsToggleListView, {
+      saveLabels: this.getSettingsSaveLabels(),
+      items: [{
+        id: 'auto-attach-focused-note',
+        name: t('settings.autoAttachFocusedNote.name'),
+        description: t('settings.autoAttachFocusedNote.desc'),
+        value: this.plugin.settings.autoAttachFocusedNote !== false,
+      }],
+      onChange: async (_id, value) => {
+        await this.plugin.mutateSettings(settings => { settings.autoAttachFocusedNote = value; });
+        for (const view of this.plugin.getAllViews()) view.refreshAutoAttachSetting();
+      },
+    }));
+    this.mountGeneralControl(content.createDiv(), h(SettingsTextFieldsView, {
       saveLabels: this.getSettingsSaveLabels(),
       items: [
         {
@@ -861,7 +874,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       },
     }));
 
-    this.mountGeneralControl(content, h(SettingsToggleListView, {
+    this.mountGeneralControl(content.createDiv(), h(SettingsToggleListView, {
       saveLabels: this.getSettingsSaveLabels(),
       items: [{
         id: 'use-claudian-system-prompt',

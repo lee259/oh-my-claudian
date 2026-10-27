@@ -35,6 +35,7 @@ type ExcludedTagState = 'excluded' | 'not-excluded' | 'unknown';
 
 export interface FileContextCallbacks {
   getExcludedTags: () => string[];
+  getAutoAttachFocusedNote?: () => boolean;
   onChipsChanged?: () => void;
   onUserChipsChanged?: () => void;
   onCurrentNoteChanged?: (notePath: string | null) => void;
@@ -65,6 +66,7 @@ export class FileContextManager {
 
   // Current note (shown as chip)
   private currentNotePath: string | null = null;
+  private manualFiles = new Set<string>();
 
   // MCP server support
   private onMcpMentionChange: ((servers: Set<string>) => void) | null = null;
@@ -92,6 +94,7 @@ export class FileContextManager {
     }
     this.chipsView = new FileChipsView(resolvedContextTray, {
       onRemoveAttachment: (filePath) => {
+        this.manualFiles.delete(filePath);
         if (filePath === this.currentNotePath) {
           this.currentNotePath = null;
           this.state.detachFile(filePath);
@@ -141,8 +144,16 @@ export class FileContextManager {
     return this.state.getAttachedFiles();
   }
 
-  restoreSessionContext(context: { files: string[]; currentNoteSent: boolean; sessionStarted: boolean }): void {
-    this.state.setAttachedFiles(context.files);
+  getManualFiles(): string[] {
+    return [...this.manualFiles];
+  }
+
+  restoreSessionContext(context: { files: string[]; manualFiles?: string[]; currentNoteSent: boolean; sessionStarted: boolean }, restoredCurrentNote?: string): void {
+    this.manualFiles = new Set(context.manualFiles ?? []);
+    const files = this.callbacks.getAutoAttachFocusedNote?.() === false && restoredCurrentNote && !this.manualFiles.has(restoredCurrentNote)
+      ? context.files.filter(file => file !== restoredCurrentNote)
+      : context.files;
+    this.state.setAttachedFiles(files);
     if (context.currentNoteSent) this.state.markCurrentNoteSent();
     else this.state.markCurrentNoteChanged();
     if (context.sessionStarted) this.state.startSession();
@@ -219,6 +230,7 @@ export class FileContextManager {
 
   /** Resets state for a new conversation. */
   resetForNewConversation() {
+    this.manualFiles.clear();
     this.currentNotePath = null;
     this.state.resetForNewConversation();
     this.refreshCurrentNoteChip();
@@ -227,6 +239,7 @@ export class FileContextManager {
 
   /** Resets state for loading an existing conversation. */
   resetForLoadedConversation(hasMessages: boolean) {
+    this.manualFiles.clear();
     this.currentNotePath = null;
     this.state.resetForLoadedConversation(hasMessages);
     this.refreshCurrentNoteChip();
@@ -235,6 +248,7 @@ export class FileContextManager {
 
   /** Sets current note (for restoring persisted state). */
   setCurrentNote(notePath: string | null) {
+    if (this.callbacks.getAutoAttachFocusedNote?.() === false) return;
     this.currentNotePath = notePath;
     if (notePath) {
       this.state.attachFile(notePath);
@@ -245,6 +259,7 @@ export class FileContextManager {
 
   /** Auto-attaches the currently focused file (for new sessions). */
   autoAttachActiveFile() {
+    if (this.callbacks.getAutoAttachFocusedNote?.() === false) return;
     const activeFile = this.app.workspace.getActiveFile();
     if (activeFile && this.getExcludedTagState(activeFile) === 'not-excluded') {
       const normalizedPath = this.normalizePathForVault(activeFile.path);
@@ -255,6 +270,22 @@ export class FileContextManager {
         this.callbacks.onScopeChanged?.(normalizedPath);
       }
     }
+  }
+
+  refreshAutoAttachSetting(): void {
+    if (this.callbacks.getAutoAttachFocusedNote?.() !== false) {
+      this.reconcileCurrentNote(this.app.workspace.getActiveFile(), false);
+      this.callbacks.onScopeChanged?.(this.currentNotePath);
+      return;
+    }
+    const previous = this.currentNotePath;
+    if (!previous) return;
+    this.currentNotePath = null;
+    if (!this.manualFiles.has(previous)) this.state.detachFile(previous);
+    this.state.markCurrentNoteChanged();
+    this.callbacks.onCurrentNoteChanged?.(null);
+    this.callbacks.onScopeChanged?.(null);
+    this.refreshCurrentNoteChip();
   }
 
   /** Handles file open event. */
@@ -424,6 +455,7 @@ export class FileContextManager {
     if (!normalized) return;
     const abstract = this.app.vault.getAbstractFileByPath(normalized);
     const path = abstract instanceof TFolder && !normalized.endsWith('/') ? `${normalized}/` : normalized;
+    this.manualFiles.add(path);
     this.state.attachFile(path);
     this.renderAttachedFiles();
     this.callbacks.onUserChipsChanged?.();
@@ -474,6 +506,7 @@ export class FileContextManager {
 
       this.state.detachFile(attachedPath);
       this.state.attachFile(renamedAttachedPath);
+      if (this.manualFiles.delete(attachedPath)) this.manualFiles.add(renamedAttachedPath);
       needsUpdate = true;
     }
 
@@ -485,6 +518,7 @@ export class FileContextManager {
   private handleFileDeleted(deletedPath: string): void {
     const normalized = this.normalizePathForVault(deletedPath);
     if (!normalized) return;
+    this.manualFiles.delete(normalized);
 
     let needsUpdate = false;
 
@@ -542,6 +576,7 @@ export class FileContextManager {
   }
 
   private reconcileCurrentNote(file: TFile | null, isFileOpen: boolean): void {
+    if (this.callbacks.getAutoAttachFocusedNote?.() === false) return;
     const normalizedPath = file ? this.normalizePathForVault(file.path) : null;
     if (isFileOpen && !normalizedPath) return;
 
@@ -550,7 +585,10 @@ export class FileContextManager {
       : null;
 
     if (!this.state.isSessionStarted()) {
-      if (isFileOpen) this.state.clearAttachments();
+      if (isFileOpen) {
+        this.state.clearAttachments();
+        this.manualFiles.clear();
+      }
       if (!isFileOpen && linkablePath === this.currentNotePath) return;
       this.currentNotePath = linkablePath;
       if (linkablePath) {
@@ -564,7 +602,7 @@ export class FileContextManager {
     if (!linkablePath) {
       if (!isFileOpen && !this.currentNotePath) return;
       if (this.currentNotePath) {
-        this.state.detachFile(this.currentNotePath);
+        if (!this.manualFiles.has(this.currentNotePath)) this.state.detachFile(this.currentNotePath);
       }
       this.currentNotePath = null;
       this.state.markCurrentNoteChanged();
@@ -575,7 +613,7 @@ export class FileContextManager {
 
     if (this.currentNotePath !== linkablePath) {
       if (this.currentNotePath) {
-        this.state.detachFile(this.currentNotePath);
+        if (!this.manualFiles.has(this.currentNotePath)) this.state.detachFile(this.currentNotePath);
       }
       this.currentNotePath = linkablePath;
       this.state.attachFile(linkablePath);

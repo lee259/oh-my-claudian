@@ -785,6 +785,10 @@
       "name": "Como o Oh My Claudian deve chamá-lo?",
       "desc": "Seu nome para saudações personalizadas (deixe vazio para saudações genéricas)"
     },
+    "autoAttachFocusedNote": {
+      "name": "Anexar automaticamente a nota ativa",
+      "desc": "Adiciona a nota ativa ao contexto do chat. Desative para adicionar notas manualmente."
+    },
     "excludedTags": {
       "name": "Tags excluídas",
       "desc": "Notas com estas tags não serão carregadas automaticamente como contexto (uma por linha, sem #)"

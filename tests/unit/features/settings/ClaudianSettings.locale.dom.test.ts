@@ -73,6 +73,23 @@ function createToolbarCallbacks(): ToolbarCallbacks {
 }
 
 describe('ClaudianSettingTab live locale change', () => {
+  it('renders the auto-attach switch alongside the other content settings', () => {
+    setLocale('en');
+    const settings = { ...DEFAULT_CLAUDIAN_SETTINGS };
+    const plugin = {
+      settings,
+      getAllViews: jest.fn(() => []),
+      storage: { getAdapter: jest.fn(() => ({})) },
+      providerHost: { settings, getEnvironmentVariablesForScope: jest.fn(() => '') },
+    };
+    const tab = new ClaudianSettingTab({} as any, plugin as any);
+    tab.containerEl = document.createElement('div') as any;
+    tab.display();
+    expect(tab.containerEl.textContent).toContain('Auto-attach focused note');
+    expect(tab.containerEl.textContent).toContain('Excluded tags');
+    expect(tab.containerEl.textContent).toContain('Use Oh My Claudian system prompt');
+  });
+
   it('refreshes mounted chat composers after saving the interface language', async () => {
     const settings = {
       ...DEFAULT_CLAUDIAN_SETTINGS,

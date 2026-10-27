@@ -125,6 +125,60 @@ describe('FileContextManager', () => {
   let containerEl: MockElement;
   let inputEl: HTMLTextAreaElement;
 
+  it('does not automatically attach or replace notes when disabled, while keeping manual files', () => {
+    const app = createMockApp({ files: ['active.md', 'other.md'], activeFilePath: 'active.md' });
+    const callbacks = { ...createMockCallbacks(), getAutoAttachFocusedNote: () => false };
+    const manager = new FileContextManager(app, containerEl as any, inputEl, callbacks);
+    manager.autoAttachActiveFile();
+    manager.addExternalFiles(['/outside/manual.md']);
+    manager.handleFileOpen(createMockTFile('other.md'));
+    manager.handleActiveFileMetadataChanged(null);
+    expect(manager.getCurrentNotePath()).toBeNull();
+    expect([...manager.getAttachedFiles()]).toEqual(['/outside/manual.md']);
+    manager.destroy();
+  });
+
+  it('clears the automatic note when disabled and follows the active file when enabled again', () => {
+    let enabled = true;
+    const app = createMockApp({ files: ['active.md'], activeFilePath: 'active.md' });
+    const callbacks = { ...createMockCallbacks(), getAutoAttachFocusedNote: () => enabled };
+    const manager = new FileContextManager(app, containerEl as any, inputEl, callbacks);
+    manager.autoAttachActiveFile();
+    manager.addExternalFiles(['/outside/manual.md']);
+    enabled = false;
+    manager.refreshAutoAttachSetting();
+    expect(manager.getCurrentNotePath()).toBeNull();
+    expect([...manager.getAttachedFiles()]).toEqual(['/outside/manual.md']);
+    enabled = true;
+    manager.refreshAutoAttachSetting();
+    expect(manager.getCurrentNotePath()).toBe('active.md');
+    manager.destroy();
+  });
+
+  it('does not restore an automatic note into a retained session when disabled', () => {
+    const app = createMockApp({ files: ['old.md'] });
+    const callbacks = { ...createMockCallbacks(), getAutoAttachFocusedNote: () => false };
+    const manager = new FileContextManager(app, containerEl as any, inputEl, callbacks);
+    manager.setCurrentNote('old.md');
+    manager.restoreSessionContext({
+      files: ['old.md', 'manual.md'], manualFiles: ['manual.md'], currentNoteSent: false, sessionStarted: true,
+    }, 'old.md');
+    expect(manager.getCurrentNotePath()).toBeNull();
+    expect([...manager.getAttachedFiles()]).toEqual(['manual.md']);
+    manager.destroy();
+  });
+
+  it('retains an explicitly attached file even if it was also the automatic note', () => {
+    const app = createMockApp({ files: ['same.md'] });
+    const callbacks = { ...createMockCallbacks(), getAutoAttachFocusedNote: () => false };
+    const manager = new FileContextManager(app, containerEl as any, inputEl, callbacks);
+    manager.restoreSessionContext({
+      files: ['same.md'], manualFiles: ['same.md'], currentNoteSent: false, sessionStarted: false,
+    }, 'same.md');
+    expect([...manager.getAttachedFiles()]).toEqual(['same.md']);
+    manager.destroy();
+  });
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();

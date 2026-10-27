@@ -324,7 +324,7 @@ export class TabManager implements TabManagerInterface {
         const context = runtime.context.snapshot;
         tab.ui.fileContextManager?.resetForLoadedConversation(runtime.state.messages.length > 0);
         tab.ui.fileContextManager?.setCurrentNote(context.currentNote ?? null);
-        if (runtime.retainedFileContext) tab.ui.fileContextManager?.restoreSessionContext(runtime.retainedFileContext);
+        if (runtime.retainedFileContext) tab.ui.fileContextManager?.restoreSessionContext(runtime.retainedFileContext, context.currentNote);
         tab.ui.externalContextSelector?.setExternalContexts([...context.externalContextPaths]);
         tab.ui.mcpServerSelector?.setEnabledServers([...context.enabledMcpServers]);
         tab.ui.imageContextManager?.setImages([...runtime.retainedImages]);

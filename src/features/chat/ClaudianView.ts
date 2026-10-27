@@ -132,6 +132,12 @@ export class ClaudianView extends ItemView {
     }
   }
 
+  refreshAutoAttachSetting(): void {
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      tab.ui.fileContextManager?.refreshAutoAttachSetting();
+    }
+  }
+
   /** Refreshes model-dependent UI across all tabs (used after settings/env changes). */
   refreshModelSelector(changedProviderId?: ProviderId): void {
     this.tabManager?.reconcileProviderAvailability();

@@ -785,6 +785,10 @@
       "name": "What should Oh My Claudian call you?",
       "desc": "Your name for personalized greetings (leave empty for generic greetings)"
     },
+    "autoAttachFocusedNote": {
+      "name": "Auto-attach focused note",
+      "desc": "Automatically add the focused note to chat context. Disable to add notes manually."
+    },
     "excludedTags": {
       "name": "Excluded tags",
       "desc": "Notes with these tags will not auto-load as context (one per line, without #)"
