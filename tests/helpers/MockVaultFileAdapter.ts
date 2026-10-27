@@ -7,6 +7,8 @@ export function createMockVaultFileAdapter(files: Record<string, string> = {}): 
     return { paths: filePaths(), prefix };
   };
 
+  const write = jest.fn();
+
   return {
     exists: jest.fn(async (path: string) =>
       path in files || filePaths().some(filePath => filePath.startsWith(`${path}/`)),
@@ -15,7 +17,8 @@ export function createMockVaultFileAdapter(files: Record<string, string> = {}): 
       if (!(path in files)) throw new Error(`File not found: ${path}`);
       return files[path];
     }),
-    write: jest.fn(),
+    write,
+    writeDurable: write,
     delete: jest.fn(),
     listFiles: jest.fn(async (folder: string) => {
       const { paths, prefix } = withPrefix(folder);

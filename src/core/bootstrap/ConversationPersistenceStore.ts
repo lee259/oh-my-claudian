@@ -64,7 +64,7 @@ export class ConversationPersistenceStore implements ConversationPersistence {
   }
 
   saveMetadata(metadata: SessionMetadata): Promise<void> {
-    return this.adapter.write(
+    return this.adapter.writeDurable(
       this.metadataStorage.getMetadataPath(metadata.id),
       JSON.stringify(metadata, null, 2),
     );
@@ -96,7 +96,7 @@ export class ConversationPersistenceStore implements ConversationPersistence {
       conversationId,
       deletedAt,
     };
-    await this.adapter.write(
+    await this.adapter.writeDurable(
       this.getDeletionMarkerPath(conversationId),
       JSON.stringify(marker, null, 2),
     );

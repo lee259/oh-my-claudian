@@ -5,6 +5,8 @@
  * vault adapter instead of Node's fs module.
  */
 
+import { randomUUID } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -113,6 +115,40 @@ export class VaultFileAdapter {
   async write(path: string, content: string): Promise<void> {
     await this.ensureParentFolder(path);
     await this.app.vault.adapter.write(path, content);
+  }
+
+  /** Replace Claudian-owned state without truncating the previous desktop file. */
+  async writeDurable(filePath: string, content: string): Promise<void> {
+    const normalized = normalizeManagedPath(filePath);
+    await this.ensureParentFolder(normalized);
+    const desktop = this.getDesktopAdapter();
+    if (!desktop) {
+      await this.adapter.write(normalized, content);
+      return;
+    }
+    const target = path.join(desktop.getBasePath(), ...normalized.split('/'));
+    let stat: Stats | undefined;
+    try {
+      stat = await fs.lstat(target);
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+    }
+    // Preserve write-through semantics for linked files and non-regular leaves.
+    if (stat && (!stat.isFile() || stat.nlink !== 1)) {
+      await this.adapter.write(normalized, content);
+      return;
+    }
+    const temporary = path.join(path.dirname(target), `.claudian-${randomUUID()}.tmp`);
+    let written = false;
+    try {
+      await fs.writeFile(temporary, content, { encoding: 'utf8', flag: 'wx', mode: stat?.mode });
+      written = true;
+      if (stat) await fs.chmod(temporary, stat.mode);
+      await fs.rename(temporary, target);
+    } catch (error) {
+      if (written || !isCollision(error)) await fs.rm(temporary, { force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 
   async append(path: string, content: string): Promise<void> {

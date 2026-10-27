@@ -123,7 +123,7 @@ export class ConversationInputLedgerStorage
     if (!isConversationInputLedger(ledger, conversationId)) {
       throw new Error(`Invalid conversation input ledger: ${conversationId}`);
     }
-    await this.adapter.write(path, JSON.stringify(ledger, null, 2));
+    await this.adapter.writeDurable(path, JSON.stringify(ledger, null, 2));
   }
 
   async delete(conversationId: string): Promise<void> {
