@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "Loslegen",
       "desc": "Folge diesen drei Schritten, um deinen ersten Chat mit einem Anbieter zu senden.",
-      "stepProvider": "Wähle einen Anbieter-Tab und aktiviere einen Anbieter.",
+      "stepProvider": "Öffne „Anbieter“, wähle einen Anbieter aus der Liste und aktiviere ihn.",
       "stepReadiness": "Bestätige im Bereitschaftsbereich, dass CLI, Modellkatalog und Modellauswahl bereit sind.",
       "stepChat": "Öffne die Chat-Ansicht und sende deine erste Nachricht.",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "Anbieter-Diagnoseprotokolle öffnen"
     },
     "providerSettings": {
+      "enabledOnly": "Nur aktivierte",
+      "search": "Anbieter suchen",
+      "noMatches": "Keine passenden Anbieter.",
+      "allProviders": "Alle Anbieter",
       "unavailable": "Anbietereinstellungen sind nicht verfügbar.",
       "loadFailed": "Anbietereinstellungen konnten nicht geladen werden: {message}"
     },

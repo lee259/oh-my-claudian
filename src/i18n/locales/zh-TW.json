@@ -572,7 +572,7 @@
     "gettingStarted": {
       "title": "開始使用",
       "desc": "依照以下三個步驟傳送第一則由提供者支援的聊天訊息。",
-      "stepProvider": "選擇一個提供者分頁並啟用提供者。",
+      "stepProvider": "開啟「供應商」，從清單中選擇一個供應商並啟用。",
       "stepReadiness": "使用就緒狀態面板確認 CLI、模型目錄和模型選擇都已準備好。",
       "stepChat": "開啟聊天檢視並傳送第一則訊息。",
       "openChat": {
@@ -1306,6 +1306,10 @@
       "openCommandName": "開啟提供者診斷記錄"
     },
     "providerSettings": {
+      "enabledOnly": "僅顯示已啟用",
+      "search": "搜尋供應商",
+      "noMatches": "沒有符合的供應商。",
+      "allProviders": "所有供應商",
       "unavailable": "無法使用提供者設定。",
       "loadFailed": "無法載入提供者設定：{message}"
     },
