@@ -125,7 +125,7 @@ export interface AgentMessageItem {
   type: 'agentMessage';
   id: string;
   text: string;
-  phase: string;
+  phase: string | null;
   memoryCitation: CodexMemoryCitation | null;
   delivery?: 'async' | 'sync';
   questions?: Array<Record<string, unknown>>;
