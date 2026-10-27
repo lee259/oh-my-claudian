@@ -243,10 +243,14 @@ export class CodexSubagentTracker {
 }
 
 export function getCodexChildTurnOutcome(turn: Turn): Pick<SubagentInfo, 'status' | 'result'> {
-  const result = turn.items
+  const finalText = turn.items
     .filter(item => item.type === 'agentMessage' && item.phase === 'final_answer')
     .map(item => item.type === 'agentMessage' ? item.text : '')
     .join('\n\n');
+  const unphased = turn.status === 'completed'
+    ? turn.items.filter(item => item.type === 'agentMessage' && item.phase == null).at(-1)
+    : undefined;
+  const result = finalText || (unphased?.type === 'agentMessage' ? unphased.text : undefined);
   return {
     status: turn.status === 'inProgress' ? 'running' : turn.status === 'completed' ? 'completed' : 'error',
     result: result || turn.error?.message || undefined,
