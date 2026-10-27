@@ -77,6 +77,31 @@ describe('AcpToolStreamAdapter', () => {
     }]);
   });
 
+  it('retains accumulated raw payload when a later update contains null fields', () => {
+    const adapter = createAdapter();
+    const rawInput = { path: 'note.md' };
+    const rawOutput = { partial: 'result' };
+    adapter.normalizeToolCall({ rawInput, title: 'read_file', toolCallId: 'tool-1' }, [
+      { id: 'tool-1', input: {}, name: 'tool', type: 'tool_use' },
+    ]);
+    adapter.normalizeToolCallUpdate({ rawOutput, toolCallId: 'tool-1' }, []);
+    expect(adapter.normalizeToolCallUpdate({ rawInput: null, rawOutput: null, status: 'completed', toolCallId: 'tool-1' }, [
+      { content: 'done', id: 'tool-1', type: 'tool_result' },
+    ])).toEqual([{
+      content: 'done', id: 'tool-1', type: 'tool_result',
+      toolUseResult: { providerPayload: { rawInput, rawName: 'read_file', rawOutput } },
+    }]);
+  });
+
+  it('preserves initial null and accepts later non-null raw values', () => {
+    const adapter = createAdapter();
+    expect(adapter.normalizeToolCall({ rawInput: null, rawOutput: null, title: 'read_file', toolCallId: 'tool-1' }, [
+      { id: 'tool-1', input: {}, name: 'tool', type: 'tool_use' },
+    ])).toMatchObject([{ providerPayload: { rawInput: null, rawOutput: null } }]);
+    expect(adapter.normalizeToolCallUpdate({ rawInput: { path: 'next.md' }, rawOutput: false, toolCallId: 'tool-1' }, []))
+      .toMatchObject([{ providerPayload: { rawInput: { path: 'next.md' }, rawOutput: false } }]);
+  });
+
   it('merges native ACP diff data with provider-owned result metadata', () => {
     const adapter = createAdapter();
     adapter.normalizeToolCall({
