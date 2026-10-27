@@ -198,6 +198,7 @@ const mainContext = await esbuild.context({
   external,
   format: 'cjs',
   target: 'es2022',
+  charset: 'utf8',
   logLevel: 'info',
   minify: prod,
   banner: { js: DISTRIBUTED_LICENSE_BANNER },

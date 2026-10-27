@@ -28,4 +28,6 @@ run([
   path.join(__dirname, 'check-eslint-config.test.mjs'),
   path.join(__dirname, 'check-release-version.test.mjs'),
   path.join(__dirname, 'check-startup-performance.test.mjs'),
+  path.join(__dirname, 'compressedStaticAssets.test.mjs'),
+  path.join(__dirname, 'workspaceToolBundle.test.mjs'),
 ]);
