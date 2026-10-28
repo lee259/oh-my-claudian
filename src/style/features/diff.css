@@ -205,3 +205,18 @@
   font-style: italic;
   padding: 8px;
 }
+
+.claudian-write-edit-status.status-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  height: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.claudian-write-edit-status.status-running svg {
+  animation: spin 1s linear infinite;
+}

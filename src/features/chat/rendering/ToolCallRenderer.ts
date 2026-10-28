@@ -874,6 +874,7 @@ function resetStatusElement(statusEl: HTMLElement, statusClass: string, ariaLabe
 }
 
 const STATUS_ICONS: Record<string, string> = {
+  running: 'loader-2',
   completed: 'check',
   error: 'x',
   blocked: 'shield-off',
@@ -891,6 +892,9 @@ function setToolStatus(statusEl: HTMLElement, status: ToolCallInfo['status']): v
   resetStatusElement(statusEl, `status-${status}`, t('chat.bangBash.statusLabel', { status: t(`chat.toolStatus.${status}`) }));
   const icon = STATUS_ICONS[status];
   if (icon) setIcon(statusEl, icon);
+  if (status !== 'completed') {
+    statusEl.createSpan({ cls: 'claudian-tool-status-label', text: t(`chat.toolStatus.${status}`) });
+  }
 }
 
 function setApplyPatchHeaderRight(statusEl: HTMLElement, toolCall: ToolCallInfo): void {
