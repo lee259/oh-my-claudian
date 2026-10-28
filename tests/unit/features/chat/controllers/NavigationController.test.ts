@@ -444,6 +444,36 @@ describe('NavigationController', () => {
     });
   });
 
+  describe('editable message controls', () => {
+    beforeEach(() => controller.initialize());
+
+    it.each(['INPUT', 'TEXTAREA', 'SELECT'])('does not intercept shortcuts from %s', tagName => {
+      const event = new KeyboardEvent('keydown', { key: 'i', cancelable: true });
+      Object.defineProperty(event, 'target', { value: { tagName } });
+      const focus = jest.spyOn(inputEl, 'focus');
+      messagesEl.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(focus).not.toHaveBeenCalled();
+    });
+
+    it('does not intercept a shortcut while composing text', () => {
+      const event = new KeyboardEvent('keydown', { key: 'i', cancelable: true });
+      Object.defineProperty(event, 'isComposing', { value: true });
+      const focus = jest.spyOn(inputEl, 'focus');
+      messagesEl.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(focus).not.toHaveBeenCalled();
+    });
+
+    it('does not intercept shortcuts from an editable descendant', () => {
+      const event = new KeyboardEvent('keydown', { key: 'w', cancelable: true });
+      Object.defineProperty(event, 'target', { value: { tagName: 'SPAN', closest: () => ({}) } });
+      messagesEl.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(mockRaf).not.toHaveBeenCalled();
+    });
+  });
+
   describe('focus input key (i)', () => {
     beforeEach(() => {
       controller.initialize();
