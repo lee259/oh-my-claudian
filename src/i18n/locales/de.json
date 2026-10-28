@@ -335,21 +335,6 @@
       "collapse": "{label} – zum Einklappen klicken",
       "errorResult": "FEHLER"
     },
-    "scenePrompts": {
-      "label": "Vorschläge",
-      "explain": "Auswahl erklären",
-      "explainPrompt": "Erkläre den ausgewählten Text verständlich.",
-      "polish": "Auswahl überarbeiten",
-      "polishPrompt": "Überarbeite den ausgewählten Text und bewahre Bedeutung und Ton.",
-      "shorten": "Auswahl kürzen",
-      "shortenPrompt": "Kürze den ausgewählten Text und bewahre die Kernaussagen.",
-      "summarize": "Notiz zusammenfassen",
-      "summarizePrompt": "Fasse die aktuelle Notiz in einigen Kernpunkten zusammen.",
-      "tasks": "Aufgaben sammeln",
-      "tasksPrompt": "Ermittle Aufgaben und nächste Schritte aus der aktuellen Notiz.",
-      "related": "Verwandte Notizen finden",
-      "relatedPrompt": "Finde verwandte Notizen und erkläre ihren Bezug zur aktuellen Notiz."
-    },
     "promptSuggestion": {
       "label": "Vorgeschlagener nächster Schritt: {suggestion}"
     },

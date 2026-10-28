@@ -41,7 +41,6 @@ import type {
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
 import type { NavigationSidebar } from '../ui/NavigationSidebar';
 import type { PromptSuggestionController } from '../ui/PromptSuggestionController';
-import type { ScenePromptController } from '../ui/ScenePromptController';
 import type { ScopePreview } from '../ui/ScopePreview';
 import type { StatusPanel } from '../ui/StatusPanel';
 
@@ -166,7 +165,6 @@ export interface TabUIComponents {
   statusPanel: StatusPanel | null;
   navigationSidebar: NavigationSidebar | null;
   promptSuggestion: PromptSuggestionController | null;
-  scenePrompts: ScenePromptController | null;
 }
 
 /**
