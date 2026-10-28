@@ -33,6 +33,6 @@ export function createEmptyPresentationUI(): TabUIComponents {
     externalContextSelector: null, mcpServerSelector: null, permissionToggle: null,
     serviceTierToggle: null, refreshComposerLocale: null, slashCommandDropdown: null,
     instructionModeManager: null, bangBashModeManager: null,
-    contextUsageMeter: null, statusPanel: null, navigationSidebar: null, promptSuggestion: null, scenePrompts: null,
+    contextUsageMeter: null, statusPanel: null, navigationSidebar: null, promptSuggestion: null,
   };
 }

@@ -335,21 +335,6 @@
       "collapse": "{label} - 點選收合",
       "errorResult": "錯誤"
     },
-    "scenePrompts": {
-      "label": "情境建議",
-      "explain": "解釋選取內容",
-      "explainPrompt": "用淺顯易懂的語言解釋選取的文字。",
-      "polish": "潤飾選取內容",
-      "polishPrompt": "潤飾選取的文字，保留原意和語氣。",
-      "shorten": "精簡選取內容",
-      "shortenPrompt": "精簡選取的文字，保留關鍵資訊。",
-      "summarize": "整理重點",
-      "summarizePrompt": "用幾個重點總結目前筆記。",
-      "tasks": "整理待辦",
-      "tasksPrompt": "從目前筆記整理待辦事項與下一步。",
-      "related": "尋找相關筆記",
-      "relatedPrompt": "尋找相關筆記，並說明它們與目前筆記的關聯。"
-    },
     "promptSuggestion": {
       "label": "建議繼續：{suggestion}"
     },
