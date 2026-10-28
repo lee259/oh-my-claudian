@@ -58,15 +58,15 @@ export interface WelcomeHomeOptions {
   onRequestRenameConversation?: (conversationId: string, title: string) => void;
 }
 
-function HomeConversationLoadingIndicator({ label }: { label: string }) {
+function HomeConversationLoadingIndicator({ label, running }: { label: string; running: boolean }) {
   return (
     <span
-      className="claudian-home-conversation-loading"
+      className={`claudian-home-conversation-loading${running ? ' claudian-home-conversation-loading--running' : ''}`}
       aria-label={label}
       ref={(element) => {
-        if (element) setIcon(element, 'loader-2');
+        if (element && !running) setIcon(element, 'loader-2');
       }}
-    />
+    >{running ? label : null}</span>
   );
 }
 
@@ -168,6 +168,7 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
                 )}
                 {isLoading && (
                   <HomeConversationLoadingIndicator
+                    running={hasRuntimeStatus}
                     label={t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle')}
                   />
                 )}

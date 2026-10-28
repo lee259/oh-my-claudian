@@ -131,7 +131,12 @@ function renderLegacyHomeSurface(
     }
     if (isLoading) {
       const loadingEl = openButton.createSpan({ cls: 'claudian-home-conversation-loading' });
-      setIcon(loadingEl, 'loader-2');
+      if (hasRuntimeStatus) {
+        loadingEl.addClass('claudian-home-conversation-loading--running');
+        loadingEl.setText(t('chat.history.running'));
+      } else {
+        setIcon(loadingEl, 'loader-2');
+      }
       loadingEl.setAttribute(
         'aria-label',
         t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle'),
