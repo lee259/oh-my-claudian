@@ -288,7 +288,12 @@ export class InputController {
       restorePrePlanPermissionModeIfNeeded: () => deps.restorePrePlanPermissionModeIfNeeded?.(),
       saveConversation: async (didEnqueueToSdk) => {
         const saveExtras = didEnqueueToSdk ? { resumeAtMessageId: undefined } : undefined;
-        await deps.conversationController.save(true, saveExtras);
+        try {
+          await deps.conversationController.save(true, saveExtras);
+        } catch (error) {
+          if (deps.state.followUps.next) deps.state.followUps.pause();
+          throw error;
+        }
       },
       refreshActionButtons: (userMessage) => {
         const userMessageIndex = deps.state.messages.indexOf(userMessage);

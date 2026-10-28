@@ -188,6 +188,42 @@ describe('ClaudeExecutionBackend', () => {
     jest.restoreAllMocks();
   });
 
+  it('reports an error result carried by a native success frame', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'native-session' },
+      { type: 'result', subtype: 'success', is_error: true, result: 'Native request failed' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services).createSession(createConfig());
+    const events = await collectEvents(session.execute(createRequest()).events);
+    expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'execution_error', message: 'Native request failed' })]));
+    expect(events).not.toEqual(expect.arrayContaining([expect.objectContaining({ type: 'turn_completed' })]));
+    await session.dispose();
+  });
+
+  it('reports an error in an automatic background turn without changing the completed request', async () => {
+    const query = createScriptedPersistentQuery([[
+      { type: 'system', subtype: 'init', session_id: 'session-result' },
+      { type: 'result', subtype: 'success', is_error: false, result: '' },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'Automatic response.' }] } },
+      { type: 'result', subtype: 'success', is_error: true, result: 'Background failure' },
+    ]]);
+    jest.spyOn(await import('@/providers/claude/loadClaudeAgentSdk'), 'loadClaudeAgentQuery')
+      .mockResolvedValueOnce((() => query) as never);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services).createSession(createConfig());
+    const sessionEvents: ProviderSessionEvent[] = [];
+    session.onEvent(event => sessionEvents.push(event));
+    const events = await collectEvents(session.execute(createRequest()).events);
+    await query.finished;
+    expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'turn_completed' })]));
+    expect(sessionEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'session_error', message: 'Background failure' }),
+      expect.objectContaining({ type: 'background_turn_completed', reason: 'provider-ended' }),
+    ]));
+    await session.dispose();
+  });
+
   it('creates a persistent session that normalizes SDK output and publishes commands', async () => {
     sdkMock.setMockSupportedCommands([
       { name: 'review', description: 'Review changes', argumentHint: '[path]' },

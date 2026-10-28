@@ -688,6 +688,16 @@ ClaudeExecutionStrategySink {
         continue;
       }
       if (normalized.type === 'result') {
+        if (message.type === 'result' && message.subtype === 'success' && message.is_error) {
+          const diagnostic = message.result.trim() || 'Claude Code reported an error result.';
+          if (this.activeRun?.nativeHandedOff && inputMatch !== false) {
+            this.finishError(this.activeRun, new Error(diagnostic));
+          } else if (this.backgroundTurn && !this.activeRun) {
+            this.emitSession({ type: 'session_error', category: 'provider', message: diagnostic, recoverable: true });
+            this.finishBackgroundTurn('provider-ended');
+          }
+          return;
+        }
         if (this.activeRun) {
           const current = this.activeRun;
           if (current.nativeHandedOff && inputMatch === false) continue;

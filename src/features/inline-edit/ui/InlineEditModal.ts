@@ -169,8 +169,17 @@ function splitLinesPreservingEndings(text: string): string[] {
 }
 
 function computeMarkdownDiff(oldText: string, newText: string): DiffOp[] {
-  const oldLines = splitLinesPreservingEndings(oldText);
-  const newLines = splitLinesPreservingEndings(newText);
+  const allOldLines = splitLinesPreservingEndings(oldText);
+  const allNewLines = splitLinesPreservingEndings(newText);
+  let oldEnd = allOldLines.length, newEnd = allNewLines.length;
+  while (oldEnd > 0 && newEnd > 0 && allOldLines[oldEnd - 1] === allNewLines[newEnd - 1]) {
+    oldEnd--; newEnd--;
+  }
+  let prefixLength = 0;
+  while (prefixLength < oldEnd && prefixLength < newEnd
+    && allOldLines[prefixLength] === allNewLines[prefixLength]) prefixLength++;
+  const oldLines = allOldLines.slice(prefixLength, oldEnd);
+  const newLines = allNewLines.slice(prefixLength, newEnd);
   const m = oldLines.length, n = newLines.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array<number>(n + 1).fill(0));
 
@@ -198,7 +207,10 @@ function computeMarkdownDiff(oldText: string, newText: string): DiffOp[] {
     }
   }
 
-  return mergeAdjacentDiffOps(temp.reverse());
+  const operations = temp.reverse();
+  if (prefixLength > 0) operations.unshift({ type: 'equal', text: allOldLines.slice(0, prefixLength).join('') });
+  if (oldEnd < allOldLines.length) operations.push({ type: 'equal', text: allOldLines.slice(oldEnd).join('') });
+  return mergeAdjacentDiffOps(operations);
 }
 
 function mergeAdjacentDiffOps(ops: DiffOp[]): DiffOp[] {
