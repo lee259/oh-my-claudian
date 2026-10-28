@@ -1,7 +1,7 @@
 {
   "id": "oh-my-claudian",
   "name": "Oh My Claudian",
-  "version": "2.5.20",
+  "version": "2.5.21",
   "minAppVersion": "1.7.2",
   "description": "Use Claude Code, Codex, Cursor, Grok, OpenCode, Oh My Pi, Pi, and DeepSeek Harness as AI agents for note chat, inline editing, and file diff review.",
   "author": "Lee",
