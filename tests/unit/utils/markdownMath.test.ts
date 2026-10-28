@@ -18,6 +18,14 @@ describe('markdownMath', () => {
       .toBe(`${destination} and \\$visible\\$`);
   });
 
+  it.each([
+    '[Price](\nhttps://host/$price\n)',
+    '[Price](https://host/$price\n  "Price $10")',
+    '[Price](<https://host/$price>\n  "Price $10 with <meta-name>")',
+  ])('preserves multiline link destinations while escaping visible math: %s', link => {
+    expect(escapeMathDelimitersForStreaming(`${link} and $visible$`)).toBe(`${link} and \\$visible\\$`);
+  });
+
   describe('normalizeLatexMathDelimiters', () => {
     it('normalizes inline and display LaTeX delimiters', () => {
       const markdown = [

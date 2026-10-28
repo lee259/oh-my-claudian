@@ -803,21 +803,44 @@ export function transformMarkdownSegments(
   markdown: string,
   transforms: MarkdownTransforms,
 ): string {
+  const protectedRanges: Array<{ from: number; to: number }> = [];
+  parser.parse(markdown).iterate({
+    enter(node) {
+      if (node.name !== 'Link' && node.name !== 'Image') return;
+      for (const name of ['URL', 'LinkTitle']) {
+        const part = node.node.getChild(name);
+        if (part) protectedRanges.push({ from: part.from, to: part.to });
+      }
+      return false;
+    },
+  });
+  let offset = 0;
+  let nextRange = 0;
   return splitMarkdown(markdown)
     .map(segment => {
-      if (segment.fence) {
-        return transforms.fence?.(segment.text, segment.fence) ?? segment.text;
+      const start = offset;
+      offset += segment.text.length;
+      const transform = segment.fence
+        ? (text: string) => transforms.fence?.(text, segment.fence!) ?? text
+        : segment.wikilink
+          ? (text: string) => transforms.wikilink?.(text, segment.wikilink!) ?? text
+          : segment.rawHtml ? transforms.rawHtml : segment.transformable ? transforms.text : undefined;
+      if (!transform) return segment.text;
+      while (nextRange < protectedRanges.length && protectedRanges[nextRange].to <= start) nextRange++;
+      let cursor = start;
+      const parts: string[] = [];
+      while (nextRange < protectedRanges.length && protectedRanges[nextRange].from < offset) {
+        const range = protectedRanges[nextRange];
+        const rangeStart = Math.max(cursor, range.from);
+        parts.push(transform(markdown.slice(cursor, rangeStart)));
+        const rangeEnd = Math.min(offset, range.to);
+        parts.push(markdown.slice(rangeStart, rangeEnd));
+        cursor = rangeEnd;
+        if (range.to > offset) break;
+        nextRange++;
       }
-      if (segment.wikilink) {
-        return transforms.wikilink?.(segment.text, segment.wikilink) ?? segment.text;
-      }
-      if (segment.rawHtml) {
-        return transforms.rawHtml?.(segment.text) ?? segment.text;
-      }
-      if (segment.transformable) {
-        return transforms.text?.(segment.text) ?? segment.text;
-      }
-      return segment.text;
+      parts.push(transform(markdown.slice(cursor, offset)));
+      return parts.join('');
     })
     .join('');
 }
