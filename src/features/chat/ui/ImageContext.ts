@@ -7,6 +7,7 @@ import { normalizeImageMediaType } from '@/utils/imageAttachment';
 
 import type { ImageAttachment, ImageMediaType } from '../../../core/types';
 import { ComposerContextTray } from './ComposerContextTray';
+import { markImageDrop } from './ComposerDrop';
 import { ImagePreviewModal } from './ImagePreviewModal';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -180,12 +181,12 @@ export class ImageContextManager {
   private async handleDrop(e: DragEvent) {
     if (this.destroyed) return;
     e.preventDefault();
-    e.stopPropagation();
     this.dropOverlay?.removeClass('visible');
 
     const files = e.dataTransfer?.files;
     if (!files) return;
     const batch = Array.from(files);
+    if (batch.some(file => this.isImageFile(file))) markImageDrop(e);
     if (!this.enabled && batch.some(file => this.isImageFile(file))) {
       new Notice(UNSUPPORTED_PROVIDER_NOTICE);
       return;
