@@ -53,12 +53,12 @@ describe('CodexBinaryLocator', () => {
       const binaryDirectory = path.join(tempDir, 'terminal-bin');
       const binary = path.join(binaryDirectory, 'codex');
       fs.mkdirSync(binaryDirectory, { recursive: true });
-      fs.writeFileSync(binary, '');
+      fs.writeFileSync(binary, '', { mode: 0o755 });
       process.env.PATH = '/usr/bin:/bin';
       process.env.HOME = tempDir;
       const bundledDirectory = path.join(tempDir, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
       fs.mkdirSync(bundledDirectory, { recursive: true });
-      fs.writeFileSync(path.join(bundledDirectory, 'codex'), '');
+      fs.writeFileSync(path.join(bundledDirectory, 'codex'), '', { mode: 0o755 });
       jest.spyOn(loginShellPath, 'getLoginShellPath').mockReturnValue(binaryDirectory);
       expect(findCodexBinaryPath(undefined, 'darwin')).toBe(binary);
     });
@@ -68,16 +68,27 @@ describe('CodexBinaryLocator', () => {
     const pathDir = path.join(tempDir, 'bin');
     const pathBinary = path.join(pathDir, process.platform === 'win32' ? 'codex.exe' : 'codex');
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(pathBinary, '');
+    fs.writeFileSync(pathBinary, '', { mode: 0o755 });
 
     expect(findCodexBinaryPath(pathDir, process.platform)).toBe(pathBinary);
+  });
+
+  it('skips a non-executable Codex candidate on Unix', () => {
+    if (process.platform === 'win32') return;
+    const first = path.join(tempDir, 'first');
+    const second = path.join(tempDir, 'second');
+    fs.mkdirSync(first);
+    fs.mkdirSync(second);
+    fs.writeFileSync(path.join(first, 'codex'), '', { mode: 0o644 });
+    fs.symlinkSync(process.execPath, path.join(second, 'codex'));
+    expect(findCodexBinaryPath(`${first}:${second}`, process.platform)).toBe(path.join(second, 'codex'));
   });
 
   it('finds a Windows codex.cmd shim on PATH', () => {
     const pathDir = path.join(tempDir, 'bin');
     const pathBinary = path.join(pathDir, 'codex.cmd');
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(pathBinary, '');
+    fs.writeFileSync(pathBinary, '', { mode: 0o644 });
 
     expect(findCodexBinaryPath(pathDir, 'win32')).toBe(pathBinary);
   });
@@ -88,8 +99,8 @@ describe('CodexBinaryLocator', () => {
     const installDir = path.join(tempDir, 'Programs', 'OpenAI', 'Codex', 'bin');
     const cliPath = path.join(installDir, 'codex.exe');
     fs.mkdirSync(installDir, { recursive: true });
-    fs.writeFileSync(cliPath, '');
-    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '');
+    fs.writeFileSync(cliPath, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'win32')).toBe(cliPath);
   });
@@ -102,8 +113,8 @@ describe('CodexBinaryLocator', () => {
       const dir = path.join(runtimeRoot, name);
       const cliPath = path.join(dir, 'codex.exe');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(cliPath, '');
-      if (complete) fs.writeFileSync(path.join(dir, 'codex-code-mode-host.exe'), '');
+      fs.writeFileSync(cliPath, '', { mode: 0o755 });
+      if (complete) fs.writeFileSync(path.join(dir, 'codex-code-mode-host.exe'), '', { mode: 0o755 });
       return cliPath;
     };
     const older = createRuntime('older-complete', true);
@@ -126,9 +137,9 @@ describe('CodexBinaryLocator', () => {
     const pathBinary = path.join(pathDir, 'codex.cmd');
     fs.mkdirSync(automaticDir, { recursive: true });
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(automaticBinary, '');
-    fs.writeFileSync(path.join(automaticDir, 'codex-code-mode-host.exe'), '');
-    fs.writeFileSync(pathBinary, '');
+    fs.writeFileSync(automaticBinary, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(automaticDir, 'codex-code-mode-host.exe'), '', { mode: 0o755 });
+    fs.writeFileSync(pathBinary, '', { mode: 0o755 });
     process.env.PATH = pathDir;
 
     expect(findCodexBinaryPath('', 'win32')).toBe(pathBinary);
@@ -141,9 +152,9 @@ describe('CodexBinaryLocator', () => {
     const installBinary = path.join(installDir, 'codex.exe');
     fs.mkdirSync(installDir, { recursive: true });
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(installBinary, '');
-    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '');
-    fs.writeFileSync(path.join(pathDir, 'codex.exe'), '');
+    fs.writeFileSync(installBinary, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(installDir, 'codex-code-mode-host.exe'), '', { mode: 0o755 });
+    fs.writeFileSync(path.join(pathDir, 'codex.exe'), '', { mode: 0o755 });
     process.env.CODEX_INSTALL_DIR = installDir;
     process.env.PATH = pathDir;
 
@@ -159,7 +170,7 @@ describe('CodexBinaryLocator', () => {
     const appDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
     const appBinary = path.join(appDir, 'codex');
     fs.mkdirSync(appDir, { recursive: true });
-    fs.writeFileSync(appBinary, '');
+    fs.writeFileSync(appBinary, '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
@@ -171,8 +182,8 @@ describe('CodexBinaryLocator', () => {
     const appDir = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'Resources');
     fs.mkdirSync(explicitDir, { recursive: true });
     fs.mkdirSync(appDir, { recursive: true });
-    fs.writeFileSync(explicitBinary, '');
-    fs.writeFileSync(path.join(appDir, 'codex'), '');
+    fs.writeFileSync(explicitBinary, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(appDir, 'codex'), '', { mode: 0o755 });
 
     expect(findCodexBinaryPath(explicitDir, 'darwin')).toBe(explicitBinary);
   });
@@ -185,8 +196,8 @@ describe('CodexBinaryLocator', () => {
     const pathBinary = path.join(pathDir, 'codex');
     fs.mkdirSync(automaticDir, { recursive: true });
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(automaticBinary, '');
-    fs.writeFileSync(pathBinary, '');
+    fs.writeFileSync(automaticBinary, '', { mode: 0o755 });
+    fs.writeFileSync(pathBinary, '', { mode: 0o755 });
     process.env.PATH = pathDir;
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(pathBinary);
@@ -200,8 +211,8 @@ describe('CodexBinaryLocator', () => {
     const appBinary = path.join(codexAppDir, 'codex');
     fs.mkdirSync(codexAppDir, { recursive: true });
     fs.mkdirSync(chatGptAppDir, { recursive: true });
-    fs.writeFileSync(appBinary, '');
-    fs.writeFileSync(path.join(chatGptAppDir, 'codex'), '');
+    fs.writeFileSync(appBinary, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(chatGptAppDir, 'codex'), '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
@@ -212,7 +223,7 @@ describe('CodexBinaryLocator', () => {
     const appDir = path.join(tempDir, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
     const appBinary = path.join(appDir, 'codex');
     fs.mkdirSync(appDir, { recursive: true });
-    fs.writeFileSync(appBinary, '');
+    fs.writeFileSync(appBinary, '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
@@ -233,7 +244,7 @@ describe('CodexBinaryLocator', () => {
     );
     const runtimeBinary = path.join(runtimeDir, 'codex');
     fs.mkdirSync(runtimeDir, { recursive: true });
-    fs.writeFileSync(runtimeBinary, '');
+    fs.writeFileSync(runtimeBinary, '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(runtimeBinary);
   });
@@ -246,8 +257,8 @@ describe('CodexBinaryLocator', () => {
     const appDir = path.join(tempDir, 'Applications', 'ChatGPT.app', 'Contents', 'Resources');
     fs.mkdirSync(localDir, { recursive: true });
     fs.mkdirSync(appDir, { recursive: true });
-    fs.writeFileSync(localBinary, '');
-    fs.writeFileSync(path.join(appDir, 'codex'), '');
+    fs.writeFileSync(localBinary, '', { mode: 0o755 });
+    fs.writeFileSync(path.join(appDir, 'codex'), '', { mode: 0o755 });
 
     expect(findCodexBinaryPath('', 'darwin')).toBe(localBinary);
   });
@@ -261,8 +272,8 @@ describe('CodexBinaryLocator', () => {
     const localBinary = path.join(localDir, process.platform === 'win32' ? 'codex.exe' : 'codex');
     fs.mkdirSync(pathDir, { recursive: true });
     fs.mkdirSync(localDir, { recursive: true });
-    fs.writeFileSync(pathBinary, '');
-    fs.writeFileSync(localBinary, '');
+    fs.writeFileSync(pathBinary, '', { mode: 0o755 });
+    fs.writeFileSync(localBinary, '', { mode: 0o755 });
     process.env.PATH = pathDir;
 
     expect(findCodexBinaryPath('', process.platform)).toBe(pathBinary);
@@ -271,15 +282,15 @@ describe('CodexBinaryLocator', () => {
   it('prefers a hostname-specific configured path', () => {
     const hostnamePath = path.join(tempDir, 'hostname-codex');
     const legacyPath = path.join(tempDir, 'legacy-codex');
-    fs.writeFileSync(hostnamePath, '');
-    fs.writeFileSync(legacyPath, '');
+    fs.writeFileSync(hostnamePath, '', { mode: 0o755 });
+    fs.writeFileSync(legacyPath, '', { mode: 0o755 });
 
     expect(resolveCodexCliPath(hostnamePath, legacyPath, '')).toBe(hostnamePath);
   });
 
   it('falls back to a legacy configured path', () => {
     const legacyPath = path.join(tempDir, 'legacy-codex');
-    fs.writeFileSync(legacyPath, '');
+    fs.writeFileSync(legacyPath, '', { mode: 0o755 });
 
     expect(resolveCodexCliPath('', legacyPath, '')).toBe(legacyPath);
   });
@@ -288,7 +299,7 @@ describe('CodexBinaryLocator', () => {
     const pathDir = path.join(tempDir, 'bin');
     const pathBinary = path.join(pathDir, process.platform === 'win32' ? 'codex.exe' : 'codex');
     fs.mkdirSync(pathDir, { recursive: true });
-    fs.writeFileSync(pathBinary, '');
+    fs.writeFileSync(pathBinary, '', { mode: 0o755 });
 
     expect(resolveCodexCliPath('', '', `PATH=${pathDir}`)).toBe(pathBinary);
   });
