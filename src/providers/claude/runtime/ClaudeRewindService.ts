@@ -85,6 +85,7 @@ export async function createClaudeRewindBackup(
 
   const backupRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-rewind-'));
   const entries: BackupEntry[] = [];
+  let restoreFailed = false;
   const backupPathForIndex = (index: number) => path.join(backupRoot, String(index));
 
   for (let i = 0; i < filesChanged.length; i++) {
@@ -126,7 +127,7 @@ export async function createClaudeRewindBackup(
   }
 
   const restore = async () => {
-    const errors: unknown[] = [];
+    const errors: string[] = [];
 
     for (const entry of entries) {
       try {
@@ -149,18 +150,23 @@ export async function createClaudeRewindBackup(
         }
 
         await fs.copyFile(entry.backupPath, entry.originalPath);
-      } catch (error) {
-        errors.push(error);
+      } catch {
+        errors.push(!entry.existedBefore
+          ? `Restore prior absence by removing: ${entry.originalPath}`
+          : entry.kind === 'symlink'
+            ? `Restore symbolic link: ${entry.originalPath} -> ${entry.symlinkTarget}`
+            : `Recovery copy: ${entry.backupPath} -> ${entry.originalPath}`);
       }
     }
 
-    if (errors.length > 0) {
-      throw new Error(`Failed to restore ${errors.length} file(s) after rewind failure.`);
+    restoreFailed = errors.length > 0;
+    if (restoreFailed) {
+      throw new Error(`Failed to restore ${errors.length} file(s) after rewind failure.\n${errors.join('\n')}\nBackup retained at: ${backupRoot}`);
     }
   };
 
   const cleanup = async () => {
-    await fs.rm(backupRoot, { recursive: true, force: true });
+    if (!restoreFailed) await fs.rm(backupRoot, { recursive: true, force: true });
   };
 
   return { restore, cleanup };
