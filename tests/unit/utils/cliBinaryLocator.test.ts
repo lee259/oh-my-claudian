@@ -25,6 +25,17 @@ describe('cliBinaryLocator', () => {
     expect(resolveConfiguredCliPath(cliPath)).toBe(cliPath);
   });
 
+  it('skips non-executable Unix PATH candidates and finds the next executable', () => {
+    if (process.platform === 'win32') return;
+    const first = path.join(tempDir, 'first');
+    const second = path.join(tempDir, 'second');
+    fs.mkdirSync(first);
+    fs.mkdirSync(second);
+    fs.writeFileSync(path.join(first, 'example-cli'), 'not executable', { mode: 0o644 });
+    fs.symlinkSync(process.execPath, path.join(second, 'example-cli'));
+    expect(findCliBinaryPath('example-cli', `${first}:${second}`)).toBe(path.join(second, 'example-cli'));
+  });
+
   it('resolves a configured CLI path that was pasted with surrounding quotes', () => {
     const binDir = path.join(tempDir, 'my tools');
     const cliPath = path.join(binDir, 'pi');
