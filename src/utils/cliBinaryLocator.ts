@@ -17,6 +17,17 @@ export function isExistingFile(filePath: string): boolean {
   }
 }
 
+export function isRunnableCliCandidate(filePath: string, platform: NodeJS.Platform): boolean {
+  if (!isExistingFile(filePath)) return false;
+  if (platform === 'win32') return true;
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function resolveConfiguredCliPath(configuredPath: string | undefined): string | null {
   try {
     const expandedPath = normalizeConfiguredCliPath(configuredPath);
@@ -46,7 +57,7 @@ export function findCliBinaryPath(
 
     for (const candidateName of binaryNames) {
       const candidate = path.join(dir, candidateName);
-      if (isExistingFile(candidate)) {
+      if (isRunnableCliCandidate(candidate, platform)) {
         return candidate;
       }
     }

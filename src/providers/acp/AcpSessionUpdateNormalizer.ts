@@ -68,7 +68,7 @@ export type AcpNormalizedUpdate =
 export interface AcpToolCallSnapshot {
   input: Record<string, unknown>;
   name: string;
-  output: string;
+  output: string | undefined;
   rawInput?: unknown;
   rawOutput?: unknown;
   status?: AcpToolCallStatus | null;
@@ -190,7 +190,7 @@ export class AcpSessionUpdateNormalizer {
 
     if (toolState.status === 'completed' || toolState.status === 'failed') {
       streamChunks.push({
-        content: toolState.output || defaultToolResultText(toolState.status),
+        content: toolState.output ?? defaultToolResultText(toolState.status),
         id: toolCall.toolCallId,
         isError: toolState.status === 'failed',
         ...(toolState.toolUseResult ? { toolUseResult: toolState.toolUseResult } : {}),
@@ -207,7 +207,7 @@ export class AcpSessionUpdateNormalizer {
     const current = this.toolCalls.get(toolCallUpdate.toolCallId) ?? {
       input: {},
       name: 'tool',
-      output: '',
+      output: undefined,
       status: null,
     };
 
@@ -233,13 +233,14 @@ export class AcpSessionUpdateNormalizer {
     }
 
     const nextOutput = renderToolPayload(toolCallUpdate.content ?? undefined, toolCallUpdate.rawOutput ?? undefined)
-      || current.output;
+      ?? current.output;
     const streamChunks: StreamChunk[] = [];
 
     // Emit only the delta so the UI can append incrementally without re-rendering prior output.
-    if (nextOutput.length > current.output.length && nextOutput.startsWith(current.output)) {
+    const previousOutput = current.output ?? '';
+    if (nextOutput && nextOutput.length > previousOutput.length && nextOutput.startsWith(previousOutput)) {
       streamChunks.push({
-        content: nextOutput.slice(current.output.length),
+        content: nextOutput.slice(previousOutput.length),
         id: toolCallUpdate.toolCallId,
         type: 'tool_output',
       });
@@ -252,7 +253,7 @@ export class AcpSessionUpdateNormalizer {
 
     if (current.status === 'completed' || current.status === 'failed') {
       streamChunks.push({
-        content: current.output || defaultToolResultText(current.status),
+        content: current.output ?? defaultToolResultText(current.status),
         id: toolCallUpdate.toolCallId,
         isError: current.status === 'failed',
         ...(current.toolUseResult ? { toolUseResult: current.toolUseResult } : {}),
@@ -336,15 +337,15 @@ function normalizeToolInput(rawInput: unknown): Record<string, unknown> {
 function renderToolPayload(
   content: AcpToolCallContent[] | null | undefined,
   rawOutput: unknown,
-): string {
-  if (Array.isArray(content) && content.length > 0) {
+): string | undefined {
+  if (Array.isArray(content)) {
     return content
       .map(renderToolCallContent)
       .filter(text => text.length > 0)
       .join('\n\n');
   }
 
-  return rawOutput === undefined ? '' : formatUnknownValue(rawOutput);
+  return rawOutput === undefined ? undefined : formatUnknownValue(rawOutput);
 }
 
 function renderToolCallContent(content: AcpToolCallContent): string {

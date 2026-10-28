@@ -4,7 +4,7 @@ import * as path from 'path';
 
 import { getLoginShellPath } from '@/core/process/LoginShellPath';
 
-import { findCliBinaryPath, resolveConfiguredCliPath } from '../../../utils/cliBinaryLocator';
+import { findCliBinaryPath, isRunnableCliCandidate, resolveConfiguredCliPath } from '../../../utils/cliBinaryLocator';
 import { parseEnvironmentVariables } from '../../../utils/env';
 import { expandHomePath, stripSurroundingQuotes } from '../../../utils/path';
 import type { CodexInstallationMethod } from '../settings';
@@ -105,7 +105,7 @@ function findCodexBinaryInDirs(dirs: string[], platform: NodeJS.Platform): strin
 
     for (const binaryName of binaryNames) {
       const candidate = path.join(dir, binaryName);
-      if (isExistingFile(candidate)) {
+      if (isRunnableCliCandidate(candidate, platform)) {
         return candidate;
       }
     }

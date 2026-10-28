@@ -4,6 +4,13 @@ import {
 } from '../../../../src/providers/acp';
 
 describe('AcpSessionUpdateNormalizer', () => {
+  it('replaces progress with an explicitly empty final result', () => {
+    const normalizer = new AcpSessionUpdateNormalizer();
+    normalizer.normalize({ sessionUpdate: 'tool_call', toolCallId: 'empty', title: 'Tool', status: 'in_progress' });
+    normalizer.normalize({ sessionUpdate: 'tool_call_update', toolCallId: 'empty', content: [{ type: 'content', content: { type: 'text', text: 'progress' } }], status: 'in_progress' });
+    const result = normalizer.normalize({ sessionUpdate: 'tool_call_update', toolCallId: 'empty', content: [], status: 'completed' });
+    expect(result).toMatchObject({ toolState: { output: '' }, streamChunks: [{ type: 'tool_result', content: '' }] });
+  });
   it('emits assistant message boundaries once per message id', () => {
     const normalizer = new AcpSessionUpdateNormalizer();
 
