@@ -1,5 +1,8 @@
 /** @jest-environment jsdom */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import type { ToolCallInfo } from '@/core/types';
 import { addSubagentToolCall, createSubagentBlock, updateSubagentToolResult } from '@/features/chat/rendering/SubagentRenderer';
 import { refreshToolCallHeader, renderStoredToolCall, renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
@@ -13,7 +16,7 @@ function call(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 
 describe('Tool row disclosures', () => {
 
-  it('shows live tool duration and freezes it after completion', () => {
+  it('keeps running tools free of ticking duration and captures timing on completion', () => {
     jest.useFakeTimers();
     jest.setSystemTime(100000);
     const parent = document.createElement('div');
@@ -21,15 +24,61 @@ describe('Tool row disclosures', () => {
     const tools = new Map<string, HTMLElement>();
     const tool = call({ startedAt: Date.now() });
     const element = renderToolCall(parent, tool, tools);
+    expect(element.querySelector('.claudian-tool-status')?.textContent).toContain('running');
     jest.advanceTimersByTime(3000);
-    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('3s');
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('');
+    jest.advanceTimersByTime(3000);
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('');
     tool.status = 'completed';
     tool.completedAt = Date.now();
     updateToolCallResult(tool.id, tool, tools);
     jest.advanceTimersByTime(2000);
-    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('3s');
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('6s');
     parent.remove();
     jest.useRealTimers();
+  });
+
+  it.each([1000, 17000])('reveals completed timing of %ims only when the row is inspected', (elapsed) => {
+    const style = document.head.appendChild(document.createElement('style'));
+    style.textContent = readFileSync(path.resolve('src/style/components/toolcalls.css'), 'utf8');
+    const parent = document.body.appendChild(document.createElement('div'));
+    try {
+      const completed = renderStoredToolCall(parent, call({
+        name: 'Bash', input: { command: 'echo done' }, result: 'done',
+        status: 'completed', startedAt: 1000, completedAt: 1000 + elapsed,
+      }));
+      const duration = completed.querySelector<HTMLElement>('.claudian-tool-duration')!;
+      expect(duration.textContent).toBe(elapsed === 1000 ? '1s' : '17s');
+      expect(getComputedStyle(duration).display).toBe('none');
+      const header = completed.querySelector<HTMLElement>('.claudian-tool-header')!;
+      header.click();
+      expect(getComputedStyle(duration).display).toBe('inline');
+      header.click();
+      expect(getComputedStyle(duration).display).toBe('none');
+    } finally {
+      style.remove();
+      parent.remove();
+    }
+  });
+
+  it('labels failures even when timing is unavailable', () => {
+    const failed = renderStoredToolCall(document.createElement('div'), call({ status: 'error', result: 'Denied' }));
+    expect(failed.querySelector('.claudian-tool-status')?.textContent).toBe('error');
+    expect(failed.querySelector('.claudian-tool-duration')?.textContent).toBe('');
+  });
+
+  it('keeps completed tool status visible in the transcript activity surface', () => {
+    const style = document.head.appendChild(document.createElement('style'));
+    style.textContent = readFileSync(path.resolve('src/style/components/activity-rows.css'), 'utf8');
+    const messages = document.body.appendChild(document.createElement('div'));
+    messages.className = 'claudian-messages';
+    try {
+      const element = renderStoredToolCall(messages, call({ status: 'completed' }));
+      expect(getComputedStyle(element.querySelector('.claudian-tool-status')!).display).toBe('flex');
+    } finally {
+      style.remove();
+      messages.remove();
+    }
   });
 
   it('keeps refined result headers current through keyboard toggles without replacing the card', () => {
