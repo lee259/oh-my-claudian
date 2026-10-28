@@ -88,6 +88,11 @@ export class NavigationController {
   // ============================================
 
   private handleMessagesKeydown(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    if (e.isComposing || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
+      || target?.isContentEditable
+      || target?.closest?.('[contenteditable]:not([contenteditable="false"])')) return;
+
     // Ignore if any modifier is held - allow system shortcuts (Ctrl+W, Cmd+W, etc.)
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
 

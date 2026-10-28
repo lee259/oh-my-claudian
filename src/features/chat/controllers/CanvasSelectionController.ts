@@ -23,6 +23,7 @@ export class CanvasSelectionController {
   private onVisibilityChange: (() => void) | null;
   private onUserSelectionChanged: (() => void) | null;
   private storedSelection: CanvasSelectionContext | null = null;
+  private sourceView: CanvasViewLike | null = null;
   private pollInterval: number | null = null;
 
   constructor(
@@ -54,7 +55,16 @@ export class CanvasSelectionController {
 
   private poll(): void {
     const canvasView = this.getCanvasView();
-    if (!canvasView) return;
+    if (!canvasView) {
+      const activeView = this.app.workspace.getMostRecentLeaf?.()?.view;
+      const activeElement = this.getActiveElement();
+      const ownInputHandoff = !!activeElement && this.inputEl.contains(activeElement)
+        && activeView?.containerEl?.contains(this.inputEl)
+        && this.sourceView?.file?.path === this.storedSelection?.canvasPath
+        && this.app.workspace.getLeavesOfType('canvas').some(leaf => leaf.view === this.sourceView);
+      if (!ownInputHandoff) this.clearSelection();
+      return;
+    }
 
     const canvas = canvasView.canvas;
     if (!canvas?.selection) return;
@@ -68,22 +78,20 @@ export class CanvasSelectionController {
       .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
     if (nodeIds.length > 0) {
-      const sameSelection = this.storedSelection
+      const sameSelection = this.sourceView === canvasView && this.storedSelection
         && this.storedSelection.canvasPath === canvasPath
         && this.storedSelection.nodeIds.length === nodeIds.length
         && this.storedSelection.nodeIds.every(id => nodeIds.includes(id));
 
       if (!sameSelection) {
+        this.sourceView = canvasView;
         this.storedSelection = { canvasPath, nodeIds };
         this.updateIndicator();
         this.onUserSelectionChanged?.();
       }
-    } else if (this.getActiveElement() !== this.inputEl) {
-      if (this.storedSelection) {
-        this.storedSelection = null;
-        this.updateIndicator();
-        this.onUserSelectionChanged?.();
-      }
+    } else if (!this.inputEl.contains(this.getActiveElement())
+      || this.sourceView !== canvasView || this.storedSelection?.canvasPath !== canvasPath) {
+      this.clearSelection();
     }
   }
 
@@ -98,10 +106,7 @@ export class CanvasSelectionController {
       return activeView;
     }
 
-    const leaves = this.app.workspace.getLeavesOfType('canvas');
-    if (leaves.length === 0) return null;
-    const leaf = leaves.find(l => (l.view as CanvasViewLike).file);
-    return leaf ? (leaf.view as CanvasViewLike) : null;
+    return null;
   }
 
   private updateIndicator(): void {
@@ -142,7 +147,14 @@ export class CanvasSelectionController {
     return this.storedSelection !== null;
   }
 
+  private clearSelection(): void {
+    if (!this.storedSelection) return;
+    this.clear();
+    this.onUserSelectionChanged?.();
+  }
+
   clear(): void {
+    this.sourceView = null;
     this.storedSelection = null;
     this.updateIndicator();
   }
