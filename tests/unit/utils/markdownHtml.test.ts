@@ -11,6 +11,11 @@ describe('markdownHtml', () => {
       );
     });
 
+    it('preserves a multiline link title while escaping visible HTML', () => {
+      const link = '[Price](<https://host/$price>\n  "Price $10 with <meta-name>")';
+      expect(escapeRawHtmlTags(`${link} and <placeholder>`)).toBe(`${link} and &lt;placeholder&gt;`);
+    });
+
     it('preserves inline, fenced, and indented code', () => {
       const markdown = [
         '`<meta-name>` and <meta-name>',
