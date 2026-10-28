@@ -22,6 +22,6 @@ export function ScenePromptView({ hasSelection, hasCurrentNote, hasMessages, dra
       { label: t('chat.scenePrompts.related'), prompt: t('chat.scenePrompts.relatedPrompt') },
     ];
   return <div className="claudian-scene-prompts" role="group" aria-label={t('chat.scenePrompts.label')}>
-    {actions.map(action => <button type="button" className="claudian-scene-prompt" onClick={() => onChoose(action.prompt)}>{action.label}</button>)}
+    {actions.map(action => <button type="button" className="claudian-scene-prompt claudian-scene-prompt--chip" onClick={() => onChoose(action.prompt)}>{action.label}</button>)}
   </div>;
 }
