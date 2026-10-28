@@ -47,6 +47,17 @@ describe('Welcome', () => {
       .toBe('dsh conversation');
   });
 
+  it('shows a readable running status instead of a title-loading spinner', () => {
+    const welcome = createWelcomeElement(document.createElement('div'), undefined, undefined, {
+      getConversations: () => [{ id: 'running', providerId: 'codex', title: 'Running task',
+        createdAt: 1, lastActivityAt: 1, messageCount: 1, preview: '' }],
+      isConversationRunning: () => true,
+    });
+    const status = welcome.querySelector('.claudian-home-conversation-loading');
+    expect(status?.textContent).toBe('Running');
+    expect(status?.querySelector('svg')).toBeNull();
+  });
+
   it('renders Oh My Claudian branding before the dynamic greeting', () => {
     const parentEl = document.createElement('div');
 

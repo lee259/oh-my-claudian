@@ -29,3 +29,10 @@ it.each(['Write', 'Edit'])('refreshes a %s file link without changing pending ou
   expect(state.headerEl.getAttribute('aria-label')).toContain('after.md:12-14');
   expect(state.headerEl.getAttribute('aria-expanded')).toBe('false');
 });
+
+it('shows an explicit running status before an edit produces a diff', () => {
+  const state = createWriteEditBlock(document.createElement('div'), {
+    id: 'edit', name: 'Edit', input: { file_path: 'note.md' }, status: 'running',
+  });
+  expect(state.statusEl.textContent).toBe('running');
+});

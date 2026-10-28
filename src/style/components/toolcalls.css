@@ -104,6 +104,9 @@
   align-items: center;
   flex-shrink: 0;
   margin-left: auto;
+  gap: 4px;
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
 }
 
 .claudian-tool-status svg {
@@ -305,11 +308,22 @@
 }
 
 .claudian-tool-duration {
+  display: none;
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
 }
 
 .claudian-tool-duration:empty {
   display: none;
+}
+
+.claudian-tool-status.status-running svg {
+  animation: spin 1s linear infinite;
+}
+
+:is(.claudian-tool-header, .claudian-write-edit-header):is(:hover, :focus-within, [aria-expanded='true']) .claudian-tool-duration:not(:empty) {
+  display: inline;
 }

@@ -280,6 +280,15 @@ button.claudian-message-selection-action svg {
   color: var(--interactive-accent);
 }
 
+.claudian-home-conversation-loading--running {
+  flex-basis: auto;
+  margin-inline-start: auto;
+  padding-inline-start: 14px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+
 .claudian-home-conversation-loading svg {
   width: 14px;
   height: 14px;

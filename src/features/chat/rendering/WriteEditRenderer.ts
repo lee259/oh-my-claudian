@@ -94,6 +94,8 @@ export function createWriteEditBlock(
   const refreshDuration = attachToolDuration(headerEl, toolCall);
   const statusEl = headerEl.createDiv({ cls: 'claudian-write-edit-status status-running' });
   statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.running') }));
+  setIcon(statusEl, 'loader-2');
+  statusEl.createSpan({ text: t('chat.toolStatus.running') });
 
   // Content area (collapsed by default)
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-write-edit-content' });
@@ -230,6 +232,11 @@ export function renderStoredWriteEdit(
   if (isError) {
     statusEl.addClass('status-error');
     setIcon(statusEl, 'x');
+  } else if (toolCall.status === 'running') {
+    statusEl.addClass('status-running');
+    statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.running') }));
+    setIcon(statusEl, 'loader-2');
+    statusEl.createSpan({ text: t('chat.toolStatus.running') });
   }
 
   // Content
