@@ -3,7 +3,7 @@
   "name": "Oh My Claudian",
   "version": "2.5.20",
   "minAppVersion": "1.7.2",
-  "description": "Work with your notes using Claude Code, Codex, and other coding agents. Create linked summaries, inspect file-edit diffs, and improve drafts with inline editing.",
+  "description": "Use Claude Code, Codex, Cursor, Grok, OpenCode, Oh My Pi, Pi, and DeepSeek Harness as AI agents for note chat, inline editing, and file diff review.",
   "author": "Lee",
   "authorUrl": "https://github.com/lee259",
   "isDesktopOnly": true
