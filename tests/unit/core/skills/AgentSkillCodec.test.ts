@@ -17,6 +17,10 @@ describe('AgentSkillCodec', () => {
     '',
   ].join('\n');
 
+  it('reads a skill with a UTF-8 BOM before its frontmatter', () => {
+    expect(parseAgentSkillMarkdown('\uFEFF' + valid, 'portable-skill').name).toBe('portable-skill');
+  });
+
   it('parses a valid portable skill document', () => {
     expect(parseAgentSkillMarkdown(valid, 'portable-skill')).toEqual({
       name: 'portable-skill',
