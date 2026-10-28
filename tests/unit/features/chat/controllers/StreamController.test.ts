@@ -970,6 +970,19 @@ describe('StreamController - Text Content', () => {
       expect(msg.contentBlocks![0].id).toBe('assistant-1:tool:tool-1');
     });
 
+    it('records tool timing without resetting the start on input updates', async () => {
+      const msg = createTestMessage();
+      const now = jest.spyOn(Date, 'now');
+      now.mockReturnValue(1000);
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'timed', name: 'Read', input: {} }, msg);
+      now.mockReturnValue(2000);
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'timed', name: 'Read', input: { file_path: 'test.md' } }, msg);
+      now.mockReturnValue(5000);
+      await controller.handleStreamChunk({ type: 'tool_result', id: 'timed', content: 'ok' }, msg);
+      expect(msg.toolCalls?.[0]).toMatchObject({ startedAt: 1000, completedAt: 5000, status: 'completed' });
+      now.mockRestore();
+    });
+
     it('should update tool_result status', async () => {
       const msg = createTestMessage();
       msg.toolCalls = [

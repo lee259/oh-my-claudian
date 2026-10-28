@@ -303,3 +303,13 @@
 .claudian-tool-result-item:last-child {
   margin-bottom: 0;
 }
+
+.claudian-tool-duration {
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.claudian-tool-duration:empty {
+  display: none;
+}

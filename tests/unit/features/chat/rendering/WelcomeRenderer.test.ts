@@ -212,10 +212,12 @@ describe('Welcome', () => {
     isRunning = true;
     refreshWelcomeContent(welcomeEl);
     expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).not.toBeNull();
+    expect(welcomeEl.querySelector('.claudian-home-conversation-time')).toBeNull();
 
     isRunning = false;
     refreshWelcomeContent(welcomeEl);
     expect(welcomeEl.querySelector('.claudian-home-conversation-loading')).toBeNull();
+    expect(welcomeEl.querySelector('.claudian-home-conversation-time')).not.toBeNull();
   });
 
   it('formats recent activity with minute and hour granularity', () => {

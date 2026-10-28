@@ -859,6 +859,14 @@ export class InputController {
             }
           }
 
+          if (didCancelThisTurn || hadExecutionError) {
+            for (const tool of finalAssistantMsg.toolCalls ?? []) {
+              if (tool.status === 'running' && tool.startedAt !== undefined && tool.completedAt === undefined) {
+                tool.completedAt = Date.now();
+              }
+            }
+          }
+
           await this.finalizeRenderedTurn(finalAssistantMsg);
           this.finalizeTranscriptTurn(finalAssistantMsg);
 
@@ -869,6 +877,7 @@ export class InputController {
             for (const tc of finalAssistantMsg.toolCalls) {
               if (tc.name === TOOL_EXIT_PLAN_MODE && !tc.result) {
                 tc.status = 'completed';
+                if (tc.startedAt !== undefined) tc.completedAt = Date.now();
                 tc.result = 'User approved the plan and started a new session.';
                 updateToolCallResult(tc.id, tc, state.toolCallElements);
               }

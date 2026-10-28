@@ -33,6 +33,7 @@ import { type FileReference,parseFileReference } from '../../../utils/FileRefere
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { renderTodoItems } from './todoUtils';
+import { attachToolDuration } from './ToolDuration';
 
 export function setToolIcon(el: HTMLElement, name: string): void {
   const icon = getToolIcon(name);
@@ -1074,6 +1075,7 @@ function createToolElementStructure(
     ? createCurrentTaskPreview(header, toolCall.input)
     : null;
 
+  const refreshDuration = attachToolDuration(header, toolCall);
   const statusEl = header.createSpan({ cls: 'claudian-tool-status' });
 
   const content = toolEl.createDiv({ cls: 'claudian-tool-content' });
@@ -1081,6 +1083,7 @@ function createToolElementStructure(
   const getAriaLabel = () => getToolLabel(currentTool.name, currentTool.input, currentTool.presentation);
   toolHeaderRefreshers.set(toolEl, (tool) => {
     currentTool = tool;
+    refreshDuration(tool);
     const name = getToolName(tool.name, tool.input, tool.presentation);
     nameEl.setText(name);
     nameEl.setAttribute('title', name);

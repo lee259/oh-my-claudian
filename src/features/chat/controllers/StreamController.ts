@@ -647,6 +647,7 @@ export class StreamController {
       ...(providerPayload ? { providerPayload } : {}),
       ...(chunk.presentation ? { presentation: chunk.presentation } : {}),
       status: 'running',
+      startedAt: Date.now(),
       isExpanded: false,
     };
     msg.toolCalls = msg.toolCalls || [];
@@ -1333,6 +1334,9 @@ export class StreamController {
     const isBlocked = chunk.isBlocked === true;
 
     if (existingToolCall) {
+      if (existingToolCall.status === 'running' && existingToolCall.startedAt !== undefined) {
+        existingToolCall.completedAt = Date.now();
+      }
       const providerPayload = extractToolProviderPayload(chunk.toolUseResult);
       if (providerPayload) {
         existingToolCall.providerPayload = {
