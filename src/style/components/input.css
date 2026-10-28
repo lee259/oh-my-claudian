@@ -1,11 +1,27 @@
 /* Input area */
+.claudian-input-composer {
+  position: relative;
+}
+
+.claudian-scene-prompts-host {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 100%;
+  z-index: 1;
+}
+
 .claudian-scene-prompts {
   display: flex;
   gap: 6px;
   min-width: 0;
   margin-block-end: 8px;
+  padding: 2px;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.claudian-scene-prompts::-webkit-scrollbar {
+  display: none;
 }
 
 button.claudian-scene-prompt {
@@ -45,6 +61,20 @@ button.claudian-scene-prompt:disabled {
   box-shadow: none;
   color: var(--text-faint);
   cursor: default;
+}
+
+button.claudian-scene-prompt--chip {
+  background: var(--background-modifier-hover);
+}
+
+button.claudian-scene-prompt--chip:hover,
+button.claudian-scene-prompt--chip:focus-visible,
+button.claudian-scene-prompt--chip:active {
+  background: var(--background-modifier-active-hover);
+}
+
+button.claudian-scene-prompt--chip:disabled {
+  background: var(--background-modifier-hover);
 }
 
 .claudian-input-container {
