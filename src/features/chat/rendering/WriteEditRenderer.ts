@@ -8,6 +8,7 @@ import { type FileReference,parseFileReference } from '../../../utils/FileRefere
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { fileNameOnly, getToolName, getToolSummary, makeFileSummaryInteractive as makeToolFileSummaryInteractive } from './ToolCallRenderer';
+import { attachToolDuration } from './ToolDuration';
 
 export interface WriteEditState {
   wrapperEl: HTMLElement;
@@ -90,6 +91,7 @@ export function createWriteEditBlock(
   // Populated when diff is computed
   const statsEl = headerEl.createDiv({ cls: 'claudian-write-edit-stats' });
 
+  const refreshDuration = attachToolDuration(headerEl, toolCall);
   const statusEl = headerEl.createDiv({ cls: 'claudian-write-edit-status status-running' });
   statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.running') }));
 
@@ -114,6 +116,7 @@ export function createWriteEditBlock(
     isExpanded: false,
     refreshHeader: () => {
       const tool = state.toolCall;
+      refreshDuration(tool);
       const currentPath = (tool.input.file_path as string) || 'file';
       nameEl.setText(getToolName(tool.name, tool.input, tool.presentation));
       summaryEl.setText(getToolSummary(tool.name, tool.input, tool.presentation));
@@ -149,6 +152,7 @@ export function updateWriteEditWithDiff(state: WriteEditState, diffData: ToolDif
 }
 
 export function finalizeWriteEditBlock(state: WriteEditState, isError: boolean): void {
+  state.refreshHeader();
   // Update status icon - only show icon on error
   state.statusEl.className = 'claudian-write-edit-status';
   state.statusEl.empty();
@@ -221,6 +225,7 @@ export function renderStoredWriteEdit(
   }
 
   // Status indicator - only show icon on error
+  attachToolDuration(headerEl, toolCall);
   const statusEl = headerEl.createDiv({ cls: 'claudian-write-edit-status' });
   if (isError) {
     statusEl.addClass('status-error');

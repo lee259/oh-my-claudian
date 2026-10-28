@@ -161,9 +161,11 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
               >
                 <HomeConversationProviderIcon providerId={conversation.providerId} />
                 <span className="claudian-home-conversation-title">{conversation.title}</span>
-                <span className="claudian-home-conversation-time">
-                  {formatActivity(conversation.lastActivityAt)}
-                </span>
+                {!(isLoading && hasRuntimeStatus) && (
+                  <span className="claudian-home-conversation-time">
+                    {formatActivity(conversation.lastActivityAt)}
+                  </span>
+                )}
                 {isLoading && (
                   <HomeConversationLoadingIndicator
                     label={t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle')}

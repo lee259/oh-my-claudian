@@ -53,6 +53,9 @@ export interface ToolCallInfo {
   input: Record<string, unknown>;
   presentation?: ToolCallPresentation;
   status: 'running' | 'completed' | 'error' | 'blocked';
+  /** Local observation times for live tool execution; absent when history has no timing. */
+  startedAt?: number;
+  completedAt?: number;
   result?: string;
   /** Provider-declared result presentation; plain results must not be parsed as numbered output. */
   resultFormat?: 'plain';

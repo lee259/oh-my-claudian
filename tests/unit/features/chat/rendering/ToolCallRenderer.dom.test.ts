@@ -12,6 +12,26 @@ function call(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 }
 
 describe('Tool row disclosures', () => {
+
+  it('shows live tool duration and freezes it after completion', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(100000);
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const tools = new Map<string, HTMLElement>();
+    const tool = call({ startedAt: Date.now() });
+    const element = renderToolCall(parent, tool, tools);
+    jest.advanceTimersByTime(3000);
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('3s');
+    tool.status = 'completed';
+    tool.completedAt = Date.now();
+    updateToolCallResult(tool.id, tool, tools);
+    jest.advanceTimersByTime(2000);
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('3s');
+    parent.remove();
+    jest.useRealTimers();
+  });
+
   it('keeps refined result headers current through keyboard toggles without replacing the card', () => {
     const tools = new Map<string, HTMLElement>();
     const tool = call({ name: 'Bash', input: { command: 'echo before' } });

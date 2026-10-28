@@ -123,10 +123,12 @@ function renderLegacyHomeSurface(
       });
     }
     openButton.createSpan({ cls: 'claudian-home-conversation-title', text: conversation.title });
-    openButton.createSpan({
-      cls: 'claudian-home-conversation-time',
-      text: formatActivity(conversation.lastActivityAt),
-    });
+    if (!(isLoading && hasRuntimeStatus)) {
+      openButton.createSpan({
+        cls: 'claudian-home-conversation-time',
+        text: formatActivity(conversation.lastActivityAt),
+      });
+    }
     if (isLoading) {
       const loadingEl = openButton.createSpan({ cls: 'claudian-home-conversation-loading' });
       setIcon(loadingEl, 'loader-2');
