@@ -24,6 +24,7 @@ import {
   rewriteVaultPathAfterRename,
 } from '../../../utils/path';
 import { ComposerContextTray } from './ComposerContextTray';
+import { isImageDrop } from './ComposerDrop';
 import { FileContextState } from './file-context/state/FileContextState';
 import { FileChipsView } from './file-context/view/FileChipsView';
 
@@ -415,6 +416,7 @@ export class FileContextManager {
       event.preventDefault();
       dragDepth = 0;
       overlay.addClass('claudian-hidden');
+      if (isImageDrop(event)) return;
       const paths = this.resolveDroppedPaths(event.dataTransfer);
       for (const path of paths) this.attachDroppedPath(path);
     };
