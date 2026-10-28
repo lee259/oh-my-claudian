@@ -67,14 +67,14 @@ describe('Tool row disclosures', () => {
     expect(failed.querySelector('.claudian-tool-duration')?.textContent).toBe('');
   });
 
-  it('keeps completed tool status visible in the transcript activity surface', () => {
+  it('hides routine completion marks in the transcript activity surface', () => {
     const style = document.head.appendChild(document.createElement('style'));
     style.textContent = readFileSync(path.resolve('src/style/components/activity-rows.css'), 'utf8');
     const messages = document.body.appendChild(document.createElement('div'));
     messages.className = 'claudian-messages';
     try {
       const element = renderStoredToolCall(messages, call({ status: 'completed' }));
-      expect(getComputedStyle(element.querySelector('.claudian-tool-status')!).display).toBe('flex');
+      expect(getComputedStyle(element.querySelector('.claudian-tool-status')!).display).toBe('none');
     } finally {
       style.remove();
       messages.remove();

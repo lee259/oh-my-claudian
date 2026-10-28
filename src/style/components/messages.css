@@ -827,6 +827,11 @@ button.claudian-completed-work-header,
   height: 12px;
 }
 
+button.claudian-completed-work-header[aria-expanded='true'] > .claudian-completed-work-error,
+.claudian-streaming-work-header > .claudian-completed-work-error {
+  display: none;
+}
+
 button.claudian-completed-work-header:hover,
 button.claudian-completed-work-header:focus-visible {
   border: 0;
@@ -918,7 +923,7 @@ button.claudian-activity-phase-header {
   box-shadow: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   text-align: start;
 }
@@ -949,7 +954,7 @@ button.claudian-activity-phase-header:focus-visible {
 
 .claudian-activity-phase-label {
   min-width: 0;
-  font-weight: 600;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -974,9 +979,14 @@ button.claudian-activity-phase-header:focus-visible {
   height: 12px;
 }
 
+button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity-phase-error {
+  display: none;
+}
+
 .claudian-activity-phase-indicator {
   display: flex;
   flex: 0 0 auto;
+  order: 1;
 }
 
 .claudian-activity-phase-indicator svg {
