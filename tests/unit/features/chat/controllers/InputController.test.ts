@@ -2458,6 +2458,23 @@ describe('InputController coordinator execution', () => {
       .rejects.toThrow('save failed');
 
     expect(onReviewableSettlement).toHaveBeenCalledTimes(1);
+    expect(fixture.state.followUps.paused).toBe(false);
+  });
+
+  it('pauses unsent follow-ups after terminal persistence fails', async () => {
+    const fixture = createFixture();
+    fixture.state.followUps.enqueue('waiting', {
+      canvasContext: null,
+      content: 'follow up',
+      editorContext: null,
+    });
+    fixture.input.value = 'newer draft';
+    jest.mocked(fixture.deps.conversationController.save).mockRejectedValueOnce(new Error('save failed'));
+    await expect(fixture.controller.sendMessage({ content: 'first turn' })).rejects.toThrow('save failed');
+    expect(fixture.state.followUps.paused).toBe(true);
+    expect(fixture.state.followUps.items).toEqual([expect.objectContaining({ id: 'waiting', status: 'queued' })]);
+    expect(fixture.input.value).toBe('newer draft');
+    expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
   });
 
   it('preserves review when auto-implement cannot initialize', async () => {
