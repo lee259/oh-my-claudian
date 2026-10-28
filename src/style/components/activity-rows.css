@@ -41,7 +41,12 @@
   height: 16px;
 }
 
-.claudian-messages :is(.claudian-tool-status, .claudian-subagent-status, .claudian-write-edit-status, .claudian-subagent-tool-status).status-completed {
+.claudian-messages .claudian-tool-status.status-completed {
+  display: flex;
+  color: var(--text-muted);
+}
+
+.claudian-messages :is(.claudian-subagent-status, .claudian-write-edit-status, .claudian-subagent-tool-status).status-completed {
   display: none;
 }
 
