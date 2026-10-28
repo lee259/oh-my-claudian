@@ -162,6 +162,28 @@ describe('CanvasSelectionController', () => {
     });
   });
 
+  it('clears the previous selection when another view becomes active', () => {
+    controller.start();
+    jest.advanceTimersByTime(250);
+    app.workspace.getMostRecentLeaf.mockReturnValue({ view: { getViewType: () => 'markdown' } });
+    jest.advanceTimersByTime(250);
+    expect(controller.getContext()).toBeNull();
+  });
+
+  it('keeps selection while focus moves to this chat and clears it when the canvas closes', () => {
+    controller.start();
+    jest.advanceTimersByTime(250);
+    const focusedChild = {};
+    inputEl.contains = jest.fn().mockReturnValue(true);
+    inputEl.ownerDocument = { activeElement: focusedChild };
+    app.workspace.getMostRecentLeaf.mockReturnValue({ view: { containerEl: { contains: (el: unknown) => el === inputEl } } });
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(true);
+    app.workspace.getLeavesOfType.mockReturnValue([]);
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(false);
+  });
+
   it('handles no canvas view gracefully', () => {
     app.workspace.getMostRecentLeaf.mockReturnValue(null);
     app.workspace.getLeavesOfType.mockReturnValue([]);
