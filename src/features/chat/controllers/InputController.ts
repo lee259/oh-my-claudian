@@ -215,6 +215,7 @@ export class InputController {
   private sawInitialProviderUserMessage = false;
   private awaitingProviderAssistantStart = false;
   private readonly deferredReviewableSettlement = new DeferredReviewableSettlement();
+  private preparingTurn = false;
   private readonly turnCoordinator: TurnCoordinator<SendMessageOptions>;
   private stoppedTurn: Promise<void> | null = null;
   private readonly turnSubmissionBuilder: TurnSubmissionBuilder;
@@ -439,6 +440,8 @@ export class InputController {
   }
 
   private submitMessage(options?: SendMessageOptions): Promise<void> {
+    // The composer still contains the reserved draft until readiness completes.
+    if (this.preparingTurn && options?.content === undefined) return Promise.resolve();
     // Follow-ups must not replace the runtime's active execution/drain owner.
     return this.turnCoordinator.current || this.deps.state.isStreaming
       ? this.executeSendMessage(options) : this.turnCoordinator.run(options);
@@ -575,26 +578,30 @@ export class InputController {
       return;
     }
 
-    if (this.deps.preflightExecution) {
-      const preflightError = await this.deps.preflightExecution();
-      if (preflightError) {
-        this.deps.onDiagnosticError?.(preflightError);
+    let streamGeneration: number;
+    this.preparingTurn = shouldUseInput;
+    try {
+      if (this.deps.preflightExecution) {
+        const preflightError = await this.deps.preflightExecution();
+        if (preflightError) {
+          this.deps.onDiagnosticError?.(preflightError);
+          this.reportDeferredReviewableSettlement();
+          return;
+        }
+      }
+      if (this.deps.conversationController.hasBranchPreview
+        && !await this.deps.conversationController.commitBranchPreview()) {
         this.reportDeferredReviewableSettlement();
         return;
       }
+      if (shouldUseInput) state.followUps.finishEditing(editedMessage);
+      streamGeneration = this.beginTurn(
+        shouldUseInput,
+        fileContextManager,
+      );
+    } finally {
+      this.preparingTurn = false;
     }
-
-    if (this.deps.conversationController.hasBranchPreview
-      && !await this.deps.conversationController.commitBranchPreview()) {
-      this.reportDeferredReviewableSettlement();
-      return;
-    }
-
-    if (shouldUseInput) state.followUps.finishEditing(editedMessage);
-    const streamGeneration = this.beginTurn(
-      shouldUseInput,
-      fileContextManager,
-    );
     if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
 
     // Slash commands are passed directly to SDK for handling
