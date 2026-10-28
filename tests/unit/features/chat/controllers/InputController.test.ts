@@ -427,6 +427,28 @@ describe('InputController coordinator execution', () => {
     expect(fixture.input.value).toBe('Fix only CSS');
   });
 
+  it('does not queue the same composer draft twice while readiness is pending', async () => {
+    const readiness = deferred<null>();
+    const fixture = createFixture({ preflightExecution: jest.fn(() => readiness.promise) });
+    fixture.input.value = 'Run tests';
+    const first = fixture.controller.sendMessage();
+    await fixture.controller.sendMessage();
+    expect(fixture.state.followUps.items).toHaveLength(0);
+    readiness.resolve(null);
+    await first;
+    expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the composer guard after readiness rejects so the unchanged draft can retry', async () => {
+    const fixture = createFixture({ preflightExecution: jest.fn()
+      .mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue(null) });
+    fixture.input.value = 'Run tests';
+    await expect(fixture.controller.sendMessage()).rejects.toThrow('Unavailable');
+    expect(fixture.input.value).toBe('Run tests');
+    await fixture.controller.sendMessage();
+    expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
+  });
+
   it('captures queued input immediately without waiting for provider readiness', async () => {
     const preflight = jest.fn().mockReturnValue(new Promise(() => undefined));
     const fixture = createFixture({ preflightExecution: preflight });
