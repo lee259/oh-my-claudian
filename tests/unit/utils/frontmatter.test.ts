@@ -9,6 +9,10 @@ import {
 } from '@/utils/frontmatter';
 
 describe('parseFrontmatter', () => {
+  it('reads frontmatter after a UTF-8 BOM', () => {
+    expect(parseFrontmatter('\uFEFF---\nname: example\n---\nBody')).toEqual({ frontmatter: { name: 'example' }, body: 'Body' });
+  });
+
   it('parses valid frontmatter with body', () => {
     const content = `---
 title: Hello
