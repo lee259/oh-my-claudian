@@ -653,7 +653,7 @@ export class InputController {
     try {
       await this.triggerTitleGeneration();
     } catch (error) {
-      restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest));
+      restoreUnsentMessage(createQueuedMessage(displayContent, turnRequest), { mergeWithComposer: true });
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       throw error;
     }

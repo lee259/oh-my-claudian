@@ -2477,6 +2477,32 @@ describe('InputController coordinator execution', () => {
     expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps newer draft text when initial conversation creation fails', async () => {
+    const firstImage: ImageAttachment = { id: 'first', name: 'first.png', mediaType: 'image/png', data: 'YQ==', size: 1, source: 'paste' };
+    const newerImage: ImageAttachment = { ...firstImage, id: 'newer', name: 'newer.png' };
+    let images = [firstImage];
+    const manager = {
+      clearImages: jest.fn(() => { images = []; }),
+      getAttachedImages: jest.fn(() => images),
+      hasImages: jest.fn(() => images.length > 0),
+      setImages: jest.fn((next: ImageAttachment[]) => { images = next; }),
+    };
+    const fixture = createFixture({ getImageContextManager: () => manager });
+    const creation = deferred<any>();
+    fixture.state.currentConversationId = null;
+    fixture.plugin.createConversation.mockReturnValueOnce(creation.promise);
+    fixture.input.value = 'first prompt';
+    const sending = fixture.controller.sendMessage();
+    await waitForCall(fixture.plugin.createConversation);
+    fixture.input.value = '    newer draft\n';
+    images = [newerImage];
+    creation.reject(new Error('creation failed'));
+    await expect(sending).rejects.toThrow('creation failed');
+    expect(fixture.input.value).toBe('first prompt\n\n    newer draft\n');
+    expect(images).toEqual([firstImage, newerImage]);
+    expect(fixture.coordinator.execute).not.toHaveBeenCalled();
+  });
+
   it('preserves review when auto-implement cannot initialize', async () => {
     const onReviewableSettlement = jest.fn();
     const ensureExecutionInitialized = jest.fn()
