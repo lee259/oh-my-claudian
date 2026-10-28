@@ -17,7 +17,7 @@ export class ScenePromptController {
 
   constructor(container: HTMLElement, private readonly input: ComposerInputElement, messages: HTMLElement,
     private readonly getContext: () => ScenePromptContext) {
-    this.host = container.createDiv();
+    this.host = container.createDiv({ cls: 'claudian-scene-prompts-host' });
     container.insertBefore(this.host, container.firstChild);
     this.root = createPreactRoot(this.host);
     input.addEventListener('input', this.refresh);
