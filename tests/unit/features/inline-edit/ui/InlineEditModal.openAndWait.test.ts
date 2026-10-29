@@ -65,6 +65,23 @@ describe('InlineEditModal - openAndWait', () => {
     jest.restoreAllMocks();
   });
 
+  it.each(['document', 'selection'] as const)('rejects when the %s changes during provider initialization', async change => {
+    const pending = createDeferred();
+    jest.spyOn(ProviderWorkspaceRegistry, 'ensureInitialized').mockReturnValue(pending.promise);
+    const editorView = { state: { doc: {}, selection: { main: { anchor: 1, head: 2 } } } } as any;
+    jest.spyOn(editorUtils, 'getEditorView').mockReturnValue(editorView);
+    const editor = {} as any;
+    const plugin = { settings: { providerConfigs: { claude: { enabled: true } }, settingsProvider: 'claude' }, getView: () => null } as any;
+    plugin.providerHost = plugin;
+    const modal = new InlineEditModal({} as any, plugin, editor, { editor } as any, { mode: 'selection', selectedText: 'x' }, 'note.md');
+    const result = modal.openAndWait();
+    if (change === 'document') editorView.state.doc = {};
+    else editorView.state.selection.main.head = 3;
+    pending.resolve();
+    await expect(result).resolves.toEqual({ decision: 'reject' });
+    expect(Notice).toHaveBeenCalledWith('Inline edit was not applied because the source document or selection changed.');
+  });
+
   it('uses editorCallback references first and falls back to view.editor before rejecting', async () => {
     const callbackEditor = {} as any;
     const fallbackEditor = {} as any;

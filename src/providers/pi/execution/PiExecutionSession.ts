@@ -633,7 +633,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         await this.kernel.request(
           'compact',
           { customInstructions: compactInstructions },
-          undefined,
+          0,
           active.abortController.signal,
         );
         this.ensureAccepted(active);
@@ -1133,6 +1133,7 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
         });
         break;
       case 'context_compacted':
+        if (getCompactInstructions(active.inputText) !== null) break;
         this.emitRequested(active, { type: 'context_compacted' });
         break;
       case 'notice':
