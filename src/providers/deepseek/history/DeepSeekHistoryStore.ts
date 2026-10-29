@@ -15,6 +15,7 @@ export async function loadDeepSeekHistory(client: DeepSeekReader, sessionId: str
   const messages: ChatMessage[] = [];
   let assistant: ChatMessage | undefined;
   let turnStart = 0;
+  let turnStartIndex = 0;
   let output: DeepSeekOutput | undefined;
   let automatic = true;
   // The journal's turn number; records before any `turn/start` belong to no turn.
@@ -40,7 +41,7 @@ export async function loadDeepSeekHistory(client: DeepSeekReader, sessionId: str
     // Failed attempts are native diagnostics, not committed assistant messages.
     if (record.type === 'assistant/attempt') continue;
     if (record.type === 'turn/start') {
-      assistant = undefined; automatic = true; turnStart = record.time; pendingNotices.length = 0;
+      assistant = undefined; automatic = true; turnStart = record.time; turnStartIndex = messages.length; pendingNotices.length = 0;
       turnId = `deepseek:${sessionId}:turn:${typeof record.data.turn === 'number' ? record.data.turn : record.seq}`;
       output = new DeepSeekOutput(event => applyOutput(ensureAssistant(current!), tools, event));
       continue;
@@ -77,6 +78,15 @@ export async function loadDeepSeekHistory(client: DeepSeekReader, sessionId: str
           const durationMs = Math.max(0, record.time - turnStart);
           assistant.durationSeconds = Math.floor(durationMs / 1000);
           assistant.turnStats = { outputTokens: output?.outputTokens ?? 0, durationMs };
+        }
+      }
+      if (stopped) {
+        // Steers split a turn into replies, but cancellation settles all its foreground calls.
+        for (const message of messages.slice(turnStartIndex)) {
+          if (message.role !== 'assistant') continue;
+          for (const tool of message.toolCalls ?? []) {
+            if (tool.status === 'running') tool.status = 'error';
+          }
         }
       }
       output = undefined; assistant = undefined;
