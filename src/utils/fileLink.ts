@@ -6,6 +6,7 @@
  */
 
 import type { App, Component } from 'obsidian';
+import { Keymap } from 'obsidian';
 
 import { parseFileReference } from './FileReference';
 import { getVaultFileByPath, isExternalTextFilePath, openVaultFile } from './obsidianCompat';
@@ -276,7 +277,8 @@ export function registerFileLinkHandler(
   container: HTMLElement,
   component: Component
 ): void {
-  component.registerDomEvent(container, 'click', (event: MouseEvent) => {
+  const handleClick = (event: MouseEvent): void => {
+    if (event.type === 'auxclick' && event.button !== 1) return;
     const target = event.target as HTMLElement;
     // Handle both our links and Obsidian's internal links
     const link = target.closest('.claudian-file-link, .internal-link') as HTMLAnchorElement;
@@ -287,10 +289,12 @@ export function registerFileLinkHandler(
       if (linkTarget) {
         if (link.dataset.claudianFolderLink === 'true') void revealVaultItem(app, app.vault.getAbstractFileByPath(linkTarget));
         else if (shouldOpenThroughFileCompatibility(linkTarget)) void openVaultFile(app, linkTarget);
-        else void openVaultLink(app, linkTarget);
+        else void openVaultLink(app, linkTarget, Keymap.isModEvent(event) || 'tab');
       }
     }
-  });
+  };
+  component.registerDomEvent(container, 'click', handleClick);
+  component.registerDomEvent(container, 'auxclick', handleClick);
 }
 
 function shouldOpenThroughFileCompatibility(linkTarget: string): boolean {
