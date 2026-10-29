@@ -818,6 +818,7 @@ export class ChatExecutionCoordinator {
       && binding.backgroundSequences.size === 0
       && binding.pendingWorkCount === 0
       && !(binding.session.hasBackgroundWork?.() ?? false)
+      && !(binding.session.blocksIdleRelease?.() ?? false)
       && (this.deps.warmExecution?.canCool() ?? true),
     );
   }

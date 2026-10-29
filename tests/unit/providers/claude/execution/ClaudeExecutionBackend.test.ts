@@ -189,6 +189,65 @@ describe('ClaudeExecutionBackend', () => {
     jest.restoreAllMocks();
   });
 
+  it('protects the native session only while non-ambient background tasks remain', async () => {
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services).createSession(createConfig()) as any;
+    const tasksChanged = (tasks: unknown[]) => ({ type: 'system', subtype: 'background_tasks_changed', session_id: 'session-1', uuid: 'tasks', tasks });
+    const shell = { task_id: 'shell', task_type: 'local_bash', description: 'background task' };
+    const notifications = jest.fn();
+    session.onEvent(notifications);
+    try {
+      await session.handleNativeMessage(tasksChanged([{ ...shell, ambient: true }]), 1);
+      expect(session.blocksIdleRelease()).toBe(false);
+      await session.handleNativeMessage(tasksChanged([shell]), 1);
+      expect(session.blocksIdleRelease()).toBe(true);
+      expect(session.getStatus()).toBe('idle');
+      await session.handleNativeMessage(tasksChanged([]), 1);
+      expect(session.blocksIdleRelease()).toBe(false);
+      expect(notifications).toHaveBeenCalledWith(expect.objectContaining({ type: 'session_state_changed' }));
+      await session.handleNativeMessage(tasksChanged([shell]), 1);
+      const query = {};
+      session.handleNativeQueryOpened(query);
+      expect(session.blocksIdleRelease()).toBe(false);
+      await session.handleNativeMessage(tasksChanged([shell]), 1);
+      notifications.mockClear();
+      session.handleNativeQueryClosed(query);
+      expect(session.blocksIdleRelease()).toBe(false);
+      expect(notifications).toHaveBeenCalledWith(expect.objectContaining({ type: 'session_state_changed' }));
+    } finally { await session.dispose(); }
+  });
+
+  it('keeps tracking the background task level after a requested turn is cancelled', async () => {
+    const gate = createDeferred<null>();
+    const endGate = createDeferred<null>();
+    const task = { task_id: 'shell', task_type: 'local_bash', description: 'background task' };
+    const changed = (tasks: unknown[]) => ({ type: 'system', subtype: 'background_tasks_changed', session_id: 'session-1', uuid: 'tasks', tasks });
+    const query = createScriptedPersistentQuery([[
+      { type: 'system', subtype: 'init', session_id: 'session-1' }, changed([task]), gate.promise,
+      changed([]), endGate.promise, { type: 'result', subtype: 'success' },
+    ]]);
+    jest.spyOn(await import('@/providers/claude/loadClaudeAgentSdk'), 'loadClaudeAgentQuery')
+      .mockResolvedValueOnce((() => query) as never);
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services).createSession(createConfig()) as any;
+    const states: boolean[] = [];
+    session.onEvent(() => states.push(session.blocksIdleRelease()));
+    const run = session.execute(createRequest());
+    const events = collectEvents(run.events);
+    try {
+      await waitFor(() => session.blocksIdleRelease());
+      run.cancel();
+      expect(session.blocksIdleRelease()).toBe(true);
+      gate.resolve(null);
+      await waitFor(() => !session.blocksIdleRelease());
+      expect(session.blocksIdleRelease()).toBe(false);
+      endGate.resolve(null);
+      await query.finished;
+      expect(states).toContain(false);
+      expect((await events).at(-1)?.type).toBe('cancelled');
+    } finally { gate.resolve(null); endGate.resolve(null); await session.dispose(); }
+  });
+
   it('reports an error result carried by a native success frame', async () => {
     sdkMock.setMockMessages([
       { type: 'system', subtype: 'init', session_id: 'native-session' },

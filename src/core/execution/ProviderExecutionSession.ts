@@ -41,6 +41,8 @@ export interface ProviderExecutionSession {
   getStatus(): ProviderSessionStatus;
   /** Whether provider-owned work is still active after the requested turn ends. */
   hasBackgroundWork?(): boolean;
+  /** Process-bound work may prevent cooling without making the chat busy. */
+  blocksIdleRelease?(): boolean;
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void;
   dispose(): Promise<void>;
 }
