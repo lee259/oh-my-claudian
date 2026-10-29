@@ -495,6 +495,18 @@ describe('InlineAskUserQuestion', () => {
       expect(withOther.querySelectorAll('claudian-ask-custom-item')).toHaveLength(1);
     });
 
+    it('masks a secret on review while delivering the original answer', () => {
+      const { container, resolve } = renderWidget({ questions: [{ id: 'token', question: 'Token', options: null, isOther: true, isSecret: true }] });
+      const input = container.querySelector('claudian-ask-custom-text');
+      input.value = 'sample-secret';
+      input.dispatchEvent({ type: 'input' });
+      const tabs = container.querySelectorAll('claudian-ask-tab');
+      tabs[tabs.length - 1].click();
+      expect(container.querySelector('claudian-ask-review-a-text').textContent).toBe('••••••••');
+      findItems(container)[0].click();
+      expect(resolve).toHaveBeenCalledWith({ token: 'sample-secret' });
+    });
+
     it('renders secret free-form questions with password input', () => {
       const input = {
         questions: [

@@ -11,6 +11,19 @@ describe('filterActiveBranch', () => {
     }, { timeout: 1000 });
   }
 
+  it('keeps a pending fork at its exact checkpoint when the source branches later', () => {
+    const entries: SDKNativeMessage[] = [
+      { type: 'user', uuid: 'u1', parentUuid: null, message: { content: 'first' } },
+      { type: 'assistant', uuid: 'a1', parentUuid: 'u1', message: { content: [{ type: 'text', text: 'first answer' }] } },
+      { type: 'user', uuid: 'u2', parentUuid: 'a1', message: { content: 'fork branch' } },
+      { type: 'assistant', uuid: 'a2', parentUuid: 'u2', message: { content: [{ type: 'text', text: 'fork answer' }] } },
+      { type: 'user', uuid: 'u3', parentUuid: 'a1', message: { content: 'later branch' } },
+      { type: 'assistant', uuid: 'a3', parentUuid: 'u3', message: { content: [{ type: 'text', text: 'later answer' }] } },
+    ];
+    expect(filterActiveBranch(entries, 'a2', 'exact').map(entry => entry.uuid)).toEqual(['u1', 'a1', 'u2', 'a2']);
+    expect(filterActiveBranch(entries, 'missing', 'exact')).toEqual([]);
+  });
+
   it.each([undefined, 'after', 'tail'])('retains history across a compaction cycle when resuming at %s', resumeAt => {
     // Issue #1672: the preserved segment descends from the boundary, whose
     // logical parent points forward to the tail of that same segment.
