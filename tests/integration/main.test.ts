@@ -3750,6 +3750,7 @@ describe('ClaudianPlugin', () => {
         'asst-uuid-cutoff',
         undefined,
         expect.any(Object),
+        'exact',
       );
 
       // Messages should be loaded

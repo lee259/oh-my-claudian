@@ -9,7 +9,7 @@ import { ClaudeTaskResultInterpreter } from '../runtime/ClaudeTaskResultInterpre
 import { isClaudeSubagentToolName } from '../subagentToolNames';
 import { ClaudeTurnStats } from './ClaudeTurnStats';
 import { buildAsyncSubagentInfo } from './sdkAsyncSubagent';
-import { filterActiveBranch } from './sdkBranchFilter';
+import { filterActiveBranch, type SDKCheckpointPolicy } from './sdkBranchFilter';
 import type { SDKNativeMessage, SDKSessionLoadResult } from './sdkHistoryTypes';
 import {
   collectAsyncSubagentResults,
@@ -145,6 +145,7 @@ export async function loadSDKSessionMessages(
   resumeAtMessageId?: string,
   sessionPath?: string,
   pathContext?: ProviderHistoryPathContext,
+  checkpointPolicy: SDKCheckpointPolicy = 'latest-branch',
 ): Promise<SDKSessionLoadResult> {
   const result = sessionPath
     ? await readSDKSessionFile(sessionPath)
@@ -160,6 +161,7 @@ export async function loadSDKSessionMessages(
     resumeAtMessageId,
     sessionPath,
     pathContext,
+    checkpointPolicy,
   });
   return { messages, skippedLines: result.skippedLines };
 }
@@ -175,6 +177,7 @@ async function assembleSDKChatMessages(
   entries: SDKNativeMessage[],
   options?: {
     resumeAtMessageId?: string;
+    checkpointPolicy?: SDKCheckpointPolicy;
     sessionPath?: string;
     pathContext?: ProviderHistoryPathContext;
   },
@@ -183,7 +186,7 @@ async function assembleSDKChatMessages(
   const sessionPath = options?.sessionPath;
   const pathContext = options?.pathContext;
 
-  const filteredEntries = filterActiveBranch(entries.filter(entry => !entry.isSidechain), resumeAtMessageId);
+  const filteredEntries = filterActiveBranch(entries.filter(entry => !entry.isSidechain), resumeAtMessageId, options?.checkpointPolicy);
   const manualCompactBoundaryIds = collectManualCompactBoundaryIds(filteredEntries);
   const realUserMessageIds = new Set(
     filteredEntries
@@ -616,8 +619,9 @@ function resolveTurnDurationAssistantUuid(
 export function getLastSDKSessionModel(
   entries: SDKNativeMessage[],
   resumeAtMessageId?: string,
+  checkpointPolicy: SDKCheckpointPolicy = 'latest-branch',
 ): string | null {
-  const activeBranch = filterActiveBranch(entries, resumeAtMessageId);
+  const activeBranch = filterActiveBranch(entries, resumeAtMessageId, checkpointPolicy);
   if (
     resumeAtMessageId
     && !activeBranch.some(entry => entry.uuid === resumeAtMessageId)
@@ -643,6 +647,7 @@ export async function loadSDKSessionModel(
   resumeAtMessageId?: string,
   sessionPath?: string,
   pathContext?: ProviderHistoryPathContext,
+  checkpointPolicy: SDKCheckpointPolicy = 'latest-branch',
 ): Promise<string | null> {
   const result = sessionPath
     ? await readSDKSessionFile(sessionPath)
@@ -651,7 +656,7 @@ export async function loadSDKSessionModel(
       : readSDKSession(vaultPath, sessionId));
   return result.error
     ? null
-    : getLastSDKSessionModel(result.messages, resumeAtMessageId);
+    : getLastSDKSessionModel(result.messages, resumeAtMessageId, checkpointPolicy);
 }
 
 function normalizeTaskToolCalls(
