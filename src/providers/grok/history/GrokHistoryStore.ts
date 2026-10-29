@@ -101,6 +101,7 @@ export function createGrokHistoryParser(
     turn: PendingTurn,
     promptId?: string,
     usage?: GrokHistoryUsage,
+    interrupted = false,
   ): boolean => {
     const messages = finalizeTurn(turn, sessionId, promptId);
     if (messages.length === 0 || turn.timelinePromptIndex === null) return false;
@@ -110,6 +111,16 @@ export function createGrokHistoryParser(
       promptIndex: turn.timelinePromptIndex,
       ...(usage ? { usage } : {}),
     });
+    if (interrupted) {
+      // Steers split one native prompt into several displayed replies.
+      for (const segment of completedTurns.filter(item => item.promptIndex === turn.timelinePromptIndex)) {
+        for (const message of segment.messages) {
+          for (const tool of message.toolCalls ?? []) {
+            if (tool.status === 'running') tool.status = 'error';
+          }
+        }
+      }
+    }
     turnIndex += 1;
     return true;
   };
@@ -247,7 +258,8 @@ export function createGrokHistoryParser(
     if (updateType === 'turn_completed') {
       const promptId = readString(update.prompt_id) ?? readString(update.promptId);
       const usage = normalizeUsage(update.usage);
-      commitPending(pending, promptId, usage);
+      const stopReason = readString(update.stop_reason) ?? readString(update.stopReason);
+      commitPending(pending, promptId, usage, stopReason === 'cancelled');
       pending = null;
     }
   };
