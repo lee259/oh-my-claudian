@@ -1,3 +1,7 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
 import type { Conversation } from '@/core/types';
 import { ClaudeConversationHistoryService } from '@/providers/claude/history/ClaudeConversationHistoryService';
 import * as historyStore from '@/providers/claude/history/ClaudeHistoryStore';
@@ -374,6 +378,30 @@ describe('ClaudeConversationHistoryService', () => {
   });
 
   describe('hydrateConversationHistory', () => {
+    it('hydrates a pending fork and its model from the selected branch after the source changes', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-fork-'));
+      const vault = path.join(root, 'vault');
+      const context = { environment: { CLAUDE_CONFIG_DIR: root } };
+      const dir = path.join(historyStore.getSDKProjectsPath(context), historyStore.encodeVaultPathForSDK(vault));
+      await fs.mkdir(dir, { recursive: true });
+      const records = [
+        { type: 'user', uuid: 'u1', parentUuid: null, message: { content: 'Original' } },
+        { type: 'assistant', uuid: 'a1', parentUuid: 'u1', message: { model: 'old-model', content: [{ type: 'text', text: 'First' }] } },
+        { type: 'user', uuid: 'u2', parentUuid: 'a1', message: { content: 'Fork' } },
+        { type: 'assistant', uuid: 'a2', parentUuid: 'u2', message: { model: 'fork-model', content: [{ type: 'text', text: 'Fork answer' }] } },
+        { type: 'user', uuid: 'u3', parentUuid: 'a1', message: { content: 'New branch' } },
+        { type: 'assistant', uuid: 'a3', parentUuid: 'u3', message: { model: 'new-model', content: [{ type: 'text', text: 'New answer' }] } },
+      ];
+      try {
+        await fs.writeFile(path.join(dir, 'source-session.jsonl'), records.map((record, i) => JSON.stringify({ ...record, timestamp: new Date(1000 * (i + 1)).toISOString() })).join('\n') + '\n');
+        const service = new ClaudeConversationHistoryService();
+        const conversation = createConversation({ sessionId: null, providerState: service.buildForkProviderState('source-session', 'a2') });
+        await service.hydrateConversationHistory(conversation, vault, context);
+        expect(conversation.messages.map(message => message.content)).toEqual(['Original', 'First', 'Fork', 'Fork answer']);
+        await expect(service.recoverConversationModelSelection(conversation, vault, context)).resolves.toBe('claude-code/fork-model');
+      } finally { await fs.rm(root, { recursive: true, force: true }); }
+    });
+
     it.each(['missing', 'unknown', 'error', 'skipped'] as const)(
       'retains unmatched cached messages when history has a %s segment', async fault => {
         const cached = { id: 'cached-user', role: 'user' as const, content: 'Retained question', timestamp: 1 };
