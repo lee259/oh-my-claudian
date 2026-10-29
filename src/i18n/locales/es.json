@@ -1014,6 +1014,7 @@
       "insert": "Insertar",
       "saveFailed": "No se pudo guardar el fragmento de entorno",
       "updateFailed": "No se pudo actualizar el fragmento de entorno",
+      "savedRefreshFailed": "Guardado, pero no se pudieron actualizar los ajustes.",
       "insertFailed": "No se pudo insertar el snippet",
       "deleteConfirm": "¿Eliminar el snippet de entorno \"{name}\"?",
       "deleteFailed": "No se pudo eliminar el snippet",

@@ -1014,6 +1014,7 @@
       "insert": "插入",
       "saveFailed": "無法儲存環境片段",
       "updateFailed": "無法更新環境片段",
+      "savedRefreshFailed": "已儲存，但設定重新整理失敗。",
       "insertFailed": "無法插入片段",
       "deleteConfirm": "要刪除環境變數片段「{name}」嗎？",
       "deleteFailed": "無法刪除片段",

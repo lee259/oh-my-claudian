@@ -1014,6 +1014,7 @@
       "insert": "Einfügen",
       "saveFailed": "Umgebungssnippet konnte nicht gespeichert werden",
       "updateFailed": "Umgebungssnippet konnte nicht aktualisiert werden",
+      "savedRefreshFailed": "Gespeichert, aber die Aktualisierung der Einstellungen ist fehlgeschlagen.",
       "insertFailed": "Snippet konnte nicht eingefügt werden",
       "deleteConfirm": "Umgebungs-Snippet \"{name}\" löschen?",
       "deleteFailed": "Snippet konnte nicht gelöscht werden",
