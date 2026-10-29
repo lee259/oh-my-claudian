@@ -6,7 +6,7 @@ import { DEFAULT_CLAUDIAN_SETTINGS } from '@/app/settings/defaultSettings';
 import { ClaudianView } from '@/features/chat/ClaudianView';
 import { createInputToolbar, type ToolbarCallbacks } from '@/features/chat/ui/InputToolbar';
 import { ClaudianSettingTab } from '@/features/settings/ClaudianSettings';
-import { getLocale, setLocale } from '@/i18n/i18n';
+import { getLocale, setLocale, t } from '@/i18n/i18n';
 
 HTMLElement.prototype.empty = function empty(): void {
   this.replaceChildren();
@@ -88,6 +88,42 @@ describe('ClaudianSettingTab live locale change', () => {
     expect(tab.containerEl.textContent).toContain('Auto-attach focused note');
     expect(tab.containerEl.textContent).toContain('Excluded tags');
     expect(tab.containerEl.textContent).toContain('Use Oh My Claudian system prompt');
+  });
+
+  it('restarts providers only after a changed prompt setting is saved', async () => {
+    setLocale('en');
+    const settings = { ...DEFAULT_CLAUDIAN_SETTINGS };
+    const transition = jest.fn().mockResolvedValue(undefined);
+    const plugin = {
+      settings,
+      getAllViews: jest.fn(() => []),
+      storage: { getAdapter: jest.fn(() => ({})) },
+      mutateSettings: jest.fn(async (mutation: (value: typeof settings) => void) => mutation(settings)),
+      providerHost: { settings, getEnvironmentVariablesForScope: jest.fn(() => ''), runProviderExecutionTransition: transition },
+    };
+    const tab = new ClaudianSettingTab({} as any, plugin as any);
+    tab.containerEl = document.createElement('div') as any;
+    tab.display();
+    const input = tab.containerEl.querySelector<HTMLInputElement>(`input[aria-label="${t('settings.userName.name')}"]`);
+    if (!input) throw new Error('Expected user name input');
+    input.dispatchEvent(new Event('blur'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(transition).not.toHaveBeenCalled();
+    input.value = 'Ada';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('blur'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(transition).toHaveBeenCalledTimes(1);
+    input.dispatchEvent(new Event('blur'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(transition).toHaveBeenCalledTimes(1);
+    input.value = 'Grace';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 200));
+    expect(transition).toHaveBeenCalledTimes(2);
+    input.dispatchEvent(new Event('blur'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(transition).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes mounted chat composers after saving the interface language', async () => {
