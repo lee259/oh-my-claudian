@@ -1014,6 +1014,7 @@
       "insert": "Insert",
       "saveFailed": "Could not save environment snippet",
       "updateFailed": "Could not update environment snippet",
+      "savedRefreshFailed": "Saved, but settings refresh failed.",
       "insertFailed": "Failed to insert snippet",
       "deleteConfirm": "Delete environment snippet \"{name}\"?",
       "deleteFailed": "Failed to delete snippet",

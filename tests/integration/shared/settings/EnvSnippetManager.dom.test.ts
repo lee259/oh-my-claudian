@@ -173,7 +173,18 @@ describe.each([false, true])('environment snippet persistence (Preact: %s)', use
     expect(persist).toHaveBeenCalledTimes(1);
     expect(settings.envSnippets).toEqual(action === 'save' ? [] : [saved]);
     expect(container.textContent).not.toContain('New configuration');
+    const dialog = within(document.body).getByRole('dialog');
+    expect(within(dialog).getByRole<HTMLInputElement>('textbox', { name: t('settings.envSnippets.modal.name') }).value)
+      .toBe('New configuration');
     expect(jest.mocked(Notice).mock.calls).toHaveLength(1);
+    persist.mockResolvedValueOnce(undefined);
+    fireEvent.click(within(dialog).getByRole('button', {
+      name: t(action === 'save' ? 'settings.envSnippets.modal.save' : 'settings.envSnippets.modal.update'),
+    }));
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+    expect(settings.envSnippets).toHaveLength(1);
+    expect(settings.envSnippets[0].name).toBe('New configuration');
+    expect(persist).toHaveBeenCalledTimes(2);
   });
 
   it.each(['save', 'update'] as const)('publishes a successful %s after persistence', async action => {
@@ -228,5 +239,56 @@ it.each([['Save', '64k'], ['Update', '64k'], ['Enter', '64k'], ['Update', ''], [
   expect(settings.envSnippets[0].contextLimits).toEqual(corrected.trim()
     ? { custom: 64000, sibling: 128000 } : { sibling: 128000 });
   expect(persist).toHaveBeenCalledTimes(1);
-  expect(dialog.isConnected).toBe(false);
+  await waitFor(() => expect(dialog.isConnected).toBe(false));
+});
+
+it.each(['save', 'update'] as const)('prevents duplicate %s while persistence is pending', async action => {
+  let settle!: () => void;
+  const saved: EnvSnippet = { id: 'saved', name: 'Saved', description: '', envVars: 'KEY=value', scope: 'shared' };
+  const settings = { envSnippets: action === 'update' ? [saved] : [], customContextLimits: {}, customModelAliases: {} };
+  const persist = jest.fn(() => new Promise<void>(resolve => { settle = resolve; }));
+  const coordinator = new SettingsCoordinator(settings, persist);
+  const host = { app: {}, settings, getEnvironmentVariablesForScope: () => 'KEY=value',
+    mutateSettings: (mutation: Parameters<typeof coordinator.mutate>[0]) => coordinator.mutate(mutation),
+  } as unknown as ProviderHost;
+  const container = document.body.createDiv();
+  managers.push(new EnvSnippetManager(container, host, 'shared'));
+  fireEvent.click(within(container).getByRole('button', { name: action === 'save'
+    ? t('settings.envSnippets.addBtn') : new RegExp(`^${t('settings.envSnippets.editBtn')}`) }));
+  const dialog = within(document.body).getByRole('dialog');
+  const name = within(dialog).getByRole<HTMLInputElement>('textbox', { name: t('settings.envSnippets.modal.name') });
+  fireEvent.input(name, { target: { value: 'Draft' } });
+  const submit = within(dialog).getByRole<HTMLButtonElement>('button', { name: t(action === 'save'
+    ? 'settings.envSnippets.modal.save' : 'settings.envSnippets.modal.update') });
+  fireEvent.click(submit);
+  fireEvent.keyDown(name, { key: 'Enter' });
+  await waitFor(() => expect(persist).toHaveBeenCalledTimes(1));
+  expect(dialog.isConnected).toBe(true);
+  expect(name.disabled).toBe(true);
+  expect(submit.disabled).toBe(true);
+  settle();
+  await waitFor(() => expect(dialog.isConnected).toBe(false));
+  expect(settings.envSnippets).toHaveLength(1);
+});
+
+it.each(['save', 'update'] as const)('reports committed %s without offering a duplicate retry', async action => {
+  const saved: EnvSnippet = { id: 'saved', name: 'Saved', description: '', envVars: 'KEY=value', scope: 'shared' };
+  const settings = { envSnippets: action === 'update' ? [saved] : [], customContextLimits: {}, customModelAliases: {} };
+  const coordinator = new SettingsCoordinator(settings, async () => undefined);
+  const host = { app: {}, settings, getEnvironmentVariablesForScope: () => 'KEY=value',
+    mutateSettings: (mutation: Parameters<typeof coordinator.mutate>[0]) => coordinator.mutate(mutation, () => { throw new Error('publish failed'); }),
+  } as unknown as ProviderHost;
+  const container = document.body.createDiv();
+  managers.push(new EnvSnippetManager(container, host, 'shared'));
+  fireEvent.click(within(container).getByRole('button', { name: action === 'save'
+    ? t('settings.envSnippets.addBtn') : new RegExp(`^${t('settings.envSnippets.editBtn')}`) }));
+  const dialog = within(document.body).getByRole('dialog');
+  fireEvent.input(within(dialog).getByRole('textbox', { name: t('settings.envSnippets.modal.name') }), { target: { value: 'Draft' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: t(action === 'save'
+    ? 'settings.envSnippets.modal.save' : 'settings.envSnippets.modal.update') }));
+  await waitFor(() => expect(dialog.isConnected).toBe(false));
+  expect(Notice).toHaveBeenCalledWith(t('settings.envSnippets.savedRefreshFailed'));
+  expect(settings.envSnippets).toHaveLength(1);
+  expect(settings.envSnippets[0].name).toBe('Draft');
+  expect(container.textContent).toContain('Draft');
 });

@@ -23,14 +23,14 @@ export class EnvSnippetModal extends Modal {
   plugin: ProviderHost;
   snippet: EnvSnippet | null;
   snippetScope: EnvironmentScope;
-  onSave: (snippet: EnvSnippet) => void;
+  onSave: (snippet: EnvSnippet) => void | Promise<void>;
 
   constructor(
     app: App,
     plugin: ProviderHost,
     snippet: EnvSnippet | null,
     scope: EnvironmentScope,
-    onSave: (snippet: EnvSnippet) => void,
+    onSave: (snippet: EnvSnippet) => void | Promise<void>,
   ) {
     super(app);
     this.plugin = plugin;
@@ -53,17 +53,20 @@ export class EnvSnippetModal extends Modal {
     let contextLimitsContainer: HTMLElement | null = null;
 
     // !e.isComposing for IME support (Chinese, Japanese, Korean, etc.)
+    let saving = false;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
-        saveSnippet();
+        void saveSnippet();
       } else if (e.key === 'Escape' && !e.isComposing) {
         e.preventDefault();
-        this.close();
+        if (saving) e.stopPropagation();
+        else this.close();
       }
     };
 
-    const saveSnippet = () => {
+    const saveSnippet = async () => {
+      if (saving) return;
       const name = nameEl.value.trim();
       if (!name) {
         new Notice(t('settings.envSnippets.nameRequired'));
@@ -104,8 +107,22 @@ export class EnvSnippetModal extends Modal {
         modelAliases: modelAliasInputs.size > 0 ? modelAliases : undefined,
       };
 
-      this.onSave(snippet);
-      this.close();
+      saving = true;
+      const controls = contentEl.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input, textarea, button');
+      for (const control of controls) control.disabled = true;
+      try {
+        await this.onSave(snippet);
+        this.close();
+      } catch (error) {
+        const committed = error !== null && typeof error === 'object'
+          && 'committed' in error && error.committed === true;
+        new Notice(committed ? t('settings.envSnippets.savedRefreshFailed')
+          : t(this.snippet ? 'settings.envSnippets.updateFailed' : 'settings.envSnippets.saveFailed'));
+        if (committed) this.close();
+      } finally {
+        saving = false;
+        for (const control of controls) control.disabled = false;
+      }
     };
 
     const renderContextLimitFields = () => {
@@ -210,7 +227,7 @@ export class EnvSnippetModal extends Modal {
       cls: 'claudian-save-btn',
       attr: { type: 'button' },
     });
-    saveBtn.addEventListener('click', () => saveSnippet());
+    saveBtn.addEventListener('click', () => { void saveSnippet(); });
 
     // Focus name input after modal is rendered (timeout for Windows compatibility)
     window.setTimeout(() => nameEl?.focus(), 50);
@@ -400,19 +417,9 @@ export class EnvSnippetManager {
       this.plugin,
       null,
       this.scope,
-      (snippet) => {
-        void (async (): Promise<void> => {
-          try {
-            await this.plugin.mutateSettings((settings) => {
-              settings.envSnippets.push(snippet);
-            });
-          } catch {
-            new Notice(t('settings.envSnippets.saveFailed'));
-            return;
-          }
-          this.render();
-          new Notice(t('settings.envSnippets.savedNotice', { name: snippet.name }));
-        })();
+      async (snippet) => {
+        await this.commitSnippet((settings) => { settings.envSnippets.push(snippet); });
+        new Notice(t('settings.envSnippets.savedNotice', { name: snippet.name }));
       }
     );
     modal.open();
@@ -475,28 +482,34 @@ export class EnvSnippetManager {
       this.plugin,
       snippet,
       this.scope,
-      (updatedSnippet) => {
-        void (async (): Promise<void> => {
-          const exists = this.plugin.settings.envSnippets.some(s => s.id === snippet.id);
-          if (exists) {
-            try {
-              await this.plugin.mutateSettings((settings) => {
-                const index = settings.envSnippets.findIndex(s => s.id === snippet.id);
-                if (index !== -1) {
-                  settings.envSnippets[index] = updatedSnippet;
-                }
-              });
-            } catch {
-              new Notice(t('settings.envSnippets.updateFailed'));
-              return;
-            }
-            this.render();
-            new Notice(t('settings.envSnippets.updatedNotice', { name: updatedSnippet.name }));
-          }
-        })();
+      async (updatedSnippet) => {
+        await this.commitSnippet((settings) => {
+          const index = settings.envSnippets.findIndex(s => s.id === snippet.id);
+          if (index === -1) throw new Error('Environment snippet no longer exists');
+          settings.envSnippets[index] = updatedSnippet;
+        });
+        new Notice(t('settings.envSnippets.updatedNotice', { name: updatedSnippet.name }));
       }
     );
     modal.open();
+  }
+
+  private async commitSnippet(mutation: Parameters<ProviderHost['mutateSettings']>[0]): Promise<void> {
+    try {
+      await this.plugin.mutateSettings(mutation);
+    } catch (error) {
+      const committed = error !== null && typeof error === 'object'
+        && 'committed' in error && error.committed === true;
+      if (committed) {
+        try { this.render(); } catch { /* Preserve the committed error. */ }
+      }
+      throw error;
+    }
+    try {
+      this.render();
+    } catch (cause) {
+      throw Object.assign(new Error('Settings saved but refresh failed', { cause }), { committed: true });
+    }
   }
 
   private async deleteSnippet(snippet: EnvSnippet) {

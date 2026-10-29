@@ -1014,6 +1014,7 @@
       "insert": "挿入",
       "saveFailed": "環境スニペットを保存できませんでした",
       "updateFailed": "環境スニペットを更新できませんでした",
+      "savedRefreshFailed": "保存されましたが、設定の更新に失敗しました。",
       "insertFailed": "スニペットの挿入に失敗しました",
       "deleteConfirm": "環境変数スニペット「{name}」を削除しますか?",
       "deleteFailed": "スニペットの削除に失敗しました",
