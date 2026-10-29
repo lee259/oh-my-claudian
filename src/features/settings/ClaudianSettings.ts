@@ -847,12 +847,15 @@ export class ClaudianSettingTab extends PluginSettingTab {
         },
       ],
       onChange: async (id, value) => {
+        let promptChanged = false;
         await this.plugin.mutateSettings((settings) => {
           switch (id) {
             case 'user-name':
+              promptChanged = settings.userName !== value;
               settings.userName = value;
               break;
             case 'system-prompt':
+              promptChanged = settings.systemPrompt !== value;
               settings.systemPrompt = value;
               break;
             case 'excluded-tags':
@@ -862,15 +865,12 @@ export class ClaudianSettingTab extends PluginSettingTab {
                 .filter(entry => entry.length > 0);
               break;
             case 'media-folder':
+              promptChanged = settings.mediaFolder !== value.trim();
               settings.mediaFolder = value.trim();
               break;
           }
         });
-      },
-      onBlur: async (id) => {
-        if (id === 'user-name' || id === 'system-prompt' || id === 'media-folder') {
-          await this.restartServiceForPromptChange();
-        }
+        if (promptChanged) await this.restartServiceForPromptChange();
       },
     }));
 
