@@ -61,6 +61,37 @@ describe('GrokHistoryStore', () => {
     }));
   });
 
+  it('settles unfinished tools across steers without changing completed background launches or previous turns', () => {
+    const updates = [
+      { sessionUpdate: 'user_message_chunk', _meta: { promptIndex: 0 }, content: { type: 'text', text: 'Earlier turn' } },
+      { sessionUpdate: 'tool_call', toolCallId: 'earlier', title: 'future_tool', status: 'in_progress' },
+      { sessionUpdate: 'turn_completed', stop_reason: 'end_turn' },
+      { sessionUpdate: 'user_message_chunk', _meta: { promptIndex: 1 }, content: { type: 'text', text: 'Start work' } },
+      { sessionUpdate: 'tool_call', toolCallId: 'background', title: 'run_terminal_command', status: 'completed',
+        rawInput: { command: 'watch', block_until_ms: 0 },
+        content: [{ type: 'content', content: { type: 'text', text: 'Background task started' } }],
+        rawOutput: { type: 'BackgroundTaskStarted', task_id: 'task-1', task_type: 'bash', status: 'running', summary: 'Background task started' } },
+      { sessionUpdate: 'tool_call', toolCallId: 'failed', title: 'read_file', status: 'failed', rawOutput: 'File missing' },
+      { sessionUpdate: 'tool_call', toolCallId: 'before-steer', title: 'read_file', status: 'in_progress' },
+      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Change direction' } },
+      { sessionUpdate: 'tool_call', toolCallId: 'after-steer', title: 'read_file', status: 'in_progress' },
+      { sessionUpdate: 'turn_completed', stop_reason: 'cancelled' },
+    ];
+    const content = updates.map((update, index) => JSON.stringify({
+      timestamp: 1_700_000_000_000 + index, method: 'session/update', params: { sessionId: 'steered-stop', update },
+    })).join('\n');
+    const tools = parseGrokHistoryContent(content, 'steered-stop').messages.flatMap(message => message.toolCalls ?? []);
+    expect(tools.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: 'earlier', status: 'running' },
+      { id: 'background', status: 'completed' },
+      { id: 'failed', status: 'error' },
+      { id: 'before-steer', status: 'error' },
+      { id: 'after-steer', status: 'error' },
+    ]);
+    expect(tools[1].result).toBe('Background task started');
+    expect(tools[2].result).toBe('File missing');
+  });
+
   it('rehydrates only the active branch after a native rewind marker', () => {
     const updates = [
       {

@@ -344,6 +344,9 @@ export class InlineEditModal {
       return { decision: 'reject' };
     }
 
+    const sourceDoc = editorView.state?.doc;
+    const sourceAnchor = editorView.state?.selection?.main.anchor;
+    const sourceHead = editorView.state?.selection?.main.head;
     const providerContext = resolveInlineEditProviderContext(this.plugin);
     try {
       await ProviderWorkspaceRegistry.ensureInitialized(
@@ -357,6 +360,13 @@ export class InlineEditModal {
     }
 
     if (rejectActiveController()) {
+      return { decision: 'reject' };
+    }
+
+    if (editorView.state?.doc !== sourceDoc
+      || editorView.state?.selection?.main.anchor !== sourceAnchor
+      || editorView.state?.selection?.main.head !== sourceHead) {
+      new Notice(t('inlineEdit.sourceChanged'));
       return { decision: 'reject' };
     }
 
