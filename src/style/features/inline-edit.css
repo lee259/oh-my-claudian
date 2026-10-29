@@ -10,7 +10,7 @@
 }
 
 /* Preview mode selection highlight via CSS Custom Highlight API */
-::highlight(claudian-selection) {
+body.claudian-selection-highlight-active ::highlight(claudian-selection) {
   background: var(--text-selection);
 }
 

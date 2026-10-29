@@ -9,6 +9,8 @@ import type { ComposerContextTray } from '../ui/ComposerContextTray';
 const SELECTION_POLL_INTERVAL = 250;
 const INPUT_HANDOFF_GRACE_MS = 1500;
 const HIGHLIGHT_KEY = 'claudian-selection';
+const HIGHLIGHT_ACTIVE_CLASS = 'claudian-selection-highlight-active';
+const highlightOwners = new WeakMap<CustomHighlightRegistry, SelectionController>();
 
 type CustomHighlightRegistry = {
   delete: (name: string) => boolean;
@@ -27,6 +29,8 @@ export class SelectionController {
   private owningLeaf: WorkspaceLeaf | null;
   private storedSelection: StoredSelection | null = null;
   private inputHandoffGraceUntil: number | null = null;
+  private highlightRegistry: CustomHighlightRegistry | null = null;
+  private highlightGateEl: HTMLElement | null = null;
   private pollInterval: number | null = null;
   private readonly focusScopePointerDownHandler = () => {
     if (!this.storedSelection) return;
@@ -194,21 +198,18 @@ export class SelectionController {
     }
   }
 
-  private get cssHighlights(): CustomHighlightRegistry | null {
-    const css = typeof CSS === 'undefined'
-      ? null
-      : CSS as unknown as { highlights?: CustomHighlightRegistry };
-    return css?.highlights ?? null;
+  private getHighlightRegistry(ownerDocument: Document | null): CustomHighlightRegistry | null {
+    const ownerCss = ownerDocument?.defaultView?.CSS as unknown as { highlights?: CustomHighlightRegistry } | undefined;
+    if (ownerCss) return ownerCss.highlights ?? null;
+    const fallbackCss = typeof CSS === 'undefined' ? null : CSS as unknown as { highlights?: CustomHighlightRegistry };
+    return fallbackCss?.highlights ?? null;
   }
 
-  private get highlightConstructor(): CustomHighlightConstructor | null {
-    const ownerWindow = this.inputEl.ownerDocument.defaultView as unknown as {
-      Highlight?: CustomHighlightConstructor;
-    } | null;
-    const rendererWindow = typeof window === 'undefined'
-      ? null
-      : window as unknown as { Highlight?: CustomHighlightConstructor };
-    return ownerWindow?.Highlight ?? rendererWindow?.Highlight ?? null;
+  private getHighlightConstructor(ownerDocument: Document | null): CustomHighlightConstructor | null {
+    const ownerWindow = ownerDocument?.defaultView as unknown as { Highlight?: CustomHighlightConstructor } | null;
+    const inputWindow = this.inputEl.ownerDocument.defaultView as unknown as { Highlight?: CustomHighlightConstructor } | null;
+    const rendererWindow = typeof window === 'undefined' ? null : window as unknown as { Highlight?: CustomHighlightConstructor };
+    return ownerWindow?.Highlight ?? inputWindow?.Highlight ?? rendererWindow?.Highlight ?? null;
   }
 
   private rangesMatch(a: Range, b: Range): boolean {
@@ -368,23 +369,45 @@ export class SelectionController {
     if (sel.domRanges?.length) {
       if (this.isNativePreviewSelectionVisible(sel.domRanges)) {
         // Native is showing — clear any stale mock
-        this.cssHighlights?.delete(HIGHLIGHT_KEY);
+        this.clearPreviewHighlight();
         return;
       }
       // Native selection not visible (e.g., input has focus) — show mock
       const validRanges = sel.domRanges.filter(r => r.startContainer.isConnected);
-      const HighlightCtor = this.highlightConstructor;
-      if (validRanges.length && HighlightCtor) {
-        this.cssHighlights?.set(HIGHLIGHT_KEY, new HighlightCtor(...validRanges));
+      const ownerDocument = validRanges[0]?.startContainer.ownerDocument ?? this.inputEl.ownerDocument;
+      const registry = this.getHighlightRegistry(ownerDocument);
+      const HighlightCtor = this.getHighlightConstructor(ownerDocument);
+      if (validRanges.length && HighlightCtor && registry) {
+        this.clearPreviewHighlight();
+        const previousOwner = highlightOwners.get(registry);
+        previousOwner?.clearPreviewHighlight();
+        registry.set(HIGHLIGHT_KEY, new HighlightCtor(...validRanges));
+        this.highlightRegistry = registry;
+        this.highlightGateEl = ownerDocument?.body ?? null;
+        highlightOwners.set(registry, this);
+        this.highlightGateEl?.classList.add(HIGHLIGHT_ACTIVE_CLASS);
+      } else {
+        this.clearPreviewHighlight();
       }
     }
+  }
+
+  private clearPreviewHighlight(): void {
+    const registry = this.highlightRegistry;
+    if (registry && highlightOwners.get(registry) === this) {
+      registry.delete(HIGHLIGHT_KEY);
+      highlightOwners.delete(registry);
+      this.highlightGateEl?.classList.remove(HIGHLIGHT_ACTIVE_CLASS);
+    }
+    this.highlightRegistry = null;
+    this.highlightGateEl = null;
   }
 
   private clearHighlight(): void {
     if (this.storedSelection?.editorView) {
       hideSelectionHighlight(this.storedSelection.editorView);
     }
-    this.cssHighlights?.delete(HIGHLIGHT_KEY);
+    this.clearPreviewHighlight();
   }
 
   // ============================================
