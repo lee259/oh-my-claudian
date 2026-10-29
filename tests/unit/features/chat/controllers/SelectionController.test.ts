@@ -385,6 +385,73 @@ describe('SelectionController', () => {
       app.workspace.getActiveViewOfType.mockReturnValue(readingView);
     });
 
+    it('gates the highlight per window and does not let an older controller clear the current owner', () => {
+      const body = createMockEl();
+      const registry = { set: jest.fn(), delete: jest.fn() };
+      const doc: any = { body, activeElement: null, defaultView: { CSS: { highlights: registry }, Highlight: (global as any).Highlight } };
+      const node = { isConnected: true, ownerDocument: doc };
+      const range = createMockDOMRange({ startContainer: node, endContainer: node });
+      const selection = createMockDOMSelection('selected text', node, node, range);
+      doc.getSelection = jest.fn().mockReturnValue(selection);
+      inputEl.ownerDocument = doc;
+      focusScopeEl.ownerDocument = doc;
+      containerEl.ownerDocument = doc;
+      const secondInput = createMockEventTarget();
+      secondInput.ownerDocument = doc;
+      const second = new SelectionController(app, createMockContextTray() as any, secondInput);
+      controller.start();
+      second.start();
+      jest.advanceTimersByTime(250);
+      doc.getSelection.mockReturnValue(null);
+      controller.showHighlight();
+      expect(body.classList.contains('claudian-selection-highlight-active')).toBe(true);
+      second.showHighlight();
+      registry.delete.mockClear();
+      controller.clear();
+      expect(body.classList.contains('claudian-selection-highlight-active')).toBe(true);
+      expect(registry.delete).not.toHaveBeenCalled();
+      second.clear();
+      expect(body.classList.contains('claudian-selection-highlight-active')).toBe(false);
+      expect(registry.delete).toHaveBeenCalledWith('claudian-selection');
+      second.dispose();
+    });
+
+    it('keeps highlight gates and registries isolated across windows', () => {
+      const createWindow = () => {
+        const body = createMockEl();
+        const registry = { set: jest.fn(), delete: jest.fn() };
+        const doc: any = { body, activeElement: null, defaultView: { CSS: { highlights: registry }, Highlight: (global as any).Highlight } };
+        const node = { isConnected: true, ownerDocument: doc };
+        doc.getSelection = jest.fn().mockReturnValue(createMockDOMSelection('selected', node, node, createMockDOMRange({ startContainer: node, endContainer: node })));
+        return { body, registry, doc };
+      };
+      const first = createWindow();
+      const second = createWindow();
+      inputEl.ownerDocument = first.doc;
+      focusScopeEl.ownerDocument = first.doc;
+      containerEl.ownerDocument = first.doc;
+      controller.start();
+      jest.advanceTimersByTime(250);
+      first.doc.getSelection.mockReturnValue(null);
+      controller.showHighlight();
+      jest.clearAllTimers();
+      const secondInput = createMockEventTarget(); secondInput.ownerDocument = second.doc;
+      containerEl.ownerDocument = second.doc;
+      const secondController = new SelectionController(app, createMockContextTray() as any, secondInput);
+      secondController.start();
+      jest.advanceTimersByTime(250);
+      second.doc.getSelection.mockReturnValue(null);
+      secondController.showHighlight();
+      expect(first.body.classList.contains('claudian-selection-highlight-active')).toBe(true);
+      expect(second.body.classList.contains('claudian-selection-highlight-active')).toBe(true);
+      controller.clear();
+      expect(first.body.classList.contains('claudian-selection-highlight-active')).toBe(false);
+      expect(second.body.classList.contains('claudian-selection-highlight-active')).toBe(true);
+      expect(second.registry.delete).not.toHaveBeenCalled();
+      secondController.dispose();
+      expect(second.body.classList.contains('claudian-selection-highlight-active')).toBe(false);
+    });
+
     it('captures selection via document.getSelection() in reading mode', () => {
       const anchorNode = {};
       const mockSel = createMockDOMSelection('reading selection', anchorNode);
@@ -569,6 +636,9 @@ describe('SelectionController', () => {
       controller.start();
       jest.advanceTimersByTime(250);
 
+      (global as any).document.getSelection.mockReturnValue(null);
+      controller.showHighlight();
+      expect(mockHighlights.set).toHaveBeenCalled();
       (global as any).document.getSelection.mockReturnValue(
         createMockDOMSelection('', null),
       );
