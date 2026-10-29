@@ -339,6 +339,10 @@ ClaudeExecutionStrategySink {
       });
   }
 
+  blocksIdleRelease(): boolean {
+    return this.taskNotifications.hasLiveBackgroundTask();
+  }
+
   getStatus(): ProviderSessionStatus {
     return this.status;
   }
@@ -500,6 +504,14 @@ ClaudeExecutionStrategySink {
     if (this.suppressedEphemeralQueryTokens.has(queryToken)) {
       if (message.type === 'result') {
         this.suppressedEphemeralQueryTokens.delete(queryToken);
+      }
+      return;
+    }
+    if (message.type === 'system' && message.subtype === 'background_tasks_changed') {
+      const wasBlocked = this.blocksIdleRelease();
+      this.taskNotifications.observe(message);
+      if (wasBlocked !== this.blocksIdleRelease()) {
+        this.emitSession({ type: 'session_state_changed', snapshot: this.getSnapshot() });
       }
       return;
     }
@@ -861,15 +873,19 @@ ClaudeExecutionStrategySink {
   handleNativeQueryOpened(query: Query): void {
     if (this.nativeQuery === query) return;
     this.nativeQuery = query;
+    const wasBlocked = this.blocksIdleRelease();
     this.taskNotifications.reset();
     this.authoritativeContextWindow = null;
+    if (wasBlocked && !this.disposed) this.emitSession({ type: 'session_state_changed', snapshot: this.getSnapshot() });
   }
 
   handleNativeQueryClosed(query: Query): void {
     if (this.nativeQuery !== query) return;
     this.nativeQuery = null;
+    const wasBlocked = this.blocksIdleRelease();
     this.taskNotifications.reset();
     this.authoritativeContextWindow = null;
+    if (wasBlocked && !this.disposed) this.emitSession({ type: 'session_state_changed', snapshot: this.getSnapshot() });
   }
 
   handleAuthoritativeContextWindow(

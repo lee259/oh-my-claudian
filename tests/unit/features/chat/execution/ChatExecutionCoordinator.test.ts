@@ -99,6 +99,7 @@ class FakeSession implements ProviderExecutionSession,
   readonly steerRequests: ProviderExecutionRequest[] = [];
   readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
   hasBackgroundWork?: () => boolean;
+  blocksIdleRelease?: () => boolean;
   cancelCalls = 0;
   disposeCalls = 0;
   status: ProviderSessionStatus = 'idle';
@@ -398,6 +399,48 @@ describe('ChatExecutionCoordinator', () => {
       'local-1',
       0,
     );
+  });
+
+  it('protects an idle session with native background work from cooling without marking it busy', async () => {
+    const harness = createHarness();
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'claude' });
+    await harness.coordinator.prepare();
+    const session = harness.backends.get('claude')!.sessions[0];
+    let running = true;
+    session.blocksIdleRelease = () => running;
+    expect(harness.coordinator.hasSessionWork).toBe(false);
+    expect(harness.coordinator.canCool()).toBe(false);
+    await expect(harness.coordinator.cool()).rejects.toThrow('busy');
+    expect(session.disposeCalls).toBe(0);
+    running = false;
+    expect(harness.coordinator.canCool()).toBe(true);
+    await harness.coordinator.cool();
+    expect(session.disposeCalls).toBe(1);
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
+  });
+
+  it('rechecks warm capacity after process-bound background work ends', async () => {
+    let limit = 6;
+    const pool = new WarmExecutionPool(() => limit);
+    await reserveProtectedWarmSlots(pool, 5);
+    const harness = createHarness({ warmExecution: { ownerId: 'background-owner', pool, canCool: () => true } });
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'claude' });
+    await harness.coordinator.prepare();
+    const session = harness.backends.get('claude')!.sessions[0];
+    let running = true;
+    session.blocksIdleRelease = () => running;
+    limit = 5;
+    expect(await pool.reconcileLimit()).toBe(false);
+    expect(pool.has('background-owner')).toBe(true);
+    running = false;
+    session.emit({ type: 'session_state_changed', snapshot: session.snapshot,
+      scope: { kind: 'session', sessionInstanceId: session.sessionInstanceId, sequence: 1 } });
+    for (let i = 0; i < 50 && pool.has('background-owner'); i++) await new Promise(resolve => setTimeout(resolve, 0));
+    expect(pool.has('background-owner')).toBe(false);
+    expect(session.disposeCalls).toBe(1);
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
   });
 
   it('cancels staged input before handing it to a provider', async () => {
