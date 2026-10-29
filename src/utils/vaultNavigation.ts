@@ -1,4 +1,4 @@
-import type { App, TAbstractFile } from 'obsidian';
+import type { App, PaneType, TAbstractFile } from 'obsidian';
 import { Notice } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
@@ -17,9 +17,9 @@ export async function revealVaultItem(app: App, target: TAbstractFile | null): P
 }
 
 /** Open an ordinary vault link, retaining Obsidian's heading/block resolution. */
-export async function openVaultLink(app: App, target: string): Promise<void> {
+export async function openVaultLink(app: App, target: string, pane: PaneType | boolean = 'tab'): Promise<void> {
   try {
-    await app.workspace.openLinkText(target, '', 'tab');
+    await app.workspace.openLinkText(target, '', pane);
   } catch {
     new Notice(t('chat.composer.fileOpenFailed'));
   }

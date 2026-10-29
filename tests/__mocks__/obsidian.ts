@@ -1,5 +1,9 @@
 // Mock for Obsidian API
 
+export class Keymap {
+  static isModEvent(_event?: unknown): boolean | 'tab' | 'split' | 'window' { return false; }
+}
+
 export async function requestUrl({ url, method }: { url: string; method?: string }) {
   const response = await fetch(url, { method });
   return {

@@ -1,3 +1,5 @@
+import { Keymap } from 'obsidian';
+
 jest.mock('@/utils/obsidianCompat', () => ({
   getVaultFileByPath: jest.fn(),
   isExternalTextFilePath: (filePath: string) => filePath.startsWith('/') && filePath.endsWith('.md'),
@@ -8,6 +10,32 @@ import { registerFileLinkHandler } from '@/utils/fileLink';
 import { openVaultFile } from '@/utils/obsidianCompat';
 
 describe('registerFileLinkHandler', () => {
+  it.each(['click', 'auxclick'])('opens a vault link with native pane intent on %s', type => {
+    jest.spyOn(Keymap, 'isModEvent').mockReturnValue('split');
+    const app = { workspace: { openLinkText: jest.fn() } };
+    const link: any = { dataset: { href: 'note#heading' }, closest: jest.fn() };
+    link.closest.mockReturnValue(link);
+    const handlers: Record<string, (event: MouseEvent) => void> = {};
+    const component = { registerDomEvent: (_el: HTMLElement, event: string, cb: (event: MouseEvent) => void) => { handlers[event] = cb; } };
+    registerFileLinkHandler(app as any, {} as HTMLElement, component as any);
+    const event = { type, button: type === 'auxclick' ? 1 : 0, target: link, preventDefault: jest.fn() } as any;
+    handlers[type](event);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(app.workspace.openLinkText).toHaveBeenCalledWith('note#heading', '', 'split');
+    jest.restoreAllMocks();
+  });
+
+  it('leaves non-middle auxiliary clicks alone', () => {
+    const app = { workspace: { openLinkText: jest.fn() } };
+    const handlers: Record<string, (event: MouseEvent) => void> = {};
+    const component = { registerDomEvent: (_el: HTMLElement, event: string, cb: (event: MouseEvent) => void) => { handlers[event] = cb; } };
+    registerFileLinkHandler(app as any, {} as HTMLElement, component as any);
+    const event = { type: 'auxclick', button: 2, preventDefault: jest.fn() } as any;
+    handlers.auxclick(event);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(app.workspace.openLinkText).not.toHaveBeenCalled();
+  });
+
   it('opens data-href target when present', () => {
     const app = {
       workspace: {
@@ -29,7 +57,7 @@ describe('registerFileLinkHandler', () => {
 
     const component = {
       registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => {
-        cb(event);
+        if (_event === 'click') cb(event);
       },
     };
 
@@ -60,7 +88,7 @@ describe('registerFileLinkHandler', () => {
 
     const component = {
       registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => {
-        cb(event);
+        if (_event === 'click') cb(event);
       },
     };
 
@@ -79,7 +107,7 @@ describe('registerFileLinkHandler', () => {
     link.closest.mockReturnValue(link);
     const event = { target: link, preventDefault: jest.fn() } as any;
     const component = {
-      registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => cb(event),
+      registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => { if (_event === 'click') cb(event); },
     };
 
     registerFileLinkHandler(app as any, {} as HTMLElement, component as any);
@@ -98,7 +126,7 @@ describe('registerFileLinkHandler', () => {
     link.closest.mockReturnValue(link);
     const event = { target: link, preventDefault: jest.fn() } as any;
     const component = {
-      registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => cb(event),
+      registerDomEvent: (_el: HTMLElement, _event: string, cb: (event: MouseEvent) => void) => { if (_event === 'click') cb(event); },
     };
 
     registerFileLinkHandler(app as any, {} as HTMLElement, component as any);
