@@ -7,6 +7,7 @@ export class ClaudeTaskNotificationQueue {
   private readonly backgroundModes = new Map<string, boolean>();
   private readonly pending = new Map<string, { content: string }>();
   private turnNotifications = new Map<string, { content: string }>();
+  private liveBackgroundTasks = new Set<string>();
 
   observe(message: SDKMessage): void {
     if (message.type !== 'system') return;
@@ -16,7 +17,13 @@ export class ClaudeTaskNotificationQueue {
       this.backgroundModes.set(message.task_id, message.is_backgrounded);
     } else if (message.subtype === 'task_updated' && message.patch.is_backgrounded !== undefined) {
       this.backgroundModes.set(message.task_id, message.patch.is_backgrounded);
+    } else if (message.subtype === 'background_tasks_changed') {
+      this.liveBackgroundTasks = new Set(message.tasks.filter(task => !task.ambient).map(task => task.task_id));
     }
+  }
+
+  hasLiveBackgroundTask(): boolean {
+    return this.liveBackgroundTasks.size > 0;
   }
 
   complete(message: SDKMessage, content: string | undefined): void {
@@ -50,5 +57,6 @@ export class ClaudeTaskNotificationQueue {
     this.pending.clear();
     this.backgroundModes.clear();
     this.turnNotifications.clear();
+    this.liveBackgroundTasks.clear();
   }
 }
