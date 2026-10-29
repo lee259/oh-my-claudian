@@ -263,20 +263,23 @@ implements ClaudeExecutionStrategy {
     request: ClaudeEncodedExecutionRequest,
   ): Promise<void> {
     const query = this.query;
-    const current = this.currentConfig;
+    let current = this.currentConfig;
     if (!query || !current) return;
 
     if (request.model !== current.model) {
       await query.setModel(request.model);
       if (this.query !== query || this.disposed) return;
+      this.currentConfig = current = { ...current, model: request.model };
     }
     if (request.effort !== current.effort) {
       await query.applyFlagSettings({ effortLevel: request.effort });
       if (this.query !== query || this.disposed) return;
+      this.currentConfig = current = { ...current, effort: request.effort };
     }
     if (request.sdkPermissionMode !== current.sdkPermissionMode) {
       await query.setPermissionMode(request.sdkPermissionMode);
       if (this.query !== query || this.disposed) return;
+      this.currentConfig = current = { ...current, sdkPermissionMode: request.sdkPermissionMode };
     }
     if (request.mcpServersKey !== current.mcpServersKey) {
       await query.setMcpServers(

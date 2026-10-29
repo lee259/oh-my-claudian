@@ -38,6 +38,7 @@ const sdkMock = sdkModule as unknown as {
   getLastResponse: () => {
     interrupt: jest.Mock;
     setModel: jest.Mock;
+    applyFlagSettings: jest.Mock;
     setPermissionMode: jest.Mock;
     setMcpServers: jest.Mock;
     supportedCommands: jest.Mock;
@@ -1256,6 +1257,28 @@ describe('ClaudeExecutionBackend', () => {
         name: 'claudian_obsidian',
       }),
     }));
+  });
+
+  it('restores a model applied before a later dynamic setting fails', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services).createSession(createConfig());
+    try {
+      await collectEvents(session.execute(createRequest()).events);
+      const query = sdkMock.getLastResponse()!;
+      let nativeModel = 'claude-sonnet-4-5';
+      query.setModel.mockImplementation(async (model: string) => { nativeModel = model; });
+      query.applyFlagSettings.mockRejectedValueOnce(new Error('effort rejected'));
+      const original = createRequest();
+      const failed = await collectEvents(session.execute({ ...original, configuration: { ...original.configuration, model: 'claude-opus-4-6', reasoning: 'high' } }).events);
+      expect(failed.at(-1)).toMatchObject({ type: 'execution_error' });
+      expect(nativeModel).toBe('claude-opus-4-6');
+      await collectEvents(session.execute(createRequest()).events);
+      expect(nativeModel).toBe('claude-sonnet-4-5');
+    } finally { await session.dispose(); }
   });
 
   it('switches Claude Code safe mode on the same persistent query', async () => {

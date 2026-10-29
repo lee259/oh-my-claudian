@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
 
 import type {
@@ -497,18 +498,30 @@ export class CodexConversationHistoryService implements ProviderConversationHist
         ?? deriveCodexSessionsRootFromSessionPath(state.forkSourceSessionFilePath),
       pathContext,
     );
-    return await resolveCodexSessionFileHint(
-      state.forkSourceSessionFilePath,
-      state.forkSource.sessionId,
-      pathContext,
-      lookupDeadline,
-    ) ?? (sourceTranscriptRootPath
-      ? findCodexSessionFileAsync(
-          state.forkSource.sessionId,
-          sourceTranscriptRootPath,
-          Math.max(0, lookupDeadline - Date.now()),
-        )
-      : null);
+    const resolved = await resolveCodexSessionFileHint(
+      state.forkSourceSessionFilePath, state.forkSource.sessionId, pathContext, lookupDeadline,
+    );
+    if (resolved) {
+      try {
+        await access(resolved);
+        return resolved;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return resolved;
+      }
+      const active = await resolveCodexSessionFileHint(undefined, state.forkSource.sessionId, pathContext, lookupDeadline);
+      if (active) return active;
+    }
+    const roots = [
+      ...(sourceTranscriptRootPath ? [sourceTranscriptRootPath] : []),
+      ...getCodexArchivedTranscriptRoots(pathContext, sourceTranscriptRootPath ? [sourceTranscriptRootPath] : []),
+    ];
+    for (const root of roots) {
+      const remainingMs = Math.max(0, lookupDeadline - Date.now());
+      if (remainingMs === 0) break;
+      const candidate = await findCodexSessionFileAsync(state.forkSource.sessionId, root, remainingMs);
+      if (candidate) return candidate;
+    }
+    return resolved;
   }
 
   private truncateTurnsAtCheckpoint(

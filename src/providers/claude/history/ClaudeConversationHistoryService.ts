@@ -970,7 +970,9 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
         ? (isPendingFork ? state.forkSource!.resumeAt : conversation.resumeAtMessageId)
         : undefined;
       const sessionPathOverride = relocatedSessionPaths.get(sessionId);
-      const result = pathContext
+      const result = isPendingFork && isCheckpointSession
+        ? await loadSDKSessionMessages(vaultPath, sessionId, truncateAt, sessionPathOverride, pathContext, 'exact')
+        : pathContext
         ? await loadSDKSessionMessages(
           vaultPath,
           sessionId,
@@ -1095,6 +1097,7 @@ export class ClaudeConversationHistoryService implements ProviderConversationHis
         resumeAt,
         location?.sessionPath,
         pathContext,
+        ...(isPendingFork && sessionId === checkpointSessionId ? ['exact' as const] : []),
       );
       if (sessionId === checkpointSessionId) {
         if (!recovered) return null;
