@@ -414,6 +414,7 @@ export class InlineAskUserQuestion {
   }
 
   private getAnswerText(idx: number): string {
+    if (this.questions[idx].isSecret && this.isQuestionAnswered(idx)) return '••••••••';
     const selected = this.getSelectedLabels(idx);
     const custom = this.customInputs.get(idx)!;
     const parts: string[] = [];
