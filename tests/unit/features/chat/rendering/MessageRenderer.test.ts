@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+import '@test/helpers/ObsidianSettingsDOM';
 import '@/providers';
 
 import { createMockEl, type MockElement } from '@test/helpers/MockElement';
@@ -1686,6 +1688,15 @@ describe('MessageRenderer', () => {
 
   it('renders welcome element and calls renderStoredMessage for each message', () => {
     const messagesEl = createMockEl();
+    const createDiv = messagesEl.createDiv.bind(messagesEl);
+    messagesEl.createDiv = (options?: any) => {
+      if (options?.cls === 'claudian-welcome') {
+        const element = document.createElement('div');
+        element.className = options.cls;
+        return element as any;
+      }
+      return createDiv(options);
+    };
     const emptySpy = jest.spyOn(messagesEl, 'empty');
     const mockComponent = createMockComponent();
     const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
@@ -3790,7 +3801,8 @@ describe('MessageRenderer', () => {
   });
 
   it('showFullImage opens a preview that disposal closes without allowing another', () => {
-    const { renderer } = createRenderer();
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
     const image: ImageAttachment = {
       id: 'img-1',
       name: 'test.png',
@@ -3803,8 +3815,8 @@ describe('MessageRenderer', () => {
     const overlayEl = createMockEl();
     const removeOverlay = jest.spyOn(overlayEl, 'remove');
     const mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
-    const origDocument = globalThis.document;
-    (globalThis as any).document = { body: mockBody, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    const originalDocument = messagesEl.ownerDocument;
+    messagesEl.ownerDocument = { body: mockBody, addEventListener: jest.fn(), removeEventListener: jest.fn() } as any;
 
     try {
       renderer.showFullImage(image);
@@ -3816,7 +3828,7 @@ describe('MessageRenderer', () => {
       expect(removeOverlay).toHaveBeenCalledTimes(1);
       expect(mockBody.createDiv).toHaveBeenCalledTimes(1);
     } finally {
-      (globalThis as any).document = origDocument;
+      messagesEl.ownerDocument = originalDocument;
     }
   });
 

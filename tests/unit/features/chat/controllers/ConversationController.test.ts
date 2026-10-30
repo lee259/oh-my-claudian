@@ -1,3 +1,6 @@
+/** @jest-environment jsdom */
+import '@test/helpers/ObsidianSettingsDOM';
+
 import { createMockEl } from '@test/helpers/MockElement';
 import { Menu, Notice } from 'obsidian';
 
@@ -16,8 +19,17 @@ function createMockDeps(overrides: Record<string, unknown> = {}): ConversationCo
   const state = new ChatState();
   const inputEl = { value: '', focus: jest.fn() } as unknown as HTMLTextAreaElement;
   const historyDropdown = createMockEl();
-  let welcomeEl: any = createMockEl();
+  let welcomeEl: any = document.createElement('div');
   const messagesEl = createMockEl();
+  const createDiv = messagesEl.createDiv.bind(messagesEl);
+  messagesEl.createDiv = (options?: any) => {
+    if (options?.cls === 'claudian-welcome') {
+      const element = document.createElement('div');
+      element.className = options.cls;
+      return element as any;
+    }
+    return createDiv(options);
+  };
 
   const fileContextManager = {
     resetForNewConversation: jest.fn(),
@@ -335,7 +347,7 @@ describe('ConversationController', () => {
 
         controller.updateWelcomeVisibility();
 
-        expect(welcomeEl.style.display).toBe('none');
+        expect(welcomeEl.classList.contains('claudian-hidden')).toBe(true);
       });
 
       it('should show welcome when no messages exist', () => {
@@ -345,7 +357,7 @@ describe('ConversationController', () => {
         controller.updateWelcomeVisibility();
 
         // When no messages, welcome should not be 'none' (either 'block' or empty string)
-        expect(welcomeEl.style.display).not.toBe('none');
+        expect(welcomeEl.classList.contains('claudian-hidden')).toBe(false);
       });
 
       it('should update welcome visibility after switching to conversation with messages', async () => {
@@ -361,7 +373,7 @@ describe('ConversationController', () => {
 
         expect(deps.state.messages.length).toBe(1);
         const welcomeEl = deps.getWelcomeEl()!;
-        expect(welcomeEl.style.display).toBe('none');
+        expect(welcomeEl.classList.contains('claudian-hidden')).toBe(true);
       });
     });
   });
@@ -387,15 +399,13 @@ describe('ConversationController', () => {
 
     it('should only add greeting if not already present', () => {
       const welcomeEl = deps.getWelcomeEl()!;
-      const createDivSpy = jest.spyOn(welcomeEl, 'createDiv');
-
       controller.initializeWelcome();
-      const initialCallCount = createDivSpy.mock.calls.length;
+      const brand = welcomeEl.querySelector('.claudian-welcome-brand');
       expect(welcomeEl.querySelector('.claudian-welcome-brand')).not.toBeNull();
       expect(welcomeEl.querySelector('.claudian-welcome-greeting')).not.toBeNull();
 
       controller.initializeWelcome();
-      expect(createDivSpy).toHaveBeenCalledTimes(initialCallCount);
+      expect(welcomeEl.querySelector('.claudian-welcome-brand')).toBe(brand);
     });
 
     it('refreshes an existing summary after the blank tab changes provider', () => {

@@ -6,7 +6,6 @@ import {
   type WelcomeProviderSummary,
   WelcomeView,
 } from '../ui/WelcomeView';
-import { renderLegacyWelcomeContent } from './WelcomeLegacyRenderer';
 
 export type { WelcomeHomeOptions, WelcomeProviderSummary } from '../ui/WelcomeView';
 
@@ -36,22 +35,12 @@ function renderWelcomeView(
   state.greeting = greeting;
   state.providerSummary = providerSummary;
   state.homeOptions = homeOptions;
-  if (!canMountPreact(welcomeEl)) {
-    renderLegacyWelcomeContent(welcomeEl, greeting, providerSummary, homeOptions);
-    return;
-  }
-
   state.root ??= createPreactRoot(welcomeEl);
   state.root.render(h(WelcomeView, {
     greeting,
     providerSummary,
     homeOptions,
   }));
-}
-
-function canMountPreact(welcomeEl: HTMLElement): boolean {
-  return welcomeEl.nodeType === 1
-    && welcomeEl.ownerDocument?.nodeType === 9;
 }
 
 /** Renders or updates the Preact-owned welcome subtree in an existing host. */
