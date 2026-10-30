@@ -211,8 +211,6 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       name: 'Environment Variables',
       desc: 'Extra environment variables passed to OpenCode. `OPENCODE_ENABLE_EXA=1` is enabled by default.',
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'opencode'),
     });
 

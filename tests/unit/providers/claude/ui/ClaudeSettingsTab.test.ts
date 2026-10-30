@@ -636,8 +636,6 @@ describe('ClaudeSettingsTab', () => {
     const environmentOptions = mockRenderEnvironmentSettingsSection.mock.calls[0]?.[0];
     expect(environmentOptions).toEqual(expect.objectContaining({
       scope: 'provider:claude',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
       renderCustomContextLimits: expect.any(Function),
     }));
     environmentOptions.renderCustomContextLimits(target);

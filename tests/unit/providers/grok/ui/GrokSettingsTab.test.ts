@@ -536,8 +536,6 @@ describe('GrokSettingsTab', () => {
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       heading: 'Environment',
       scope: 'provider:grok',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
     }));
   });
 

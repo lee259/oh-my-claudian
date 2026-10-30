@@ -5,8 +5,11 @@ import { Notice, type TextAreaComponent } from 'obsidian';
 
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
+import type { EnvironmentScope } from '@/core/types/settings';
 import { claudeProviderRegistration } from '@/providers/claude/registration';
+import { deepseekProviderRegistration } from '@/providers/deepseek/registration';
 import {
+  destroyEnvironmentSettingsSections,
   renderEnvironmentSettingsSection,
 } from '@/shared/settings/EnvironmentSettingsSection';
 
@@ -34,6 +37,7 @@ jest.mock('obsidian', () => {
 describe('renderEnvironmentSettingsSection', () => {
   beforeAll(() => {
     ProviderRegistry.register('claude', claudeProviderRegistration);
+    ProviderRegistry.register('deepseek', deepseekProviderRegistration);
   });
 
   beforeEach(() => {
@@ -62,7 +66,7 @@ describe('renderEnvironmentSettingsSection', () => {
     document.body.append(container);
     const handle = renderEnvironmentSettingsSection({
       container, plugin, scope: 'shared', name: 'Environment', desc: '', placeholder: '',
-      usePreactEnvironmentField: true, renderCustomContextLimits,
+      renderCustomContextLimits,
     });
     try {
       const field = container.querySelector('textarea')!;
@@ -79,30 +83,27 @@ describe('renderEnvironmentSettingsSection', () => {
   });
 
   it.each([
-    { label: 'Preact before commit', preact: true, commitBeforeFailure: false, expectedPersisted: 'AUDIT_KEY=before' },
-    { label: 'Preact after commit', preact: true, commitBeforeFailure: true, expectedPersisted: 'AUDIT_KEY=draft' },
-    { label: 'legacy before commit', preact: false, commitBeforeFailure: false, expectedPersisted: 'AUDIT_KEY=before' },
-    { label: 'legacy after commit', preact: false, commitBeforeFailure: true, expectedPersisted: 'AUDIT_KEY=draft' },
-  ])('retains the draft and recovers on retry after $label failure', async ({ preact, commitBeforeFailure, expectedPersisted }) => {
+    { label: 'Preact before commit', commitBeforeFailure: false, expectedPersisted: 'AUDIT_KEY=before' },
+    { label: 'DeepSeek Preact before commit', commitBeforeFailure: false, expectedPersisted: 'AUDIT_KEY=before', scope: 'provider:deepseek' },
+    { label: 'Preact after commit', commitBeforeFailure: true, expectedPersisted: 'AUDIT_KEY=draft' },
+  ])('retains the draft and recovers on retry after $label failure', async ({ commitBeforeFailure, expectedPersisted, scope: testScope = 'shared' }) => {
+    const scope = testScope as EnvironmentScope;
     let persistedValue = 'AUDIT_KEY=before';
     let failApply = true;
     const renderCustomContextLimits = jest.fn();
-    const plugin = {
-      settings: { envSnippets: [] },
-      getEnvironmentVariablesForScope: () => 'AUDIT_KEY=draft',
-      applyEnvironmentVariables: async (_scope: string, value: string) => {
-        if (failApply) {
-          if (commitBeforeFailure) persistedValue = value;
-          throw new Error('Synthetic failure with TOKEN=private-sentinel');
-        }
-        persistedValue = value;
-      },
-    } as unknown as ProviderHost;
+    const applyEnvironmentVariables = jest.fn(async (_actualScope: string, value: string) => {
+      if (failApply) {
+        if (commitBeforeFailure) persistedValue = value;
+        throw new Error('Synthetic failure with TOKEN=private-sentinel');
+      }
+      persistedValue = value;
+    });
+    const plugin = { settings: { envSnippets: [] }, getEnvironmentVariablesForScope: () => 'AUDIT_KEY=draft', applyEnvironmentVariables } as unknown as ProviderHost;
     const container = document.createElement('div');
     document.body.append(container);
     const handle = renderEnvironmentSettingsSection({
-      container, plugin, scope: 'shared', name: 'Environment', desc: '', placeholder: '',
-      usePreactEnvironmentField: preact, renderCustomContextLimits,
+      container, plugin, scope, name: 'Environment', desc: '', placeholder: '',
+      renderCustomContextLimits,
     });
     try {
       const field = container.querySelector('textarea')!;
@@ -120,6 +121,7 @@ describe('renderEnvironmentSettingsSection', () => {
       field.dispatchEvent(new Event('blur', { bubbles: true }));
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(persistedValue).toBe('AUDIT_KEY=retry');
+      expect(applyEnvironmentVariables).toHaveBeenLastCalledWith(scope, 'AUDIT_KEY=retry');
       expect(field.value).toBe('AUDIT_KEY=retry');
       expect(renderCustomContextLimits).toHaveBeenCalledTimes(2);
       expect(jest.mocked(Notice).mock.calls).toEqual([['Could not complete environment update.']]);
@@ -145,7 +147,6 @@ describe('renderEnvironmentSettingsSection', () => {
       name: 'Claude environment variables',
       desc: 'Variables passed to Claude.',
       placeholder: 'ANTHROPIC_API_KEY=your-key',
-      usePreactEnvironmentField: true,
     });
 
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
@@ -167,20 +168,21 @@ describe('renderEnvironmentSettingsSection', () => {
     container.remove();
   });
 
-  it('keeps a Preact environment field in sync when a saved snippet is inserted', async () => {
+  it.each(['provider:claude', 'provider:deepseek'] as const)('keeps the %s Preact field in sync when a scoped snippet is inserted', async (scope) => {
+    const key = scope === 'provider:claude' ? 'ANTHROPIC_API_KEY' : 'DSH_HOME';
     const savedSnippet = {
       id: 'claude-dev',
       name: 'Claude dev',
       description: 'Development credentials',
-      envVars: 'ANTHROPIC_API_KEY=from-snippet',
-      scope: 'provider:claude' as const,
+      envVars: `${key}=from-snippet`,
+      scope,
     };
     const settings = {
-      envSnippets: [savedSnippet],
+      envSnippets: [savedSnippet, { ...savedSnippet, id: 'other', name: 'Other provider', scope: 'provider:codex' as const }],
       customContextLimits: {},
       customModelAliases: {},
     };
-    const environmentValues = new Map([['provider:claude', 'ANTHROPIC_API_KEY=before']]);
+    const environmentValues = new Map<string, string>([[scope, `${key}=before`]]);
     const applyEnvironmentVariables = jest.fn(async (scope: string, value: string) => {
       environmentValues.set(scope, value);
     });
@@ -196,35 +198,35 @@ describe('renderEnvironmentSettingsSection', () => {
     const handle = renderEnvironmentSettingsSection({
       container,
       plugin,
-      scope: 'provider:claude',
-      name: 'Claude environment variables',
-      desc: 'Variables passed to Claude.',
-      placeholder: 'ANTHROPIC_API_KEY=your-key',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
+      scope,
+      name: 'Provider environment variables',
+      desc: 'Variables passed to the provider.',
+      placeholder: 'CUSTOM_KEY=your-key',
     });
 
     const insertButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Insert: Claude dev"]',
     );
     expect(insertButton).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Insert: Other provider"]')).toBeNull();
     insertButton?.click();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
     expect(applyEnvironmentVariables).toHaveBeenCalledWith(
-      'provider:claude',
-      'ANTHROPIC_API_KEY=from-snippet',
+      scope,
+      `${key}=from-snippet`,
     );
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
-    expect(textarea?.value).toBe('ANTHROPIC_API_KEY=from-snippet');
+    expect(textarea?.value).toBe(`${key}=from-snippet`);
     textarea?.dispatchEvent(new Event('blur', { bubbles: true }));
     expect(applyEnvironmentVariables).toHaveBeenLastCalledWith(
-      'provider:claude',
-      'ANTHROPIC_API_KEY=from-snippet',
+      scope,
+      `${key}=from-snippet`,
     );
 
+    destroyEnvironmentSettingsSections(container);
     handle.destroy();
     expect(container.querySelector('textarea')).toBeNull();
     expect(container.querySelector('.claudian-snippet-header')).toBeNull();

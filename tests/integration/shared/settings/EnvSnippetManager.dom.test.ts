@@ -85,7 +85,7 @@ afterEach(async () => {
   setLocale('en');
 });
 
-function createHarness(usePreactView: boolean, action: 'save' | 'update', fail: boolean) {
+function createHarness(action: 'save' | 'update', fail: boolean) {
   const saved: EnvSnippet = {
     id: 'saved', name: 'Saved configuration', description: '', envVars: 'DEMO_KEY=old', scope: 'shared',
   };
@@ -100,7 +100,7 @@ function createHarness(usePreactView: boolean, action: 'save' | 'update', fail: 
     mutateSettings: (mutation: Parameters<typeof coordinator.mutate>[0]) => coordinator.mutate(mutation),
   } as unknown as ProviderHost;
   const container = document.body.createDiv();
-  managers.push(new EnvSnippetManager(container, host, 'shared', undefined, { usePreactView }));
+  managers.push(new EnvSnippetManager(container, host, 'shared'));
   const buttonName = action === 'save'
     ? t('settings.envSnippets.addBtn')
     : new RegExp(`^${t('settings.envSnippets.editBtn')}`);
@@ -115,7 +115,7 @@ function createHarness(usePreactView: boolean, action: 'save' | 'update', fail: 
   return { container, persist, saved, settings };
 }
 
-function createButtonTypeHarness(usePreactView: boolean) {
+function createButtonTypeHarness() {
   const saved: EnvSnippet = {
     id: 'saved', name: 'Saved configuration', description: '', envVars: 'DEMO_KEY=value', scope: 'shared',
   };
@@ -126,24 +126,31 @@ function createButtonTypeHarness(usePreactView: boolean) {
     getEnvironmentVariablesForScope: () => saved.envVars,
   } as unknown as ProviderHost;
   const container = document.body.createDiv();
-  managers.push(new EnvSnippetManager(container, host, 'shared', undefined, { usePreactView }));
+  managers.push(new EnvSnippetManager(container, host, 'shared'));
   return container;
 }
 
-it('declares legacy snippet list actions as non-submit buttons', () => {
-  const container = createButtonTypeHarness(false);
+it('renders the supported Preact list by default', () => {
+  const container = document.body.createDiv();
+  const host = { settings: { envSnippets: [{ id: 'one', name: 'Example', envVars: 'X=1', scope: 'shared' }] } } as unknown as ProviderHost;
+  managers.push(new EnvSnippetManager(container, host, 'shared'));
+  expect(within(container).getByRole('listitem').textContent).toContain('Example');
+});
+
+it('declares snippet list actions as non-submit buttons', () => {
+  const container = createButtonTypeHarness();
   const buttons = [
     within(container).getByRole('button', { name: t('settings.envSnippets.addBtn') }),
-    within(container).getByRole('button', { name: t('settings.envSnippets.insertBtn') }),
-    within(container).getByRole('button', { name: t('settings.envSnippets.editBtn') }),
-    within(container).getByRole('button', { name: t('settings.envSnippets.deleteBtn') }),
+    within(container).getByRole('button', { name: new RegExp(`^${t('settings.envSnippets.insertBtn')}`) }),
+    within(container).getByRole('button', { name: new RegExp(`^${t('settings.envSnippets.editBtn')}`) }),
+    within(container).getByRole('button', { name: new RegExp(`^${t('settings.envSnippets.deleteBtn')}`) }),
   ];
 
   for (const button of buttons) expect(button.getAttribute('type')).toBe('button');
 });
 
-it.each([false, true])('declares snippet modal actions as non-submit buttons (Preact: %s)', usePreactView => {
-  const container = createButtonTypeHarness(usePreactView);
+it('declares snippet modal actions as non-submit buttons', () => {
+  const container = createButtonTypeHarness();
   fireEvent.click(within(container).getByRole('button', { name: t('settings.envSnippets.addBtn') }));
   let dialog = within(document.body).getByRole('dialog');
 
@@ -164,9 +171,9 @@ it.each([false, true])('declares snippet modal actions as non-submit buttons (Pr
     .toBe('button');
 });
 
-describe.each([false, true])('environment snippet persistence (Preact: %s)', usePreactView => {
+describe('environment snippet persistence', () => {
   it.each(['save', 'update'] as const)('reports a failed %s without publishing success or exposing environment data', async action => {
-    const { container, persist, saved, settings } = createHarness(usePreactView, action, true);
+    const { container, persist, saved, settings } = createHarness(action, true);
     await waitFor(() => expect(Notice).toHaveBeenCalledWith(
       action === 'save' ? 'Could not save environment snippet' : 'Could not update environment snippet',
     ));
@@ -188,7 +195,7 @@ describe.each([false, true])('environment snippet persistence (Preact: %s)', use
   });
 
   it.each(['save', 'update'] as const)('publishes a successful %s after persistence', async action => {
-    const { container, persist, settings } = createHarness(usePreactView, action, false);
+    const { container, persist, settings } = createHarness(action, false);
     await waitFor(() => expect(container.textContent).toContain('New configuration'));
     expect(settings.envSnippets).toHaveLength(1);
     expect(settings.envSnippets[0].name).toBe('New configuration');

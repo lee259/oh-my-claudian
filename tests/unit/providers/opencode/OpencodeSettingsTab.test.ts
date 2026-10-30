@@ -696,8 +696,6 @@ describe('OpencodeSettingsTab', () => {
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       desc: expect.stringContaining(OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES),
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
     }));
   });
 

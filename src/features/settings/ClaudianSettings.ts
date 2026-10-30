@@ -982,8 +982,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
       name: t('settings.sharedEnvironment.name'),
       desc: t('settings.sharedEnvironment.desc'),
       placeholder: 'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
     });
 
     // --- Diagnostics ---

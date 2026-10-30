@@ -185,8 +185,6 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       heading: t('settings.environment'),
       name: t('settings.pi.environment.name'),
       placeholder: 'PI_CODING_AGENT_SESSION_DIR=/path/to/sessions',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
       plugin: context.plugin,
       scope: 'provider:pi',
     });

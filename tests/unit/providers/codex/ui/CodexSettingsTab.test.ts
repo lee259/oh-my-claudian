@@ -405,8 +405,6 @@ describe('CodexSettingsTab', () => {
     expect(findSetting('WSL distro override').textComponents).toHaveLength(1);
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       scope: 'provider:codex',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
     }));
   });
 
