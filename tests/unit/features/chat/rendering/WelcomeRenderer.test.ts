@@ -7,6 +7,7 @@ import {
   createWelcomeElement,
   refreshWelcomeContent,
   renderWelcomeContent,
+  unmountWelcomeElement,
 } from '@/features/chat/rendering/WelcomeRenderer';
 
 const PROVIDER_SUMMARY = {
@@ -83,6 +84,23 @@ describe('Welcome', () => {
     expect(welcomeEl.querySelectorAll('.claudian-welcome-brand')).toHaveLength(1);
     expect(welcomeEl.querySelector('.claudian-welcome-greeting')?.textContent)
       .toBe('Welcome back');
+  });
+
+  it('unmounts the welcome subtree and ignores refresh until it is mounted again', () => {
+    const welcome = document.createElement('div');
+    let title = 'First conversation';
+    const options = { getConversations: () => [{ id: 'one', providerId: 'codex' as const,
+      title, createdAt: 1, lastActivityAt: 1, messageCount: 1, preview: '' }] };
+    renderWelcomeContent(welcome, 'Hello', undefined, options);
+    expect(welcome.querySelector('.claudian-home-conversation-title')?.textContent).toBe(title);
+    unmountWelcomeElement(welcome);
+    expect(welcome.childElementCount).toBe(0);
+    title = 'Updated conversation';
+    refreshWelcomeContent(welcome);
+    expect(welcome.childElementCount).toBe(0);
+    renderWelcomeContent(welcome, 'Welcome back', undefined, options);
+    expect(welcome.querySelector('.claudian-home-conversation-title')?.textContent).toBe(title);
+    unmountWelcomeElement(welcome);
   });
 
   it('can render the brand before a greeting is available', () => {

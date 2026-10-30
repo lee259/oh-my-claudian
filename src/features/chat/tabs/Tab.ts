@@ -456,7 +456,6 @@ function applyProviderUIGating(tab: TabData, plugin: FeatureHost): void {
   if (!capabilities.supportsMcpTools) {
     tab.ui.mcpServerSelector?.clearEnabled();
   }
-  tab.ui.mcpServerSelector?.setVisible(capabilities.supportsMcpTools);
   tab.ui.permissionToggle?.setVisible(hasPermissionToggle);
   tab.ui.fileContextManager?.setMcpManager(mcpManager);
 

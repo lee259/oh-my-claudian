@@ -31,7 +31,6 @@
 @import "./toolbar/permission-toggle.css";
 @import "./toolbar/service-tier-toggle.css";
 @import "./toolbar/external-context.css";
-@import "./toolbar/mcp-selector.css";
 
 /* Features */
 @import "./features/zen-mode.css";
