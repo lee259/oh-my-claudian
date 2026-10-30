@@ -114,8 +114,11 @@ describe('DeepSeekSettingsTab', () => {
     const cli = process.platform === 'win32' ? 'C:\\test\\resources\\runtime\\cli\\bin\\dsh.cmd' : `${app}/Contents/Resources/runtime/cli/bin/dsh`;
     const { ui, container } = render(true, cli, app);
 
-    expect(ui.getByText(/Auto prefers dsh/)).toBeTruthy();
-    expect((await ui.findByRole('textbox', { name: 'CLI path' }) as HTMLInputElement).value).toBe(app);
+    const instructions = ui.getByText(/Auto prefers dsh/);
+    const pathInput = await ui.findByRole('textbox', { name: 'CLI path' }) as HTMLInputElement;
+    expect(pathInput.value).toBe(app);
+    expect(instructions.closest('.claudian-cli-installation')).toBe(pathInput.closest('.claudian-cli-installation'));
+    expect(pathInput.compareDocumentPosition(instructions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     expect(await axe(container)).toHaveNoViolations();
   });
