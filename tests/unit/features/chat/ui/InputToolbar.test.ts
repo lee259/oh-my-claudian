@@ -1,9 +1,7 @@
 import { TEST_CODEX_MODEL } from '@test/helpers/codexModels';
 import { createMockEl } from '@test/helpers/MockElement';
 
-import type { UsageInfo } from '@/core/types';
 import {
-  ContextUsageMeter,
   InputToolbarLayoutController,
   McpServerSelector,
   ModeSelector,
@@ -14,17 +12,6 @@ jest.mock('obsidian', () => ({
   setIcon: jest.fn(),
 }));
 
-function makeUsage(overrides: Partial<UsageInfo> = {}): UsageInfo {
-  return {
-    inputTokens: 0,
-    cacheCreationInputTokens: 0,
-    cacheReadInputTokens: 0,
-    contextWindow: 200000,
-    contextTokens: 0,
-    percentage: 0,
-    ...overrides,
-  };
-}
 
 const DEFAULT_MODELS = [
   { value: 'haiku', label: 'Haiku', description: 'Fast and efficient' },
@@ -411,98 +398,6 @@ describe('McpServerSelector', () => {
   });
 });
 
-describe('ContextUsageMeter', () => {
-  let parentEl: any;
-  let meter: ContextUsageMeter;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    parentEl = createMockEl();
-    meter = new ContextUsageMeter(parentEl);
-  });
-
-  it('should create a container with context-meter class', () => {
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container).not.toBeNull();
-  });
-
-  it('should be hidden initially', () => {
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.style.display).toBe('none');
-  });
-
-  it('should remain hidden when update called with null', () => {
-    meter.update(null);
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.style.display).toBe('none');
-  });
-
-  it('should show a known context window even when contextTokens is 0', () => {
-    meter.update(makeUsage({ contextTokens: 0, contextWindow: 200000, percentage: 0 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.style.display).toBe('flex');
-  });
-
-  it('should become visible when contextTokens > 0', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.style.display).toBe('flex');
-  });
-
-  it('should render percentage text for responsive styling', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const percent = parentEl.querySelector('.claudian-context-meter-percent');
-    expect(percent?.textContent).toBe('25%');
-  });
-
-  it('should expose usage details to assistive technology', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('role')).toBe('progressbar');
-    expect(container?.getAttribute('aria-label')).toBe('Context usage');
-    expect(container?.getAttribute('aria-valuemin')).toBe('0');
-    expect(container?.getAttribute('aria-valuemax')).toBe('100');
-    expect(container?.getAttribute('aria-valuenow')).toBe('25');
-    expect(container?.getAttribute('aria-valuetext')).toBe('50k / 200k');
-  });
-
-  it('should add warning class when usage > 80%', () => {
-    meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.hasClass('warning')).toBe(true);
-  });
-
-  it('should remove warning class when usage drops below 80%', () => {
-    meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.hasClass('warning')).toBe(false);
-  });
-
-  it('should set tooltip with formatted token counts', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('50k / 200k');
-  });
-
-  it('should format small token counts without k suffix', () => {
-    meter.update(makeUsage({ contextTokens: 500, contextWindow: 200000, percentage: 0 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('500 / 200k');
-  });
-
-  it('should add compact reminder to tooltip when usage > 80%', () => {
-    meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('170k / 200k (Approaching limit, run `/compact` to continue)');
-  });
-
-  it('should not add compact reminder to tooltip when usage ≤ 80%', () => {
-    meter.update(makeUsage({ contextTokens: 160000, contextWindow: 200000, percentage: 80 }));
-    const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('160k / 200k');
-  });
-});
 
 describe('InputToolbarLayoutController', () => {
   function setRect(element: any, top: number, width = 40, height = 24): void {
