@@ -3,6 +3,7 @@
 import {
   createProviderIconSvg,
   CURSOR_PROVIDER_ICON,
+  HERMES_PROVIDER_ICON,
   OMP_PROVIDER_ICON,
   OPENAI_PROVIDER_ICON,
   OPENCODE_PROVIDER_ICON,
@@ -27,6 +28,11 @@ describe('createProviderIconSvg', () => {
     const path = svg.querySelector('path');
     expect(path).not.toBeNull();
     expect(path?.getAttribute('fill')).toBe('var(--claudian-brand-codex, #d0d0d0)');
+  });
+
+  it('renders the Hermes brand image', () => {
+    const svg = createProviderIconSvg(HERMES_PROVIDER_ICON, { parent: document.body });
+    expect(svg.querySelector('image')?.getAttribute('href')).toMatch(/^data:image\/jpeg;base64,/u);
   });
 
   it('renders composite provider icons with theme variants', () => {

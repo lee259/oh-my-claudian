@@ -52,7 +52,7 @@ export interface ToolCallInfo {
   name: string;
   input: Record<string, unknown>;
   presentation?: ToolCallPresentation;
-  status: 'running' | 'completed' | 'error' | 'blocked';
+  status: 'running' | 'completed' | 'error' | 'blocked' | 'unknown';
   /** Local observation times for live tool execution; absent when history has no timing. */
   startedAt?: number;
   completedAt?: number;

@@ -1581,6 +1581,16 @@ export class ConversationRepository {
             && !usedRecordIds.has(record.id),
         );
       }
+      if (candidates.length === 0) {
+        const history = ProviderRegistry.getConversationHistoryService(conversation.providerId);
+        if (history.matchesLossyUserInput) {
+          candidates = ledger.records.filter(record => record.state === 'accepted'
+            && record.userTurnOrdinal === userTurnOrdinal
+            && !record.providerUserMessageId
+            && !usedRecordIds.has(record.id)
+            && history.matchesLossyUserInput!(message, record));
+        }
+      }
       if (candidates.length !== 1) continue;
 
       const record = candidates[0];

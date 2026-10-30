@@ -302,6 +302,7 @@ export type StreamChunk =
       content: string;
       isError?: boolean;
       isBlocked?: boolean;
+      outcomeUnknown?: boolean;
       toolUseResult?: SDKToolUseResult;
     }
   | { type: 'tool_output'; id: string; content: string }

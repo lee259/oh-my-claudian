@@ -195,6 +195,42 @@ describe('ConversationRepository input ledger', () => {
     });
   });
 
+  it('allows a provider to match an accepted lossy native message to a unique unbound input', async () => {
+    const conversation = createConversation();
+    const image = { id: 'img', name: 'x.png', mediaType: 'image/png' as const, data: 'aW1hZ2U=', size: 5, source: 'paste' as const };
+    const record = createInputRecord({ state: 'accepted', rawDisplayText: 'Picture', images: [image] });
+    const persistence = createPersistence({ status: 'loaded', ledger: createLedger(conversation.id, [record]) });
+    const { repository } = createRepository(conversation, persistence);
+    const matcher = jest.fn(() => true);
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory: async (target: Conversation) => { target.messages = [{ id: 'native', userMessageId: 'native', role: 'user', content: 'Picture\n[screenshot]', timestamp: 1 }]; },
+      matchesLossyUserInput: matcher,
+    } as any);
+    await repository.ensureHydrated(conversation.id);
+    expect(matcher).toHaveBeenCalled();
+    expect(conversation.messages[0].images).toEqual([image]);
+  });
+
+  it('does not attach a lossy input when candidates are ambiguous or already bound', async () => {
+    const conversation = createConversation();
+    const image = { id: 'img', name: 'x.png', mediaType: 'image/png' as const, data: 'aW1hZ2U=', size: 5, source: 'paste' as const };
+    const records = [
+      createInputRecord({ id: 'a', state: 'accepted', images: [image] }),
+      createInputRecord({ id: 'b', state: 'accepted', images: [image] }),
+      createInputRecord({ id: 'bound', state: 'accepted', providerUserMessageId: 'other', images: [image] }),
+    ];
+    const persistence = createPersistence({ status: 'loaded', ledger: createLedger(conversation.id, records) });
+    const { repository } = createRepository(conversation, persistence);
+    const matcher = jest.fn(() => true);
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory: async (target: Conversation) => { target.messages = [{ id: 'native', userMessageId: 'native', role: 'user', content: 'unmatched', timestamp: 1 }]; },
+      matchesLossyUserInput: matcher,
+    } as any);
+    await repository.ensureHydrated(conversation.id);
+    expect(conversation.messages[0].images).toBeUndefined();
+    expect(matcher).toHaveBeenCalledTimes(2);
+  });
+
   it('prefers a unique provider user-message ID, then requires ordinal and digest together', async () => {
     const conversation = createConversation();
     const records = [

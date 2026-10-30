@@ -222,7 +222,7 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     const snapshot = await this.checkReadiness(id, force, false);
     if (this.busy.has(id)) return this.getSnapshot(id) ?? snapshot;
     const owner = this.snapshots.get(id);
-    const latestVersion = await this.latest(this.entry(id).metadata, snapshot.version, force);
+    const latestVersion = await this.latest(id, this.entry(id).metadata, snapshot.version, force);
     this.assertAvailable();
     // A newer probe or operation owns publication after it replaces this snapshot.
     if (this.snapshots.get(id) !== owner) return this.getSnapshot(id) ?? snapshot;
@@ -318,14 +318,15 @@ export class ProviderCliLifecycleService implements ProviderCliLifecyclePort {
     return snapshot;
   }
 
-  private async latest(metadata: CliProviderMetadata, version: string | null, force: boolean): Promise<string | null> {
+  private async latest(id: ProviderId, metadata: CliProviderMetadata, version: string | null, force: boolean): Promise<string | null> {
     const major = version ? Number(version.split('.')[0]) : null;
     const packageName = (major === null ? null : metadata.latestVersionNpmPackagesByMajor?.[major]) ?? metadata.npmPackage;
-    if (!packageName) return null;
-    const cached = this.latestVersions.get(packageName);
+    if (!packageName && !metadata.latestRelease) return null;
+    const cacheKey = metadata.latestRelease ? `provider:${id}` : `npm:${packageName}`;
+    const cached = this.latestVersions.get(cacheKey);
     if (!force && cached && this.now() - cached.checkedAt < 15 * 60_000) return cached.value;
-    const value = this.options.latestVersion(packageName).catch(() => null);
-    this.latestVersions.set(packageName, { checkedAt: this.now(), value });
+    const value = (metadata.latestRelease ? metadata.latestRelease() : this.options.latestVersion(packageName!)).catch(() => null);
+    this.latestVersions.set(cacheKey, { checkedAt: this.now(), value });
     return value;
   }
 

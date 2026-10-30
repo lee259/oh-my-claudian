@@ -704,7 +704,7 @@ export class StreamController {
     const currentEl = state.toolCallElements.get(toolCall.id);
     if (!currentEl) return false;
 
-    const needsWriteEditRenderer = isWriteEditTool(toolCall.name);
+    const needsWriteEditRenderer = isWriteEditTool(toolCall.name) && toolCall.status !== 'unknown';
 
     const parentEl = currentEl.parentElement;
     if (!parentEl) return false;
@@ -1277,6 +1277,7 @@ export class StreamController {
       content: string;
       isError?: boolean;
       isBlocked?: boolean;
+      outcomeUnknown?: boolean;
       toolUseResult?: SDKToolUseResult;
     },
     msg: ChatMessage
@@ -1348,6 +1349,8 @@ export class StreamController {
         existingToolCall.status = 'blocked';
       } else if (chunk.isError) {
         existingToolCall.status = 'error';
+      } else if (chunk.outcomeUnknown) {
+        existingToolCall.status = 'unknown';
       } else {
         existingToolCall.status = 'completed';
       }
@@ -1368,7 +1371,10 @@ export class StreamController {
       this.deps.onQuestionToolUpdate?.(existingToolCall);
 
       const writeEditState = state.writeEditStates.get(chunk.id);
-      if (writeEditState && isWriteEditTool(existingToolCall.name)) {
+      if (writeEditState && existingToolCall.status === 'unknown') {
+        this.rebuildRenderedToolRenderer(existingToolCall);
+        updateToolCallResult(chunk.id, existingToolCall, state.toolCallElements);
+      } else if (writeEditState && isWriteEditTool(existingToolCall.name)) {
         if (!chunk.isError && !isBlocked) {
           const diffData = extractDiffData(chunk.toolUseResult, existingToolCall);
           if (diffData) {
@@ -1383,12 +1389,12 @@ export class StreamController {
       }
 
       // Notify Obsidian vault so the file tree refreshes after Write/Edit/NotebookEdit
-      if (!chunk.isError && !isBlocked && isEditTool(existingToolCall.name)) {
+      if (!chunk.isError && !isBlocked && !chunk.outcomeUnknown && isEditTool(existingToolCall.name)) {
         this.notifyVaultFileChange(existingToolCall.input);
       }
 
       // Runtime apply_patch: refresh each changed file path
-      if (!chunk.isError && !isBlocked && existingToolCall.name === TOOL_APPLY_PATCH) {
+      if (!chunk.isError && !isBlocked && !chunk.outcomeUnknown && existingToolCall.name === TOOL_APPLY_PATCH) {
         this.notifyApplyPatchFileChanges(existingToolCall.input);
       }
     }
@@ -2658,6 +2664,7 @@ export function providerOutputEventToStreamChunk(
           id: event.toolCallId,
           ...(event.isError !== undefined ? { isError: event.isError } : {}),
           ...(event.isBlocked !== undefined ? { isBlocked: event.isBlocked } : {}),
+          ...(event.outcomeUnknown ? { outcomeUnknown: true } : {}),
           ...(event.toolUseResult ? { toolUseResult: event.toolUseResult } : {}),
           type: 'tool_result',
         };

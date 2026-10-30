@@ -26,6 +26,9 @@ export interface CliProviderMetadata {
   /** Human-readable display name for the CLI (e.g. "Grok CLI"). */
   displayName: string;
 
+  /** Provider-owned release lookup for non-npm distributions. */
+  latestRelease?: () => Promise<string | null>;
+
   /** npm package name for registry-based version checking and install. */
   npmPackage?: string;
 

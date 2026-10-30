@@ -134,6 +134,12 @@
       "modeManualDescription": "変更のたびに Claude が確認を求めます。",
       "modeEditAutomatically": "自動編集",
       "modeEditAutomaticallyDescription": "編集ごとの確認なしで、選択したテキストやファイルを編集します。",
+      "hermesModeDefault": "Ask before edits",
+      "hermesModeDefaultDescription": "Ask before editing files.",
+      "hermesModeAcceptEdits": "Accept workspace edits",
+      "hermesModeAcceptEditsDescription": "Automatically allow workspace and temporary-directory edits; sensitive paths still require approval.",
+      "hermesModeDontAsk": "Don't ask for edits",
+      "hermesModeDontAskDescription": "Automatically allow file edits for this session; sensitive paths still require approval.",
       "modeAcceptEdits": "編集を許可",
       "modePlanDescription": "編集前にコードを調査して計画を提示します。",
       "modeAuto": "自動",
@@ -527,6 +533,7 @@
       "completed": "完了",
       "error": "エラー",
       "blocked": "ブロック済み",
+      "unknown": "結果不明",
       "inProgress": "進行中"
     },
     "subagent": {
@@ -624,6 +631,23 @@
       "yolo": "YOLO",
       "permissionRequest": "OMP が{tool}を使用する権限を要求しています。",
       "tool": "ツール"
+    },
+    "hermes": {
+      "enable": "Hermes を有効にする",
+      "enableDesc": "ローカルにインストールされた Hermes Agent を使用します。",
+      "cliPath": "Hermes CLI のパス",
+      "cliPathDesc": "空欄の場合は PATH から hermes を検索します。",
+      "models": "有効な Hermes モデル",
+      "modelsDesc": "Hermes の provider:model ID を 1 行に 1 つ入力します。",
+      "noModels": "No Hermes models discovered yet. Configure Hermes, then click Discover.",
+      "catalogFailed": "Could not load the Hermes model catalog. Check the CLI and Hermes configuration.",
+      "loadingModels": "Loading Hermes models...",
+      "discoveryFailed": "Hermes model discovery failed: {error}",
+      "workspaceNotInitialized": "Hermes workspace is not initialized",
+      "environmentName": "Hermes environment variables",
+      "environmentDesc": "Environment variables passed only to Hermes, including provider credentials and HERMES_HOME.",
+      "toolResultMissing": "Hermes did not report the result of this tool.",
+      "toolInterrupted": "The turn was interrupted before Hermes reported this tool result."
     },
     "cursor": {
       "setup": "設定",

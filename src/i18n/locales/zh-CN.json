@@ -134,6 +134,12 @@
       "modeManualDescription": "Claude 会在每次修改前请求确认。",
       "modeEditAutomatically": "自动编辑",
       "modeEditAutomaticallyDescription": "自动编辑选中的文本或文件，无需逐次确认。",
+      "hermesModeDefault": "编辑前询问",
+      "hermesModeDefaultDescription": "编辑文件前请求批准。",
+      "hermesModeAcceptEdits": "自动接受工作区编辑",
+      "hermesModeAcceptEditsDescription": "自动允许工作区和临时目录中的编辑，敏感路径仍需批准。",
+      "hermesModeDontAsk": "编辑不再询问",
+      "hermesModeDontAskDescription": "本次会话自动允许文件编辑，敏感路径仍需批准。",
       "modeAcceptEdits": "接受编辑",
       "modePlanDescription": "Claude 会先探索代码并给出计划，再开始修改。",
       "modeAuto": "自动",
@@ -527,6 +533,7 @@
       "completed": "已完成",
       "error": "错误",
       "blocked": "已阻止",
+      "unknown": "结果未知",
       "inProgress": "进行中"
     },
     "subagent": {
@@ -624,6 +631,23 @@
       "yolo": "YOLO",
       "permissionRequest": "OMP 请求使用{tool}的权限。",
       "tool": "工具"
+    },
+    "hermes": {
+      "enable": "启用 Hermes",
+      "enableDesc": "连接本地安装的 Hermes Agent。",
+      "cliPath": "Hermes CLI 路径",
+      "cliPathDesc": "留空时从 PATH 中查找 hermes。",
+      "models": "已启用的 Hermes 模型",
+      "modelsDesc": "每行输入一个 Hermes provider:model ID，例如 openrouter:provider/model。",
+      "noModels": "尚未发现 Hermes 模型。请先配置 Hermes，再点击发现。",
+      "catalogFailed": "无法获取 Hermes 模型列表，请检查 CLI 和 Hermes 配置。",
+      "loadingModels": "正在获取 Hermes 模型…",
+      "discoveryFailed": "Hermes 模型发现失败：{error}",
+      "workspaceNotInitialized": "Hermes 工作区尚未初始化",
+      "environmentName": "Hermes 环境变量",
+      "environmentDesc": "仅传递给 Hermes 的环境变量，可用于配置提供商凭据和 HERMES_HOME。",
+      "toolResultMissing": "Hermes 未上报此工具的结果。",
+      "toolInterrupted": "回合已中断，Hermes 未上报此工具的结果。"
     },
     "cursor": {
       "setup": "设置",

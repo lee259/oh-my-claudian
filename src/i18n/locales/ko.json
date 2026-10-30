@@ -134,6 +134,12 @@
       "modeManualDescription": "Claude가 변경할 때마다 승인을 요청합니다.",
       "modeEditAutomatically": "자동 편집",
       "modeEditAutomaticallyDescription": "편집마다 승인받지 않고 선택한 텍스트나 파일을 수정합니다.",
+      "hermesModeDefault": "Ask before edits",
+      "hermesModeDefaultDescription": "Ask before editing files.",
+      "hermesModeAcceptEdits": "Accept workspace edits",
+      "hermesModeAcceptEditsDescription": "Automatically allow workspace and temporary-directory edits; sensitive paths still require approval.",
+      "hermesModeDontAsk": "Don't ask for edits",
+      "hermesModeDontAskDescription": "Automatically allow file edits for this session; sensitive paths still require approval.",
       "modeAcceptEdits": "편집 허용",
       "modePlanDescription": "편집하기 전에 코드를 살펴보고 계획을 제시합니다.",
       "modeAuto": "자동",
@@ -527,6 +533,7 @@
       "completed": "완료",
       "error": "오류",
       "blocked": "차단됨",
+      "unknown": "결과 알 수 없음",
       "inProgress": "진행 중"
     },
     "subagent": {
@@ -624,6 +631,23 @@
       "yolo": "YOLO",
       "permissionRequest": "OMP가 {tool} 사용 권한을 요청합니다.",
       "tool": "도구"
+    },
+    "hermes": {
+      "enable": "Hermes 활성화",
+      "enableDesc": "로컬에 설치된 Hermes Agent를 사용합니다.",
+      "cliPath": "Hermes CLI 경로",
+      "cliPathDesc": "비워 두면 PATH에서 hermes를 찾습니다.",
+      "models": "활성화된 Hermes 모델",
+      "modelsDesc": "Hermes provider:model ID를 한 줄에 하나씩 입력하세요.",
+      "noModels": "No Hermes models discovered yet. Configure Hermes, then click Discover.",
+      "catalogFailed": "Could not load the Hermes model catalog. Check the CLI and Hermes configuration.",
+      "loadingModels": "Loading Hermes models...",
+      "discoveryFailed": "Hermes model discovery failed: {error}",
+      "workspaceNotInitialized": "Hermes workspace is not initialized",
+      "environmentName": "Hermes environment variables",
+      "environmentDesc": "Environment variables passed only to Hermes, including provider credentials and HERMES_HOME.",
+      "toolResultMissing": "Hermes did not report the result of this tool.",
+      "toolInterrupted": "The turn was interrupted before Hermes reported this tool result."
     },
     "cursor": {
       "setup": "설정",

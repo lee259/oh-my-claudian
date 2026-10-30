@@ -2516,7 +2516,7 @@ export class MessageRenderer {
     if (!this.shouldRenderToolCall(toolCall, msg)) return;
     const subagentAdapter = this.getSubagentAdapter(toolCall.name);
 
-    if (isWriteEditTool(toolCall.name)) {
+    if (isWriteEditTool(toolCall.name) && toolCall.status !== 'unknown') {
       renderStoredWriteEdit(contentEl, toolCall, {
         initiallyExpanded: this.shouldExpandFileEditsByDefault(),
         onOpenFile: (fileReference: FileReference) => runRendererAction(async () => {

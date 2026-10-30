@@ -878,6 +878,7 @@ const STATUS_ICONS: Record<string, string> = {
   completed: 'check',
   error: 'x',
   blocked: 'shield-off',
+  unknown: 'circle-help',
 };
 
 function setTodoWriteStatus(statusEl: HTMLElement, input: Record<string, unknown>): void {
@@ -898,7 +899,7 @@ function setToolStatus(statusEl: HTMLElement, status: ToolCallInfo['status']): v
 }
 
 function setApplyPatchHeaderRight(statusEl: HTMLElement, toolCall: ToolCallInfo): void {
-  const isError = toolCall.status === 'error' || toolCall.status === 'blocked';
+  const isError = toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'unknown';
   const stats = isError ? undefined : getApplyPatchDiffStats(toolCall.input);
   if (!stats) {
     setToolStatus(statusEl, toolCall.status);
@@ -1019,7 +1020,7 @@ export function makeFileSummaryInteractive(
 
 /** Normalized read/navigation summaries do not expose redundant raw output. */
 export function canExpandToolCall(toolCall: ToolCallInfo): boolean {
-  if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.resultImages?.length) return true;
+  if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'unknown' || toolCall.resultImages?.length) return true;
   const name = toolCall.presentation?.name ?? toolCall.name;
   const summaryTools: string[] = [TOOL_READ, TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_SKILL, 'Find', 'List'];
   return !summaryTools.includes(name);

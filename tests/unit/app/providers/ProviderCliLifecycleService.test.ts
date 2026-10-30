@@ -32,6 +32,17 @@ function harness(overrides: Partial<ProviderCliLifecycleServiceOptions> = {}) {
 }
 
 describe('ProviderCliLifecycleService', () => {
+  it('uses a provider-owned release source when checking for updates', async () => {
+    const latestRelease = jest.fn(async () => '2.0.0');
+    const { service } = harness({ providers: () => [{
+      providerId: 'test', displayName: 'Test', enabled: true,
+      metadata: { binaryName: 'agent', displayName: 'Test', latestRelease },
+    }] });
+    expect(await service.check('test')).toMatchObject({ version: '1.0.0', latestVersion: '2.0.0', canUpdate: true });
+    expect(latestRelease).toHaveBeenCalled();
+    service.dispose();
+  });
+
   it('shares a validated installation snapshot across consumers and respects its probe TTL', async () => {
     const { service, run } = harness();
     const observed: string[] = [];

@@ -74,6 +74,17 @@ describe('ModelSelectorView browsing', () => {
     expect(props.onModelChange).not.toHaveBeenCalled();
   });
 
+  it('keeps global filters outside the scrollable provider list and can select the last provider', async () => {
+    const extra = Array.from({ length: 9 }, (_, index) => ({ value: `model-${index}`, label: `Model ${index}`, providerId: `provider-${index}`, group: `Provider ${index}` }));
+    await act(() => render(h(ModelSelectorView, { ...props, models: [...props.models, ...extra] }), container));
+    const list = container.querySelector('.claudian-model-provider-list');
+    expect(list?.querySelectorAll('[data-provider-filter]')).toHaveLength(11);
+    expect(list?.querySelector('[data-provider-filter="favorites"]')).toBeNull();
+    expect(list?.querySelector('[data-provider-filter="all"]')).toBeNull();
+    await click('[data-provider-filter="provider-8"]');
+    expect(options().map(option => option.textContent)).toEqual(['Model 8']);
+  });
+
   it('opens on the selected provider and only browses when a provider is clicked', async () => {
     expect(options().map(option => option.textContent)).toEqual(['Opus', 'Sonnet']);
     await click('[data-provider-filter="codex"]');

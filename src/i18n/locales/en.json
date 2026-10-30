@@ -134,6 +134,12 @@
       "modeManualDescription": "Claude will ask for approval before each change.",
       "modeEditAutomatically": "Edit automatically",
       "modeEditAutomaticallyDescription": "Claude will edit selected text or files without asking for each edit.",
+      "hermesModeDefault": "Ask before edits",
+      "hermesModeDefaultDescription": "Ask before editing files.",
+      "hermesModeAcceptEdits": "Accept workspace edits",
+      "hermesModeAcceptEditsDescription": "Automatically allow workspace and temporary-directory edits; sensitive paths still require approval.",
+      "hermesModeDontAsk": "Don't ask for edits",
+      "hermesModeDontAskDescription": "Automatically allow file edits for this session; sensitive paths still require approval.",
       "modeAcceptEdits": "Accept edits",
       "modePlanDescription": "Claude will explore the code and present a plan before editing.",
       "modeAuto": "Auto",
@@ -527,6 +533,7 @@
       "completed": "completed",
       "error": "error",
       "blocked": "blocked",
+      "unknown": "result unknown",
       "inProgress": "in progress"
     },
     "subagent": {
@@ -624,6 +631,23 @@
       "yolo": "YOLO",
       "permissionRequest": "OMP requests permission to use {tool}.",
       "tool": "a tool"
+    },
+    "hermes": {
+      "enable": "Enable Hermes",
+      "enableDesc": "Use the locally installed Hermes Agent.",
+      "cliPath": "Hermes CLI path",
+      "cliPathDesc": "Leave empty to find hermes on PATH.",
+      "models": "Enabled Hermes models",
+      "modelsDesc": "Enter one Hermes provider:model ID per line, such as openrouter:provider/model.",
+      "noModels": "No Hermes models discovered yet. Configure Hermes, then click Discover.",
+      "catalogFailed": "Could not load the Hermes model catalog. Check the CLI and Hermes configuration.",
+      "loadingModels": "Loading Hermes models...",
+      "discoveryFailed": "Hermes model discovery failed: {error}",
+      "workspaceNotInitialized": "Hermes workspace is not initialized",
+      "environmentName": "Hermes environment variables",
+      "environmentDesc": "Environment variables passed only to Hermes, including provider credentials and HERMES_HOME.",
+      "toolResultMissing": "Hermes did not report the result of this tool.",
+      "toolInterrupted": "The turn was interrupted before Hermes reported this tool result."
     },
     "cursor": {
       "setup": "Setup",

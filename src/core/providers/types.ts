@@ -1,4 +1,5 @@
 import type { CursorContext } from '../../utils/editor';
+import type { ConversationInputRecord } from '../bootstrap/ConversationInputLedgerStorage';
 import type { SharedAppStorage } from '../bootstrap/storage';
 import type {
   ProviderExecutionBackend,
@@ -252,7 +253,12 @@ export interface ProviderSvgGroupChild {
   children: ProviderSvgPathChild[];
 }
 
-export type ProviderSvgChild = ProviderSvgGroupChild | ProviderSvgPathChild;
+export interface ProviderSvgImageChild {
+  tag: 'image';
+  attributes: Record<string, string>;
+}
+
+export type ProviderSvgChild = ProviderSvgGroupChild | ProviderSvgPathChild | ProviderSvgImageChild;
 
 export interface ProviderCompositeIconSvg {
   kind: 'composite';
@@ -551,6 +557,8 @@ export interface ProviderWorkspaceRegistration<
 }
 
 export interface ProviderConversationHistoryService {
+  /** Match accepted inputs when native history intentionally omits attachment bytes. */
+  matchesLossyUserInput?(message: ChatMessage, record: ConversationInputRecord): boolean;
   /** Whether this conversation still references native history worth model recovery. */
   hasConversationModelRecoverySource?(conversation: Conversation): boolean;
   /**

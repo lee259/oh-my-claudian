@@ -5,6 +5,7 @@ import { codexProviderRegistration } from './codex/registration';
 import { cursorProviderRegistration } from './cursor/registration';
 import { deepseekProviderRegistration } from './deepseek/registration';
 import { grokProviderRegistration } from './grok/registration';
+import { hermesProviderRegistration } from './hermes/registration';
 import { ompProviderRegistration } from './omp/registration';
 import { opencodeProviderRegistration } from './opencode/registration';
 import { piProviderRegistration } from './pi/registration';
@@ -20,6 +21,7 @@ export const BUILT_IN_PROVIDER_MODULES = [
   ompProviderRegistration,
   piProviderRegistration,
   deepseekProviderRegistration,
+  hermesProviderRegistration,
 ] as const;
 
 export function registerBuiltInProviders(): void {

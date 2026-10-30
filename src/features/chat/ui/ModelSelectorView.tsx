@@ -39,6 +39,7 @@ function ProviderIcon({ icon }: { icon: ProviderIconSvg }) {
       <svg aria-hidden="true" className="claudian-provider-icon claudian-model-provider-icon" viewBox={icon.viewBox} fill="none">
         {icon.children.map((child, index) => child.tag === 'path'
           ? <path key={index} {...child.attributes} />
+          : child.tag === 'image' ? <image key={index} {...child.attributes} />
           : <g key={index} {...child.attributes}>
             {child.children.map((nestedChild, nestedIndex) => (
               <path key={nestedIndex} {...nestedChild.attributes} />
@@ -78,6 +79,7 @@ export function ModelSelectorView({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const providerListRef = useRef<HTMLDivElement>(null);
   const openFromKeyboardRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<string>(currentProviderId);
@@ -125,6 +127,16 @@ export function ModelSelectorView({
     const root = rootRef.current;
     if (!root) return;
     const ownerDocument = root.ownerDocument;
+    const providerList = providerListRef.current;
+    const activeProvider = providerList?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
+    if (providerList && activeProvider) {
+      const listBounds = providerList.getBoundingClientRect();
+      const activeBounds = activeProvider.getBoundingClientRect();
+      if (listBounds.height > 0 && activeBounds.height > 0) {
+        if (activeBounds.bottom > listBounds.bottom) providerList.scrollTop += activeBounds.bottom - listBounds.bottom;
+        else if (activeBounds.top < listBounds.top) providerList.scrollTop -= listBounds.top - activeBounds.top;
+      }
+    }
     if (openFromKeyboardRef.current) {
       const selectedOption = root?.querySelector<HTMLButtonElement>('.claudian-model-option[aria-pressed="true"]');
       (selectedOption ?? root?.querySelector<HTMLButtonElement>('.claudian-model-option'))?.focus();
@@ -293,7 +305,9 @@ export function ModelSelectorView({
             {renderFilter('favorites', t('chat.modelPicker.favorites'), undefined, 'star')}
             {renderFilter('all', t('chat.modelPicker.all'))}
             <div className="claudian-model-provider-divider" />
-            {providers.map(provider => renderFilter(provider.id, provider.label || t('chat.modelPicker.currentProvider'), provider.icon))}
+            <div className="claudian-model-provider-list" ref={providerListRef}>
+              {providers.map(provider => renderFilter(provider.id, provider.label || t('chat.modelPicker.currentProvider'), provider.icon))}
+            </div>
           </nav>
           <div className="claudian-model-browser-main">
             <div className="claudian-model-search">

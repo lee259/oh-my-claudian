@@ -16,6 +16,14 @@ function call(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 
 describe('Tool row disclosures', () => {
 
+  it('shows an unknown outcome without a success mark or running timer', () => {
+    const element = renderStoredToolCall(document.createElement('div'), call({ status: 'unknown', result: 'Result not reported' }));
+    expect(element.querySelector('.claudian-tool-status')?.textContent).toContain('result unknown');
+    expect(element.querySelector('.claudian-tool-status')?.classList.contains('status-unknown')).toBe(true);
+    expect(element.querySelector('.claudian-tool-status')?.classList.contains('status-completed')).toBe(false);
+    expect(element.querySelector('.claudian-tool-duration')?.textContent).toBe('');
+  });
+
   it('keeps running tools free of ticking duration and captures timing on completion', () => {
     jest.useFakeTimers();
     jest.setSystemTime(100000);

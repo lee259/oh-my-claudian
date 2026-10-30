@@ -844,6 +844,12 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('tool completion outcome mapping', () => {
+    it('preserves an unknown tool outcome from provider events', () => {
+      expect(providerOutputEventToStreamChunk({
+        type: 'tool_completed', scope: { kind: 'requested', sessionInstanceId: 's', executionId: 'e', turnId: 't', sequence: 1 },
+        toolCallId: 'tool-1', toolScope: { kind: 'main' }, outcomeUnknown: true, content: 'Result not reported',
+      })).toMatchObject({ type: 'tool_result', id: 'tool-1', outcomeUnknown: true });
+    });
     it('preserves an authoritative blocked outcome from provider events', () => {
       expect(providerOutputEventToStreamChunk({
         type: 'tool_completed',
@@ -980,6 +986,17 @@ describe('StreamController - Text Content', () => {
       now.mockReturnValue(5000);
       await controller.handleStreamChunk({ type: 'tool_result', id: 'timed', content: 'ok' }, msg);
       expect(msg.toolCalls?.[0]).toMatchObject({ startedAt: 1000, completedAt: 5000, status: 'completed' });
+      now.mockRestore();
+    });
+
+    it('renders an unreported tool outcome as unknown and stops its timer', async () => {
+      const msg = createTestMessage();
+      const now = jest.spyOn(Date, 'now');
+      now.mockReturnValue(1000);
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'write-unknown', name: 'Write', input: {} }, msg);
+      now.mockReturnValue(3000);
+      await controller.handleStreamChunk({ type: 'tool_result', id: 'write-unknown', content: 'No outcome', outcomeUnknown: true }, msg);
+      expect(msg.toolCalls?.[0]).toMatchObject({ status: 'unknown', completedAt: 3000, result: 'No outcome' });
       now.mockRestore();
     });
 
