@@ -1,3 +1,9 @@
+/** @jest-environment jsdom */
+import '@test/helpers/ObsidianSettingsDOM';
+
+import { setImmediate } from 'node:timers';
+import { TextEncoder } from 'node:util';
+
 import { createMockEl } from '@test/helpers/MockElement';
 import { Notice } from 'obsidian';
 
@@ -6,21 +12,26 @@ import { ImageContextManager } from '@/features/chat/ui/ImageContext';
 
 jest.mock('obsidian', () => ({
   Notice: jest.fn(),
+  setIcon: jest.fn(),
 }));
 
-// Mock document.createElementNS for SVG elements created in setupDragAndDrop
-const mockSvgElement = () => {
-  const el = createMockEl('svg');
-  el.appendChild = jest.fn();
-  return el;
-};
+function attachRealTrayHost(container: any): void {
+  const createDiv = container.createDiv.bind(container);
+  const querySelector = container.querySelector.bind(container);
+  let tray: HTMLElement | null = null;
+  container.createDiv = (options?: { cls?: string }) => {
+    if (options?.cls === 'claudian-context-row') {
+      tray = document.createElement('div');
+      tray.className = options.cls;
+      document.body.append(tray);
+      return tray;
+    }
+    return createDiv(options);
+  };
+  container.querySelector = (selector: string) => selector === '.claudian-context-row' ? tray : querySelector(selector);
+}
 
-beforeAll(() => {
-  if (typeof globalThis.document === 'undefined') {
-    (globalThis as any).document = {};
-  }
-  (globalThis.document as any).createElementNS = jest.fn(() => mockSvgElement());
-});
+afterEach(() => document.body.replaceChildren());
 
 function createMockCallbacks() {
   return {
@@ -30,6 +41,7 @@ function createMockCallbacks() {
 
 function createContainerWithInputWrapper(): { container: any; inputWrapper: any } {
   const container = createMockEl();
+  attachRealTrayHost(container);
   const inputWrapper = container.createDiv({ cls: 'claudian-input-wrapper' });
   return { container, inputWrapper };
 }
@@ -228,6 +240,7 @@ describe('ImageContextManager', () => {
   describe('constructor with previewContainerEl', () => {
     it('should use previewContainerEl when provided', () => {
       const previewContainer = createMockEl();
+      attachRealTrayHost(previewContainer);
       const { container: c } = createContainerWithInputWrapper();
       const input = createMockTextArea();
       const cb = createMockCallbacks();
@@ -240,6 +253,7 @@ describe('ImageContextManager', () => {
 
     it('should preserve existing preview container content', () => {
       const previewContainer = createMockEl();
+      attachRealTrayHost(previewContainer);
       const existingContent = previewContainer.createDiv({ cls: 'existing-preview-content' });
 
       const { container: c } = createContainerWithInputWrapper();
@@ -712,7 +726,7 @@ describe('ImageContextManager - Private Helpers', () => {
       const trayEl = manager['contextTray']['containerEl'];
       const labels = trayEl.querySelectorAll('.claudian-context-chip-label');
 
-      expect(labels.map((label: any) => label.textContent)).toEqual(['Image 1', 'Image 2']);
+      expect(Array.from(labels, (label: any) => label.textContent)).toEqual(['Image 1', 'Image 2']);
     });
 
     it('remove button should delete the image and update preview', () => {
@@ -732,7 +746,7 @@ describe('ImageContextManager - Private Helpers', () => {
       const trayEl = mgr['contextTray']['containerEl'];
       const firstChip = trayEl.querySelector('.claudian-context-chip--image');
       const removeEl = firstChip.querySelector('.claudian-context-chip-remove');
-      removeEl.dispatchEvent({ type: 'click', stopPropagation: jest.fn() });
+      removeEl.click();
 
       expect(mgr.getAttachedImages()).toHaveLength(1);
       expect(mgr.getAttachedImages()[0].id).toBe('img-2');
@@ -743,13 +757,8 @@ describe('ImageContextManager - Private Helpers', () => {
       const overlayEl = createMockEl();
       const removeOverlay = jest.spyOn(overlayEl, 'remove');
       const mockBody = { createDiv: jest.fn().mockReturnValue(overlayEl) };
-      const originalDocument = globalThis.document;
-      (globalThis as any).document = {
-        activeElement: null,
-        body: mockBody,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-      };
+      const originalDocument = manager['containerEl'].ownerDocument;
+      manager['containerEl'].ownerDocument = { activeElement: null, body: mockBody, addEventListener: jest.fn(), removeEventListener: jest.fn() };
 
       try {
         manager.setImages([createImageAttachment({ name: 'photo.png' })]);
@@ -765,7 +774,7 @@ describe('ImageContextManager - Private Helpers', () => {
         manager.destroy();
         expect(removeOverlay).toHaveBeenCalledTimes(1);
       } finally {
-        (globalThis as any).document = originalDocument;
+        manager['containerEl'].ownerDocument = originalDocument;
       }
     });
   });
