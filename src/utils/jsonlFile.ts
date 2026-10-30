@@ -1,5 +1,6 @@
 import { constants } from 'node:buffer';
 import { createReadStream } from 'node:fs';
+import * as zlib from 'node:zlib';
 
 import { LineBuffer } from '@/utils/LineBuffer';
 
@@ -16,6 +17,7 @@ export interface JSONLFileReadOptions {
   /** Absolute deadline shared with discovery and other reads. */
   deadline?: number;
   signal?: AbortSignal;
+  chunkBytes?: number;
 }
 
 /**
@@ -37,7 +39,16 @@ export async function forEachJSONLLine(
   };
   checkCurrent();
   const lines = new LineBuffer(options.maxLineLength ?? constants.MAX_STRING_LENGTH);
-  const input = createReadStream(filePath, { encoding: 'utf8', highWaterMark: JSONL_READ_CHUNK_BYTES, signal: options.signal });
+  if (filePath.endsWith('.zst') && typeof zlib.createZstdDecompress !== 'function') {
+    throw new Error('Reading compressed history requires a newer Obsidian installer.');
+  }
+  const raw = createReadStream(filePath, { highWaterMark: options.chunkBytes ?? JSONL_READ_CHUNK_BYTES, signal: options.signal });
+  const input = filePath.endsWith('.zst') ? raw.pipe(zlib.createZstdDecompress()) : raw;
+  if (input !== raw) {
+    raw.once('error', error => input.destroy(error));
+    input.once('close', () => raw.destroy());
+  }
+  input.setEncoding('utf8');
   let timer: number | undefined;
   let deadlineTimer: number | undefined;
   const armTimer = (): void => {
@@ -65,5 +76,6 @@ export async function forEachJSONLLine(
     window.clearTimeout(timer);
     window.clearTimeout(deadlineTimer);
     input.destroy();
+    raw.destroy();
   }
 }

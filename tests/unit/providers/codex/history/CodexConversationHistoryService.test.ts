@@ -1,3 +1,5 @@
+import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
+
 import type * as fsType from 'fs';
 import type * as osType from 'os';
 import type * as pathType from 'path';
@@ -82,11 +84,27 @@ describe('CodexConversationHistoryService', () => {
         model: mode === 'pending' ? 'openai-codex/gpt-5.4' : 'openai-codex/gpt-5.4-mini',
       };
       expect(await snapshot()).toEqual(expected);
+      if (mode === 'established') {
+        const child = fs.readFileSync(forkPath);
+        fs.writeFileSync(`${forkPath}.zst`, zstdCompressSync(child));
+        fs.unlinkSync(forkPath);
+      }
+      expect(await snapshot()).toEqual(expected);
+      if (mode === 'established') {
+        const child = fs.readFileSync(`${forkPath}.zst`);
+        fs.unlinkSync(`${forkPath}.zst`);
+        fs.writeFileSync(forkPath, zstdDecompressSync(child));
+      }
 
       const archivedPath = path.join(archive, path.basename(sourcePath));
       fs.renameSync(sourcePath, archivedPath);
       expect(await snapshot()).toEqual(expected);
       expect(fs.readFileSync(archivedPath, 'utf8')).toBe(source);
+      fs.writeFileSync(`${archivedPath}.zst`, zstdCompressSync(source));
+      fs.unlinkSync(archivedPath);
+      expect(await snapshot()).toEqual(expected);
+      fs.unlinkSync(`${archivedPath}.zst`);
+      fs.writeFileSync(archivedPath, source);
       expect(await snapshot({ ...context, environment: { HOME: path.join(tempHome, 'other-home') } }))
         .toEqual({ messages: [], model: null });
 
@@ -99,6 +117,30 @@ describe('CodexConversationHistoryService', () => {
       expect(await snapshot()).toEqual({ messages: [], model: null });
     },
   );
+
+  it.each([[true, false], [true, true], [false, true]])('restores a moved rollout (archived: %s, compressed: %s)', async (archived, compressed) => {
+    const sessions = path.join(tempHome, '.codex', 'sessions');
+    const archive = path.join(tempHome, '.codex', 'archived_sessions');
+    fs.mkdirSync(sessions, { recursive: true });
+    fs.mkdirSync(archive, { recursive: true });
+    const savedPath = path.join(sessions, 'rollout-thread-moved.jsonl');
+    const content = [
+      JSON.stringify({ type: 'turn_context', payload: { model: 'gpt-5.5' } }),
+      JSON.stringify({ type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Archived question' }] } }),
+    ].join('\n');
+    const location = archived ? archive : sessions;
+    fs.writeFileSync(path.join(location, `${path.basename(savedPath)}${compressed ? '.zst' : ''}`), compressed ? zstdCompressSync(content) : content);
+    const conversation: Conversation = {
+      id: 'moved', providerId: 'codex', title: 'Moved', createdAt: 1, lastActivityAt: 1,
+      sessionId: 'thread-moved', messages: [],
+      providerState: { threadId: 'thread-moved', sessionFilePath: savedPath, transcriptRootPath: sessions },
+    };
+    const context = { config: {}, environment: { HOME: tempHome }, environmentText: '' };
+    const service = new CodexConversationHistoryService();
+    await expect(service.recoverConversationModelSelection(conversation, null, context)).resolves.toBe('openai-codex/gpt-5.5');
+    await service.hydrateConversationHistory(conversation, null, context);
+    expect(conversation.messages.map(message => message.content)).toEqual(['Archived question']);
+  });
 
   it('rejects unreadable history and permits retry after the source is repaired', async () => {
     const file = path.join(tempHome, 'unreadable.jsonl');
