@@ -1,4 +1,5 @@
-import { createMockEl } from '@test/helpers/MockElement';
+/** @jest-environment jsdom */
+import '@test/helpers/ObsidianSettingsDOM';
 
 import { ComposerContextTray } from '@/features/chat/ui/ComposerContextTray';
 
@@ -8,7 +9,8 @@ jest.mock('obsidian', () => ({
 
 describe('ComposerContextTray', () => {
   it('marks a chip as removable only while its removal action is available', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
     const item = { id: 'linked-content', kind: 'file' as const, label: 'Draft.md' };
 
@@ -21,7 +23,8 @@ describe('ComposerContextTray', () => {
   });
 
   it('owns empty-state visibility and renders slots in semantic order', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
 
     expect(containerEl.hasClass('has-content')).toBe(false);
@@ -48,7 +51,7 @@ describe('ComposerContextTray', () => {
     }]);
 
     expect(containerEl.hasClass('has-content')).toBe(true);
-    expect(containerEl.querySelectorAll('.claudian-context-chip').map((item: any) => item.dataset.contextSlot)).toEqual([
+    expect(Array.from(containerEl.querySelectorAll<HTMLElement>('.claudian-context-chip'), item => item.dataset.contextSlot)).toEqual([
       'current-note',
       'editor-selection',
       'images',
@@ -56,7 +59,8 @@ describe('ComposerContextTray', () => {
   });
 
   it('uses separate keyboard-focusable controls for activation and removal', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const onActivate = jest.fn();
     const onRemove = jest.fn();
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
@@ -71,8 +75,8 @@ describe('ComposerContextTray', () => {
       onRemove,
     }]);
 
-    const mainButton = containerEl.querySelector('.claudian-context-chip-main');
-    const removeButton = containerEl.querySelector('.claudian-context-chip-remove');
+    const mainButton = containerEl.querySelector<HTMLElement>('.claudian-context-chip-main');
+    const removeButton = containerEl.querySelector<HTMLElement>('.claudian-context-chip-remove');
 
     expect(mainButton?.tagName).toBe('BUTTON');
     expect(removeButton?.tagName).toBe('BUTTON');
@@ -86,7 +90,8 @@ describe('ComposerContextTray', () => {
   });
 
   it('renders external folders in the same removable chip style as attached files', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const onRemove = jest.fn();
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
 
@@ -107,10 +112,10 @@ describe('ComposerContextTray', () => {
       onRemove,
     }]);
 
-    const chips = containerEl.querySelectorAll('.claudian-context-chip');
-    const fileChip = chips.find((chip: any) => chip.dataset.contextId === '/outside/brief.md');
-    const folderChip = chips.find((chip: any) => chip.dataset.contextId === '/outside/project');
-    const folderRemoveButton = folderChip?.querySelector('.claudian-context-chip-remove');
+    const chips = Array.from(containerEl.querySelectorAll<HTMLElement>('.claudian-context-chip'));
+    const fileChip = chips.find(chip => chip.dataset.contextId === '/outside/brief.md');
+    const folderChip = chips.find(chip => chip.dataset.contextId === '/outside/project');
+    const folderRemoveButton = folderChip?.querySelector<HTMLElement>('.claudian-context-chip-remove');
 
     expect(fileChip?.hasClass('claudian-context-chip--file')).toBe(true);
     expect(folderChip?.hasClass('claudian-context-chip--folder')).toBe(true);
@@ -124,7 +129,8 @@ describe('ComposerContextTray', () => {
   });
 
   it('collapses content after the first visual row and exposes the hidden count', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
 
     tray.setItems('images', Array.from({ length: 4 }, (_, index) => ({
@@ -134,7 +140,7 @@ describe('ComposerContextTray', () => {
       onRemove: jest.fn(),
     })));
 
-    const chips = containerEl.querySelectorAll('.claudian-context-chip');
+    const chips = Array.from(containerEl.querySelectorAll<HTMLElement>('.claudian-context-chip'));
     [0, 0, 38, 76].forEach((offsetTop, index) => {
       Object.defineProperty(chips[index], 'offsetTop', { configurable: true, value: offsetTop });
     });
@@ -143,7 +149,7 @@ describe('ComposerContextTray', () => {
 
     expect(chips[2].hasClass('claudian-context-chip--overflow-hidden')).toBe(true);
     expect(chips[3].hasClass('claudian-context-chip--overflow-hidden')).toBe(true);
-    const moreButton = containerEl.querySelector('.claudian-context-more');
+    const moreButton = containerEl.querySelector<HTMLElement>('.claudian-context-more');
     expect(moreButton?.textContent).toBe('+2 more');
 
     moreButton?.click();
@@ -151,10 +157,36 @@ describe('ComposerContextTray', () => {
     expect(containerEl.hasClass('claudian-context-row--expanded')).toBe(true);
     expect(chips.every((chip: any) => !chip.hasClass('claudian-context-chip--overflow-hidden'))).toBe(true);
     expect(moreButton?.textContent).toBe('Show less');
+    moreButton?.click();
+    expect(containerEl.hasClass('claudian-context-row--expanded')).toBe(false);
+    expect(chips[2].hasClass('claudian-context-chip--overflow-hidden')).toBe(true);
+    expect(moreButton?.textContent).toBe('+2 more');
+  });
+
+  it('keeps the expanded state when a context owner republishes unchanged items', () => {
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
+    const tray = new ComposerContextTray(containerEl);
+    const items = Array.from({ length: 3 }, (_, index) => ({ id: `file-${index}`, kind: 'file' as const,
+      label: `file-${index}`, onActivate: () => undefined }));
+    tray.setItems('files', items);
+    const chips = Array.from(containerEl.querySelectorAll<HTMLElement>('.claudian-context-chip'));
+    [0, 38, 76].forEach((offsetTop, index) => Object.defineProperty(chips[index], 'offsetTop', { configurable: true, value: offsetTop }));
+    tray.refreshLayout();
+    const more = containerEl.querySelector<HTMLButtonElement>('.claudian-context-more')!;
+    more.click();
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    tray.setItems('files', items.map(item => ({ ...item, onActivate: () => undefined })));
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    more.click();
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    tray.destroy();
+    containerEl.remove();
   });
 
   it('does not collapse vertically centered items that share one flex row', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
 
     tray.setItems('current-note', [{
@@ -176,7 +208,7 @@ describe('ComposerContextTray', () => {
       onRemove: jest.fn(),
     }]);
 
-    const chips = containerEl.querySelectorAll('.claudian-context-chip');
+    const chips = Array.from(containerEl.querySelectorAll<HTMLElement>('.claudian-context-chip'));
     [[4, 24], [0, 32], [4, 24]].forEach(([offsetTop, offsetHeight], index) => {
       Object.defineProperties(chips[index], {
         offsetTop: { configurable: true, value: offsetTop },
@@ -186,11 +218,12 @@ describe('ComposerContextTray', () => {
 
     tray.refreshLayout();
 
-    expect(containerEl.querySelector('.claudian-context-more')?.hasClass('claudian-hidden')).toBe(true);
+    expect(containerEl.querySelector<HTMLElement>('.claudian-context-more')?.hasClass('claudian-hidden')).toBe(true);
   });
 
   it('removes the tray when the final owner clears its items', () => {
-    const containerEl = createMockEl();
+    const containerEl = document.createElement('div');
+    document.body.append(containerEl);
     const tray = new ComposerContextTray(containerEl as unknown as HTMLElement);
 
     tray.setItems('canvas-selection', [{

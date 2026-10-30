@@ -1,4 +1,7 @@
-import { createMockEl, type MockElement } from '@test/helpers/MockElement';
+/** @jest-environment jsdom */
+import '@test/helpers/ObsidianSettingsDOM';
+
+import { createMockEl } from '@test/helpers/MockElement';
 import { TFile, TFolder } from 'obsidian';
 
 import type { FileContextCallbacks } from '@/features/chat/ui/FileContext';
@@ -43,25 +46,12 @@ jest.mock('@/utils/externalContextScanner', () => ({
 }));
 
 
-function findByClass(root: MockElement, className: string): MockElement | undefined {
-  if (root.hasClass(className)) return root;
-  for (const child of root.children) {
-    const found = findByClass(child, className);
-    if (found) return found;
-  }
-  return undefined;
+function findByClass(root: HTMLElement, className: string): HTMLElement | undefined {
+  return root.querySelector<HTMLElement>(`.${className}`) ?? undefined;
 }
 
-function findAllByClass(root: MockElement, className: string): MockElement[] {
-  const results: MockElement[] = [];
-  const walk = (node: MockElement) => {
-    if (node.hasClass(className)) {
-      results.push(node);
-    }
-    node.children.forEach(walk);
-  };
-  walk(root);
-  return results;
+function findAllByClass(root: HTMLElement, className: string): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(`.${className}`));
 }
 
 function createMockApp(options: {
@@ -122,7 +112,7 @@ function createMockCallbacks(options: {
 }
 
 describe('FileContextManager', () => {
-  let containerEl: MockElement;
+  let containerEl: HTMLElement;
   let inputEl: HTMLTextAreaElement;
 
   it('does not automatically attach or replace notes when disabled, while keeping manual files', () => {
@@ -184,7 +174,8 @@ describe('FileContextManager', () => {
     jest.clearAllMocks();
     mockVaultPath = '/vault';
     mockScanPaths.mockReturnValue([]);
-    containerEl = createMockEl();
+    containerEl = document.createElement('div');
+    document.body.append(containerEl);
     inputEl = {
       ...createMockEl('textarea'),
       value: '',
@@ -1184,7 +1175,7 @@ describe('FileContextManager', () => {
       );
 
       manager.addExternalFiles(['/vault/notes/guide.md']);
-      containerEl.querySelector('.claudian-context-chip-main')?.click();
+      containerEl.querySelector<HTMLElement>('.claudian-context-chip-main')?.click();
 
       expect(app.revealInFolder).toHaveBeenCalledWith(app.vault.getAbstractFileByPath('notes/guide.md'));
       expect(app.workspace.getLeaf).not.toHaveBeenCalled();
