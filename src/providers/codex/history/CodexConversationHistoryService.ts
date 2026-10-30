@@ -113,6 +113,12 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       : conversation.resumeAtMessageId;
     let model = await readSessionModel(resolvedPath, resumeAt);
 
+    if (!model && threadId && transcriptRootPath) {
+      const activePath = await findCodexSessionFileAsync(
+        threadId, transcriptRootPath, Math.max(0, deadline - Date.now()),
+      );
+      if (activePath && activePath !== resolvedPath) model = await readSessionModel(activePath, resumeAt);
+    }
     if (!model && threadId) {
       const archivedRoots = getCodexArchivedTranscriptRoots(
         pathContext,
@@ -221,7 +227,7 @@ export class CodexConversationHistoryService implements ProviderConversationHist
         pathContext,
         lookupDeadline,
       );
-      const forkSessionFile = await resolveCodexSessionFileHint(
+      let forkSessionFile = await resolveCodexSessionFileHint(
         state.sessionFilePath,
         state.threadId,
         pathContext,
@@ -233,6 +239,27 @@ export class CodexConversationHistoryService implements ProviderConversationHist
             Math.max(0, lookupDeadline - Date.now()),
           )
         : null);
+
+      if (forkSessionFile) {
+        try {
+          await fs.access(forkSessionFile);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          forkSessionFile = null;
+        }
+      }
+      if (!forkSessionFile) {
+        const roots = [
+          ...(transcriptRootPath ? [transcriptRootPath] : []),
+          ...getCodexArchivedTranscriptRoots(pathContext, transcriptRootPath ? [transcriptRootPath] : []),
+        ];
+        for (const root of roots) {
+          forkSessionFile = await findCodexSessionFileAsync(
+            state.threadId, root, Math.max(0, lookupDeadline - Date.now()),
+          );
+          if (forkSessionFile) break;
+        }
+      }
 
       if (sourceSessionFile && forkSessionFile) {
         const sourceRecords = await readCodexSessionRecords(sourceSessionFile) ?? [];
@@ -287,9 +314,10 @@ export class CodexConversationHistoryService implements ProviderConversationHist
       }
     }
     if (!sessionFilePath && threadId) {
-      const roots = getCodexArchivedTranscriptRoots(
-        pathContext, transcriptRootPath ? [transcriptRootPath] : [],
-      );
+      const roots = [
+        ...(transcriptRootPath ? [transcriptRootPath] : []),
+        ...getCodexArchivedTranscriptRoots(pathContext, transcriptRootPath ? [transcriptRootPath] : []),
+      ];
       for (const root of roots) {
         sessionFilePath = await findCodexSessionFileAsync(
           threadId, root, Math.max(0, lookupDeadline - Date.now()),

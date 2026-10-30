@@ -90,6 +90,13 @@ describe('forEachJSONLLine', () => {
   it('rejects when the file cannot be read', async () => {
     await expect(collect(path.join(dir, 'missing.jsonl'))).rejects.toMatchObject({ code: 'ENOENT' });
   });
+  it('rejects missing and invalid compressed histories', async () => {
+    await expect(collect(path.join(dir, 'missing.jsonl.zst'))).rejects.toMatchObject({ code: 'ENOENT' });
+    const invalid = path.join(dir, 'invalid.jsonl.zst');
+    fs.writeFileSync(invalid, 'not zstd');
+    await expect(collect(invalid)).rejects.toThrow();
+  });
+
   it('honors a pre-existing cancellation and an expired deadline before opening a file', async () => {
     const controller = new AbortController();
     const reason = new Error('cancelled');
