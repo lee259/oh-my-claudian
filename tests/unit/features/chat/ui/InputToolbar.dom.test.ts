@@ -169,6 +169,19 @@ describe('createInputToolbar', () => {
     setLocale('en');
   });
 
+  it('does not show an MCP picker while retaining mentioned server state', () => {
+    if (!toolbar) throw new Error('Expected the input toolbar');
+    toolbar.mcpServerSelector.setMcpManager({
+      isLoaded: () => true,
+      getServers: () => [{ name: 'docs', enabled: true }],
+    } as never);
+    toolbar.mcpServerSelector.addMentionedServers(new Set(['docs']));
+    toolbarEl.querySelector<HTMLButtonElement>('.claudian-context-actions-trigger')?.click();
+    expect(toolbarEl.querySelector('.claudian-mcp-selector')).toBeNull();
+    expect(toolbarEl.querySelector('.claudian-context-actions-menu')?.textContent).not.toContain('MCP servers');
+    expect(toolbar.mcpServerSelector.getEnabledServers()).toEqual(new Set(['docs']));
+  });
+
   it('groups external context controls behind an accessible add-context action', () => {
     const trigger = toolbarEl.querySelector<HTMLButtonElement>('.claudian-context-actions-trigger');
     const menu = toolbarEl.querySelector<HTMLElement>('.claudian-context-actions-menu');
@@ -180,7 +193,7 @@ describe('createInputToolbar', () => {
     expect(trigger?.getAttribute('aria-expanded')).toBe('false');
     expect(menu?.hidden).toBe(true);
     expect(menu?.querySelector('.claudian-external-context-selector')).not.toBeNull();
-    expect(menu?.querySelector('.claudian-mcp-selector')).not.toBeNull();
+    expect(menu?.querySelector('.claudian-mcp-selector')).toBeNull();
     expect(configurationGroup?.querySelector('.claudian-model-selector')).not.toBeNull();
     expect(configurationGroup?.querySelector('.claudian-thinking-selector')).not.toBeNull();
     expect(modeMenu?.querySelector('.claudian-thinking-selector')).toBeNull();
@@ -799,7 +812,7 @@ describe('createInputToolbar', () => {
     expect(menu.hidden).toBe(false);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(toolbarEl.querySelector('.claudian-external-context-selector')).not.toBeNull();
-    expect(toolbarEl.querySelector('.claudian-mcp-selector')).not.toBeNull();
+    expect(toolbarEl.querySelector('.claudian-mcp-selector')).toBeNull();
     expect(toolbarEl.querySelector('.claudian-input-send-button')).toBe(sendButton);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
@@ -829,29 +842,5 @@ describe('createInputToolbar', () => {
     expect(toolbarEl.childElementCount).toBe(0);
   });
 
-  it('preserves MCP server toggling through the context actions menu', () => {
-    if (!toolbar) throw new Error('Expected the input toolbar');
-    const onChange = jest.fn();
-    const manager = {
-      isLoaded: () => true,
-      getServers: () => [{
-        name: 'docs',
-        enabled: true,
-        contextSaving: false,
-        config: { type: 'stdio', command: 'docs-server' },
-      }],
-    };
-    toolbar.mcpServerSelector.setMcpManager(manager as never);
-    toolbar.mcpServerSelector.setOnChange(onChange);
 
-    toolbarEl.querySelector<HTMLButtonElement>('.claudian-context-actions-trigger')?.click();
-    toolbarEl.querySelector<HTMLButtonElement>('.claudian-mcp-selector-icon-wrapper')?.click();
-    const item = toolbarEl.querySelector<HTMLElement>('.claudian-mcp-selector-item');
-    if (!item) throw new Error('Expected the configured MCP server');
-    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-
-    expect(item.getAttribute('aria-checked')).toBe('true');
-    expect(toolbar.mcpServerSelector.getEnabledServers()).toEqual(new Set(['docs']));
-    expect(onChange).toHaveBeenCalledWith(new Set(['docs']));
-  });
 });

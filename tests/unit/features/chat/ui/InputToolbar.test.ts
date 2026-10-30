@@ -266,7 +266,6 @@ describe('ModeSelector', () => {
 });
 
 describe('McpServerSelector', () => {
-  let parentEl: any;
   let selector: McpServerSelector;
 
   function createMockMcpManager(servers: { name: string; enabled: boolean; contextSaving?: boolean }[] = []) {
@@ -283,87 +282,19 @@ describe('McpServerSelector', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    parentEl = createMockEl();
-    selector = new McpServerSelector(parentEl);
+    selector = new McpServerSelector();
   });
 
-  it('should create container with mcp-selector class', () => {
-    const container = parentEl.querySelector('.claudian-mcp-selector');
-    expect(container).not.toBeNull();
-  });
 
   it('should return empty set of enabled servers initially', () => {
     expect(selector.getEnabledServers().size).toBe(0);
   });
 
-  it('should hide container when no servers configured', () => {
-    selector.setMcpManager(createMockMcpManager([]));
-    const container = parentEl.querySelector('.claudian-mcp-selector');
-    expect(container?.style.display).toBe('none');
-  });
 
-  it('should show container when servers are configured', () => {
-    selector.setMcpManager(createMockMcpManager([{ name: 'test', enabled: true }]));
-    const container = parentEl.querySelector('.claudian-mcp-selector');
-    expect(container?.hasClass('claudian-hidden')).toBe(false);
-  });
 
-  it('keeps a lazy selector hidden until configured servers finish loading', async () => {
-    let loaded = false;
-    const manager = {
-      ensureLoaded: jest.fn(async () => {
-        loaded = true;
-      }),
-      getServers: jest.fn(() => loaded
-        ? [{ name: 'lazy-server', enabled: true, contextSaving: false }]
-        : []),
-      isLoaded: jest.fn(() => loaded),
-    } as any;
 
-    selector.setMcpManager(manager);
-    const container = parentEl.querySelector('.claudian-mcp-selector');
 
-    expect(container?.hasClass('claudian-hidden')).toBe(true);
-    await Promise.resolve();
-    await Promise.resolve();
 
-    expect(manager.ensureLoaded).toHaveBeenCalledTimes(1);
-    expect(container?.hasClass('claudian-hidden')).toBe(false);
-    expect(parentEl.querySelector('.claudian-mcp-selector-item')).not.toBeNull();
-  });
-
-  it('stays hidden when lazy loading finds no configured servers', async () => {
-    let loaded = false;
-    const manager = {
-      ensureLoaded: jest.fn(async () => {
-        loaded = true;
-      }),
-      getServers: jest.fn().mockReturnValue([]),
-      isLoaded: jest.fn(() => loaded),
-    } as any;
-
-    selector.setMcpManager(manager);
-    const container = parentEl.querySelector('.claudian-mcp-selector');
-
-    expect(container?.hasClass('claudian-hidden')).toBe(true);
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(manager.ensureLoaded).toHaveBeenCalledTimes(1);
-    expect(container?.hasClass('claudian-hidden')).toBe(true);
-  });
-
-  it('should show empty message when all servers are disabled', () => {
-    selector.setMcpManager(createMockMcpManager([{ name: 'test', enabled: false }]));
-    const empty = parentEl.querySelector('.claudian-mcp-selector-empty');
-    expect(empty?.textContent).toBe('All MCP servers disabled');
-  });
-
-  it('should show no servers message when no servers configured', () => {
-    selector.setMcpManager(createMockMcpManager([]));
-    const empty = parentEl.querySelector('.claudian-mcp-selector-empty');
-    expect(empty?.textContent).toBe('No MCP servers configured');
-  });
 
   it('should add mentioned servers', () => {
     selector.setMcpManager(createMockMcpManager([{ name: 'server1', enabled: true }]));
@@ -442,44 +373,36 @@ describe('McpServerSelector', () => {
     expect(onChange).toHaveBeenCalled();
   });
 
-  it('should show badge when more than 1 server enabled', () => {
-    selector.setMcpManager(createMockMcpManager([
-      { name: 'server1', enabled: true },
-      { name: 'server2', enabled: true },
-    ]));
-    selector.setEnabledServers(['server1', 'server2']);
-    selector.updateDisplay();
 
-    const badge = parentEl.querySelector('.claudian-mcp-selector-badge');
-    expect(badge?.hasClass('visible')).toBe(true);
-    expect(badge?.textContent).toBe('2');
+
+
+
+  it('rechecks server availability when the selection is read', () => {
+    let servers = [{ name: 'docs', enabled: true }];
+    const onChange = jest.fn();
+    selector.setOnChange(onChange);
+    selector.setMcpManager({ getServers: () => servers } as never);
+    selector.setEnabledServers(['docs']);
+    servers = [];
+    expect(selector.getEnabledServers()).toEqual(new Set());
+    expect(onChange).toHaveBeenCalledWith(new Set());
   });
 
-  it('should not show badge when only 1 server enabled', () => {
-    selector.setMcpManager(createMockMcpManager([{ name: 'server1', enabled: true }]));
-    selector.setEnabledServers(['server1']);
-    selector.updateDisplay();
-
-    const badge = parentEl.querySelector('.claudian-mcp-selector-badge');
-    expect(badge?.hasClass('visible')).toBe(false);
-  });
-
-  it('should add active class to icon when servers are enabled', () => {
-    selector.setMcpManager(createMockMcpManager([{ name: 'server1', enabled: true }]));
-    selector.setEnabledServers(['server1']);
-    selector.updateDisplay();
-
-    const icon = parentEl.querySelector('.claudian-mcp-selector-icon');
-    expect(icon?.hasClass('active')).toBe(true);
-  });
-
-  it('should remove active class from icon when no servers enabled', () => {
-    selector.setMcpManager(createMockMcpManager([{ name: 'server1', enabled: true }]));
-    selector.clearEnabled();
-    selector.updateDisplay();
-
-    const icon = parentEl.querySelector('.claudian-mcp-selector-icon');
-    expect(icon?.hasClass('active')).toBe(false);
+  it('prunes restored selections after lazy configuration loads', async () => {
+    let finish!: () => void;
+    let loaded = false;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    const onChange = jest.fn();
+    selector.setOnChange(onChange);
+    selector.setMcpManager({ isLoaded: () => loaded, getServers: () => [{ name: 'kept', enabled: true }], ensureLoaded: () => pending } as never);
+    selector.setEnabledServers(['kept', 'removed']);
+    expect(selector.getEnabledServers()).toEqual(new Set(['kept', 'removed']));
+    loaded = true;
+    finish();
+    await pending;
+    await Promise.resolve();
+    expect(selector.getEnabledServers()).toEqual(new Set(['kept']));
+    expect(onChange).toHaveBeenCalledWith(new Set(['kept']));
   });
 
   it('should handle null mcpManager', () => {
@@ -663,89 +586,5 @@ describe('InputToolbarLayoutController', () => {
 
     controller.destroy();
     expect(disconnect).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('McpServerSelector - toggle and badges', () => {
-  let parentEl: any;
-  let selector: McpServerSelector;
-
-  function createMockMcpManager(servers: { name: string; enabled: boolean; contextSaving?: boolean }[] = []) {
-    return {
-      getServers: jest.fn().mockReturnValue(
-        servers.map(s => ({
-          name: s.name,
-          enabled: s.enabled,
-          contextSaving: s.contextSaving ?? false,
-        }))
-      ),
-    } as any;
-  }
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    parentEl = createMockEl();
-    selector = new McpServerSelector(parentEl);
-  });
-
-  it('should render context-saving badge for servers with contextSaving', () => {
-    selector.setMcpManager(createMockMcpManager([
-      { name: 'server1', enabled: true, contextSaving: true },
-    ]));
-
-    const csBadge = parentEl.querySelector('.claudian-mcp-selector-cs-badge');
-    expect(csBadge).not.toBeNull();
-    expect(csBadge?.textContent).toBe('@');
-  });
-
-  it('should not render context-saving badge for servers without contextSaving', () => {
-    selector.setMcpManager(createMockMcpManager([
-      { name: 'server1', enabled: true, contextSaving: false },
-    ]));
-
-    const csBadge = parentEl.querySelector('.claudian-mcp-selector-cs-badge');
-    expect(csBadge).toBeNull();
-  });
-
-  it('should toggle server on mousedown and update display', () => {
-    const onChange = jest.fn();
-    selector.setOnChange(onChange);
-
-    selector.setMcpManager(createMockMcpManager([
-      { name: 'server1', enabled: true },
-    ]));
-
-    // Find the server item and trigger mousedown
-    const item = parentEl.querySelector('.claudian-mcp-selector-item');
-    expect(item).not.toBeNull();
-
-    // Simulate mousedown to enable
-    const mousedownHandlers = item._eventListeners?.get('mousedown');
-    expect(mousedownHandlers).toBeDefined();
-    mousedownHandlers![0]({ preventDefault: jest.fn(), stopPropagation: jest.fn() });
-
-    expect(selector.getEnabledServers().has('server1')).toBe(true);
-    expect(onChange).toHaveBeenCalled();
-
-    // Toggle again to disable
-    onChange.mockClear();
-    mousedownHandlers![0]({ preventDefault: jest.fn(), stopPropagation: jest.fn() });
-
-    expect(selector.getEnabledServers().has('server1')).toBe(false);
-    expect(onChange).toHaveBeenCalled();
-  });
-
-  it('should re-render dropdown on mouseenter', () => {
-    selector.setMcpManager(createMockMcpManager([
-      { name: 'server1', enabled: true },
-    ]));
-
-    // Get container and trigger mouseenter
-    const container = parentEl.querySelector('.claudian-mcp-selector');
-    const mouseenterHandlers = container?._eventListeners?.get('mouseenter');
-    expect(mouseenterHandlers).toBeDefined();
-
-    // Should not throw
-    expect(() => mouseenterHandlers![0]()).not.toThrow();
   });
 });
