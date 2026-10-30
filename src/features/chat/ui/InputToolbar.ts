@@ -13,12 +13,10 @@ import type {
   ProviderUIOption,
 } from '../../../core/providers/types';
 import type {
-  ManagedMcpServer,
   StoredChatModelSelection,
   UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
-import { appendCheckIcon, appendMcpIcon } from '../../../shared/icons';
 import { createPreactRoot, type PreactRoot } from '../../../shared/ui/PreactRoot';
 import {
   cancelScheduledAnimationFrame,
@@ -681,37 +679,15 @@ export class ExternalContextSelector {
   }
 }
 
-let nextMcpSelectorId = 0;
-
+/** Keeps conversation MCP selections without rendering a picker. */
 export class McpServerSelector {
-  private container: HTMLElement;
-  private iconEl: HTMLElement | null = null;
-  private badgeEl: HTMLElement | null = null;
-  private dropdownEl: HTMLElement | null = null;
   private mcpManager: McpServerManager | null = null;
-  private enabledServers: Set<string> = new Set();
+  private enabledServers = new Set<string>();
   private onChangeCallback: ((enabled: Set<string>) => void) | null = null;
-  private visible = true;
-  private isOpen = false;
-
-  private readonly handleDocumentClick = (event: MouseEvent): void => {
-    if (!this.container.contains(event.target as Node)) this.setOpen(false);
-  };
-
-  constructor(parentEl: HTMLElement) {
-    this.container = parentEl.createDiv({ cls: 'claudian-mcp-selector' });
-    this.render();
-    this.container.ownerDocument.addEventListener('click', this.handleDocumentClick, true);
-  }
+  private destroyed = false;
 
   destroy(): void {
-    this.container.ownerDocument.removeEventListener('click', this.handleDocumentClick, true);
-    this.setOpen(false);
-  }
-
-  setVisible(visible: boolean): void {
-    this.visible = visible;
-    this.updateDisplay();
+    this.destroyed = true;
   }
 
   setMcpManager(manager: McpServerManager | null): void {
@@ -721,9 +697,14 @@ export class McpServerSelector {
       this.onChangeCallback?.(this.enabledServers);
     }
     this.pruneEnabledServers();
-    this.updateDisplay();
-    this.renderDropdown();
-    this.ensureManagerLoaded(manager);
+    if (!manager || manager.isLoaded?.() !== false) return;
+    const load = manager.ensureLoaded?.();
+    if (load === undefined) return;
+    void load.then(() => {
+      if (!this.destroyed && this.mcpManager === manager) this.pruneEnabledServers();
+    }).catch(() => {
+      // Keep persisted selections when configuration loading fails.
+    });
   }
 
   setOnChange(callback: (enabled: Set<string>) => void): void {
@@ -731,40 +712,27 @@ export class McpServerSelector {
   }
 
   getEnabledServers(): Set<string> {
+    this.pruneEnabledServers();
     return new Set(this.enabledServers);
   }
 
   addMentionedServers(names: Set<string>): void {
-    let changed = false;
-    for (const name of names) {
-      if (!this.enabledServers.has(name)) {
-        this.enabledServers.add(name);
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.updateDisplay();
-      this.renderDropdown();
-    }
+    for (const name of names) this.enabledServers.add(name);
+    this.pruneEnabledServers();
   }
 
   clearEnabled(): void {
     this.enabledServers.clear();
-    this.updateDisplay();
-    this.renderDropdown();
   }
 
   setEnabledServers(names: string[]): void {
     this.enabledServers = new Set(names);
     this.pruneEnabledServers();
-    this.updateDisplay();
-    this.renderDropdown();
   }
 
   private pruneEnabledServers(): void {
-    if (!this.mcpManager) return;
-    if (this.mcpManager.isLoaded?.() === false) return;
-    const activeNames = new Set(this.mcpManager.getServers().filter((s) => s.enabled).map((s) => s.name));
+    if (!this.mcpManager || this.mcpManager.isLoaded?.() === false) return;
+    const activeNames = new Set(this.mcpManager.getServers().filter(server => server.enabled).map(server => server.name));
     let changed = false;
     for (const name of this.enabledServers) {
       if (!activeNames.has(name)) {
@@ -772,206 +740,7 @@ export class McpServerSelector {
         changed = true;
       }
     }
-    if (changed) {
-      this.onChangeCallback?.(this.enabledServers);
-    }
-  }
-
-  private ensureManagerLoaded(manager: McpServerManager | null): void {
-    if (!manager || manager.isLoaded?.() !== false) return;
-
-    const load = manager.ensureLoaded?.();
-    if (load === undefined) return;
-
-    void load.then(() => {
-      if (this.mcpManager !== manager) return;
-      this.updateDisplay();
-      this.renderDropdown();
-    }).catch(() => {
-      // Keep the selector hidden when its configuration cannot be loaded.
-    });
-  }
-
-  private render() {
-    this.container.empty();
-
-    const iconWrapper = this.container.createEl('button', {
-      cls: 'claudian-mcp-selector-icon-wrapper',
-      attr: {
-        type: 'button',
-        'aria-label': t('settings.mcpServers.name'),
-        'aria-expanded': 'false',
-      },
-    });
-
-    this.iconEl = iconWrapper.createDiv({ cls: 'claudian-mcp-selector-icon' });
-    appendMcpIcon(this.iconEl);
-
-    this.badgeEl = iconWrapper.createDiv({ cls: 'claudian-mcp-selector-badge' });
-
-    this.updateDisplay();
-
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-mcp-selector-dropdown' });
-    this.dropdownEl.id = `claudian-mcp-selector-${++nextMcpSelectorId}`;
-    iconWrapper.setAttribute('aria-controls', this.dropdownEl.id);
-    this.renderDropdown();
-    iconWrapper.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.setOpen(!this.isOpen);
-    });
-
-    // Re-render dropdown content on hover (CSS handles visibility)
-    this.container.addEventListener('mouseenter', () => {
-      const load = this.mcpManager?.ensureLoaded?.();
-      if (load) {
-        void load.then(() => {
-          this.updateDisplay();
-          this.renderDropdown();
-        }).catch(() => {
-          // Keep the selector usable with its last known state when config loading fails.
-        });
-      } else {
-        this.renderDropdown();
-      }
-    });
-  }
-
-  private setOpen(open: boolean): void {
-    this.isOpen = open;
-    this.container.classList.toggle('is-open', open);
-    const trigger = this.container.querySelector<HTMLButtonElement>('.claudian-mcp-selector-icon-wrapper');
-    trigger?.setAttribute('aria-expanded', String(open));
-    if (open) {
-      this.dropdownEl?.querySelector<HTMLElement>('.claudian-mcp-selector-item')?.focus();
-    }
-  }
-
-  private renderDropdown() {
-    if (!this.dropdownEl) return;
-    this.pruneEnabledServers();
-    this.dropdownEl.empty();
-
-    // Header
-    const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-header' });
-    headerEl.setText(t('settings.mcp.selectorTitle'));
-
-    // Server list
-    const listEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-list' });
-
-    const allServers = this.mcpManager?.getServers() || [];
-    const servers = allServers.filter(s => s.enabled);
-
-    if (servers.length === 0) {
-      const emptyEl = listEl.createDiv({ cls: 'claudian-mcp-selector-empty' });
-      emptyEl.setText(allServers.length === 0 ? 'No MCP servers configured' : 'All MCP servers disabled');
-      return;
-    }
-
-    for (const server of servers) {
-      this.renderServerItem(listEl, server);
-    }
-  }
-
-  private renderServerItem(listEl: HTMLElement, server: ManagedMcpServer) {
-    const itemEl = listEl.createDiv({ cls: 'claudian-mcp-selector-item' });
-    itemEl.dataset.serverName = server.name;
-    itemEl.setAttribute('role', 'checkbox');
-    itemEl.setAttribute('tabindex', '0');
-
-    const isEnabled = this.enabledServers.has(server.name);
-    if (isEnabled) {
-      itemEl.addClass('enabled');
-    }
-    itemEl.setAttribute('aria-checked', String(isEnabled));
-
-    // Checkbox
-    const checkEl = itemEl.createDiv({ cls: 'claudian-mcp-selector-check' });
-    if (isEnabled) {
-      appendCheckIcon(checkEl);
-    }
-
-    // Info
-    const infoEl = itemEl.createDiv({ cls: 'claudian-mcp-selector-item-info' });
-
-    const nameEl = infoEl.createSpan({ cls: 'claudian-mcp-selector-item-name' });
-    nameEl.setText(server.name);
-
-    // Badges
-    if (server.contextSaving) {
-      const csEl = infoEl.createSpan({ cls: 'claudian-mcp-selector-cs-badge' });
-      csEl.setText('@');
-      csEl.setAttribute('title', t('settings.mcp.selectorContextHint', { server: server.name }));
-    }
-
-    // Click to toggle (use mousedown for more reliable capture)
-    itemEl.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggleServer(server.name, itemEl);
-    });
-    itemEl.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      this.toggleServer(server.name, itemEl);
-    });
-  }
-
-  private toggleServer(name: string, itemEl: HTMLElement) {
-    if (this.enabledServers.has(name)) {
-      this.enabledServers.delete(name);
-    } else {
-      this.enabledServers.add(name);
-    }
-
-    // Update item visually in-place (immediate feedback)
-    const isEnabled = this.enabledServers.has(name);
-    itemEl.setAttribute('aria-checked', String(isEnabled));
-    const checkEl = itemEl.querySelector<HTMLElement>('.claudian-mcp-selector-check');
-
-    if (isEnabled) {
-      itemEl.addClass('enabled');
-      if (checkEl) appendCheckIcon(checkEl);
-    } else {
-      itemEl.removeClass('enabled');
-      if (checkEl) checkEl.empty();
-    }
-
-    this.updateDisplay();
-    this.onChangeCallback?.(this.enabledServers);
-  }
-
-  updateDisplay() {
-    this.pruneEnabledServers();
-    if (!this.iconEl || !this.badgeEl) return;
-
-    const count = this.enabledServers.size;
-    const hasServers = (this.mcpManager?.getServers().length || 0) > 0;
-
-    // Show/hide container based on whether there are servers and visibility
-    if (!hasServers || !this.visible) {
-      this.container.addClass('claudian-hidden');
-      this.container.closest('.claudian-context-action-section')?.classList?.add('claudian-hidden');
-      return;
-    }
-    this.container.removeClass('claudian-hidden');
-    this.container.closest('.claudian-context-action-section')?.classList?.remove('claudian-hidden');
-
-    if (count > 0) {
-      this.iconEl.addClass('active');
-      this.iconEl.setAttribute('title', t(count === 1 ? 'settings.mcp.selectorEnabledOne' : 'settings.mcp.selectorEnabledMany', { count }));
-
-      // Show badge only when more than 1
-      if (count > 1) {
-        this.badgeEl.setText(String(count));
-        this.badgeEl.addClass('visible');
-      } else {
-        this.badgeEl.removeClass('visible');
-      }
-    } else {
-      this.iconEl.removeClass('active');
-      this.iconEl.setAttribute('title', t('settings.mcp.selectorHint'));
-      this.badgeEl.removeClass('visible');
-    }
+    if (changed) this.onChangeCallback?.(this.enabledServers);
   }
 }
 
@@ -1301,7 +1070,6 @@ export function createInputToolbar(
       addContextLabel: t('chat.composer.addContext'),
       menuId: contextActionsMenu.id,
       menuOpen: contextActionsMenu.open,
-      mcpLabel: t('settings.mcpServers.name'),
       modeMenuId,
       modeMenuLabel: t('chat.composer.modes'),
       modeMenuOpen: permissionModeMenuOpen,
@@ -1342,7 +1110,7 @@ export function createInputToolbar(
       onCloseContextActionsMenu: () => contextActionsMenu.close(),
     },
   );
-  const mcpServerSelector = new McpServerSelector(getSlot('context-mcp'));
+  const mcpServerSelector = new McpServerSelector();
   const modelSelector = new ModelSelector(getSlot('model'), callbacks);
   const thinkingBudgetSelector = new ThinkingBudgetSelector(
     getSlot('model'),

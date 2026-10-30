@@ -6,7 +6,6 @@ import {
 
 export type InputToolbarSlot =
   | 'context-external'
-  | 'context-mcp'
   | 'model'
   | 'status'
   | 'provider-mode'
@@ -16,7 +15,6 @@ export interface InputToolbarViewProps {
   addContextLabel: string;
   menuId: string;
   menuOpen: boolean;
-  mcpLabel: string;
   modeMenuId: string;
   modeMenuLabel: string;
   modeMenuOpen: boolean;
@@ -44,7 +42,6 @@ export function InputToolbarView({
   addContextLabel,
   menuId,
   menuOpen,
-  mcpLabel,
   modeMenuId,
   modeMenuLabel,
   modeMenuOpen,
@@ -90,10 +87,6 @@ export function InputToolbarView({
           </button>
           <div className="claudian-context-action-section claudian-context-action-section--external">
             <Slot name="context-external" onSlot={onSlot} />
-          </div>
-          <div className="claudian-context-action-section">
-            <span className="claudian-context-action-label">{mcpLabel}</span>
-            <Slot name="context-mcp" onSlot={onSlot} />
           </div>
         </div>
       </div>
