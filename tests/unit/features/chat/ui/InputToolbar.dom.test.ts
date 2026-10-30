@@ -834,6 +834,16 @@ describe('createInputToolbar', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('retains the mounted context meter when the toolbar rerenders', () => {
+    if (!toolbar?.contextUsageMeter) throw new Error('Expected the context meter');
+    toolbar.contextUsageMeter.update({ inputTokens: 0, cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0, contextWindow: 200000, contextTokens: 50000, percentage: 25 });
+    const meter = toolbarEl.querySelector('.claudian-context-meter');
+    toolbar.refreshLocale();
+    expect(toolbarEl.querySelector('.claudian-context-meter')).toBe(meter);
+    expect(meter?.getAttribute('aria-valuenow')).toBe('25');
+  });
+
   it('unmounts the Preact toolbar through its public destroy method', () => {
     if (!toolbar) throw new Error('Expected the input toolbar');
     toolbar.destroy();
