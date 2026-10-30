@@ -41,7 +41,6 @@ export function createDeepSeekSettingsTabRenderer(workspace: { cliResolver: Deep
         }, onRefresh: refreshCatalog,
       });
       const management = panel.management;
-      management.createEl('p', { cls: 'setting-item-description', text: t('settings.deepseek.installation.desc') });
       const warning = renderLastEnabledProviderWarning(management);
       const modelWarning = renderProviderModelEnablementWarning(container, context, {
         providerId: 'deepseek', providerName: 'DeepSeek Harness', getHasEnabledModels: () => settings().visibleModels.length > 0, getIsEnabled: () => settings().enabled,
@@ -64,6 +63,7 @@ export function createDeepSeekSettingsTabRenderer(workspace: { cliResolver: Deep
           await panel.refresh();
         },
       });
+      management.createEl('p', { cls: 'setting-item-description', text: t('settings.deepseek.installation.desc') });
       new Setting(container).setName(t('settings.models')).setHeading();
       const picker = renderProviderModelPicker({ container, modifier: 'deepseek', providerName: 'DeepSeek Harness',
         emptyCatalogText: t('settings.deepseek.models.empty'), failedCatalogText: t('settings.deepseek.models.failed'), loadingCatalogText: t('settings.deepseek.models.loading'),
