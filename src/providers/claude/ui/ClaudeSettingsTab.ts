@@ -380,8 +380,6 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       name: t('settings.customVariables.name'),
       desc: t('settings.customVariables.desc'),
       placeholder: 'ANTHROPIC_API_KEY=your-key\nANTHROPIC_BASE_URL=https://api.example.com\nANTHROPIC_MODEL=custom-model\nCLAUDE_CODE_USE_BEDROCK=1',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'claude'),
     });
 

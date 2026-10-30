@@ -203,8 +203,6 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
       heading: t('settings.environment'),
       name: t('settings.grok.environment.name'),
       placeholder: 'GROK_HOME=/path/to/grok-home\nGROK_DEFAULT_MODEL=grok-code-fast-1',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
       plugin: context.plugin,
       renderCustomContextLimits: target => context.renderCustomContextLimits(target, GROK_PROVIDER_ID),
       scope: 'provider:grok',

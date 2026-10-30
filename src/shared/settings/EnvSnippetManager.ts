@@ -1,5 +1,5 @@
 import type { App } from 'obsidian';
-import { Modal, Notice, setIcon, Setting } from 'obsidian';
+import { Modal, Notice, Setting } from 'obsidian';
 import { h } from 'preact';
 
 import {
@@ -239,16 +239,11 @@ export class EnvSnippetModal extends Modal {
   }
 }
 
-export interface EnvSnippetManagerOptions {
-  usePreactView?: boolean;
-}
-
 export class EnvSnippetManager {
   private containerEl: HTMLElement;
   private plugin: ProviderHost;
   private scope: EnvironmentScope;
   private onContextLimitsChange?: () => void;
-  private readonly usePreactView: boolean;
   private snippetListRoot: PreactRoot | null = null;
 
   constructor(
@@ -256,13 +251,11 @@ export class EnvSnippetManager {
     plugin: ProviderHost,
     scope: EnvironmentScope,
     onContextLimitsChange?: () => void,
-    options: EnvSnippetManagerOptions = {},
   ) {
     this.containerEl = containerEl;
     this.plugin = plugin;
     this.scope = scope;
     this.onContextLimitsChange = onContextLimitsChange;
-    this.usePreactView = options.usePreactView ?? false;
     this.render();
   }
 
@@ -273,119 +266,39 @@ export class EnvSnippetManager {
 
     const snippets = this.plugin.settings.envSnippets.filter((snippet) => this.shouldDisplaySnippet(snippet));
 
-    if (this.usePreactView) {
-      this.snippetListRoot = createPreactRoot(this.containerEl);
-      this.snippetListRoot.render(h(EnvSnippetListView, {
-        items: snippets,
-        labels: {
-          name: t('settings.envSnippets.name'),
-          add: t('settings.envSnippets.addBtn'),
-          empty: t('settings.envSnippets.noSnippets'),
-          insert: t('settings.envSnippets.insertBtn'),
-          edit: t('settings.envSnippets.editBtn'),
-          delete: t('settings.envSnippets.deleteBtn'),
-        },
-        onAdd: () => {
-          void this.saveCurrentEnv();
-        },
-        onInsert: (id) => {
-          const snippet = snippets.find(candidate => candidate.id === id);
-          if (snippet) {
-            void this.insertSnippetWithNotice(snippet);
-          }
-        },
-        onEdit: (id) => {
-          const snippet = snippets.find(candidate => candidate.id === id);
-          if (snippet) {
-            this.editSnippet(snippet);
-          }
-        },
-        onDelete: (id) => {
-          const snippet = snippets.find(candidate => candidate.id === id);
-          if (snippet) {
-            void this.deleteSnippetWithNotice(snippet);
-          }
-        },
-      }));
-      return;
-    }
-
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-snippet-header' });
-    headerEl.createSpan({ text: t('settings.envSnippets.name'), cls: 'claudian-snippet-label' });
-
-    const saveBtn = headerEl.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { type: 'button', 'aria-label': t('settings.envSnippets.addBtn') },
-    });
-    setIcon(saveBtn, 'plus');
-    saveBtn.addEventListener('click', () => {
-      void this.saveCurrentEnv();
-    });
-
-    if (snippets.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-snippet-empty' });
-      emptyEl.setText(t('settings.envSnippets.noSnippets'));
-      return;
-    }
-
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-snippet-list' });
-
-    for (const snippet of snippets) {
-      const itemEl = listEl.createDiv({ cls: 'claudian-snippet-item' });
-
-      const infoEl = itemEl.createDiv({ cls: 'claudian-snippet-info' });
-
-      const nameEl = infoEl.createDiv({ cls: 'claudian-snippet-name' });
-      nameEl.setText(snippet.name);
-
-      if (snippet.description) {
-        const descEl = infoEl.createDiv({ cls: 'claudian-snippet-description' });
-        descEl.setText(snippet.description);
-      }
-
-      const actionsEl = itemEl.createDiv({ cls: 'claudian-snippet-actions' });
-
-      const restoreBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { type: 'button', 'aria-label': t('settings.envSnippets.insertBtn') },
-      });
-      setIcon(restoreBtn, 'clipboard-paste');
-      restoreBtn.addEventListener('click', () => {
-        void (async (): Promise<void> => {
-          try {
-            await this.insertSnippet(snippet);
-          } catch {
-            new Notice(t('settings.envSnippets.insertFailed'));
-          }
-        })();
-      });
-
-      const editBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { type: 'button', 'aria-label': t('settings.envSnippets.editBtn') },
-      });
-      setIcon(editBtn, 'pencil');
-      editBtn.addEventListener('click', () => {
-        this.editSnippet(snippet);
-      });
-
-      const deleteBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-        attr: { type: 'button', 'aria-label': t('settings.envSnippets.deleteBtn') },
-      });
-      setIcon(deleteBtn, 'trash-2');
-      deleteBtn.addEventListener('click', () => {
-        void (async (): Promise<void> => {
-          try {
-            if (await confirmDelete(this.plugin.app, t('settings.envSnippets.deleteConfirm', { name: snippet.name }))) {
-              await this.deleteSnippet(snippet);
-            }
-          } catch {
-            new Notice(t('settings.envSnippets.deleteFailed'));
-          }
-        })();
-      });
-    }
+    this.snippetListRoot = createPreactRoot(this.containerEl);
+    this.snippetListRoot.render(h(EnvSnippetListView, {
+      items: snippets,
+      labels: {
+        name: t('settings.envSnippets.name'),
+        add: t('settings.envSnippets.addBtn'),
+        empty: t('settings.envSnippets.noSnippets'),
+        insert: t('settings.envSnippets.insertBtn'),
+        edit: t('settings.envSnippets.editBtn'),
+        delete: t('settings.envSnippets.deleteBtn'),
+      },
+      onAdd: () => {
+        void this.saveCurrentEnv();
+      },
+      onInsert: (id) => {
+        const snippet = snippets.find(candidate => candidate.id === id);
+        if (snippet) {
+          void this.insertSnippetWithNotice(snippet);
+        }
+      },
+      onEdit: (id) => {
+        const snippet = snippets.find(candidate => candidate.id === id);
+        if (snippet) {
+          this.editSnippet(snippet);
+        }
+      },
+      onDelete: (id) => {
+        const snippet = snippets.find(candidate => candidate.id === id);
+        if (snippet) {
+          void this.deleteSnippetWithNotice(snippet);
+        }
+      },
+    }));
   }
 
   public destroy(): void {

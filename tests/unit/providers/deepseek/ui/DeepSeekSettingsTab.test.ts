@@ -8,6 +8,7 @@ expect.extend(toHaveNoViolations);
 
 import { getDeepSeekProviderSettings } from '@/providers/deepseek/settings';
 import { createDeepSeekSettingsTabRenderer } from '@/providers/deepseek/ui/DeepSeekSettingsTab';
+import { renderEnvironmentSettingsSection } from '@/shared/settings/EnvironmentSettingsSection';
 
 jest.mock('obsidian', () => {
   class Setting {
@@ -107,7 +108,14 @@ function render(deepseekEnabled = true, resolvedPath: string | null = null, conf
 }
 
 describe('DeepSeekSettingsTab', () => {
-  afterEach(() => { document.body.replaceChildren(); });
+  afterEach(() => { document.body.replaceChildren(); jest.clearAllMocks(); });
+
+  it('uses Preact for DeepSeek environment controls', () => {
+    const { host } = render();
+    expect(renderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
+      plugin: host, scope: 'provider:deepseek',
+    }));
+  });
 
   it('identifies an explicitly selected Desktop app and explains installation selection', async () => {
     const app = process.platform === 'win32' ? 'C:\\test\\DeepSeek Harness.exe' : '/test/DeepSeek Harness.app';

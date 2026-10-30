@@ -429,8 +429,6 @@ describe('PiSettingsTab', () => {
 
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       scope: 'provider:pi',
-      usePreactEnvironmentField: true,
-      usePreactSnippetList: true,
     }));
 
     const enablement = mockProviderEnablementOptions[0];

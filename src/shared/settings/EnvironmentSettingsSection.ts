@@ -1,11 +1,10 @@
 import { Notice, Setting } from 'obsidian';
 import { h } from 'preact';
 
-import { getEnvironmentReviewKeysForScope } from '../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import type { EnvironmentScope } from '../../core/types/settings';
 import { t } from '../../i18n/i18n';
-import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
+import { createPreactRoot } from '../ui/PreactRoot';
 import { EnvironmentVariableSettingsView } from './EnvironmentVariableSettingsView';
 import { EnvSnippetManager } from './EnvSnippetManager';
 
@@ -18,8 +17,6 @@ interface EnvironmentSettingsSectionOptions {
   desc: string;
   placeholder: string;
   renderCustomContextLimits?: (container: HTMLElement) => void;
-  usePreactEnvironmentField?: boolean;
-  usePreactSnippetList?: boolean;
 }
 
 const environmentSectionDestructors = new WeakMap<HTMLElement, () => void>();
@@ -49,8 +46,6 @@ export function renderEnvironmentSettingsSection(
     desc,
     placeholder,
     renderCustomContextLimits,
-    usePreactEnvironmentField = false,
-    usePreactSnippetList = false,
   } = options;
 
   if (heading) {
@@ -58,8 +53,6 @@ export function renderEnvironmentSettingsSection(
   }
 
   let contextLimitsContainer: HTMLElement | null = null;
-  let environmentRoot: PreactRoot | null = null;
-  let environmentHost: HTMLElement | null = null;
   let destroyed = false;
 
   const applyEnvironment = async (value: string): Promise<boolean> => {
@@ -75,61 +68,18 @@ export function renderEnvironmentSettingsSection(
     }
   };
 
-  if (usePreactEnvironmentField) {
-    environmentHost = container.createDiv({ cls: 'claudian-environment-field-host' });
-    environmentRoot = createPreactRoot(environmentHost);
-    environmentRoot.render(h(EnvironmentVariableSettingsView, {
-      scope,
-      name,
-      description: desc,
-      placeholder,
-      initialValue: plugin.getEnvironmentVariablesForScope(scope),
-      onApply: async (value) => {
-        await applyEnvironment(value);
-      },
-    }));
-  } else {
-    let envTextarea: HTMLTextAreaElement | null = null;
-    const reviewEl = container.createDiv({
-      cls: 'claudian-env-review-warning claudian-setting-validation claudian-setting-validation-warning claudian-hidden',
-    });
-
-    const updateReviewWarning = () => {
-      const reviewKeys = getEnvironmentReviewKeysForScope(envTextarea?.value ?? '', scope);
-      if (reviewKeys.length === 0) {
-        reviewEl.toggleClass('claudian-hidden', true);
-        reviewEl.empty();
-        return;
-      }
-
-      reviewEl.setText(t('settings.environmentOwnership', { keys: reviewKeys.join(', ') }));
-      reviewEl.toggleClass('claudian-hidden', false);
-    };
-
-    new Setting(container)
-      .setName(name)
-      .setDesc(desc)
-      .addTextArea((text) => {
-        text
-          .setPlaceholder(placeholder)
-          .setValue(plugin.getEnvironmentVariablesForScope(scope));
-        text.inputEl.rows = 6;
-        text.inputEl.cols = 50;
-        text.inputEl.addClass('claudian-settings-env-textarea');
-        text.inputEl.dataset.envScope = scope;
-        text.inputEl.addEventListener('input', () => updateReviewWarning());
-        text.inputEl.addEventListener('blur', () => {
-          void (async (): Promise<void> => {
-            if (await applyEnvironment(text.inputEl.value)) {
-              updateReviewWarning();
-            }
-          })();
-        });
-        envTextarea = text.inputEl;
-      });
-
-    updateReviewWarning();
-  }
+  const environmentHost = container.createDiv({ cls: 'claudian-environment-field-host' });
+  const environmentRoot = createPreactRoot(environmentHost);
+  environmentRoot.render(h(EnvironmentVariableSettingsView, {
+    scope,
+    name,
+    description: desc,
+    placeholder,
+    initialValue: plugin.getEnvironmentVariablesForScope(scope),
+    onApply: async (value) => {
+      await applyEnvironment(value);
+    },
+  }));
 
   contextLimitsContainer = container.createDiv({ cls: 'claudian-context-limits-container' });
   renderCustomContextLimits?.(contextLimitsContainer);
@@ -137,18 +87,16 @@ export function renderEnvironmentSettingsSection(
   const envSnippetsContainer = container.createDiv({ cls: 'claudian-env-snippets-container' });
   const snippetManager = new EnvSnippetManager(envSnippetsContainer, plugin, scope, () => {
     renderCustomContextLimits?.(contextLimitsContainer);
-  }, {
-    usePreactView: usePreactSnippetList,
   });
 
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
-    if (environmentHost) environmentSectionDestructors.delete(environmentHost);
+    environmentSectionDestructors.delete(environmentHost);
     snippetManager.destroy();
-    environmentRoot?.unmount();
+    environmentRoot.unmount();
   };
-  if (environmentHost) environmentSectionDestructors.set(environmentHost, destroy);
+  environmentSectionDestructors.set(environmentHost, destroy);
 
   return {
     destroy,
