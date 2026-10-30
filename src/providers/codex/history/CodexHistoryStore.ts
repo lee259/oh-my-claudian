@@ -1,6 +1,4 @@
-import { createReadStream } from 'node:fs';
 import * as fsp from 'node:fs/promises';
-import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import * as fs from 'fs';
@@ -1822,7 +1820,7 @@ export function findCodexSessionFile(
         continue;
       }
 
-      if (entry.isFile() && entry.name.endsWith(`-${threadId}.jsonl`)) {
+      if (entry.isFile() && (entry.name.endsWith(`-${threadId}.jsonl`) || entry.name.endsWith(`-${threadId}.jsonl.zst`) || entry.name === `${threadId}.jsonl.zst`)) {
         return fullPath;
       }
     }
@@ -1875,7 +1873,7 @@ export async function findCodexSessionFileAsync(
       const fullPath = path.join(current, entry.name);
       if (entry.isDirectory()) {
         stack.push(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith(`-${threadId}.jsonl`)) {
+      } else if (entry.isFile() && (entry.name.endsWith(`-${threadId}.jsonl`) || entry.name.endsWith(`-${threadId}.jsonl.zst`) || entry.name === `${threadId}.jsonl.zst`)) {
         return fullPath;
       }
     }
@@ -2013,24 +2011,12 @@ export async function readCodexSessionModel(
   resumeAtTurnId?: string,
   timeoutMs = 10_000,
 ): Promise<string | null> {
-  const input = createReadStream(filePath, { encoding: 'utf8' });
-  const lines = createInterface({ input, crlfDelay: Infinity });
-  const timer = window.setTimeout(
-    () => input.destroy(new Error('Codex model recovery timed out.')),
-    timeoutMs,
-  );
   const reader = new SessionModelReader(resumeAtTurnId);
-  try {
-    for await (const line of lines) {
-      reader.accept(line);
-      if (reader.reached) break;
-    }
-    return reader.result();
-  } finally {
-    window.clearTimeout(timer);
-    lines.close();
-    input.destroy();
-  }
+  await forEachJSONLLine(filePath, line => {
+    reader.accept(line);
+    return !reader.reached;
+  }, { timeoutMs, chunkBytes: 64 * 1024 });
+  return reader.result();
 }
 
 export function parseCodexSessionRecordLines(lines: readonly string[]): CodexSessionRecord[] {
