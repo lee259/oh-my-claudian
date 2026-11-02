@@ -1,4 +1,4 @@
-import type { App, WorkspaceLeaf } from 'obsidian';
+import type { App, EventRef, WorkspaceLeaf } from 'obsidian';
 import { MarkdownView } from 'obsidian';
 
 import { hideSelectionHighlight, showSelectionHighlight } from '../../../shared/components/SelectionHighlight';
@@ -33,6 +33,8 @@ export class SelectionController {
   private highlightRegistry: CustomHighlightRegistry | null = null;
   private highlightGateEl: HTMLElement | null = null;
   private readonly poller: VisibilityGatedPoller;
+  private started = false;
+  private workspaceEventRefs: EventRef[] = [];
   private readonly focusScopePointerDownHandler = () => {
     if (!this.storedSelection) return;
     this.inputHandoffGraceUntil = Date.now() + INPUT_HANDOFF_GRACE_MS;
@@ -68,7 +70,8 @@ export class SelectionController {
   }
 
   start(): void {
-    if (this.poller.isStarted()) return;
+    if (this.started) return;
+    this.started = true;
     this.inputEl.addEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
@@ -76,10 +79,13 @@ export class SelectionController {
       }
       focusScopeEl.addEventListener('focusin', this.focusScopeFocusInHandler);
     }
-    this.poller.start();
+    this.registerWorkspaceEvents();
+    this.syncActiveEditorPolling();
   }
 
   stop(): void {
+    this.started = false;
+    this.releaseWorkspaceEvents();
     this.poller.stop();
     this.inputEl.removeEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
@@ -89,6 +95,38 @@ export class SelectionController {
       focusScopeEl.removeEventListener('focusin', this.focusScopeFocusInHandler);
     }
     this.clear();
+  }
+
+  private registerWorkspaceEvents(): void {
+    if (this.workspaceEventRefs.length > 0) return;
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      on?: (event: 'active-leaf-change' | 'layout-change', callback: () => void) => EventRef;
+    };
+    if (!workspace.on) return;
+    this.workspaceEventRefs = [
+      workspace.on('active-leaf-change', () => this.syncActiveEditorPolling()),
+      workspace.on('layout-change', () => this.syncActiveEditorPolling()),
+    ];
+  }
+
+  private releaseWorkspaceEvents(): void {
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      offref?: (ref: EventRef) => void;
+    };
+    if (workspace.offref) {
+      for (const ref of this.workspaceEventRefs) workspace.offref(ref);
+    }
+    this.workspaceEventRefs = [];
+  }
+
+  private syncActiveEditorPolling(): void {
+    if (!this.started) return;
+    if (this.app.workspace.getActiveViewOfType(MarkdownView)) {
+      this.poller.start();
+      return;
+    }
+    this.poller.stop();
+    this.clearWhenMarkdownContextIsUnavailable();
   }
 
   dispose(): void {
