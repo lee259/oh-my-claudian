@@ -1593,6 +1593,7 @@ export function initializeTabUI(
           && (plugin.settings.enableAutoScroll ?? true);
       },
       plugin.app,
+      () => tab.renderer?.revealAllMessages() ?? null,
     );
   }
 
@@ -2566,8 +2567,7 @@ export async function attachBackgroundTurnPresentations(tab: TabData): Promise<v
     for (const turn of turns.values()) {
       if (tab.session.presentation !== presentation) return;
       if (!turn.hasVisibleContent) continue;
-      let contentEl = Array.from(presentation.dom.messagesEl.querySelectorAll<HTMLElement>('[data-message-id]'))
-        .find(element => element.dataset.messageId === turn.assistantMsg.id)
+      let contentEl = tab.renderer?.revealMessage(turn.assistantMsg.id)
         ?.querySelector<HTMLElement>('.claudian-message-content') ?? null;
       if (!contentEl) contentEl = tab.renderer?.addMessage({ ...turn.assistantMsg, content: '' }) ?? null;
       turn.contentEl = contentEl;

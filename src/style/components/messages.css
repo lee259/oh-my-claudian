@@ -18,6 +18,23 @@
   container-type: inline-size;
 }
 
+.claudian-render-window-more {
+  align-self: center;
+  margin: 0 auto 12px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.claudian-render-window-more:hover,
+.claudian-render-window-more:focus-visible {
+  color: var(--text-normal);
+}
+
 .claudian-transcript-turn {
   display: flex;
   flex-direction: column;

@@ -312,6 +312,7 @@
       "linkedPaths": "更新关联会话的笔记路径失败"
     },
     "rendering": {
+      "showEarlier": "显示更早的消息（{count} 条）",
       "noChanges": "没有变化",
       "copied": "已复制！",
       "planComplete": "计划完成",

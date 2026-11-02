@@ -313,8 +313,10 @@ export class TabManager implements TabManagerInterface {
           const messages = getRuntimeMessageProjection(tab);
           presentation.dom.welcomeEl = presentation.renderer?.renderMessages(messages, () => runtime.controllers.conversationController?.getGreeting() ?? '') ?? null;
           runtime.controllers.conversationController?.updateWelcomeVisibility();
-          let responseEl = Array.from(presentation.dom.messagesEl.querySelectorAll<HTMLElement>('[data-message-id]'))
-            .find(element => element.dataset.messageId === active)?.querySelector<HTMLElement>('.claudian-message-content') ?? null;
+          let responseEl = active
+            ? presentation.renderer?.revealMessage(active)
+              ?.querySelector<HTMLElement>('.claudian-message-content') ?? null
+            : null;
           if (!responseEl && active) {
             const message = messages.find(message => message.id === active);
             if (message) responseEl = presentation.renderer?.addMessage(message) ?? null;

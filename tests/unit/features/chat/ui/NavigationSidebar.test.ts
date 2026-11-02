@@ -686,6 +686,25 @@ describe('NavigationSidebar', () => {
       expect(items[1].textContent).toBe('2. Second prompt');
     });
 
+    it('should reveal windowed messages before reading the directory', () => {
+      messagesEl.scrollHeight = 1000;
+      messagesEl.clientHeight = 500;
+      addMessage(messagesEl, 'user', 0, 'First prompt');
+      const revealAllMessages = jest.fn(() => null);
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement,
+        undefined,
+        undefined,
+        revealAllMessages,
+      );
+
+      getDirectoryButton(parentEl).click();
+
+      expect(revealAllMessages).toHaveBeenCalledTimes(1);
+    });
+
     it('should fall back to visible user message text when toc metadata is missing', () => {
       messagesEl.scrollHeight = 2000;
       messagesEl.clientHeight = 500;

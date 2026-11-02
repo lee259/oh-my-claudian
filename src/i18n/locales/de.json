@@ -312,6 +312,7 @@
       "linkedPaths": "Verknüpfte Sitzungsnotizpfade konnten nicht aktualisiert werden"
     },
     "rendering": {
+      "showEarlier": "Frühere Nachrichten anzeigen ({count})",
       "noChanges": "Keine Änderungen",
       "copied": "Kopiert!",
       "planComplete": "Plan abgeschlossen",
