@@ -34,6 +34,32 @@ describe('ClaudeCommandCatalog', () => {
       expect(commitEntry!.insertPrefix).toBe('/');
     });
 
+    it('keeps custom names and the supported context command while hiding native-only builtins', async () => {
+      const adapter = createMockAdapter({});
+      const catalog = new ClaudeCommandCatalog(new SlashCommandStorage(adapter), new SkillStorage(adapter));
+      catalog.setCommandSnapshot([
+        { id: 'sdk:context', name: 'context', content: '', source: 'builtin', kind: 'command' },
+        { id: 'sdk:compact', name: 'compact', content: '', source: 'builtin', kind: 'command' },
+        { id: 'sdk:init', name: 'init', content: '', source: 'sdk', kind: 'skill' },
+        { id: 'sdk:debug', name: 'debug', content: '', source: 'builtin', kind: 'command' },
+        { id: 'custom:debug', name: 'debug', content: '', source: 'sdk', kind: 'skill' },
+      ]);
+      const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
+      expect(entries.map(entry => entry.name)).toEqual(['context', 'compact', 'init']);
+      expect(entries[0]).toMatchObject({ scope: 'runtime', isEditable: false, isDeletable: false });
+    });
+
+    it('preserves custom vault entries on old snapshots without native provenance', async () => {
+      const adapter = createMockAdapter({});
+      const catalog = new ClaudeCommandCatalog(new SlashCommandStorage(adapter), new SkillStorage(adapter));
+      catalog.setCommandSnapshot([
+        { id: 'custom:init', name: 'init', content: '', source: 'user', kind: 'skill' },
+        { id: 'sdk:debug', name: 'debug', content: '', source: 'sdk' },
+      ]);
+      const entries = await catalog.listDropdownEntries({ includeBuiltIns: false });
+      expect(entries.map(entry => entry.id)).toEqual(['custom:init']);
+    });
+
     it('returns empty when no runtime commands and no probe', async () => {
       const adapter = createMockAdapter({});
       const commands = new SlashCommandStorage(adapter);

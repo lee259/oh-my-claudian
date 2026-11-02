@@ -71,7 +71,7 @@ describe('probeRuntimeCommands', () => {
       description: 'Compact the conversation',
       argumentHint: '',
       content: '',
-      source: 'sdk',
+      source: 'builtin',
       kind: 'command',
     }]);
     expect(sdkMock.getLastOptions()?.settingSources).toEqual(['project', 'local']);

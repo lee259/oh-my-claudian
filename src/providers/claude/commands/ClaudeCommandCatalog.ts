@@ -14,11 +14,12 @@ function slashCommandToEntry(
   cmd: SlashCommand,
 ): ProviderCommandEntry {
   const skill = isSkill(cmd);
+  const runtimeCommand = cmd.source === 'sdk' || cmd.source === 'builtin';
   return {
     id: cmd.id,
     providerId: 'claude',
     kind: skill ? 'skill' : 'command',
-    showKind: cmd.source !== 'sdk',
+    showKind: !runtimeCommand,
     name: cmd.name,
     description: cmd.description,
     content: cmd.content,
@@ -30,10 +31,10 @@ function slashCommandToEntry(
     context: cmd.context,
     agent: cmd.agent,
     hooks: cmd.hooks,
-    scope: cmd.source === 'sdk' ? 'runtime' : 'vault',
+    scope: runtimeCommand ? 'runtime' : 'vault',
     source: cmd.source ?? 'user',
-    isEditable: cmd.source !== 'sdk',
-    isDeletable: cmd.source !== 'sdk',
+    isEditable: !runtimeCommand,
+    isDeletable: !runtimeCommand,
     displayPrefix: '/',
     insertPrefix: '/',
   };
@@ -114,8 +115,15 @@ export class ClaudeCommandCatalog implements ProviderCommandCatalog, ProviderVau
           : probedCommands;
       }
     }
+    // Older SDKs omit provenance, so retain the legacy filter for their runtime entries.
+    // A native built-in wins a same-name collision even when another row is unmarked.
+    const reportsNativeProvenance = commands.some(cmd => cmd.source === 'builtin');
+    const hiddenNativeNames = new Set(commands
+      .filter(cmd => cmd.source === 'builtin' && BUILTIN_HIDDEN_COMMANDS.has(cmd.name.toLowerCase()))
+      .map(cmd => cmd.name.toLowerCase()));
     return commands
-      .filter(cmd => !BUILTIN_HIDDEN_COMMANDS.has(cmd.name.toLowerCase()))
+      .filter(cmd => !hiddenNativeNames.has(cmd.name.toLowerCase())
+        && (reportsNativeProvenance || cmd.source !== 'sdk' || !BUILTIN_HIDDEN_COMMANDS.has(cmd.name.toLowerCase())))
       .map(slashCommandToEntry);
   }
 

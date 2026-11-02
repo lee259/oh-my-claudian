@@ -10,7 +10,7 @@ export function mapClaudeSdkCommand(command: SDKSlashCommand): SlashCommand {
     description: command.description,
     argumentHint: command.argumentHint,
     content: '',
-    source: 'sdk',
+    source: command.builtin ? 'builtin' : 'sdk',
     // `builtin` identifies an explicit Claude Code command. Non-builtins may
     // be either commands or skills; the catalog resolves them from skill files.
     ...(command.builtin ? { kind: 'command' as const } : {}),
