@@ -235,7 +235,8 @@ export function ModelSelectorView({
 
   const reasoningHasChoice = reasoningOptions.length > 1
     || (reasoningOptions.length === 1 && reasoningOptions[0]?.value !== reasoningDefaultValue);
-  const displayReasoning = selectedReasoning?.label ?? (reasoningValue || 'Default');
+  const displayReasoning = selectedReasoning?.label
+    ?? (reasoningValue || t('chat.modelPicker.defaultReasoning'));
 
   return (
     <div
@@ -250,9 +251,9 @@ export function ModelSelectorView({
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={[
-          `Model: ${displayModelLabel}`,
+          `${t('chat.modelPicker.model')}: ${displayModelLabel}`,
           reasoningHasChoice ? `${reasoningLabel}: ${displayReasoning}` : null,
-          isServiceTierActive ? 'Fast mode on' : null,
+          isServiceTierActive ? t('chat.modelPicker.fastMode') : null,
         ].filter(Boolean).join(', ')}
         className="claudian-model-btn"
         ref={triggerRef}

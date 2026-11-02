@@ -205,6 +205,9 @@
       "more": "他 {count} 件",
       "showMore": "さらに {count} 件のコンテキストを表示",
       "contextUsage": "コンテキスト使用量",
+      "contextUsageApproachingLimit": "コンテキストの上限に近づいています — 会話を圧縮するか、新しい会話を開始してください。",
+      "modeChangeFailed": "モードの変更に失敗しました",
+      "permissionModeChangeFailed": "権限モードの変更に失敗しました",
       "scope": "コンテキストの範囲",
       "scopeNote": "ノート: {note}",
       "scopeFolder": "フォルダー: {folders}",
@@ -454,6 +457,12 @@
       "search": "モデルを検索",
       "clearSearch": "検索をクリア",
       "model": "モデル",
+      "modelUnavailable": "モデルを利用できません",
+      "chooseModel": "モデルを選択",
+      "chooseModelTitle": "プロバイダー設定で有効なモデルを選択してください。",
+      "effort": "推論の強度",
+      "thinkingBudget": "思考予算",
+      "defaultReasoning": "デフォルト",
       "empty": "利用可能なモデルがありません。プロバイダーの設定を確認し、検出に失敗した場合はモデル一覧を更新してください。",
       "noMatches": "一致するモデルがありません。",
       "noFavorites": "お気に入りがありません。モデル横の星で追加できます。",
@@ -465,7 +474,11 @@
       "addFavorite": "お気に入りに追加",
       "removeFavorite": "お気に入りから削除",
       "addNamedFavorite": "{model} をお気に入りに追加",
-      "removeNamedFavorite": "{model} をお気に入りから削除"
+      "removeNamedFavorite": "{model} をお気に入りから削除",
+      "favoriteUpdateFailed": "お気に入りモデルの更新に失敗しました",
+      "modelChangeFailed": "モデルの変更に失敗しました",
+      "reasoningChangeFailed": "推論レベルの変更に失敗しました",
+      "serviceTierChangeFailed": "サービス階層の変更に失敗しました"
     },
     "questions": {
       "title": "質問",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "実装する",
+      "revise": "修正",
       "revisePlaceholder": "計画の修正内容を入力…",
       "newSession": "承認（新しいセッション）",
       "currentSession": "承認（現在のセッション）",
@@ -591,10 +605,12 @@
         "planMode": "計画モード",
         "rewind": "巻き戻し",
         "fork": "分岐",
+        "nativeHistory": "ネイティブ履歴",
         "providerCommands": "プロバイダーコマンド",
         "imageAttachments": "画像添付",
-        "mcpTools": "MCP ツール",
-        "turnSteer": "ターン制御"
+        "mcpTools": "MCP ツール（ランタイム）",
+        "turnSteer": "ターン制御",
+        "responseThroughput": "応答スループット"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "書き込み",
       "yolo": "YOLO",
       "permissionRequest": "OMP が{tool}を使用する権限を要求しています。",
-      "tool": "ツール"
+      "tool": "ツール",
+      "environment": {
+        "name": "OMP 環境変数",
+        "desc": "OMP にのみ渡す環境変数。ここで明示した値はログインシェルの環境を上書きします。"
+      }
     },
     "cursor": {
       "setup": "設定",
@@ -643,7 +663,11 @@
       "plan": "計画",
       "ask": "質問",
       "permissionRequest": "Cursor が {tool} の使用許可を求めています。",
-      "tool": "ツール"
+      "tool": "ツール",
+      "environment": {
+        "name": "Cursor 環境変数",
+        "desc": "Cursor Agent にのみ渡す環境変数。CURSOR_* 設定はシェルでエクスポートせず、ここで指定できます。"
+      }
     },
     "grok": {
       "enableDesc": "ローカルの Grok Build に接続し、Cursor とは独立した設定とセッションを使用します。",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Grok Build 環境変数",
         "desc": "Grok Build にのみ渡す環境変数。カスタムモデルのシークレットはこのプロバイダーのスコープ内に留まり、ネイティブ設定からは env_key で参照されます。"
-      }
+      },
+      "hiddenCommandsDesc": "Grok Build がコマンドドロップダウンに表示するランタイムコマンドを非表示にします。先頭のスラッシュなしで 1 行に 1 つ入力してください。"
     },
     "opencode": {
-      "cliPathDesc": "OpenCode CLI の絶対パス（任意）。空欄の場合は PATH を使用します。「which opencode」の出力を貼り付けてください（Windows では「where opencode」）。"
+      "cliPathDesc": "OpenCode CLI の絶対パス（任意）。空欄の場合は PATH を使用します。「which opencode」の出力を貼り付けてください（Windows では「where opencode」）。",
+      "hiddenCommandsDesc": "OpenCode の特定のコマンドとスキルをドロップダウンから非表示にします。先頭のスラッシュなしで 1 行に 1 つ入力してください。",
+      "environment": {
+        "name": "OpenCode 環境変数",
+        "desc": "OpenCode に追加で渡す環境変数。`OPENCODE_ENABLE_EXA=1` は既定で有効です。"
+      }
     },
     "pi": {
       "cliPathDesc": "Pi CLI の絶対パス（任意）。空欄の場合は PATH を使用します。「which pi」の出力を貼り付けてください（Windows では「where pi」）。",
@@ -662,7 +692,8 @@
         "name": "Pi 環境変数",
         "desc": "Pi にのみ渡す環境変数。"
       },
-      "modelsDesc": "モデル一覧は現在の Pi 環境から取得されます。Pi の enabledModels 設定により、利用可能なルートがさらに制限される場合があります。{discover} または {refresh} で一覧を更新してください。provider/model ルートによって認証情報と課金先が決まります。"
+      "modelsDesc": "モデル一覧は現在の Pi 環境から取得されます。Pi の enabledModels 設定により、利用可能なルートがさらに制限される場合があります。{discover} または {refresh} で一覧を更新してください。provider/model ルートによって認証情報と課金先が決まります。",
+      "hiddenCommandsDesc": "Pi がコマンドドロップダウンに表示するランタイムコマンドとスキルを非表示にします。先頭のスラッシュなしで正確な名前を 1 行に 1 つ入力してください。"
     },
     "providerReadiness": {
       "title": "準備状況",

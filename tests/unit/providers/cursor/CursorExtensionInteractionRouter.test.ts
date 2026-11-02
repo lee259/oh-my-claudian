@@ -1,3 +1,4 @@
+import { setLocale } from '@/i18n/i18n';
 import { CursorExtensionInteractionRouter } from '@/providers/cursor/execution/CursorExtensionInteractionRouter';
 
 describe('CursorExtensionInteractionRouter', () => {
@@ -70,5 +71,39 @@ describe('CursorExtensionInteractionRouter', () => {
       todos: [],
       toolCallId: 'call-2',
     })).resolves.toEqual({ outcome: { outcome: 'accepted' } });
+  });
+
+  it('localizes the plan approval presentation', async () => {
+    setLocale('zh-CN');
+    try {
+      const requestPlanDecision = jest.fn(async request => ({
+        decision: { type: 'approve' },
+        interactionId: request.interactionId,
+      }));
+      const router = new CursorExtensionInteractionRouter(
+        {
+          askUserQuestion: jest.fn(),
+          dismissInteraction: jest.fn(),
+          requestApproval: jest.fn(),
+          requestPlanDecision,
+        } as never,
+        'session-instance',
+        () => 'turn-1',
+      );
+
+      await router.handle('cursor/create_plan', { plan: '# Plan', toolCallId: 'call-3' });
+
+      expect(requestPlanDecision).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presentation: expect.objectContaining({
+            approveLabel: '实施',
+            feedbackLabel: '修改',
+          }),
+        }),
+        expect.anything(),
+      );
+    } finally {
+      setLocale('en');
+    }
   });
 });

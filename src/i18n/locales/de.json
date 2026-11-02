@@ -205,6 +205,9 @@
       "more": "+{count} weitere",
       "showMore": "{count} weitere Kontextelemente anzeigen",
       "contextUsage": "Kontextnutzung",
+      "contextUsageApproachingLimit": "Kontextlimit fast erreicht — komprimiere die Unterhaltung oder starte eine neue.",
+      "modeChangeFailed": "Modus konnte nicht geändert werden",
+      "permissionModeChangeFailed": "Berechtigungsmodus konnte nicht geändert werden",
       "scope": "Kontextbereich",
       "scopeNote": "Notiz: {note}",
       "scopeFolder": "Ordner: {folders}",
@@ -454,6 +457,12 @@
       "search": "Modelle suchen",
       "clearSearch": "Suche löschen",
       "model": "Modell",
+      "modelUnavailable": "Modell nicht verfügbar",
+      "chooseModel": "Modell auswählen",
+      "chooseModelTitle": "Wähle in den Anbietereinstellungen ein aktiviertes Modell.",
+      "effort": "Denkaufwand",
+      "thinkingBudget": "Denkbudget",
+      "defaultReasoning": "Standard",
       "empty": "Keine Modelle verfügbar. Anbietereinstellungen prüfen und bei fehlgeschlagener Erkennung die Modellliste aktualisieren.",
       "noMatches": "Keine passenden Modelle.",
       "noFavorites": "Keine Favoriten. Über den Stern neben einem Modell hinzufügen.",
@@ -465,7 +474,11 @@
       "addFavorite": "Zu Favoriten hinzufügen",
       "removeFavorite": "Aus Favoriten entfernen",
       "addNamedFavorite": "{model} zu Favoriten hinzufügen",
-      "removeNamedFavorite": "{model} aus Favoriten entfernen"
+      "removeNamedFavorite": "{model} aus Favoriten entfernen",
+      "favoriteUpdateFailed": "Favoritenmodelle konnten nicht aktualisiert werden",
+      "modelChangeFailed": "Modell konnte nicht gewechselt werden",
+      "reasoningChangeFailed": "Denkstufe konnte nicht geändert werden",
+      "serviceTierChangeFailed": "Dienststufe konnte nicht geändert werden"
     },
     "questions": {
       "title": "Frage",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "Umsetzen",
+      "revise": "Überarbeiten",
       "revisePlaceholder": "Feedback zur Planänderung eingeben…",
       "newSession": "Genehmigen (neue Sitzung)",
       "currentSession": "Genehmigen (aktuelle Sitzung)",
@@ -591,10 +605,12 @@
         "planMode": "Planmodus",
         "rewind": "Zurückspulen",
         "fork": "Abzweigen",
+        "nativeHistory": "Nativer Verlauf",
         "providerCommands": "Anbieterbefehle",
         "imageAttachments": "Bildanhänge",
-        "mcpTools": "MCP-Werkzeuge",
-        "turnSteer": "Steuerung des Antwortverlaufs"
+        "mcpTools": "MCP-Werkzeuge (Laufzeit)",
+        "turnSteer": "Steuerung des Antwortverlaufs",
+        "responseThroughput": "Antwortdurchsatz"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "Schreiben",
       "yolo": "YOLO",
       "permissionRequest": "OMP bittet um Berechtigung für {tool}.",
-      "tool": "ein Tool"
+      "tool": "ein Tool",
+      "environment": {
+        "name": "OMP-Umgebungsvariablen",
+        "desc": "Umgebungsvariablen, die nur an OMP übergeben werden. Explizite Werte hier überschreiben die Umgebung deiner Login-Shell."
+      }
     },
     "cursor": {
       "setup": "Einrichtung",
@@ -643,7 +663,11 @@
       "plan": "Plan",
       "ask": "Fragen",
       "permissionRequest": "Cursor fordert die Berechtigung an, {tool} zu verwenden.",
-      "tool": "ein Werkzeug"
+      "tool": "ein Werkzeug",
+      "environment": {
+        "name": "Cursor-Umgebungsvariablen",
+        "desc": "Umgebungsvariablen, die nur an Cursor Agent übergeben werden. CURSOR_*-Einstellungen gehören hierher, statt sie in der Shell zu exportieren."
+      }
     },
     "grok": {
       "enableDesc": "Verbinde das lokale Grok Build mit eigenen Einstellungen und Sitzungen, getrennt von Cursor.",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Grok Build-Umgebungsvariablen",
         "desc": "Umgebungsvariablen, die nur an Grok Build übergeben werden. Geheimnisse für benutzerdefinierte Modelle bleiben in diesem Anbieterbereich und werden in der nativen Konfiguration über env_key referenziert."
-      }
+      },
+      "hiddenCommandsDesc": "Blende Laufzeitbefehle aus, die Grok Build im Befehlsmenü anbietet. Gib Namen ohne führenden Schrägstrich ein, einen pro Zeile."
     },
     "opencode": {
-      "cliPathDesc": "Optionaler absoluter Pfad zur OpenCode CLI. Leer lassen, um PATH zu verwenden. Füge die Ausgabe von „which opencode“ ein (unter Windows „where opencode“)."
+      "cliPathDesc": "Optionaler absoluter Pfad zur OpenCode CLI. Leer lassen, um PATH zu verwenden. Füge die Ausgabe von „which opencode“ ein (unter Windows „where opencode“).",
+      "hiddenCommandsDesc": "Blende bestimmte OpenCode-Befehle und -Fähigkeiten aus dem Menü aus. Gib Namen ohne führenden Schrägstrich ein, einen pro Zeile.",
+      "environment": {
+        "name": "OpenCode-Umgebungsvariablen",
+        "desc": "Zusätzliche Umgebungsvariablen für OpenCode. `OPENCODE_ENABLE_EXA=1` ist standardmäßig aktiviert."
+      }
     },
     "pi": {
       "cliPathDesc": "Optionaler absoluter Pfad zur Pi CLI. Leer lassen, um PATH zu verwenden. Füge die Ausgabe von „which pi“ ein (unter Windows „where pi“).",
@@ -662,7 +692,8 @@
         "name": "Pi-Umgebungsvariablen",
         "desc": "Umgebungsvariablen, die nur an Pi übergeben werden."
       },
-      "modelsDesc": "Die Modellliste stammt aus der aktuellen Pi-Umgebung. Die Pi-Einstellung enabledModels kann die verfügbaren Routen weiter einschränken. Aktualisiere die Liste mit {discover} oder {refresh}. Die provider/model-Route bestimmt Zugangsdaten und Abrechnung."
+      "modelsDesc": "Die Modellliste stammt aus der aktuellen Pi-Umgebung. Die Pi-Einstellung enabledModels kann die verfügbaren Routen weiter einschränken. Aktualisiere die Liste mit {discover} oder {refresh}. Die provider/model-Route bestimmt Zugangsdaten und Abrechnung.",
+      "hiddenCommandsDesc": "Blende Laufzeitbefehle und -fähigkeiten aus, die Pi im Befehlsmenü anbietet. Gib exakte Namen ohne führenden Schrägstrich ein, einen pro Zeile."
     },
     "providerReadiness": {
       "title": "Bereitschaft",

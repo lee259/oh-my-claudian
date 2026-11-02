@@ -205,6 +205,9 @@
       "more": "+{count} autres",
       "showMore": "Afficher {count} éléments de contexte supplémentaires",
       "contextUsage": "Utilisation du contexte",
+      "contextUsageApproachingLimit": "Limite de contexte bientôt atteinte — compactez la conversation ou démarrez-en une nouvelle.",
+      "modeChangeFailed": "Impossible de changer de mode",
+      "permissionModeChangeFailed": "Impossible de changer de mode d'autorisation",
       "scope": "Portée du contexte",
       "scopeNote": "note : {note}",
       "scopeFolder": "dossier : {folders}",
@@ -454,6 +457,12 @@
       "search": "Rechercher des modèles",
       "clearSearch": "Effacer la recherche",
       "model": "Modèle",
+      "modelUnavailable": "Modèle indisponible",
+      "chooseModel": "Choisir un modèle",
+      "chooseModelTitle": "Choisissez un modèle activé dans les paramètres du fournisseur.",
+      "effort": "Effort",
+      "thinkingBudget": "Budget de réflexion",
+      "defaultReasoning": "Par défaut",
       "empty": "Aucun modèle disponible. Vérifiez les paramètres du fournisseur et actualisez la liste si la détection a échoué.",
       "noMatches": "Aucun modèle correspondant.",
       "noFavorites": "Aucun favori. Utilisez l’étoile à côté d’un modèle pour l’ajouter.",
@@ -465,7 +474,11 @@
       "addFavorite": "Ajouter aux favoris",
       "removeFavorite": "Retirer des favoris",
       "addNamedFavorite": "Ajouter {model} aux favoris",
-      "removeNamedFavorite": "Retirer {model} des favoris"
+      "removeNamedFavorite": "Retirer {model} des favoris",
+      "favoriteUpdateFailed": "Impossible de mettre à jour les modèles favoris",
+      "modelChangeFailed": "Impossible de changer de modèle",
+      "reasoningChangeFailed": "Impossible de modifier le niveau de raisonnement",
+      "serviceTierChangeFailed": "Impossible de modifier le palier de service"
     },
     "questions": {
       "title": "Question",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "Mettre en œuvre",
+      "revise": "Réviser",
       "revisePlaceholder": "Saisir un avis pour modifier le plan…",
       "newSession": "Approuver (nouvelle session)",
       "currentSession": "Approuver (session actuelle)",
@@ -591,10 +605,12 @@
         "planMode": "Mode de planification",
         "rewind": "Revenir en arrière",
         "fork": "Créer une branche",
+        "nativeHistory": "Historique natif",
         "providerCommands": "Commandes du fournisseur",
         "imageAttachments": "Pièces jointes image",
-        "mcpTools": "Outils MCP",
-        "turnSteer": "Pilotage du tour"
+        "mcpTools": "Outils MCP (exécution)",
+        "turnSteer": "Pilotage du tour",
+        "responseThroughput": "Débit de réponse"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "Écriture",
       "yolo": "YOLO",
       "permissionRequest": "OMP demande l’autorisation d’utiliser {tool}.",
-      "tool": "un outil"
+      "tool": "un outil",
+      "environment": {
+        "name": "Variables d'environnement OMP",
+        "desc": "Variables d'environnement transmises uniquement à OMP. Les valeurs explicites ici remplacent l'environnement de votre shell de connexion."
+      }
     },
     "cursor": {
       "setup": "Configuration",
@@ -643,7 +663,11 @@
       "plan": "Plan",
       "ask": "Demander",
       "permissionRequest": "Cursor demande l’autorisation d’utiliser {tool}.",
-      "tool": "un outil"
+      "tool": "un outil",
+      "environment": {
+        "name": "Variables d'environnement Cursor",
+        "desc": "Variables d'environnement transmises uniquement à Cursor Agent. Placez ici les réglages CURSOR_* au lieu de les exporter dans votre shell."
+      }
     },
     "grok": {
       "enableDesc": "Connectez Grok Build local, avec ses propres paramètres et sessions, distincts de Cursor.",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Variables d'environnement Grok Build",
         "desc": "Variables d'environnement transmises uniquement à Grok Build. Les secrets des modèles personnalisés restent dans la portée de ce fournisseur et sont référencés depuis la configuration native par env_key."
-      }
+      },
+      "hiddenCommandsDesc": "Masquez les commandes d'exécution proposées par Grok Build dans la liste déroulante. Saisissez les noms sans barre oblique initiale, un par ligne."
     },
     "opencode": {
-      "cliPathDesc": "Chemin absolu facultatif vers la CLI OpenCode. Laissez vide pour utiliser PATH. Collez le résultat de « which opencode » (ou « where opencode » sous Windows)."
+      "cliPathDesc": "Chemin absolu facultatif vers la CLI OpenCode. Laissez vide pour utiliser PATH. Collez le résultat de « which opencode » (ou « where opencode » sous Windows).",
+      "hiddenCommandsDesc": "Masquez certaines commandes et compétences OpenCode de la liste déroulante. Saisissez les noms sans barre oblique initiale, un par ligne.",
+      "environment": {
+        "name": "Variables d'environnement OpenCode",
+        "desc": "Variables d'environnement supplémentaires transmises à OpenCode. `OPENCODE_ENABLE_EXA=1` est activé par défaut."
+      }
     },
     "pi": {
       "cliPathDesc": "Chemin absolu facultatif vers la CLI Pi. Laissez vide pour utiliser PATH. Collez le résultat de « which pi » (ou « where pi » sous Windows).",
@@ -662,7 +692,8 @@
         "name": "Variables d'environnement Pi",
         "desc": "Variables d'environnement transmises uniquement à Pi."
       },
-      "modelsDesc": "La liste des modèles provient de l’environnement Pi actuel. Le paramètre enabledModels de Pi peut restreindre davantage les routes disponibles. Cliquez sur {discover} ou {refresh} pour actualiser la liste. La route provider/model détermine les identifiants et la facturation."
+      "modelsDesc": "La liste des modèles provient de l’environnement Pi actuel. Le paramètre enabledModels de Pi peut restreindre davantage les routes disponibles. Cliquez sur {discover} ou {refresh} pour actualiser la liste. La route provider/model détermine les identifiants et la facturation.",
+      "hiddenCommandsDesc": "Masquez les commandes et compétences d'exécution proposées par Pi dans la liste déroulante. Saisissez les noms exacts sans barre oblique initiale, un par ligne."
     },
     "providerReadiness": {
       "title": "État de préparation",

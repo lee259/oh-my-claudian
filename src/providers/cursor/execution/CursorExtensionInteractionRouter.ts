@@ -3,14 +3,18 @@ import type {
   ProviderInteractionPort,
 } from '@/core/execution';
 
-const PLAN_PRESENTATION = {
-  allowAbandon: true,
-  allowNewSession: false,
-  approveLabel: 'Implement',
-  dismissOnEscape: false,
-  feedbackLabel: 'Reject',
-  shiftTabDecision: 'abandon',
-} as const;
+import { t } from '../../../i18n/i18n';
+
+function getPlanPresentation() {
+  return {
+    allowAbandon: true,
+    allowNewSession: false,
+    approveLabel: t('chat.planApproval.implement'),
+    dismissOnEscape: false,
+    feedbackLabel: t('chat.planApproval.revise'),
+    shiftTabDecision: 'abandon',
+  } as const;
+}
 
 export class CursorExtensionInteractionRouter {
   private sequence = 0;
@@ -98,7 +102,7 @@ export class CursorExtensionInteractionRouter {
         interactionId,
         kind: 'plan-decision',
         nativeContext: { toolCallId: params.toolCallId },
-        presentation: PLAN_PRESENTATION,
+        presentation: getPlanPresentation(),
         sessionInstanceId: this.sessionInstanceId,
         turnId,
       }, controller.signal);

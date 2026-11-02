@@ -632,6 +632,7 @@ ClaudeExecutionStrategySink {
         if (
           normalized.event.type === 'usage_updated'
           && !normalized.event.usage.contextUsageSnapshot
+          && normalized.event.usage.contextWindowIsAuthoritative !== true
         ) {
           continue;
         }

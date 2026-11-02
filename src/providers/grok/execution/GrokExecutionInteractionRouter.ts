@@ -2,15 +2,18 @@ import type {
   ProviderInteractionDismissReason,
   ProviderInteractionPort,
 } from '../../../core/execution';
+import { t } from '../../../i18n/i18n';
 
-const PLAN_PRESENTATION = {
-  allowAbandon: true,
-  allowNewSession: false,
-  approveLabel: 'Implement',
-  dismissOnEscape: false,
-  feedbackLabel: 'Revise',
-  shiftTabDecision: 'abandon',
-} as const;
+function getPlanPresentation() {
+  return {
+    allowAbandon: true,
+    allowNewSession: false,
+    approveLabel: t('chat.planApproval.implement'),
+    dismissOnEscape: false,
+    feedbackLabel: t('chat.planApproval.revise'),
+    shiftTabDecision: 'abandon',
+  } as const;
+}
 
 interface GrokQuestionOption {
   readonly description: string;
@@ -116,7 +119,7 @@ export class GrokExecutionInteractionRouter {
         interactionId,
         kind: 'plan-decision',
         nativeContext: { sessionId: record.sessionId, toolCallId: record.toolCallId },
-        presentation: PLAN_PRESENTATION,
+        presentation: getPlanPresentation(),
         sessionInstanceId: this.sessionInstanceId,
         turnId,
       }, controller.signal);

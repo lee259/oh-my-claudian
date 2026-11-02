@@ -167,8 +167,8 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'opencode', {
-      name: 'Hidden Commands and Skills',
-      desc: 'Hide specific OpenCode commands and skills from the dropdown. Enter names without the leading slash, one per line.',
+      name: t('settings.hiddenSlashCommands.name'),
+      desc: t('settings.opencode.hiddenCommandsDesc'),
       placeholder: 'compact\nreview\nfix',
     });
 
@@ -207,9 +207,9 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       container,
       plugin: context.plugin,
       scope: 'provider:opencode',
-      heading: 'Environment',
-      name: 'Environment Variables',
-      desc: 'Extra environment variables passed to OpenCode. `OPENCODE_ENABLE_EXA=1` is enabled by default.',
+      heading: t('settings.environment'),
+      name: t('settings.opencode.environment.name'),
+      desc: t('settings.opencode.environment.desc'),
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'opencode'),
     });

@@ -348,7 +348,7 @@ export interface UsageInfo {
   /** Prompt caching: tokens read from cache. Claude-specific; 0 if omitted. */
   cacheReadInputTokens?: number;
   contextWindow: number;
-  /** True when `contextWindow` came from provider runtime data instead of a local heuristic. */
+  /** True when `contextWindow` came from provider runtime data or an explicit limit instead of a local heuristic. */
   contextWindowIsAuthoritative?: boolean;
   /** True when this is an on-demand provider context-usage snapshot, not a streamed estimate. */
   contextUsageSnapshot?: boolean;

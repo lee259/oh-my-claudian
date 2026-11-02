@@ -205,6 +205,9 @@
       "more": "{count}개 더 보기",
       "showMore": "컨텍스트 항목 {count}개 더 보기",
       "contextUsage": "컨텍스트 사용량",
+      "contextUsageApproachingLimit": "컨텍스트 한도에 가까워지고 있습니다 — 대화를 압축하거나 새 대화를 시작하세요.",
+      "modeChangeFailed": "모드를 변경하지 못했습니다",
+      "permissionModeChangeFailed": "권한 모드를 변경하지 못했습니다",
       "scope": "컨텍스트 범위",
       "scopeNote": "노트: {note}",
       "scopeFolder": "폴더: {folders}",
@@ -454,6 +457,12 @@
       "search": "모델 검색",
       "clearSearch": "검색 지우기",
       "model": "모델",
+      "modelUnavailable": "모델을 사용할 수 없음",
+      "chooseModel": "모델 선택",
+      "chooseModelTitle": "프로바이더 설정에서 활성화된 모델을 선택하세요.",
+      "effort": "추론 강도",
+      "thinkingBudget": "사고 예산",
+      "defaultReasoning": "기본값",
       "empty": "사용 가능한 모델이 없습니다. 제공자 설정을 확인하고 검색에 실패하면 모델 목록을 새로 고치세요.",
       "noMatches": "일치하는 모델이 없습니다.",
       "noFavorites": "즐겨찾는 모델이 없습니다. 모델 옆 별표로 추가하세요.",
@@ -465,7 +474,11 @@
       "addFavorite": "즐겨찾기에 추가",
       "removeFavorite": "즐겨찾기에서 제거",
       "addNamedFavorite": "{model} 즐겨찾기에 추가",
-      "removeNamedFavorite": "{model} 즐겨찾기에서 제거"
+      "removeNamedFavorite": "{model} 즐겨찾기에서 제거",
+      "favoriteUpdateFailed": "즐겨찾기 모델을 업데이트하지 못했습니다",
+      "modelChangeFailed": "모델을 변경하지 못했습니다",
+      "reasoningChangeFailed": "추론 수준을 변경하지 못했습니다",
+      "serviceTierChangeFailed": "서비스 등급을 변경하지 못했습니다"
     },
     "questions": {
       "title": "질문",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "구현",
+      "revise": "수정",
       "revisePlaceholder": "계획 수정 의견 입력…",
       "newSession": "승인 (새 세션)",
       "currentSession": "승인 (현재 세션)",
@@ -591,10 +605,12 @@
         "planMode": "계획 모드",
         "rewind": "되돌리기",
         "fork": "분기",
+        "nativeHistory": "네이티브 기록",
         "providerCommands": "프로바이더 명령",
         "imageAttachments": "이미지 첨부",
-        "mcpTools": "MCP 도구",
-        "turnSteer": "턴 제어"
+        "mcpTools": "MCP 도구(런타임)",
+        "turnSteer": "턴 제어",
+        "responseThroughput": "응답 처리량"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "쓰기",
       "yolo": "YOLO",
       "permissionRequest": "OMP가 {tool} 사용 권한을 요청합니다.",
-      "tool": "도구"
+      "tool": "도구",
+      "environment": {
+        "name": "OMP 환경 변수",
+        "desc": "OMP에만 전달되는 환경 변수입니다. 여기에 명시한 값은 로그인 셸 환경을 덮어씁니다."
+      }
     },
     "cursor": {
       "setup": "설정",
@@ -643,7 +663,11 @@
       "plan": "계획",
       "ask": "질문",
       "permissionRequest": "Cursor에서 {tool} 사용 권한을 요청했습니다.",
-      "tool": "도구"
+      "tool": "도구",
+      "environment": {
+        "name": "Cursor 환경 변수",
+        "desc": "Cursor Agent에만 전달되는 환경 변수입니다. CURSOR_* 설정을 셸에서 내보내지 않고 여기에 지정할 수 있습니다."
+      }
     },
     "grok": {
       "enableDesc": "로컬 Grok Build에 연결하며 Cursor와 독립된 설정과 세션을 사용합니다.",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Grok Build 환경 변수",
         "desc": "Grok에만 전달되는 환경 변수입니다. 사용자 지정 모델의 비밀 값은 이 제공자 범위에 남아 있으며 네이티브 구성에서 env_key로 참조됩니다."
-      }
+      },
+      "hiddenCommandsDesc": "Grok Build가 명령 드롭다운에 제공하는 런타임 명령을 숨깁니다. 앞의 슬래시 없이 한 줄에 하나씩 입력하세요."
     },
     "opencode": {
-      "cliPathDesc": "OpenCode CLI의 선택적 절대 경로입니다. 비워 두면 PATH를 사용합니다. “which opencode” 출력 내용을 붙여 넣으세요(Windows에서는 “where opencode”)."
+      "cliPathDesc": "OpenCode CLI의 선택적 절대 경로입니다. 비워 두면 PATH를 사용합니다. “which opencode” 출력 내용을 붙여 넣으세요(Windows에서는 “where opencode”).",
+      "hiddenCommandsDesc": "OpenCode의 특정 명령과 스킬을 드롭다운에서 숨깁니다. 앞의 슬래시 없이 한 줄에 하나씩 입력하세요.",
+      "environment": {
+        "name": "OpenCode 환경 변수",
+        "desc": "OpenCode에 추가로 전달되는 환경 변수입니다. `OPENCODE_ENABLE_EXA=1`은 기본으로 활성화됩니다."
+      }
     },
     "pi": {
       "cliPathDesc": "Pi CLI의 선택적 절대 경로입니다. 비워 두면 PATH를 사용합니다. “which pi” 출력 내용을 붙여 넣으세요(Windows에서는 “where pi”).",
@@ -662,7 +692,8 @@
         "name": "Pi 환경 변수",
         "desc": "Pi에만 전달되는 환경 변수입니다."
       },
-      "modelsDesc": "모델 목록은 현재 Pi 환경에서 가져옵니다. Pi의 enabledModels 설정으로 사용 가능한 경로가 추가로 제한될 수 있습니다. {discover} 또는 {refresh}을(를) 클릭하여 목록을 업데이트하세요. provider/model 경로에 따라 인증 정보와 요금 청구가 결정됩니다."
+      "modelsDesc": "모델 목록은 현재 Pi 환경에서 가져옵니다. Pi의 enabledModels 설정으로 사용 가능한 경로가 추가로 제한될 수 있습니다. {discover} 또는 {refresh}을(를) 클릭하여 목록을 업데이트하세요. provider/model 경로에 따라 인증 정보와 요금 청구가 결정됩니다.",
+      "hiddenCommandsDesc": "Pi가 명령 드롭다운에 제공하는 런타임 명령과 스킬을 숨깁니다. 앞의 슬래시 없이 정확한 이름을 한 줄에 하나씩 입력하세요."
     },
     "providerReadiness": {
       "title": "준비 상태",

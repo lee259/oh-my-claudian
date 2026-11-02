@@ -135,10 +135,11 @@ describe('ContextUsageMeter', () => {
     expect(container?.getAttribute('data-tooltip')).toBe('500 / 200k');
   });
 
-  it('should add compact reminder to tooltip when usage > 80%', () => {
+  it('should add a localized context-limit reminder to the tooltip when usage > 80%', () => {
     meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
     const container = parentEl.querySelector('.claudian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('170k / 200k (Approaching limit, run `/compact` to continue)');
+    expect(container?.getAttribute('data-tooltip'))
+      .toBe('170k / 200k (Approaching context limit — compact or start a new conversation.)');
   });
 
   it('should not add compact reminder to tooltip when usage ≤ 80%', () => {

@@ -534,7 +534,7 @@ describe('PiSettingsTab', () => {
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       expect.anything(),
       'pi',
-      expect.objectContaining({ name: 'Hidden Pi commands and skills' }),
+      expect.objectContaining({ name: 'Hidden Commands and Skills' }),
     );
   });
 

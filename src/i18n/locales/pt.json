@@ -205,6 +205,9 @@
       "more": "+{count} mais",
       "showMore": "Mostrar mais {count} itens de contexto",
       "contextUsage": "Uso do contexto",
+      "contextUsageApproachingLimit": "Limite de contexto quase atingido — compacte a conversa ou inicie uma nova.",
+      "modeChangeFailed": "Falha ao alterar o modo",
+      "permissionModeChangeFailed": "Falha ao alterar o modo de permissão",
       "scope": "Escopo do contexto",
       "scopeNote": "nota: {note}",
       "scopeFolder": "pasta: {folders}",
@@ -454,6 +457,12 @@
       "search": "Pesquisar modelos",
       "clearSearch": "Limpar pesquisa",
       "model": "Modelo",
+      "modelUnavailable": "Modelo indisponível",
+      "chooseModel": "Escolher um modelo",
+      "chooseModelTitle": "Escolha um modelo habilitado nas configurações do provedor.",
+      "effort": "Esforço",
+      "thinkingBudget": "Orçamento de raciocínio",
+      "defaultReasoning": "Padrão",
       "empty": "Nenhum modelo disponível. Verifique as configurações do provedor e atualize a lista se a descoberta falhou.",
       "noMatches": "Nenhum modelo correspondente.",
       "noFavorites": "Nenhum favorito. Use a estrela ao lado de um modelo para adicioná-lo.",
@@ -465,7 +474,11 @@
       "addFavorite": "Adicionar aos favoritos",
       "removeFavorite": "Remover dos favoritos",
       "addNamedFavorite": "Adicionar {model} aos favoritos",
-      "removeNamedFavorite": "Remover {model} dos favoritos"
+      "removeNamedFavorite": "Remover {model} dos favoritos",
+      "favoriteUpdateFailed": "Falha ao atualizar os modelos favoritos",
+      "modelChangeFailed": "Falha ao trocar de modelo",
+      "reasoningChangeFailed": "Falha ao alterar o nível de raciocínio",
+      "serviceTierChangeFailed": "Falha ao alterar o nível de serviço"
     },
     "questions": {
       "title": "Pergunta",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "Implementar",
+      "revise": "Revisar",
       "revisePlaceholder": "Insira comentários para revisar o plano…",
       "newSession": "Aprovar (nova sessão)",
       "currentSession": "Aprovar (sessão atual)",
@@ -591,10 +605,12 @@
         "planMode": "Modo de planejamento",
         "rewind": "Retroceder",
         "fork": "Criar ramificação",
+        "nativeHistory": "Histórico nativo",
         "providerCommands": "Comandos do provedor",
         "imageAttachments": "Anexos de imagem",
-        "mcpTools": "Ferramentas MCP",
-        "turnSteer": "Controle de turno"
+        "mcpTools": "Ferramentas MCP (tempo de execução)",
+        "turnSteer": "Controle de turno",
+        "responseThroughput": "Vazão de resposta"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "Escrita",
       "yolo": "YOLO",
       "permissionRequest": "OMP solicita permissão para usar {tool}.",
-      "tool": "uma ferramenta"
+      "tool": "uma ferramenta",
+      "environment": {
+        "name": "Variáveis de ambiente do OMP",
+        "desc": "Variáveis de ambiente passadas apenas ao OMP. Valores explícitos aqui substituem o ambiente do seu shell de login."
+      }
     },
     "cursor": {
       "setup": "Configuração",
@@ -643,7 +663,11 @@
       "plan": "Plan",
       "ask": "Perguntar",
       "permissionRequest": "O Cursor solicita permissão para usar {tool}.",
-      "tool": "uma ferramenta"
+      "tool": "uma ferramenta",
+      "environment": {
+        "name": "Variáveis de ambiente do Cursor",
+        "desc": "Variáveis de ambiente passadas apenas ao Cursor Agent. Use isto para configurações CURSOR_* em vez de exportá-las no shell."
+      }
     },
     "grok": {
       "enableDesc": "Conecte ao Grok Build local, com configurações e sessões próprias, separadas do Cursor.",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Variáveis de ambiente do Grok Build",
         "desc": "Variáveis de ambiente passadas somente ao Grok Build. Os segredos de modelos personalizados permanecem no escopo deste provedor e são referenciados na configuração nativa por env_key."
-      }
+      },
+      "hiddenCommandsDesc": "Oculte comandos de execução anunciados pelo Grok Build na lista suspensa. Informe os nomes sem a barra inicial, um por linha."
     },
     "opencode": {
-      "cliPathDesc": "Caminho absoluto opcional para a CLI do OpenCode. Deixe em branco para usar o PATH. Cole a saída de “which opencode” (ou “where opencode” no Windows)."
+      "cliPathDesc": "Caminho absoluto opcional para a CLI do OpenCode. Deixe em branco para usar o PATH. Cole a saída de “which opencode” (ou “where opencode” no Windows).",
+      "hiddenCommandsDesc": "Oculte comandos e habilidades específicos do OpenCode na lista suspensa. Informe os nomes sem a barra inicial, um por linha.",
+      "environment": {
+        "name": "Variáveis de ambiente do OpenCode",
+        "desc": "Variáveis de ambiente extras passadas ao OpenCode. `OPENCODE_ENABLE_EXA=1` fica habilitado por padrão."
+      }
     },
     "pi": {
       "cliPathDesc": "Caminho absoluto opcional para a CLI do Pi. Deixe em branco para usar o PATH. Cole a saída de “which pi” (ou “where pi” no Windows).",
@@ -662,7 +692,8 @@
         "name": "Variáveis de ambiente do Pi",
         "desc": "Variáveis de ambiente passadas somente ao Pi."
       },
-      "modelsDesc": "A lista de modelos vem do ambiente Pi atual. A configuração enabledModels do Pi pode restringir ainda mais as rotas disponíveis. Clique em {discover} ou {refresh} para atualizar a lista. A rota provider/model determina as credenciais e a cobrança."
+      "modelsDesc": "A lista de modelos vem do ambiente Pi atual. A configuração enabledModels do Pi pode restringir ainda mais as rotas disponíveis. Clique em {discover} ou {refresh} para atualizar a lista. A rota provider/model determina as credenciais e a cobrança.",
+      "hiddenCommandsDesc": "Oculte comandos e habilidades de execução anunciados pelo Pi na lista suspensa. Informe os nomes exatos sem a barra inicial, um por linha."
     },
     "providerReadiness": {
       "title": "Prontidão",

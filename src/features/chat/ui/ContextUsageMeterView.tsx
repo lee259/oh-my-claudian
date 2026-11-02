@@ -18,7 +18,7 @@ function formatTokens(tokens: number): string {
 export function ContextUsageMeterView({ usage, visible }: { usage: UsageInfo | null; visible: boolean }) {
   const warning = (usage?.percentage ?? 0) > 80;
   const details = usage ? `${formatTokens(usage.contextTokens)} / ${formatTokens(usage.contextWindow)}` : undefined;
-  const tooltip = warning ? `${details} (Approaching limit, run \`/compact\` to continue)` : details;
+  const tooltip = warning ? `${details} (${t('chat.composer.contextUsageApproachingLimit')})` : details;
   const offset = CIRCUMFERENCE - ((usage?.percentage ?? 0) / 100) * CIRCUMFERENCE;
   return (
     <div
