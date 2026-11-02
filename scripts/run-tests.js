@@ -25,6 +25,7 @@ run([
 run([
   '--test',
   path.join(__dirname, 'check-architecture-boundaries.test.mjs'),
+  path.join(__dirname, 'dependency-compatibility.test.mjs'),
   path.join(__dirname, 'check-eslint-config.test.mjs'),
   path.join(__dirname, 'check-release-version.test.mjs'),
   path.join(__dirname, 'check-startup-performance.test.mjs'),
