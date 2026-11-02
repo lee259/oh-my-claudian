@@ -23,6 +23,19 @@ describe('DisplayOnlyCodeFences', () => {
     expect(hasDiagramFence('````markdown\n```mermaid\nflowchart TB\n```\n````')).toBe(false);
   });
 
+  it('skips markdown parsing when prose cannot contain a code fence or diagram', () => {
+    const parseSpy = jest.spyOn(parser, 'parse');
+    parseSpy.mockClear();
+    const prose = 'A plain answer without code, math, or embedded diagrams.';
+
+    expect(hasDiagramFence(prose)).toBe(false);
+    expect(hasDiagramFence('```typescript\nconst value = 1;\n```')).toBe(false);
+    expect(prepareDisplayOnlyCodeFences(prose)).toEqual({ markdown: prose, fences: [] });
+    expect(parseSpy).not.toHaveBeenCalled();
+
+    parseSpy.mockRestore();
+  });
+
   it('replaces every fenced language while preserving fence structure and metadata', () => {
     const markdown = [
       '> ```dataview',
