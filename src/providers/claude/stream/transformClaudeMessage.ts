@@ -436,7 +436,7 @@ export function recalculateClaudeUsageContextWindow(
     contextWindow,
     percentage: Math.min(100, Math.max(0, Math.round((usage.contextTokens / contextWindow) * 100))),
   };
-  if (contextWindowResolution.source === 'runtime') {
+  if (contextWindowResolution.source !== 'model-default') {
     nextUsage.contextWindowIsAuthoritative = true;
   } else {
     delete nextUsage.contextWindowIsAuthoritative;
