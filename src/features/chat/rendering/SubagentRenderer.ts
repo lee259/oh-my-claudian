@@ -26,6 +26,8 @@ export interface SubagentRenderOptions {
 }
 
 interface SubagentToolView {
+  collapseState: { isExpanded: boolean };
+  currentToolCall: ToolCallInfo;
   wrapperEl: HTMLElement;
   nameEl: HTMLElement;
   summaryEl: HTMLElement;
@@ -162,10 +164,14 @@ function updateSubagentToolView(view: SubagentToolView, toolCall: ToolCallInfo):
   }
   const header = view.wrapperEl.querySelector<HTMLElement>('.claudian-subagent-tool-header');
   if (header) syncToolDisclosure(view.wrapperEl, header, view.contentEl, toolCall);
+  if (!canExpandToolCall(toolCall)) view.collapseState.isExpanded = false;
   view.nameEl.setText(getToolName(toolCall.name, toolCall.input, toolCall.presentation));
   view.summaryEl.setText(getToolSummary(toolCall.name, toolCall.input, toolCall.presentation));
   setSubagentToolStatus(view, toolCall.status);
-  renderSubagentToolContent(view.contentEl, toolCall);
+  view.currentToolCall = toolCall;
+  if (view.collapseState.isExpanded && canExpandToolCall(toolCall)) {
+    renderSubagentToolContent(view.contentEl, toolCall);
+  }
 }
 
 function createSubagentToolView(
@@ -194,22 +200,24 @@ function createSubagentToolView(
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-subagent-tool-content' });
 
   const collapseState = { isExpanded: toolCall.isExpanded ?? false };
-  setupCollapsible(wrapperEl, headerEl, contentEl, collapseState, {
-    initiallyExpanded: canExpandToolCall(toolCall) && (toolCall.isExpanded ?? false),
-    canToggle: () => wrapperEl.hasClass('claudian-tool-call--expandable'),
-    onToggle: (expanded) => {
-      toolCall.isExpanded = expanded;
-    },
-    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input),
-  });
-
   const view: SubagentToolView = {
+    collapseState,
+    currentToolCall: toolCall,
     wrapperEl,
     nameEl,
     summaryEl,
     statusEl,
     contentEl,
   };
+  setupCollapsible(wrapperEl, headerEl, contentEl, collapseState, {
+    initiallyExpanded: canExpandToolCall(toolCall) && (toolCall.isExpanded ?? false),
+    canToggle: () => wrapperEl.hasClass('claudian-tool-call--expandable'),
+    onToggle: expanded => {
+      view.currentToolCall.isExpanded = expanded;
+      if (expanded) renderSubagentToolContent(contentEl, view.currentToolCall);
+    },
+    baseAriaLabel: getToolLabel(toolCall.name, toolCall.input),
+  });
   updateSubagentToolView(view, toolCall);
 
   return view;
@@ -565,7 +573,7 @@ function updateAsyncLabel(state: AsyncSubagentState): void {
 
 interface AsyncContentSections {
   toolsContainerEl: HTMLElement;
-  renderedToolIds: Set<string>;
+  toolViews: Map<string, SubagentToolView>;
   resultBodyEl: HTMLElement | null;
   resultOutputEl: HTMLElement | null;
   onOpenFile?: (fileReference: FileReference) => void;
@@ -595,7 +603,7 @@ function getOrCreateAsyncContentSections(
   const toolsContainerEl = contentEl.createDiv({ cls: 'claudian-subagent-tools' });
   const sections: AsyncContentSections = {
     toolsContainerEl,
-    renderedToolIds: new Set(),
+    toolViews: new Map(),
     resultBodyEl: null,
     resultOutputEl: null,
     onOpenFile,
@@ -604,15 +612,18 @@ function getOrCreateAsyncContentSections(
   return sections;
 }
 
-function appendMissingAsyncToolViews(sections: AsyncContentSections, subagent: SubagentInfo): void {
-  for (const originalToolCall of subagent.toolCalls) {
-    if (sections.renderedToolIds.has(originalToolCall.id)) continue;
-    const toolCall: ToolCallInfo = {
-      ...originalToolCall,
-      input: { ...originalToolCall.input },
-    };
-    createSubagentToolView(sections.toolsContainerEl, toolCall, sections.onOpenFile);
-    sections.renderedToolIds.add(originalToolCall.id);
+function updateAsyncToolViews(sections: AsyncContentSections, subagent: SubagentInfo): void {
+  const currentIds = new Set<string>();
+  for (const toolCall of subagent.toolCalls) {
+    currentIds.add(toolCall.id);
+    const existing = sections.toolViews.get(toolCall.id);
+    if (existing) updateSubagentToolView(existing, toolCall);
+    else sections.toolViews.set(toolCall.id, createSubagentToolView(sections.toolsContainerEl, toolCall, sections.onOpenFile));
+  }
+  for (const [id, view] of sections.toolViews) {
+    if (currentIds.has(id)) continue;
+    view.wrapperEl.remove();
+    sections.toolViews.delete(id);
   }
 }
 
@@ -635,7 +646,7 @@ function renderAsyncContentLikeSync(
   onOpenFile?: (fileReference: FileReference) => void,
 ): void {
   const sections = getOrCreateAsyncContentSections(contentEl, subagent, onOpenFile);
-  appendMissingAsyncToolViews(sections, subagent);
+  updateAsyncToolViews(sections, subagent);
 
   if (displayStatus === 'running') {
     return;

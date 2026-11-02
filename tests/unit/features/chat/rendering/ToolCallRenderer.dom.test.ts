@@ -133,6 +133,20 @@ describe('Tool row disclosures', () => {
     expect(element.querySelector('.claudian-tool-header')!.hasAttribute('aria-label')).toBe(false);
   });
 
+  it('renders the latest collapsed subagent tool output on keyboard expansion', () => {
+    const state = createSubagentBlock(document.createElement('div'), 'agent', { description: 'Check' });
+    const tool = call({ name: 'Bash', input: { command: 'echo' } });
+    addSubagentToolCall(state, tool);
+    const header = state.wrapperEl.querySelector<HTMLElement>('.claudian-subagent-tool-header')!;
+    const body = state.wrapperEl.querySelector<HTMLElement>('.claudian-subagent-tool-content')!;
+    expect(body.childNodes).toHaveLength(0);
+    updateSubagentToolResult(state, tool.id, { ...tool, status: 'completed', result: 'Newest output' });
+    expect(body.childNodes).toHaveLength(0);
+    header.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(body.textContent).toContain('Newest output');
+  });
+
   it('applies the same disclosure policy to tools inside subagent results', () => {
     const state = createSubagentBlock(document.createElement('div'), 'agent', { description: 'Check files' });
     const tool = call();

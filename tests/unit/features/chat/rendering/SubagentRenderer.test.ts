@@ -53,6 +53,36 @@ describe('Sync Subagent Renderer', () => {
     parentEl = createMockEl('div');
   });
 
+  it('renders a collapsed tool body only when opened, using the latest result', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-lazy', { description: 'Work' });
+    const tool: ToolCallInfo = { id: 'tool-1', name: 'Bash', input: { command: 'echo first' }, status: 'running' };
+    addSubagentToolCall(state, tool);
+    const wrapper = (state.toolsContainerEl as unknown as MockElement).querySelector('.claudian-subagent-tool-item')!;
+    const body = wrapper.querySelector('.claudian-subagent-tool-content')!;
+    expect(body.children).toHaveLength(0);
+    updateSubagentToolResult(state, tool.id, { ...tool, status: 'completed', result: 'Latest result' });
+    expect(body.children).toHaveLength(0);
+    wrapper.querySelector('.claudian-subagent-tool-header')!.click();
+    expect(getTextByClass(body, 'claudian-tool-line').join('')).toContain('Latest result');
+  });
+
+  it('refreshes an opened tool and catches up after it is collapsed', () => {
+    const state = createSubagentBlock(parentEl as any, 'task-live', { description: 'Work' });
+    const tool: ToolCallInfo = { id: 'tool-live', name: 'Bash', input: { command: 'echo' }, status: 'running' };
+    addSubagentToolCall(state, tool);
+    const wrapper = (state.toolsContainerEl as unknown as MockElement).querySelector('.claudian-subagent-tool-item')!;
+    const header = wrapper.querySelector('.claudian-subagent-tool-header')!;
+    const body = wrapper.querySelector('.claudian-subagent-tool-content')!;
+    header.click();
+    updateSubagentToolResult(state, tool.id, { ...tool, status: 'completed', result: 'First result' });
+    expect(getTextByClass(body, 'claudian-tool-line').join('')).toContain('First result');
+    header.click();
+    updateSubagentToolResult(state, tool.id, { ...tool, status: 'completed', result: 'Second result' });
+    expect(getTextByClass(body, 'claudian-tool-line').join('')).toContain('First result');
+    header.click();
+    expect(getTextByClass(body, 'claudian-tool-line').join('')).toContain('Second result');
+  });
+
   describe('createSubagentBlock', () => {
     it('should start collapsed by default', () => {
       const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
@@ -305,6 +335,19 @@ describe('Async Subagent Renderer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     parentEl = createMockEl('div');
+  });
+
+  it('uses the latest async tool output when an existing row is opened', () => {
+    const state = createAsyncSubagentBlock(parentEl as any, 'async-lazy', { description: 'Work' });
+    state.info.toolCalls.push({ id: 'task-tool', name: 'Bash', input: { command: 'echo' }, status: 'running' });
+    updateAsyncSubagentRunning(state, 'agent-1');
+    const wrapper = (state.contentEl as unknown as MockElement).querySelector('.claudian-subagent-tool-item')!;
+    const body = wrapper.querySelector('.claudian-subagent-tool-content')!;
+    expect(body.children).toHaveLength(0);
+    state.info.toolCalls[0] = { ...state.info.toolCalls[0], status: 'completed', result: 'Latest async output' };
+    updateAsyncSubagentRunning(state, 'agent-1');
+    wrapper.querySelector('.claudian-subagent-tool-header')!.click();
+    expect(getTextByClass(body, 'claudian-tool-line').join('')).toContain('Latest async output');
   });
 
   describe('inline display behavior', () => {
@@ -1234,7 +1277,7 @@ describe('renderStoredSubagent status variants', () => {
     expect((wrapperEl as any).hasClass('error')).toBe(false);
   });
 
-  it('renders running subagent tool call with expanded-style result', () => {
+  it('does not render a hidden, non-expandable read result', () => {
     const subagent: SubagentInfo = {
       id: 'task-1',
       description: 'Running task',
@@ -1255,10 +1298,7 @@ describe('renderStoredSubagent status variants', () => {
     const wrapperEl = renderStoredSubagent(parentEl as any, subagent);
     const contentEl = (wrapperEl as any).children[1]; // content area
 
-    // Should show result text
-    const resultTexts = getTextByClass(contentEl, 'claudian-tool-line');
-    expect(resultTexts.length).toBe(1);
-    expect(resultTexts[0]).toContain('File contents here');
+    expect(getTextByClass(contentEl, 'claudian-tool-line')).toEqual([]);
   });
 
   it('does not render a tool count badge for stored subagents', () => {
