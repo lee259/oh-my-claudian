@@ -1019,6 +1019,25 @@ describe('ConversationController', () => {
         expect(refresh).toHaveBeenCalledTimes(1);
       });
 
+      it('keeps the normal timestamp in the status slot for a running conversation', () => {
+        const container = createMockEl();
+        const lastActivityAt = Date.now() - 2 * 60 * 60 * 1000;
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          { id: 'background-1', title: 'Background', createdAt: 1000, lastActivityAt },
+        ]);
+
+        controller.renderHistoryDropdown(container, {
+          onSelectConversation: jest.fn(),
+          getConversationStatus: () => ({ openState: 'open', isRunning: true }),
+          onStopConversation: jest.fn(),
+          showOpenStateLabels: true,
+        });
+
+        const item = container.querySelector('.claudian-history-item');
+        expect(item?.querySelector('.claudian-history-item-date')?.textContent)
+          .toBe(controller.formatDate(lastActivityAt));
+      });
+
       it('labels the conversation selector as Sessions', () => {
         const container = createMockEl();
 

@@ -131,6 +131,12 @@ describe('Single-pane history action styles', () => {
     );
   });
 
+  it('keeps the running row timestamp visually aligned with other rows', () => {
+    const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+
+    expect(css).not.toMatch(/\.claudian-history-item\.running \.claudian-history-item-date\s*{/);
+  });
+
   it('keeps row actions borderless and transparent while using color for interaction', () => {
     const css = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
 
