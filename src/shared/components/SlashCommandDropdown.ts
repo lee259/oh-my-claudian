@@ -325,6 +325,8 @@ export class SlashCommandDropdown {
         || item.description?.toLowerCase().includes(searchLower)
       )
       .sort((a, b) => {
+        const rankDiff = this.getSearchRank(a, searchLower) - this.getSearchRank(b, searchLower);
+        if (rankDiff !== 0) return rankDiff;
         const kindRank = (item: DropdownItem): number => {
           if (item.providerEntry?.showKind === false) return 1;
           return item.providerEntry?.kind === 'skill' ? 2 : 0;
@@ -333,10 +335,7 @@ export class SlashCommandDropdown {
         if (kindDiff !== 0) return kindDiff;
         const prefixDiff = a.displayPrefix.localeCompare(b.displayPrefix);
         if (prefixDiff !== 0) return prefixDiff;
-        const rankDiff = this.getSearchRank(a, searchLower) - this.getSearchRank(b, searchLower);
-        return rankDiff !== 0
-          ? rankDiff
-          : `${a.displayPrefix}${a.name}`.localeCompare(`${b.displayPrefix}${b.name}`);
+        return `${a.displayPrefix}${a.name}`.localeCompare(`${b.displayPrefix}${b.name}`);
       });
   }
 
