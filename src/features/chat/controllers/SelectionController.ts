@@ -5,9 +5,8 @@ import { hideSelectionHighlight, showSelectionHighlight } from '../../../shared/
 import { type EditorSelectionContext, getEditorView } from '../../../utils/editor';
 import type { StoredSelection } from '../state/types';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
-import { VisibilityGatedPoller } from './VisibilityGatedPoller';
+import { editorSelectionEvents } from './EditorSelectionEvents';
 
-const SELECTION_POLL_INTERVAL = 250;
 const INPUT_HANDOFF_GRACE_MS = 1500;
 const HIGHLIGHT_KEY = 'claudian-selection';
 const HIGHLIGHT_ACTIVE_CLASS = 'claudian-selection-highlight-active';
@@ -32,12 +31,21 @@ export class SelectionController {
   private inputHandoffGraceUntil: number | null = null;
   private highlightRegistry: CustomHighlightRegistry | null = null;
   private highlightGateEl: HTMLElement | null = null;
-  private readonly poller: VisibilityGatedPoller;
+  private selectionDocument: Document | null = null;
+  private unsubscribeEditor: (() => void) | null = null;
+  private handoffTimer: number | null = null;
+  private windowBlurred = false;
   private started = false;
   private workspaceEventRefs: EventRef[] = [];
   private readonly focusScopePointerDownHandler = () => {
     if (!this.storedSelection) return;
     this.inputHandoffGraceUntil = Date.now() + INPUT_HANDOFF_GRACE_MS;
+    const ownerWindow = this.inputEl.ownerDocument.defaultView ?? window;
+    if (this.handoffTimer !== null) ownerWindow.clearTimeout(this.handoffTimer);
+    this.handoffTimer = ownerWindow.setTimeout(() => {
+      this.handoffTimer = null;
+      this.refreshSelection();
+    }, INPUT_HANDOFF_GRACE_MS + 1);
   };
   private readonly focusScopeFocusInHandler = (event: FocusEvent) => {
     const relatedTarget = event.relatedTarget as Node | null;
@@ -61,17 +69,12 @@ export class SelectionController {
     this.onVisibilityChange = onVisibilityChange ?? null;
     this.onUserSelectionChanged = onUserSelectionChanged ?? null;
     this.owningLeaf = owningLeaf ?? null;
-    this.poller = new VisibilityGatedPoller({
-      ownerDocument: inputEl.ownerDocument,
-      ownerWindow: inputEl.ownerDocument.defaultView ?? window,
-      intervalMs: SELECTION_POLL_INTERVAL,
-      poll: () => this.poll(),
-    });
   }
 
   start(): void {
     if (this.started) return;
     this.started = true;
+    this.windowBlurred = false;
     this.inputEl.addEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
@@ -80,13 +83,27 @@ export class SelectionController {
       focusScopeEl.addEventListener('focusin', this.focusScopeFocusInHandler);
     }
     this.registerWorkspaceEvents();
-    this.syncActiveEditorPolling();
+    this.unsubscribeEditor = editorSelectionEvents.subscribe(view => {
+      const active = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (active?.editor && getEditorView(active.editor) === view) this.refreshSelection();
+    });
+    this.inputEl.ownerDocument.addEventListener?.('visibilitychange', this.handleVisibilityChange);
+    this.inputEl.ownerDocument.defaultView?.addEventListener?.('blur', this.handleWindowBlur);
+    this.inputEl.ownerDocument.defaultView?.addEventListener?.('focus', this.handleWindowFocus);
+    this.syncActiveEditor();
   }
 
   stop(): void {
     this.started = false;
     this.releaseWorkspaceEvents();
-    this.poller.stop();
+    this.unsubscribeEditor?.();
+    this.unsubscribeEditor = null;
+    this.setSelectionDocument(null);
+    this.inputEl.ownerDocument.removeEventListener?.('visibilitychange', this.handleVisibilityChange);
+    this.inputEl.ownerDocument.defaultView?.removeEventListener?.('blur', this.handleWindowBlur);
+    this.inputEl.ownerDocument.defaultView?.removeEventListener?.('focus', this.handleWindowFocus);
+    if (this.handoffTimer !== null) (this.inputEl.ownerDocument.defaultView ?? window).clearTimeout(this.handoffTimer);
+    this.handoffTimer = null;
     this.inputEl.removeEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
@@ -100,12 +117,13 @@ export class SelectionController {
   private registerWorkspaceEvents(): void {
     if (this.workspaceEventRefs.length > 0) return;
     const workspace = this.app.workspace as typeof this.app.workspace & {
-      on?: (event: 'active-leaf-change' | 'layout-change', callback: () => void) => EventRef;
+      on?: (event: 'active-leaf-change' | 'layout-change' | 'file-open', callback: () => void) => EventRef;
     };
     if (!workspace.on) return;
     this.workspaceEventRefs = [
-      workspace.on('active-leaf-change', () => this.syncActiveEditorPolling()),
-      workspace.on('layout-change', () => this.syncActiveEditorPolling()),
+      workspace.on('active-leaf-change', () => this.syncActiveEditor()),
+      workspace.on('layout-change', () => this.syncActiveEditor()),
+      workspace.on('file-open', () => this.syncActiveEditor()),
     ];
   }
 
@@ -119,25 +137,48 @@ export class SelectionController {
     this.workspaceEventRefs = [];
   }
 
-  private syncActiveEditorPolling(): void {
+  private syncActiveEditor(): void {
     if (!this.started) return;
-    if (this.app.workspace.getActiveViewOfType(MarkdownView)) {
-      this.poller.start();
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (view) {
+      this.setSelectionDocument(view.containerEl?.ownerDocument ?? this.inputEl.ownerDocument);
+      this.refreshSelection();
       return;
     }
-    this.poller.stop();
+    this.setSelectionDocument(null);
     this.clearWhenMarkdownContextIsUnavailable();
   }
+
+  private setSelectionDocument(doc: Document | null): void {
+    if (this.selectionDocument === doc) return;
+    this.selectionDocument?.removeEventListener?.('selectionchange', this.refreshSelection);
+    this.selectionDocument = doc;
+    doc?.addEventListener?.('selectionchange', this.refreshSelection);
+  }
+
+  private readonly refreshSelection = (): void => {
+    const inputDocument = this.inputEl.ownerDocument;
+    const focusedPopout = this.selectionDocument !== inputDocument && this.selectionDocument?.hasFocus?.();
+    if (!this.started || (this.windowBlurred && !focusedPopout) || inputDocument.visibilityState === 'hidden') return;
+    this.readSelection();
+  };
+
+  private readonly handleVisibilityChange = (): void => this.refreshSelection();
+  private readonly handleWindowBlur = (): void => { this.windowBlurred = true; };
+  private readonly handleWindowFocus = (): void => {
+    this.windowBlurred = false;
+    this.syncActiveEditor();
+  };
 
   dispose(): void {
     this.stop();
   }
 
   // ============================================
-  // Selection Polling
+  // Selection Updates
   // ============================================
 
-  private poll(): void {
+  private readSelection(): void {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) {
       // Keep the captured selection only while focus is transitioning into
@@ -148,7 +189,7 @@ export class SelectionController {
 
     // Reading/preview mode has no usable CM6 selection — use DOM selection instead
     if (view.getMode() === 'preview') {
-      this.pollReadingMode(view);
+      this.readPreviewSelection(view);
       return;
     }
 
@@ -196,7 +237,7 @@ export class SelectionController {
     }
   }
 
-  private pollReadingMode(view: MarkdownView): void {
+  private readPreviewSelection(view: MarkdownView): void {
     const containerEl = view.containerEl;
     if (!containerEl) {
       this.clearWhenMarkdownContextIsUnavailable();

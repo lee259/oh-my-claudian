@@ -25,6 +25,7 @@ export class Plugin {
   addCommand = jest.fn();
   addSettingTab = jest.fn();
   registerView = jest.fn();
+  registerEditorExtension = jest.fn();
   registerEvent = jest.fn();
   registerDomEvent = jest.fn();
   loadData = jest.fn().mockResolvedValue({});

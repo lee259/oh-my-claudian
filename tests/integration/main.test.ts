@@ -289,6 +289,7 @@ describe('ClaudianPlugin', () => {
     it('should register the view', async () => {
       await plugin.onload();
 
+      expect(plugin.registerEditorExtension).toHaveBeenCalledTimes(1);
       expect((plugin.registerView as jest.Mock)).toHaveBeenCalledWith(
         VIEW_TYPE_CLAUDIAN,
         expect.any(Function)
