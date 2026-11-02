@@ -46,3 +46,28 @@ it.each([
   expect(updates.at(-1)).toMatchObject({ status: expectedStatus });
   expect(updates.at(-1)?.result).toBe(expectedResult);
 });
+
+it('does not seed a parent as a subagent from its child reply activity', () => {
+  const tracker = new CodexSubagentTracker(
+    () => undefined,
+    () => new Promise<Thread>(() => undefined),
+  );
+  const replyToParent: SubAgentActivityItem = {
+    ...started,
+    id: 'reply-to-parent',
+    kind: 'interacted',
+    agentThreadId: 'parent',
+    agentPath: '/root',
+  };
+  tracker.seed({
+    ...child(''),
+    id: 'parent',
+    turns: [{
+      ...child('').turns[0],
+      id: 'parent-turn',
+      items: [started, replyToParent],
+    }],
+  } as Thread);
+
+  expect(tracker.turnStarted('parent', 'parent-turn-2')).toBe(false);
+});
