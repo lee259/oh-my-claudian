@@ -18,14 +18,18 @@ function createPlugin(): any {
 }
 
 describe('OpenCode metadata projection', () => {
-  it('clears a previously discovered model catalog when a refresh returns an empty snapshot', async () => {
+  it('preserves a usable model catalog when an early snapshot is empty', async () => {
     const plugin = createPlugin();
 
-    await projectOpencodeMetadata(plugin, {
+    await expect(projectOpencodeMetadata(plugin, {
       models: { availableModels: [], currentModelId: '' },
-    });
+    })).resolves.toBe(false);
 
-    expect(getOpencodeProviderSettings(plugin.settings).discoveredModels).toEqual([]);
+    expect(getOpencodeProviderSettings(plugin.settings).discoveredModels).toEqual([
+      { label: 'Old model', rawId: 'opencode/old-model' },
+    ]);
+    expect(plugin.mutateSettings).not.toHaveBeenCalled();
+    expect(plugin.notifyProviderChatOptionsChanged).not.toHaveBeenCalled();
   });
 
   it('preserves the model catalog when an update omits model metadata', async () => {
@@ -38,5 +42,35 @@ describe('OpenCode metadata projection', () => {
     expect(getOpencodeProviderSettings(plugin.settings).discoveredModels).toEqual([
       { label: 'Old model', rawId: 'opencode/old-model' },
     ]);
+  });
+
+  it('does not notify when a repeated non-empty projection is unchanged', async () => {
+    const plugin = createPlugin();
+    const metadata = {
+      modes: {
+        availableModes: [
+          { id: 'build', name: 'Build' },
+          { id: 'plan', name: 'Plan' },
+        ],
+        currentModeId: 'build',
+      },
+      models: {
+        availableModels: [
+          { modelId: 'opencode/new-model', name: 'opencode/New model' },
+          { modelId: 'opencode/second-model', name: 'opencode/Second model' },
+        ],
+        currentModelId: '',
+      },
+    };
+
+    await expect(projectOpencodeMetadata(plugin, metadata)).resolves.toBe(true);
+    await expect(projectOpencodeMetadata(plugin, {
+      ...metadata,
+      modes: { ...metadata.modes, availableModes: [...metadata.modes.availableModes].reverse() },
+      models: { ...metadata.models, availableModels: [...metadata.models.availableModels].reverse() },
+    })).resolves.toBe(false);
+
+    expect(plugin.mutateSettings).toHaveBeenCalledTimes(1);
+    expect(plugin.notifyProviderChatOptionsChanged).toHaveBeenCalledTimes(1);
   });
 });

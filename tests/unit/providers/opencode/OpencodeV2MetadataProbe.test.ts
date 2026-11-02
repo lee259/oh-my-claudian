@@ -33,6 +33,68 @@ function createClient(): OpencodeV2MetadataClient {
 }
 
 describe('OpencodeV2MetadataProbe', () => {
+  it('returns an empty catalog immediately and allows later discovery', async () => {
+    const client = createClient();
+    const original = jest.mocked(client.request).getMockImplementation()!;
+    jest.mocked(client.request).mockImplementation(async (route: string) => {
+      if (['/api/model', '/api/command', '/api/skill'].includes(route)) return { data: [] };
+      return original(route);
+    });
+    const result = await new OpencodeV2MetadataProbe(client).loadCatalog();
+    expect(result).toMatchObject({ commands: [], models: { availableModels: [] } });
+    expect(jest.mocked(client.request).mock.calls.filter(([route]) => route === '/api/model')).toHaveLength(1);
+  });
+  it('notifies catalog observers on native changes and releases the observer on abort', async () => {
+    const client = createClient();
+    let onEvent!: (event: { type: string; data: Record<string, unknown> }) => void;
+    client.subscribe = jest.fn(async listener => { onEvent = listener; });
+    const controller = new AbortController();
+    const probe = new OpencodeV2MetadataProbe(client);
+    const onChange = jest.fn(async () => undefined);
+    const observation = probe.watchCatalog(onChange, controller.signal);
+    await Promise.resolve();
+    onEvent({ type: 'model.updated', data: {} });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(onChange).toHaveBeenCalled();
+    controller.abort();
+    await expect(observation).rejects.toThrow();
+    await probe.dispose();
+    expect(client.dispose).toHaveBeenCalled();
+  });
+
+  it('polls during startup when an older server has no catalog events', async () => {
+    jest.useFakeTimers();
+    const client = createClient();
+    client.subscribe = jest.fn(async () => { throw new Error('unsupported'); });
+    const controller = new AbortController();
+    const probe = new OpencodeV2MetadataProbe(client);
+    const onChange = jest.fn(async () => undefined);
+    const watching = probe.watchCatalog(onChange, controller.signal);
+    await jest.advanceTimersByTimeAsync(500);
+    expect(onChange.mock.calls.length).toBeGreaterThanOrEqual(1);
+    controller.abort();
+    await expect(watching).rejects.toThrow();
+    await probe.dispose();
+    jest.useRealTimers();
+  });
+  it('starts model and command discovery concurrently', async () => {
+    const client = createClient();
+    const original = jest.mocked(client.request).getMockImplementation()!;
+    let releaseModel!: () => void;
+    const gate = new Promise<void>(resolve => { releaseModel = resolve; });
+    jest.mocked(client.request).mockImplementation(async (route: string) => {
+      if (route === '/api/model') await gate;
+      return original(route);
+    });
+    const probe = new OpencodeV2MetadataProbe(client);
+    const loading = probe.loadCatalog();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const commandsStarted = jest.mocked(client.request).mock.calls.some(([route]) => route === '/api/command');
+    releaseModel();
+    await loading;
+    expect(commandsStarted).toBe(true);
+  });
+
   it('reads enabled models and commands from the native catalog without opening a chat session', async () => {
     const client = createClient();
     const probe = new OpencodeV2MetadataProbe(client);
@@ -68,7 +130,7 @@ describe('OpencodeV2MetadataProbe', () => {
     expect(client.request).not.toHaveBeenCalledWith(expect.stringContaining('/session'), expect.anything());
   });
 
-  it('waits for the v2 command catalog to load and tolerates older servers without skills', async () => {
+  it('returns the first v2 command catalog and tolerates older servers without skills', async () => {
     const client = createClient();
     let commandReads = 0;
     const defaultRequest = jest.mocked(client.request).getMockImplementation()!;
@@ -80,9 +142,9 @@ describe('OpencodeV2MetadataProbe', () => {
     const probe = new OpencodeV2MetadataProbe(client);
 
     await expect(probe.loadCatalog()).resolves.toMatchObject({
-      commands: [{ kind: 'command', name: 'review' }],
+      commands: [],
     });
-    expect(commandReads).toBeGreaterThan(1);
+    expect(commandReads).toBe(1);
   });
 
   it('excludes subagents and hidden agents from selectable modes', async () => {

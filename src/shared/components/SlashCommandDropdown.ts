@@ -62,6 +62,9 @@ export class SlashCommandDropdown {
   private triggerStartIndex = -1;
   private activeTriggerChar = '/';
   private selectedIndex = 0;
+  private selectionWasExplicit = false;
+  private lastSearchText: string | null = null;
+  private providerRefreshEnabled = false;
   private filteredItems: DropdownItem[] = [];
   private isFixed: boolean;
   private includeBuiltIns: boolean;
@@ -97,6 +100,7 @@ export class SlashCommandDropdown {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {
+      this.providerRefreshEnabled = false;
       this.hide();
     }
   }
@@ -170,11 +174,13 @@ export class SlashCommandDropdown {
     }
 
     if (triggerIndex === -1) {
+      this.providerRefreshEnabled = false;
       this.hide();
       return;
     }
 
     if ((this.inputEl as ComposerInputElement).isChipRange?.(triggerIndex, cursorPos)) {
+      this.providerRefreshEnabled = false;
       this.hide();
       return;
     }
@@ -182,10 +188,12 @@ export class SlashCommandDropdown {
     const searchText = textBeforeCursor.substring(triggerIndex + 1);
 
     if (/\s/.test(searchText)) {
+      this.providerRefreshEnabled = false;
       this.hide();
       return;
     }
 
+    this.providerRefreshEnabled = true;
     this.triggerStartIndex = triggerIndex;
     this.activeTriggerChar = triggerChar;
     const isAtPosition0 = triggerIndex === 0;
@@ -214,6 +222,7 @@ export class SlashCommandDropdown {
         return false;
       case 'Escape':
         e.preventDefault();
+        this.providerRefreshEnabled = false;
         this.hide();
         return true;
     }
@@ -225,6 +234,8 @@ export class SlashCommandDropdown {
   }
 
   hide(): void {
+    this.selectionWasExplicit = false;
+    this.lastSearchText = null;
     this.commandList?.hide();
     if (this.dropdownEl) {
       this.dropdownEl.removeClass('visible');
@@ -256,7 +267,7 @@ export class SlashCommandDropdown {
     this.providerDiscoveryUnsubscribe?.();
     this.providerDiscovery = providerDiscovery;
     this.providerDiscoveryUnsubscribe = providerDiscovery?.subscribe(() => {
-      if (this.isVisible()) {
+      if (this.isVisible() || this.providerRefreshEnabled) {
         this.handleInputChange();
       }
     }) ?? null;
@@ -292,6 +303,10 @@ export class SlashCommandDropdown {
 
   private showDropdown(searchText: string, isAtPosition0 = true): void {
     const searchLower = searchText.toLowerCase();
+    if (this.lastSearchText !== searchText) this.selectionWasExplicit = false;
+    this.lastSearchText = searchText;
+    const selected = this.selectionWasExplicit ? this.filteredItems[this.selectedIndex] : undefined;
+    const selectedKey = selected ? `${selected.displayPrefix}:${selected.providerEntry?.id ?? selected.name}` : null;
     const includeBuiltIns = this.includeBuiltIns
       && isAtPosition0
       && this.activeTriggerChar === '/';
@@ -310,12 +325,12 @@ export class SlashCommandDropdown {
       this.providerDiscoveryState = snapshot;
       this.cachedProviderEntries = snapshot.status === 'ready' ? [...snapshot.items] : [];
       this.updateFilteredItems(searchLower, includeBuiltIns);
-      this.finishRender(searchText);
+      this.finishRender(searchText, selectedKey);
       return;
     }
 
     this.updateFilteredItems(searchLower, includeBuiltIns);
-    this.finishRender(searchText);
+    this.finishRender(searchText, selectedKey);
   }
 
   private updateFilteredItems(searchLower: string, includeBuiltIns: boolean): void {
@@ -349,7 +364,7 @@ export class SlashCommandDropdown {
     return 4;
   }
 
-  private finishRender(searchText: string): void {
+  private finishRender(searchText: string, selectedKey: string | null): void {
     const hasProviderState = this.providerDiscoveryState?.status !== 'ready'
       && this.providerDiscoveryState !== null;
     if (
@@ -362,7 +377,9 @@ export class SlashCommandDropdown {
       return;
     }
 
-    this.selectedIndex = 0;
+    const previousIndex = selectedKey === null ? -1 : this.filteredItems.findIndex(item =>
+      `${item.displayPrefix}:${item.providerEntry?.id ?? item.name}` === selectedKey);
+    this.selectedIndex = Math.max(0, previousIndex);
     this.render();
   }
 
@@ -485,6 +502,7 @@ export class SlashCommandDropdown {
         },
         onItemHover: (_item, index) => {
           this.selectedIndex = index;
+          this.selectionWasExplicit = true;
         },
       });
     } else {
@@ -583,6 +601,7 @@ export class SlashCommandDropdown {
   private navigate(direction: number): void {
     this.commandList?.moveSelection(direction);
     this.selectedIndex = this.commandList?.getSelectedIndex() ?? this.selectedIndex;
+    this.selectionWasExplicit = true;
   }
 
   private selectItem(): void {
@@ -599,6 +618,7 @@ export class SlashCommandDropdown {
     this.setInputValue(beforeTrigger + replacement + afterCursor);
     this.setCursorPosition(beforeTrigger.length + replacement.length);
 
+    this.providerRefreshEnabled = false;
     this.hide();
     if (selected.slashCommand) {
       this.callbacks.onSelect(selected.slashCommand);

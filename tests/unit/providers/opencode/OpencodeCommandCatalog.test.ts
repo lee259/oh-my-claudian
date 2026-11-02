@@ -102,6 +102,7 @@ describe('OpencodeCommandCatalog', () => {
 
     expect(catalog.getDropdownConfig()).toEqual({
       providerId: 'opencode',
+      liveUpdates: true,
       triggerChars: ['/'],
       builtInPrefix: '/',
       skillPrefix: '/',

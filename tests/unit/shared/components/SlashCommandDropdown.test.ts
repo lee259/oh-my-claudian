@@ -154,6 +154,40 @@ describe('SlashCommandDropdown', () => {
   });
 
   describe('search result ranking', () => {
+    it('reopens for a live provider entry after an empty search auto-hides', async () => {
+      const store = createEntryDiscovery(async () => []);
+      const instance = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        providerConfig: CLAUDE_CONFIG, providerDiscovery: store, includeBuiltIns: false,
+      });
+      inputEl.value = '/x';
+      inputEl.selectionStart = inputEl.value.length;
+      instance.handleInputChange();
+      await store.load();
+      instance.hide();
+      expect(instance.isVisible()).toBe(false);
+
+      store.publish({ status: 'ready', items: [makeEntry('xylophone')] });
+      expect(instance.isVisible()).toBe(true);
+      expect(getRenderedCommandNames(containerEl)).toEqual(['xylophone']);
+      instance.destroy();
+    });
+
+    it('keeps the selected command when live entries arrive', async () => {
+      const store = createEntryDiscovery(async () => [makeEntry('beta'), makeEntry('gamma')]);
+      const instance = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        providerConfig: CLAUDE_CONFIG, providerDiscovery: store, includeBuiltIns: false,
+      });
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      instance.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      instance.handleKeydown({ key: 'ArrowDown', preventDefault: jest.fn() } as any);
+      store.publish({ status: 'ready', items: [makeEntry('alpha'), makeEntry('beta'), makeEntry('gamma')] });
+      expect(getRenderedCommandNames(containerEl)).toEqual(['alpha', 'beta', 'gamma']);
+      instance.handleKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
+      expect(callbacks.onSelect).toHaveBeenCalledWith(expect.objectContaining({ name: 'gamma' }));
+      instance.destroy();
+    });
     it('ranks exact, prefix, substring, then description matches', async () => {
       const entries = [
         makeEntry('my-paper-writer', 'Substring match'),

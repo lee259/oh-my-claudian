@@ -35,6 +35,7 @@ export class OpencodeCommandCatalog extends RuntimeCommandCatalog {
         commandPrefix: '/',
         // Discovery chains internal step bounds with fallbacks.
         discoveryTimeoutMs: 'provider-owned',
+        liveUpdates: true,
         providerId: 'opencode',
         skillPrefix: '/',
         triggerChars: ['/'],

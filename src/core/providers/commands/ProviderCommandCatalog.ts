@@ -12,6 +12,8 @@ export interface ProviderCommandDropdownConfig {
   commandPrefix: string;
   /** Provider discovery deadline; 'provider-owned' disables the shared deadline. */
   discoveryTimeoutMs?: number | 'provider-owned';
+  /** Provider catalog publishes updates after initial discovery. */
+  liveUpdates?: boolean;
 }
 
 export interface ProviderCommandListContext {
@@ -27,6 +29,7 @@ export interface ProviderCommandListContext {
 export interface ProviderCommandCatalog {
   listDropdownEntries(context: ProviderCommandListContext): Promise<ProviderCommandEntry[]>;
   setCommandSnapshot(commands: SlashCommand[]): void;
+  subscribe?(listener: () => void): () => void;
   getDropdownConfig(): ProviderCommandDropdownConfig;
   refresh(): Promise<void>;
 }
