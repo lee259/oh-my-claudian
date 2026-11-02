@@ -203,6 +203,36 @@ describe('SelectionController', () => {
     expect(contextTray.setItems.mock.calls.length).toBeGreaterThan(callsWhileFocused);
   });
 
+  it('polls only while a markdown view is active', () => {
+    const listeners = new Map<string, () => void>();
+    const markdownView = app.workspace.getActiveViewOfType();
+    let markdownActive = true;
+    app.workspace.getActiveViewOfType = jest.fn(() => (markdownActive ? markdownView : null));
+    app.workspace.on = jest.fn((event: string, callback: () => void) => {
+      listeners.set(event, callback);
+      return { event, callback };
+    });
+    app.workspace.offref = jest.fn();
+    controller = new SelectionController(app, contextTray as any, inputEl, undefined, focusScopeEl);
+
+    controller.start();
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(true);
+
+    markdownActive = false;
+    listeners.get('active-leaf-change')?.();
+    expect(controller.hasSelection()).toBe(false);
+
+    contextTray.setItems.mockClear();
+    jest.advanceTimersByTime(1_000);
+    expect(contextTray.setItems).not.toHaveBeenCalled();
+
+    markdownActive = true;
+    listeners.get('active-leaf-change')?.();
+    jest.advanceTimersByTime(250);
+    expect(contextTray.setItems).toHaveBeenCalled();
+  });
+
   it('preserves selection when focus moves into the chat sidebar', () => {
     controller.start();
     jest.advanceTimersByTime(250);
