@@ -1,7 +1,8 @@
-import type { App, ItemView } from 'obsidian';
+import type { App, EventRef, ItemView } from 'obsidian';
 
 import type { CanvasSelectionContext } from '../../../utils/canvas';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { VisibilityGatedPoller } from './VisibilityGatedPoller';
 
 const CANVAS_POLL_INTERVAL = 250;
 
@@ -24,7 +25,9 @@ export class CanvasSelectionController {
   private onUserSelectionChanged: (() => void) | null;
   private storedSelection: CanvasSelectionContext | null = null;
   private sourceView: CanvasViewLike | null = null;
-  private pollInterval: number | null = null;
+  private readonly poller: VisibilityGatedPoller;
+  private started = false;
+  private workspaceEventRefs: EventRef[] = [];
 
   constructor(
     app: App,
@@ -38,31 +41,64 @@ export class CanvasSelectionController {
     this.inputEl = inputEl;
     this.onVisibilityChange = onVisibilityChange ?? null;
     this.onUserSelectionChanged = onUserSelectionChanged ?? null;
+    this.poller = new VisibilityGatedPoller({
+      ownerDocument: inputEl.ownerDocument,
+      ownerWindow: inputEl.ownerDocument.defaultView ?? window,
+      intervalMs: CANVAS_POLL_INTERVAL,
+      poll: () => this.poll(),
+    });
   }
 
   start(): void {
-    if (this.pollInterval) return;
-    this.pollInterval = window.setInterval(() => this.poll(), CANVAS_POLL_INTERVAL);
+    if (this.started) return;
+    this.started = true;
+    this.registerWorkspaceEvents();
+    this.syncActiveCanvasPolling();
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
+    this.started = false;
+    this.releaseWorkspaceEvents();
+    this.poller.stop();
     this.clear();
+  }
+
+  private registerWorkspaceEvents(): void {
+    if (this.workspaceEventRefs.length > 0) return;
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      on?: (event: 'active-leaf-change' | 'layout-change', callback: () => void) => EventRef;
+    };
+    if (!workspace.on) return;
+    this.workspaceEventRefs = [
+      workspace.on('active-leaf-change', () => this.syncActiveCanvasPolling()),
+      workspace.on('layout-change', () => this.syncActiveCanvasPolling()),
+    ];
+  }
+
+  private releaseWorkspaceEvents(): void {
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      offref?: (ref: EventRef) => void;
+    };
+    if (workspace.offref) {
+      for (const ref of this.workspaceEventRefs) workspace.offref(ref);
+    }
+    this.workspaceEventRefs = [];
+  }
+
+  private syncActiveCanvasPolling(): void {
+    if (!this.started) return;
+    if (this.getCanvasView()) {
+      this.poller.start();
+      return;
+    }
+    this.poller.stop();
+    this.clearWhenCanvasIsUnavailable();
   }
 
   private poll(): void {
     const canvasView = this.getCanvasView();
     if (!canvasView) {
-      const activeView = this.app.workspace.getMostRecentLeaf?.()?.view;
-      const activeElement = this.getActiveElement();
-      const ownInputHandoff = !!activeElement && this.inputEl.contains(activeElement)
-        && activeView?.containerEl?.contains(this.inputEl)
-        && this.sourceView?.file?.path === this.storedSelection?.canvasPath
-        && this.app.workspace.getLeavesOfType('canvas').some(leaf => leaf.view === this.sourceView);
-      if (!ownInputHandoff) this.clearSelection();
+      this.clearWhenCanvasIsUnavailable();
       return;
     }
 
@@ -97,6 +133,16 @@ export class CanvasSelectionController {
 
   private getActiveElement(): Element | null {
     return this.inputEl.ownerDocument?.activeElement ?? null;
+  }
+
+  private clearWhenCanvasIsUnavailable(): void {
+    const activeView = this.app.workspace.getMostRecentLeaf?.()?.view;
+    const activeElement = this.getActiveElement();
+    const ownInputHandoff = !!activeElement && this.inputEl.contains(activeElement)
+      && activeView?.containerEl?.contains(this.inputEl)
+      && this.sourceView?.file?.path === this.storedSelection?.canvasPath
+      && this.app.workspace.getLeavesOfType('canvas').some(leaf => leaf.view === this.sourceView);
+    if (!ownInputHandoff) this.clearSelection();
   }
 
   private getCanvasView(): CanvasViewLike | null {
