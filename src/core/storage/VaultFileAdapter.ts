@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import type { App, DataAdapter } from 'obsidian';
 
 import { mapWithConcurrency } from '@/utils/concurrency';
+import { replaceFile } from '@/utils/fileReplace';
 
 export type ManagedResourceType = 'file' | 'folder';
 
@@ -127,6 +128,7 @@ export class VaultFileAdapter {
       return;
     }
     const target = path.join(desktop.getBasePath(), ...normalized.split('/'));
+    if (await fs.readFile(target, 'utf8').catch(() => undefined) === content) return;
     let stat: Stats | undefined;
     try {
       stat = await fs.lstat(target);
@@ -144,7 +146,7 @@ export class VaultFileAdapter {
       await fs.writeFile(temporary, content, { encoding: 'utf8', flag: 'wx', mode: stat?.mode });
       written = true;
       if (stat) await fs.chmod(temporary, stat.mode);
-      await fs.rename(temporary, target);
+      await replaceFile(temporary, target);
     } catch (error) {
       if (written || !isCollision(error)) await fs.rm(temporary, { force: true }).catch(() => undefined);
       throw error;

@@ -70,7 +70,20 @@ it('retains the input ledger when replacement fails partway', async () => {
   const original = { schemaVersion: 1 as const, conversationId: 'sample', records: [] };
   await ledger.save('sample', original);
   failPartialWrite();
-  await expect(ledger.save('sample', original)).rejects.toThrow('disk full');
+  await expect(ledger.save('sample', {
+    ...original,
+    records: [{
+      schemaVersion: 1,
+      id: 'input-1',
+      userTurnOrdinal: 1,
+      state: 'staged',
+      timestamp: 1,
+      rawDisplayText: 'Changed',
+      canonicalText: 'Changed',
+      images: [],
+      contentDigest: '0'.repeat(64),
+    }],
+  })).rejects.toThrow('disk full');
   await expect(ledger.load('sample')).resolves.toEqual({ status: 'loaded', ledger: original });
 });
 
@@ -97,6 +110,38 @@ it('delegates writes for adapters without a desktop filesystem path', async () =
   const nonDesktop = new VaultFileAdapter({ vault: { adapter } } as never);
   await nonDesktop.writeDurable('.claudian/example.json', '{}');
   expect(write).toHaveBeenCalledWith('.claudian/example.json', '{}');
+});
+
+it('does not rewrite durable content that is unchanged', async () => {
+  await vault.writeDurable('.claudian/data.json', 'same');
+  jest.mocked(fs.writeFile).mockClear();
+
+  await vault.writeDurable('.claudian/data.json', 'same');
+
+  expect(fs.writeFile).not.toHaveBeenCalled();
+  expect(await actualFs.readFile(path.join(root, '.claudian/data.json'), 'utf8')).toBe('same');
+});
+
+it('retries durable replacements refused by a transient file lock', async () => {
+  for (const code of ['EPERM', 'EACCES', 'EBUSY']) {
+    jest.mocked(fs.rename).mockRejectedValueOnce(
+      Object.assign(new Error(`${code}: file in use`), { code }),
+    );
+    await vault.writeDurable('.claudian/data.json', `after ${code}`);
+    expect(await actualFs.readFile(path.join(root, '.claudian/data.json'), 'utf8'))
+      .toBe(`after ${code}`);
+  }
+});
+
+it('surfaces a transient lock that outlasts the replacement retries', async () => {
+  await vault.writeDurable('.claudian/data.json', 'before');
+  jest.mocked(fs.rename).mockClear();
+  jest.mocked(fs.rename).mockRejectedValue(Object.assign(new Error('EBUSY: file in use'), { code: 'EBUSY' }));
+
+  await expect(vault.writeDurable('.claudian/data.json', 'after')).rejects.toThrow('EBUSY');
+  expect(fs.rename).toHaveBeenCalledTimes(5);
+  expect(await actualFs.readFile(path.join(root, '.claudian/data.json'), 'utf8')).toBe('before');
+  expect(await actualFs.readdir(path.join(root, '.claudian'))).toEqual(['data.json']);
 });
 
 const describePosix = process.platform === 'win32' ? describe.skip : describe;
@@ -131,7 +176,7 @@ describePosix('desktop link and permission compatibility', () => {
   });
 });
 
-it.each(['EACCES', 'EEXIST'])('keeps the committed file and removes the temporary file when rename fails with %s', async code => {
+it.each(['ENOSPC', 'EEXIST'])('keeps the committed file and removes the temporary file when rename fails with %s', async code => {
   await vault.writeDurable('.claudian/data.json', 'before');
   jest.mocked(fs.rename).mockRejectedValueOnce(Object.assign(new Error('rename failed'), { code }));
   await expect(vault.writeDurable('.claudian/data.json', 'after')).rejects.toThrow('rename failed');
