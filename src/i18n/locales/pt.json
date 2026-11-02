@@ -309,6 +309,7 @@
       "linkedPaths": "Falha ao atualizar caminhos das notas vinculadas"
     },
     "rendering": {
+      "showEarlier": "Mostrar mensagens anteriores ({count})",
       "noChanges": "Sem alterações",
       "copied": "Copiado!",
       "planComplete": "Plano concluído",

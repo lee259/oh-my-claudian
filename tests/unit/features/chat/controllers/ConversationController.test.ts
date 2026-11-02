@@ -157,6 +157,7 @@ describe('ConversationController', () => {
       expect(deps.renderer.renderMessages).toHaveBeenLastCalledWith(
         deps.state.messages.slice(0, 2),
         expect.any(Function),
+        { windowed: false },
       );
       expect(restoreMessageToComposer).toHaveBeenCalledWith({ content: 'second', images: undefined });
       expect(inputEl.focus).toHaveBeenCalled();
@@ -165,7 +166,11 @@ describe('ConversationController', () => {
       controller.cancelBranchPreview();
 
       expect(restoreMessageToComposer).toHaveBeenLastCalledWith({ content: '', images: [] });
-      expect(deps.renderer.renderMessages).toHaveBeenLastCalledWith(deps.state.messages, expect.any(Function));
+      expect(deps.renderer.renderMessages).toHaveBeenLastCalledWith(
+        deps.state.messages,
+        expect.any(Function),
+        { windowed: false },
+      );
       expect(controller.hasBranchPreview).toBe(false);
     });
   });

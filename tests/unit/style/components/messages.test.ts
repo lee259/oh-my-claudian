@@ -126,6 +126,15 @@ describe('Message styles', () => {
     );
   });
 
+  it('styles the transcript render-window control as a quiet action', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const rule = css.match(/\.claudian-render-window-more\s*{[^}]*}/)?.[0];
+
+    expect(rule).toContain('border: 0;');
+    expect(rule).toContain('background: transparent;');
+    expect(rule).toContain('color: var(--text-muted);');
+  });
+
   it('uses a responsive centered assistant column on wide views', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
     const assistantRule = css.match(/\.claudian-message-assistant\s*{[^}]*}/)?.[0];

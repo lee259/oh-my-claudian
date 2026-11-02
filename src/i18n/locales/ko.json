@@ -309,6 +309,7 @@
       "linkedPaths": "연결된 세션 노트 경로 업데이트 실패"
     },
     "rendering": {
+      "showEarlier": "이전 메시지 표시({count}개)",
       "noChanges": "변경 사항 없음",
       "copied": "복사됨!",
       "planComplete": "계획 완료",

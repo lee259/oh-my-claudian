@@ -3,6 +3,7 @@ import type { MessageRenderer } from '../rendering/MessageRenderer';
 export type MessagePresentation = Pick<MessageRenderer,
   | 'appendInterruptIndicator' | 'finalizeCompletedWork' | 'finalizeTranscriptTurn'
   | 'refreshActionButtons' | 'removeMessage' | 'renderFinalMessageTimestamp'
+  | 'revealAllMessages' | 'revealMessage'
   | 'setTranscriptExecutionScope' | 'addTextCopyButton' | 'startCompletedWork'
   | 'syncStreamingActivity' | 'refreshBranchButtonState' | 'refreshBranchButtons'
   | 'renderMessagesInto' | 'updateLiveUserMessage' | 'renderContent'
@@ -47,6 +48,14 @@ export class RuntimeMessagePresentation implements MessagePresentation {
 
   renderFinalMessageTimestamp(...args: Parameters<MessageRenderer['renderFinalMessageTimestamp']>): ReturnType<MessageRenderer['renderFinalMessageTimestamp']> {
     return this.binding?.renderer.renderFinalMessageTimestamp(...args);
+  }
+
+  revealAllMessages(...args: Parameters<MessageRenderer['revealAllMessages']>): ReturnType<MessageRenderer['revealAllMessages']> {
+    return this.binding?.renderer.revealAllMessages(...args) ?? null;
+  }
+
+  revealMessage(...args: Parameters<MessageRenderer['revealMessage']>): ReturnType<MessageRenderer['revealMessage']> {
+    return this.binding?.renderer.revealMessage(...args) ?? null;
   }
 
   setTranscriptExecutionScope(...args: Parameters<MessageRenderer['setTranscriptExecutionScope']>): ReturnType<MessageRenderer['setTranscriptExecutionScope']> {

@@ -1016,7 +1016,9 @@ export class ConversationController {
     const content = message.displayContent ?? extractUserDisplayContent(message.content) ?? message.content;
     state.writeEditStates.clear();
     this.deps.setWelcomeEl(renderer.renderMessages(
-      state.messages.slice(0, state.messages.indexOf(message)), () => this.getGreeting(),
+      state.messages.slice(0, state.messages.indexOf(message)),
+      () => this.getGreeting(),
+      { windowed: false },
     ));
     this.deps.restoreMessageToComposer?.({ content, images: message.images });
     this.deps.getInputEl().focus();
@@ -1030,7 +1032,11 @@ export class ConversationController {
     if (this.deps.isDisposed?.() || state.currentConversationId !== preview.conversationId) return;
     this.deps.restoreMessageToComposer?.(preview.draft);
     state.writeEditStates.clear();
-    this.deps.setWelcomeEl(renderer.renderMessages(state.messages, () => this.getGreeting()));
+    this.deps.setWelcomeEl(renderer.renderMessages(
+      state.messages,
+      () => this.getGreeting(),
+      { windowed: false },
+    ));
     this.updateWelcomeVisibility();
     const messagesEl = this.deps.getMessagesEl();
     if (messagesEl) messagesEl.scrollTop = preview.scrollTop;
@@ -1083,7 +1089,11 @@ export class ConversationController {
           const visible = result.status === 'cancelled' && preview && previewIndex >= 0
             ? state.messages.slice(0, previewIndex) : state.messages;
           state.writeEditStates.clear();
-          this.deps.setWelcomeEl(renderer.renderMessages(visible, () => this.getGreeting()));
+          this.deps.setWelcomeEl(renderer.renderMessages(
+            visible,
+            () => this.getGreeting(),
+            { windowed: false },
+          ));
           this.updateWelcomeVisibility();
           try { await this.save(); } catch (error) {
             this.branchRecoveryRequired = true;

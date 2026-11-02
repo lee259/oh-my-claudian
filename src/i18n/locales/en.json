@@ -309,6 +309,7 @@
       "linkedPaths": "Failed to update linked session note paths"
     },
     "rendering": {
+      "showEarlier": "Show earlier messages ({count})",
       "noChanges": "No changes",
       "copied": "Copied!",
       "planComplete": "Plan complete",

@@ -309,6 +309,7 @@
       "linkedPaths": "Impossible de mettre à jour les chemins des notes liées"
     },
     "rendering": {
+      "showEarlier": "Afficher les messages précédents ({count})",
       "noChanges": "Aucune modification",
       "copied": "Copié !",
       "planComplete": "Plan terminé",

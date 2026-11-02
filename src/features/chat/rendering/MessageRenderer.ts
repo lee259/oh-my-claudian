@@ -127,6 +127,16 @@ type RenderedActivityTimeline = {
 
 type TranscriptIdentity = { turnId: string; runId?: string; runIndex?: number };
 
+const INITIAL_RENDER_WINDOW = 40;
+
+function findRenderWindowStart(messages: readonly ChatMessage[], targetIndex: number): number {
+  for (let index = Math.min(targetIndex, messages.length - 1); index > 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === 'user' && !message.isRebuiltContext) return index;
+  }
+  return 0;
+}
+
 function runRendererAction(action: () => Promise<void>): void {
   void action().catch(() => {
     // UI actions already surface expected failures locally.
@@ -175,6 +185,8 @@ export class MessageRenderer {
   #pendingLayoutScroll: ResizeObserver | null = null;
   private readonly imagePreviewModal: ImagePreviewModal;
   private isDisposed = false;
+  private transcriptMessages: ChatMessage[] = [];
+  private windowStart = 0;
   /** Set while rendering a read-only surface (e.g. subagent transcripts). */
   private suppressConversationActions = false;
 
@@ -265,6 +277,8 @@ export class MessageRenderer {
     this.liveMessageEls.clear();
     this.activityPhaseOverrides.clear();
     this.transcriptExecutionScopes.clear();
+    this.transcriptMessages = [];
+    this.windowStart = 0;
   }
 
   private getSubagentAdapter(toolName?: string) {
@@ -344,6 +358,7 @@ export class MessageRenderer {
    * Returns the message element for content updates.
    */
   addMessage(msg: ChatMessage): HTMLElement {
+    this.trackTranscriptMessage(msg);
     if (this.getCapabilities().forkMode === 'full-session') {
       this.messagesEl.querySelectorAll('.claudian-message-fork-btn').forEach(button => button.remove());
     }
@@ -399,6 +414,7 @@ export class MessageRenderer {
     if (msg.role !== 'user') {
       return;
     }
+    this.trackTranscriptMessage(msg);
 
     const msgEl = this.liveMessageEls.get(msg.id)
       ?? this.messagesEl.querySelector<HTMLElement>(`[data-message-id="${msg.id}"]`);
@@ -448,6 +464,7 @@ export class MessageRenderer {
 
     this.releaseContentRenders(msgEl);
     msgEl.remove();
+    this.transcriptMessages = this.transcriptMessages.filter(message => message.id !== messageId);
     this.liveMessageEls.delete(messageId);
     this.transcriptExecutionScopes.delete(messageId);
     const phasePrefix = `${messageId}:`;
@@ -468,12 +485,14 @@ export class MessageRenderer {
    */
   renderMessages(
     messages: ChatMessage[],
-    getGreeting: () => string
+    getGreeting: () => string,
+    options?: { windowed?: boolean; scrollToBottom?: boolean },
   ): HTMLElement {
     unmountWelcomeContent(this.messagesEl);
     this.releaseContentRenders();
     this.messagesEl.empty();
     this.liveMessageEls.clear();
+    this.transcriptMessages = messages;
 
     // Recreate welcome element after clearing
     const newWelcomeEl = createWelcomeElement(
@@ -483,19 +502,93 @@ export class MessageRenderer {
       this.getWelcomeHomeOptions?.(),
     );
 
-    const transcriptIdentities = this.getTranscriptIdentities(messages);
-    for (let i = 0; i < messages.length; i++) {
-      this.renderStoredMessage(messages[i], messages, i, {
-        collapseCompletedWork: false,
-        deferCompletedWork: true,
-        transcriptIdentity: transcriptIdentities.get(messages[i].id),
+    this.windowStart = this.getRenderWindowStart(messages, options?.windowed !== false);
+    this.renderMessageWindow(messages, this.windowStart);
+
+    if (options?.scrollToBottom !== false) this.#scrollToBottomOnceLaidOut();
+    return newWelcomeEl;
+  }
+
+  /** Renders the hidden prefix of a windowed transcript and keeps the reading position. */
+  revealAllMessages(): HTMLElement | null {
+    if (this.windowStart === 0 || this.transcriptMessages.length === 0) {
+      return this.messagesEl.querySelector<HTMLElement>('.claudian-message');
+    }
+
+    const previousHeight = this.messagesEl.scrollHeight;
+    const previousTop = this.messagesEl.scrollTop;
+    this.clearRenderedMessages();
+    this.windowStart = 0;
+    this.renderMessageWindow(this.transcriptMessages, 0);
+    this.messagesEl.scrollTop = Math.max(
+      0,
+      this.messagesEl.scrollHeight - previousHeight + previousTop,
+    );
+    return this.messagesEl.querySelector<HTMLElement>('.claudian-message');
+  }
+
+  /** Finds a stored message, revealing the transcript window when the target is older. */
+  revealMessage(messageId: string): HTMLElement | null {
+    const selector = `[data-message-id="${messageId}"]`;
+    const existing = this.messagesEl.querySelector<HTMLElement>(selector);
+    if (existing) return existing;
+    if (this.windowStart === 0) return null;
+    this.revealAllMessages();
+    return this.messagesEl.querySelector<HTMLElement>(selector);
+  }
+
+  private getRenderWindowStart(messages: readonly ChatMessage[], windowed: boolean): number {
+    if (!windowed || messages.length <= INITIAL_RENDER_WINDOW) return 0;
+    return findRenderWindowStart(messages, messages.length - INITIAL_RENDER_WINDOW);
+  }
+
+  private trackTranscriptMessage(msg: ChatMessage): void {
+    const index = this.transcriptMessages.findIndex(message => message.id === msg.id);
+    if (index < 0) {
+      this.transcriptMessages = [...this.transcriptMessages, msg];
+      return;
+    }
+    const next = [...this.transcriptMessages];
+    next[index] = msg;
+    this.transcriptMessages = next;
+  }
+
+  private renderMessageWindow(messages: ChatMessage[], start: number): void {
+    if (start > 0) {
+      const moreButton = this.messagesEl.createEl('button', {
+        cls: 'claudian-render-window-more',
+        text: t('chat.rendering.showEarlier', { count: start }),
+        attr: { type: 'button' },
+      });
+      moreButton.addEventListener('click', () => {
+        this.revealAllMessages();
       });
     }
-    this.groupRenderedTranscriptTurns(messages, false);
-    for (const turn of projectTranscript(messages)) this.finalizeTranscriptTurn(turn);
 
-    this.#scrollToBottomOnceLaidOut();
-    return newWelcomeEl;
+    const renderedMessages = messages.slice(start);
+    const transcriptIdentities = this.getTranscriptIdentities(renderedMessages);
+    for (let index = start; index < messages.length; index += 1) {
+      this.renderStoredMessage(messages[index], messages, index, {
+        collapseCompletedWork: false,
+        deferCompletedWork: true,
+        transcriptIdentity: transcriptIdentities.get(messages[index].id),
+      });
+    }
+    this.groupRenderedTranscriptTurns(renderedMessages, false);
+    for (const turn of projectTranscript(renderedMessages)) this.finalizeTranscriptTurn(turn);
+  }
+
+  private clearRenderedMessages(): void {
+    this.releaseContentRenders();
+    for (const selector of [
+      '.claudian-render-window-more',
+      '.claudian-message',
+      '.claudian-transcript-turn',
+    ]) {
+      this.messagesEl.querySelectorAll<HTMLElement>(selector)
+        .forEach(element => element.remove());
+    }
+    this.liveMessageEls.clear();
   }
 
   /**

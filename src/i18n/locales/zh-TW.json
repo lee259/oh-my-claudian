@@ -309,6 +309,7 @@
       "linkedPaths": "更新連結對話的筆記路徑失敗"
     },
     "rendering": {
+      "showEarlier": "顯示更早的訊息（{count} 則）",
       "noChanges": "沒有變更",
       "copied": "已複製！",
       "planComplete": "計畫完成",

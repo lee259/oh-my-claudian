@@ -4986,4 +4986,98 @@ describe('MessageRenderer', () => {
       expect(finalizeCompletedWork).not.toHaveBeenCalled();
     });
   });
+
+  describe('render window', () => {
+    function createContainer(): HTMLElement {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      return container;
+    }
+
+    function createWindowMessages(count: number): ChatMessage[] {
+      return Array.from({ length: count }, (_, index) => ({
+        id: `window-${index}`,
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `message ${index}`,
+        timestamp: index,
+        contentBlocks: [{ type: 'text', content: `message ${index}` }],
+      })) as ChatMessage[];
+    }
+
+    it('renders a bounded initial transcript and reveals all messages on demand', () => {
+      const messagesEl = createContainer();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      try {
+        renderer.renderMessages(createWindowMessages(120), () => 'Hello');
+
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(40);
+        const moreButton = messagesEl.querySelector<HTMLElement>('.claudian-render-window-more');
+        expect(moreButton).toBeTruthy();
+
+        moreButton!.click();
+
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(120);
+        expect(messagesEl.querySelector('.claudian-render-window-more')).toBeNull();
+      } finally {
+        messagesEl.remove();
+      }
+    });
+
+    it('renders the full transcript when windowing is disabled', () => {
+      const messagesEl = createContainer();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      try {
+        renderer.renderMessages(createWindowMessages(120), () => 'Hello', { windowed: false });
+
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(120);
+        expect(messagesEl.querySelector('.claudian-render-window-more')).toBeNull();
+      } finally {
+        messagesEl.remove();
+      }
+    });
+
+    it('reveals the transcript when a target message is outside the window', () => {
+      const messagesEl = createContainer();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      try {
+        renderer.renderMessages(createWindowMessages(120), () => 'Hello');
+        const target = renderer.revealMessage('window-10');
+
+        expect(target?.dataset.messageId).toBe('window-10');
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(120);
+      } finally {
+        messagesEl.remove();
+      }
+    });
+
+    it('keeps live messages when revealing the earlier transcript', () => {
+      const messagesEl = createContainer();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      try {
+        renderer.renderMessages(createWindowMessages(120), () => 'Hello');
+        renderer.addMessage({
+          id: 'live-message',
+          role: 'assistant',
+          content: 'live reply',
+          timestamp: 120,
+          contentBlocks: [{ type: 'text', content: 'live reply' }],
+        } as ChatMessage);
+
+        renderer.revealAllMessages();
+
+        expect(messagesEl.querySelector('[data-message-id="live-message"]')).toBeTruthy();
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(121);
+      } finally {
+        messagesEl.remove();
+      }
+    });
+  });
 });

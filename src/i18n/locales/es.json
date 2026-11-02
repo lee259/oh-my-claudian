@@ -309,6 +309,7 @@
       "linkedPaths": "No se pudieron actualizar las rutas de notas vinculadas"
     },
     "rendering": {
+      "showEarlier": "Mostrar mensajes anteriores ({count})",
       "noChanges": "Sin cambios",
       "copied": "¡Copiado!",
       "planComplete": "Plan completado",

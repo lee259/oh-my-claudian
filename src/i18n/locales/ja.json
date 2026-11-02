@@ -309,6 +309,7 @@
       "linkedPaths": "関連セッションのノートパスを更新できませんでした"
     },
     "rendering": {
+      "showEarlier": "以前のメッセージを表示（{count} 件）",
       "noChanges": "変更なし",
       "copied": "コピーしました！",
       "planComplete": "プラン完了",

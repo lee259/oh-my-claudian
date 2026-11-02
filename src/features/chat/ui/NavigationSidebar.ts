@@ -59,6 +59,7 @@ export class NavigationSidebar {
     private messagesEl: HTMLElement,
     private onScrollIntent?: (intent: NavigationScrollIntent) => void,
     private readonly app?: Pick<App, 'keymap' | 'scope'>,
+    private readonly revealAllMessages?: () => HTMLElement | null,
   ) {
     this.container = this.parentEl.createDiv({ cls: 'claudian-nav-sidebar' });
 
@@ -222,6 +223,7 @@ export class NavigationSidebar {
   }
 
   private openDirectory(focusFirst = true): void {
+    this.revealAllMessages?.();
     const entries = this.getDirectoryEntries();
     this.closeDirectory();
     this.tocBtn.setAttribute('aria-expanded', 'true');
@@ -310,6 +312,12 @@ export class NavigationSidebar {
           this.scrollToElement(messages[i]);
           return 'away';
         }
+      }
+      // Reveal a windowed prefix before falling back to the top.
+      const first = this.revealAllMessages?.();
+      if (first) {
+        this.scrollToElement(first);
+        return 'away';
       }
       // Already at or above the first message — scroll to top
       this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
