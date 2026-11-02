@@ -631,7 +631,7 @@ describe('GrokSettingsTab', () => {
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       container,
       'grok',
-      expect.objectContaining({ name: 'Hidden Grok Build commands' }),
+      expect.objectContaining({ name: 'Hidden Commands and Skills' }),
     );
     expect(mockRenderEnvironmentSettingsSection).toHaveBeenCalledWith(expect.objectContaining({
       plugin,

@@ -845,6 +845,86 @@ describe('ClaudeExecutionBackend', () => {
     await session.dispose();
   });
 
+  it('publishes authoritative per-turn usage without a context snapshot', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      {
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: {
+          content: [{ type: 'text', text: 'Hello' }],
+          usage: {
+            input_tokens: 50_000,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 10_000,
+          },
+        },
+      },
+      {
+        type: 'result',
+        subtype: 'success',
+        modelUsage: {
+          'claude-sonnet-4-5': { contextWindow: 200_000 },
+        },
+      },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig());
+
+    const events = await collectEvents(session.execute(createRequest()).events);
+    const usage = events.filter(event => event.type === 'usage_updated').at(-1);
+
+    expect(usage).toEqual(expect.objectContaining({
+      type: 'usage_updated',
+      usage: expect.objectContaining({
+        model: 'claude-sonnet-4-5',
+        contextTokens: 60_000,
+        contextWindow: 200_000,
+        contextWindowIsAuthoritative: true,
+      }),
+    }));
+  });
+
+  it('publishes per-turn usage with an explicit context limit', async () => {
+    sdkMock.setMockMessages([
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      {
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: {
+          content: [{ type: 'text', text: 'Hello' }],
+          usage: {
+            input_tokens: 50_000,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 10_000,
+          },
+        },
+      },
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const host = createHost();
+    (host.settings as unknown as Record<string, unknown>).customContextLimits = {
+      'claude-sonnet-4-5': 150_000,
+    };
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(host, services)
+      .createSession(createConfig());
+
+    const events = await collectEvents(session.execute(createRequest()).events);
+    const usage = events.filter(event => event.type === 'usage_updated').at(-1);
+
+    expect(usage).toEqual(expect.objectContaining({
+      type: 'usage_updated',
+      usage: expect.objectContaining({
+        contextTokens: 60_000,
+        contextWindow: 150_000,
+        contextWindowIsAuthoritative: true,
+        percentage: 40,
+      }),
+    }));
+  });
+
   it.skip('uses the post-turn context snapshot instead of assistant request usage', async () => {
     const getContextUsage = jest.fn()
       .mockResolvedValue({
@@ -1188,7 +1268,16 @@ describe('ClaudeExecutionBackend', () => {
         permissionMode: 'ask',
       },
     })).events);
-    expect(events.some((event) => event.type === 'usage_updated')).toBe(false);
+    expect(events.filter(event => event.type === 'usage_updated').at(-1))
+      .toEqual(expect.objectContaining({
+        type: 'usage_updated',
+        usage: expect.objectContaining({
+          model: 'custom-model',
+          contextTokens: 250_000,
+          contextWindow: 1_000_000,
+          contextWindowIsAuthoritative: true,
+        }),
+      }));
   });
 
   it('applies result context metadata before terminating an errored turn', async () => {
@@ -1223,7 +1312,16 @@ describe('ClaudeExecutionBackend', () => {
       },
     })).events);
 
-    expect(events.some((event) => event.type === 'usage_updated')).toBe(false);
+    expect(events.filter(event => event.type === 'usage_updated').at(-1))
+      .toEqual(expect.objectContaining({
+        type: 'usage_updated',
+        usage: expect.objectContaining({
+          model: 'custom-model',
+          contextTokens: 250_000,
+          contextWindow: 1_000_000,
+          contextWindowIsAuthoritative: true,
+        }),
+      }));
     expect(events.at(-1)).toEqual(expect.objectContaining({
       type: 'execution_error',
       message: 'Hit maximum turn limit',

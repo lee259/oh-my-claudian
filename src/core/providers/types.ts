@@ -319,7 +319,11 @@ export interface ProviderChatUIConfig {
   /** Render reasoning as a transient live status instead of expandable transcript blocks. */
   thinkingPresentation?: 'expandable' | 'status';
 
-  /** Model options for the selector dropdown. Provider extracts what it needs from the settings bag. */
+  /**
+   * Model options for the selector dropdown. Provider extracts what it needs from the settings bag.
+   * The shared selector renders this array in reverse display order, so return options in
+   * reverse of the intended top-to-bottom order.
+   */
   getModelOptions(settings: Record<string, unknown>): ProviderUIOption[];
 
   /** Semantic default model, independent from selector display order. */

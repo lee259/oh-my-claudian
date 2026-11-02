@@ -140,7 +140,10 @@ export class ModelSelector {
     const currentModel = settings.model;
     const displayModel = models.find(model => model.value === currentModel
       && (!currentProviderId || (model.providerId ?? currentProviderId) === currentProviderId));
-    const displayModelLabel = displayModel?.label ?? (currentModel ? 'Model unavailable' : 'Choose a model');
+    const displayModelLabel = displayModel?.label
+      ?? (currentModel
+        ? t('chat.modelPicker.modelUnavailable')
+        : t('chat.modelPicker.chooseModel'));
 
     const adaptiveReasoning = uiConfig.isAdaptiveReasoningModel(currentModel, settings);
     const reasoningOptions = this.callbacks.getCapabilities().reasoningControl === 'none'
@@ -163,21 +166,23 @@ export class ModelSelector {
         } finally {
           this.updateDisplay();
         }
-      }, 'Failed to update favorite models') : undefined,
+      }, t('chat.modelPicker.favoriteUpdateFailed')) : undefined,
       currentModel,
       displayModelLabel,
       providerIcon: displayModel?.providerIcon ?? uiConfig.getProviderIcon?.() ?? undefined,
-      modelTitle: displayModel ? '' : 'Choose an enabled model in provider settings.',
+      modelTitle: displayModel ? '' : t('chat.modelPicker.chooseModelTitle'),
       reasoningOptions,
       reasoningValue,
       reasoningDefaultValue: uiConfig.getDefaultReasoningValue(currentModel, settings),
-      reasoningLabel: adaptiveReasoning ? 'Effort' : 'Thinking budget',
+      reasoningLabel: adaptiveReasoning
+        ? t('chat.modelPicker.effort')
+        : t('chat.modelPicker.thinkingBudget'),
       serviceTier,
       serviceTierActive,
       onModelChange: model => runToolbarAction(async () => {
         await this.callbacks.onModelChange(model.value, model.providerId);
         this.updateDisplay();
-      }, 'Failed to change model'),
+      }, t('chat.modelPicker.modelChangeFailed')),
       onReasoningChange: value => runToolbarAction(async () => {
         try {
           if (adaptiveReasoning) await this.callbacks.onEffortLevelChange(value);
@@ -185,11 +190,11 @@ export class ModelSelector {
         } finally {
           this.updateDisplay();
         }
-      }, adaptiveReasoning ? 'Failed to change effort level' : 'Failed to change thinking budget'),
+      }, t('chat.modelPicker.reasoningChangeFailed')),
       onServiceTierToggle: () => runToolbarAction(async () => {
         await toggleServiceTier(this.callbacks);
         this.updateDisplay();
-      }, 'Failed to change service tier'),
+      }, t('chat.modelPicker.serviceTierChangeFailed')),
     }));
   }
 
@@ -221,7 +226,7 @@ export class ModeSelector {
     this.toggleEl = this.container.createDiv({ cls: 'claudian-toggle-switch' });
 
     this.toggleEl.addEventListener('click', () => {
-      void runToolbarAction(() => this.toggle(), 'Failed to change mode');
+      void runToolbarAction(() => this.toggle(), t('chat.composer.modeChangeFailed'));
     });
 
     this.updateDisplay();
@@ -970,7 +975,7 @@ export function createInputToolbar(
     } finally {
       render();
     }
-  }, 'Failed to change permission mode');
+  }, t('chat.composer.permissionModeChangeFailed'));
 
   const render = (): void => {
     const settings = callbacks.getSettings();

@@ -1220,6 +1220,7 @@ describe('transformSDKMessage', () => {
             cacheCreationInputTokens: 0,
             cacheReadInputTokens: 0,
             contextWindow: 1_000_000,
+            contextWindowIsAuthoritative: true,
             contextTokens: 250000,
             percentage: 25,
           },

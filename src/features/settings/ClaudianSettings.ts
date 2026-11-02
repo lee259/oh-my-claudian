@@ -76,10 +76,12 @@ type CapabilityMatrixKey = keyof Pick<
   | 'supportsPlanMode'
   | 'supportsRewind'
   | 'supportsFork'
+  | 'supportsNativeHistory'
   | 'supportsProviderCommands'
   | 'supportsImageAttachments'
   | 'supportsMcpTools'
   | 'supportsTurnSteer'
+  | 'supportsResponseThroughput'
 >;
 
 const PROVIDER_CAPABILITY_ROWS: ReadonlyArray<{
@@ -89,10 +91,12 @@ const PROVIDER_CAPABILITY_ROWS: ReadonlyArray<{
   { key: 'supportsPlanMode', label: 'settings.capabilityMatrix.rows.planMode' },
   { key: 'supportsRewind', label: 'settings.capabilityMatrix.rows.rewind' },
   { key: 'supportsFork', label: 'settings.capabilityMatrix.rows.fork' },
+  { key: 'supportsNativeHistory', label: 'settings.capabilityMatrix.rows.nativeHistory' },
   { key: 'supportsProviderCommands', label: 'settings.capabilityMatrix.rows.providerCommands' },
   { key: 'supportsImageAttachments', label: 'settings.capabilityMatrix.rows.imageAttachments' },
   { key: 'supportsMcpTools', label: 'settings.capabilityMatrix.rows.mcpTools' },
   { key: 'supportsTurnSteer', label: 'settings.capabilityMatrix.rows.turnSteer' },
+  { key: 'supportsResponseThroughput', label: 'settings.capabilityMatrix.rows.responseThroughput' },
 ];
 type AppWithCommands = App & {
   commands?: {

@@ -63,6 +63,13 @@ function getClaudePermissionModeOptions(): ProviderPermissionModeOption[] {
       description: t('chat.composer.modeAutoDescription'),
       icon: 'zap',
     },
+    {
+      value: 'yolo',
+      label: t('chat.composer.modeFullAccess'),
+      description: t('chat.composer.modeFullAccessDescription'),
+      icon: 'unlock',
+      isDangerous: true,
+    },
   ];
 }
 

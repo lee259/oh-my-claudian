@@ -205,6 +205,9 @@
       "more": "另有 {count} 項",
       "showMore": "顯示另外 {count} 個上下文項目",
       "contextUsage": "上下文用量",
+      "contextUsageApproachingLimit": "上下文接近上限 — 請壓縮對話或開啟新對話。",
+      "modeChangeFailed": "切換模式失敗",
+      "permissionModeChangeFailed": "切換權限模式失敗",
       "scope": "上下文範圍",
       "scopeNote": "筆記：{note}",
       "scopeFolder": "資料夾：{folders}",
@@ -455,6 +458,12 @@
       "search": "搜尋模型",
       "clearSearch": "清除搜尋",
       "model": "模型",
+      "modelUnavailable": "模型無法使用",
+      "chooseModel": "選擇模型",
+      "chooseModelTitle": "請在提供者設定中啟用並選擇一個模型。",
+      "effort": "推理強度",
+      "thinkingBudget": "思考預算",
+      "defaultReasoning": "預設",
       "empty": "沒有可用模型。請檢查 Provider 設定；若探索失敗，請重新整理模型清單。",
       "noMatches": "沒有符合的模型。",
       "noFavorites": "沒有收藏的模型。點選模型旁的星號即可收藏。",
@@ -466,7 +475,11 @@
       "addFavorite": "加入收藏",
       "removeFavorite": "取消收藏",
       "addNamedFavorite": "將 {model} 加入收藏",
-      "removeNamedFavorite": "取消收藏 {model}"
+      "removeNamedFavorite": "取消收藏 {model}",
+      "favoriteUpdateFailed": "更新收藏模型失敗",
+      "modelChangeFailed": "切換模型失敗",
+      "reasoningChangeFailed": "調整推理強度失敗",
+      "serviceTierChangeFailed": "切換服務等級失敗"
     },
     "questions": {
       "title": "問題",
@@ -484,6 +497,7 @@
     },
     "planApproval": {
       "implement": "實作",
+      "revise": "修改",
       "revisePlaceholder": "輸入回饋以修改計畫…",
       "newSession": "核准（新對話）",
       "currentSession": "核准（目前對話）",
@@ -592,10 +606,12 @@
         "planMode": "計劃模式",
         "rewind": "回退",
         "fork": "分叉工作階段",
+        "nativeHistory": "原生歷史",
         "providerCommands": "提供者指令",
         "imageAttachments": "圖片附件",
-        "mcpTools": "MCP 工具",
-        "turnSteer": "回合控制"
+        "mcpTools": "MCP 工具（執行階段）",
+        "turnSteer": "回合控制",
+        "responseThroughput": "回應吞吐"
       }
     },
     "tabs": {
@@ -624,7 +640,11 @@
       "write": "寫入",
       "yolo": "YOLO",
       "permissionRequest": "OMP 請求使用{tool}的權限。",
-      "tool": "工具"
+      "tool": "工具",
+      "environment": {
+        "name": "OMP 環境變數",
+        "desc": "僅傳遞給 OMP 的環境變數。此處明確填寫的值會覆寫登入 shell 的環境。"
+      }
     },
     "cursor": {
       "setup": "設定",
@@ -644,7 +664,11 @@
       "plan": "計畫",
       "ask": "詢問",
       "permissionRequest": "Cursor 要求使用 {tool} 的權限。",
-      "tool": "工具"
+      "tool": "工具",
+      "environment": {
+        "name": "Cursor 環境變數",
+        "desc": "僅傳遞給 Cursor Agent 的環境變數。CURSOR_* 設定可在此填寫，無需在 shell 中匯出。"
+      }
     },
     "grok": {
       "enableDesc": "連接本機 Grok Build，使用獨立於 Cursor 的設定與工作階段。",
@@ -652,10 +676,16 @@
       "environment": {
         "name": "Grok Build 環境變數",
         "desc": "僅傳遞給 Grok Build 的環境變數。自訂模型的密鑰保留在此提供者範圍內，並在原生設定中透過 env_key 參照。"
-      }
+      },
+      "hiddenCommandsDesc": "隱藏 Grok Build 在命令下拉式選單中提供的執行階段命令。每行一個名稱，不含前置斜線。"
     },
     "opencode": {
-      "cliPathDesc": "OpenCode CLI 的選填絕對路徑。留空時會搜尋 PATH。可貼上 \"which opencode\" 的輸出（Windows 使用 \"where opencode\"）。"
+      "cliPathDesc": "OpenCode CLI 的選填絕對路徑。留空時會搜尋 PATH。可貼上 \"which opencode\" 的輸出（Windows 使用 \"where opencode\"）。",
+      "hiddenCommandsDesc": "隱藏 OpenCode 的特定命令與技能。每行一個名稱，不含前置斜線。",
+      "environment": {
+        "name": "OpenCode 環境變數",
+        "desc": "額外傳遞給 OpenCode 的環境變數。預設啟用 `OPENCODE_ENABLE_EXA=1`。"
+      }
     },
     "pi": {
       "cliPathDesc": "Pi CLI 的選填絕對路徑。留空時會搜尋 PATH。可貼上 \"which pi\" 的輸出（Windows 使用 \"where pi\"）。",
@@ -663,7 +693,8 @@
         "name": "Pi 環境變數",
         "desc": "僅傳遞給 Pi 的環境變數。"
       },
-      "modelsDesc": "模型清單來自目前 Pi 環境；Pi 的 enabledModels 設定可能進一步限制可用路由。點選「{discover}」或「{refresh}」更新清單。provider/model 路由決定使用的憑證和計費方式。"
+      "modelsDesc": "模型清單來自目前 Pi 環境；Pi 的 enabledModels 設定可能進一步限制可用路由。點選「{discover}」或「{refresh}」更新清單。provider/model 路由決定使用的憑證和計費方式。",
+      "hiddenCommandsDesc": "隱藏 Pi 在命令下拉式選單中提供的執行階段命令與技能。每行一個準確名稱，不含前置斜線。"
     },
     "providerReadiness": {
       "title": "就緒狀態",

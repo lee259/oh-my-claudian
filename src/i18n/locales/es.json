@@ -205,6 +205,9 @@
       "more": "+{count} más",
       "showMore": "Mostrar {count} elementos de contexto más",
       "contextUsage": "Uso del contexto",
+      "contextUsageApproachingLimit": "Límite de contexto casi alcanzado: compacta la conversación o inicia una nueva.",
+      "modeChangeFailed": "No se pudo cambiar el modo",
+      "permissionModeChangeFailed": "No se pudo cambiar el modo de permisos",
       "scope": "Alcance del contexto",
       "scopeNote": "nota: {note}",
       "scopeFolder": "carpeta: {folders}",
@@ -455,6 +458,12 @@
       "search": "Buscar modelos",
       "clearSearch": "Borrar búsqueda",
       "model": "Modelo",
+      "modelUnavailable": "Modelo no disponible",
+      "chooseModel": "Elegir un modelo",
+      "chooseModelTitle": "Elige un modelo habilitado en los ajustes del proveedor.",
+      "effort": "Esfuerzo",
+      "thinkingBudget": "Presupuesto de pensamiento",
+      "defaultReasoning": "Predeterminado",
       "empty": "No hay modelos disponibles. Revisa la configuración del proveedor y actualiza la lista si falló la detección.",
       "noMatches": "No hay modelos coincidentes.",
       "noFavorites": "No hay favoritos. Usa la estrella junto a un modelo para añadirlo.",
@@ -466,7 +475,11 @@
       "addFavorite": "Añadir a favoritos",
       "removeFavorite": "Quitar de favoritos",
       "addNamedFavorite": "Añadir {model} a favoritos",
-      "removeNamedFavorite": "Quitar {model} de favoritos"
+      "removeNamedFavorite": "Quitar {model} de favoritos",
+      "favoriteUpdateFailed": "No se pudieron actualizar los modelos favoritos",
+      "modelChangeFailed": "No se pudo cambiar el modelo",
+      "reasoningChangeFailed": "No se pudo cambiar el nivel de razonamiento",
+      "serviceTierChangeFailed": "No se pudo cambiar el nivel de servicio"
     },
     "questions": {
       "title": "Pregunta",
@@ -484,6 +497,7 @@
     },
     "planApproval": {
       "implement": "Implementar",
+      "revise": "Revisar",
       "revisePlaceholder": "Introduce comentarios para revisar el plan…",
       "newSession": "Aprobar (nueva sesión)",
       "currentSession": "Aprobar (sesión actual)",
@@ -592,10 +606,12 @@
         "planMode": "Modo de planificación",
         "rewind": "Rebobinar",
         "fork": "Bifurcar",
+        "nativeHistory": "Historial nativo",
         "providerCommands": "Comandos del proveedor",
         "imageAttachments": "Archivos adjuntos de imagen",
-        "mcpTools": "Herramientas MCP",
-        "turnSteer": "Control del turno"
+        "mcpTools": "Herramientas MCP (en tiempo de ejecución)",
+        "turnSteer": "Control del turno",
+        "responseThroughput": "Rendimiento de respuesta"
       }
     },
     "tabs": {
@@ -624,7 +640,11 @@
       "write": "Escritura",
       "yolo": "YOLO",
       "permissionRequest": "OMP solicita permiso para usar {tool}.",
-      "tool": "una herramienta"
+      "tool": "una herramienta",
+      "environment": {
+        "name": "Variables de entorno de OMP",
+        "desc": "Variables de entorno que solo se pasan a OMP. Los valores explícitos aquí sustituyen al entorno de tu shell de inicio de sesión."
+      }
     },
     "cursor": {
       "setup": "Configuración",
@@ -644,7 +664,11 @@
       "plan": "Plan",
       "ask": "Preguntar",
       "permissionRequest": "Cursor solicita permiso para usar {tool}.",
-      "tool": "una herramienta"
+      "tool": "una herramienta",
+      "environment": {
+        "name": "Variables de entorno de Cursor",
+        "desc": "Variables de entorno que solo se pasan a Cursor Agent. Usa esto para los ajustes CURSOR_* en lugar de exportarlos en tu shell."
+      }
     },
     "grok": {
       "enableDesc": "Conecta con Grok Build local, con su propia configuración y sesiones independientes de Cursor.",
@@ -652,10 +676,16 @@
       "environment": {
         "name": "Variables de entorno de Grok Build",
         "desc": "Variables de entorno que se pasan solo a Grok Build. Los secretos de los modelos personalizados permanecen en el ámbito de este proveedor y se referencian desde la configuración nativa mediante env_key."
-      }
+      },
+      "hiddenCommandsDesc": "Oculta los comandos de ejecución que Grok Build ofrece en el desplegable. Introduce los nombres sin la barra inicial, uno por línea."
     },
     "opencode": {
-      "cliPathDesc": "Ruta absoluta opcional a la CLI de OpenCode. Déjala vacía para usar PATH. Pega la salida de «which opencode» (o «where opencode» en Windows)."
+      "cliPathDesc": "Ruta absoluta opcional a la CLI de OpenCode. Déjala vacía para usar PATH. Pega la salida de «which opencode» (o «where opencode» en Windows).",
+      "hiddenCommandsDesc": "Oculta comandos y habilidades específicos de OpenCode del desplegable. Introduce los nombres sin la barra inicial, uno por línea.",
+      "environment": {
+        "name": "Variables de entorno de OpenCode",
+        "desc": "Variables de entorno adicionales que se pasan a OpenCode. `OPENCODE_ENABLE_EXA=1` está habilitado de forma predeterminada."
+      }
     },
     "pi": {
       "cliPathDesc": "Ruta absoluta opcional a la CLI de Pi. Déjala vacía para usar PATH. Pega la salida de «which pi» (o «where pi» en Windows).",
@@ -663,7 +693,8 @@
         "name": "Variables de entorno de Pi",
         "desc": "Variables de entorno que se pasan solo a Pi."
       },
-      "modelsDesc": "La lista de modelos procede del entorno Pi actual. El ajuste enabledModels de Pi puede restringir aún más las rutas disponibles. Pulsa {discover} o {refresh} para actualizar la lista. La ruta provider/model determina las credenciales y la facturación."
+      "modelsDesc": "La lista de modelos procede del entorno Pi actual. El ajuste enabledModels de Pi puede restringir aún más las rutas disponibles. Pulsa {discover} o {refresh} para actualizar la lista. La ruta provider/model determina las credenciales y la facturación.",
+      "hiddenCommandsDesc": "Oculta los comandos y habilidades de ejecución que Pi ofrece en el desplegable. Introduce los nombres exactos sin la barra inicial, uno por línea."
     },
     "providerReadiness": {
       "title": "Preparación",

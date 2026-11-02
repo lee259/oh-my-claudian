@@ -121,7 +121,7 @@ describe('Welcome', () => {
     expect(welcomeEl.querySelector('.claudian-welcome-capability-line--supported')?.textContent)
       .toContain('Plan mode · Fork · Image attachments');
     expect(welcomeEl.querySelector('.claudian-welcome-capability-line--unsupported')?.textContent)
-      .toContain('Rewind · Provider commands · MCP tools · Turn steering');
+      .toContain('Rewind · Native history · Provider commands · MCP tools (runtime) · Turn steering · Response throughput');
   });
 
   it('renders the recent-conversation home surface from a lazy provider', () => {
