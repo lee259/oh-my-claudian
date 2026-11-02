@@ -162,6 +162,33 @@ describe('CanvasSelectionController', () => {
     });
   });
 
+  it('polls only while a canvas leaf is active', () => {
+    const listeners = new Map<string, () => void>();
+    const markdownView = { getViewType: () => 'markdown' };
+    let activeView: any = markdownView;
+    app.workspace.getMostRecentLeaf = jest.fn(() => ({ view: activeView }));
+    app.workspace.on = jest.fn((event: string, callback: () => void) => {
+      listeners.set(event, callback);
+      return { event, callback };
+    });
+    app.workspace.offref = jest.fn();
+
+    controller = new CanvasSelectionController(app, contextTray as any, inputEl);
+    controller.start();
+    jest.advanceTimersByTime(500);
+    expect(contextTray.setItems).not.toHaveBeenCalled();
+
+    activeView = canvasView;
+    listeners.get('active-leaf-change')?.();
+    jest.advanceTimersByTime(250);
+    expect(contextTray.setItems).toHaveBeenCalled();
+
+    activeView = markdownView;
+    listeners.get('active-leaf-change')?.();
+    expect(controller.hasSelection()).toBe(false);
+    expect(contextTray.clearItems).toHaveBeenCalledWith('canvas-selection');
+  });
+
   it('clears the previous selection when another view becomes active', () => {
     controller.start();
     jest.advanceTimersByTime(250);

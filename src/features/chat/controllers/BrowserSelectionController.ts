@@ -1,7 +1,8 @@
-import type { App, ItemView } from 'obsidian';
+import type { App, EventRef, ItemView } from 'obsidian';
 
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { VisibilityGatedPoller } from './VisibilityGatedPoller';
 
 const BROWSER_SELECTION_POLL_INTERVAL = 250;
 
@@ -16,8 +17,10 @@ export class BrowserSelectionController {
   private onVisibilityChange: (() => void) | null;
   private onUserSelectionChanged: (() => void) | null;
   private storedSelection: BrowserSelectionContext | null = null;
-  private pollInterval: number | null = null;
+  private readonly poller: VisibilityGatedPoller;
   private pollInFlight = false;
+  private started = false;
+  private workspaceEventRefs: EventRef[] = [];
 
   constructor(
     app: App,
@@ -31,21 +34,60 @@ export class BrowserSelectionController {
     this.inputEl = inputEl;
     this.onVisibilityChange = onVisibilityChange ?? null;
     this.onUserSelectionChanged = onUserSelectionChanged ?? null;
+    this.poller = new VisibilityGatedPoller({
+      ownerDocument: inputEl.ownerDocument,
+      ownerWindow: inputEl.ownerDocument.defaultView ?? window,
+      intervalMs: BROWSER_SELECTION_POLL_INTERVAL,
+      poll: () => {
+        void this.poll();
+      },
+    });
   }
 
   start(): void {
-    if (this.pollInterval) return;
-    this.pollInterval = window.setInterval(() => {
-      void this.poll();
-    }, BROWSER_SELECTION_POLL_INTERVAL);
+    if (this.started) return;
+    this.started = true;
+    this.registerWorkspaceEvents();
+    this.syncActiveViewPolling();
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
+    this.started = false;
+    this.releaseWorkspaceEvents();
+    this.poller.stop();
     this.clear();
+  }
+
+  private registerWorkspaceEvents(): void {
+    if (this.workspaceEventRefs.length > 0) return;
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      on?: (event: 'active-leaf-change' | 'layout-change', callback: () => void) => EventRef;
+    };
+    if (!workspace.on) return;
+    this.workspaceEventRefs = [
+      workspace.on('active-leaf-change', () => this.syncActiveViewPolling()),
+      workspace.on('layout-change', () => this.syncActiveViewPolling()),
+    ];
+  }
+
+  private releaseWorkspaceEvents(): void {
+    const workspace = this.app.workspace as typeof this.app.workspace & {
+      offref?: (ref: EventRef) => void;
+    };
+    if (workspace.offref) {
+      for (const ref of this.workspaceEventRefs) workspace.offref(ref);
+    }
+    this.workspaceEventRefs = [];
+  }
+
+  private syncActiveViewPolling(): void {
+    if (!this.started) return;
+    if (this.getActiveBrowserView()) {
+      this.poller.start();
+      return;
+    }
+    this.poller.stop();
+    this.clearWhenInputIsNotFocused();
   }
 
   private async poll(): Promise<void> {

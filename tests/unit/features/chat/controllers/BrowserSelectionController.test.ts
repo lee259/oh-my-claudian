@@ -20,6 +20,7 @@ describe('BrowserSelectionController', () => {
   let contextTray: ReturnType<typeof createMockContextTray>;
   let inputEl: HTMLTextAreaElement;
   let containerEl: HTMLElement;
+  let browserView: any;
   let selectionText = 'selected web snippet';
   let getSelectionSpy: jest.SpyInstance;
 
@@ -40,7 +41,7 @@ describe('BrowserSelectionController', () => {
       focusNode: selectionAnchor,
     } as unknown as Selection));
 
-    const view = {
+    browserView = {
       getViewType: () => 'surfing-view',
       getDisplayText: () => 'Surfing',
       containerEl,
@@ -49,8 +50,8 @@ describe('BrowserSelectionController', () => {
 
     app = {
       workspace: {
-        activeLeaf: { view },
-        getMostRecentLeaf: jest.fn(() => ({ view })),
+        activeLeaf: { view: browserView },
+        getMostRecentLeaf: jest.fn(() => ({ view: browserView })),
       },
     };
 
@@ -81,6 +82,41 @@ describe('BrowserSelectionController', () => {
       }),
     ]);
     expect(contextTray.setItems.mock.calls[0][1][0]).not.toHaveProperty('title');
+  });
+
+  it('polls only while a browser-like leaf is active', async () => {
+    const listeners = new Map<string, () => void>();
+    let activeView: any = browserView;
+    app.workspace.getMostRecentLeaf = jest.fn(() => ({ view: activeView }));
+    app.workspace.on = jest.fn((event: string, callback: () => void) => {
+      listeners.set(event, callback);
+      return { event, callback };
+    });
+    app.workspace.offref = jest.fn();
+
+    controller = new BrowserSelectionController(app, contextTray as any, inputEl);
+    controller.start();
+    jest.advanceTimersByTime(250);
+    await flushMicrotasks();
+    expect(contextTray.setItems).toHaveBeenCalled();
+
+    activeView = {
+      getViewType: () => 'markdown',
+      containerEl: document.createElement('div'),
+    };
+    listeners.get('active-leaf-change')?.();
+    expect(controller.hasSelection()).toBe(false);
+
+    contextTray.setItems.mockClear();
+    jest.advanceTimersByTime(1_000);
+    await flushMicrotasks();
+    expect(contextTray.setItems).not.toHaveBeenCalled();
+
+    activeView = browserView;
+    listeners.get('active-leaf-change')?.();
+    jest.advanceTimersByTime(250);
+    await flushMicrotasks();
+    expect(contextTray.setItems).toHaveBeenCalled();
   });
 
   it('shows line-based indicator text for multi-line browser selection', async () => {

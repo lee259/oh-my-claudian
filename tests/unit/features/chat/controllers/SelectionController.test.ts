@@ -39,11 +39,11 @@ function createMockDOMSelection(text: string, anchorNode: any, focusNode?: any, 
   };
 }
 
-function createMockEventTarget() {
+function createMockEventTarget(ownerDocument = createMockEl().ownerDocument) {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const containedNodes = new Set<unknown>();
   const el: any = {
-    ownerDocument: createMockEl().ownerDocument,
+    ownerDocument,
     addEventListener: jest.fn((event: string, listener: (...args: unknown[]) => void) => {
       const handlers = listeners.get(event) ?? new Set<(...args: unknown[]) => void>();
       handlers.add(listener);
@@ -174,6 +174,33 @@ describe('SelectionController', () => {
 
     expect(controller.hasSelection()).toBe(false);
     expect(contextTray.clearItems).toHaveBeenCalledWith('editor-selection');
+  });
+
+  it('pauses selection polling while the window is blurred', () => {
+    const ownerDocument = new EventTarget() as any;
+    const ownerWindow = new EventTarget() as any;
+    ownerWindow.setInterval = (callback: () => void, timeout: number) =>
+      globalThis.setInterval(callback, timeout) as unknown as number;
+    ownerWindow.clearInterval = (handle: number) => globalThis.clearInterval(handle);
+    ownerDocument.activeElement = null;
+    ownerDocument.defaultView = ownerWindow;
+    ownerDocument.visibilityState = 'visible';
+    inputEl = createMockEventTarget(ownerDocument);
+    controller = new SelectionController(app, contextTray as any, inputEl, undefined, focusScopeEl);
+
+    controller.start();
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(true);
+    const callsWhileFocused = contextTray.setItems.mock.calls.length;
+
+    ownerWindow.dispatchEvent(new Event('blur'));
+    editor.getSelection.mockReturnValue('changed while blurred');
+    jest.advanceTimersByTime(1_000);
+    expect(contextTray.setItems).toHaveBeenCalledTimes(callsWhileFocused);
+
+    ownerWindow.dispatchEvent(new Event('focus'));
+    jest.advanceTimersByTime(250);
+    expect(contextTray.setItems.mock.calls.length).toBeGreaterThan(callsWhileFocused);
   });
 
   it('preserves selection when focus moves into the chat sidebar', () => {

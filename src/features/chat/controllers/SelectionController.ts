@@ -5,6 +5,7 @@ import { hideSelectionHighlight, showSelectionHighlight } from '../../../shared/
 import { type EditorSelectionContext, getEditorView } from '../../../utils/editor';
 import type { StoredSelection } from '../state/types';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { VisibilityGatedPoller } from './VisibilityGatedPoller';
 
 const SELECTION_POLL_INTERVAL = 250;
 const INPUT_HANDOFF_GRACE_MS = 1500;
@@ -31,7 +32,7 @@ export class SelectionController {
   private inputHandoffGraceUntil: number | null = null;
   private highlightRegistry: CustomHighlightRegistry | null = null;
   private highlightGateEl: HTMLElement | null = null;
-  private pollInterval: number | null = null;
+  private readonly poller: VisibilityGatedPoller;
   private readonly focusScopePointerDownHandler = () => {
     if (!this.storedSelection) return;
     this.inputHandoffGraceUntil = Date.now() + INPUT_HANDOFF_GRACE_MS;
@@ -58,10 +59,16 @@ export class SelectionController {
     this.onVisibilityChange = onVisibilityChange ?? null;
     this.onUserSelectionChanged = onUserSelectionChanged ?? null;
     this.owningLeaf = owningLeaf ?? null;
+    this.poller = new VisibilityGatedPoller({
+      ownerDocument: inputEl.ownerDocument,
+      ownerWindow: inputEl.ownerDocument.defaultView ?? window,
+      intervalMs: SELECTION_POLL_INTERVAL,
+      poll: () => this.poll(),
+    });
   }
 
   start(): void {
-    if (this.pollInterval) return;
+    if (this.poller.isStarted()) return;
     this.inputEl.addEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
@@ -69,14 +76,11 @@ export class SelectionController {
       }
       focusScopeEl.addEventListener('focusin', this.focusScopeFocusInHandler);
     }
-    this.pollInterval = window.setInterval(() => this.poll(), SELECTION_POLL_INTERVAL);
+    this.poller.start();
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
+    this.poller.stop();
     this.inputEl.removeEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
