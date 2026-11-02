@@ -1636,8 +1636,9 @@ export class ConversationController {
     }
 
     if (isRunning) {
-      if (openState === 'closed') return 'Running';
-      return `Running in ${this.getHistoryTabLabel(status)}`;
+      // The spinner already communicates this state. Keep the normal activity
+      // slot so hover swaps it with actions without a text-size or style jump.
+      return this.formatDate(timestamp);
     }
 
     switch (openState) {

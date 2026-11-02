@@ -345,11 +345,6 @@
   animation: spin 1s linear infinite;
 }
 
-.claudian-history-item.running .claudian-history-item-date {
-  color: var(--interactive-accent);
-  font-weight: 500;
-}
-
 .claudian-history-item-content {
   flex: 1;
   min-width: 0;
