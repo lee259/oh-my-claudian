@@ -126,6 +126,7 @@
   color: var(--color-red);
 }
 
+.claudian-tool-status.status-cancelled,
 .claudian-tool-status.status-blocked {
   color: var(--color-orange);
 }

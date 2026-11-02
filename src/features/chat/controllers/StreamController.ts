@@ -728,7 +728,7 @@ export class StreamController {
       if (toolCall.status !== 'running') {
         finalizeWriteEditBlock(
           writeEditState,
-          toolCall.status === 'error' || toolCall.status === 'blocked',
+          toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled',
         );
       }
     } else {
@@ -858,7 +858,7 @@ export class StreamController {
   }
 
   private handleToolOutput(
-    chunk: { type: 'tool_output'; id: string; content: string },
+    chunk: Extract<StreamChunk, { type: 'tool_output' }>,
     msg: ChatMessage,
   ): void {
     const { state } = this.deps;
@@ -872,6 +872,7 @@ export class StreamController {
       return;
     }
 
+    if (chunk.continuesInBackground) existingToolCall.continuesInBackground = true;
     existingToolCall.result = (existingToolCall.result ?? '') + chunk.content;
     this.scheduleToolOutputRender(chunk.id, existingToolCall);
     this.showThinkingIndicator();
@@ -898,7 +899,11 @@ export class StreamController {
       existingToolCall.subagent = subagentInfo;
       this.ensureProviderSubagentState(chunk.id, subagentInfo);
       this.bindProviderSubagentId(chunk.id, subagentInfo.agentId, msg, adapter);
-      this.reportToolActivity(existingToolCall);
+      if (existingToolCall.status === 'running' && subagentInfo.status === 'running') {
+        this.reportToolActivity(existingToolCall);
+      } else {
+        this.removeToolActivity(chunk.id);
+      }
       if (subagentInfo.mode === 'async') {
         this.reportSubagentActivity(subagentInfo);
       } else {
@@ -1045,7 +1050,7 @@ export class StreamController {
           type: 'tool_result',
           id: existingToolCall.id,
           content: existingToolCall.result,
-          isError: existingToolCall.status === 'error' || existingToolCall.status === 'blocked',
+          isError: existingToolCall.status === 'error' || existingToolCall.status === 'blocked' || existingToolCall.status === 'cancelled',
         }, msg);
       }
       return;
@@ -1334,6 +1339,7 @@ export class StreamController {
     const isBlocked = chunk.isBlocked === true;
 
     if (existingToolCall) {
+      existingToolCall.continuesInBackground = false;
       if (existingToolCall.status === 'running' && existingToolCall.startedAt !== undefined) {
         existingToolCall.completedAt = Date.now();
       }
@@ -2641,7 +2647,8 @@ export function providerOutputEventToStreamChunk(
           type: 'tool_use',
         };
     case 'tool_output':
-      return { content: event.content, id: event.toolCallId, type: 'tool_output' };
+      return { content: event.content, id: event.toolCallId, type: 'tool_output',
+        ...(event.continuesInBackground ? { continuesInBackground: true } : {}) };
     case 'tool_completed':
       return event.toolScope.kind === 'subagent'
         ? {

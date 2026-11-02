@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 
 import type { ToolCallInfo } from '@/core/types';
-import { createWriteEditBlock } from '@/features/chat/rendering/WriteEditRenderer';
+import { createWriteEditBlock, finalizeWriteEditBlock, renderStoredWriteEdit } from '@/features/chat/rendering/WriteEditRenderer';
 
 HTMLElement.prototype.empty = function (): void { this.replaceChildren(); };
 HTMLElement.prototype.setText = function (text: string): void { this.textContent = text; };
@@ -35,4 +35,15 @@ it('shows an explicit running status before an edit produces a diff', () => {
     id: 'edit', name: 'Edit', input: { file_path: 'note.md' }, status: 'running',
   });
   expect(state.statusEl.textContent).toBe('running');
+});
+
+it('shows an interrupted state for cancelled live and restored edits', () => {
+  const tool: ToolCallInfo = { id: 'edit', name: 'Edit', input: { file_path: 'note.md' }, status: 'running' };
+  const state = createWriteEditBlock(document.createElement('div'), tool);
+  tool.status = 'cancelled';
+  finalizeWriteEditBlock(state, true);
+  expect(state.statusEl.getAttribute('aria-label')).toContain('Interrupted');
+  expect(state.contentEl.textContent).toContain('Interrupted');
+  const restored = renderStoredWriteEdit(document.createElement('div'), tool);
+  expect(restored.querySelector('.claudian-write-edit-status')?.getAttribute('aria-label')).toContain('Interrupted');
 });

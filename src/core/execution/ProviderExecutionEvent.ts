@@ -143,6 +143,7 @@ export type ProviderToolOutputEvent = ProviderEventBase<
 > &
   ProviderToolIdentity & {
     readonly content: string;
+    readonly continuesInBackground?: boolean;
     readonly isError?: boolean;
     readonly toolUseResult?: SDKToolUseResult;
     readonly providerPayload?: ToolProviderPayload;

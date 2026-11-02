@@ -2301,6 +2301,53 @@ describe('CodexHistoryStore', () => {
       expect(messages[1]).toMatchObject({ role: 'assistant', content: 'Hi there!' });
     });
 
+    it('does not restore unfinished tools as running after a turn is interrupted', () => {
+      const content = [
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'sleep', call_id: 'sleep-1', arguments: '{}' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'request_user_input', call_id: 'question-1', arguments: '{}' } },
+        { type: 'event_msg', payload: { type: 'turn_aborted' } },
+      ].map(record => JSON.stringify(record)).join('\n');
+      const messages = parseCodexSessionContent(content);
+      const tools = messages.flatMap(message => message.toolCalls ?? []);
+      expect(tools).toHaveLength(2);
+      expect(tools.map(tool => tool.status)).toEqual(['cancelled', 'cancelled']);
+      expect(messages.some(message => message.isInterrupt)).toBe(true);
+    });
+
+    it('restores an exec envelope aborted by the user as interrupted', () => {
+      const content = [
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'cmd-1', input: 'const r = await tools.exec_command({cmd:"sleep 60",yield_time_ms:30000}); text(JSON.stringify(r));' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'cmd-1', output: 'aborted by user after 4.0s' } },
+        { type: 'event_msg', payload: { type: 'turn_aborted', reason: 'interrupted' } },
+      ].map(record => JSON.stringify(record)).join('\n');
+      const tool = parseCodexSessionContent(content).flatMap(message => message.toolCalls ?? []).find(item => item.id === 'cmd-1');
+      expect(tool).toMatchObject({ status: 'cancelled', result: 'aborted by user after 4.0s' });
+    });
+
+    it('retains native yielded terminal sessions across an interrupted turn', () => {
+      const content = [
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 'cmd-1', arguments: '{"cmd":"sleep 100"}' } },
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'cmd-1', output: 'Process running with session ID 42\nOutput:\n' } },
+        { type: 'event_msg', payload: { type: 'turn_aborted' } },
+      ].map(record => JSON.stringify(record)).join('\n');
+      const tool = parseCodexSessionContent(content).flatMap(message => message.toolCalls ?? []).find(item => item.id === 'cmd-1');
+      expect(tool).toMatchObject({ status: 'running' });
+    });
+
+    it('accepts a later native tool completion after an interruption', () => {
+      const content = [
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'sleep', call_id: 'sleep-late', arguments: '{}' } },
+        { type: 'event_msg', payload: { type: 'turn_aborted' } },
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'sleep-late', output: 'completed' } },
+      ].map(record => JSON.stringify(record)).join('\n');
+      const tool = parseCodexSessionContent(content).flatMap(message => message.toolCalls ?? []).find(item => item.id === 'sleep-late');
+      expect(tool).toMatchObject({ status: 'completed', result: 'completed' });
+    });
+
     it('turn_aborted marks bubble as interrupted', () => {
       const content = [
         JSON.stringify({

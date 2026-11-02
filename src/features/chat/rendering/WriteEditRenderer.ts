@@ -162,14 +162,15 @@ export function finalizeWriteEditBlock(state: WriteEditState, isError: boolean):
   if (isError) {
     state.statusEl.addClass('status-error');
     setIcon(state.statusEl, 'x');
-    state.statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t('chat.toolStatus.error') }));
+    const label = state.toolCall.status === 'cancelled' ? t('chat.rendering.interrupted') : t('chat.toolStatus.error');
+    state.statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: label }));
 
     // Show error in content if no diff was shown
     if (!state.diffLines) {
       state.contentEl.empty();
       const row = state.contentEl.createDiv({ cls: 'claudian-write-edit-diff-row' });
       const errorEl = row.createDiv({ cls: 'claudian-write-edit-error' });
-      errorEl.setText(state.toolCall.result || t('common.error'));
+      errorEl.setText(state.toolCall.result || (state.toolCall.status === 'cancelled' ? t('chat.rendering.interrupted') : t('common.error')));
     }
   } else if (!state.diffLines) {
     // Success but no diff data - clear the "Writing..." loading text and show DONE
@@ -195,7 +196,7 @@ export function renderStoredWriteEdit(
   const filePath = (toolCall.input.file_path as string) || 'file';
   const toolName = toolCall.name;
   const baseAriaLabel = `${toolName}: ${shortenPath(filePath)}`;
-  const isError = toolCall.status === 'error' || toolCall.status === 'blocked';
+  const isError = toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled';
 
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-write-edit-block' });
   if (isError) {
@@ -231,6 +232,7 @@ export function renderStoredWriteEdit(
   const statusEl = headerEl.createDiv({ cls: 'claudian-write-edit-status' });
   if (isError) {
     statusEl.addClass('status-error');
+    statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: toolCall.status === 'cancelled' ? t('chat.rendering.interrupted') : t('chat.toolStatus.error') }));
     setIcon(statusEl, 'x');
   } else if (toolCall.status === 'running') {
     statusEl.addClass('status-running');

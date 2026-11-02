@@ -1569,6 +1569,20 @@ function processEventMsg(
         if (turn) {
           const bubble = ensureAssistantBubble(turn, timestamp);
           bubble.interrupted = true;
+          const backgroundToolIds = new Set([
+            ...ctx.execCellToCommandId.values(),
+            ...ctx.terminalSessionToCommandId.values(),
+          ]);
+          for (const turnBubble of turn.assistantBubbles) {
+            for (const tool of turnBubble.toolCalls) {
+              const wasAborted = tool.status === 'completed'
+                && typeof tool.result === 'string'
+                && /^aborted by user(?: after \d+(?:\.\d+)?s)?\s*$/i.test(tool.result);
+              if ((tool.status !== 'running' && !wasAborted) || backgroundToolIds.has(tool.id)
+                || tool.input.run_in_background === true || tool.subagent) continue;
+              tool.status = 'cancelled';
+            }
+          }
           closeAssistantBubble(turn);
           turn.completedAt = timestamp;
         }

@@ -46,6 +46,7 @@ export function adaptCodexStreamChunk(
         toolCallId: chunk.id,
         toolScope: { kind: 'main' },
         content: chunk.content,
+        ...(chunk.continuesInBackground ? { continuesInBackground: true } : {}),
       };
     case 'tool_result':
       return {

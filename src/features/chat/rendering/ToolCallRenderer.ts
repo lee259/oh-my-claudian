@@ -878,6 +878,7 @@ const STATUS_ICONS: Record<string, string> = {
   completed: 'check',
   error: 'x',
   blocked: 'shield-off',
+  cancelled: 'x',
 };
 
 function setTodoWriteStatus(statusEl: HTMLElement, input: Record<string, unknown>): void {
@@ -889,16 +890,17 @@ function setTodoWriteStatus(statusEl: HTMLElement, input: Record<string, unknown
 }
 
 function setToolStatus(statusEl: HTMLElement, status: ToolCallInfo['status']): void {
-  resetStatusElement(statusEl, `status-${status}`, t('chat.bangBash.statusLabel', { status: t(`chat.toolStatus.${status}`) }));
+  const label = status === 'cancelled' ? t('chat.rendering.interrupted') : t(`chat.toolStatus.${status}`);
+  resetStatusElement(statusEl, `status-${status}`, t('chat.bangBash.statusLabel', { status: label }));
   const icon = STATUS_ICONS[status];
   if (icon) setIcon(statusEl, icon);
   if (status !== 'completed') {
-    statusEl.createSpan({ cls: 'claudian-tool-status-label', text: t(`chat.toolStatus.${status}`) });
+    statusEl.createSpan({ cls: 'claudian-tool-status-label', text: label });
   }
 }
 
 function setApplyPatchHeaderRight(statusEl: HTMLElement, toolCall: ToolCallInfo): void {
-  const isError = toolCall.status === 'error' || toolCall.status === 'blocked';
+  const isError = toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled';
   const stats = isError ? undefined : getApplyPatchDiffStats(toolCall.input);
   if (!stats) {
     setToolStatus(statusEl, toolCall.status);
@@ -1019,7 +1021,7 @@ export function makeFileSummaryInteractive(
 
 /** Normalized read/navigation summaries do not expose redundant raw output. */
 export function canExpandToolCall(toolCall: ToolCallInfo): boolean {
-  if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.resultImages?.length) return true;
+  if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled' || toolCall.resultImages?.length) return true;
   const name = toolCall.presentation?.name ?? toolCall.name;
   const summaryTools: string[] = [TOOL_READ, TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_SKILL, 'Find', 'List'];
   return !summaryTools.includes(name);
@@ -1336,7 +1338,8 @@ export function updateToolCallResult(
   if (toolCall.name === TOOL_TODO_WRITE) {
     const statusEl = toolEl.querySelector('.claudian-tool-status') as HTMLElement;
     if (statusEl) {
-      setTodoWriteStatus(statusEl, toolCall.input);
+      if (toolCall.status === 'cancelled' || toolCall.status === 'error') setToolStatus(statusEl, toolCall.status);
+      else setTodoWriteStatus(statusEl, toolCall.input);
     }
     const content = toolEl.querySelector('.claudian-tool-content') as HTMLElement;
     if (content) {
@@ -1387,7 +1390,7 @@ export function renderStoredToolCall(
   const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
     createToolElementStructure(parentEl, toolCall, options.onOpenFile);
 
-  if (toolCall.name === TOOL_TODO_WRITE) {
+  if (toolCall.name === TOOL_TODO_WRITE && toolCall.status !== 'cancelled' && toolCall.status !== 'error') {
     setTodoWriteStatus(statusEl, toolCall.input);
   } else {
     setGenericToolHeaderRight(statusEl, toolCall);

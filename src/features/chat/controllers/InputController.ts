@@ -43,6 +43,7 @@ import { type InlineAskQuestionConfig, InlineAskUserQuestion } from '../renderin
 import { InlineExitPlanMode } from '../rendering/InlineExitPlanMode';
 import { InlinePlanApproval, type PlanApprovalDecision } from '../rendering/InlinePlanApproval';
 import { setToolIcon, updateToolCallResult } from '../rendering/ToolCallRenderer';
+import { finalizeWriteEditBlock } from '../rendering/WriteEditRenderer';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { RuntimeComposer } from '../sessions/RuntimeComposer';
 import type { MessagePresentation } from '../sessions/RuntimeMessagePresentation';
@@ -871,7 +872,20 @@ export class InputController {
             }
           }
 
-          if (didCancelThisTurn || hadExecutionError) {
+          if (didCancelThisTurn) {
+            for (const message of state.messages.slice(messagesBeforeTurn.length)) {
+              if (message.role !== 'assistant') continue;
+              for (const tool of message.toolCalls ?? []) {
+                // Explicit background work has its own lifetime beyond the foreground turn.
+                if (tool.status !== 'running' || tool.input.run_in_background === true || tool.continuesInBackground || tool.subagent) continue;
+                tool.status = 'cancelled';
+                if (tool.startedAt !== undefined && tool.completedAt === undefined) tool.completedAt = Date.now();
+                updateToolCallResult(tool.id, tool, state.toolCallElements);
+                const writeEdit = state.writeEditStates.get(tool.id);
+                if (writeEdit) finalizeWriteEditBlock(writeEdit, true);
+              }
+            }
+          } else if (hadExecutionError) {
             for (const tool of finalAssistantMsg.toolCalls ?? []) {
               if (tool.status === 'running' && tool.startedAt !== undefined && tool.completedAt === undefined) {
                 tool.completedAt = Date.now();

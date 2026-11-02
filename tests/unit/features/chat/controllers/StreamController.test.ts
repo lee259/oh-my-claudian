@@ -970,6 +970,15 @@ describe('StreamController - Text Content', () => {
       expect(msg.contentBlocks![0].id).toBe('assistant-1:tool:tool-1');
     });
 
+    it('tracks yielded tools until their result arrives', async () => {
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'yielded', name: 'Bash', input: {} }, msg);
+      await controller.handleStreamChunk({ type: 'tool_output', id: 'yielded', content: '', continuesInBackground: true }, msg);
+      expect(msg.toolCalls?.[0].continuesInBackground).toBe(true);
+      await controller.handleStreamChunk({ type: 'tool_result', id: 'yielded', content: 'done' }, msg);
+      expect(msg.toolCalls?.[0]).toMatchObject({ status: 'completed', continuesInBackground: false });
+    });
+
     it('records tool timing without resetting the start on input updates', async () => {
       const msg = createTestMessage();
       const now = jest.spyOn(Date, 'now');

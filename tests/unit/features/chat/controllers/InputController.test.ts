@@ -1278,6 +1278,31 @@ describe('InputController coordinator execution', () => {
     expect(fixture.state.isStreaming).toBe(false);
   });
 
+  it('settles unanswered tool rows when their turn is cancelled', async () => {
+    const fixture = createFixture();
+    const earlierTool = { id: 'old', name: 'Bash', input: {}, status: 'running' as const };
+    fixture.state.addMessage({ id: 'earlier', role: 'assistant', content: '', timestamp: 1, toolCalls: [earlierTool] });
+    const result = deferred<{ accepted: boolean; planCompleted: boolean; status: 'cancelled' }>();
+    fixture.coordinator.execute.mockReturnValueOnce(result.promise);
+    const sending = fixture.controller.sendMessage({ content: 'cancel pending tools' });
+    await waitForCall(fixture.coordinator.execute);
+    const assistant = fixture.state.messages.find(message => message.role === 'assistant' && message.id !== 'earlier')!;
+    assistant.toolCalls!.push(
+      { id: 'question', name: 'AskUserQuestion', input: {}, status: 'running', startedAt: 1 },
+      { id: 'sleep', name: 'sleep', input: {}, status: 'running', startedAt: 1, result: 'partial output' },
+      { id: 'done', name: 'Bash', input: {}, status: 'completed', result: 'ok' },
+      { id: 'background', name: 'Bash', input: { run_in_background: true }, status: 'running' },
+      { id: 'yielded', name: 'Bash', input: {}, status: 'running', continuesInBackground: true },
+    );
+    fixture.controller.cancelStreaming();
+    result.resolve({ accepted: true, planCompleted: false, status: 'cancelled' });
+    await sending;
+    expect(assistant.isInterrupt).toBe(true);
+    expect(assistant.toolCalls!.map(tool => tool.status)).toEqual(['cancelled', 'cancelled', 'completed', 'running', 'running']);
+    expect(assistant.toolCalls![1].result).toBe('partial output');
+    expect(earlierTool.status).toBe('running');
+  });
+
   it('settles a cancelled turn before rendering the next turn', async () => {
     const fixture = createFixture();
     const cancelledResult = deferred<{
