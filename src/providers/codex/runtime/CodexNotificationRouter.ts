@@ -973,7 +973,7 @@ export class CodexNotificationRouter {
         : undefined;
       if (execCellId) {
         this.wrappedCommandCallIdsByCellId.set(execCellId, callId);
-        this.appendWrappedCommandOutput(callId, content);
+        this.appendWrappedCommandOutput(callId, content, true);
         this.bindPendingWrappedWaitCalls(execCellId, callId);
         return;
       }
@@ -1058,8 +1058,8 @@ export class CodexNotificationRouter {
     if (cellId) this.withheldExecCellIds.add(cellId);
   }
 
-  private appendWrappedCommandOutput(callId: string, content: string): void {
-    if (!content) return;
+  private appendWrappedCommandOutput(callId: string, content: string, continuesInBackground = false): void {
+    if (!content && !continuesInBackground) return;
 
     const previousOutput = this.wrappedCommandOutputByCallId.get(callId);
     const completeOutput = this.canonicalPrefilledRawCommandCallIds.delete(callId)
@@ -1067,8 +1067,9 @@ export class CodexNotificationRouter {
       : appendCodexCommandOutput(previousOutput, content);
     const delta = completeOutput.slice(previousOutput?.length ?? 0);
     this.wrappedCommandOutputByCallId.set(callId, completeOutput);
-    if (delta) {
-      this.emit({ type: 'tool_output', id: this.visibleRawCallId(callId), content: delta });
+    if (delta || continuesInBackground) {
+      this.emit({ type: 'tool_output', id: this.visibleRawCallId(callId), content: delta,
+        ...(continuesInBackground ? { continuesInBackground: true } : {}) });
     }
   }
 

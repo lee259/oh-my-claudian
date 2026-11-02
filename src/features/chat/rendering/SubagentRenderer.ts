@@ -64,6 +64,7 @@ const SUBAGENT_TOOL_STATUS_ICONS: Partial<Record<ToolCallInfo['status'], string>
   completed: 'check',
   error: 'x',
   blocked: 'shield-off',
+  cancelled: 'x',
 };
 
 const RESULT_SUMMARY_MAX_LENGTH = 120;
@@ -149,7 +150,7 @@ function setSubagentToolStatus(view: SubagentToolView, status: ToolCallInfo['sta
   view.statusEl.className = 'claudian-subagent-tool-status';
   view.statusEl.addClass(`status-${status}`);
   view.statusEl.empty();
-  view.statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: t(`chat.toolStatus.${status}`) }));
+  view.statusEl.setAttribute('aria-label', t('chat.bangBash.statusLabel', { status: status === 'cancelled' ? t('chat.rendering.interrupted') : t(`chat.toolStatus.${status}`) }));
 
   const statusIcon = SUBAGENT_TOOL_STATUS_ICONS[status];
   if (statusIcon) {
@@ -158,7 +159,7 @@ function setSubagentToolStatus(view: SubagentToolView, status: ToolCallInfo['sta
 }
 
 function updateSubagentToolView(view: SubagentToolView, toolCall: ToolCallInfo): void {
-  for (const status of ['running', 'completed', 'error', 'blocked']) {
+  for (const status of ['running', 'completed', 'error', 'blocked', 'cancelled']) {
     view.wrapperEl.toggleClass(`claudian-subagent-tool-${status}`, toolCall.status === status);
   }
   const header = view.wrapperEl.querySelector<HTMLElement>('.claudian-subagent-tool-header');

@@ -929,6 +929,19 @@ describe('CodexNotificationRouter', () => {
       expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
     });
 
+    it('marks a yielded exec command as able to continue in the background', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', { threadId: 't1', turnId: 'turn1', item: {
+        type: 'custom_tool_call', name: 'exec', call_id: 'yielded-command',
+        input: 'const result = await tools.exec_command({cmd:"sleep 100"}); text(result.output);',
+      } });
+      router.handleNotification('rawResponseItem/completed', { threadId: 't1', turnId: 'turn1', item: {
+        type: 'custom_tool_call_output', call_id: 'yielded-command',
+        output: 'Script running with cell ID 42\nOutput:\n',
+      } });
+      expect(chunks).toContainEqual(expect.objectContaining({ type: 'tool_output', id: 'yielded-command', continuesInBackground: true }));
+    });
+
     it('keeps yielded exec envelopes running until their wait call completes', () => {
       router.beginTurn({ isPlanTurn: false });
 
@@ -1062,6 +1075,7 @@ describe('CodexNotificationRouter', () => {
           type: 'tool_output',
           id: 'call_exec_wrapper',
           content: 'tests started\n',
+          continuesInBackground: true,
         },
         {
           type: 'tool_output',
@@ -1130,6 +1144,7 @@ describe('CodexNotificationRouter', () => {
           type: 'tool_output',
           id: 'call_exec_wrapper',
           content: 'tests started\n',
+          continuesInBackground: true,
         },
         {
           type: 'tool_result',
@@ -3265,6 +3280,11 @@ describe('CodexNotificationRouter', () => {
         type: 'tool_output',
         id: 'exec_canonical',
         content: 'tests started\n',
+      }, {
+        type: 'tool_output',
+        id: 'exec_canonical',
+        content: '',
+        continuesInBackground: true,
       }]);
       expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([{
         type: 'tool_result',

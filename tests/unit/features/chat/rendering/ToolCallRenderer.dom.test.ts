@@ -16,6 +16,20 @@ function call(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 
 describe('Tool row disclosures', () => {
 
+  it('replaces a running status with an interrupted status in live and restored rows', () => {
+    const parent = document.createElement('div');
+    const elements = new Map<string, HTMLElement>();
+    const tool = call({ name: 'sleep', input: {} });
+    const live = renderToolCall(parent, tool, elements);
+    expect(live.querySelector('.claudian-tool-status')?.textContent).toContain('running');
+    tool.status = 'cancelled';
+    updateToolCallResult(tool.id, tool, elements);
+    expect(live.querySelector('.claudian-tool-status')?.textContent).toContain('Interrupted');
+    expect(live.querySelector('.status-running')).toBeNull();
+    const restored = renderStoredToolCall(parent, tool);
+    expect(restored.querySelector('.claudian-tool-status')?.textContent).toContain('Interrupted');
+  });
+
   it('keeps running tools free of ticking duration and captures timing on completion', () => {
     jest.useFakeTimers();
     jest.setSystemTime(100000);

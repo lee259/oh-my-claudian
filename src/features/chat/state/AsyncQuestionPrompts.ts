@@ -35,7 +35,7 @@ export class AsyncQuestionPrompts {
     if (tool.name !== TOOL_ASK_USER_QUESTION || tool.input.replyMode !== 'user-message') return;
 
     const current = this.pending.get(tool.id);
-    const expired = tool.questionStatus === 'expired' || tool.status === 'error' || tool.status === 'blocked';
+    const expired = tool.questionStatus === 'expired' || tool.status === 'error' || tool.status === 'blocked' || tool.status === 'cancelled';
     if (current) {
       current.tool = tool;
       if (expired || tool.resolvedAnswers) this.finish(tool.id, current, !tool.resolvedAnswers);

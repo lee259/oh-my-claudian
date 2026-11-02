@@ -23,13 +23,16 @@ function createFixture(attached: boolean, providerId: ProviderId = 'claude', mes
   const renderer = new MessageRenderer(plugin, component, messages);
   const state = new ChatState();
   const subagents = new SubagentManager(() => undefined);
+  const activities = new Map<string, unknown>();
   const controller = new StreamController({ plugin, renderer, state, subagentManager: subagents,
+    updateToolActivity: activity => { activities.set(activity.id, activity); },
+    removeToolActivity: id => { activities.delete(id); },
     getProviderId: () => providerId, getMessagesEl: () => messagesAvailable ? messages : null, getFileContextManager: () => null, updateQueueIndicator: () => undefined });
   subagents.setCallback(info => controller.onAsyncSubagentStateChange(info));
   const message: ChatMessage = { id: 'answer', role: 'assistant', content: '', timestamp: 1, contentBlocks: [], toolCalls: [] };
   state.addMessage(message);
   if (attached) state.currentContentEl = messages.createDiv({ cls: 'claudian-message-content' });
-  return { state, message, controller, renderer, messages, subagents, cleanup: () => {
+  return { state, message, controller, renderer, messages, subagents, activities, cleanup: () => {
     controller.dispose(); subagents.clear(); renderer.dispose(); state.resetStreamingState(); component.unload(); messages.remove();
   } };
 }
@@ -157,6 +160,17 @@ it.each([true, false])('updates Codex lifecycle subagent outcomes with attached=
     await fixture.controller.handleStreamChunk({ type: 'tool_result', id: 'wait', content: '{"status":{"worker":{"completed":"Reviewed"}},"timed_out":false}' }, fixture.message);
     expect(fixture.message.toolCalls?.[0].subagent).toEqual(expect.objectContaining({ status: 'completed', result: 'Reviewed' }));
   } finally { render.mockRestore(); fixture.cleanup(); }
+});
+
+it('does not revive a completed spawn activity on subagent updates', async () => {
+  const fixture = createFixture(true, 'codex');
+  try {
+    await fixture.controller.handleStreamChunk({ type: 'tool_use', id: 'spawn', name: 'spawn_agent', input: { message: 'Review' } }, fixture.message);
+    await fixture.controller.handleStreamChunk({ type: 'tool_result', id: 'spawn', content: '{"agent_id":"worker"}' }, fixture.message);
+    expect(fixture.activities.has('spawn')).toBe(false);
+    fixture.controller.handleSessionSubagentUpdate({ id: 'spawn', description: 'Review', isExpanded: false, status: 'completed', result: 'Done', toolCalls: [] });
+    expect(fixture.activities.has('spawn')).toBe(false);
+  } finally { fixture.cleanup(); }
 });
 
 it('continues an open text block when a presentation becomes available', async () => {

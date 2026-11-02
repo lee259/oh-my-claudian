@@ -2699,7 +2699,7 @@ export class MessageRenderer {
   }
 
   private inferAsyncStatusFromTaskTool(toolCall: ToolCallInfo): 'running' | 'completed' | 'error' {
-    if (toolCall.status === 'error' || toolCall.status === 'blocked') return 'error';
+    if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled') return 'error';
     if (toolCall.status === 'running') return 'running';
 
     const lowerResult = extractToolResultContent(toolCall.result, { fallbackIndent: 2 }).toLowerCase();
