@@ -117,6 +117,10 @@ export function replaceImageEmbedsWithHtml(
   app: App,
   options?: string | ReplaceImageEmbedsOptions
 ): string {
+  if (!markdown.includes('![[')) {
+    return markdown;
+  }
+
   if (!app?.vault || !app?.metadataCache) {
     return markdown;
   }

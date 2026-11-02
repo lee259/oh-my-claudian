@@ -10,11 +10,22 @@ export const DIAGRAM_SOURCE_CLASS = 'claudian-diagram-source';
 
 const FENCE_INFO_PATTERN = /^([\t ]*)(\S+)(.*)$/;
 
+function mayContainFencedCode(markdown: string): boolean {
+  return markdown.includes('`') || markdown.includes('~');
+}
+
 /** Reports whether streaming content already contains a diagram fence opener. */
 export function hasDiagramFence(
   content: string,
   languages: readonly string[] = DIAGRAM_FENCE_LANGUAGES,
 ): boolean {
+  if (!mayContainFencedCode(content)) {
+    return false;
+  }
+  const lowerContent = content.toLowerCase();
+  if (!languages.some(language => lowerContent.includes(language.toLowerCase()))) {
+    return false;
+  }
   const diagramLanguages = new Set(languages.map((language) => language.toLowerCase()));
   let found = false;
 
@@ -64,6 +75,9 @@ export function prepareDisplayOnlyCodeFences(
   markdown: string,
   options?: PrepareDisplayOnlyCodeFencesOptions,
 ): PreparedDisplayOnlyCodeFences {
+  if (!mayContainFencedCode(markdown)) {
+    return { markdown, fences: [] };
+  }
   const diagramLanguages = new Set(
     (options?.diagramLanguages ?? []).map((language) => language.toLowerCase()),
   );

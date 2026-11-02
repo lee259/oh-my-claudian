@@ -1,3 +1,4 @@
+import { parser } from '@lezer/markdown';
 import type { App, TFile } from 'obsidian';
 
 import { replaceImageEmbedsWithHtml } from '@/utils/imageEmbed';
@@ -43,6 +44,18 @@ function createMockApp(files: Map<string, string> = new Map(), resolveLink?: Lin
 }
 
 describe('replaceImageEmbedsWithHtml', () => {
+  it('skips markdown parsing when the content has no embedded wikilink', () => {
+    const app = createMockApp();
+    const parseSpy = jest.spyOn(parser, 'parse');
+    parseSpy.mockClear();
+    const prose = 'A plain answer that links to [[a-note]] without embedding it.';
+
+    expect(replaceImageEmbedsWithHtml(prose, app)).toBe(prose);
+    expect(parseSpy).not.toHaveBeenCalled();
+
+    parseSpy.mockRestore();
+  });
+
   describe('basic image embeds', () => {
     it('replaces simple image embed with img tag', () => {
       const app = createMockApp(new Map([['image.png', 'app://local/image.png']]));
