@@ -103,6 +103,14 @@ function applyDomElementInfo(el: Element, info: unknown): void {
   return el;
 };
 
+if (globalThis.HTMLElement && !Reflect.has(globalThis.HTMLElement.prototype, 'onWindowMigrated')) {
+  globalThis.HTMLElement.prototype.onWindowMigrated = function (listener) {
+    const handler = () => listener(this.ownerDocument.defaultView!);
+    this.addEventListener('test-window-migrated', handler);
+    return () => this.removeEventListener('test-window-migrated', handler);
+  };
+}
+
 if (globalThis.HTMLElement && !Reflect.has(globalThis.HTMLElement.prototype, 'createDiv')) {
   globalThis.HTMLElement.prototype.createDiv = function (this: HTMLElement, info?, callback?) {
     const el = createDiv(info, callback);
