@@ -256,6 +256,21 @@ describe('SlashCommandDropdown - provider catalog', () => {
       dropdown.destroy();
     });
 
+    it('ranks an exact skill match above a command matching only its description', async () => {
+      const command: ProviderCommandEntry = { ...CLAUDE_ENTRIES[0], name: 'other', description: 'review changes' };
+      const skill: ProviderCommandEntry = { ...CLAUDE_ENTRIES[1], name: 'review', description: 'Inspect' };
+      const dropdown = new SlashCommandDropdown(containerEl, inputEl, callbacks, {
+        includeBuiltIns: false, providerConfig: CLAUDE_CONFIG,
+        providerDiscovery: createEntryDiscovery(async () => [command, skill]),
+      });
+      inputEl.value = '/review';
+      inputEl.selectionStart = 7;
+      dropdown.handleInputChange();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(getRenderedCommandNames(containerEl)).toEqual(['/review', '/other']);
+      dropdown.destroy();
+    });
+
     it('sorts commands before skills when both use the / prefix', async () => {
       const command: ProviderCommandEntry = {
         ...CLAUDE_ENTRIES[0],
