@@ -174,8 +174,8 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'pi', {
-      name: 'Hidden Pi commands and skills',
-      desc: 'Hide runtime commands and skills advertised by Pi from the command dropdown. Enter exact names without the leading slash, one per line.',
+      name: t('settings.hiddenSlashCommands.name'),
+      desc: t('settings.pi.hiddenCommandsDesc'),
       placeholder: 'skill:review\ncompact',
     });
 

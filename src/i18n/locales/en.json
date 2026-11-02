@@ -205,6 +205,9 @@
       "more": "+{count} more",
       "showMore": "Show {count} more context items",
       "contextUsage": "Context usage",
+      "contextUsageApproachingLimit": "Approaching context limit — compact or start a new conversation.",
+      "modeChangeFailed": "Failed to change mode",
+      "permissionModeChangeFailed": "Failed to change permission mode",
       "scope": "Context scope",
       "scopeNote": "note: {note}",
       "scopeFolder": "folder: {folders}",
@@ -454,6 +457,12 @@
       "search": "Search models",
       "clearSearch": "Clear search",
       "model": "Model",
+      "modelUnavailable": "Model unavailable",
+      "chooseModel": "Choose a model",
+      "chooseModelTitle": "Choose an enabled model in provider settings.",
+      "effort": "Effort",
+      "thinkingBudget": "Thinking budget",
+      "defaultReasoning": "Default",
       "empty": "No models available. Check provider settings and refresh the model list if discovery failed.",
       "noMatches": "No matching models.",
       "noFavorites": "No favorite models available. Use the star beside a model to add it.",
@@ -465,7 +474,11 @@
       "addFavorite": "Add to favorites",
       "removeFavorite": "Remove from favorites",
       "addNamedFavorite": "Add {model} to favorites",
-      "removeNamedFavorite": "Remove {model} from favorites"
+      "removeNamedFavorite": "Remove {model} from favorites",
+      "favoriteUpdateFailed": "Failed to update favorite models",
+      "modelChangeFailed": "Failed to change model",
+      "reasoningChangeFailed": "Failed to change reasoning level",
+      "serviceTierChangeFailed": "Failed to change service tier"
     },
     "questions": {
       "title": "Question",
@@ -483,6 +496,7 @@
     },
     "planApproval": {
       "implement": "Implement",
+      "revise": "Revise",
       "revisePlaceholder": "Enter feedback to revise plan...",
       "newSession": "Approve (new session)",
       "currentSession": "Approve (current session)",
@@ -591,10 +605,12 @@
         "planMode": "Plan mode",
         "rewind": "Rewind",
         "fork": "Fork",
+        "nativeHistory": "Native history",
         "providerCommands": "Provider commands",
         "imageAttachments": "Image attachments",
-        "mcpTools": "MCP tools",
-        "turnSteer": "Turn steering"
+        "mcpTools": "MCP tools (runtime)",
+        "turnSteer": "Turn steering",
+        "responseThroughput": "Response throughput"
       }
     },
     "tabs": {
@@ -623,7 +639,11 @@
       "write": "Write",
       "yolo": "YOLO",
       "permissionRequest": "OMP requests permission to use {tool}.",
-      "tool": "a tool"
+      "tool": "a tool",
+      "environment": {
+        "name": "OMP environment variables",
+        "desc": "Environment variables passed only to OMP. Explicit values here override your login-shell environment."
+      }
     },
     "cursor": {
       "setup": "Setup",
@@ -643,7 +663,11 @@
       "plan": "Plan",
       "ask": "Ask",
       "permissionRequest": "Cursor requests permission to use {tool}.",
-      "tool": "a tool"
+      "tool": "a tool",
+      "environment": {
+        "name": "Cursor environment variables",
+        "desc": "Environment variables passed only to Cursor Agent. Use this for CURSOR_* settings instead of exporting them in your shell."
+      }
     },
     "grok": {
       "enableDesc": "Connect to the local Grok Build, with its own settings and sessions separate from Cursor.",
@@ -651,10 +675,16 @@
       "environment": {
         "name": "Grok Build environment variables",
         "desc": "Environment variables passed only to Grok Build. Custom-model secrets stay in this provider scope and are referenced from native config by env_key."
-      }
+      },
+      "hiddenCommandsDesc": "Hide runtime commands advertised by Grok Build from the command dropdown. Enter names without the leading slash, one per line."
     },
     "opencode": {
-      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows)."
+      "cliPathDesc": "Optional absolute path to the OpenCode CLI. Leave empty to use PATH. Paste the output of \"which opencode\" (or \"where opencode\" on Windows).",
+      "hiddenCommandsDesc": "Hide specific OpenCode commands and skills from the dropdown. Enter names without the leading slash, one per line.",
+      "environment": {
+        "name": "OpenCode environment variables",
+        "desc": "Extra environment variables passed to OpenCode. `OPENCODE_ENABLE_EXA=1` is enabled by default."
+      }
     },
     "pi": {
       "cliPathDesc": "Optional absolute path to the Pi CLI. Leave empty to use PATH. Paste the output of \"which pi\" (or \"where pi\" on Windows).",
@@ -662,7 +692,8 @@
         "name": "Pi environment variables",
         "desc": "Environment variables passed only to Pi."
       },
-      "modelsDesc": "The model list comes from the current Pi environment; Pi’s enabledModels setting may further restrict available routes. Click {discover} or {refresh} to update the list. The provider/model route determines credentials and billing."
+      "modelsDesc": "The model list comes from the current Pi environment; Pi’s enabledModels setting may further restrict available routes. Click {discover} or {refresh} to update the list. The provider/model route determines credentials and billing.",
+      "hiddenCommandsDesc": "Hide runtime commands and skills advertised by Pi from the command dropdown. Enter exact names without the leading slash, one per line."
     },
     "providerReadiness": {
       "title": "Readiness",

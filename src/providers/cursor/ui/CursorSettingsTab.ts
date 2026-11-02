@@ -10,6 +10,7 @@ import type {
 import { t } from '../../../i18n/i18n';
 import { CURSOR_PROVIDER_ICON } from '../../../shared/icons';
 import { renderCliLifecycleSection } from '../../../shared/settings/CliLifecycleSection';
+import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameCliPathSetting';
 import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
@@ -129,6 +130,16 @@ export const cursorSettingsTabRenderer: ProviderSettingsTabRenderer = {
       name: t('settings.hiddenSlashCommands.name'),
       desc: t('settings.cursor.hiddenCommandsDesc'),
       placeholder: 'simplify\ngoal',
+    });
+    renderEnvironmentSettingsSection({
+      container,
+      plugin: context.plugin,
+      scope: 'provider:cursor',
+      heading: t('settings.environment'),
+      name: t('settings.cursor.environment.name'),
+      desc: t('settings.cursor.environment.desc'),
+      placeholder: 'CURSOR_API_KEY=sk-...',
+      renderCustomContextLimits: target => context.renderCustomContextLimits(target, 'cursor'),
     });
     renderProviderAdditionalArgumentsSetting(container, context.plugin, 'cursor');
   },

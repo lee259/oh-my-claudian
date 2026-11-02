@@ -15,10 +15,12 @@ type WelcomeCapabilityKey = keyof Pick<
   | 'supportsPlanMode'
   | 'supportsRewind'
   | 'supportsFork'
+  | 'supportsNativeHistory'
   | 'supportsProviderCommands'
   | 'supportsImageAttachments'
   | 'supportsMcpTools'
   | 'supportsTurnSteer'
+  | 'supportsResponseThroughput'
 >;
 
 const WELCOME_CAPABILITIES: ReadonlyArray<{
@@ -26,18 +28,22 @@ const WELCOME_CAPABILITIES: ReadonlyArray<{
   label: 'settings.capabilityMatrix.rows.planMode'
     | 'settings.capabilityMatrix.rows.rewind'
     | 'settings.capabilityMatrix.rows.fork'
+    | 'settings.capabilityMatrix.rows.nativeHistory'
     | 'settings.capabilityMatrix.rows.providerCommands'
     | 'settings.capabilityMatrix.rows.imageAttachments'
     | 'settings.capabilityMatrix.rows.mcpTools'
-    | 'settings.capabilityMatrix.rows.turnSteer';
+    | 'settings.capabilityMatrix.rows.turnSteer'
+    | 'settings.capabilityMatrix.rows.responseThroughput';
 }> = [
   { key: 'supportsPlanMode', label: 'settings.capabilityMatrix.rows.planMode' },
   { key: 'supportsRewind', label: 'settings.capabilityMatrix.rows.rewind' },
   { key: 'supportsFork', label: 'settings.capabilityMatrix.rows.fork' },
+  { key: 'supportsNativeHistory', label: 'settings.capabilityMatrix.rows.nativeHistory' },
   { key: 'supportsProviderCommands', label: 'settings.capabilityMatrix.rows.providerCommands' },
   { key: 'supportsImageAttachments', label: 'settings.capabilityMatrix.rows.imageAttachments' },
   { key: 'supportsMcpTools', label: 'settings.capabilityMatrix.rows.mcpTools' },
   { key: 'supportsTurnSteer', label: 'settings.capabilityMatrix.rows.turnSteer' },
+  { key: 'supportsResponseThroughput', label: 'settings.capabilityMatrix.rows.responseThroughput' },
 ];
 
 export interface WelcomeProviderSummary {

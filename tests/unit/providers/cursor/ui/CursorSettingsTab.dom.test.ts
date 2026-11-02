@@ -1,7 +1,9 @@
 /** @jest-environment jsdom */
 
 jest.mock('obsidian', () => ({
+  Modal: class {},
   Notice: class {},
+  setIcon: jest.fn(),
   Setting: class {
     settingEl: HTMLElement;
     controlEl: HTMLElement;
@@ -51,6 +53,7 @@ beforeAll(() => {
     createSpan(this: HTMLElement, options = {}) { return this.createEl('span', options); },
     addClass(this: HTMLElement, ...names: string[]) { this.classList.add(...names); },
     setText(this: HTMLElement, text: string) { this.textContent = text; },
+    empty(this: HTMLElement) { this.replaceChildren(); },
   });
 });
 
@@ -67,17 +70,19 @@ describe('Cursor settings model catalog', () => {
   });
 
   function renderModels(models: CursorDiscoveredModel[]) {
-    const settings = { providerConfigs: { cursor: { discoveredModels: models, visibleModels: [] } } };
+    const settings = { envSnippets: [], providerConfigs: { cursor: { discoveredModels: models, visibleModels: [] } } };
     cursorSettingsTabRenderer.render(container, {
       plugin: {
         app: { vault: { adapter: { basePath: '/vault' } } },
         settings,
         getResolvedProviderCliPath: async () => null,
         getActiveEnvironmentVariables: () => '',
+        getEnvironmentVariablesForScope: () => '',
         mutateSettings: async (mutation: (target: typeof settings) => void) => mutation(settings),
       },
       notifyProviderModelOptionsChanged: () => {},
       renderHiddenProviderCommandSetting: () => {},
+      renderCustomContextLimits: () => {},
     } as unknown as ProviderSettingsTabRendererContext);
     return settings;
   }
@@ -117,5 +122,12 @@ describe('Cursor settings model catalog', () => {
     await Promise.resolve();
     expect(Array.from(container.querySelectorAll('.claudian-provider-model-picker-row-name'))
       .map(element => element.textContent)).toEqual(['Claude Sonnet']);
+  });
+
+  it('renders the Cursor environment section', () => {
+    renderModels([]);
+
+    expect(container.querySelector('.claudian-environment-field-host')).not.toBeNull();
+    expect(container.textContent).toContain('Cursor environment variables');
   });
 });

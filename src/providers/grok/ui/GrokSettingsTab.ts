@@ -183,8 +183,8 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, GROK_PROVIDER_ID, {
-      name: 'Hidden Grok Build commands',
-      desc: 'Hide runtime commands advertised by Grok Build from the command dropdown. Enter names without the leading slash, one per line.',
+      name: t('settings.hiddenSlashCommands.name'),
+      desc: t('settings.grok.hiddenCommandsDesc'),
       placeholder: 'compact\nreview',
     });
 

@@ -13,6 +13,7 @@ describe('claudeChatUIConfig', () => {
         ['claude-edit', 'Accept edits'],
         ['plan', 'Plan'],
         ['claude-auto', 'Auto'],
+        ['yolo', 'Full access'],
       ]);
       expect(options?.every(option => option.description && option.icon)).toBe(true);
     });
@@ -36,6 +37,32 @@ describe('claudeChatUIConfig', () => {
     it('does not expose legacy YOLO as a Claude-native mode', () => {
       expect(claudeChatUIConfig.resolvePermissionModeOption?.({ permissionMode: 'yolo' }))
         .toBeNull();
+    });
+
+    it('exposes full access so a legacy YOLO state stays representable', () => {
+      setLocale('en');
+
+      const option = claudeChatUIConfig.getPermissionModeOptions?.({})
+        .find(candidate => candidate.value === 'yolo');
+
+      expect(option).toMatchObject({
+        label: 'Full access',
+        isDangerous: true,
+      });
+      expect(option?.description).toBeTruthy();
+    });
+
+    it('applies full access without discarding the configured safe mode', () => {
+      const settings: Record<string, unknown> = {
+        permissionMode: 'normal',
+        providerConfigs: { claude: { safeMode: 'acceptEdits' } },
+      };
+
+      claudeChatUIConfig.applyPermissionMode?.('yolo', settings);
+
+      expect(settings.permissionMode).toBe('yolo');
+      expect((settings.providerConfigs as Record<string, Record<string, unknown>>).claude.safeMode)
+        .toBe('acceptEdits');
     });
 
     it.each([

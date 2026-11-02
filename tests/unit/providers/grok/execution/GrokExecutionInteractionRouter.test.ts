@@ -1,3 +1,4 @@
+import { setLocale } from '@/i18n/i18n';
 import { GrokExecutionInteractionRouter } from '@/providers/grok/execution/GrokExecutionInteractionRouter';
 
 it.each([false, true])('keeps own Grok answer and preview keys, excluding inherited answers (%s)', async inherited => {
@@ -15,4 +16,43 @@ it.each([false, true])('keeps own Grok answer and preview keys, excluding inheri
   });
   expect(JSON.stringify(reply)).toBe(inherited ? '{"answers":{},"outcome":"accepted"}'
     : '{"annotations":{"__proto__":{"preview":"Preview"}},"answers":{"__proto__":["Yes"]},"outcome":"accepted"}');
+});
+
+it('localizes the plan approval presentation', async () => {
+  setLocale('zh-CN');
+  try {
+    const requestPlanDecision = jest.fn(async request => ({
+      decision: { type: 'approve' },
+      interactionId: request.interactionId,
+    }));
+    const router = new GrokExecutionInteractionRouter(
+      {
+        askUserQuestion: jest.fn(),
+        dismissInteraction: jest.fn(),
+        requestApproval: jest.fn(),
+        requestPlanDecision,
+      } as never,
+      'instance',
+      () => 'turn',
+      () => 'native',
+    );
+
+    await router.handle('x.ai/exit_plan_mode', {
+      planContent: '# Plan',
+      sessionId: 'native',
+      toolCallId: 'plan-call',
+    });
+
+    expect(requestPlanDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presentation: expect.objectContaining({
+          approveLabel: '实施',
+          feedbackLabel: '修改',
+        }),
+      }),
+      expect.anything(),
+    );
+  } finally {
+    setLocale('en');
+  }
 });

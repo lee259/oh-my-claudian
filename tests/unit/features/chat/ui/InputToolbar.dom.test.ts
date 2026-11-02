@@ -163,6 +163,22 @@ describe('createInputToolbar', () => {
     expect(callbacks.onModelChange).not.toHaveBeenCalled();
   });
 
+  it('localizes shared model picker labels with the active locale', () => {
+    setLocale('zh-CN');
+    toolbar?.refreshLocale();
+
+    expect(toolbarEl.querySelector('.claudian-model-slider-label')?.textContent)
+      .toBe('推理强度');
+
+    Object.assign(callbacks.getSettings(), { model: 'missing-model' });
+    toolbar?.modelSelector.updateDisplay();
+
+    expect(toolbarEl.querySelector('.claudian-model-label')?.textContent)
+      .toBe('模型不可用');
+    expect(toolbarEl.querySelector<HTMLButtonElement>('.claudian-model-btn')
+      ?.getAttribute('aria-label')).toContain('模型: 模型不可用');
+  });
+
   afterEach(() => {
     toolbar?.destroy();
     toolbarEl.remove();
@@ -315,9 +331,11 @@ describe('createInputToolbar', () => {
     expect(toolbar?.permissionToggle.cycleMode?.()).toBe(true);
     expect(toolbar?.permissionToggle.cycleMode?.()).toBe(true);
     expect(toolbar?.permissionToggle.cycleMode?.()).toBe(true);
+    expect(toolbar?.permissionToggle.cycleMode?.()).toBe(true);
     expect(callbacks.onPermissionModeChange).toHaveBeenNthCalledWith(2, 'plan');
     expect(callbacks.onPermissionModeChange).toHaveBeenNthCalledWith(3, 'claude-auto');
-    expect(callbacks.onPermissionModeChange).toHaveBeenNthCalledWith(4, 'claude-manual');
+    expect(callbacks.onPermissionModeChange).toHaveBeenNthCalledWith(4, 'yolo');
+    expect(callbacks.onPermissionModeChange).toHaveBeenNthCalledWith(5, 'claude-manual');
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(setIcon).toHaveBeenCalledWith(
       toolbarEl.querySelector('.claudian-permission-mode-trigger-icon'),
@@ -399,7 +417,7 @@ describe('createInputToolbar', () => {
     )?.textContent).toBe('Accept edits');
   });
 
-  it('renders only Claude Code’s four native modes and leaves legacy YOLO unselected', () => {
+  it('renders Claude Code modes with full access selected for a legacy YOLO state', () => {
     callbacks.getUIConfig = () => claudeChatUIConfig;
     callbacks.getSettings().permissionMode = 'yolo';
     toolbar?.permissionToggle.updateDisplay();
@@ -410,15 +428,15 @@ describe('createInputToolbar', () => {
     ));
     expect(options.map(option => option.querySelector(
       '.claudian-permission-mode-option-label',
-    )?.textContent)).toEqual(['Manual', 'Accept edits', 'Plan', 'Auto']);
-    expect(options.filter(option => option.getAttribute('aria-checked') === 'true')).toHaveLength(0);
+    )?.textContent)).toEqual(['Manual', 'Accept edits', 'Plan', 'Auto', 'Full access']);
+    expect(options.filter(option => option.getAttribute('aria-checked') === 'true')).toHaveLength(1);
     expect(toolbarEl.querySelector(
-      '.claudian-permission-mode-trigger span',
-    )?.textContent).toBe('Modes');
+      '.claudian-permission-mode-trigger-label',
+    )?.textContent).toBe('Full access');
   });
 
   it.each([
-    ['Claude Code', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto'], []],
+    ['Claude Code', 'claude', claudeChatUIConfig, ['Manual', 'Accept edits', 'Plan', 'Auto', 'Full access'], ['Full access']],
     ['Codex', 'codex', codexChatUIConfig, ['Workspace write', 'Full access', 'Plan'], ['Full access']],
     ['Cursor', 'cursor', cursorChatUIConfig, ['Agent', 'Ask', 'Plan'], []],
     ['Grok Build', 'grok', grokChatUIConfig, ['Auto', 'Ask', 'Plan', 'Accept edits', 'Always approve'], ['Always approve']],

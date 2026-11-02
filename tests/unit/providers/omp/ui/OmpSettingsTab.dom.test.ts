@@ -1,7 +1,9 @@
 /** @jest-environment jsdom */
 
 jest.mock('obsidian', () => ({
+  Modal: class {},
   Notice: class {},
+  setIcon: jest.fn(),
   Setting: class {
     settingEl: HTMLElement;
     controlEl: HTMLElement;
@@ -51,6 +53,7 @@ beforeAll(() => {
     createSpan(this: HTMLElement, options = {}) { return this.createEl('span', options); },
     addClass(this: HTMLElement, ...names: string[]) { this.classList.add(...names); },
     setText(this: HTMLElement, text: string) { this.textContent = text; },
+    empty(this: HTMLElement) { this.replaceChildren(); },
   });
 });
 
@@ -67,17 +70,19 @@ describe('Omp settings model catalog', () => {
   });
 
   function renderModels(models: OmpDiscoveredModel[]) {
-    const settings = { providerConfigs: { omp: { discoveredModels: models, visibleModels: [] } } };
+    const settings = { envSnippets: [], providerConfigs: { omp: { discoveredModels: models, visibleModels: [] } } };
     ompSettingsTabRenderer.render(container, {
       plugin: {
         app: { vault: { adapter: { basePath: '/vault' } } },
         settings,
         getResolvedProviderCliPath: async () => null,
         getActiveEnvironmentVariables: () => '',
+        getEnvironmentVariablesForScope: () => '',
         mutateSettings: async (mutation: (target: typeof settings) => void) => mutation(settings),
       },
       notifyProviderModelOptionsChanged: () => {},
       renderHiddenProviderCommandSetting: () => {},
+      renderCustomContextLimits: () => {},
     } as unknown as ProviderSettingsTabRendererContext);
     return settings;
   }
@@ -101,5 +106,12 @@ describe('Omp settings model catalog', () => {
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
     expect(settings.providerConfigs.omp.visibleModels).toEqual(['@smol']);
+  });
+
+  it('renders the OMP environment section', () => {
+    renderModels([]);
+
+    expect(container.querySelector('.claudian-environment-field-host')).not.toBeNull();
+    expect(container.textContent).toContain('OMP environment variables');
   });
 });
