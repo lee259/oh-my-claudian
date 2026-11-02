@@ -13,6 +13,15 @@ function deferred<T>(): {
 }
 
 describe('ProviderCommandDiscoveryStore', () => {
+  it('publishes a newer observed snapshot without waiting for another load', async () => {
+    const store = new ProviderCommandDiscoveryStore<string>(async () => ({ status: 'empty' }));
+    await store.load();
+    const listener = jest.fn();
+    store.subscribe(listener);
+    store.publish({ status: 'ready', items: ['late'] });
+    expect(store.getSnapshot()).toEqual({ status: 'ready', items: ['late'] });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
   it('shares an in-flight load and caches its terminal result', async () => {
     const response = deferred<ProviderCommandDiscoveryResult<string>>();
     const loader = jest.fn().mockReturnValue(response.promise);

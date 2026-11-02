@@ -714,6 +714,58 @@ describe('TabManager provider execution orchestration', () => {
     );
   });
 
+  it('publishes late live catalog entries to the active tab and unsubscribes on destroy', async () => {
+    let changed!: () => void;
+    const unsubscribe = jest.fn();
+    const subscribe = jest.fn((listener: () => void) => { changed = listener; return unsubscribe; });
+    Object.assign(commandCatalog, { subscribe });
+    commandCatalog.getDropdownConfig.mockReturnValue({ liveUpdates: true });
+    commandCatalog.listDropdownEntries.mockResolvedValue([]);
+    const { manager } = createManager();
+    await manager.createTab();
+    const options = jest.mocked(initializeTabUI).mock.calls[0][2]!;
+    const discovery = options.getProviderCatalogConfig!()!.discovery;
+    await discovery.load();
+    expect(discovery.getSnapshot().status).toBe('empty');
+    commandCatalog.listDropdownEntries.mockResolvedValue([{ id: 'late', name: 'late' }]);
+    changed();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(discovery.getSnapshot()).toEqual({ status: 'ready', items: [{ id: 'late', name: 'late' }] });
+    await manager.destroy();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    delete (commandCatalog as { subscribe?: unknown }).subscribe;
+  });
+
+  it('invalidates a hidden tab so its next command menu reads the live catalog', async () => {
+    const listeners: Array<() => void> = [];
+    Object.assign(commandCatalog, {
+      subscribe: jest.fn((listener: () => void) => {
+        listeners.push(listener);
+        return jest.fn();
+      }),
+    });
+    commandCatalog.getDropdownConfig.mockReturnValue({ liveUpdates: true });
+    commandCatalog.listDropdownEntries.mockResolvedValue([]);
+    const { manager } = createManager();
+    await manager.createTab();
+    await manager.createTab(undefined, undefined, { activate: false });
+    const activeOptions = jest.mocked(initializeTabUI).mock.calls[0][2]!;
+    const hiddenOptions = jest.mocked(initializeTabUI).mock.calls[1][2]!;
+    const activeDiscovery = activeOptions.getProviderCatalogConfig!()!.discovery;
+    const hiddenDiscovery = hiddenOptions.getProviderCatalogConfig!()!.discovery;
+    await activeDiscovery.load();
+    await hiddenDiscovery.load();
+    commandCatalog.listDropdownEntries.mockClear();
+
+    listeners[1]();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(hiddenDiscovery.getSnapshot()).toEqual({ status: 'idle' });
+    expect(commandCatalog.listDropdownEntries).not.toHaveBeenCalled();
+    await manager.destroy();
+    delete (commandCatalog as { subscribe?: unknown }).subscribe;
+  });
+
   it('reloads cached commands after the provider lifecycle generation advances', async () => {
     const executionLifecycleRegistry = new ProviderExecutionLifecycleRegistry();
     const { manager } = createManager(createPlugin({

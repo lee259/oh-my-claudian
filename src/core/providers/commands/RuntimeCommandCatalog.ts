@@ -16,13 +16,23 @@ export interface RuntimeCommandCatalogOptions {
 export class RuntimeCommandCatalog implements ProviderCommandCatalog {
   private readonly dropdownConfig: ProviderCommandDropdownConfig;
   private commandSnapshot: SlashCommand[] = [];
+  private readonly listeners = new Set<() => void>();
 
   constructor(private readonly options: RuntimeCommandCatalogOptions) {
     this.dropdownConfig = cloneDropdownConfig(options.dropdownConfig);
   }
 
   setCommandSnapshot(commands: SlashCommand[]): void {
+    if (JSON.stringify(commands) === JSON.stringify(this.commandSnapshot)) return;
     this.commandSnapshot = commands.map(cloneSlashCommand);
+    for (const listener of this.listeners) {
+      try { listener(); } catch { /* One observer must not block publication. */ }
+    }
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
   }
 
   async listDropdownEntries(

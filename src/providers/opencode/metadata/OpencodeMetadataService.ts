@@ -35,6 +35,7 @@ export interface OpencodeMetadataWarmResult
 
 export interface OpencodeMetadataProbe {
   dispose(): Promise<void>;
+  watchCatalog?(onChange: () => Promise<void>, signal: AbortSignal): Promise<void>;
   loadCatalog(
     signal?: AbortSignal,
     onMetadata?: (metadata: OpencodeMetadataProjectionInput) => Promise<void>,
@@ -59,6 +60,8 @@ export class OpencodeMetadataService {
   private readonly unregisterTransitionHook: () => void;
   private disposed = false;
   private disposeFlight: Promise<void> | null = null;
+  private catalogWatch: Promise<unknown> | null = null;
+  private catalogWatchController: AbortController | null = null;
 
   constructor(
     private readonly plugin: ProviderHost,
@@ -101,6 +104,7 @@ export class OpencodeMetadataService {
         this.options.commandCatalog?.setCommandSnapshot(
           catalog.commands.map((command) => ({ ...command })),
         );
+        if (probe.watchCatalog) this.ensureCatalogWatch();
         return true;
       },
       signal, context,
@@ -122,6 +126,7 @@ export class OpencodeMetadataService {
         ownedSignal.throwIfAborted();
         const commands = catalog.commands.map((command) => ({ ...command }));
         this.options.commandCatalog?.setCommandSnapshot(commands);
+        if (probe.watchCatalog) this.ensureCatalogWatch();
         return { commands, loaded: true };
       },
       signal,
@@ -153,8 +158,11 @@ export class OpencodeMetadataService {
   }
 
   async invalidate(): Promise<void> {
+    this.catalogWatchController?.abort();
+    this.catalogWatchController = null;
     this.options.commandCatalog?.setCommandSnapshot([]);
     await this.probes.quiesce();
+    await this.catalogWatch;
   }
 
   dispose(): Promise<void> {
@@ -187,6 +195,23 @@ export class OpencodeMetadataService {
     } catch {
       return null;
     }
+  }
+
+  private ensureCatalogWatch(): void {
+    if (this.catalogWatch || this.disposed) return;
+    const controller = new AbortController();
+    this.catalogWatchController = controller;
+    const watch = Promise.resolve().then(() => this.runProbe(async (probe, signal) => {
+      await probe.watchCatalog?.(async () => {
+        const catalog = await this.loadCatalogWithMetadata(probe, signal);
+        signal.throwIfAborted();
+        this.options.commandCatalog?.setCommandSnapshot(catalog.commands.map(command => ({ ...command })));
+      }, signal);
+    }, controller.signal)).finally(() => {
+      if (this.catalogWatch === watch) this.catalogWatch = null;
+      if (this.catalogWatchController === controller) this.catalogWatchController = null;
+    });
+    this.catalogWatch = watch;
   }
 
   private async loadCatalogWithMetadata(

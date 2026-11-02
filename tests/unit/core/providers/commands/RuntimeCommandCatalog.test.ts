@@ -29,6 +29,17 @@ function createCatalog(isHidden?: (command: SlashCommand) => boolean): RuntimeCo
 }
 
 describe('RuntimeCommandCatalog', () => {
+  it('notifies subscribers only when the command snapshot changes', () => {
+    const catalog = createCatalog();
+    const listener = jest.fn();
+    const unsubscribe = catalog.subscribe(listener);
+    catalog.setCommandSnapshot([{ id: 'a', name: 'review', content: '' }]);
+    catalog.setCommandSnapshot([{ id: 'a', name: 'review', content: '' }]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    catalog.setCommandSnapshot([]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
   it('defensively clones provider-owned built-ins before discovery', () => {
     const entry = {
       id: 'pi:fixed', providerId: 'pi' as const, kind: 'command' as const, name: 'fixed',

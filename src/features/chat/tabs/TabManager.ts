@@ -127,6 +127,7 @@ export class TabManager implements TabManagerInterface {
     TabId,
     ProviderCommandDiscoveryStore<ProviderCommandEntry>
   >();
+  private readonly catalogSubscriptions = new Map<TabId, { catalog: object; unsubscribe: () => void }>();
   private providerResourceGenerations = new Map<ProviderId, number>();
   private tabCommandContextRevisions = new Map<TabId, number>();
   private tabActivationRevisions = new Map<TabId, number>();
@@ -484,6 +485,8 @@ export class TabManager implements TabManagerInterface {
     if (this.plugin.conversationRuntimes) await detachTabPresentation(tab);
     else await destroyTab(tab);
     this.providerRuntimeCommandCache.delete(tabId);
+    this.catalogSubscriptions.get(tabId)?.unsubscribe();
+    this.catalogSubscriptions.delete(tabId);
     this.providerCommandDiscoveryStores.delete(tabId);
     this.tabCommandContextRevisions.delete(tabId);
     this.tabActivationRevisions.delete(tabId);
@@ -1460,10 +1463,36 @@ export class TabManager implements TabManagerInterface {
     const catalog = ProviderWorkspaceRegistry.getCommandCatalog(providerId);
     if (!catalog) return null;
 
-    return {
-      config: catalog.getDropdownConfig(),
-      discovery: this.ensureProviderCommandDiscoveryStore(tab.id),
-    };
+    const config = catalog.getDropdownConfig();
+    const discovery = this.ensureProviderCommandDiscoveryStore(tab.id);
+    const previous = this.catalogSubscriptions.get(tab.id);
+    if (previous?.catalog !== catalog) {
+      previous?.unsubscribe();
+      this.catalogSubscriptions.delete(tab.id);
+      if (config.liveUpdates && catalog.subscribe) {
+        const unsubscribe = catalog.subscribe(() => {
+          void (async () => {
+            const isCurrent = () => !this.destroyed
+              && getTabProviderId(tab, this.plugin) === providerId
+              && this.catalogSubscriptions.get(tab.id)?.catalog === catalog;
+            if (!isCurrent()) return;
+            this.providerRuntimeCommandCache.delete(tab.id);
+            // A hidden tab reloads the latest catalog when its menu next opens.
+            if (this.activeTabId !== tab.id) {
+              discovery.invalidate();
+              return;
+            }
+            if (discovery.getSnapshot().status === 'loading') await discovery.load();
+            if (!isCurrent()) return;
+            const entries = await catalog.listDropdownEntries({ includeBuiltIns: true });
+            if (!isCurrent() || this.activeTabId !== tab.id) return;
+            discovery.publish(normalizeProviderCommandDiscoveryItems(entries));
+          })().catch(() => undefined);
+        });
+        this.catalogSubscriptions.set(tab.id, { catalog, unsubscribe });
+      }
+    }
+    return { config, discovery };
   }
 
   // ============================================
@@ -1485,6 +1514,8 @@ export class TabManager implements TabManagerInterface {
     for (const discovery of this.providerCommandDiscoveryStores.values()) {
       discovery.invalidate();
     }
+    for (const subscription of this.catalogSubscriptions.values()) subscription.unsubscribe();
+    this.catalogSubscriptions.clear();
     for (const warmup of this.providerRuntimeCommandWarmups.values()) {
       warmup.abortController.abort();
     }

@@ -119,6 +119,15 @@ implements ProviderCommandDiscoveryController<T> {
     return this.load();
   }
 
+  publish(result: ProviderCommandDiscoveryResult<T>): void {
+    this.generation++;
+    this.loadAbortController?.abort();
+    this.loadAbortController = null;
+    this.inFlight = null;
+    this.snapshot = cloneResult(result);
+    this.notify();
+  }
+
   invalidate(): void {
     this.generation++;
     this.loadAbortController?.abort();

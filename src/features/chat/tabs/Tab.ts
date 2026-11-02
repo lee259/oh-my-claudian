@@ -584,14 +584,18 @@ export function onProviderAvailabilityChanged(tab: TabData, plugin: FeatureHost)
     }
   }
 
+  const modelChanged = tab.draftModel !== previousDraftModel;
+  const providerChanged = nextProviderId !== previousProviderId;
   tab.providerId = nextProviderId;
 
-  syncTabProviderServices(tab, plugin);
-  syncSlashCommandDropdownForProvider(tab, plugin);
-  invalidateTabProviderCommands(tab);
+  if (providerChanged) {
+    syncTabProviderServices(tab, plugin);
+    syncSlashCommandDropdownForProvider(tab, plugin);
+    invalidateTabProviderCommands(tab);
+  }
   refreshTabProviderUI(tab);
   applyProviderUIGating(tab, plugin);
-  return tab.draftModel !== previousDraftModel || tab.providerId !== previousProviderId;
+  return modelChanged || providerChanged;
 }
 
 /** Creates a new Tab instance with all required state. */
