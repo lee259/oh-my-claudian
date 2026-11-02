@@ -393,6 +393,39 @@ describe('Tab provider execution ownership', () => {
     expect(tab.providerId).toBe('claude');
   });
 
+  it('does not invalidate provider commands when model availability is unchanged', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    const invalidate = jest.fn();
+    tab.providerCatalogResolver = () => ({
+      config: { providerId: 'claude', triggerChars: ['/'] },
+      discovery: { invalidate },
+    } as any);
+
+    expect(onProviderAvailabilityChanged(tab, plugin)).toBe(false);
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('keeps provider commands while replacing an unavailable model within the same provider', () => {
+    const plugin = createPlugin();
+    const tab = createTab({ plugin, containerEl: createMockEl() as any });
+    const uiConfig = ProviderRegistry.getChatUIConfig('claude');
+    (uiConfig.getModelOptions as jest.Mock).mockReturnValue([
+      { label: 'Claude Default', value: 'claude-default' },
+    ]);
+    tab.draftModel = 'claude-stale';
+    const invalidate = jest.fn();
+    tab.providerCatalogResolver = () => ({
+      config: { providerId: 'claude', triggerChars: ['/'] },
+      discovery: { invalidate },
+    } as any);
+
+    expect(onProviderAvailabilityChanged(tab, plugin)).toBe(true);
+    expect(tab.draftModel).toBe('claude-default');
+    expect(tab.providerId).toBe('claude');
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it('records an explicit blank-tab model choice as the future-tab seed', async () => {
     const originalResizeObserver = globalThis.ResizeObserver;
     globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({

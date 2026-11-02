@@ -596,6 +596,12 @@ export interface ProviderConversationHistoryService {
     conversation: Conversation,
     options?: { projectionOnly?: boolean },
   ): boolean;
+  /** Reads an opaque revision for the live native history, without starting a provider session. */
+  readNativeHistoryRevision?(
+    conversation: Conversation,
+    vaultPath: string | null,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<string | null>;
   hydrateConversationHistory(
     conversation: Conversation,
     vaultPath: string | null,

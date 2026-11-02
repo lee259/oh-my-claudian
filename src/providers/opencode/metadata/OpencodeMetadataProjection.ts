@@ -73,13 +73,10 @@ export async function projectOpencodeMetadata(
   const rawModelId = input.selectedRawModelId
     ?? modelState.currentModelId
     ?? null;
-  const hasModels = input.models != null
-    || modelState.currentModelId !== null
-    || discoveredModels.length > 0;
-  const hasModes = input.modes != null
-    || input.currentModeId != null
-    || modeState.currentModeId !== null
-    || availableModes.length > 0;
+  // Early startup snapshots can be empty. Keep the last usable catalog until a non-empty
+  // replacement arrives, and do not publish a settings change when the projection is unchanged.
+  const hasModels = discoveredModels.length > 0;
+  const hasModes = availableModes.length > 0;
   const baseRawModelId = rawModelId
     ? resolveOpencodeBaseModelRawId(
       rawModelId,
@@ -90,24 +87,47 @@ export async function projectOpencodeMetadata(
   if (baseRawModelId && thinkingOptions.length > 0) {
     nextThinking[baseRawModelId] = thinkingOptions;
   }
-  const hasUpdate = hasModels
-    || hasModes
-    || selectedMode !== null
-    || (baseRawModelId !== null && thinkingOptions.length > 0);
-  if (!hasUpdate) return false;
+  const modelsChanged = hasModels && !sameUnordered(discoveredModels, current.discoveredModels);
+  const modesChanged = hasModes && !sameUnordered(availableModes, current.availableModes);
+  const selectedModeChanged = selectedMode !== null && selectedMode !== current.selectedMode;
+  const thinkingChanged = baseRawModelId !== null
+    && thinkingOptions.length > 0
+    && !sameJson(nextThinking, current.thinkingOptionsByModel);
+  if (!modelsChanged && !modesChanged && !selectedModeChanged && !thinkingChanged) return false;
 
   signal?.throwIfAborted();
   await plugin.mutateSettings((settings) => {
     signal?.throwIfAborted();
     updateOpencodeProviderSettings(settings, {
-      ...(hasModes ? { availableModes } : {}),
-      ...(selectedMode ? { selectedMode } : {}),
-      ...(hasModels ? { discoveredModels } : {}),
-      ...(baseRawModelId && thinkingOptions.length > 0
+      ...(modesChanged ? { availableModes } : {}),
+      ...(selectedModeChanged && selectedMode ? { selectedMode } : {}),
+      ...(modelsChanged ? { discoveredModels } : {}),
+      ...(thinkingChanged
         ? { thinkingOptionsByModel: nextThinking }
         : {}),
     });
   });
   plugin.notifyProviderChatOptionsChanged('opencode');
   return true;
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return stableStringify(left) === stableStringify(right);
+}
+
+function sameUnordered(left: readonly unknown[], right: readonly unknown[]): boolean {
+  if (left.length !== right.length) return false;
+  const serialize = (values: readonly unknown[]) => values.map(stableStringify).sort();
+  return sameJson(serialize(left), serialize(right));
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }

@@ -59,6 +59,27 @@ function createProbe(overrides: Partial<OpencodeMetadataProbe> = {}): OpencodeMe
 }
 
 describe('OpencodeMetadataService', () => {
+  it('publishes catalog updates after the initial discovery and stops observation on disposal', async () => {
+    const host = createPlugin();
+    let notify!: () => Promise<void>;
+    let observedSignal!: AbortSignal;
+    const probe = createProbe({
+      watchCatalog: jest.fn(async (callback, signal) => {
+        notify = callback;
+        observedSignal = signal;
+        await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }));
+      }),
+    });
+    const commandCatalog = { setCommandSnapshot: jest.fn() };
+    const service = new OpencodeMetadataService(host, { createProbe: () => probe, commandCatalog });
+    expect(await service.loadCatalog()).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(notify).toBeDefined();
+    await notify();
+    expect(commandCatalog.setCommandSnapshot).toHaveBeenCalledTimes(2);
+    await service.dispose();
+    expect(observedSignal.aborted).toBe(true);
+  });
   it('refreshes the model catalog inside an owned CLI transition without waiting on its own fence', async () => {
     const host = createPlugin();
     const probe = createProbe();
