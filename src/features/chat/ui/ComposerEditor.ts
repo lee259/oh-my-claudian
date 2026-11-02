@@ -88,6 +88,7 @@ class CommandWidget extends WidgetType {
 export class ComposerEditor {
   readonly element: ComposerInputElement;
   private readonly accessibleLabel: HTMLSpanElement;
+  private readonly removeWindowMigrationHandler: () => void;
   private state: EditorState;
   private view: EditorView | null = null;
   private destroyed = false;
@@ -217,6 +218,7 @@ export class ComposerEditor {
     this.element.blur = () => this.view ? this.view.contentDOM.blur() : blurHost();
     host.setAttribute('data-placeholder', this.placeholderText);
     host.addEventListener('focusin', this.mount);
+    this.removeWindowMigrationHandler = host.onWindowMigrated(win => this.view?.setRoot(win.document));
     host.addEventListener('focus', this.mount);
     host.addEventListener('compositionstart', this.compositionStart);
     host.addEventListener('compositionend', this.compositionEnd);
@@ -227,6 +229,7 @@ export class ComposerEditor {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.removeWindowMigrationHandler();
     this.element.removeEventListener('focusin', this.mount);
     this.element.removeEventListener('focus', this.mount);
     this.element.removeEventListener('compositionstart', this.compositionStart);

@@ -341,6 +341,7 @@ export function createMockEl(tag = 'div'): any {
       }
     },
 
+    onWindowMigrated() { return () => {}; },
     addEventListener(event: string, handler: (...args: any[]) => void) {
       if (!eventListeners.has(event)) eventListeners.set(event, []);
       eventListeners.get(event)!.push(handler);

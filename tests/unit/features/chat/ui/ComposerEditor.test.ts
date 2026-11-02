@@ -70,6 +70,25 @@ describe('short-name composer editor', () => {
     assertTextbox();
   });
 
+  it('keeps the caret in the destination window after a mounted editor migrates', () => {
+    const { editor, parent, view } = fixture('abcde');
+    const frame = document.createElement('iframe');
+    document.body.append(frame);
+    const destination = frame.contentDocument!;
+    destination.body.append(parent);
+    editor.element.dispatchEvent(new Event('test-window-migrated'));
+    const textbox = editor.element.getAccessibleTextbox!();
+    textbox.focus();
+    for (let i = 0; i < 3; i++) textbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', bubbles: true }));
+    expect(editor.element.value).toBe('ab');
+    expect(view.dom.classList.contains('cm-focused')).toBe(true);
+    const selection = destination.getSelection()!;
+    expect(textbox.contains(selection.focusNode)).toBe(true);
+    expect(selection.focusNode!.textContent!.slice(0, selection.focusOffset)).toBe('ab');
+    editor.destroy();
+    frame.remove();
+  });
+
   it('displays short names and keeps distinct full paths in the canonical value and selection', () => {
     const text = 'Compare @one/plan.md and @two/plan.md ';
     const { input, parent } = fixture(text);
