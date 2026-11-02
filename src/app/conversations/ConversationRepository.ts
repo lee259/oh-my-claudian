@@ -1035,6 +1035,35 @@ export class ConversationRepository {
     return this.ensureHydrated(id);
   }
 
+  async readNativeHistoryRevision(id: string): Promise<string | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+    const history = ProviderRegistry.getConversationHistoryService(conversation.providerId);
+    const vaultPath = this.deps.getVaultPath();
+    return await history.readNativeHistoryRevision?.(
+      conversation, vaultPath, this.getHistoryPathContext(conversation.providerId, vaultPath),
+    ) ?? null;
+  }
+
+  async reloadNativeHistory(id: string): Promise<Conversation | null> {
+    const conversation = this.getSync(id);
+    if (!conversation) return null;
+    const generation = this.getConversationGeneration(id);
+    const originalMessages = JSON.stringify(conversation.messages);
+    const projected = structuredClone({ ...conversation, messages: [] });
+    await this.hydrateProviderHistory(projected);
+    if (!this.isConversationCurrent(conversation, generation)
+      || JSON.stringify(conversation.messages) !== originalMessages) return null;
+    if (projected.messages.length === 0 && conversation.messages.length > 0) {
+      throw new Error('Native history could not be reloaded.');
+    }
+    restoreTurnModels(projected);
+    conversation.messages = projected.messages;
+    conversation.providerState = projected.providerState;
+    conversation.turnModels = projected.turnModels;
+    return conversation;
+  }
+
   getCachedConversation(id: string): Conversation | null {
     return this.getSync(id);
   }

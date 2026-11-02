@@ -1258,6 +1258,14 @@ export default class ClaudianPlugin extends Plugin {
     return this.conversationRepository.getById(id);
   }
 
+  async readNativeHistoryRevision(id: string): Promise<string | null> {
+    return this.conversationRepository.readNativeHistoryRevision(id);
+  }
+
+  async reloadNativeHistory(id: string): Promise<Conversation | null> {
+    return this.conversationRepository.reloadNativeHistory(id);
+  }
+
   getCachedConversation(id: string): Conversation | null {
     return this.conversationRepository.getCachedConversation(id);
   }

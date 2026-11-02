@@ -1,11 +1,13 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
 import type { Conversation, ImageAttachment } from '../../../core/types';
+import type { FeatureHost } from '../../FeatureHost';
 import type { ChatExecutionCoordinator } from '../execution/ChatExecutionCoordinator';
 import { SubagentManager } from '../services/SubagentManager';
 import { ChatState } from '../state/ChatState';
 import type { ChatStateCallbacks } from '../state/types';
 import type { TabControllers, TabHydrationState, TabLifecycleState, TabServices } from '../tabs/types';
+import { NativeHistoryGuard } from './NativeHistoryGuard';
 import { RuntimeComposer } from './RuntimeComposer';
 import { RuntimeContext } from './RuntimeContext';
 import { RuntimeMessagePresentation } from './RuntimeMessagePresentation';
@@ -60,6 +62,7 @@ export class ConversationRuntime {
   private backgroundWorkCount = 0;
   private backgroundWorkPauseDepth = 0;
   private coordinator: ChatExecutionCoordinator | null = null;
+  private nativeHistoryGuard: { conversationId: string; guard: NativeHistoryGuard } | null = null;
 
   constructor(
     private readonly binding: ConversationRuntimeBinding,
@@ -109,6 +112,44 @@ export class ConversationRuntime {
     this.historyRetryWork = pending;
     this.hydrationWork = pending;
     return pending;
+  }
+
+  async ensureNativeHistoryCurrent(host: Pick<FeatureHost, 'readNativeHistoryRevision' | 'reloadNativeHistory'>): Promise<boolean> {
+    const id = this.conversationId;
+    if (!id || this.hydrationState !== 'ready') return true;
+    if (this.state.isStreaming || this.state.requiresAction) return true;
+    const history = ProviderRegistry.getConversationHistoryService(this.providerId);
+    if (!history.readNativeHistoryRevision) return true;
+    if (this.nativeHistoryGuard?.conversationId !== id) {
+      const guard = new NativeHistoryGuard(
+        () => host.readNativeHistoryRevision(id),
+        async () => {
+          if (this.conversationId !== id || this.state.isStreaming || this.state.isRewinding
+            || this.state.requiresAction || this.state.hasPendingConversationSave || this.hasBackgroundWork) return false;
+          const before = JSON.stringify(this.state.messages);
+          const coordinator = this.coordinator;
+          if (coordinator && coordinator.state !== 'absent') {
+            if (!coordinator.canCool()) return false;
+            await coordinator.cool();
+          }
+          if (this.conversationId !== id || this.state.isStreaming || JSON.stringify(this.state.messages) !== before) return false;
+          const conversation = await host.reloadNativeHistory(id);
+          if (!conversation || this.conversationId !== id || this.state.isStreaming
+            || JSON.stringify(this.state.messages) !== before) return false;
+          this.state.messages = structuredClone(conversation.messages);
+          this.state.toolCallElements.clear();
+          this.state.writeEditStates.clear();
+          const welcome = this.messagePresentation.renderMessages(
+            this.state.messages,
+            () => this.controllers.conversationController?.getGreeting() ?? '',
+          );
+          if (this.presentation && welcome) this.presentation.dom.welcomeEl = welcome;
+          return true;
+        },
+      );
+      this.nativeHistoryGuard = { conversationId: id, guard };
+    }
+    return this.nativeHistoryGuard.guard.check();
   }
 
   get isRunning(): boolean {
