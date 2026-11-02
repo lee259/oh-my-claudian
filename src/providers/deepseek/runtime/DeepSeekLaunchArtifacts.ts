@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import type { ObsidianWorkspaceToolBridgeConnection } from '@/core/obsidian/ObsidianWorkspaceToolBridge';
+import { replaceFile } from '@/utils/fileReplace';
 
 import { DEEPSEEK_PRESETS } from '../types';
 import { DEEPSEEK_COMPATIBILITY_SOURCE, DEEPSEEK_EPHEMERAL_SOURCE, DEEPSEEK_LIFECYCLE_SOURCE } from './DeepSeekCompatibility';
@@ -141,18 +142,6 @@ function deepseekPromptFileName(sessionId: string): string {
 function anchorModuleName<Row extends { readonly name?: unknown; readonly group?: unknown; readonly config?: unknown }>(row: Row): Row {
   const name = typeof row.name === 'string' && isAbsolute(row.name) ? pathToFileURL(row.name).href : row.name;
   return { ...row, name, ...(row.group && Array.isArray(row.config) ? { config: row.config.map(anchorModuleName) } : {}) };
-}
-
-// Windows refuses a replacement or removal while a reader, scanner or exiting Host briefly holds a file.
-const TRANSIENT_LOCK_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
-
-async function replaceFile(temporary: string, path: string): Promise<void> {
-  for (let attempt = 1; ; attempt++) {
-    try { return await rename(temporary, path); } catch (error) {
-      if (attempt >= 5 || !TRANSIENT_LOCK_CODES.has((error as NodeJS.ErrnoException).code ?? '')) throw error;
-      await new Promise(resolve => window.setTimeout(resolve, 20 * attempt));
-    }
-  }
 }
 
 function removeRoot(root: string): Promise<void> { return rm(root, { recursive: true, force: true, maxRetries: 5 }); }
