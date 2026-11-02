@@ -31,7 +31,7 @@ Detailed tab membership, tab lifecycle, and snapshot rules live in `tabs/AGENTS.
 - `ChatState.interactions` owns pending approval, question, provider plan and local plan promises; `ChatState` also retains the async user-message question tracker across presentation-controller replacement.
 - Presentation attachments display one queued request and may be replaced without resolving it. Abort, conversation reset and tab disposal end requests explicitly; a detached widget must not answer its replacement.
 - Async answer delivery is request-owned: once accepted, retain the answer even if presentation detached during delivery. Reject stale or concurrent submission attempts before sending.
-- Selection polling uses `VisibilityGatedPoller`. Keep timers stopped while the owning document is hidden or its window is blurred; Editor polling additionally runs only while a Markdown view is active, and Browser/Canvas polling only while their own leaf type is active. Do not add bare `setInterval` loops in chat controllers.
+- Editor selection updates use CodeMirror and document selection events; preserve the input handoff grace and subscribe to the active Markdown view's document. Browser/Canvas polling uses `VisibilityGatedPoller` only while their leaf type is active; keep timers stopped while the owning document is hidden or its window is blurred. Do not add bare `setInterval` loops in chat controllers.
 - These models are in-memory runtime state, not durable approval grants. Keep provider session/turn fencing in `ChatExecutionCoordinator` and preserve those requests across presentation detach. Stop, deletion and unload terminate them explicitly.
 
 ## Feature Rules

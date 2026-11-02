@@ -5,6 +5,7 @@ patchSetMaxListenersForElectron();
 
 StartupProfiler.finishModuleEvaluation();
 
+import { EditorView } from '@codemirror/view';
 import type { Editor, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import { MarkdownView, Notice, Plugin, TFolder } from 'obsidian';
 
@@ -72,6 +73,7 @@ import {
 import type { ChatViewPlacement, EnvironmentScope } from './core/types/settings';
 import { ClaudianView } from './features/chat/ClaudianView';
 import { createChatFocusCommand } from './features/chat/controllers/ChatFocusCommand';
+import { editorSelectionEvents } from './features/chat/controllers/EditorSelectionEvents';
 import type { ChatExecutionPersistence } from './features/chat/execution/ChatExecutionCoordinator';
 import {
   DEFAULT_MAX_WARM_AGENT_PROCESSES,
@@ -180,6 +182,7 @@ export default class ClaudianPlugin extends Plugin {
   async onload() {
     StartupProfiler.startOnload();
     try {
+      this.registerEditorExtension(EditorView.updateListener.of(update => editorSelectionEvents.notify(update)));
       await StartupProfiler.runAsync(
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),

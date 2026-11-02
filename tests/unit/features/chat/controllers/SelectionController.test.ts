@@ -1,5 +1,6 @@
 import { createMockEl } from '@test/helpers/MockElement';
 
+import { editorSelectionEvents } from '@/features/chat/controllers/EditorSelectionEvents';
 import { SelectionController } from '@/features/chat/controllers/SelectionController';
 import { hideSelectionHighlight, showSelectionHighlight } from '@/shared/components/SelectionHighlight';
 
@@ -80,6 +81,8 @@ describe('SelectionController', () => {
   let editorView: any;
   let originalDocument: any;
   let originalCSS: any;
+  let selectionChanged: () => void;
+  let workspaceChanged: () => void;
 
   beforeEach(() => {
     // Mock Highlight constructor for CSS Custom Highlight API tests
@@ -91,6 +94,14 @@ describe('SelectionController', () => {
 
     contextTray = createMockContextTray();
     inputEl = createMockEventTarget();
+    const selectionHandlers = new Set<() => void>();
+    inputEl.ownerDocument.addEventListener = (type: string, handler: () => void) => {
+      if (type === 'selectionchange') selectionHandlers.add(handler);
+    };
+    inputEl.ownerDocument.removeEventListener = (type: string, handler: () => void) => {
+      if (type === 'selectionchange') selectionHandlers.delete(handler);
+    };
+    selectionChanged = () => selectionHandlers.forEach(handler => handler());
     focusScopeEl = createMockEventTarget();
     focusScopeEl.addContainedNode(inputEl);
 
@@ -116,6 +127,13 @@ describe('SelectionController', () => {
         getActiveViewOfType: jest.fn().mockReturnValue(view),
       },
     };
+    const workspaceHandlers = new Map<string, () => void>();
+    app.workspace.on = (event: string, handler: () => void) => {
+      workspaceHandlers.set(event, handler);
+      return { event, handler };
+    };
+    app.workspace.offref = () => {};
+    workspaceChanged = () => workspaceHandlers.get('active-leaf-change')?.();
 
     controller = new SelectionController(app, contextTray as any, inputEl, undefined, focusScopeEl);
 
@@ -129,6 +147,90 @@ describe('SelectionController', () => {
     (global as any).document = originalDocument;
     (global as any).CSS = originalCSS;
     delete (global as any).Highlight;
+  });
+
+  it('updates reading selection on its document event without a polling timer', () => {
+    const doc = new EventTarget() as any;
+    doc.defaultView = new EventTarget();
+    doc.activeElement = null;
+    const container = { ownerDocument: doc, contains: () => true };
+    const anchor = {};
+    doc.getSelection = jest.fn(() => createMockDOMSelection('first', anchor));
+    inputEl = createMockEventTarget(doc);
+    app.workspace.getActiveViewOfType.mockReturnValue({
+      getMode: () => 'preview', file: { path: 'note.md' }, containerEl: container,
+    });
+    controller = new SelectionController(app, contextTray as any, inputEl);
+    const interval = jest.spyOn(globalThis, 'setInterval');
+    controller.start();
+    expect(controller.getContext()?.selectedText).toBe('first');
+    doc.getSelection.mockReturnValue(createMockDOMSelection('second', anchor));
+    doc.dispatchEvent(new Event('selectionchange'));
+    expect(controller.getContext()?.selectedText).toBe('second');
+    expect(interval).not.toHaveBeenCalled();
+    controller.stop();
+    doc.getSelection.mockReturnValue(createMockDOMSelection('third', anchor));
+    doc.dispatchEvent(new Event('selectionchange'));
+    expect(controller.hasSelection()).toBe(false);
+    interval.mockRestore();
+  });
+
+  it('updates only for the active editor and unsubscribes on stop', () => {
+    controller.start();
+    editor.getSelection.mockReturnValue('updated selection');
+    editorSelectionEvents.notify({ view: {}, selectionSet: true, docChanged: false } as any);
+    jest.runAllTicks();
+    expect(controller.getContext()?.selectedText).toBe('selected text');
+    editorSelectionEvents.notify({ view: editorView, selectionSet: true, docChanged: false } as any);
+    jest.runAllTicks();
+    expect(controller.getContext()?.selectedText).toBe('updated selection');
+    controller.stop();
+    editorSelectionEvents.notify({ view: editorView, selectionSet: true, docChanged: false } as any);
+    jest.runAllTicks();
+    expect(controller.hasSelection()).toBe(false);
+  });
+
+  it('moves the reading selection listener when the active document changes', () => {
+    const first = new EventTarget() as any;
+    const second = new EventTarget() as any;
+    first.getSelection = jest.fn(() => createMockDOMSelection('first', {}));
+    second.getSelection = jest.fn(() => createMockDOMSelection('second', {}));
+    const view = (doc: any) => ({
+      getMode: () => 'preview', file: { path: 'note.md' },
+      containerEl: { ownerDocument: doc, contains: () => true },
+    });
+    app.workspace.getActiveViewOfType.mockReturnValue(view(first));
+    controller.start();
+    expect(controller.getContext()?.selectedText).toBe('first');
+    app.workspace.getActiveViewOfType.mockReturnValue(view(second));
+    workspaceChanged();
+    expect(controller.getContext()?.selectedText).toBe('second');
+    second.getSelection.mockReturnValue(createMockDOMSelection('new', {}));
+    first.dispatchEvent(new Event('selectionchange'));
+    expect(controller.getContext()?.selectedText).toBe('second');
+    second.dispatchEvent(new Event('selectionchange'));
+    expect(controller.getContext()?.selectedText).toBe('new');
+  });
+
+  it('captures a focused popout selection while the chat window is blurred', () => {
+    const chatDoc = new EventTarget() as any;
+    const chatWindow = new EventTarget() as any;
+    chatDoc.defaultView = chatWindow;
+    chatDoc.visibilityState = 'visible';
+    const noteDoc = new EventTarget() as any;
+    noteDoc.hasFocus = () => true;
+    noteDoc.getSelection = jest.fn(() => createMockDOMSelection('first', {}));
+    inputEl = createMockEventTarget(chatDoc);
+    app.workspace.getActiveViewOfType.mockReturnValue({
+      getMode: () => 'preview', file: { path: 'note.md' },
+      containerEl: { ownerDocument: noteDoc, contains: () => true },
+    });
+    controller = new SelectionController(app, contextTray as any, inputEl);
+    controller.start();
+    chatWindow.dispatchEvent(new Event('blur'));
+    noteDoc.getSelection.mockReturnValue(createMockDOMSelection('popout selection', {}));
+    noteDoc.dispatchEvent(new Event('selectionchange'));
+    expect(controller.getContext()?.selectedText).toBe('popout selection');
   });
 
   it('captures selection and updates indicator', () => {
@@ -158,7 +260,8 @@ describe('SelectionController', () => {
 
     editor.getSelection.mockReturnValue('');
     (global as any).document.activeElement = null;
-    jest.advanceTimersByTime(250);
+    editorSelectionEvents.notify({ view: editorView, selectionSet: true, docChanged: false } as any);
+    jest.runAllTicks();
 
     expect(controller.hasSelection()).toBe(false);
     expect(contextTray.clearItems).toHaveBeenCalledWith('editor-selection');
@@ -176,7 +279,7 @@ describe('SelectionController', () => {
     expect(contextTray.clearItems).toHaveBeenCalledWith('editor-selection');
   });
 
-  it('pauses selection polling while the window is blurred', () => {
+  it('ignores editor updates while blurred and refreshes on focus', () => {
     const ownerDocument = new EventTarget() as any;
     const ownerWindow = new EventTarget() as any;
     ownerWindow.setInterval = (callback: () => void, timeout: number) =>
@@ -195,7 +298,8 @@ describe('SelectionController', () => {
 
     ownerWindow.dispatchEvent(new Event('blur'));
     editor.getSelection.mockReturnValue('changed while blurred');
-    jest.advanceTimersByTime(1_000);
+    editorSelectionEvents.notify({ view: editorView, selectionSet: true, docChanged: false } as any);
+    jest.runAllTicks();
     expect(contextTray.setItems).toHaveBeenCalledTimes(callsWhileFocused);
 
     ownerWindow.dispatchEvent(new Event('focus'));
@@ -203,7 +307,7 @@ describe('SelectionController', () => {
     expect(contextTray.setItems.mock.calls.length).toBeGreaterThan(callsWhileFocused);
   });
 
-  it('polls only while a markdown view is active', () => {
+  it('tracks the active markdown view and clears selection when it changes', () => {
     const listeners = new Map<string, () => void>();
     const markdownView = app.workspace.getActiveViewOfType();
     let markdownActive = true;
@@ -267,7 +371,7 @@ describe('SelectionController', () => {
 
     app.workspace.getActiveViewOfType.mockReturnValue(null);
     (global as any).document.activeElement = null;
-    jest.advanceTimersByTime(250);
+    workspaceChanged();
 
     expect(controller.hasSelection()).toBe(true);
     expect(contextTray.clearItems).not.toHaveBeenCalledWith('editor-selection');
@@ -383,7 +487,7 @@ describe('SelectionController', () => {
 
     app.workspace.getActiveViewOfType.mockReturnValue(null);
     (global as any).document.activeElement = null;
-    jest.advanceTimersByTime(250);
+    workspaceChanged();
 
     expect(controller.hasSelection()).toBe(false);
     expect(contextTray.clearItems).toHaveBeenCalledWith('editor-selection');
@@ -628,7 +732,7 @@ describe('SelectionController', () => {
       (global as any).document.getSelection.mockReturnValue(
         createMockDOMSelection('', null),
       );
-      jest.advanceTimersByTime(250);
+      selectionChanged();
 
       expect(controller.hasSelection()).toBe(false);
       expect(contextTray.clearItems).toHaveBeenCalledWith('editor-selection');
@@ -699,7 +803,7 @@ describe('SelectionController', () => {
       (global as any).document.getSelection.mockReturnValue(
         createMockDOMSelection('', null),
       );
-      jest.advanceTimersByTime(250);
+      selectionChanged();
 
       expect(mockHighlights.delete).toHaveBeenCalledWith('claudian-selection');
     });
@@ -750,7 +854,7 @@ describe('SelectionController', () => {
       jest.advanceTimersByTime(250);
 
       currentSelection = createMockDOMSelection('repeat', secondAnchorNode, undefined, secondRange);
-      jest.advanceTimersByTime(250);
+      selectionChanged();
 
       (global as any).document.activeElement = inputEl;
       controller.showHighlight();
@@ -812,7 +916,7 @@ describe('SelectionController', () => {
       };
       (showSelectionHighlight as jest.Mock).mockClear();
 
-      jest.advanceTimersByTime(250);
+      workspaceChanged();
       controller.showHighlight();
 
       expect(controller.getContext()).toEqual({
