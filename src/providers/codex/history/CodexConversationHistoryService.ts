@@ -46,6 +46,39 @@ async function readSessionModel(
 export class CodexConversationHistoryService implements ProviderConversationHistoryService {
   private hydratedConversationPaths = new Map<string, string>();
 
+  async readNativeHistoryRevision(
+    conversation: Conversation,
+    _vaultPath: string | null,
+    pathContext?: ProviderHistoryPathContext,
+  ): Promise<string | null> {
+    if (!pathContext || this.isPendingForkConversation(conversation)) return null;
+    const state = getCodexState(conversation.providerState);
+    const threadId = state.threadId ?? conversation.sessionId;
+    if (!threadId && !state.sessionFilePath) return null;
+    const deadline = Date.now() + CODEX_HISTORY_LOOKUP_TIMEOUT_MS;
+    const file = await resolveCodexSessionFileHint(state.sessionFilePath, threadId, pathContext, deadline);
+    const fingerprint = async (candidate: string | null): Promise<string | null> => {
+      if (!candidate) return null;
+      try {
+        const stats = await fs.stat(candidate);
+        return stats.isFile() ? JSON.stringify([candidate, stats.size, stats.mtimeMs, stats.ctimeMs, stats.ino]) : null;
+      } catch { return null; }
+    };
+    const current = await fingerprint(file);
+    if (current) return current;
+    if (!threadId) return null;
+    const root = resolveCodexTranscriptRootHint(state.transcriptRootPath, pathContext);
+    const roots = [...(root ? [root] : []), ...getCodexArchivedTranscriptRoots(pathContext, root ? [root] : [])];
+    for (const candidateRoot of roots) {
+      const remaining = Math.max(0, deadline - Date.now());
+      if (!remaining) break;
+      const found = await findCodexSessionFileAsync(threadId, candidateRoot, remaining);
+      const revision = await fingerprint(found);
+      if (revision) return revision;
+    }
+    return null;
+  }
+
   hasConversationModelRecoverySource(conversation: Conversation): boolean {
     const state = getCodexState(conversation.providerState);
     return !!(

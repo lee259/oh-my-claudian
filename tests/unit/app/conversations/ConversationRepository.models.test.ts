@@ -53,6 +53,28 @@ function conversation(messages: ChatMessage[]): Conversation {
 describe('ConversationRepository historical turn models', () => {
   afterEach(() => jest.restoreAllMocks());
 
+  it('reloads external native history without replacing the cached conversation on failure', async () => {
+    const harness = createHarness();
+    const repository = harness.createRepository();
+    const live = conversation([user('old', 'Old')]);
+    repository.replaceAll([live]);
+    let fail = true;
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: async () => 'revision',
+      hydrateConversationHistory: async (target: Conversation) => {
+        target.messages = [user('external', 'External')];
+        target.turnModels = [{ modelName: 'external-model', userTurnOrdinal: 1 }];
+        if (fail) throw new Error('unavailable');
+      },
+    } as any);
+    await expect(repository.reloadNativeHistory(live.id)).rejects.toThrow('unavailable');
+    expect(live.messages[0].content).toBe('Old');
+    fail = false;
+    expect(await repository.reloadNativeHistory(live.id)).toBe(live);
+    expect(live.messages[0].content).toBe('External');
+    expect(live.turnModels).toEqual([{ modelName: 'external-model', userTurnOrdinal: 1 }]);
+  });
+
   it('retains each turn model through persistence and a fresh repository hydration', async () => {
     const harness = createHarness();
     const live = conversation([

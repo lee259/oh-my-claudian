@@ -13,6 +13,55 @@ function createState() {
 }
 
 describe('ConversationRuntime', () => {
+  it('reloads changed native history only after cooling the old execution owner', async () => {
+    const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
+    runtime.hydrationState = 'ready';
+    runtime.state.messages = [{ id: 'old', role: 'user', content: 'old', timestamp: 1 }];
+    let revision = 'first';
+    const history = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: jest.fn(),
+    } as any);
+    const coordinator = { state: 'idle', canCool: jest.fn(() => true), cool: jest.fn(async () => undefined) };
+    runtime.setExecutionCoordinator(coordinator as any);
+    const host = {
+      readNativeHistoryRevision: jest.fn(async () => revision),
+      reloadNativeHistory: jest.fn(async () => ({ id: 'c1', providerId: 'codex', messages: [
+        { id: 'new', role: 'user', content: 'external', timestamp: 2 },
+      ] })),
+    } as any;
+    expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+    revision = 'second';
+    expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+    expect(coordinator.cool).toHaveBeenCalledTimes(1);
+    expect(host.reloadNativeHistory).toHaveBeenCalledWith('c1');
+    expect(runtime.state.messages[0].content).toBe('external');
+    history.mockRestore();
+  });
+
+  it('refuses a changed native history while background work owns the execution', async () => {
+    const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
+    runtime.hydrationState = 'ready';
+    let revision = 'first';
+    const history = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: jest.fn(),
+    } as any);
+    const host = {
+      readNativeHistoryRevision: jest.fn(async () => revision),
+      reloadNativeHistory: jest.fn(),
+    } as any;
+    expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+
+    let finish!: () => void;
+    runtime.enqueueBackgroundWork(() => new Promise<void>(resolve => { finish = resolve; }));
+    revision = 'second';
+    expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(false);
+    expect(host.reloadNativeHistory).not.toHaveBeenCalled();
+
+    finish();
+    await runtime.awaitBackgroundWork();
+    history.mockRestore();
+  });
+
   it('reports queued background work until it settles', async () => {
     let release!: () => void;
     const onWorkChanged = jest.fn();
