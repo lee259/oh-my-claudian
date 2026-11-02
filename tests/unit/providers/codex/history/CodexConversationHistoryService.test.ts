@@ -39,6 +39,70 @@ describe('CodexConversationHistoryService', () => {
     fs.rmSync(tempHome, { recursive: true, force: true });
   });
 
+  it('reads a stable native history revision that changes on append without modifying the transcript', async () => {
+    const root = path.join(tempHome, '.codex', 'sessions');
+    fs.mkdirSync(root, { recursive: true });
+    const file = path.join(root, 'rollout-thread-1.jsonl');
+    fs.writeFileSync(file, 'first\n');
+    const conversation: Conversation = { id: 'revision', providerId: 'codex', title: 'Revision',
+      createdAt: 1, lastActivityAt: 1, sessionId: 'thread-1', messages: [],
+      providerState: { threadId: 'thread-1', sessionFilePath: file, transcriptRootPath: root } };
+    const context = { config: {}, environment: { HOME: tempHome }, environmentText: '' };
+    const service = new CodexConversationHistoryService();
+    const first = await service.readNativeHistoryRevision(conversation, null, context);
+    expect(first).not.toBeNull();
+    expect(await service.readNativeHistoryRevision(conversation, null, context)).toBe(first);
+    fs.appendFileSync(file, 'second\n');
+    expect(await service.readNativeHistoryRevision(conversation, null, context)).not.toBe(first);
+    expect(fs.readFileSync(file, 'utf8')).toBe('first\nsecond\n');
+  });
+
+  it('does not fingerprint untrusted files or a pending fork', async () => {
+    const outside = path.join(tempHome, 'outside.jsonl');
+    fs.writeFileSync(outside, 'private');
+    const conversation: Conversation = { id: 'revision', providerId: 'codex', title: 'Revision',
+      createdAt: 1, lastActivityAt: 1, sessionId: null, messages: [],
+      providerState: { sessionFilePath: outside } };
+    const context = { config: {}, environment: { HOME: tempHome }, environmentText: '' };
+    const service = new CodexConversationHistoryService();
+    expect(await service.readNativeHistoryRevision(conversation, null, context)).toBeNull();
+    conversation.providerState = { forkSource: { sessionId: 'source', resumeAt: 'turn' } };
+    expect(await service.readNativeHistoryRevision(conversation, null, context)).toBeNull();
+  });
+
+  it('reads a trusted rollout even when only its persisted path identifies the thread', async () => {
+    const root = path.join(tempHome, '.codex', 'sessions');
+    fs.mkdirSync(root, { recursive: true });
+    const file = path.join(root, 'rollout-path-only.jsonl');
+    fs.writeFileSync(file, 'history');
+    const conversation: Conversation = { id: 'revision', providerId: 'codex', title: 'Revision',
+      createdAt: 1, lastActivityAt: 1, sessionId: null, messages: [],
+      providerState: { sessionFilePath: file, transcriptRootPath: root } };
+    const context = { config: {}, environment: { HOME: tempHome }, environmentText: '' };
+    const service = new CodexConversationHistoryService();
+
+    await expect(service.readNativeHistoryRevision(conversation, null, context)).resolves.not.toBeNull();
+  });
+
+  it('finds a live history revision after its rollout is archived', async () => {
+    const root = path.join(tempHome, '.codex', 'sessions');
+    const archive = path.join(tempHome, '.codex', 'archived_sessions');
+    fs.mkdirSync(root, { recursive: true });
+    fs.mkdirSync(archive, { recursive: true });
+    const file = path.join(root, 'rollout-thread-archived.jsonl');
+    fs.writeFileSync(file, 'history');
+    const conversation: Conversation = { id: 'revision', providerId: 'codex', title: 'Revision',
+      createdAt: 1, lastActivityAt: 1, sessionId: 'thread-archived', messages: [],
+      providerState: { threadId: 'thread-archived', sessionFilePath: file, transcriptRootPath: root } };
+    const context = { config: {}, environment: { HOME: tempHome }, environmentText: '' };
+    const service = new CodexConversationHistoryService();
+    const before = await service.readNativeHistoryRevision(conversation, null, context);
+    fs.renameSync(file, path.join(archive, path.basename(file)));
+    const after = await service.readNativeHistoryRevision(conversation, null, context);
+    expect(after).not.toBeNull();
+    expect(after).not.toBe(before);
+  });
+
   it.each(['pending', 'established'])(
     'preserves %s fork history and model recovery after its source is archived', async mode => {
       const sessions = path.join(tempHome, '.codex', 'sessions');

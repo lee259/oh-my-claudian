@@ -92,6 +92,8 @@ export interface FeatureHost {
   ): Promise<readonly string[]>;
   updateConversation(id: string, updates: Partial<Conversation>): Promise<void>;
   getConversationById(id: string): Promise<Conversation | null>;
+  readNativeHistoryRevision(id: string): Promise<string | null>;
+  reloadNativeHistory(id: string): Promise<Conversation | null>;
   getCachedConversation(id: string): Conversation | null;
   getConversationSync(id: string): Conversation | null;
   getConversationList(): ConversationMeta[];

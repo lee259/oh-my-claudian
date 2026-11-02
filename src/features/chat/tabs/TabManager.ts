@@ -420,6 +420,9 @@ export class TabManager implements TabManagerInterface {
         },
       });
       if (activationResult.status !== 'activated') return;
+      if (requestedTab.session.ensureNativeHistoryCurrent) {
+        await requestedTab.session.ensureNativeHistoryCurrent(this.plugin);
+      }
       this.callbacks.onTabSwitched?.(previousTabId, requestedTabId);
     });
   }
