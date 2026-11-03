@@ -61,21 +61,24 @@ export function ConversationHeaderView({
     return (
       <header className="claudian-conversation-header claudian-conversation-header--home">
         <div className="claudian-home-title">{t('chat.home.title')}</div>
-        <div className="claudian-home-actions">
+        <div className="claudian-conversation-header-actions">
           <IconButton
-            className="claudian-home-action"
+            className="claudian-conversation-header-action"
+            iconClassName="claudian-conversation-header-icon"
             icon="history"
             label={t('chat.home.history')}
             onClick={onOpenHistory}
           />
           <IconButton
-            className="claudian-home-action"
+            className="claudian-conversation-header-action"
+            iconClassName="claudian-conversation-header-icon"
             icon="settings"
             label={t('chat.home.settings')}
             onClick={onOpenSettings}
           />
           <IconButton
-            className="claudian-home-action"
+            className="claudian-conversation-header-action"
+            iconClassName="claudian-conversation-header-icon"
             icon="square-pen"
             label={t('chat.home.newConversation')}
             onClick={onNewConversation}

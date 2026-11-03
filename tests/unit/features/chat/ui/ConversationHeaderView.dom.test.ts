@@ -18,6 +18,26 @@ describe('ConversationHeaderView', () => {
     container.remove();
   });
 
+  it('uses the conversation toolbar layout on home and preserves action order', () => {
+    const callbacks = [jest.fn(), jest.fn(), jest.fn()];
+    render(h(ConversationHeaderView, {
+      title: '',
+      isHome: true,
+      onOpenHistory: callbacks[0],
+      onOpenSettings: callbacks[1],
+      onNewConversation: callbacks[2],
+    }), container);
+    const actions = container.querySelector('.claudian-conversation-header-actions');
+    expect(actions).not.toBeNull();
+    const buttons = actions!.querySelectorAll<HTMLButtonElement>('.claudian-conversation-header-action');
+    expect(buttons).toHaveLength(3);
+    buttons.forEach((button, index) => {
+      expect(button.querySelector('.claudian-conversation-header-icon')).not.toBeNull();
+      button.click();
+      expect(callbacks[index]).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('offers rename and archive actions from the conversation menu', async () => {
     const onRenameConversation = jest.fn();
     const onArchiveConversation = jest.fn();

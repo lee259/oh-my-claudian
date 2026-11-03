@@ -138,15 +138,6 @@
   container-type: inline-size;
 }
 
-.claudian-conversation-header--home .claudian-home-actions {
-  gap: 2px;
-}
-
-.claudian-conversation-header--home .claudian-home-action svg {
-  width: 18px;
-  height: 18px;
-}
-
 .claudian-conversation-header {
   display: flex;
   align-items: center;
