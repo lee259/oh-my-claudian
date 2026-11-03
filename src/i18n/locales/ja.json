@@ -1242,7 +1242,8 @@
         "title": "共有スキルを削除",
         "description": "スクリプト、参照資料、アセットを含むスキルフォルダー全体がゴミ箱に移動します。",
         "confirm": "ゴミ箱に移動"
-      }
+      },
+      "sharedSkillsTitle": "共有スキル"
     },
     "codexSkills": {
       "modal": {

@@ -1242,7 +1242,8 @@
         "title": "Excluir habilidade compartilhada",
         "description": "A pasta inteira da habilidade, incluindo scripts, referências e recursos, será movida para a lixeira.",
         "confirm": "Mover para a lixeira"
-      }
+      },
+      "sharedSkillsTitle": "Skills compartilhados"
     },
     "codexSkills": {
       "modal": {

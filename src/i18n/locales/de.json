@@ -1242,7 +1242,8 @@
         "title": "Gemeinsamen Skill löschen",
         "description": "Der gesamte Skill-Ordner einschließlich Skripten, Referenzen und Ressourcen wird in den Papierkorb verschoben.",
         "confirm": "In den Papierkorb verschieben"
-      }
+      },
+      "sharedSkillsTitle": "Gemeinsame Skills"
     },
     "codexSkills": {
       "modal": {

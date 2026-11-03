@@ -30,6 +30,10 @@ export function AgentSkillSettingsView({
     <div className="claudian-agent-skills-view" aria-busy={status === 'loading'}>
       <div className="claudian-sp-header claudian-agent-skills-header">
         <div className="claudian-agent-skills-help">
+          <div className="claudian-agent-skills-title-row">
+            <h3 className="claudian-agent-skills-title">{t('settings.agentSkills.sharedSkillsTitle')}</h3>
+            <span className="claudian-agent-skills-count">{skills.length}</span>
+          </div>
           <p>{t('settings.agentSkills.sharedExpectation')}</p>
         </div>
         <div className="claudian-sp-header-actions">
@@ -56,11 +60,11 @@ export function AgentSkillSettingsView({
           {skills.length === 0 ? (
             <div className="claudian-sp-empty-state">{t('settings.agentSkills.noSkills')}</div>
           ) : (
-            <div className="claudian-sp-list">
+            <div className="claudian-agent-skills-list" role="list">
               {skills.map(skill => (
-                <div className="claudian-sp-item" key={`${skill.name}:${skill.revision}`}>
-                  <div className="claudian-sp-info">
-                    <div className="claudian-sp-item-header">
+                <div className="claudian-agent-skills-row" role="listitem" key={`${skill.name}:${skill.revision}`}>
+                  <div className="claudian-agent-skills-info">
+                    <div className="claudian-agent-skills-name-line">
                       <button
                         type="button"
                         className="claudian-sp-item-name claudian-agent-skill-item-link"
@@ -75,9 +79,9 @@ export function AgentSkillSettingsView({
                         {t('settings.agentSkills.skillBadge')}
                       </span>
                     </div>
-                    <div className="claudian-sp-item-desc">{skill.description}</div>
+                    <div className="claudian-sp-item-desc" title={skill.description}>{skill.description}</div>
                   </div>
-                  <div className="claudian-sp-item-actions">
+                  <div className="claudian-agent-skills-actions">
                     <IconButton
                       icon="pencil"
                       label={t('common.edit')}

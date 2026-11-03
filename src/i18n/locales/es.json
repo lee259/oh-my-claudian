@@ -1242,7 +1242,8 @@
         "title": "Eliminar habilidad compartida",
         "description": "La carpeta completa de la habilidad, incluidos los scripts, las referencias y los recursos, se moverá a la papelera.",
         "confirm": "Mover a la papelera"
-      }
+      },
+      "sharedSkillsTitle": "Skills compartidos"
     },
     "codexSkills": {
       "modal": {

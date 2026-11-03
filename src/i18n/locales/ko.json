@@ -1242,7 +1242,8 @@
         "title": "공유 스킬 삭제",
         "description": "스크립트, 참고 자료, 에셋을 포함한 스킬 폴더 전체가 휴지통으로 이동합니다.",
         "confirm": "휴지통으로 이동"
-      }
+      },
+      "sharedSkillsTitle": "공유 스킬"
     },
     "codexSkills": {
       "modal": {
