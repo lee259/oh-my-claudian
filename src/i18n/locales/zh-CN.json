@@ -1585,7 +1585,29 @@
     "environmentRebuild": "环境变量已应用，会话将在下一条消息时重建。",
     "modelCatalogFailed": "模型目录刷新失败：\n{error}",
     "saveTabLayoutFailed": "保存标签页布局失败",
-    "loadSubagentFailed": "加载子 Agent“{name}”失败：{message}"
+    "loadSubagentFailed": "加载子 Agent“{name}”失败：{message}",
+    "skillMigration": {
+      "title": "导入 Claude Skills 和命令",
+      "desc": "复制到共享 Skills 之前先预览仓库内的 Claude 文件。原文件会保留。",
+      "preview": "预览导入",
+      "empty": "未找到 Claude Skills 或命令。",
+      "copy": "复制到共享 Skills",
+      "confirmTitle": "确认复制 Skill",
+      "confirmDesc": "将 {source} 复制到 .agents/skills/{name}？原文件会保留。",
+      "failed": "导入失败，请刷新预览后重试。",
+      "warnings": {
+        "frontmatter": "此项包含 Provider 专有字段，请检查兼容性。",
+        "syntax": "此项可能包含 Claude 专有语法。",
+        "invalid": "此项无法安全转换。",
+        "extraFiles": "附加文件：",
+        "conflict": "同名共享 Skill 已存在。",
+        "nonPortablePaths": "这些路径无法在支持的桌面平台间通用。",
+        "generatedDescription": "上面的描述根据原指令自动生成。",
+        "renamed": "已从 Claude 命令“{name}”重命名。",
+        "duplicateName": "多个 Claude 文件会映射到同一个共享 Skill 名称。复制前请先处理重名。"
+      },
+      "previewContent": "预览复制后的内容"
+    }
   },
   "inlineEdit": {
     "insert": "输入插入指令…",

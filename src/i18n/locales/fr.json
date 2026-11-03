@@ -1585,7 +1585,29 @@
     "environmentRebuild": "Variables appliquées. Les sessions seront reconstruites au prochain message.",
     "modelCatalogFailed": "Échec de l’actualisation du catalogue de modèles :\n{error}",
     "saveTabLayoutFailed": "Impossible d’enregistrer la disposition des onglets",
-    "loadSubagentFailed": "Impossible de charger le sous-agent « {name} » : {message}"
+    "loadSubagentFailed": "Impossible de charger le sous-agent « {name} » : {message}",
+    "skillMigration": {
+      "title": "Importer les skills et commandes Claude",
+      "desc": "Prévisualisez les fichiers Claude du coffre avant de les copier dans les skills partagés. Les originaux sont conservés.",
+      "preview": "Prévisualiser l’import",
+      "empty": "Aucun skill ou commande Claude trouvé.",
+      "copy": "Copier dans les skills partagés",
+      "confirmTitle": "Confirmer la copie du skill",
+      "confirmDesc": "Copier {source} vers .agents/skills/{name} ? L’original sera conservé.",
+      "failed": "Échec de l’import. Actualisez l’aperçu et réessayez.",
+      "warnings": {
+        "frontmatter": "Contient des métadonnées propres au fournisseur. Vérifiez la compatibilité.",
+        "syntax": "Peut contenir une syntaxe propre à Claude.",
+        "invalid": "Conversion sûre impossible.",
+        "extraFiles": "Fichiers supplémentaires :",
+        "conflict": "Un skill partagé porte déjà ce nom.",
+        "nonPortablePaths": "Ces chemins ne sont pas compatibles avec toutes les plateformes de bureau prises en charge.",
+        "generatedDescription": "La description ci-dessus a été générée à partir des instructions sources.",
+        "renamed": "Renommé depuis la commande Claude « {name} ».",
+        "duplicateName": "Plusieurs fichiers Claude correspondent au même nom de skill partagé. Résolvez le doublon avant de copier."
+      },
+      "previewContent": "Prévisualiser le contenu copié"
+    }
   },
   "inlineEdit": {
     "insert": "Instructions d’insertion…",

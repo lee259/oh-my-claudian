@@ -1585,7 +1585,29 @@
     "environmentRebuild": "환경 변수를 적용했습니다. 다음 메시지에서 세션을 재구성합니다.",
     "modelCatalogFailed": "모델 목록 새로 고침 실패:\n{error}",
     "saveTabLayoutFailed": "탭 레이아웃 저장 실패",
-    "loadSubagentFailed": "하위 에이전트 \"{name}\" 불러오기 실패: {message}"
+    "loadSubagentFailed": "하위 에이전트 \"{name}\" 불러오기 실패: {message}",
+    "skillMigration": {
+      "title": "Claude 스킬 및 명령 가져오기",
+      "desc": "공유 스킬로 복사하기 전에 보관함의 Claude 파일을 미리 봅니다. 원본은 유지됩니다.",
+      "preview": "가져오기 미리보기",
+      "empty": "Claude 스킬 또는 명령이 없습니다.",
+      "copy": "공유 스킬로 복사",
+      "confirmTitle": "스킬 복사 확인",
+      "confirmDesc": "{source}을(를) .agents/skills/{name}에 복사하시겠습니까? 원본은 유지됩니다.",
+      "failed": "가져오기에 실패했습니다. 미리보기를 새로 고친 후 다시 시도하세요.",
+      "warnings": {
+        "frontmatter": "프로바이더 전용 프런트매터가 있습니다. 호환성을 확인하세요.",
+        "syntax": "Claude 전용 구문이 포함되어 있을 수 있습니다.",
+        "invalid": "안전하게 변환할 수 없습니다.",
+        "extraFiles": "추가 파일:",
+        "conflict": "같은 이름의 공유 스킬이 있습니다.",
+        "nonPortablePaths": "이 경로는 지원되는 데스크톱 플랫폼 간에 호환되지 않습니다.",
+        "generatedDescription": "위 설명은 원본 지침에서 생성되었습니다.",
+        "renamed": "Claude 명령 \"{name}\"에서 이름이 변경되었습니다.",
+        "duplicateName": "여러 Claude 파일이 같은 공유 스킬 이름으로 변환됩니다. 복사 전에 중복을 해결하세요."
+      },
+      "previewContent": "복사할 내용 미리보기"
+    }
   },
   "inlineEdit": {
     "insert": "삽입 지침 입력…",

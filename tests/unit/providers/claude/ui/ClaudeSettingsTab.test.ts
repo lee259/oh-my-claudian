@@ -340,7 +340,6 @@ function createContext(plugin: any) {
   return {
     plugin,
     notifyProviderModelOptionsChanged: jest.fn(),
-    renderAgentSkillSettings: jest.fn(),
     renderHiddenProviderCommandSetting: jest.fn(),
     renderCustomContextLimits: jest.fn(),
   };
@@ -592,7 +591,6 @@ describe('ClaudeSettingsTab', () => {
 
     claudeSettingsTabRenderer.render(createContainer(), context);
 
-    expect(context.renderAgentSkillSettings).not.toHaveBeenCalled();
     expect(mockSlashCommandSettings).toHaveBeenCalledWith(
       expect.anything(),
       plugin.app,

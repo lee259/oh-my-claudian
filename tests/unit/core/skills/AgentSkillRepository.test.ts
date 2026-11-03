@@ -18,6 +18,7 @@ class MemoryDataAdapter {
   readonly trashed: string[] = [];
   beforeWrite?: (path: string, content: string) => void | Promise<void>;
   beforeMkdir?: (path: string) => void | Promise<void>;
+  beforeBinaryWrite?: (path: string) => void | Promise<void>;
 
   constructor() {
     this.nodes.set('.agents', { type: 'folder' });
@@ -56,6 +57,11 @@ class MemoryDataAdapter {
   async write(path: string, content: string): Promise<void> {
     await this.beforeWrite?.(path, content);
     this.nodes.set(path, { type: 'file', content });
+  }
+
+  async writeBinary(path: string, content: ArrayBuffer): Promise<void> {
+    this.nodes.set(path, { type: 'file', content: Buffer.from(content).toString('utf8') });
+    await this.beforeBinaryWrite?.(path);
   }
 
   async list(folder: string): Promise<{ files: string[]; folders: string[] }> {
@@ -126,6 +132,14 @@ describe('AgentSkillRepository', () => {
     dataAdapter = new MemoryDataAdapter();
     const app = { vault: { adapter: dataAdapter } } as unknown as App;
     vaultFiles = new VaultFileAdapter(app);
+    const claim = vaultFiles.createManagedFolderExclusive.bind(vaultFiles);
+    jest.spyOn(vaultFiles, 'createManagedFolderExclusive').mockImplementation((folder) => claim(folder));
+    jest.spyOn(vaultFiles, 'setManagedDirectoryMode').mockResolvedValue(undefined);
+    jest.spyOn(vaultFiles, 'writeManagedBinaryFile').mockImplementation(async (file, content) => {
+      if (await dataAdapter.exists(file)) throw new ManagedResourceCollisionError(file);
+      try { await dataAdapter.writeBinary(file, content); }
+      catch (error) { await dataAdapter.remove(file); throw error; }
+    });
     repository = new AgentSkillRepository(vaultFiles);
   });
 
@@ -143,6 +157,46 @@ describe('AgentSkillRepository', () => {
     dataAdapter.addFolder(`${AGENT_SKILLS_ROOT}/${name}`);
     dataAdapter.addFile(`${AGENT_SKILLS_ROOT}/${name}/SKILL.md`, content);
   }
+
+  it('imports a reviewed skill without changing its frontmatter and refuses collisions', async () => {
+    const content = markdown('review');
+    await repository.importMarkdown('review', content);
+    expect(await dataAdapter.read('.agents/skills/review/SKILL.md')).toBe(content);
+    await expect(repository.importMarkdown('review', content)).rejects.toBeInstanceOf(AgentSkillCollisionError);
+  });
+
+  it('imports reviewed supporting files with the skill and rejects unsafe paths', async () => {
+    const bytes = new Uint8Array([104, 105]).buffer;
+    await repository.importPackage('review', markdown('review'), [{ path: 'scripts/run.sh', content: bytes }]);
+    expect(await dataAdapter.read('.agents/skills/review/scripts/run.sh')).toBe('hi');
+    await expect(repository.importPackage('bad', markdown('bad'), [{ path: '../outside', content: bytes }])).rejects.toThrow();
+    expect(await dataAdapter.exists('.agents/skills/bad')).toBe(false);
+  });
+
+  it('preserves empty supporting directories', async () => {
+    await repository.importPackage('review', markdown('review'), [], [{ path: 'assets/empty' }]);
+    expect(await dataAdapter.exists('.agents/skills/review/assets/empty')).toBe(true);
+  });
+
+  it('rolls back a partially written package so copying can be retried', async () => {
+    const files = [{ path: 'scripts/run.sh', content: new Uint8Array([1]).buffer }];
+    dataAdapter.beforeBinaryWrite = () => { throw new Error('write failed'); };
+    await expect(repository.importPackage('review', markdown('review'), files)).rejects.toThrow();
+    expect(await dataAdapter.exists('.agents/skills/review')).toBe(false);
+    dataAdapter.beforeBinaryWrite = undefined;
+    await expect(repository.importPackage('review', markdown('review'), files)).resolves.toMatchObject({ name: 'review' });
+  });
+
+  it('does not delete a file created by a concurrent writer', async () => {
+    jest.spyOn(vaultFiles, 'writeManagedBinaryFile').mockImplementation(async file => {
+      dataAdapter.addFile(file, 'other writer');
+      throw new ManagedResourceCollisionError(file);
+    });
+    await expect(repository.importPackage('review', markdown('review'), [
+      { path: 'notes.txt', content: new Uint8Array([1]).buffer },
+    ])).rejects.toThrow();
+    expect(await dataAdapter.read('.agents/skills/review/notes.txt')).toBe('other writer');
+  });
 
   it('lists only direct packages and returns sorted skills and diagnostics', async () => {
     addSkill('z-skill');

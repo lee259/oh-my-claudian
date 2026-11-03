@@ -328,10 +328,6 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
           });
       });
 
-    // --- Skills ---
-
-    new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
-    context.renderAgentSkillSettings(container, 'codex');
 
     context.renderHiddenProviderCommandSetting(container, 'codex', {
       name: t('settings.codex.skills.hiddenName'),

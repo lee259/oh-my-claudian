@@ -391,7 +391,6 @@ function createPlugin(overrides: Record<string, unknown> = {}): any {
 function createContext(plugin: any) {
   return {
     plugin,
-    renderAgentSkillSettings: jest.fn(),
     renderHiddenProviderCommandSetting: jest.fn(),
     notifyProviderModelOptionsChanged: jest.fn(),
     renderCustomContextLimits: jest.fn(),
@@ -619,17 +618,12 @@ describe('OpencodeSettingsTab', () => {
     );
   });
 
-  it('renders the shared skill manager and keeps hidden runtime commands separate', () => {
+  it('keeps hidden runtime commands provider-specific', () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    expect(findSetting('Skills').heading).toBe(true);
-    expect(context.renderAgentSkillSettings).toHaveBeenCalledWith(
-      expect.anything(),
-      'opencode',
-    );
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       expect.anything(),
       'opencode',
