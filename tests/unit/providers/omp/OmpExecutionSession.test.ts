@@ -1,3 +1,5 @@
+import * as fs from 'node:fs/promises';
+
 import { createProviderExecutionContractCases } from '@test/helpers/providerExecutionContractRunner';
 
 import { OmpExecutionSession } from '@/providers/omp/execution/OmpExecutionSession';
@@ -13,6 +15,52 @@ async function flush(): Promise<void> {
 }
 
 describe('OmpExecutionSession', () => {
+  it('keeps auxiliary native sessions in an isolated directory until disposal', async () => {
+    let options: any;
+    const openSession = jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'new' });
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never, lifecycle: 'ephemeral', nativePersistence: 'disabled-if-supported',
+      vaultWorkingDirectory: '/vault', resumeSeed: { providerSessionId: 'old' },
+    }, { createKernel: value => {
+      options = value;
+      return { cancel: jest.fn(), connect: jest.fn(), dispose: jest.fn(),
+        openSession,
+        prompt: jest.fn().mockResolvedValue({}), setConfigOption: jest.fn(), setModel: jest.fn() } as never;
+    } });
+    const run = session.execute({ configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ type: 'text', text: 'Hello' }], signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' } } as never);
+    for await (const event of run.events) void event;
+    expect(options.sessionDirectory).toBeTruthy();
+    expect(openSession).toHaveBeenCalledWith(undefined);
+    await expect(fs.stat(options.sessionDirectory)).resolves.toBeDefined();
+    await session.dispose();
+    await expect(fs.stat(options.sessionDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('retains the isolated directory across an approval-mode restart', async () => {
+    const directories: string[] = [];
+    const resumes: Array<string | undefined> = [];
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never, lifecycle: 'ephemeral', nativePersistence: 'disabled-if-supported',
+      vaultWorkingDirectory: '/vault',
+    }, { createKernel: options => {
+      directories.push(options.sessionDirectory!);
+      return { cancel: jest.fn(), connect: jest.fn(), dispose: jest.fn(),
+        openSession: jest.fn(async id => { resumes.push(id); return { configOptions: [], sessionId: 'new' }; }),
+        prompt: jest.fn().mockResolvedValue({}), setConfigOption: jest.fn(), setModel: jest.fn() } as never;
+    } });
+    for (const permissionMode of ['always-ask', 'write']) {
+      const run = session.execute({ configuration: { permissionMode, systemInstructions: { kind: 'provider-default' } },
+        input: [{ type: 'text', text: 'Hello' }], signal: new AbortController().signal,
+        toolPolicy: { kind: 'provider-default' } } as never);
+      for await (const event of run.events) void event;
+    }
+    expect(directories).toHaveLength(2);
+    expect(directories[0]).toBe(directories[1]);
+    expect(resumes).toEqual([undefined, 'new']);
+    await session.dispose();
+  });
   it('marks resumed usage defaults as provisional until native usage arrives', async () => {
     const prompt = deferred<{ userMessageId: string }>();
     let notify: any;
