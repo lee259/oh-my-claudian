@@ -1594,7 +1594,6 @@
       "copy": "複製到共用 Skills",
       "confirmTitle": "確認複製 Skill",
       "confirmDesc": "將 {source} 複製到 .agents/skills/{name}？原檔會保留。",
-      "failed": "匯入失敗，請重新預覽後再試。",
       "warnings": {
         "frontmatter": "此項含 Provider 專屬欄位，請檢查相容性。",
         "syntax": "此項可能含 Claude 專屬語法。",
@@ -1604,9 +1603,13 @@
         "nonPortablePaths": "這些路徑無法在支援的桌面平台間通用。",
         "generatedDescription": "上面的描述根據原指令自動產生。",
         "renamed": "已從 Claude 命令「{name}」重新命名。",
-        "duplicateName": "多個 Claude 檔案會對應到同一個共用 Skill 名稱。複製前請先處理重名。"
+        "duplicateName": "多個 Claude 檔案會對應到同一個共用 Skill 名稱。複製前請先處理重名。",
+        "symlink": "這個 Claude 條目連結到其他位置。請先將其目標手動複製到共用 Skills。",
+        "brokenSymlink": "這個 Claude 條目是失效連結。"
       },
-      "previewContent": "預覽複製後的內容"
+      "previewContent": "預覽複製後的內容",
+      "failedWithReason": "匯入失敗：{message}",
+      "blockedCount": "{count} 個條目需要處理"
     }
   },
   "inlineEdit": {

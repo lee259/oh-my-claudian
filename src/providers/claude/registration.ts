@@ -21,6 +21,7 @@ import { toClaudeRuntimeModelId } from './modelSelection';
 import { claudeCliLifecycle } from './runtime/ClaudeCliLifecycle';
 import { ClaudeTaskResultInterpreter } from './runtime/ClaudeTaskResultInterpreter';
 import { getClaudeProviderSettings, updateClaudeProviderSettings } from './settings';
+import { ClaudeSkillMigration } from './skills/ClaudeSkillMigration';
 import { claudeSubagentAdapter } from './subagentAdapter';
 import { claudeChatUIConfig } from './ui/ClaudeChatUIConfig';
 
@@ -86,6 +87,7 @@ export const claudeProviderRegistration: ProviderModule = {
     return new ClaudeExecutionBackend(plugin, workspace);
   },
   createSubagentHistoryService: plugin => new ClaudeSubagentHistoryService(plugin),
+  createSkillMigrationService: files => new ClaudeSkillMigration(files),
   resolveTitleGenerationModel: (plugin) => {
     const titleModel = plugin.settings.titleGenerationModel;
     const titleOption = titleModel

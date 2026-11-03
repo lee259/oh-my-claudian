@@ -22,6 +22,19 @@ export interface ManagedPathVerificationOptions {
   allowMissing?: boolean;
 }
 
+export interface ManagedFolderSymlinkEntry {
+  path: string;
+  target: string;
+  targetInsideVault: boolean;
+  broken: boolean;
+}
+
+export interface ManagedFolderContents {
+  files: string[];
+  folders: string[];
+  symlinks: ManagedFolderSymlinkEntry[];
+}
+
 export class ManagedResourcePathError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -556,6 +569,58 @@ export class VaultFileAdapter {
       });
     }
     return { files: [...listing.files], folders: [...listing.folders] };
+  }
+
+  async listManagedFolderContents(folderPath: string): Promise<ManagedFolderContents> {
+    const normalized = normalizeManagedPath(folderPath);
+    await this.verifyManagedPath(normalized, { expectedType: 'folder' });
+    const desktop = this.getDesktopAdapter();
+    if (!desktop) {
+      const listing = await this.listManagedFolder(normalized);
+      return { ...listing, symlinks: [] };
+    }
+
+    const basePath = path.resolve(desktop.getBasePath());
+    const absolute = this.resolveManagedDesktopPath(basePath, normalized);
+    let entries;
+    try {
+      entries = await fs.readdir(absolute, { withFileTypes: true });
+    } catch (error) {
+      throw new ManagedResourcePathError(`Could not list managed resource: ${normalized}`, {
+        cause: error,
+      });
+    }
+
+    const contents: ManagedFolderContents = { files: [], folders: [], symlinks: [] };
+    for (const entry of entries) {
+      const entryPath = `${normalized}/${entry.name}`;
+      if (entry.isSymbolicLink()) {
+        const entryAbsolute = path.join(absolute, entry.name);
+        const rawTarget = await fs.readlink(entryAbsolute);
+        const resolvedTarget = path.resolve(path.dirname(entryAbsolute), rawTarget);
+        const relativeTarget = path.relative(basePath, resolvedTarget);
+        const targetInsideVault = relativeTarget !== '..'
+          && !relativeTarget.startsWith(`..${path.sep}`)
+          && !path.isAbsolute(relativeTarget);
+        const broken = await fs.stat(entryAbsolute).then(() => false, () => true);
+        contents.symlinks.push({
+          path: entryPath,
+          target: targetInsideVault
+            ? relativeTarget.split(path.sep).join('/')
+            : resolvedTarget,
+          targetInsideVault,
+          broken,
+        });
+      } else if (entry.isDirectory()) {
+        contents.folders.push(entryPath);
+      } else if (entry.isFile()) {
+        contents.files.push(entryPath);
+      }
+    }
+    contents.files.sort();
+    contents.folders.sort();
+    contents.symlinks.sort((left, right) => left.path.localeCompare(right.path));
+    return contents;
   }
 
   async removeManagedFile(filePath: string): Promise<void> {

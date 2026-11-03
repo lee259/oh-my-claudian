@@ -173,3 +173,39 @@ it('preserves a nested command path in a portable skill name and exposes duplica
   expect(candidates.every(candidate => candidate.warnings.includes('duplicateName'))).toBe(true);
   expect(candidates[0].renamedFrom ?? candidates[1].renamedFrom).toBe('Review/Deep');
 });
+
+it('skips links already backed by the shared library and reports external or broken links', async () => {
+  const files = {
+    verifyManagedPath: jest.fn(async (path: string) => path === '.claude/skills'),
+    listManagedFolderContents: jest.fn(async () => ({
+      files: [],
+      folders: [],
+      symlinks: [
+        {
+          path: '.claude/skills/youtube',
+          target: '.agents/skills/youtube',
+          targetInsideVault: true,
+          broken: false,
+        },
+        {
+          path: '.claude/skills/external',
+          target: 'copilot/skills/external',
+          targetInsideVault: true,
+          broken: false,
+        },
+        {
+          path: '.claude/skills/missing',
+          target: '.agents/skills/missing',
+          targetInsideVault: true,
+          broken: true,
+        },
+      ],
+    })),
+  };
+
+  const candidates = await new ClaudeSkillMigration(files as never).preview();
+
+  expect(candidates.map(candidate => candidate.name)).toEqual(['external', 'missing']);
+  expect(candidates[0]).toMatchObject({ blocked: true, warnings: ['symlink'], linkTarget: 'copilot/skills/external' });
+  expect(candidates[1]).toMatchObject({ blocked: true, warnings: ['brokenSymlink'] });
+});

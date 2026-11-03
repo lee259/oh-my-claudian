@@ -59,6 +59,14 @@ describe('ProviderRegistry', () => {
     expect(ProviderRegistry.createSubagentHistoryService(host, 'pi')).toBeNull();
   });
 
+  it('creates settings-only skill migration without initializing provider workspaces', () => {
+    const files = {} as any;
+
+    expect(ProviderRegistry.createSkillMigrationService('claude', files)).toHaveProperty('preview');
+    expect(ProviderRegistry.createSkillMigrationService('codex', files)).toBeNull();
+    expect(ProviderWorkspaceRegistry.ensureInitialized).not.toHaveBeenCalled();
+  });
+
   it('returns a settings reconciler for the default provider', () => {
     const reconciler = ProviderRegistry.getSettingsReconciler();
     expect(reconciler).toHaveProperty('reconcileModelWithEnvironment');

@@ -296,12 +296,13 @@ export class ClaudianSettingTab extends PluginSettingTab {
       const content = tabContents.get('skills');
       if (!content || skillsRendered) return;
       skillsRendered = true;
-      new AgentSkillSettings(content, this.agentSkillCoordinator, this.app);
       this.skillMigrationRoot = createPreactRoot(content.createDiv());
       this.skillMigrationRoot.render(h(SkillMigrationView, {
         getService: async () => {
-          await ProviderWorkspaceRegistry.ensureInitialized(this.plugin.providerHost, 'claude', 'skill-migration');
-          const service = ProviderWorkspaceRegistry.getServices('claude')?.skillMigration;
+          const service = ProviderRegistry.createSkillMigrationService(
+            'claude',
+            this.plugin.storage.getAdapter(),
+          );
           if (!service) throw new Error('Skill migration unavailable');
           return service;
         },
@@ -312,6 +313,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           }
         },
       }));
+      new AgentSkillSettings(content, this.agentSkillCoordinator, this.app);
     };
 
     const tabDefinitions: SettingsTabDefinition[] = [
@@ -453,7 +455,11 @@ export class ClaudianSettingTab extends PluginSettingTab {
       const content = containerEl.createDiv({
         cls: [
           'claudian-settings-tab-content',
-          id === 'general' ? 'claudian-settings-general' : id === 'providers' ? 'claudian-settings-providers' : '',
+          id === 'general'
+            ? 'claudian-settings-general'
+            : id === 'providers'
+              ? 'claudian-settings-providers'
+              : 'claudian-settings-skills',
           id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
         ].filter(Boolean).join(' '),
       });

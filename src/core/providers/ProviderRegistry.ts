@@ -9,6 +9,8 @@ import type {
   ProviderInteractionPort,
 } from '../execution';
 import { resolveTitleGenerationLocale } from '../prompt/titleGeneration';
+import type { SkillMigrationService } from '../skills/SkillMigration';
+import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type { AskUserAnswers, ToolCallInfo } from '../types';
 import type { ProviderCliLifecycleAdapter } from './cli/ProviderCliLifecycle';
 import { decodeProviderModelSelectionId } from './modelSelection';
@@ -79,6 +81,13 @@ export class ProviderRegistry {
   ): ProviderSubagentHistoryService | null {
     const factory = this.getProviderRegistration(providerId).createSubagentHistoryService;
     return factory?.(plugin) ?? null;
+  }
+
+  static createSkillMigrationService(
+    providerId: ProviderId,
+    files: VaultFileAdapter,
+  ): SkillMigrationService | null {
+    return this.getProviderRegistration(providerId).createSkillMigrationService?.(files) ?? null;
   }
 
   static createTitleGenerationService(plugin: ProviderHost, providerId?: ProviderId): TitleGenerationService {

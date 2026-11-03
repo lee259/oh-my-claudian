@@ -53,6 +53,29 @@ it('copies a reviewed package, including binary files and permissions, without c
     expect(process.platform === 'win32' || rootMode === 0o700).toBe(true);
     expect(process.platform === 'win32' || fileMode === 0o755).toBe(true);
     await expect(repository.importPackage(prepared.name, prepared.markdown, prepared.files, prepared.directories, prepared.rootMode)).rejects.toThrow();
+    if (process.platform === 'win32') return;
+    await fs.symlink('../../.agents/skills/review', resolve('.claude/skills/shared-link'));
+    await fs.mkdir(resolve('.copilot/skills/external'), { recursive: true });
+    await fs.symlink(
+      path.join(root, '.copilot', 'skills', 'external'),
+      resolve('.claude/skills/external-link'),
+    );
+    await fs.symlink(
+      '../../.agents/skills/missing',
+      resolve('.claude/skills/broken-link'),
+    );
+
+    const candidates = await migration.preview();
+    expect(candidates.some(candidate => candidate.source.endsWith('/shared-link'))).toBe(false);
+    expect(candidates.find(candidate => candidate.source.endsWith('/external-link'))).toMatchObject({
+      blocked: true,
+      warnings: ['symlink'],
+      linkTarget: '.copilot/skills/external',
+    });
+    expect(candidates.find(candidate => candidate.source.endsWith('/broken-link'))).toMatchObject({
+      blocked: true,
+      warnings: ['brokenSymlink'],
+    });
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
