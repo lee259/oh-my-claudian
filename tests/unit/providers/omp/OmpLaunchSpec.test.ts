@@ -54,6 +54,21 @@ describe('buildOmpLaunchSpec', () => {
     ]);
   });
 
+  it('gives the isolated session directory precedence over additional arguments', () => {
+    const args = buildOmpLaunchSpec({ command: 'omp', cwd: '/vault', settings: DEFAULT_OMP_PROVIDER_SETTINGS,
+      additionalArguments: ['--session-dir', '/other'], sessionDirectory: '/isolated' }).args;
+    expect(args.lastIndexOf('--session-dir')).toBeGreaterThan(args.indexOf('/other'));
+    expect(args[args.lastIndexOf('--session-dir') + 1]).toBe('/isolated');
+  });
+
+  it('places managed arguments before an argument terminator', () => {
+    const args = buildOmpLaunchSpec({ command: 'omp', cwd: '/vault', settings: DEFAULT_OMP_PROVIDER_SETTINGS,
+      additionalArguments: ['--', 'file.txt'], sessionDirectory: '/isolated' }).args;
+    expect(args).toEqual([
+      'acp', '--approval-mode', 'always-ask', '--session-dir', '/isolated', '--', 'file.txt',
+    ]);
+  });
+
   it.each(['always-ask', 'write', 'yolo'] as const)(
     'passes the native %s approval mode to the ACP process',
     approvalMode => {

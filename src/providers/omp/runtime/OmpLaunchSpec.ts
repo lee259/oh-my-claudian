@@ -38,12 +38,19 @@ export interface OmpLaunchSpec {
 }
 
 export function buildOmpLaunchSpec(params: BuildOmpLaunchSpecParams): OmpLaunchSpec {
+  const additionalArguments = [...(params.additionalArguments ?? [])];
+  const terminatorIndex = additionalArguments.indexOf('--');
+  const insertionIndex = terminatorIndex === -1 ? additionalArguments.length : terminatorIndex;
+  const managedArguments = [
+    ...(params.modelSelector ? ['--model', params.modelSelector] : []),
+    ...(params.sessionDirectory ? ['--session-dir', params.sessionDirectory] : []),
+  ];
   return {
     args: [
       'acp', '--approval-mode', params.approvalMode ?? 'always-ask',
-      ...(params.sessionDirectory ? ['--session-dir', params.sessionDirectory] : []),
-      ...(params.additionalArguments ?? []),
-      ...(params.modelSelector ? ['--model', params.modelSelector] : []),
+      ...additionalArguments.slice(0, insertionIndex),
+      ...managedArguments,
+      ...additionalArguments.slice(insertionIndex),
     ],
     command: params.command,
     cwd: params.cwd,
