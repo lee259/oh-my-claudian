@@ -85,6 +85,7 @@ describe('AgentSkillSettings Preact view', () => {
     await tick();
 
     expect(container.querySelector('.claudian-sp-item-name')?.textContent).toBe('release-notes');
+    expect(container.querySelector('.claudian-agent-skills-count')?.textContent).toBe('1');
     expect(container.querySelector('.claudian-sp-item-desc')?.textContent)
       .toBe('Prepare release notes');
     expect(container.querySelector('.claudian-agent-skills-diagnostic')?.textContent)

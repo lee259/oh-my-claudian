@@ -1242,7 +1242,8 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
-      }
+      },
+      "sharedSkillsTitle": "Shared skills"
     },
     "codexSkills": {
       "modal": {

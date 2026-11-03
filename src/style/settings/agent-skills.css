@@ -13,6 +13,30 @@
   margin: 0;
 }
 
+.claudian-agent-skills-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  margin-bottom: var(--size-4-1);
+}
+
+.claudian-agent-skills-title {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.claudian-agent-skills-count {
+  min-width: 2ch;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
 .claudian-agent-skills-header .claudian-sp-header-actions {
   flex-shrink: 0;
 }
@@ -21,15 +45,75 @@
   max-width: 900px;
 }
 
-.claudian-settings-skills .claudian-sp-item {
-  padding: var(--size-4-2) var(--size-4-3);
+.claudian-agent-skills-list {
+  overflow: hidden;
+  margin-top: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
 }
 
-.claudian-settings-skills .claudian-sp-item-desc {
-  display: -webkit-box;
+.claudian-agent-skills-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-3);
+  min-height: 64px;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
+  transition: background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.claudian-agent-skills-row:first-child {
+  border-top: 0;
+}
+
+.claudian-agent-skills-row:hover,
+.claudian-agent-skills-row:focus-within {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-agent-skills-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.claudian-agent-skills-name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.claudian-settings-skills .claudian-agent-skills-row .claudian-sp-item-name {
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+}
+
+.claudian-settings-skills .claudian-agent-skills-row .claudian-sp-item-desc {
+  margin-top: 2px;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-agent-skills-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--size-4-1);
+  opacity: 0;
+  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.claudian-agent-skills-row:hover .claudian-agent-skills-actions,
+.claudian-agent-skills-row:focus-within .claudian-agent-skills-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .claudian-agent-skills-actions {
+    opacity: 1;
+  }
 }
 
 .claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link,
@@ -42,6 +126,25 @@
 .claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
 .claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
   text-decoration: underline;
+}
+
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn,
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:hover,
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus,
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus-visible,
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:disabled {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:hover,
+.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus-visible {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link,
@@ -147,19 +250,26 @@
 }
 
 .claudian-skill-migration {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 0;
+  padding-bottom: var(--size-4-4);
+  border-bottom: 1px solid var(--background-modifier-border);
   font-size: var(--font-ui-small);
 }
 
+.claudian-skill-migration-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--size-4-4);
+}
+
 .claudian-skill-migration-title {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: var(--font-ui-medium);
 }
 
 .claudian-skill-migration-description {
-  margin: 4px 0;
+  margin: var(--size-4-1) 0 0;
   color: var(--text-muted);
 }
 
@@ -243,6 +353,22 @@
 .claudian-settings button.claudian-skill-migration-button:not(:disabled) {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  text-decoration: none;
+}
+
+.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger:hover:not(:disabled),
+.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger:focus-visible:not(:disabled) {
+  background: var(--background-modifier-hover);
+  text-decoration: none;
 }
 
 .claudian-settings button.claudian-skill-migration-button:hover:not(:disabled),

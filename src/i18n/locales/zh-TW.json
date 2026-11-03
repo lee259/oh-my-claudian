@@ -1242,7 +1242,8 @@
         "title": "刪除共用技能",
         "description": "整個技能資料夾（包括指令碼、參考資料和資源）將移至垃圾桶。",
         "confirm": "移至垃圾桶"
-      }
+      },
+      "sharedSkillsTitle": "共用 Skills"
     },
     "codexSkills": {
       "modal": {
