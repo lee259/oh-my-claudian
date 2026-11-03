@@ -415,7 +415,7 @@ export class VaultFileAdapter {
     }
   }
 
-  async createManagedFolderExclusive(folderPath: string): Promise<void> {
+  async createManagedFolderExclusive(folderPath: string, mode?: number): Promise<void> {
     const normalized = normalizeManagedPath(folderPath);
     const parent = normalized.slice(0, normalized.lastIndexOf('/'));
     if (parent) {
@@ -425,7 +425,14 @@ export class VaultFileAdapter {
       throw new ManagedResourceCollisionError(normalized);
     }
     try {
-      await this.adapter.mkdir(normalized);
+      if (mode !== undefined) {
+        const desktop = this.getDesktopAdapter();
+        if (!desktop) throw new ManagedResourcePathError('Exclusive managed writes require a filesystem-backed vault adapter');
+        const absolute = this.resolveManagedDesktopPath(path.resolve(desktop.getBasePath()), normalized);
+        await fs.mkdir(absolute, { mode: mode & 0o777 });
+      } else {
+        await this.adapter.mkdir(normalized);
+      }
     } catch (error) {
       if (await this.verifyManagedCollisionTarget(normalized)) {
         throw new ManagedResourceCollisionError(normalized, { cause: error });
@@ -464,6 +471,62 @@ export class VaultFileAdapter {
       throw new ManagedResourcePathError(`Could not read managed resource: ${filePath}`, {
         cause: error,
       });
+    }
+  }
+
+  async readManagedBinaryFile(filePath: string): Promise<ArrayBuffer> {
+    await this.verifyManagedPath(filePath, { expectedType: 'file' });
+    return this.adapter.readBinary(filePath);
+  }
+
+  async getManagedFileMode(filePath: string): Promise<number | undefined> {
+    return this.getManagedMode(filePath, 'file');
+  }
+
+  async getManagedMode(filePath: string, expectedType: ManagedResourceType): Promise<number | undefined> {
+    await this.verifyManagedPath(filePath, { expectedType });
+    const desktop = this.getDesktopAdapter();
+    if (!desktop || process.platform === 'win32') return undefined;
+    const absolute = this.resolveManagedDesktopPath(path.resolve(desktop.getBasePath()), normalizeManagedPath(filePath));
+    return (await fs.lstat(absolute)).mode & 0o777;
+  }
+
+  async setManagedDirectoryMode(directory: string, mode: number): Promise<void> {
+    await this.verifyManagedPath(directory, { expectedType: 'folder' });
+    const desktop = this.getDesktopAdapter();
+    if (!desktop) throw new ManagedResourcePathError('Managed permissions require a filesystem-backed vault adapter');
+    if (process.platform === 'win32') return;
+    const absolute = this.resolveManagedDesktopPath(path.resolve(desktop.getBasePath()), normalizeManagedPath(directory));
+    await fs.chmod(absolute, mode & 0o777);
+  }
+
+  async writeManagedBinaryFile(filePath: string, content: ArrayBuffer, mode?: number): Promise<void> {
+    const desktop = this.getDesktopAdapter();
+    if (!desktop) throw new ManagedResourcePathError('Exclusive managed writes require a filesystem-backed vault adapter');
+    const normalized = normalizeManagedPath(filePath);
+    const parent = normalized.slice(0, normalized.lastIndexOf('/'));
+    await this.verifyManagedPath(parent, { expectedType: 'folder' });
+    const target = this.resolveManagedDesktopPath(path.resolve(desktop.getBasePath()), normalized);
+    let handle: Awaited<ReturnType<typeof fs.open>>;
+    try {
+      handle = await fs.open(target, 'wx');
+    } catch (error) {
+      if (isCollision(error)) throw new ManagedResourceCollisionError(normalized, { cause: error });
+      throw new ManagedResourcePathError(`Could not create managed file: ${normalized}`, { cause: error });
+    }
+    let createdStat: Stats | undefined;
+    try {
+      createdStat = await handle.stat();
+      await handle.writeFile(new Uint8Array(content));
+      if (mode !== undefined && process.platform !== 'win32') await handle.chmod(mode & 0o777);
+      await handle.close();
+    } catch (error) {
+      await handle.close().catch(() => undefined);
+      const current = await fs.lstat(target).catch(() => null);
+      if (createdStat && current?.isFile() && current.dev === createdStat.dev && current.ino === createdStat.ino) {
+        await fs.unlink(target).catch(() => undefined);
+      }
+      throw new ManagedResourcePathError(`Could not write managed file: ${normalized}`, { cause: error });
     }
   }
 

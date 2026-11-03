@@ -57,6 +57,7 @@ import {
 } from '../../shared/settings/SettingsTabBar';
 import { SettingsTextFieldsView } from '../../shared/settings/SettingsTextFieldsView';
 import { SettingsToggleListView } from '../../shared/settings/SettingsToggleListView';
+import { SkillMigrationView } from '../../shared/settings/SkillMigrationView';
 import { createPreactRoot, type PreactRoot } from '../../shared/ui/PreactRoot';
 import { parseEnvironmentVariables } from '../../utils/env';
 import { getObsidianLanguage } from '../../utils/obsidianCompat';
@@ -182,6 +183,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   private readonly pendingCustomContextLimitRefreshProviders = new Set<ProviderId>();
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
   private settingsTabsRoot: PreactRoot | null = null;
+  private skillMigrationRoot: PreactRoot | null = null;
   private providerBrowserRoot: PreactRoot | null = null;
   private providerListScrollTop = 0;
   private providerSearchQuery = '';
@@ -227,6 +229,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
   }
 
   private renderSettings(): void {
+    this.skillMigrationRoot?.unmount();
+    this.skillMigrationRoot = null;
     this.disposeCliUpdates?.();
     this.disposeCliUpdates = null;
     const displayGeneration = ++this.displayGeneration;
@@ -272,7 +276,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     setLocale(resolveLocale(this.plugin.settings.locale, getObsidianLanguage()));
 
     const providerTabs = ProviderRegistry.getRegisteredProviderIds();
-    const tabIds: SettingsTabId[] = ['general', 'providers'];
+    const tabIds: SettingsTabId[] = ['general', 'providers', 'skills'];
     if (!tabIds.includes(this.activeTab)) {
       this.activeTab = 'general';
     }
@@ -286,6 +290,29 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const tabContents = new Map<SettingsTabId, HTMLDivElement>();
     const providerContents = new Map<ProviderId, HTMLDivElement>();
     const renderedProviderTabs = new Set<ProviderId>();
+    let skillsRendered = false;
+
+    const renderSkills = (): void => {
+      const content = tabContents.get('skills');
+      if (!content || skillsRendered) return;
+      skillsRendered = true;
+      new AgentSkillSettings(content, this.agentSkillCoordinator, this.app);
+      this.skillMigrationRoot = createPreactRoot(content.createDiv());
+      this.skillMigrationRoot.render(h(SkillMigrationView, {
+        getService: async () => {
+          await ProviderWorkspaceRegistry.ensureInitialized(this.plugin.providerHost, 'claude', 'skill-migration');
+          const service = ProviderWorkspaceRegistry.getServices('claude')?.skillMigration;
+          if (!service) throw new Error('Skill migration unavailable');
+          return service;
+        },
+        onCopy: async (name, markdown, files, directories, rootMode) => {
+          const result = await this.agentSkillCoordinator.importPackage(name, markdown, files, directories, rootMode);
+          if (result.refreshFailed) {
+            new Notice(t('settings.agentSkills.savedRefreshFailed'));
+          }
+        },
+      }));
+    };
 
     const tabDefinitions: SettingsTabDefinition[] = [
       {
@@ -297,6 +324,11 @@ export class ClaudianSettingTab extends PluginSettingTab {
         id: 'providers',
         label: t('settings.tabs.providers'),
         contentId: getSettingsTabContentId('providers'),
+      },
+      {
+        id: 'skills',
+        label: t('settings.agentSkills.sectionTitle'),
+        contentId: getSettingsTabContentId('skills'),
       },
     ];
 
@@ -313,6 +345,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       if (id === 'providers' && this.activeProviderTab) {
         void renderProviderTab(this.activeProviderTab);
       }
+      if (id === 'skills') renderSkills();
     };
 
     this.settingsTabsRoot = createPreactRoot(tabBar);
@@ -378,9 +411,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
         }
         renderer.render(content, {
           plugin: this.plugin.providerHost,
-          renderAgentSkillSettings: (target, _targetProviderId) => {
-            new AgentSkillSettings(target, this.agentSkillCoordinator, this.app);
-          },
           renderHiddenProviderCommandSetting: (
             target,
             targetProviderId,
@@ -423,7 +453,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       const content = containerEl.createDiv({
         cls: [
           'claudian-settings-tab-content',
-          id === 'general' ? 'claudian-settings-general' : 'claudian-settings-providers',
+          id === 'general' ? 'claudian-settings-general' : id === 'providers' ? 'claudian-settings-providers' : '',
           id === this.activeTab ? 'claudian-settings-tab-content--active' : '',
         ].filter(Boolean).join(' '),
       });
@@ -489,6 +519,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     }
 
     this.renderGeneralTab(tabContents.get('general')!);
+    if (this.activeTab === 'skills') renderSkills();
 
     if (this.activeTab === 'providers' && this.activeProviderTab) {
       void renderProviderTab(this.activeProviderTab);

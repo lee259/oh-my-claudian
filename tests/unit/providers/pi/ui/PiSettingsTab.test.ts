@@ -368,7 +368,7 @@ function createContext(settings: Record<string, unknown>) {
       settings,
       mutateSettings,
     },
-    renderAgentSkillSettings: jest.fn(),
+
     notifyProviderModelOptionsChanged: jest.fn(),
     renderHiddenProviderCommandSetting: jest.fn(),
   };
@@ -523,14 +523,10 @@ describe('PiSettingsTab', () => {
     expect(mockDiscoverModels).not.toHaveBeenCalled();
   });
 
-  it('renders shared skills and keeps hidden provider commands separate', () => {
+  it('keeps hidden provider commands provider-specific', () => {
     const settings: Record<string, unknown> = { providerConfigs: { pi: {} } };
     const context = render(settings);
 
-    expect(context.renderAgentSkillSettings).toHaveBeenCalledWith(
-      expect.anything(),
-      'pi',
-    );
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       expect.anything(),
       'pi',

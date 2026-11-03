@@ -18,6 +18,7 @@ import {
   parseAgentSkillMarkdown,
   serializeAgentSkillMarkdown,
 } from './AgentSkillCodec';
+import type { SkillMigrationDirectory, SkillMigrationFile } from './SkillMigration';
 import { AgentSkillValidationError, validateAgentSkillInput, validateAgentSkillName } from './validateAgentSkill';
 
 export const AGENT_SKILLS_ROOT = '.agents/skills';
@@ -118,28 +119,96 @@ export class AgentSkillRepository {
 
   async create(input: AgentSkillInput): Promise<AgentSkillDocument> {
     validateAgentSkillInput(input);
+    return this.createPackage(input.name, serializeAgentSkillMarkdown({}, input), [], [], false);
+  }
+
+  async importMarkdown(name: string, content: string): Promise<AgentSkillDocument> {
+    return this.importPackage(name, content, []);
+  }
+
+  async importPackage(name: string, content: string, files: readonly SkillMigrationFile[], directories: readonly SkillMigrationDirectory[] = [], rootMode?: number): Promise<AgentSkillDocument> {
+    return this.createPackage(name, content, files, directories, true, rootMode);
+  }
+
+  private async createPackage(name: string, content: string, files: readonly SkillMigrationFile[], directories: readonly SkillMigrationDirectory[], exclusive: boolean, rootMode?: number): Promise<AgentSkillDocument> {
+    this.assertValidName(name);
+    const document = this.documentFromRaw(name, content);
+    const seen = new Set(['skill.md']);
+    for (const { path: relative } of directories) {
+      if (!relative || relative.includes('\\') || relative.split('/').some(part => !part || part === '.' || part === '..') || relative.toLowerCase() === 'skill.md') {
+        throw new AgentSkillRepositoryError('Invalid supporting directory path');
+      }
+    }
+    for (const file of files) {
+      const parts = file.path.split('/');
+      const key = file.path.toLowerCase();
+      if (!file.path || file.path.includes('\\') || parts.some(part => !part || part === '.' || part === '..') || seen.has(key)) {
+        throw new AgentSkillRepositoryError('Invalid supporting file path');
+      }
+      seen.add(key);
+    }
     return this.withMutation(async () => {
       await this.files.ensureManagedFolder(AGENT_SKILLS_ROOT);
-      const directory = packagePath(input.name);
+      const directory = packagePath(name);
       try {
-        await this.files.createManagedFolderExclusive(directory);
+        await this.files.createManagedFolderExclusive(directory, exclusive ? 0o700 : undefined);
       } catch (error) {
         if (error instanceof ManagedResourceCollisionError) {
-          throw new AgentSkillCollisionError(input.name, { cause: error });
+          throw new AgentSkillCollisionError(name, { cause: error });
         }
         throw error;
       }
 
-      const filePath = skillFilePath(input.name);
-      const content = serializeAgentSkillMarkdown({}, input);
+      const filePath = skillFilePath(name);
+      const createdFiles: string[] = [];
+      const createdFolders: string[] = [];
       try {
-        await this.files.writeManagedFile(filePath, content);
+        const folders = new Set<string>();
+        for (const { path: relative } of directories) {
+          const segments = relative.split('/');
+          for (let i = 1; i <= segments.length; i++) folders.add(`${directory}/${segments.slice(0, i).join('/')}`);
+        }
+        for (const file of files) {
+          const segments = file.path.split('/').slice(0, -1);
+          for (let i = 1; i <= segments.length; i++) folders.add(`${directory}/${segments.slice(0, i).join('/')}`);
+        }
+        for (const folder of [...folders].sort((a, b) => a.length - b.length || a.localeCompare(b))) {
+          await this.files.createManagedFolderExclusive(folder, exclusive ? 0o700 : undefined);
+          createdFolders.push(folder);
+        }
+        for (const file of files) {
+          const target = `${directory}/${file.path}`;
+          await this.files.writeManagedBinaryFile(target, file.content, file.mode);
+          createdFiles.push(target);
+        }
+        if (exclusive) {
+          await this.files.writeManagedBinaryFile(filePath, Uint8Array.from(Buffer.from(content, 'utf8')).buffer);
+          createdFiles.push(filePath);
+        } else {
+          createdFiles.push(filePath);
+          await this.files.writeManagedFile(filePath, content);
+        }
+        for (const entry of [...directories].sort((a, b) => b.path.length - a.path.length)) {
+          if (entry.mode !== undefined) await this.files.setManagedDirectoryMode(`${directory}/${entry.path}`, entry.mode);
+        }
+        if (exclusive && rootMode !== undefined) await this.files.setManagedDirectoryMode(directory, rootMode);
       } catch (error) {
         const rollbackErrors: Error[] = [];
-        try {
-          await this.files.removeManagedFile(filePath);
-        } catch (rollbackError) {
-          rollbackErrors.push(toError(rollbackError));
+        if (exclusive) {
+          try { await this.files.setManagedDirectoryMode(directory, 0o700); }
+          catch (rollbackError) { rollbackErrors.push(toError(rollbackError)); }
+        }
+        for (const folder of createdFolders) {
+          try { await this.files.setManagedDirectoryMode(folder, 0o700); }
+          catch (rollbackError) { if (exclusive) rollbackErrors.push(toError(rollbackError)); }
+        }
+        for (const created of createdFiles.reverse()) {
+          try { await this.files.removeManagedFile(created); }
+          catch (rollbackError) { rollbackErrors.push(toError(rollbackError)); }
+        }
+        for (const folder of createdFolders.reverse()) {
+          try { await this.files.removeManagedFolderIfEmpty(folder); }
+          catch (rollbackError) { rollbackErrors.push(toError(rollbackError)); }
         }
         try {
           await this.files.removeManagedFolderIfEmpty(directory);
@@ -148,14 +217,14 @@ export class AgentSkillRepository {
         }
         if (rollbackErrors.length > 0) {
           throw new AgentSkillRollbackError(
-            `Could not create skill "${input.name}" and rollback was incomplete`,
+            `Could not create skill "${name}" and rollback was incomplete`,
             error,
             rollbackErrors,
           );
         }
         throw error;
       }
-      return this.documentFromRaw(input.name, content);
+      return document;
     });
   }
 
