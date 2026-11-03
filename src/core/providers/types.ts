@@ -5,6 +5,7 @@ import type {
   ProviderExecutionTransitionScope,
 } from '../execution';
 import type { McpServerManager } from '../mcp/McpServerManager';
+import type { SkillMigrationService } from '../skills/SkillMigration';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type {
   AgentDefinition,
@@ -484,6 +485,7 @@ export interface ProviderTabWarmupPolicy {
 }
 
 export interface ProviderWorkspaceServices {
+  skillMigration?: SkillMigrationService | null;
   commandCatalog?: ProviderCommandCatalog | null;
   vaultCommandRepository?: ProviderVaultEntryRepository | null;
   agentMentionProvider?: AgentMentionProvider | null;
@@ -521,10 +523,6 @@ export interface ProviderModelCatalogRefreshResult {
 
 export interface ProviderSettingsTabRendererContext {
   plugin: ProviderHost;
-  renderAgentSkillSettings(
-    container: HTMLElement,
-    providerId: ProviderId,
-  ): void;
   renderHiddenProviderCommandSetting(
     container: HTMLElement,
     providerId: ProviderId,

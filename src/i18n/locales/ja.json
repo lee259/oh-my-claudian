@@ -1588,7 +1588,29 @@
     "environmentRebuild": "環境変数を適用しました。次のメッセージでセッションを再構築します。",
     "modelCatalogFailed": "モデル一覧の更新に失敗しました:\n{error}",
     "saveTabLayoutFailed": "タブ配置を保存できませんでした",
-    "loadSubagentFailed": "サブエージェント「{name}」を読み込めません: {message}"
+    "loadSubagentFailed": "サブエージェント「{name}」を読み込めません: {message}",
+    "skillMigration": {
+      "title": "Claude のスキルとコマンドをインポート",
+      "desc": "共有スキルにコピーする前に Vault 内の Claude ファイルを確認します。元のファイルは保持されます。",
+      "preview": "インポートをプレビュー",
+      "empty": "Claude のスキルまたはコマンドが見つかりません。",
+      "copy": "共有スキルにコピー",
+      "confirmTitle": "スキルのコピーを確認",
+      "confirmDesc": "{source} を .agents/skills/{name} にコピーしますか？元のファイルは保持されます。",
+      "failed": "インポートに失敗しました。プレビューを更新して再試行してください。",
+      "warnings": {
+        "frontmatter": "プロバイダー固有のフロントマターがあります。互換性を確認してください。",
+        "syntax": "Claude 固有の構文が含まれている可能性があります。",
+        "invalid": "安全に変換できません。",
+        "extraFiles": "追加ファイル：",
+        "conflict": "同名の共有スキルが存在します。",
+        "nonPortablePaths": "これらのパスは対応デスクトップ環境間で互換性がありません。",
+        "generatedDescription": "上記の説明は元の指示から生成されました。",
+        "renamed": "Claude コマンド「{name}」から名前を変更しました。",
+        "duplicateName": "複数の Claude ファイルが同じ共有スキル名に変換されます。コピー前に重複を解消してください。"
+      },
+      "previewContent": "コピーされる内容をプレビュー"
+    }
   },
   "inlineEdit": {
     "insert": "挿入する内容を指示…",

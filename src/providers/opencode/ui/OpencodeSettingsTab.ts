@@ -162,8 +162,6 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container).setName(t('settings.models')).setHeading();
     renderOpencodeModelPicker(container, modelWarning.context, settingsBag);
 
-    new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
-    context.renderAgentSkillSettings(container, 'opencode');
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'opencode', {

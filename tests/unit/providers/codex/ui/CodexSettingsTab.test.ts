@@ -333,7 +333,6 @@ function createPlugin(overrides: Record<string, unknown> = {}): any {
 function createContext(plugin: any) {
   return {
     plugin,
-    renderAgentSkillSettings: jest.fn(),
     renderHiddenProviderCommandSetting: jest.fn(),
     notifyProviderModelOptionsChanged: jest.fn(),
     renderCustomContextLimits: jest.fn(),
@@ -588,20 +587,6 @@ describe('CodexSettingsTab', () => {
     pickerContext.notifyProviderModelOptionsChanged('codex');
 
     expect(context.notifyProviderModelOptionsChanged).toHaveBeenCalledWith('codex');
-  });
-
-  it('renders the fixed-root shared skill manager', () => {
-    Object.defineProperty(process, 'platform', { value: 'darwin' });
-    const plugin = createPlugin();
-    const context = createContext(plugin);
-    const container = createContainer();
-
-    codexSettingsTabRenderer.render(container, context);
-
-    expect(context.renderAgentSkillSettings).toHaveBeenCalledWith(
-      container,
-      'codex',
-    );
   });
 
   it('uses host-native CLI path behavior on non-Windows even when WSL is saved', async () => {
