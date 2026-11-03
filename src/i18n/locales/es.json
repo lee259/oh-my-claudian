@@ -1594,7 +1594,6 @@
       "copy": "Copiar a skills compartidos",
       "confirmTitle": "Confirmar copia del skill",
       "confirmDesc": "¿Copiar {source} a .agents/skills/{name}? Se conservará el original.",
-      "failed": "No se pudo importar. Actualiza la vista previa e inténtalo de nuevo.",
       "warnings": {
         "frontmatter": "Contiene metadatos específicos del proveedor. Comprueba la compatibilidad.",
         "syntax": "Puede contener sintaxis específica de Claude.",
@@ -1604,9 +1603,13 @@
         "nonPortablePaths": "Estas rutas no son compatibles con todas las plataformas de escritorio admitidas.",
         "generatedDescription": "La descripción anterior se ha generado a partir de las instrucciones originales.",
         "renamed": "Se ha cambiado el nombre desde el comando de Claude «{name}».",
-        "duplicateName": "Varios archivos de Claude corresponden al mismo nombre de skill compartido. Resuelve el duplicado antes de copiar."
+        "duplicateName": "Varios archivos de Claude corresponden al mismo nombre de skill compartido. Resuelve el duplicado antes de copiar.",
+        "symlink": "Esta entrada de Claude enlaza a otra ubicación. Copia su destino manualmente en los skills compartidos.",
+        "brokenSymlink": "Esta entrada de Claude es un enlace roto."
       },
-      "previewContent": "Previsualizar el contenido copiado"
+      "previewContent": "Previsualizar el contenido copiado",
+      "failedWithReason": "Error de importación: {message}",
+      "blockedCount": "{count} entradas requieren atención"
     }
   },
   "inlineEdit": {

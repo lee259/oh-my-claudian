@@ -1594,7 +1594,6 @@
       "copy": "Copy to shared skills",
       "confirmTitle": "Confirm skill copy",
       "confirmDesc": "Copy {source} to .agents/skills/{name}? The original will be kept.",
-      "failed": "Could not complete the import. Refresh the preview and try again.",
       "warnings": {
         "frontmatter": "This item contains provider-specific frontmatter. Review compatibility.",
         "syntax": "This item may contain Claude-specific syntax.",
@@ -1604,9 +1603,13 @@
         "nonPortablePaths": "These paths are not portable across supported desktop platforms.",
         "generatedDescription": "The description above was derived from the source instructions.",
         "renamed": "Renamed from Claude command \"{name}\".",
-        "duplicateName": "Multiple Claude files map to this shared skill name. Resolve the duplicate before copying."
+        "duplicateName": "Multiple Claude files map to this shared skill name. Resolve the duplicate before copying.",
+        "symlink": "This Claude entry is a link to another location. Copy its target into shared Skills manually.",
+        "brokenSymlink": "This Claude entry is a broken link."
       },
-      "previewContent": "Preview copied content"
+      "previewContent": "Preview copied content",
+      "failedWithReason": "Import failed: {message}",
+      "blockedCount": "{count} entries need attention"
     }
   },
   "inlineEdit": {

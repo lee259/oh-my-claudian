@@ -1594,7 +1594,6 @@
       "copy": "共有スキルにコピー",
       "confirmTitle": "スキルのコピーを確認",
       "confirmDesc": "{source} を .agents/skills/{name} にコピーしますか？元のファイルは保持されます。",
-      "failed": "インポートに失敗しました。プレビューを更新して再試行してください。",
       "warnings": {
         "frontmatter": "プロバイダー固有のフロントマターがあります。互換性を確認してください。",
         "syntax": "Claude 固有の構文が含まれている可能性があります。",
@@ -1604,9 +1603,13 @@
         "nonPortablePaths": "これらのパスは対応デスクトップ環境間で互換性がありません。",
         "generatedDescription": "上記の説明は元の指示から生成されました。",
         "renamed": "Claude コマンド「{name}」から名前を変更しました。",
-        "duplicateName": "複数の Claude ファイルが同じ共有スキル名に変換されます。コピー前に重複を解消してください。"
+        "duplicateName": "複数の Claude ファイルが同じ共有スキル名に変換されます。コピー前に重複を解消してください。",
+        "symlink": "この Claude 項目は別の場所へのリンクです。対象を共有スキルへ手動でコピーしてください。",
+        "brokenSymlink": "この Claude 項目は壊れたリンクです。"
       },
-      "previewContent": "コピーされる内容をプレビュー"
+      "previewContent": "コピーされる内容をプレビュー",
+      "failedWithReason": "インポートに失敗しました: {message}",
+      "blockedCount": "{count} 件の項目に対応が必要です"
     }
   },
   "inlineEdit": {

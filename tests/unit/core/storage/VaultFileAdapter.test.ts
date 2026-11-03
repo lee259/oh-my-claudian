@@ -997,4 +997,39 @@ describe('VaultFileAdapter', () => {
         .rejects.toThrow('Could not trash managed resource');
     });
   });
+
+  it('lists managed symlinks without following broken targets', async () => {
+    if (process.platform === 'win32') return;
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-managed-links-'));
+    try {
+      const folder = path.join(root, '.claude', 'skills');
+      await fs.mkdir(folder, { recursive: true });
+      await fs.writeFile(path.join(folder, 'target.txt'), 'target');
+      await fs.symlink('target.txt', path.join(folder, 'linked.txt'));
+      await fs.symlink('missing.txt', path.join(folder, 'broken.txt'));
+      const files = new VaultFileAdapter({
+        vault: { adapter: createDesktopFsAdapter(root) },
+      } as unknown as App);
+
+      await expect(files.listManagedFolderContents('.claude/skills')).resolves.toMatchObject({
+        files: ['.claude/skills/target.txt'],
+        folders: [],
+        symlinks: [
+          expect.objectContaining({
+            path: '.claude/skills/broken.txt',
+            target: '.claude/skills/missing.txt',
+            targetInsideVault: true,
+            broken: true,
+          }),
+          expect.objectContaining({
+            path: '.claude/skills/linked.txt',
+            target: '.claude/skills/target.txt',
+            broken: false,
+          }),
+        ],
+      });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
 });

@@ -64,10 +64,12 @@ export interface ProviderQuestionReply {
 /**
  * Chat-facing provider registration.
  *
- * This is intentionally limited to chat-facing services.
+ * This is intentionally limited to application-facing services.
  * Shared bootstrap (defaults, storage) is in `src/core/bootstrap/`.
  * Provider-owned workspace services (CLI resolution, commands, agents,
  * MCP, settings tabs) live behind `src/providers/<id>/app/`.
+ * Settings-only services that need a vault adapter but no initialized
+ * workspace belong here so they cannot disrupt live provider sessions.
  */
 export interface ProviderRegistration {
   cliLifecycle?: ProviderCliLifecycleAdapter;
@@ -89,6 +91,7 @@ export interface ProviderRegistration {
   subagentAdapter?: ProviderSubagentAdapter;
   formatQuestionReply?: (tool: ToolCallInfo, answers: AskUserAnswers) => ProviderQuestionReply | null;
   collectDiagnostics?: ProviderDiagnosticCollector;
+  createSkillMigrationService?: (files: VaultFileAdapter) => SkillMigrationService | null;
 }
 
 export interface ProviderModule extends ProviderRegistration {
@@ -485,7 +488,6 @@ export interface ProviderTabWarmupPolicy {
 }
 
 export interface ProviderWorkspaceServices {
-  skillMigration?: SkillMigrationService | null;
   commandCatalog?: ProviderCommandCatalog | null;
   vaultCommandRepository?: ProviderVaultEntryRepository | null;
   agentMentionProvider?: AgentMentionProvider | null;

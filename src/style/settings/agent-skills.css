@@ -17,6 +17,33 @@
   flex-shrink: 0;
 }
 
+.claudian-settings .claudian-settings-skills {
+  max-width: 900px;
+}
+
+.claudian-settings-skills .claudian-sp-item {
+  padding: var(--size-4-2) var(--size-4-3);
+}
+
+.claudian-settings-skills .claudian-sp-item-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link,
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
+  color: var(--text-normal);
+}
+
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
+.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
+  text-decoration: underline;
+}
+
 .claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link,
 .claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
 .claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus,
@@ -152,6 +179,21 @@
 .claudian-skill-migration-item p,
 .claudian-skill-migration-confirm p {
   margin: 0;
+}
+
+.claudian-skill-migration-blocked {
+  margin-top: 12px;
+}
+
+.claudian-skill-migration-blocked > summary {
+  padding: 6px 0;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-skill-migration-item--blocked {
+  padding: 8px 10px;
+  background: var(--background-secondary);
 }
 
 .claudian-skill-migration-path {

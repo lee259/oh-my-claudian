@@ -9,6 +9,7 @@ export interface SkillMigrationCandidate {
   syntaxMarkers?: string[];
   nonPortablePaths?: string[];
   renamedFrom?: string;
+  linkTarget?: string;
   blocked: boolean;
   extraFiles: string[];
 }

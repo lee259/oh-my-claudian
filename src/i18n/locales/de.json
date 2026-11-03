@@ -1594,7 +1594,6 @@
       "copy": "In gemeinsame Skills kopieren",
       "confirmTitle": "Skill-Kopie bestätigen",
       "confirmDesc": "{source} nach .agents/skills/{name} kopieren? Das Original bleibt erhalten.",
-      "failed": "Import fehlgeschlagen. Vorschau aktualisieren und erneut versuchen.",
       "warnings": {
         "frontmatter": "Enthält anbieterspezifische Metadaten. Kompatibilität prüfen.",
         "syntax": "Kann Claude-spezifische Syntax enthalten.",
@@ -1604,9 +1603,13 @@
         "nonPortablePaths": "Diese Pfade sind nicht auf allen unterstützten Desktop-Plattformen verwendbar.",
         "generatedDescription": "Die obige Beschreibung wurde aus den ursprünglichen Anweisungen abgeleitet.",
         "renamed": "Aus dem Claude-Befehl „{name}“ umbenannt.",
-        "duplicateName": "Mehrere Claude-Dateien ergeben denselben gemeinsamen Skill-Namen. Beheben Sie die Doppelung vor dem Kopieren."
+        "duplicateName": "Mehrere Claude-Dateien ergeben denselben gemeinsamen Skill-Namen. Beheben Sie die Doppelung vor dem Kopieren.",
+        "symlink": "Dieser Claude-Eintrag verlinkt auf einen anderen Ort. Kopieren Sie das Ziel manuell in die gemeinsamen Skills.",
+        "brokenSymlink": "Dieser Claude-Eintrag ist ein defekter Link."
       },
-      "previewContent": "Kopierten Inhalt anzeigen"
+      "previewContent": "Kopierten Inhalt anzeigen",
+      "failedWithReason": "Import fehlgeschlagen: {message}",
+      "blockedCount": "{count} Einträge benötigen Aufmerksamkeit"
     }
   },
   "inlineEdit": {

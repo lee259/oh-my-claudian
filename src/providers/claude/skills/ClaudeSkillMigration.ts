@@ -5,7 +5,11 @@ import { parseYaml } from 'obsidian';
 
 import { parseAgentSkillMarkdown, serializeAgentSkillMarkdown } from '@/core/skills/AgentSkillCodec';
 import type { SkillMigrationCandidate, SkillMigrationDirectory, SkillMigrationFile, SkillMigrationService } from '@/core/skills/SkillMigration';
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import type {
+  ManagedFolderContents,
+  ManagedFolderSymlinkEntry,
+  VaultFileAdapter,
+} from '@/core/storage/VaultFileAdapter';
 import { extractFirstParagraph, parseSlashCommandContent } from '@/utils/slashCommand';
 
 export class ClaudeSkillMigration implements SkillMigrationService {
@@ -16,9 +20,24 @@ export class ClaudeSkillMigration implements SkillMigrationService {
     for (const root of ['.claude/skills', '.claude/commands']) {
       if (!await this.files.verifyManagedPath(root, { expectedType: 'folder', allowMissing: true })) continue;
       const visit = async (folder: string): Promise<void> => {
-        const listing = await this.files.listManagedFolder(folder);
-        for (const entry of [...listing.files, ...listing.folders]) {
+        const listing = await this.listFolder(folder);
+        for (const entry of [
+          ...listing.files,
+          ...listing.folders,
+          ...listing.symlinks.map(link => link.path),
+        ]) {
           if (path.posix.dirname(entry) !== folder) throw new Error('Invalid directory listing');
+        }
+        for (const link of listing.symlinks) {
+          if (
+            root === '.claude/skills'
+            && link.targetInsideVault
+            && link.target.startsWith('.agents/skills/')
+            && !link.broken
+          ) {
+            continue;
+          }
+          result.push(this.inspectSymlink(link, root));
         }
         if (root.endsWith('skills') && folder !== root) {
           const skill = `${folder}/SKILL.md`;
@@ -48,6 +67,30 @@ export class ClaudeSkillMigration implements SkillMigrationService {
       if (!candidate.warnings.includes('duplicateName')) candidate.warnings.push('duplicateName');
     }
     return result.sort((a, b) => a.source.localeCompare(b.source));
+  }
+
+  private async listFolder(folder: string): Promise<ManagedFolderContents> {
+    if (typeof this.files.listManagedFolderContents === 'function') {
+      return this.files.listManagedFolderContents(folder);
+    }
+    return { ...(await this.files.listManagedFolder(folder)), symlinks: [] };
+  }
+
+  private inspectSymlink(link: ManagedFolderSymlinkEntry, root: string): SkillMigrationCandidate {
+    const relative = path.posix.relative(root, link.path).replace(/\.md$/, '');
+    const rawName = root.endsWith('skills') ? path.posix.basename(link.path) : relative;
+    const name = rawName.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    return {
+      source: link.path,
+      name,
+      linkTarget: link.target,
+      warnings: [link.broken ? 'brokenSymlink' : 'symlink'],
+      blocked: true,
+      extraFiles: [],
+      revision: createHash('sha256')
+        .update(JSON.stringify([link.target, link.broken]))
+        .digest('hex'),
+    };
   }
 
   private async inspect(source: string, name: string, extraFiles: string[], renamedFrom?: string): Promise<SkillMigrationCandidate> {
