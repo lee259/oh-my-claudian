@@ -30,9 +30,11 @@ describe('ConversationRuntime', () => {
       ] })),
     } as any;
     expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+    expect(coordinator.cool).toHaveBeenCalledTimes(1);
+    expect(runtime.state.messages[0].content).toBe('external');
     revision = 'second';
     expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
-    expect(coordinator.cool).toHaveBeenCalledTimes(1);
+    expect(coordinator.cool).toHaveBeenCalledTimes(2);
     expect(host.reloadNativeHistory).toHaveBeenCalledWith('c1');
     expect(runtime.state.messages[0].content).toBe('external');
     history.mockRestore();
@@ -47,9 +49,10 @@ describe('ConversationRuntime', () => {
     } as any);
     const host = {
       readNativeHistoryRevision: jest.fn(async () => revision),
-      reloadNativeHistory: jest.fn(),
+      reloadNativeHistory: jest.fn(async () => ({ id: 'c1', providerId: 'codex', messages: [] })),
     } as any;
     expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+    host.reloadNativeHistory.mockClear();
 
     let finish!: () => void;
     runtime.enqueueBackgroundWork(() => new Promise<void>(resolve => { finish = resolve; }));

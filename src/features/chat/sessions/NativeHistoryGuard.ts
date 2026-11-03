@@ -8,6 +8,7 @@ export class NativeHistoryGuard {
   constructor(
     private readonly read: () => Promise<string | null>,
     private readonly refresh: () => Promise<boolean>,
+    private readonly refreshInitialRevision = false,
   ) {}
 
   check(): Promise<boolean> {
@@ -25,7 +26,7 @@ export class NativeHistoryGuard {
       if (this.revision === null) this.observedUnavailable = true;
       return this.revision === null && !this.stale;
     }
-    if (this.revision === null && !this.stale && !this.observedUnavailable) {
+    if (this.revision === null && !this.stale && !this.observedUnavailable && !this.refreshInitialRevision) {
       this.revision = current;
       return true;
     }

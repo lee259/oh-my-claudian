@@ -146,6 +146,8 @@ export class ConversationRuntime {
           if (this.presentation && welcome) this.presentation.dom.welcomeEl = welcome;
           return true;
         },
+        // Hydration may have finished before this runtime observed its first revision.
+        true,
       );
       this.nativeHistoryGuard = { conversationId: id, guard };
     }
