@@ -1576,10 +1576,7 @@
     "commands": "命令",
     "loadingProvider": "正在載入 {provider} 設定…",
     "learnMore": "瞭解更多",
-    "claude": {
-      "defaultModel": "預設模型",
-      "defaultModelDesc": "新對話需要 Claude Code 備援模型時使用。"
-    },
+    "claude": {},
     "environmentOwnership": "請檢查這些環境變數的歸屬：{keys}",
     "modelDiscoveryFailed": "{provider} 模型探索失敗：{error}",
     "discoveryFailed": "{provider} 探索失敗：{error}",

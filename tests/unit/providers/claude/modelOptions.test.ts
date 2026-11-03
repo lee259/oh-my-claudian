@@ -123,3 +123,24 @@ describe('getClaudeModelOptions discovered models', () => {
       .toBe('claude-code/claude-opus-5-10-20260901');
   });
 });
+
+describe('explicit Claude model selection', () => {
+  it('exposes only enabled models and allows an empty selection', () => {
+    const configured = (visibleModels: string[]) => ({ providerConfigs: { claude: { visibleModels } } });
+    expect(getClaudeModelOptions(configured(['sonnet'])).map(option => option.value)).toEqual(['sonnet']);
+    expect(getClaudeModelOptions(configured([]))).toEqual([]);
+  });
+
+  it('resolves a selected runtime identity through its discovered alias', () => {
+    const settings = { providerConfigs: { claude: {
+      visibleModels: ['gateway/model'],
+      discoveredModels: [{ value: 'sonnet', resolvedModel: 'gateway/model', label: 'Gateway', description: '' }],
+    } } };
+    expect(getClaudeModelOptions(settings).map(option => option.value)).toContain('sonnet');
+  });
+
+  it('preserves the explicitly enabled model order', () => {
+    const settings = { providerConfigs: { claude: { visibleModels: ['haiku', 'opus'] } } };
+    expect(getClaudeModelOptions(settings).map(option => option.value)).toEqual(['haiku', 'opus']);
+  });
+});

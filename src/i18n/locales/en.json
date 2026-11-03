@@ -1576,10 +1576,7 @@
     "commands": "Commands",
     "loadingProvider": "Loading {provider} settings...",
     "learnMore": "Learn more",
-    "claude": {
-      "defaultModel": "Default model",
-      "defaultModelDesc": "Used when a new conversation needs a Claude Code fallback model."
-    },
+    "claude": {},
     "environmentOwnership": "Review environment ownership for: {keys}",
     "modelDiscoveryFailed": "{provider} model discovery failed: {error}",
     "discoveryFailed": "{provider} discovery failed: {error}",

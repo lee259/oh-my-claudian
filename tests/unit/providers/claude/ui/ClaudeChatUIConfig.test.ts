@@ -296,10 +296,10 @@ describe('claudeChatUIConfig', () => {
       });
 
       expect(options.map(option => option.value)).toEqual([
-        'claude-code/kimi-k3',
         'claude-code/gpt-5.6-luna',
         'claude-code/deepseek-flash',
         'claude-code/deepseek-v4-pro',
+        'claude-code/kimi-k3',
       ]);
     });
 

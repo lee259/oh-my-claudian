@@ -1576,10 +1576,7 @@
     "commands": "Comandos",
     "loadingProvider": "Carregando configurações de {provider}…",
     "learnMore": "Saiba mais",
-    "claude": {
-      "defaultModel": "Modelo padrão",
-      "defaultModelDesc": "Usado quando uma nova conversa precisa de um modelo alternativo do Claude Code."
-    },
+    "claude": {},
     "environmentOwnership": "Verifique a propriedade das variáveis de ambiente: {keys}",
     "modelDiscoveryFailed": "Falha na descoberta de modelos {provider}: {error}",
     "discoveryFailed": "Falha na descoberta de {provider}: {error}",

@@ -1576,10 +1576,7 @@
     "commands": "Befehle",
     "loadingProvider": "{provider}-Einstellungen werden geladen…",
     "learnMore": "Mehr erfahren",
-    "claude": {
-      "defaultModel": "Standardmodell",
-      "defaultModelDesc": "Wird genutzt, wenn eine neue Unterhaltung ein Claude Code-Ersatzmodell benötigt."
-    },
+    "claude": {},
     "environmentOwnership": "Zuständigkeit für Umgebungsvariablen prüfen: {keys}",
     "modelDiscoveryFailed": "{provider}-Modellerkennung fehlgeschlagen: {error}",
     "discoveryFailed": "{provider}-Erkennung fehlgeschlagen: {error}",

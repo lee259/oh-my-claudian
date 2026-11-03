@@ -1576,10 +1576,7 @@
     "commands": "Commandes",
     "loadingProvider": "Chargement des paramètres de {provider}…",
     "learnMore": "En savoir plus",
-    "claude": {
-      "defaultModel": "Modèle par défaut",
-      "defaultModelDesc": "Utilisé lorsqu’une nouvelle conversation nécessite un modèle de repli Claude Code."
-    },
+    "claude": {},
     "environmentOwnership": "Vérifiez la propriété des variables d’environnement : {keys}",
     "modelDiscoveryFailed": "Échec de détection des modèles {provider} : {error}",
     "discoveryFailed": "Échec de détection de {provider} : {error}",

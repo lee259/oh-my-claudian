@@ -1576,10 +1576,7 @@
     "commands": "Команды",
     "loadingProvider": "Загрузка настроек {provider}…",
     "learnMore": "Подробнее",
-    "claude": {
-      "defaultModel": "Модель по умолчанию",
-      "defaultModelDesc": "Используется, когда новой беседе нужна резервная модель Claude Code."
-    },
+    "claude": {},
     "environmentOwnership": "Проверьте управление переменными окружения: {keys}",
     "modelDiscoveryFailed": "Ошибка обнаружения моделей {provider}: {error}",
     "discoveryFailed": "Ошибка обнаружения {provider}: {error}",

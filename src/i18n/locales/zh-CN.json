@@ -1576,10 +1576,7 @@
     "commands": "命令",
     "loadingProvider": "正在加载 {provider} 设置…",
     "learnMore": "了解更多",
-    "claude": {
-      "defaultModel": "默认模型",
-      "defaultModelDesc": "新会话需要 Claude Code 回退模型时使用。"
-    },
+    "claude": {},
     "environmentOwnership": "请检查这些环境变量的归属：{keys}",
     "modelDiscoveryFailed": "{provider} 模型发现失败：{error}",
     "discoveryFailed": "{provider} 发现失败：{error}",
