@@ -1243,7 +1243,10 @@
         "description": "整个技能文件夹（包括脚本、参考资料和资源）将被移入回收站。",
         "confirm": "移入回收站"
       },
-      "sharedSkillsTitle": "共享 Skills"
+      "sharedSkillsTitle": "共享 Skills",
+      "search": "搜索技能…",
+      "clearSearch": "清除搜索",
+      "noMatches": "没有匹配的技能，试试其他名称或描述。"
     },
     "codexSkills": {
       "modal": {

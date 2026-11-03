@@ -296,6 +296,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       const content = tabContents.get('skills');
       if (!content || skillsRendered) return;
       skillsRendered = true;
+      new AgentSkillSettings(content, this.agentSkillCoordinator, this.app);
       this.skillMigrationRoot = createPreactRoot(content.createDiv());
       this.skillMigrationRoot.render(h(SkillMigrationView, {
         getService: async () => {
@@ -313,7 +314,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
           }
         },
       }));
-      new AgentSkillSettings(content, this.agentSkillCoordinator, this.app);
     };
 
     const tabDefinitions: SettingsTabDefinition[] = [

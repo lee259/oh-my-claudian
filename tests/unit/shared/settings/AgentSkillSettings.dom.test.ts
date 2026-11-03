@@ -86,7 +86,7 @@ describe('AgentSkillSettings Preact view', () => {
 
     expect(container.querySelector('.claudian-sp-item-name')?.textContent).toBe('release-notes');
     expect(container.querySelector('.claudian-agent-skills-count')?.textContent).toBe('1');
-    expect(container.querySelector('.claudian-sp-item-desc')?.textContent)
+    expect(container.querySelector('.claudian-agent-skills-description')?.textContent)
       .toBe('Prepare release notes');
     expect(container.querySelector('.claudian-agent-skills-diagnostic')?.textContent)
       .toContain('Missing description');
@@ -105,6 +105,56 @@ describe('AgentSkillSettings Preact view', () => {
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(container.querySelector('.claudian-agent-skills-manager')?.childElementCount).toBe(0);
+  });
+
+  it('filters names and descriptions, keeps the query on refresh, and clears an empty result', async () => {
+    const container = document.createElement('div');
+    const skills = [
+      { name: 'release-notes', description: 'Prepare changelog' },
+      { name: 'code-review', description: 'Review TypeScript changes' },
+    ].map(skill => ({
+      ...skill,
+      instructions: 'Instructions',
+      frontmatter: {},
+      directoryPath: `.agents/skills/${skill.name}`,
+      filePath: `.agents/skills/${skill.name}/SKILL.md`,
+      revision: '1',
+    }));
+    const coordinator = createCoordinator({ skills, diagnostics: [] });
+    const settings = new AgentSkillSettings(container, coordinator as never, {} as never);
+    await tick();
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(search).not.toBeNull();
+    const filter = async (query: string) => {
+      search!.value = query;
+      search!.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick();
+    };
+    const names = () => [...container.querySelectorAll('.claudian-agent-skill-item-link')]
+      .map(element => element.textContent);
+
+    await filter('  RELEASE  ');
+    expect(names()).toEqual(['release-notes']);
+    await filter('typescript');
+    expect(names()).toEqual(['code-review']);
+    await settings.refresh();
+    await tick();
+    expect(search!.value).toBe('typescript');
+    expect(names()).toEqual(['code-review']);
+    container.querySelector<HTMLButtonElement>('.claudian-agent-skill-item-link')!.click();
+    expect(MarkdownRenderer.render).toHaveBeenCalledWith(
+      expect.anything(), expect.any(String), expect.any(HTMLElement),
+      '.agents/skills/code-review/SKILL.md', expect.anything(),
+    );
+
+    await filter('missing');
+    expect(names()).toEqual([]);
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('No matching skills');
+    container.querySelector<HTMLButtonElement>('[aria-label="Clear search"]')!.click();
+    await tick();
+    expect(search!.value).toBe('');
+    expect(names()).toEqual(['release-notes', 'code-review']);
+    settings.dispose();
   });
 
   it('opens a rendered skill preview and unloads its markdown component when closed', async () => {

@@ -1243,7 +1243,10 @@
         "description": "スクリプト、参照資料、アセットを含むスキルフォルダー全体がゴミ箱に移動します。",
         "confirm": "ゴミ箱に移動"
       },
-      "sharedSkillsTitle": "共有スキル"
+      "sharedSkillsTitle": "共有スキル",
+      "search": "スキルを検索…",
+      "clearSearch": "検索をクリア",
+      "noMatches": "一致するスキルがありません。別の名前や説明を試してください。"
     },
     "codexSkills": {
       "modal": {

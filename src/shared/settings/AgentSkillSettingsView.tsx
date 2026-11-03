@@ -1,4 +1,5 @@
 import { setIcon } from 'obsidian';
+import { useRef, useState } from 'preact/hooks';
 
 import type { AgentSkillDiagnostic, AgentSkillDocument } from '../../core/skills/AgentSkill';
 import { t } from '../../i18n/i18n';
@@ -26,24 +27,54 @@ export function AgentSkillSettingsView({
   onEdit,
   onDelete,
 }: AgentSkillSettingsViewProps) {
+  const [query, setQuery] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
+  const filter = query.trim().toLocaleLowerCase();
+  const visibleSkills = skills.filter(skill => (
+    `${skill.name}\n${skill.description}`.toLocaleLowerCase().includes(filter)
+  ));
   return (
     <div className="claudian-agent-skills-view" aria-busy={status === 'loading'}>
-      <div className="claudian-sp-header claudian-agent-skills-header">
+      <div className="claudian-agent-skills-header">
         <div className="claudian-agent-skills-help">
           <div className="claudian-agent-skills-title-row">
             <h3 className="claudian-agent-skills-title">{t('settings.agentSkills.sharedSkillsTitle')}</h3>
-            <span className="claudian-agent-skills-count">{skills.length}</span>
+            {status === 'ready' && <span className="claudian-agent-skills-count">{skills.length}</span>}
           </div>
           <p>{t('settings.agentSkills.sharedExpectation')}</p>
         </div>
-        <div className="claudian-sp-header-actions">
+      </div>
+      <div className="claudian-agent-skills-toolbar">
+        <div className="claudian-agent-skills-search">
+          <SkillIcon icon="search" />
+          <input
+            ref={searchInput}
+            type="search"
+            value={query}
+            placeholder={t('settings.agentSkills.search')}
+            aria-label={t('settings.agentSkills.search')}
+            onInput={event => setQuery(event.currentTarget.value)}
+          />
+          {query && <IconButton
+            icon="x"
+            label={t('settings.agentSkills.clearSearch')}
+            onClick={() => {
+              setQuery('');
+              searchInput.current?.focus();
+            }}
+          />}
+        </div>
+        <div className="claudian-agent-skills-toolbar-actions">
           <IconButton
             icon="refresh-cw"
             label={t('common.refresh')}
             disabled={status === 'loading'}
             onClick={onRefresh}
           />
-          <IconButton icon="plus" label={t('common.add')} onClick={onAdd} />
+          <button type="button" className="claudian-agent-skills-add" onClick={onAdd}>
+            <SkillIcon icon="plus" />
+            {t('common.add')}
+          </button>
         </div>
       </div>
 
@@ -59,15 +90,20 @@ export function AgentSkillSettingsView({
         <>
           {skills.length === 0 ? (
             <div className="claudian-sp-empty-state">{t('settings.agentSkills.noSkills')}</div>
+          ) : visibleSkills.length === 0 ? (
+            <div className="claudian-sp-empty-state" role="status">
+              {t('settings.agentSkills.noMatches')}
+            </div>
           ) : (
             <div className="claudian-agent-skills-list" role="list">
-              {skills.map(skill => (
+              {visibleSkills.map(skill => (
                 <div className="claudian-agent-skills-row" role="listitem" key={`${skill.name}:${skill.revision}`}>
                   <div className="claudian-agent-skills-info">
                     <div className="claudian-agent-skills-name-line">
                       <button
                         type="button"
-                        className="claudian-sp-item-name claudian-agent-skill-item-link"
+                        className="claudian-sp-item-name claudian-agent-skill-item-link claudian-agent-skill-item-link--title"
+                        title={skill.name}
                         onClick={event => {
                           event.stopPropagation();
                           onOpen(skill);
@@ -75,11 +111,8 @@ export function AgentSkillSettingsView({
                       >
                         {skill.name}
                       </button>
-                      <span className="claudian-slash-item-badge">
-                        {t('settings.agentSkills.skillBadge')}
-                      </span>
                     </div>
-                    <div className="claudian-sp-item-desc" title={skill.description}>{skill.description}</div>
+                    <div className="claudian-agent-skills-description" title={skill.description}>{skill.description}</div>
                   </div>
                   <div className="claudian-agent-skills-actions">
                     <IconButton
@@ -138,9 +171,13 @@ function IconButton({ icon, label, disabled, className, onClick }: IconButtonPro
       disabled={disabled}
       onClick={onClick}
     >
-      <span aria-hidden="true" ref={element => {
-        if (element) setIcon(element, icon);
-      }} />
+      <SkillIcon icon={icon} />
     </button>
   );
+}
+
+function SkillIcon({ icon }: { icon: string }) {
+  return <span aria-hidden="true" ref={element => {
+    if (element) setIcon(element, icon);
+  }} />;
 }

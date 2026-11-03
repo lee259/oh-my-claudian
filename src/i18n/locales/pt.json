@@ -1243,7 +1243,10 @@
         "description": "A pasta inteira da habilidade, incluindo scripts, referências e recursos, será movida para a lixeira.",
         "confirm": "Mover para a lixeira"
       },
-      "sharedSkillsTitle": "Skills compartilhados"
+      "sharedSkillsTitle": "Skills compartilhados",
+      "search": "Pesquisar skills…",
+      "clearSearch": "Limpar pesquisa",
+      "noMatches": "Nenhuma skill encontrada. Tente outro nome ou descrição."
     },
     "codexSkills": {
       "modal": {

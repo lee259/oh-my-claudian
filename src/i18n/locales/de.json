@@ -1243,7 +1243,10 @@
         "description": "Der gesamte Skill-Ordner einschließlich Skripten, Referenzen und Ressourcen wird in den Papierkorb verschoben.",
         "confirm": "In den Papierkorb verschieben"
       },
-      "sharedSkillsTitle": "Gemeinsame Skills"
+      "sharedSkillsTitle": "Gemeinsame Skills",
+      "search": "Skills suchen…",
+      "clearSearch": "Suche löschen",
+      "noMatches": "Keine passenden Skills. Versuche einen anderen Namen oder eine Beschreibung."
     },
     "codexSkills": {
       "modal": {
