@@ -96,6 +96,14 @@ describe('Message styles', () => {
     );
   });
 
+  it('keeps folded narration selectable outside message content', () => {
+    const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+
+    expect(css).toMatch(
+      /\.claudian-completed-work-history,\s*\.claudian-streaming-work-history\s*{[^}]*user-select:\s*text;[^}]*-webkit-user-select:\s*text;/,
+    );
+  });
+
   it('applies the Oh My Claudian brand surface to user message content only', () => {
     const css = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
 

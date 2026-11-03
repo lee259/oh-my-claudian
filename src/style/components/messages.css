@@ -899,6 +899,8 @@ button.claudian-completed-work-header:focus-visible {
   overflow: visible;
   overscroll-behavior: auto;
   scrollbar-gutter: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .claudian-streaming-work-history > * {

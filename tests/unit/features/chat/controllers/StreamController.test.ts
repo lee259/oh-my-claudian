@@ -557,10 +557,6 @@ describe('StreamController - Text Content', () => {
         expect.anything(),
         'Hello'
       );
-      expect(deps.renderer.addTextCopyButton).toHaveBeenCalledWith(
-        expect.anything(),
-        'Hello'
-      );
       expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'text',
         content: 'Hello',
@@ -579,25 +575,18 @@ describe('StreamController - Text Content', () => {
         'Final $x^2$'
       );
       expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
-      expect(deps.renderer.addTextCopyButton).toHaveBeenCalledWith(
-        expect.anything(),
-        'Final $x^2$'
-      );
     });
   });
 
   describe('Text block finalization', () => {
-    it('should add copy button when finalizing text block with content', async () => {
+    it('should not add a per-block copy button while the turn is live', async () => {
       const msg = createTestMessage();
       deps.state.currentTextEl = createMockEl();
       deps.state.currentTextContent = 'Hello World';
 
       await controller.finalizeCurrentTextBlock(msg);
 
-      expect(deps.renderer.addTextCopyButton).toHaveBeenCalledWith(
-        expect.anything(),
-        'Hello World'
-      );
+      expect(deps.renderer.addTextCopyButton).not.toHaveBeenCalled();
       expect(msg.contentBlocks).toContainEqual(expect.objectContaining({
         type: 'text',
         content: 'Hello World',
@@ -2866,10 +2855,7 @@ describe('StreamController - Text Content', () => {
       expect(msg.contentBlocks).toContainEqual(
         expect.objectContaining({ type: 'text', content: 'Some text' })
       );
-      expect(deps.renderer.addTextCopyButton).toHaveBeenCalledWith(
-        expect.anything(),
-        'Some text'
-      );
+      expect(deps.renderer.addTextCopyButton).not.toHaveBeenCalled();
     });
 
     it('tool_use arrives while thinking state → finalizeCurrentThinkingBlock is called', async () => {
