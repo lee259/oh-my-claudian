@@ -285,7 +285,7 @@ function createContext(plugin: any): any {
   return {
     plugin,
     notifyProviderModelOptionsChanged: jest.fn(),
-    renderAgentSkillSettings: jest.fn(),
+
     renderCustomContextLimits: jest.fn(),
     renderHiddenProviderCommandSetting: jest.fn(),
   };
@@ -618,16 +618,12 @@ describe('GrokSettingsTab', () => {
     ]));
   });
 
-  it('renders only native skills, hidden runtime commands, MCP guidance, and the Grok Build environment scope', () => {
+  it('renders hidden runtime commands, MCP guidance, and the Grok Build environment scope', () => {
     const plugin = createPlugin();
     const context = createContext(plugin);
     const container = createContainer();
     grokSettingsTabRenderer.render(container, context);
 
-    expect(context.renderAgentSkillSettings).toHaveBeenCalledWith(
-      container,
-      'grok',
-    );
     expect(context.renderHiddenProviderCommandSetting).toHaveBeenCalledWith(
       container,
       'grok',

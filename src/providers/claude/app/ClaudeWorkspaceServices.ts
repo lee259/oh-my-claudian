@@ -25,6 +25,7 @@ import { resolveClaudeConfigDir } from '../config/ClaudeConfigDir';
 import { PluginManager } from '../plugins/PluginManager';
 import { ClaudeCliResolver } from '../runtime/ClaudeCliResolver';
 import { ClaudeModelCatalog } from '../runtime/ClaudeModelCatalog';
+import { ClaudeSkillMigration } from '../skills/ClaudeSkillMigration';
 import { StorageService } from '../storage/StorageService';
 import { claudeSettingsTabRenderer } from '../ui/ClaudeSettingsTab';
 
@@ -92,6 +93,7 @@ export async function createClaudeWorkspaceServices(
   let disposePromise: Promise<void> | null = null;
 
   return {
+    skillMigration: new ClaudeSkillMigration(adapter),
     claudeStorage,
     cliResolver,
     mcpStorage,

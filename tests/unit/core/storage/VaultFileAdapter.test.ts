@@ -59,6 +59,7 @@ describe('VaultFileAdapter', () => {
       exists: jest.fn(),
       read: jest.fn(),
       write: jest.fn(),
+      writeBinary: jest.fn(),
       remove: jest.fn(),
       rename: jest.fn(),
       list: jest.fn(),
@@ -702,6 +703,33 @@ describe('VaultFileAdapter', () => {
       await expect(vaultAdapter.createManagedFolderExclusive('.agents/skills/existing'))
         .rejects.toMatchObject({ name: 'ManagedResourceCollisionError' });
       expect(mockAdapter.mkdir).not.toHaveBeenCalled();
+    });
+
+    it('refuses exclusive binary writes when the adapter cannot guarantee them', async () => {
+      mockAdapter.stat.mockResolvedValue({ type: 'folder', ctime: 0, mtime: 0, size: 0 });
+      await expect(vaultAdapter.writeManagedBinaryFile('.agents/skills/a/file', new Uint8Array([1]).buffer))
+        .rejects.toThrow('filesystem-backed');
+      expect(mockAdapter.writeBinary).not.toHaveBeenCalled();
+    });
+
+    it('creates binary files exclusively without replacing an existing file', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-exclusive-'));
+      try {
+        await fs.mkdir(path.join(root, 'skills'));
+        const files = new VaultFileAdapter({ vault: { adapter: createDesktopFsAdapter(root) } } as unknown as App);
+        await files.createManagedFolderExclusive('skills/private', 0o700);
+        const privateMode = (await fs.stat(path.join(root, 'skills', 'private'))).mode & 0o777;
+        expect(process.platform === 'win32' || privateMode === 0o700).toBe(true);
+        await files.writeManagedBinaryFile('skills/test', new Uint8Array([1, 2]).buffer);
+        await expect(files.writeManagedBinaryFile('skills/test', new Uint8Array([3]).buffer))
+          .rejects.toBeInstanceOf(ManagedResourceCollisionError);
+        expect([...await fs.readFile(path.join(root, 'skills', 'test'))]).toEqual([1, 2]);
+        await files.writeManagedBinaryFile('skills/script', new Uint8Array([1]).buffer, 0o755);
+        const scriptMode = (await fs.stat(path.join(root, 'skills', 'script'))).mode & 0o777;
+        expect(process.platform === 'win32' || scriptMode === 0o755).toBe(true);
+      } finally {
+        await fs.rm(root, { force: true, recursive: true });
+      }
     });
 
     it('reports a race-lost exclusive directory claim as a collision', async () => {

@@ -43,6 +43,7 @@ export interface OmpAcpSessionKernelOptions {
    * removed on dispose.
    */
   readonly isolateNativeSessions?: boolean;
+  readonly sessionDirectory?: string;
   readonly modelSelector?: string;
   readonly onClosed: (error: Error) => void;
   readonly onNotification: (notification: AcpSessionNotification) => void;
@@ -107,7 +108,9 @@ export class DefaultOmpAcpSessionKernel implements OmpAcpSessionKernel {
       command,
       cwd: this.options.config.vaultWorkingDirectory,
       env: environment,
-      ...(this.isolatedSessionDirectory ? { sessionDirectory: this.isolatedSessionDirectory } : {}),
+      ...(this.isolatedSessionDirectory || this.options.sessionDirectory
+        ? { sessionDirectory: this.isolatedSessionDirectory ?? this.options.sessionDirectory }
+        : {}),
       settings,
       modelSelector: this.options.modelSelector,
     });

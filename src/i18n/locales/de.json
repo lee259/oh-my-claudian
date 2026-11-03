@@ -1576,10 +1576,7 @@
     "commands": "Befehle",
     "loadingProvider": "{provider}-Einstellungen werden geladen…",
     "learnMore": "Mehr erfahren",
-    "claude": {
-      "defaultModel": "Standardmodell",
-      "defaultModelDesc": "Wird genutzt, wenn eine neue Unterhaltung ein Claude Code-Ersatzmodell benötigt."
-    },
+    "claude": {},
     "environmentOwnership": "Zuständigkeit für Umgebungsvariablen prüfen: {keys}",
     "modelDiscoveryFailed": "{provider}-Modellerkennung fehlgeschlagen: {error}",
     "discoveryFailed": "{provider}-Erkennung fehlgeschlagen: {error}",
@@ -1588,7 +1585,29 @@
     "environmentRebuild": "Umgebungsvariablen angewendet. Sitzungen werden bei der nächsten Nachricht neu aufgebaut.",
     "modelCatalogFailed": "Aktualisierung des Modellkatalogs fehlgeschlagen:\n{error}",
     "saveTabLayoutFailed": "Tab-Anordnung konnte nicht gespeichert werden",
-    "loadSubagentFailed": "Unteragent „{name}“ konnte nicht geladen werden: {message}"
+    "loadSubagentFailed": "Unteragent „{name}“ konnte nicht geladen werden: {message}",
+    "skillMigration": {
+      "title": "Claude-Skills und Befehle importieren",
+      "desc": "Claude-Dateien im Vault vor dem Kopieren in gemeinsame Skills prüfen. Die Originale bleiben erhalten.",
+      "preview": "Importvorschau",
+      "empty": "Keine Claude-Skills oder Befehle gefunden.",
+      "copy": "In gemeinsame Skills kopieren",
+      "confirmTitle": "Skill-Kopie bestätigen",
+      "confirmDesc": "{source} nach .agents/skills/{name} kopieren? Das Original bleibt erhalten.",
+      "failed": "Import fehlgeschlagen. Vorschau aktualisieren und erneut versuchen.",
+      "warnings": {
+        "frontmatter": "Enthält anbieterspezifische Metadaten. Kompatibilität prüfen.",
+        "syntax": "Kann Claude-spezifische Syntax enthalten.",
+        "invalid": "Kann nicht sicher konvertiert werden.",
+        "extraFiles": "Zusätzliche Dateien:",
+        "conflict": "Ein gemeinsamer Skill mit diesem Namen existiert bereits.",
+        "nonPortablePaths": "Diese Pfade sind nicht auf allen unterstützten Desktop-Plattformen verwendbar.",
+        "generatedDescription": "Die obige Beschreibung wurde aus den ursprünglichen Anweisungen abgeleitet.",
+        "renamed": "Aus dem Claude-Befehl „{name}“ umbenannt.",
+        "duplicateName": "Mehrere Claude-Dateien ergeben denselben gemeinsamen Skill-Namen. Beheben Sie die Doppelung vor dem Kopieren."
+      },
+      "previewContent": "Kopierten Inhalt anzeigen"
+    }
   },
   "inlineEdit": {
     "insert": "Anweisungen zum Einfügen…",

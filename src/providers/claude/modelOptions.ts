@@ -124,7 +124,7 @@ function findDiscoveredFamilyModel(
   }, undefined)?.candidate;
 }
 
-export function getClaudeModelOptions(settings: Record<string, unknown>): ClaudeModelOption[] {
+export function getClaudeModelCatalog(settings: Record<string, unknown>): ClaudeModelOption[] {
   const customModelAliases = normalizeCustomModelAliases(settings.customModelAliases);
   const userModelEnvironment = getClaudeUserSettingsModelEnvironment();
   const customModels = getModelsFromEnvironment(
@@ -196,20 +196,8 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
     const seenModelIds = new Set(options.map(option =>
       normalizeLegacyClaudeModelAlias(toClaudeRuntimeModelId(option.value))
     ));
-    const visibleModelIds = claudeSettings.visibleModels?.map(toClaudeRuntimeModelId) ?? null;
     for (const discovered of discoveredModels) {
       const modelId = toClaudeRuntimeModelId(discovered.value);
-      const discoveredIdentities = [modelId, discovered.resolvedModel]
-        .filter((identity): identity is string => Boolean(identity))
-        .map(toClaudeRuntimeModelId);
-      const isVisible = visibleModelIds === null || visibleModelIds.some(visibleId =>
-        discoveredIdentities.includes(visibleId)
-        || findDiscoveredFamilyModel(discoveredModels, visibleId)?.value === discovered.value
-      );
-      if (!isVisible) {
-        continue;
-      }
-
       const normalizedModelId = normalizeLegacyClaudeModelAlias(modelId);
       if (seenModelIds.has(normalizedModelId)) {
         continue;
@@ -287,6 +275,29 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
   }
 
   return models;
+}
+
+export function getClaudeModelOptions(settings: Record<string, unknown>): ClaudeModelOption[] {
+  const catalog = getClaudeModelCatalog(settings);
+  const selected = getClaudeProviderSettings(settings).visibleModels;
+  if (selected === null) return catalog;
+  const discovered = getClaudeProviderSettings(settings).discoveredModels;
+  const seen = new Set<string>();
+  return selected.flatMap(model => {
+    const option = findClaudeCatalogOption(catalog, discovered, model);
+    if (!option || seen.has(option.value)) return [];
+    seen.add(option.value);
+    return [option];
+  });
+}
+
+export function findClaudeCatalogOption(
+  catalog: readonly ClaudeModelOption[], discovered: readonly ClaudeDiscoveredModel[], model: string,
+): ClaudeModelOption | undefined {
+  const runtimeId = toClaudeRuntimeModelId(model);
+  const alias = discovered.find(item => item.resolvedModel && toClaudeRuntimeModelId(item.resolvedModel) === runtimeId);
+  return findClaudeModelOption(catalog, model)
+    ?? (alias ? findClaudeModelOption(catalog, alias.value) : undefined);
 }
 
 export function findClaudeModelOption(

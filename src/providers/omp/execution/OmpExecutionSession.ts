@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 import type {
   ProviderExecutionEvent,
@@ -132,6 +135,9 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private kernelRoleSelector: string | undefined;
   private nativeModelId: string | undefined;
   private readonly roleResolutions = new Set<Promise<unknown>>();
+  private readonly isolated: boolean;
+  private sessionDirectory: string | null = null;
+  private directoryPreparation: Promise<string> | null = null;
 
   constructor(
     private readonly plugin: ProviderHost,
@@ -139,8 +145,9 @@ export class OmpExecutionSession implements ProviderExecutionSession {
     options: OmpExecutionSessionOptions = {},
   ) {
     this.createKernel = options.createKernel ?? (kernelOptions => new DefaultOmpAcpSessionKernel(kernelOptions));
-    this.nativeSessionId = config.resumeSeed?.providerSessionId ?? null;
-    this.selection = readOmpSessionSelection(config.resumeSeed?.providerState);
+    this.isolated = config.lifecycle === 'ephemeral' && config.nativePersistence === 'disabled-if-supported';
+    this.nativeSessionId = this.isolated ? null : config.resumeSeed?.providerSessionId ?? null;
+    this.selection = this.isolated ? null : readOmpSessionSelection(config.resumeSeed?.providerState);
     this.snapshot = this.makeSnapshot('idle');
   }
 
@@ -171,11 +178,17 @@ export class OmpExecutionSession implements ProviderExecutionSession {
     this.activeRun?.finish({ reason: 'session-disposed', scope: this.activeRun.scope(), type: 'cancelled' });
     this.activeRun = null;
     this.snapshot = this.makeSnapshot('disposed');
+    const pendingDirectory = this.directoryPreparation;
     await Promise.allSettled([
       ...this.roleResolutions,
       ...(this.kernel ? [this.kernel.dispose()] : []),
     ]);
     this.kernel = null;
+    const preparedDirectory = pendingDirectory ? await pendingDirectory.catch(() => null) : null;
+    const directory = this.sessionDirectory ?? preparedDirectory;
+    this.sessionDirectory = null;
+    this.directoryPreparation = null;
+    if (directory) await fs.rm(directory, { force: true, recursive: true }).catch(() => undefined);
     this.listeners.clear();
   }
 
@@ -217,9 +230,22 @@ export class OmpExecutionSession implements ProviderExecutionSession {
         this.kernelApprovalMode = null;
       }
       if (!this.kernel) {
+        if (this.disposed || run.terminal) return;
+        if (this.isolated && !this.sessionDirectory) {
+          const preparation = fs.mkdtemp(path.join(os.tmpdir(), 'claudian-omp-session-'));
+          this.directoryPreparation = preparation;
+          const directory = await preparation;
+          if (this.directoryPreparation === preparation) this.directoryPreparation = null;
+          if (this.disposed || run.terminal) {
+            await fs.rm(directory, { force: true, recursive: true }).catch(() => undefined);
+            return;
+          }
+          this.sessionDirectory = directory;
+        }
         this.kernel = this.createKernel({
           approvalMode,
           modelSelector: role,
+          ...(this.sessionDirectory ? { sessionDirectory: this.sessionDirectory } : {}),
           config: this.config,
           getActiveTurnId: () => this.activeRun?.turnId ?? null,
           onClosed: error => {
