@@ -9,6 +9,7 @@ export class VaultFileCache {
   private cachedFiles: TFile[] = [];
   private dirty = true;
   private isInitialized = false;
+  private folderRecencies: ReadonlyMap<string, number> | null = null;
 
   constructor(
     private app: App,
@@ -26,6 +27,22 @@ export class VaultFileCache {
 
   markDirty(): void {
     this.dirty = true;
+    this.folderRecencies = null;
+  }
+
+  getFolderRecencies(): ReadonlyMap<string, number> {
+    const files = this.getFiles();
+    if (this.folderRecencies) return this.folderRecencies;
+    const recencies = new Map<string, number>();
+    for (const file of files) {
+      const parts = file.path.split('/');
+      for (let index = 1; index < parts.length; index++) {
+        const path = parts.slice(0, index).join('/');
+        if (file.stat.mtime > (recencies.get(path) ?? 0)) recencies.set(path, file.stat.mtime);
+      }
+    }
+    if (!this.dirty) this.folderRecencies = recencies;
+    return recencies;
   }
 
   getFiles(): TFile[] {
