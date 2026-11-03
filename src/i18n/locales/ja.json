@@ -1576,10 +1576,7 @@
     "commands": "コマンド",
     "loadingProvider": "{provider} の設定を読み込み中…",
     "learnMore": "詳細を見る",
-    "claude": {
-      "defaultModel": "既定のモデル",
-      "defaultModelDesc": "新しい会話で Claude Code の代替モデルが必要な場合に使用します。"
-    },
+    "claude": {},
     "environmentOwnership": "環境変数の管理元を確認してください: {keys}",
     "modelDiscoveryFailed": "{provider} のモデル検出に失敗しました: {error}",
     "discoveryFailed": "{provider} の検出に失敗しました: {error}",

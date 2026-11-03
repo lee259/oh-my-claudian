@@ -1576,10 +1576,7 @@
     "commands": "명령어",
     "loadingProvider": "{provider} 설정을 불러오는 중…",
     "learnMore": "자세히 알아보기",
-    "claude": {
-      "defaultModel": "기본 모델",
-      "defaultModelDesc": "새 대화에서 Claude Code 대체 모델이 필요할 때 사용합니다."
-    },
+    "claude": {},
     "environmentOwnership": "환경 변수 소유권을 확인하세요: {keys}",
     "modelDiscoveryFailed": "{provider} 모델 검색 실패: {error}",
     "discoveryFailed": "{provider} 검색 실패: {error}",
