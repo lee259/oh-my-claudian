@@ -20,6 +20,23 @@ describe('VaultFileCache', () => {
   });
 
   describe('getFiles', () => {
+    it('reuses folder recency until invalidated and rebuilds from refreshed or stale files', () => {
+      const file = { path: 'one/nested/a.md', stat: { mtime: 10 } } as TFile;
+      mockApp.vault.getFiles = jest.fn().mockReturnValue([file]);
+      const cache = new VaultFileCache(mockApp);
+      const first = cache.getFolderRecencies();
+      expect(first.get('one')).toBe(10);
+      expect(first.get('one/nested')).toBe(10);
+      expect(cache.getFolderRecencies()).toBe(first);
+      file.path = 'two/a.md';
+      file.stat.mtime = 20;
+      cache.markDirty();
+      jest.mocked(mockApp.vault.getFiles).mockImplementationOnce(() => { throw new Error('unavailable'); });
+      const refreshed = cache.getFolderRecencies();
+      expect(refreshed.get('one')).toBeUndefined();
+      expect(refreshed.get('two')).toBe(20);
+      expect(refreshed).not.toBe(first);
+    });
     it('should return cached files on first call', () => {
       const cache = new VaultFileCache(mockApp);
       const files = cache.getFiles();

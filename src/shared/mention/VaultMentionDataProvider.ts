@@ -42,6 +42,10 @@ export class VaultMentionDataProvider {
     return this.fileCache.getFiles();
   }
 
+  getFolderRecencies(): ReadonlyMap<string, number> {
+    return this.fileCache.getFolderRecencies();
+  }
+
   getCachedVaultFolders(): Array<{ name: string; path: string }> {
     return this.folderCache.getFolders().map(folder => ({
       name: folder.name,

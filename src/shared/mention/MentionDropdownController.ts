@@ -32,6 +32,7 @@ export interface MentionDropdownCallbacks {
   getExternalContexts: () => string[];
   getCachedVaultFolders: () => Array<Pick<FolderMentionItem, 'name' | 'path'>>;
   getCachedVaultFiles: () => TFile[];
+  getFolderRecencies?: () => ReadonlyMap<string, number>;
   normalizePathForVault: (path: string | undefined | null) => string | null;
 }
 
@@ -511,14 +512,17 @@ export class MentionDropdownController {
     const allFiles = this.callbacks.getCachedVaultFiles();
 
     // Derive folder mtime from the most recently modified file within each folder
-    const folderMtimeMap = new Map<string, number>();
-    for (const f of allFiles) {
-      const parts = f.path.split('/');
-      for (let i = 1; i < parts.length; i++) {
-        const folderPath = parts.slice(0, i).join('/');
-        const existing = folderMtimeMap.get(folderPath) ?? 0;
-        if (f.stat.mtime > existing) {
-          folderMtimeMap.set(folderPath, f.stat.mtime);
+    const fallbackRecencies = new Map<string, number>();
+    const folderMtimeMap = this.callbacks.getFolderRecencies?.() ?? fallbackRecencies;
+    if (!this.callbacks.getFolderRecencies) {
+      for (const f of allFiles) {
+        const parts = f.path.split('/');
+        for (let i = 1; i < parts.length; i++) {
+          const folderPath = parts.slice(0, i).join('/');
+          const existing = fallbackRecencies.get(folderPath) ?? 0;
+          if (f.stat.mtime > existing) {
+            fallbackRecencies.set(folderPath, f.stat.mtime);
+          }
         }
       }
     }

@@ -120,6 +120,7 @@ export class FileContextManager {
         getExternalContexts: () => this.callbacks.getExternalContexts?.() || [],
         getCachedVaultFolders: () => this.mentionDataProvider.getCachedVaultFolders(),
         getCachedVaultFiles: () => this.mentionDataProvider.getCachedVaultFiles(),
+        getFolderRecencies: () => this.mentionDataProvider.getFolderRecencies(),
         normalizePathForVault: (rawPath) => this.normalizePathForVault(rawPath),
       }
     );

@@ -794,8 +794,11 @@ describe('MentionDropdownController', () => {
       localController.destroy();
     });
 
-    it('prioritizes name starts-with matches then sorts by mtime', () => {
+    it.each([false, true])('prioritizes name starts-with matches then sorts by mtime (cached: %s)', cached => {
       const localCallbacks = createMockCallbacks({
+        ...(cached ? { getFolderRecencies: () => new Map([
+          ['src-core', 3000], ['src-app', 1000], ['lib/src-utils', 2000],
+        ]) } : {}),
         getCachedVaultFolders: jest.fn().mockReturnValue([
           { name: 'helpers', path: 'lib/src-utils' },
           { name: 'src-core', path: 'src-core' },
