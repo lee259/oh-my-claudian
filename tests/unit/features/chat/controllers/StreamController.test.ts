@@ -2214,6 +2214,19 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Thinking block finalization', () => {
+    it('renders completed collapsed reasoning before the user expands it', async () => {
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Reasoning $x^2$' }, msg);
+      await controller.finalizeCurrentThinkingBlock(msg);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(expect.anything(), 'Reasoning $x^2$');
+    });
+    it('renders long collapsed reasoning as Markdown before expansion', async () => {
+      const msg = createTestMessage();
+      const content = 'long reasoning '.repeat(STREAMING_RENDER_PLAIN_TEXT_THRESHOLD);
+      await controller.handleStreamChunk({ type: 'thinking', content }, msg);
+      await controller.finalizeCurrentThinkingBlock(msg);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(expect.anything(), content);
+    });
     it('does not create or persist a whitespace-only thinking block', async () => {
       const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
       const msg = createTestMessage();
@@ -2360,38 +2373,31 @@ describe('StreamController - Text Content', () => {
       );
     });
 
-    it('should defer collapsed thinking math until the block is expanded', async () => {
+    it('should render original math once when finalizing a collapsed thinking block', async () => {
       const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
       const msg = createTestMessage();
       const contentEl = createMockEl();
-      const thinkingState: Record<string, any> = {
+      createThinkingBlock.mockReturnValueOnce({
         wrapperEl: createMockEl(),
         contentEl,
         labelEl: createMockEl(),
         content: '',
         startTime: Date.now(),
         isExpanded: false,
-      };
-      let onToggle: ((isExpanded: boolean) => void) | undefined;
-      createThinkingBlock.mockImplementationOnce((_parentEl: HTMLElement, options: any) => {
-        onToggle = options.onToggle;
-        return thinkingState;
       });
 
       await controller.handleStreamChunk({ type: 'thinking', content: 'Reasoning $x^2$' }, msg);
       await controller.finalizeCurrentThinkingBlock(msg);
 
-      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+      expect(deps.renderer.renderContent).toHaveBeenNthCalledWith(
+        1,
+        contentEl,
+        'Reasoning $x^2$'
+      );
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
       expect(msg.contentBlocks).toContainEqual(
         expect.objectContaining({ type: 'thinking', content: 'Reasoning $x^2$' })
       );
-
-      thinkingState.isExpanded = true;
-      onToggle?.(true);
-      await Promise.resolve();
-
-      expect(deps.renderer.renderContent).toHaveBeenCalledWith(contentEl, 'Reasoning $x^2$');
-      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
     });
 
     it('should replace deferred math when finalizing an expanded thinking block', async () => {
@@ -2532,7 +2538,7 @@ describe('StreamController - Text Content', () => {
       expect(contentEl.scrollTop).toBe(400);
     });
 
-    it('should skip live and final renders while thinking is collapsed', async () => {
+    it('should skip live renders while thinking is collapsed', async () => {
       const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
       const msg = createTestMessage();
       const contentEl = createMockEl();
@@ -2554,7 +2560,8 @@ describe('StreamController - Text Content', () => {
 
       await controller.finalizeCurrentThinkingBlock(msg);
 
-      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(contentEl, 'Hidden reasoning');
     });
 
     it('renders oversized expanded thinking as plain text and restores Markdown at finalization', async () => {
@@ -2620,13 +2627,16 @@ describe('StreamController - Text Content', () => {
       );
     });
 
-    it('should leave collapsed thinking unrendered at finalization', async () => {
+    it('should flush a pending thinking render before finalizing', async () => {
       const msg = createTestMessage();
 
       await controller.handleStreamChunk({ type: 'thinking', content: 'Reasoning' }, msg);
       await controller.finalizeCurrentThinkingBlock(msg);
 
-      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        expect.anything(),
+        'Reasoning'
+      );
       expect(msg.contentBlocks).toContainEqual(
         expect.objectContaining({ type: 'thinking', content: 'Reasoning' })
       );

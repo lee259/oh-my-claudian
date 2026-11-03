@@ -23,7 +23,6 @@ Detailed tab membership, tab lifecycle, and snapshot rules live in `tabs/AGENTS.
 - `ChatState.response` owns the open text and thinking cursor through `ResponseModel`; foreground and background responses must use separate model instances.
 - Message content blocks and tool/subagent records must update without a mounted content element. DOM handles and rendering timers are presentation only; do not use them to decide whether provider output is retained.
 - A stored transcript may render only a suffix of its messages. Resolve older messages through `MessageRenderer.revealMessage` or `revealAllMessages`; opening the navigation directory reveals the prefix before reading DOM titles.
-- Collapsed thinking blocks do not render live or final Markdown. Discard pending live renders at finalization, then render final Markdown once on demand when the completed block is expanded.
 
 ## Interaction State
 
