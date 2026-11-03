@@ -221,7 +221,6 @@ export class StreamController {
           && thinkingState.isExpanded
           && (this.deps.plugin.settings.enableAutoScroll ?? true)
           && viewport?.following;
-        let renderedFinalMarkdown = false;
         if (snapshot.preferPlainText) {
           this.renderPlainTextStreaming(el, content);
         } else {
@@ -233,13 +232,7 @@ export class StreamController {
             await this.deps.renderer.renderContent(el, content, options);
           } else {
             await this.deps.renderer.renderContent(el, content);
-            renderedFinalMarkdown = true;
           }
-        }
-        if (renderedFinalMarkdown
-          && thinkingState?.contentEl === el
-          && thinkingState.content === content) {
-          thinkingState.finalMarkdownContent = content;
         }
         if (followThinking
           && this.deps.state.currentThinkingState === thinkingState
@@ -1626,28 +1619,17 @@ export class StreamController {
 
     const thinkingState = state.currentThinkingState;
     this.cancelPendingThinkingLabelRefresh();
-    if (thinkingState?.isExpanded) {
-      const finalOptions = thinkingState.presentation !== 'status'
-        ? this.getStreamingRenderOptions(thinkingState.content)
-        : undefined;
-      if (thinkingState.presentation !== 'status'
-        && (this.plainTextStreamingElements.has(thinkingState.contentEl) || finalOptions)) {
-        this.thinkingRenderCoordinator.request({
-          el: thinkingState.contentEl,
-          content: thinkingState.content,
-          shouldFollowScroll: this.shouldFollowScroll(),
-          preferPlainText: false,
-        });
-      }
-      await this.thinkingRenderCoordinator.flush();
-    } else {
-      this.thinkingRenderCoordinator.cancel();
+    if (thinkingState && thinkingState.presentation !== 'status') {
+      this.thinkingRenderCoordinator.request({
+        el: thinkingState.contentEl,
+        content: thinkingState.content,
+        shouldFollowScroll: this.shouldFollowScroll(),
+        preferPlainText: false,
+      });
     }
+    await this.thinkingRenderCoordinator.flush();
 
-    if (thinkingState) {
-      thinkingState.isFinalized = true;
-      finalizeThinkingBlock(thinkingState);
-    }
+    if (thinkingState) finalizeThinkingBlock(thinkingState);
     const completed = state.response.takeThinking();
 
     if (msg && completed) {
@@ -1667,27 +1649,7 @@ export class StreamController {
     thinkingState: ThinkingBlockState,
     isExpanded: boolean
   ): void {
-    if (this.deps.state.currentThinkingState !== thinkingState) {
-      if (!thinkingState.isFinalized
-        || !isExpanded
-        || thinkingState.finalMarkdownContent === thinkingState.content) {
-        return;
-      }
-
-      const content = thinkingState.content;
-      thinkingState.finalMarkdownContent = content;
-      thinkingState.contentEl.removeClass('claudian-streaming-plain-text');
-      void (async () => {
-        try {
-          await this.deps.renderer.renderContent(thinkingState.contentEl, content);
-        } catch {
-          if (thinkingState.content !== content) return;
-          thinkingState.finalMarkdownContent = undefined;
-          thinkingState.contentEl.setText(content);
-        }
-      })();
-      return;
-    }
+    if (this.deps.state.currentThinkingState !== thinkingState) return;
 
     thinkingState.isExpanded = isExpanded;
     if (isExpanded && (this.deps.plugin.settings.enableAutoScroll ?? true)) {

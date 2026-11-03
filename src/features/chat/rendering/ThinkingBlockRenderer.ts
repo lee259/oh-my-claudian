@@ -12,8 +12,6 @@ export interface ThinkingBlockState {
   startTime: number;
   timerInterval: number | null;
   isExpanded: boolean;
-  isFinalized?: boolean;
-  finalMarkdownContent?: string;
 }
 
 export interface ThinkingBlockOptions {
@@ -74,8 +72,6 @@ export function createThinkingBlock(
     startTime,
     timerInterval: null,
     isExpanded: false,
-    isFinalized: false,
-    finalMarkdownContent: '',
   };
 
   state.timerInterval = window.setInterval(() => {
