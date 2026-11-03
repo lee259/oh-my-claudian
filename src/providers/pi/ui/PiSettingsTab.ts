@@ -169,8 +169,6 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setHeading();
     renderPiModelPicker(container, modelWarning.context, settingsBag);
 
-    new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
-    context.renderAgentSkillSettings(container, 'pi');
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, 'pi', {

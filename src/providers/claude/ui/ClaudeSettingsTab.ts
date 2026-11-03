@@ -12,14 +12,14 @@ import { renderHostnameCliPathSetting } from '../../../shared/settings/HostnameC
 import { McpSettingsManager } from '../../../shared/settings/McpSettingsManager';
 import { renderProviderAdditionalArgumentsSetting } from '../../../shared/settings/ProviderAdditionalArgumentsSetting';
 import { renderProviderEnablementSetting } from '../../../shared/settings/ProviderEnablementSetting';
-import { renderLastEnabledProviderWarning } from '../../../shared/settings/ProviderModelEnablementWarning';
+import { renderLastEnabledProviderWarning, renderProviderModelEnablementWarning } from '../../../shared/settings/ProviderModelEnablementWarning';
 import { renderProviderReadinessPanel } from '../../../shared/settings/ProviderReadinessPanel';
 import { getHostnameKey } from '../../../utils/env';
 import { normalizeConfiguredCliPath } from '../../../utils/path';
 import { getClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
 import {
+  getClaudeModelCatalog,
   getClaudeModelOptions,
-  resolveClaudeModelEnvironmentTypePreference,
   resolveClaudeModelSelection,
 } from '../modelOptions';
 import { claudeCliMetadata } from '../runtime/ClaudeCliMetadata';
@@ -31,6 +31,7 @@ import {
 } from '../settings';
 import { AgentSettings } from './AgentSettings';
 import { claudeChatUIConfig } from './ClaudeChatUIConfig';
+import { renderClaudeModelPicker } from './ClaudeModelPicker';
 import { PluginSettingsManager } from './PluginSettingsManager';
 import { SlashCommandSettings } from './SlashCommandSettings';
 
@@ -39,7 +40,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const claudeWorkspace = getClaudeWorkspaceServices();
     const settingsBag = context.plugin.settings as unknown as Record<string, unknown>;
     const claudeSettings = getClaudeProviderSettings(settingsBag);
-    let refreshDefaultModelOptions = (): void => {};
+    let refreshModelPicker = (): void => {};
     let refreshCliInstallationSummary = async (): Promise<void> => {};
     const readinessPanel = renderProviderReadinessPanel({
       container,
@@ -47,14 +48,13 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       providerName: 'Claude Code',
       async getSnapshot() {
         const current = getClaudeProviderSettings(settingsBag);
-        const modelOptions = getClaudeModelOptions(settingsBag);
         return assessProviderReadiness({
           cliAvailable: context.plugin.cliLifecycle?.getSnapshot('claude')
             ? context.plugin.cliLifecycle.getSnapshot('claude')?.status === 'ready' : undefined,
           cliPath: typeof context.plugin.getResolvedProviderCliPath === 'function'
             ? await context.plugin.getResolvedProviderCliPath('claude')
             : null,
-          discoveredModelCount: modelOptions.length,
+          discoveredModelCount: getClaudeModelCatalog(settingsBag).length,
           enabled: current.enabled,
           selectedModelCount: resolveClaudeModelSelection(
             settingsBag,
@@ -71,8 +71,9 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         if (modelCatalogResult?.diagnostics) {
           new Notice(t('settings.modelRefreshFailed', { provider: 'Claude Code', error: modelCatalogResult.diagnostics }));
         }
-        refreshDefaultModelOptions();
+        refreshModelPicker();
         context.notifyProviderModelOptionsChanged('claude');
+        modelWarning.refresh();
       },
     });
     const management = readinessPanel.management;
@@ -124,11 +125,18 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
           lastProviderWarning.showFor();
         }
         context.notifyProviderModelOptionsChanged('claude');
+        modelWarning.refresh();
         await readinessPanel.refresh();
       },
     });
 
     const lastProviderWarning = renderLastEnabledProviderWarning(management);
+    const modelWarning = renderProviderModelEnablementWarning(management, context, {
+      getHasEnabledModels: () => getClaudeModelOptions(settingsBag).length > 0,
+      getIsEnabled: () => getClaudeProviderSettings(settingsBag).enabled,
+      providerId: 'claude',
+      providerName: 'Claude Code',
+    });
 
     const hostnameKey = getHostnameKey();
     const platformDesc = process.platform === 'win32'
@@ -187,32 +195,11 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.models')).setHeading();
 
-    new Setting(container)
-      .setName(t('settings.claude.defaultModel'))
-      .setDesc(t('settings.claude.defaultModelDesc'))
-      .addDropdown((dropdown) => {
-        const populateOptions = (): void => {
-          dropdown.selectEl.replaceChildren();
-          for (const option of getClaudeModelOptions(settingsBag)) {
-            dropdown.addOption(option.value, option.label);
-          }
-          dropdown.setValue(claudeChatUIConfig.getDefaultModel?.(settingsBag) ?? '');
-        };
-        refreshDefaultModelOptions = populateOptions;
-        populateOptions();
-        dropdown
-          .onChange(async (value) => {
-            await context.plugin.mutateSettings((settings) => {
-              const preference = resolveClaudeModelEnvironmentTypePreference(
-                getClaudeModelOptions(settings),
-                value,
-              );
-              updateClaudeProviderSettings(settings, {
-                defaultModel: preference ?? value,
-              });
-            });
-          });
+    const modelPicker = renderClaudeModelPicker(container, modelWarning.context, claudeWorkspace,
+      reconcileActiveClaudeModelSelection, () => {
+        void readinessPanel.refresh();
       });
+    refreshModelPicker = () => modelPicker.refresh();
 
     new Setting(container)
       .setName(t('settings.customModels.name'))
@@ -234,6 +221,8 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
           });
           savedCustomModels = nextCustomModels;
           context.notifyProviderModelOptionsChanged('claude');
+          modelWarning.refresh();
+          refreshModelPicker();
           await readinessPanel.refresh();
         };
 

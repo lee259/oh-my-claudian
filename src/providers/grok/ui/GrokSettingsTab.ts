@@ -178,8 +178,6 @@ export const grokSettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container).setName(t('settings.models')).setHeading();
     renderGrokModelPicker(container, modelWarning.context, settingsBag, refreshModelCatalog);
 
-    new Setting(container).setName(t('settings.agentSkills.sectionTitle')).setHeading();
-    context.renderAgentSkillSettings(container, GROK_PROVIDER_ID);
 
     new Setting(container).setName(t('settings.commands')).setHeading();
     context.renderHiddenProviderCommandSetting(container, GROK_PROVIDER_ID, {

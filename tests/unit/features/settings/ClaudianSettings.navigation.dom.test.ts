@@ -27,6 +27,16 @@ it('provides a valid navigation example that can be pasted and saved', async () 
   const tab = new ClaudianSettingTab({} as any, plugin as any);
   tab.containerEl = document.createElement('div');
   tab.display();
+  const skillsTab = tab.containerEl.querySelector<HTMLButtonElement>('#claudian-settings-tab-skills');
+  const skillsPanel = tab.containerEl.querySelector<HTMLElement>('[aria-labelledby="claudian-settings-tab-skills"]');
+  expect(skillsPanel?.hidden).toBe(true);
+  skillsTab?.click();
+  expect(skillsPanel?.hidden).toBe(false);
+  expect(skillsPanel?.textContent).toContain('Manage shared skills in .agents/skills/');
+  expect(skillsPanel?.querySelectorAll('.claudian-agent-skills-view')).toHaveLength(1);
+  tab.containerEl.querySelector<HTMLButtonElement>('#claudian-settings-tab-general')?.click();
+  skillsTab?.click();
+  expect(skillsPanel?.querySelectorAll('.claudian-agent-skills-view')).toHaveLength(1);
   const textarea = tab.containerEl.querySelector<HTMLTextAreaElement>('.claudian-settings-nav-mappings-textarea');
   if (!textarea) throw new Error('Expected navigation mappings');
 

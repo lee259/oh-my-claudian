@@ -4,6 +4,7 @@ import type {
   AgentSkillListResult,
 } from '../../core/skills/AgentSkill';
 import type { AgentSkillRepository } from '../../core/skills/AgentSkillRepository';
+import type { SkillMigrationDirectory, SkillMigrationFile } from '../../core/skills/SkillMigration';
 
 export interface AgentSkillMutationResult<T> {
   value: T;
@@ -39,6 +40,10 @@ export class AgentSkillManagementCoordinator {
   async create(input: AgentSkillInput): Promise<AgentSkillMutationResult<AgentSkillDocument>> {
     const value = await this.repository.create(input);
     return this.completeMutation(value);
+  }
+
+  async importPackage(name: string, markdown: string, files: SkillMigrationFile[], directories: SkillMigrationDirectory[], rootMode?: number): Promise<AgentSkillMutationResult<AgentSkillDocument>> {
+    return this.completeMutation(await this.repository.importPackage(name, markdown, files, directories, rootMode));
   }
 
   async update(

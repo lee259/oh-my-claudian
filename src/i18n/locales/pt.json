@@ -1576,10 +1576,7 @@
     "commands": "Comandos",
     "loadingProvider": "Carregando configurações de {provider}…",
     "learnMore": "Saiba mais",
-    "claude": {
-      "defaultModel": "Modelo padrão",
-      "defaultModelDesc": "Usado quando uma nova conversa precisa de um modelo alternativo do Claude Code."
-    },
+    "claude": {},
     "environmentOwnership": "Verifique a propriedade das variáveis de ambiente: {keys}",
     "modelDiscoveryFailed": "Falha na descoberta de modelos {provider}: {error}",
     "discoveryFailed": "Falha na descoberta de {provider}: {error}",
@@ -1588,7 +1585,29 @@
     "environmentRebuild": "Variáveis aplicadas. As sessões serão reconstruídas na próxima mensagem.",
     "modelCatalogFailed": "Falha ao atualizar catálogo de modelos:\n{error}",
     "saveTabLayoutFailed": "Falha ao salvar layout das abas",
-    "loadSubagentFailed": "Falha ao carregar subagente «{name}»: {message}"
+    "loadSubagentFailed": "Falha ao carregar subagente «{name}»: {message}",
+    "skillMigration": {
+      "title": "Importar skills e comandos do Claude",
+      "desc": "Visualize os arquivos do Claude no cofre antes de copiá-los para skills compartilhados. Os originais serão mantidos.",
+      "preview": "Visualizar importação",
+      "empty": "Nenhum skill ou comando do Claude encontrado.",
+      "copy": "Copiar para skills compartilhados",
+      "confirmTitle": "Confirmar cópia do skill",
+      "confirmDesc": "Copiar {source} para .agents/skills/{name}? O original será mantido.",
+      "failed": "Falha na importação. Atualize a prévia e tente novamente.",
+      "warnings": {
+        "frontmatter": "Contém metadados específicos do provedor. Verifique a compatibilidade.",
+        "syntax": "Pode conter sintaxe específica do Claude.",
+        "invalid": "Não é possível converter com segurança.",
+        "extraFiles": "Arquivos adicionais:",
+        "conflict": "Já existe um skill compartilhado com esse nome.",
+        "nonPortablePaths": "Esses caminhos não são compatíveis com todas as plataformas de desktop suportadas.",
+        "generatedDescription": "A descrição acima foi gerada a partir das instruções originais.",
+        "renamed": "Renomeado do comando Claude “{name}”.",
+        "duplicateName": "Vários arquivos do Claude correspondem ao mesmo nome de skill compartilhado. Resolva a duplicata antes de copiar."
+      },
+      "previewContent": "Visualizar o conteúdo copiado"
+    }
   },
   "inlineEdit": {
     "insert": "Instruções de inserção…",

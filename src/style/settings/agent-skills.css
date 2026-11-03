@@ -118,3 +118,103 @@
   max-height: min(72vh, 900px);
   overflow-y: auto;
 }
+
+.claudian-skill-migration {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-skill-migration-title {
+  margin: 0 0 6px;
+  font-size: var(--font-ui-medium);
+}
+
+.claudian-skill-migration-description {
+  margin: 4px 0;
+  color: var(--text-muted);
+}
+
+.claudian-skill-migration-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  overflow-wrap: anywhere;
+}
+
+.claudian-skill-migration-item p,
+.claudian-skill-migration-confirm p {
+  margin: 0;
+}
+
+.claudian-skill-migration-path {
+  font-family: var(--font-monospace);
+}
+
+.claudian-skill-migration-warning {
+  color: var(--text-warning);
+}
+
+.claudian-skill-migration-files {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--text-muted);
+}
+
+.claudian-skill-migration-item details {
+  width: 100%;
+}
+
+.claudian-skill-migration-item pre {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.claudian-skill-migration-confirm {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+.claudian-settings button.claudian-skill-migration-button,
+.claudian-settings button.claudian-skill-migration-button:hover,
+.claudian-settings button.claudian-skill-migration-button:focus,
+.claudian-settings button.claudian-skill-migration-button:focus-visible,
+.claudian-settings button.claudian-skill-migration-button:active,
+.claudian-settings button.claudian-skill-migration-button:disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.claudian-settings button.claudian-skill-migration-button:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.claudian-settings button.claudian-skill-migration-button:hover:not(:disabled),
+.claudian-settings button.claudian-skill-migration-button:focus-visible:not(:disabled) {
+  color: var(--text-normal);
+  text-decoration: underline;
+}
+
+.claudian-settings button.claudian-skill-migration-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-settings button.claudian-skill-migration-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
