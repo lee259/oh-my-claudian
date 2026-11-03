@@ -1463,7 +1463,7 @@ export class StreamController {
   }
 
   async finalizeCurrentTextBlock(msg?: ChatMessage): Promise<void> {
-    const { state, renderer } = this.deps;
+    const { state } = this.deps;
     const textEl = state.currentTextEl;
     const content = state.currentTextContent;
 
@@ -1495,10 +1495,6 @@ export class StreamController {
       msg.contentBlocks = msg.contentBlocks || [];
       const block = this.appendTranscriptBlock(msg, completed);
       if (textEl && block.id) textEl.dataset.transcriptItemId = block.id;
-      // Copy button added here (not during streaming) to match history-loaded messages
-      if (textEl) {
-        renderer.addTextCopyButton(textEl, content);
-      }
     }
     this.textRenderCoordinator.cancel();
     state.currentTextEl = null;
@@ -2199,7 +2195,6 @@ export class StreamController {
     message.contentBlocks = message.contentBlocks || [];
     const block = this.appendTranscriptBlock(message, { type: 'text', content });
     if (block.id && textEl) textEl.dataset.transcriptItemId = block.id;
-    if (textEl) renderer.addTextCopyButton(textEl, content);
     state.currentTextEl = null;
     state.currentTextContent = '';
   }
