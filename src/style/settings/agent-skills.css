@@ -1,76 +1,125 @@
+.claudian-settings .claudian-settings-skills {
+  max-width: 900px;
+  container-type: inline-size;
+}
+
 .claudian-agent-skills-header {
-  gap: 12px;
-}
-
-.claudian-agent-skills-help {
-  flex: 1;
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-}
-
-.claudian-agent-skills-help p {
-  margin: 0;
+  margin-bottom: var(--size-4-4);
 }
 
 .claudian-agent-skills-title-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--size-4-2);
-  margin-bottom: var(--size-4-1);
 }
 
-.claudian-agent-skills-title {
+.claudian-settings .claudian-agent-skills-title {
   margin: 0;
+  padding: 0;
   font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
   color: var(--text-normal);
 }
 
 .claudian-agent-skills-count {
-  min-width: 2ch;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--background-modifier-hover);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-variant-numeric: tabular-nums;
 }
 
-.claudian-agent-skills-header .claudian-sp-header-actions {
+.claudian-agent-skills-help p {
+  margin: var(--size-4-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+.claudian-agent-skills-toolbar,
+.claudian-agent-skills-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.claudian-agent-skills-toolbar {
+  margin-bottom: var(--size-4-2);
+}
+
+.claudian-agent-skills-toolbar-actions {
   flex-shrink: 0;
 }
 
-.claudian-settings .claudian-settings-skills {
-  max-width: 900px;
+.claudian-agent-skills-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+  height: 34px;
+  padding-inline: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-modifier-form-field);
+  color: var(--text-muted);
+}
+
+.claudian-agent-skills-search:focus-within {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-agent-skills-search > span {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.claudian-agent-skills-search > span svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-settings .claudian-agent-skills-search input,
+.claudian-settings .claudian-agent-skills-search input:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: var(--font-ui-small);
+}
+
+.claudian-agent-skills-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.claudian-agent-skills-search input::-webkit-search-cancel-button {
+  display: none;
 }
 
 .claudian-agent-skills-list {
-  overflow: hidden;
-  margin-top: var(--size-4-3);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: var(--background-primary);
+  min-width: 0;
 }
 
 .claudian-agent-skills-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--size-4-3);
-  min-height: 64px;
-  padding: var(--size-4-2) var(--size-4-3);
-  border-top: 1px solid var(--background-modifier-border);
-  transition: background-color var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
-}
-
-.claudian-agent-skills-row:first-child {
-  border-top: 0;
+  min-height: 58px;
+  padding: var(--size-4-2) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .claudian-agent-skills-row:hover,
 .claudian-agent-skills-row:focus-within {
   background: var(--background-modifier-hover);
+}
+
+.claudian-agent-skills-row:last-child {
+  border-bottom-color: transparent;
 }
 
 .claudian-agent-skills-info {
@@ -80,19 +129,47 @@
 
 .claudian-agent-skills-name-line {
   display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
+  min-width: 0;
 }
 
-.claudian-settings-skills .claudian-agent-skills-row .claudian-sp-item-name {
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  display: block;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: var(--font-ui-small);
   font-weight: var(--font-medium);
+  line-height: 1.5;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.claudian-settings-skills .claudian-agent-skills-row .claudian-sp-item-desc {
-  margin-top: 2px;
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link--title:not(:disabled) {
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:is(:hover, :focus-visible):not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.claudian-agent-skills-description {
   overflow: hidden;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -101,94 +178,91 @@
   display: flex;
   flex-shrink: 0;
   gap: var(--size-4-1);
-  opacity: 0;
-  transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
-.claudian-agent-skills-row:hover .claudian-agent-skills-actions,
-.claudian-agent-skills-row:focus-within .claudian-agent-skills-actions {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .claudian-agent-skills-actions {
-    opacity: 1;
-  }
-}
-
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link,
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
-  color: var(--text-normal);
-}
-
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-settings .claudian-settings-skills .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
-  text-decoration: underline;
-}
-
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn,
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:hover,
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus,
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus-visible,
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:disabled {
-  width: 26px;
-  height: 26px;
+.claudian-settings .claudian-agent-skills-view button.claudian-settings-action-btn,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skills-add,
+.claudian-settings .claudian-agent-skills-view button:is(.claudian-settings-action-btn, .claudian-agent-skills-add):is(:hover, :focus, :focus-visible, :active, :disabled) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: 0;
+  border-radius: var(--radius-s);
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
 }
 
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:hover,
-.claudian-settings .claudian-agent-skills-actions button.claudian-settings-action-btn:focus-visible {
-  background: var(--background-modifier-hover);
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skills-add,
+.claudian-settings .claudian-agent-skills-view button.claudian-agent-skills-add:is(:hover, :focus, :focus-visible, :active, :disabled) {
+  width: auto;
+  gap: var(--size-4-1);
+  padding-inline: var(--size-4-2);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-settings .claudian-agent-skills-view button:is(.claudian-settings-action-btn, .claudian-agent-skills-add) svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-settings .claudian-agent-skills-view button:is(.claudian-settings-action-btn, .claudian-agent-skills-add):is(:hover, :focus-visible):not(:disabled) {
   color: var(--text-normal);
 }
 
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:active,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled {
-  appearance: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+.claudian-settings .claudian-agent-skills-view button.claudian-settings-delete-btn:is(:hover, :focus-visible):not(:disabled) {
+  color: var(--text-error);
 }
 
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link {
-  color: var(--link-color);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:hover,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:active {
-  color: var(--link-color-hover);
-  text-decoration: underline;
-}
-
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus {
-  outline: none;
-}
-
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:focus-visible {
+.claudian-settings .claudian-agent-skills-view button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled,
-.claudian-settings .claudian-agent-skills-view button.claudian-agent-skill-item-link:disabled:hover {
+.claudian-settings .claudian-agent-skills-view button:disabled,
+.claudian-settings .claudian-agent-skills-view button:disabled:hover {
   color: var(--text-faint);
   cursor: default;
-  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .claudian-agent-skills-actions {
+    opacity: 0;
+  }
+
+  .claudian-agent-skills-row:hover .claudian-agent-skills-actions,
+  .claudian-agent-skills-row:focus-within .claudian-agent-skills-actions {
+    opacity: 1;
+  }
+}
+
+@media (pointer: coarse) {
+  .claudian-settings .claudian-agent-skills-view button:is(.claudian-settings-action-btn, .claudian-agent-skills-add) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .claudian-agent-skills-search {
+    height: 44px;
+  }
+}
+
+@container (max-width: 420px) {
+  .claudian-agent-skills-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .claudian-agent-skills-search {
+    flex-basis: 100%;
+  }
+
+  .claudian-agent-skills-toolbar-actions {
+    margin-inline-start: auto;
+  }
 }
 
 .claudian-agent-skill-instructions {
@@ -250,27 +324,37 @@
 }
 
 .claudian-skill-migration {
-  margin-top: 0;
-  padding-bottom: var(--size-4-4);
-  border-bottom: 1px solid var(--background-modifier-border);
+  margin-top: var(--size-4-4);
+  padding-top: var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
   font-size: var(--font-ui-small);
+}
+
+.claudian-skill-migration > summary {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-skill-migration > summary:hover,
+.claudian-skill-migration > summary:focus-visible {
+  color: var(--text-normal);
 }
 
 .claudian-skill-migration-header {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--size-4-4);
-}
-
-.claudian-skill-migration-title {
-  margin: 0;
-  font-size: var(--font-ui-medium);
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-3);
 }
 
 .claudian-skill-migration-description {
-  margin: var(--size-4-1) 0 0;
+  flex: 1;
+  min-width: min(240px, 100%);
+  margin: 0;
   color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
 }
 
 .claudian-skill-migration-item {
@@ -353,22 +437,6 @@
 .claudian-settings button.claudian-skill-migration-button:not(:disabled) {
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger {
-  flex-shrink: 0;
-  padding: 5px 10px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  background: var(--background-secondary);
-  color: var(--text-normal);
-  text-decoration: none;
-}
-
-.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger:hover:not(:disabled),
-.claudian-settings button.claudian-skill-migration-button.claudian-skill-migration-trigger:focus-visible:not(:disabled) {
-  background: var(--background-modifier-hover);
-  text-decoration: none;
 }
 
 .claudian-settings button.claudian-skill-migration-button:hover:not(:disabled),

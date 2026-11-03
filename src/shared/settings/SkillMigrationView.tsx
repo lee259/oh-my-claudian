@@ -62,12 +62,10 @@ export function SkillMigrationView({ getService, onCopy }: Props) {
   </div>;
   const actionable = items?.filter(item => !item.blocked) ?? [];
   const blocked = items?.filter(item => item.blocked) ?? [];
-  return <section className="claudian-skill-migration">
+  return <details className="claudian-skill-migration">
+    <summary>{t('settings.skillMigration.title')}</summary>
     <div className="claudian-skill-migration-header">
-      <div>
-        <h3 className="claudian-skill-migration-title">{t('settings.skillMigration.title')}</h3>
-        <p className="claudian-skill-migration-description">{t('settings.skillMigration.desc')}</p>
-      </div>
+      <p className="claudian-skill-migration-description">{t('settings.skillMigration.desc')}</p>
       <button className="claudian-skill-migration-button claudian-skill-migration-trigger" disabled={busy} onClick={() => { void refresh(); }}>{t('settings.skillMigration.preview')}</button>
     </div>
     {items && items.length === 0 && <p>{t('settings.skillMigration.empty')}</p>}
@@ -76,5 +74,5 @@ export function SkillMigrationView({ getService, onCopy }: Props) {
       <summary>{t('settings.skillMigration.blockedCount', { count: blocked.length })}</summary>
       {blocked.map(renderItem)}
     </details>}
-  </section>;
+  </details>;
 }

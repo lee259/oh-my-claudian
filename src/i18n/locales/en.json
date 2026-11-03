@@ -1243,7 +1243,10 @@
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
       },
-      "sharedSkillsTitle": "Shared skills"
+      "sharedSkillsTitle": "Shared skills",
+      "search": "Search skills…",
+      "clearSearch": "Clear search",
+      "noMatches": "No matching skills. Try another name or description."
     },
     "codexSkills": {
       "modal": {

@@ -1243,7 +1243,10 @@
         "description": "Le dossier complet de la compétence, y compris les scripts, références et ressources, sera déplacé vers la corbeille.",
         "confirm": "Déplacer vers la corbeille"
       },
-      "sharedSkillsTitle": "Skills partagés"
+      "sharedSkillsTitle": "Skills partagés",
+      "search": "Rechercher des skills…",
+      "clearSearch": "Effacer la recherche",
+      "noMatches": "Aucun skill correspondant. Essayez un autre nom ou une description."
     },
     "codexSkills": {
       "modal": {

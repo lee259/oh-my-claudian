@@ -1243,7 +1243,10 @@
         "description": "整個技能資料夾（包括指令碼、參考資料和資源）將移至垃圾桶。",
         "confirm": "移至垃圾桶"
       },
-      "sharedSkillsTitle": "共用 Skills"
+      "sharedSkillsTitle": "共用 Skills",
+      "search": "搜尋技能…",
+      "clearSearch": "清除搜尋",
+      "noMatches": "沒有相符的技能，試試其他名稱或描述。"
     },
     "codexSkills": {
       "modal": {

@@ -1243,7 +1243,10 @@
         "description": "La carpeta completa de la habilidad, incluidos los scripts, las referencias y los recursos, se moverá a la papelera.",
         "confirm": "Mover a la papelera"
       },
-      "sharedSkillsTitle": "Skills compartidos"
+      "sharedSkillsTitle": "Skills compartidos",
+      "search": "Buscar skills…",
+      "clearSearch": "Borrar búsqueda",
+      "noMatches": "No hay skills coincidentes. Prueba otro nombre o descripción."
     },
     "codexSkills": {
       "modal": {

@@ -34,6 +34,7 @@ it('provides a valid navigation example that can be pasted and saved', async () 
   expect(skillsPanel?.hidden).toBe(false);
   expect(skillsPanel?.textContent).toContain('Manage shared skills in .agents/skills/');
   expect(skillsPanel?.querySelectorAll('.claudian-agent-skills-view')).toHaveLength(1);
+  expect(skillsPanel?.firstElementChild?.classList.contains('claudian-agent-skills-manager')).toBe(true);
   tab.containerEl.querySelector<HTMLButtonElement>('#claudian-settings-tab-general')?.click();
   skillsTab?.click();
   expect(skillsPanel?.querySelectorAll('.claudian-agent-skills-view')).toHaveLength(1);
