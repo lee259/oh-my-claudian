@@ -68,9 +68,11 @@ export async function loadDeepSeekHistory(client: DeepSeekReader, sessionId: str
       const reason = isRecord(record.data.reason) ? record.data.reason.kind : undefined;
       // A stopped turn is interrupted, as live execution treats it: no completion timing or stats.
       const stopped = reason === 'aborted' || reason === 'cancelled';
+      const failed = reason === 'error' || reason === 'blocked';
       // Unconsumed notices, or requested input stopped before any output, still end in a reply.
       if (pendingNotices.length || (stopped && !automatic)) ensureAssistant(record);
-      if (assistant) {
+      // Failed turns keep committed output, but live execution gives them no completed checkpoint.
+      if (assistant && !failed) {
         assistant.assistantMessageId = encodeDeepSeekCheckpoint(record.seq);
         if (stopped) {
           assistant.isInterrupt = true;
