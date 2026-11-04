@@ -86,6 +86,22 @@ export class ConversationRuntime {
     };
   }
 
+  /** Keeps detached context aligned when the host reports a vault rename. */
+  rewriteLinkedVaultPaths(rewrite: (path: string) => string): void {
+    const context = this.context.snapshot;
+    this.context.capture({
+      ...context,
+      currentNote: context.currentNote ? rewrite(context.currentNote) : undefined,
+    });
+    if (this.retainedFileContext) {
+      this.retainedFileContext = {
+        ...this.retainedFileContext,
+        files: this.retainedFileContext.files.map(rewrite),
+        manualFiles: this.retainedFileContext.manualFiles?.map(rewrite),
+      };
+    }
+  }
+
   /** Retries only an explicitly incomplete idle projection; ordinary reattachment stays in memory. */
   retryIncompleteHistory(
     conversation: Conversation,

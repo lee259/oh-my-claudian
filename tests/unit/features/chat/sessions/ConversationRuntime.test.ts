@@ -1,6 +1,7 @@
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { Conversation } from '@/core/types';
 import { ConversationRuntime } from '@/features/chat/sessions/ConversationRuntime';
+import { rewriteVaultPathAfterRename } from '@/utils/path';
 
 function createState() {
   return {
@@ -13,6 +14,24 @@ function createState() {
 }
 
 describe('ConversationRuntime', () => {
+  it('keeps retained manual context in sync when a note or its parent is renamed', () => {
+    const runtime = new ConversationRuntime(createState());
+    runtime.context.capture({ currentNote: 'old/note.md', externalContextPaths: ['/outside'], enabledMcpServers: ['server'] });
+    runtime.retainedFileContext = {
+      files: ['old/note.md', 'old/other.md', 'older/keep.md'],
+      manualFiles: ['old/note.md', 'older/keep.md'],
+      currentNoteSent: true, sessionStarted: true,
+    };
+    const rewrite = (value: string) => rewriteVaultPathAfterRename(value, 'old', 'new', true) ?? value;
+    runtime.rewriteLinkedVaultPaths(rewrite);
+    expect(runtime.context.snapshot).toEqual({ currentNote: 'new/note.md', externalContextPaths: ['/outside'], enabledMcpServers: ['server'] });
+    expect(runtime.retainedFileContext).toEqual({
+      files: ['new/note.md', 'new/other.md', 'older/keep.md'],
+      manualFiles: ['new/note.md', 'older/keep.md'],
+      currentNoteSent: true, sessionStarted: true,
+    });
+  });
+
   it('reloads changed native history only after cooling the old execution owner', async () => {
     const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
     runtime.hydrationState = 'ready';
