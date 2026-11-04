@@ -59,6 +59,37 @@ describe('ConversationRuntime', () => {
     history.mockRestore();
   });
 
+  it('hides the welcome surface after reloading native history into a conversation', async () => {
+    const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
+    runtime.hydrationState = 'ready';
+    runtime.state.messages = [{ id: 'old', role: 'user', content: 'old', timestamp: 1 }];
+    const welcomeEl = {} as HTMLElement;
+    runtime.messagePresentation.attach({ renderMessages: jest.fn(() => welcomeEl) } as any);
+    const updateWelcomeVisibility = jest.fn();
+    runtime.controllers.conversationController = {
+      getGreeting: () => 'How is it going?',
+      updateWelcomeVisibility,
+    } as any;
+    const presentation = { dom: { welcomeEl: null } } as any;
+    runtime.presentation = presentation;
+    const history = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: jest.fn(),
+    } as any);
+    const coordinator = { state: 'idle', canCool: jest.fn(() => true), cool: jest.fn(async () => undefined) };
+    runtime.setExecutionCoordinator(coordinator as any);
+    const host = {
+      readNativeHistoryRevision: jest.fn(async () => 'first'),
+      reloadNativeHistory: jest.fn(async () => ({ id: 'c1', providerId: 'codex', messages: [
+        { id: 'new', role: 'user', content: 'external', timestamp: 2 },
+      ] })),
+    } as any;
+
+    expect(await runtime.ensureNativeHistoryCurrent(host)).toBe(true);
+    expect(presentation.dom.welcomeEl).toBe(welcomeEl);
+    expect(updateWelcomeVisibility).toHaveBeenCalledTimes(1);
+    history.mockRestore();
+  });
+
   it('refuses a changed native history while background work owns the execution', async () => {
     const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
     runtime.hydrationState = 'ready';
