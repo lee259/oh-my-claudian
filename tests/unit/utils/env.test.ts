@@ -152,6 +152,27 @@ describe('getEnhancedPath', () => {
     });
   });
 
+  describe('XDG data home', () => {
+    it('honors an absolute data home for mise shims', () => {
+      if (isWindows) return;
+      process.env.HOME = '/home/test';
+      process.env.XDG_DATA_HOME = '/custom/data';
+
+      expect(getEnhancedPath()).toContain(path.join('/custom/data', 'mise', 'shims'));
+    });
+
+    it('ignores a relative data home for mise shims', () => {
+      if (isWindows) return;
+      process.env.HOME = '/home/test';
+      process.env.XDG_DATA_HOME = 'relative/data';
+
+      const result = getEnhancedPath();
+
+      expect(result).toContain(path.join('/home/test', '.local', 'share', 'mise', 'shims'));
+      expect(result).not.toContain(path.join('relative/data', 'mise', 'shims'));
+    });
+  });
+
   describe('custom PATH merging and priority', () => {
     it('prepends additional paths (highest priority)', () => {
       process.env.PATH = '/existing/path';

@@ -1032,4 +1032,25 @@ describe('VaultFileAdapter', () => {
       await fs.rm(root, { recursive: true, force: true });
     }
   });
+
+  it('preserves the existing managed file mode when rewriting content', async () => {
+    if (process.platform === 'win32') return;
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-managed-mode-'));
+    try {
+      const files = new VaultFileAdapter({
+        vault: { adapter: createDesktopFsAdapter(root) },
+      } as unknown as App);
+      const target = path.join(root, '.claude', 'skills', 'run.sh');
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '#!/bin/sh\n', { mode: 0o755 });
+      await fs.chmod(target, 0o755);
+
+      await files.writeManagedFile('.claude/skills/run.sh', '#!/bin/sh\necho hi\n');
+
+      expect(await fs.readFile(target, 'utf8')).toBe('#!/bin/sh\necho hi\n');
+      expect((await fs.lstat(target)).mode & 0o777).toBe(0o755);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
 });
