@@ -7,6 +7,8 @@ export interface CollapsibleState {
 export interface CollapsibleOptions {
   /** Initial expanded state (default: false) */
   initiallyExpanded?: boolean;
+  /** Skip layout measurement and animation for expensive content. */
+  animate?: boolean;
   /** Runs before the transition so deferred content can be rendered and measured. */
   beforeToggle?: (isExpanded: boolean) => void;
   /** Allows a live disclosure to become available when its result arrives. */
@@ -117,10 +119,12 @@ export function setupCollapsible(
       wrapperEl.removeClass('expanded');
       headerEl.setAttribute('aria-expanded', 'false');
     }
-    setCollapsibleContentExpanded(contentEl, state.isExpanded, hidden => {
+    const setHidden = (hidden: boolean) => {
       if (hidden) contentEl.addClass('claudian-hidden');
       else contentEl.removeClass('claudian-hidden');
-    });
+    };
+    if (options.animate === false) setHidden(!state.isExpanded);
+    else setCollapsibleContentExpanded(contentEl, state.isExpanded, setHidden);
     updateAriaLabel(state.isExpanded);
     onToggle?.(state.isExpanded);
   };
