@@ -591,11 +591,24 @@ export class SlashCommandDropdown {
     if (!this.dropdownEl || !this.isFixed) return;
 
     const inputRect = this.inputEl.getBoundingClientRect();
-    this.dropdownEl.setCssProps({
-      '--claudian-fixed-dropdown-bottom': `${window.innerHeight - inputRect.top + 4}px`,
+    const viewportHeight = this.inputEl.ownerDocument?.defaultView?.innerHeight
+      ?? window.innerHeight;
+    const dropdown = this.dropdownEl;
+    const previousHeight = dropdown.clientHeight;
+    dropdown.setCssProps({
       '--claudian-fixed-dropdown-left': `${inputRect.left}px`,
       '--claudian-fixed-dropdown-width': `${Math.max(inputRect.width, 280)}px`,
     });
+    const naturalHeight = Math.min(300, dropdown.scrollHeight + dropdown.offsetHeight - dropdown.clientHeight);
+    const above = Math.max(0, inputRect.top - 8);
+    const below = Math.max(0, viewportHeight - inputRect.bottom - 8);
+    const openAbove = naturalHeight <= above || above >= below;
+    dropdown.setCssProps({
+      '--claudian-fixed-dropdown-top': openAbove ? 'auto' : `${inputRect.bottom + 8}px`,
+      '--claudian-fixed-dropdown-bottom': openAbove ? `${viewportHeight - inputRect.top + 8}px` : 'auto',
+      '--claudian-fixed-dropdown-max-height': `${Math.min(300, openAbove ? above : below)}px`,
+    });
+    if (dropdown.clientHeight !== previousHeight) this.commandList?.updateSelection();
   }
 
   private navigate(direction: number): void {

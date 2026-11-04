@@ -517,3 +517,67 @@ describe('SlashCommandDropdown', () => {
     });
   });
 });
+
+describe('SlashCommandDropdown fixed positioning', () => {
+  const originalInnerHeight = window.innerHeight;
+  let containerEl: any;
+  let inputEl: any;
+  let dropdown: SlashCommandDropdown;
+
+  function fixedDropdownEl(): any {
+    return containerEl.children.find((el: any) => el.hasClass('claudian-slash-dropdown-fixed'));
+  }
+
+  beforeEach(() => {
+    containerEl = createMockEl();
+    inputEl = createMockInput();
+    dropdown = new SlashCommandDropdown(containerEl, inputEl, createMockCallbacks(), { fixed: true });
+    inputEl.value = '/';
+    inputEl.selectionStart = 1;
+  });
+
+  afterEach(() => {
+    dropdown.destroy();
+    Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, configurable: true });
+  });
+
+  it('opens below and clamps the list when the input sits near the top', async () => {
+    Object.defineProperty(window, 'innerHeight', { value: 300, configurable: true });
+    inputEl.getBoundingClientRect = () => ({
+      top: 100, bottom: 140, left: 10, width: 320, height: 40, right: 330, x: 10, y: 100, toJSON() {},
+    });
+    dropdown.handleInputChange();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const dropdownEl = fixedDropdownEl();
+    dropdownEl.scrollHeight = 200;
+    dropdownEl.clientHeight = 100;
+    dropdownEl.offsetHeight = 100;
+
+    dropdown.handleInputChange();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(dropdownEl.style['--claudian-fixed-dropdown-top']).toBe('148px');
+    expect(dropdownEl.style['--claudian-fixed-dropdown-bottom']).toBe('auto');
+    expect(dropdownEl.style['--claudian-fixed-dropdown-max-height']).toBe('152px');
+  });
+
+  it('opens above when the input sits near the bottom', async () => {
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    inputEl.getBoundingClientRect = () => ({
+      top: 700, bottom: 740, left: 10, width: 320, height: 40, right: 330, x: 10, y: 700, toJSON() {},
+    });
+    dropdown.handleInputChange();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const dropdownEl = fixedDropdownEl();
+    dropdownEl.scrollHeight = 200;
+    dropdownEl.clientHeight = 100;
+    dropdownEl.offsetHeight = 100;
+
+    dropdown.handleInputChange();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(dropdownEl.style['--claudian-fixed-dropdown-top']).toBe('auto');
+    expect(dropdownEl.style['--claudian-fixed-dropdown-bottom']).toBe('108px');
+    expect(dropdownEl.style['--claudian-fixed-dropdown-max-height']).toBe('300px');
+  });
+});
