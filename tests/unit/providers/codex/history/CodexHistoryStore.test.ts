@@ -2414,6 +2414,28 @@ describe('CodexHistoryStore', () => {
       });
     });
 
+    it('keeps leading indented image markup as a literal code example', () => {
+      const content = [
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:00.000Z',
+          type: 'event_msg',
+          payload: { type: 'task_started' },
+        }),
+        JSON.stringify({
+          timestamp: '2026-03-27T00:00:00.500Z',
+          type: 'event_msg',
+          payload: { type: 'user_message', message: '    <image></image>\n\nExplain the code.' },
+        }),
+      ].join('\n');
+
+      const messages = parseCodexSessionContent(content);
+
+      expect(messages[0]).toMatchObject({
+        role: 'user',
+        content: '    <image></image>\n\nExplain the code.',
+      });
+    });
+
     it('user_message with system content is filtered out', () => {
       const content = [
         JSON.stringify({

@@ -18,6 +18,7 @@ import {
   renderExpandedContent,
   setToolIcon,
   syncToolDisclosure,
+  truncateText,
 } from './ToolCallRenderer';
 
 export interface SubagentRenderOptions {
@@ -95,8 +96,7 @@ function extractTaskPrompt(input: Record<string, unknown>): string {
 }
 
 function truncateDescription(description: string, maxLength = 40): string {
-  if (description.length <= maxLength) return description;
-  return description.substring(0, maxLength) + '...';
+  return truncateText(description, maxLength);
 }
 
 function createSection(parentEl: HTMLElement, title: string, bodyClass?: string): SubagentSection {

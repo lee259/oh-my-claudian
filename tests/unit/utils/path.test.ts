@@ -411,6 +411,20 @@ describe('normalizePathForVault', () => {
     expect(result).toBe('notes/file.md');
   });
 
+  it('resolves canonical provider paths when the vault was opened through a symlink', () => {
+    const linkVault = path.resolve('/tmp/link-vault');
+    const realVault = path.resolve('/tmp/real-vault');
+    const realpathMock = jest.fn((input: fsType.PathLike) => {
+      const value = path.resolve(String(input));
+      if (value === linkVault) return realVault;
+      return value;
+    });
+    const realpathSpy = jest.spyOn(fs, 'realpathSync').mockImplementation(realpathMock as any);
+    (realpathSpy as any).native = realpathMock;
+
+    expect(normalizePathForVault(path.join(realVault, 'notes', 'file.md'), linkVault)).toBe('notes/file.md');
+  });
+
   it('returns normalized path for file outside vault', () => {
     const result = normalizePathForVault('/other/path/file.md', vaultPath);
     expect(result).toContain('file.md');
