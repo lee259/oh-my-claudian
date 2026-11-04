@@ -243,6 +243,41 @@ describe('extractUserDisplayContent', () => {
   it('does not hide ordinary XML-like user text', () => {
     expect(extractUserDisplayContent('What does <xml> mean?')).toBeUndefined();
   });
+
+  it('preserves a fenced XML example before real appended context', () => {
+    const prompt = [
+      'Explain this XML:',
+      '',
+      '```xml',
+      '<linked_note path="note.md" />',
+      '```',
+      'Keep the example.',
+      '',
+      '<linked_note path="Real.md" />',
+    ].join('\n');
+
+    expect(extractUserDisplayContent(prompt)).toBe([
+      'Explain this XML:',
+      '',
+      '```xml',
+      '<linked_note path="note.md" />',
+      '```',
+      'Keep the example.',
+    ].join('\n'));
+  });
+
+  it('does not treat a fenced legacy bracket example as a context boundary', () => {
+    const prompt = [
+      'Explain legacy:',
+      '',
+      '```text',
+      '[Current note: Notes/example.md]',
+      '```',
+      'Keep the final instruction.',
+    ].join('\n');
+
+    expect(extractUserDisplayContent(prompt)).toBeUndefined();
+  });
 });
 
 describe('extractUserQuery', () => {
@@ -303,6 +338,27 @@ describe('extractUserQuery', () => {
     it('strips multiple tag types', () => {
       const prompt = '<linked_note>a.md</linked_note>Query<context_files>b.md</context_files>';
       expect(extractUserQuery(prompt)).toBe('Query');
+    });
+
+    it('preserves tag-like literals inside inline and fenced code', () => {
+      expect(extractUserQuery('Explain `<linked_note path="x" />` literal.')).toBe(
+        'Explain `<linked_note path="x" />` literal.',
+      );
+      expect(extractUserQuery([
+        'Explain:',
+        '',
+        '```xml',
+        '<editor_selection path="note.md">hello</editor_selection>',
+        '```',
+        'Keep the example.',
+      ].join('\n'))).toBe([
+        'Explain:',
+        '',
+        '```xml',
+        '<editor_selection path="note.md">hello</editor_selection>',
+        '```',
+        'Keep the example.',
+      ].join('\n'));
     });
   });
 
