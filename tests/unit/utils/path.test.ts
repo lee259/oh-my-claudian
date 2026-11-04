@@ -425,6 +425,21 @@ describe('normalizePathForVault', () => {
     expect(normalizePathForVault(path.join(realVault, 'notes', 'file.md'), linkVault)).toBe('notes/file.md');
   });
 
+  it('keeps literal environment syntax in vault-relative paths', () => {
+    const original = process.env.TASK_LITERAL;
+    process.env.TASK_LITERAL = 'expanded';
+    try {
+      expect(normalizePathForVault('notes/$TASK_LITERAL.md', vaultPath)).toBe('notes/$TASK_LITERAL.md');
+      expect(normalizePathForVault('$TASK_LITERAL-vault/note.md', vaultPath))
+        .toBe('$TASK_LITERAL-vault/note.md');
+      expect(normalizePathForVault(path.join(vaultPath, 'notes', '$TASK_LITERAL.md'), vaultPath))
+        .toBe('notes/$TASK_LITERAL.md');
+    } finally {
+      if (original === undefined) delete process.env.TASK_LITERAL;
+      else process.env.TASK_LITERAL = original;
+    }
+  });
+
   it('returns normalized path for file outside vault', () => {
     const result = normalizePathForVault('/other/path/file.md', vaultPath);
     expect(result).toContain('file.md');
