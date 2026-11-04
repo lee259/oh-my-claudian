@@ -160,6 +160,7 @@ export class ConversationRuntime {
             () => this.controllers.conversationController?.getGreeting() ?? '',
           );
           if (this.presentation && welcome) this.presentation.dom.welcomeEl = welcome;
+          this.controllers.conversationController?.updateWelcomeVisibility();
           return true;
         },
         // Hydration may have finished before this runtime observed its first revision.
