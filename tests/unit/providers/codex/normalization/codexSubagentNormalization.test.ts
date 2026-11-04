@@ -80,6 +80,33 @@ describe('codexSubagentNormalization', () => {
     );
   });
 
+  it.each([
+    ['shutdown', 'error', 'Agent shut down'],
+    ['not_found', 'error', 'Agent not found'],
+    ['resumed', 'running', undefined],
+    [{ errored: 'Native agent crashed' }, 'error', 'Native agent crashed'],
+    [{ completed: null }, 'completed', 'DONE'],
+  ])('settles the raw native agent status %j', (agentStatus, status, result) => {
+    const spawnTool: ToolCallInfo = {
+      id: 'spawn-raw',
+      name: TOOL_SPAWN_AGENT,
+      input: { message: 'Do work' },
+      status: 'completed',
+      result: '{"agent_id":"agent-1"}',
+    };
+    const listTool: ToolCallInfo = {
+      id: 'list-raw',
+      name: 'list_agents',
+      input: {},
+      status: 'completed',
+      result: JSON.stringify({ agents: [{ agent_name: 'agent-1', agent_status: agentStatus }] }),
+    };
+
+    expect(buildCodexSubagentInfo(spawnTool, [spawnTool, listTool])).toEqual(
+      expect.objectContaining({ status, result }),
+    );
+  });
+
   it('uses current task-name and list-agents results to resolve completion', () => {
     const spawnTool: ToolCallInfo = {
       id: 'spawn-current',

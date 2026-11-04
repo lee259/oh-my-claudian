@@ -124,13 +124,17 @@ function normalizeCodexAgentStatus(
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
     if (!normalized) return null;
+    if (normalized === 'shutdown') return { status: 'error', result: 'Agent shut down' };
+    if (normalized === 'notfound' || normalized === 'not_found') {
+      return { status: 'error', result: 'Agent not found' };
+    }
     if (/interrupt|cancel|error|fail|kill/.test(normalized)) {
       return { result: value.trim(), status: 'error' };
     }
     if (/complete|success|finish|done/.test(normalized)) {
       return { result: 'DONE', status: 'completed' };
     }
-    if (/pending|running|progress|start|waiting/.test(normalized)) {
+    if (/pending|running|progress|start|waiting|resumed/.test(normalized)) {
       return { status: 'running' };
     }
     return null;
@@ -138,8 +142,12 @@ function normalizeCodexAgentStatus(
 
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const status = value as Record<string, unknown>;
-  const completed = firstString(status, ['completed']);
-  if (completed) return { result: completed, status: 'completed' };
+  if (typeof status.completed === 'string' || status.completed === null) {
+    return { result: status.completed || 'DONE', status: 'completed' };
+  }
+  if (typeof status.errored === 'string') {
+    return { result: status.errored || 'Agent stopped', status: 'error' };
+  }
   const failure = firstString(status, ['error', 'failed', 'interrupted']);
   if (failure) return { result: failure, status: 'error' };
 
