@@ -3,6 +3,34 @@ import { collapseElement, setupCollapsible } from './collapsible';
 
 export type RenderContentFn = (el: HTMLElement, markdown: string) => Promise<void>;
 
+const preparationQueues = new WeakMap<Window, { pending: Array<() => void>; scheduled: boolean }>();
+// Bound each burst of background work when opening a long transcript.
+const MAX_PENDING_PREPARATIONS = 4;
+
+function scheduleThinkingPreparation(view: Window, prepare: () => void): void {
+  let queue = preparationQueues.get(view);
+  if (!queue) {
+    queue = { pending: [], scheduled: false };
+    preparationQueues.set(view, queue);
+  }
+  queue.pending.push(prepare);
+  if (queue.pending.length > MAX_PENDING_PREPARATIONS) queue.pending.shift();
+  if (queue.scheduled) return;
+  queue.scheduled = true;
+  const currentQueue = queue;
+  const schedule = () => {
+    const run = () => {
+      const next = currentQueue.pending.shift();
+      if (!view.document.hidden) next?.();
+      if (currentQueue.pending.length) view.setTimeout(schedule, 50);
+      else currentQueue.scheduled = false;
+    };
+    if (typeof view.requestIdleCallback === 'function') view.requestIdleCallback(run);
+    else view.setTimeout(run, 50);
+  };
+  schedule();
+}
+
 export interface ThinkingBlockState {
   presentation?: 'status';
   wrapperEl: HTMLElement;
@@ -160,13 +188,22 @@ export function renderStoredThinkingBlock(
   // Collapsible content
   const contentEl = wrapperEl.createDiv({ cls: 'claudian-thinking-content', text: content });
   let rendered = false;
+  const prepare = () => {
+    if (rendered) return;
+    rendered = true;
+    void renderContent(contentEl, content).catch(() => { contentEl.setText(content); });
+  };
   const state = { isExpanded: false };
   setupCollapsible(wrapperEl, header, contentEl, state, {
+    animate: content.length < 4000,
     onToggle: expanded => {
-      if (!expanded || rendered) return;
-      rendered = true;
-      void renderContent(contentEl, content).catch(() => { contentEl.setText(content); });
+      if (expanded) prepare();
     },
+  });
+
+  const view = wrapperEl.ownerDocument?.defaultView;
+  if (view) scheduleThinkingPreparation(view, () => {
+    if (wrapperEl.isConnected) prepare();
   });
 
   return wrapperEl;
