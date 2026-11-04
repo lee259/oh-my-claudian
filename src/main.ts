@@ -1196,10 +1196,8 @@ export default class ClaudianPlugin extends Plugin {
       includeDescendants: file instanceof TFolder,
     });
     for (const runtime of this.conversationRuntimes.getAll()) {
-      const context = runtime.context.snapshot;
       const rewrite = (path: string) => rewriteVaultPathAfterRename(path, oldPath, file.path, file instanceof TFolder) ?? path;
-      runtime.context.capture({ ...context, currentNote: context.currentNote ? rewrite(context.currentNote) : undefined });
-      if (runtime.retainedFileContext) runtime.retainedFileContext.files = runtime.retainedFileContext.files.map(rewrite);
+      runtime.rewriteLinkedVaultPaths(rewrite);
     }
     this.notifyConversationViewsChanged();
   }
