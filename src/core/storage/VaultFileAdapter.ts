@@ -135,6 +135,10 @@ export class VaultFileAdapter {
   async writeDurable(filePath: string, content: string): Promise<void> {
     const normalized = normalizeManagedPath(filePath);
     await this.ensureParentFolder(normalized);
+    await this.#writeFileAtomically(normalized, content);
+  }
+
+  async #writeFileAtomically(normalized: string, content: string, mode?: number): Promise<void> {
     const desktop = this.getDesktopAdapter();
     if (!desktop) {
       await this.adapter.write(normalized, content);
@@ -153,12 +157,13 @@ export class VaultFileAdapter {
       await this.adapter.write(normalized, content);
       return;
     }
+    const effectiveMode = mode ?? stat?.mode;
     const temporary = path.join(path.dirname(target), `.claudian-${randomUUID()}.tmp`);
     let written = false;
     try {
-      await fs.writeFile(temporary, content, { encoding: 'utf8', flag: 'wx', mode: stat?.mode });
+      await fs.writeFile(temporary, content, { encoding: 'utf8', flag: 'wx', mode: effectiveMode });
       written = true;
-      if (stat) await fs.chmod(temporary, stat.mode);
+      if (effectiveMode !== undefined) await fs.chmod(temporary, effectiveMode);
       await replaceFile(temporary, target);
     } catch (error) {
       if (written || !isCollision(error)) await fs.rm(temporary, { force: true }).catch(() => undefined);
@@ -547,9 +552,13 @@ export class VaultFileAdapter {
     const normalized = normalizeManagedPath(filePath);
     const parent = normalized.slice(0, normalized.lastIndexOf('/'));
     await this.verifyManagedPath(parent, { expectedType: 'folder' });
-    await this.verifyManagedPath(normalized, { expectedType: 'file', allowMissing: true });
+    const exists = await this.verifyManagedPath(normalized, { expectedType: 'file', allowMissing: true });
     try {
-      await this.adapter.write(normalized, content);
+      const desktop = this.getDesktopAdapter();
+      const mode = exists && desktop
+        ? (await fs.lstat(path.join(desktop.getBasePath(), ...normalized.split('/')))).mode
+        : undefined;
+      await this.#writeFileAtomically(normalized, content, mode);
     } catch (error) {
       throw new ManagedResourcePathError(`Could not write managed resource: ${normalized}`, {
         cause: error,
