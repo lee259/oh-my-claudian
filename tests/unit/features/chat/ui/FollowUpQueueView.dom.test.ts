@@ -66,6 +66,24 @@ describe('FollowUpQueueView', () => {
     view.destroy();
   });
 
+  it('offers resume only when there are queued messages that can be sent', () => {
+    const queue = new FollowUpQueue();
+    queue.enqueue('unknown', { content: 'Delivery unknown', editorContext: null, canvasContext: null });
+    queue.setStatus('unknown', 'uncertain');
+    queue.pause();
+    const root = document.body.createDiv();
+    const view = new FollowUpQueueView(root, queue, {
+      onSteer: jest.fn(), onRemove: jest.fn(), onResume: jest.fn(), onEdit: jest.fn(),
+    });
+    expect(root.querySelector('[data-id="unknown"] [role="status"]')).not.toBeNull();
+    expect(root.querySelector('[data-action="resume"]')).toBeNull();
+    queue.enqueue('waiting', { content: 'Waiting', editorContext: null, canvasContext: null });
+    expect(root.querySelector('[data-action="resume"]')).not.toBeNull();
+    queue.remove('waiting');
+    expect(root.querySelector('[data-action="resume"]')).toBeNull();
+    view.destroy();
+  });
+
   it('reorders by dragging the left handle and by keyboard without accepting external drags', () => {
     const queue = new FollowUpQueue();
     for (const id of ['first', 'second', 'third']) queue.enqueue(id, { content: id, editorContext: null, canvasContext: null });
