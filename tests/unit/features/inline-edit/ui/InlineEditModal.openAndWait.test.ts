@@ -221,7 +221,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -315,7 +317,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -427,7 +431,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -541,7 +547,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -654,7 +662,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          adapter: { basePath: '/vault' },
+            on: jest.fn(),
+            offref: jest.fn(),
+            adapter: { basePath: '/vault' },
           getFiles: jest.fn().mockImplementation(() => {
             throw new Error('vault unavailable');
           }),
@@ -791,7 +801,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          adapter: { basePath: '/vault' },
+            on: jest.fn(),
+            offref: jest.fn(),
+            adapter: { basePath: '/vault' },
           getFiles: jest.fn().mockReturnValue([
             { path: 'notes/a.md' },
             { path: 'notes/b.md' },
@@ -895,7 +907,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          adapter: { basePath: '/vault' },
+            on: jest.fn(),
+            offref: jest.fn(),
+            adapter: { basePath: '/vault' },
           getFiles: jest.fn().mockReturnValue([{ path: 'notes/local.md' }]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
@@ -1020,7 +1034,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          adapter: { basePath: '/vault' },
+            on: jest.fn(),
+            offref: jest.fn(),
+            adapter: { basePath: '/vault' },
           getFiles: jest.fn().mockReturnValue([
             { path: 'notes/my note.md' },
           ]),
@@ -1123,7 +1139,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          adapter: { basePath: '/vault' },
+            on: jest.fn(),
+            offref: jest.fn(),
+            adapter: { basePath: '/vault' },
           getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
@@ -1248,7 +1266,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -1344,7 +1364,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -1459,7 +1481,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
@@ -1565,7 +1589,9 @@ describe('InlineEditModal - openAndWait', () => {
     try {
       const app = {
         vault: {
-          getFiles: jest.fn().mockReturnValue([]),
+            on: jest.fn(),
+            offref: jest.fn(),
+            getFiles: jest.fn().mockReturnValue([]),
           getAllLoadedFiles: jest.fn().mockReturnValue([]),
         },
         workspace: {
