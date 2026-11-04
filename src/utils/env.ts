@@ -14,17 +14,24 @@ function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || '';
 }
 
+function getUnixXdgDataHome(): string | undefined {
+  const configured = process.env.XDG_DATA_HOME;
+  return configured && path.isAbsolute(configured) ? configured : undefined;
+}
+
 function getMiseShimsDir(home: string): string | null {
   if (process.env.MISE_SHIMS_DIR) return process.env.MISE_SHIMS_DIR;
   if (process.env.MISE_DATA_DIR) return path.join(process.env.MISE_DATA_DIR, 'shims');
-  if (process.env.XDG_DATA_HOME) return path.join(process.env.XDG_DATA_HOME, 'mise', 'shims');
 
   if (isWindows) {
+    if (process.env.XDG_DATA_HOME) return path.join(process.env.XDG_DATA_HOME, 'mise', 'shims');
     const localAppData = process.env.LOCALAPPDATA
       || (home ? path.join(home, 'AppData', 'Local') : null);
     return localAppData ? path.join(localAppData, 'mise', 'shims') : null;
   }
 
+  const dataHome = getUnixXdgDataHome();
+  if (dataHome) return path.join(dataHome, 'mise', 'shims');
   return home ? path.join(home, '.local', 'share', 'mise', 'shims') : null;
 }
 
@@ -161,12 +168,13 @@ function getExtraBinaryPaths(): string[] {
     }
 
     if (home) {
+      const dataHome = isWindows ? undefined : getUnixXdgDataHome();
       // GUI apps may not inherit fnm's shell-injected multishell PATH. The
       // default alias is stable across launches and points to the user's
       // selected Node.js installation.
       const fnmRoot = fnmDir
-        ?? (process.env.XDG_DATA_HOME
-          ? path.join(process.env.XDG_DATA_HOME, 'fnm')
+        ?? (dataHome
+          ? path.join(dataHome, 'fnm')
           : path.join(home, '.local', 'share', 'fnm'));
       paths.push(path.join(fnmRoot, 'aliases', 'default', 'bin'));
 
