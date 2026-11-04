@@ -96,6 +96,7 @@ function createHarness(action: 'save' | 'update', fail: boolean) {
   const coordinator = new SettingsCoordinator(settings, persist);
   const host = {
     app: {}, settings,
+    notifyProviderChatOptionsChanged: jest.fn(),
     getEnvironmentVariablesForScope: () => 'DEMO_KEY=private-environment-value',
     mutateSettings: (mutation: Parameters<typeof coordinator.mutate>[0]) => coordinator.mutate(mutation),
   } as unknown as ProviderHost;
@@ -123,6 +124,7 @@ function createButtonTypeHarness() {
   const host = {
     app: {},
     settings,
+    notifyProviderChatOptionsChanged: jest.fn(),
     getEnvironmentVariablesForScope: () => saved.envVars,
   } as unknown as ProviderHost;
   const container = document.body.createDiv();
@@ -201,6 +203,31 @@ describe('environment snippet persistence', () => {
     expect(settings.envSnippets[0].name).toBe('New configuration');
     expect(persist).toHaveBeenCalledTimes(1);
     expect(Notice).toHaveBeenCalledWith(`Environment snippet "New configuration" ${action === 'save' ? 'saved' : 'updated'}`);
+  });
+
+  it('refreshes chat model options after inserting a snippet with aliases', async () => {
+    const saved: EnvSnippet = {
+      id: 'alias-snippet', name: 'Alias configuration', description: '',
+      envVars: 'ANTHROPIC_MODEL=custom', scope: 'provider:claude', modelAliases: { custom: 'Fast' },
+    };
+    const settings = { envSnippets: [saved], customContextLimits: {}, customModelAliases: {} };
+    const host = {
+      app: {},
+      settings,
+      notifyProviderChatOptionsChanged: jest.fn(),
+      applyEnvironmentVariables: jest.fn().mockResolvedValue(undefined),
+      applyEnvironmentVariablesBatch: jest.fn().mockResolvedValue(undefined),
+      getEnvironmentVariablesForScope: () => saved.envVars,
+      mutateSettings: jest.fn(async (mutation: (value: typeof settings) => void) => { mutation(settings); }),
+    } as unknown as ProviderHost;
+    const container = document.body.createDiv();
+    managers.push(new EnvSnippetManager(container, host, 'provider:claude'));
+
+    fireEvent.click(within(container).getByRole('button', {
+      name: new RegExp(`^${t('settings.envSnippets.insertBtn')}`),
+    }));
+
+    await waitFor(() => expect(host.notifyProviderChatOptionsChanged).toHaveBeenCalledWith('claude'));
   });
 });
 
