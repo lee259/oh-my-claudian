@@ -752,6 +752,21 @@ describe('FileContextManager', () => {
       manager.destroy();
     });
 
+    it('retains folder markers in attached and manual context after a folder rename', () => {
+      const app = createMockApp();
+      const manager = new FileContextManager(app, containerEl as any, inputEl, createMockCallbacks());
+      manager.restoreSessionContext({
+        files: ['projects/old/', 'projects/old/child/', 'projects/old/note.md', 'projects/older/'],
+        manualFiles: ['projects/old/', 'projects/old/child/', 'projects/old/note.md', 'projects/older/'],
+        currentNoteSent: false, sessionStarted: false,
+      });
+      const renameHandler = (app.vault.on as jest.Mock).mock.calls.find((c: any[]) => c[0] === 'rename')?.[1];
+      renameHandler(new (TFolder as any)('projects/new'), 'projects/old');
+      expect([...manager.getAttachedFiles()]).toEqual(['projects/older/', 'projects/new/', 'projects/new/child/', 'projects/new/note.md']);
+      expect(manager.getManualFiles()).toEqual(['projects/older/', 'projects/new/', 'projects/new/child/', 'projects/new/note.md']);
+      manager.destroy();
+    });
+
     it('should not update if renamed file is not attached', () => {
       const app = createMockApp({ files: ['notes/a.md', 'notes/unrelated.md'] });
       const manager = new FileContextManager(
@@ -802,6 +817,32 @@ describe('FileContextManager', () => {
 
       deleteHandler(createMockTFile('notes/a.md'));
       expect(manager.getAttachedFiles().has('notes/a.md')).toBe(false);
+      manager.destroy();
+    });
+
+    it('removes deleted folder context and descendants without touching similar or external paths', () => {
+      const app = createMockApp({ files: ['projects/old/plan.md'] });
+      const onCurrentNoteChanged = jest.fn();
+      const onScopeChanged = jest.fn();
+      const manager = new FileContextManager(app, containerEl as any, inputEl, {
+        ...createMockCallbacks({ onCurrentNoteChanged }), onScopeChanged,
+      });
+      manager.setCurrentNote('projects/old/plan.md');
+      manager.restoreSessionContext({
+        files: ['projects/old/', 'projects/old/plan.md', 'projects/older/keep.md', '/outside/projects/old/keep.md'],
+        manualFiles: ['projects/old/', 'projects/old/plan.md', 'projects/older/keep.md', '/outside/projects/old/keep.md'],
+        currentNoteSent: false,
+        sessionStarted: false,
+      });
+      const deleteHandler = (app.vault.on as jest.Mock).mock.calls.find((c: any[]) => c[0] === 'delete')?.[1];
+
+      deleteHandler(new (TFolder as any)('projects/old'));
+
+      expect(manager.getCurrentNotePath()).toBeNull();
+      expect(onCurrentNoteChanged).toHaveBeenCalledWith(null);
+      expect(onScopeChanged).toHaveBeenLastCalledWith(null);
+      expect([...manager.getAttachedFiles()]).toEqual(['projects/older/keep.md', '/outside/projects/old/keep.md']);
+      expect(manager.getManualFiles()).toEqual(['projects/older/keep.md', '/outside/projects/old/keep.md']);
       manager.destroy();
     });
 
