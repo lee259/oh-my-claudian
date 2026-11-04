@@ -127,7 +127,9 @@ export class FileContextManager {
     this.setupDragAndDrop();
 
     this.deleteEventRef = this.app.vault.on('delete', (file) => {
-      if (file instanceof TFile) this.handleFileDeleted(file.path);
+      if (file instanceof TFile || file instanceof TFolder) {
+        this.handleFileDeleted(file.path, file instanceof TFolder);
+      }
     });
 
     this.renameEventRef = this.app.vault.on('rename', (file, oldPath) => {
@@ -518,22 +520,33 @@ export class FileContextManager {
     }
   }
 
-  private handleFileDeleted(deletedPath: string): void {
+  private handleFileDeleted(deletedPath: string, includeDescendants = false): void {
     const normalized = this.normalizePathForVault(deletedPath);
     if (!normalized) return;
-    this.manualFiles.delete(normalized);
+    const deleted = normalized.replace(/\/+$/, '');
+    const matches = (candidate: string): boolean => {
+      const value = candidate.replace(/\/+$/, '');
+      return value === deleted || (includeDescendants && value.startsWith(`${deleted}/`));
+    };
+    for (const filePath of this.manualFiles) {
+      if (matches(filePath)) this.manualFiles.delete(filePath);
+    }
 
     let needsUpdate = false;
 
     // Clear current note if deleted
-    if (this.currentNotePath === normalized) {
+    if (this.currentNotePath && matches(this.currentNotePath)) {
       this.currentNotePath = null;
+      this.state.markCurrentNoteChanged();
+      this.callbacks.onCurrentNoteChanged?.(null);
+      this.callbacks.onScopeChanged?.(null);
       needsUpdate = true;
     }
 
     // Remove from attached files
-    if (this.state.getAttachedFiles().has(normalized)) {
-      this.state.detachFile(normalized);
+    for (const filePath of [...this.state.getAttachedFiles()]) {
+      if (!matches(filePath)) continue;
+      this.state.detachFile(filePath);
       needsUpdate = true;
     }
 
