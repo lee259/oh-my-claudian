@@ -752,6 +752,21 @@ describe('FileContextManager', () => {
       manager.destroy();
     });
 
+    it('retains folder markers in attached and manual context after a folder rename', () => {
+      const app = createMockApp();
+      const manager = new FileContextManager(app, containerEl as any, inputEl, createMockCallbacks());
+      manager.restoreSessionContext({
+        files: ['projects/old/', 'projects/old/child/', 'projects/old/note.md', 'projects/older/'],
+        manualFiles: ['projects/old/', 'projects/old/child/', 'projects/old/note.md', 'projects/older/'],
+        currentNoteSent: false, sessionStarted: false,
+      });
+      const renameHandler = (app.vault.on as jest.Mock).mock.calls.find((c: any[]) => c[0] === 'rename')?.[1];
+      renameHandler(new (TFolder as any)('projects/new'), 'projects/old');
+      expect([...manager.getAttachedFiles()]).toEqual(['projects/older/', 'projects/new/', 'projects/new/child/', 'projects/new/note.md']);
+      expect(manager.getManualFiles()).toEqual(['projects/older/', 'projects/new/', 'projects/new/child/', 'projects/new/note.md']);
+      manager.destroy();
+    });
+
     it('should not update if renamed file is not attached', () => {
       const app = createMockApp({ files: ['notes/a.md', 'notes/unrelated.md'] });
       const manager = new FileContextManager(

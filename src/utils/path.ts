@@ -335,15 +335,16 @@ export function rewriteVaultPathAfterRename(
   const normalizedOldPath = normalizeVaultEventPath(oldPath);
   const normalizedNewPath = normalizeVaultEventPath(newPath);
   if (!normalizedValue || !normalizedOldPath || !normalizedNewPath) return null;
+  const folderSuffix = /[\\/]$/.test(value) ? '/' : '';
 
   if (normalizedValue === normalizedOldPath) {
-    return normalizedNewPath;
+    return `${normalizedNewPath}${folderSuffix}`;
   }
   if (
     includeDescendants
     && normalizedValue.startsWith(`${normalizedOldPath}/`)
   ) {
-    return `${normalizedNewPath}${normalizedValue.slice(normalizedOldPath.length)}`;
+    return `${normalizedNewPath}${normalizedValue.slice(normalizedOldPath.length)}${folderSuffix}`;
   }
   return null;
 }

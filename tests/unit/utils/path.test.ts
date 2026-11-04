@@ -17,6 +17,7 @@ import {
   normalizePathForFilesystem,
   normalizePathForVault,
   parsePathEntries,
+  rewriteVaultPathAfterRename,
   translateMsysPath,
 } from '@/utils/path';
 
@@ -777,5 +778,16 @@ describe('normalizeConfiguredCliPath', () => {
   it('returns an empty string for blank or missing input', () => {
     expect(normalizeConfiguredCliPath('   ')).toBe('');
     expect(normalizeConfiguredCliPath(undefined)).toBe('');
+  });
+});
+
+describe('rewriteVaultPathAfterRename', () => {
+  it('preserves folder markers while renaming the folder or an ancestor', () => {
+    expect(rewriteVaultPathAfterRename('projects/old/', 'projects/old', 'projects/new', true)).toBe('projects/new/');
+    expect(rewriteVaultPathAfterRename('projects/old/nested/', 'projects/old', 'projects/new', true)).toBe('projects/new/nested/');
+    expect(rewriteVaultPathAfterRename('projects/old/note.md', 'projects/old', 'projects/new', true)).toBe('projects/new/note.md');
+    expect(rewriteVaultPathAfterRename('projects/older/', 'projects/old', 'projects/new', true)).toBeNull();
+    expect(rewriteVaultPathAfterRename('projects\\old\\child\\', 'projects/old', 'projects/new', true)).toBe('projects/new/child/');
+    expect(rewriteVaultPathAfterRename('projects/old/child/', 'projects/old', 'projects/new', false)).toBeNull();
   });
 });
