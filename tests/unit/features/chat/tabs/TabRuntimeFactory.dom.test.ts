@@ -35,7 +35,7 @@ describe('TabRuntimeFactory shared navigation header', () => {
         homeTitleInsideMessageScroller: false,
       });
 
-      headerHost?.querySelector<HTMLButtonElement>('.claudian-home-action')?.click();
+      headerHost?.querySelector<HTMLButtonElement>('.claudian-conversation-header-action')?.click();
       expect(homeOptions.onOpenHistory).toHaveBeenCalledTimes(1);
 
       tab.dom.updateConversationHeader('A saved conversation');
