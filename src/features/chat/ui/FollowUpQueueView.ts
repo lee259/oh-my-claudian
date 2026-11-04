@@ -64,7 +64,7 @@ export class FollowUpQueueView {
     this.viewRoot.render(h(FollowUpQueuePanel, {
       items,
       paused: this.queue.paused,
-      showResume: this.queue.paused || (this.isIdle && this.queue.next !== null),
+      showResume: this.queue.next !== null && (this.queue.paused || this.isIdle),
       canSteer: this.canSteer,
       unavailableReason: this.unavailableReason,
       onSteer: this.actions.onSteer,
