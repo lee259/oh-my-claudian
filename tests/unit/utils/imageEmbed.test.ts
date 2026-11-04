@@ -95,6 +95,17 @@ describe('replaceImageEmbedsWithHtml', () => {
       expect(result).not.toContain('src="app://local/assets/image.png"');
     });
 
+    it.each(['assets', 'assets/', './assets', 'assets//'])(
+      'normalizes the configured media folder %s',
+      (mediaFolder) => {
+        const app = createMockApp(new Map([['assets/image.png', 'app://local/assets/image.png']]));
+
+        const result = replaceImageEmbedsWithHtml('![[image.png]]', app, { mediaFolder });
+
+        expect(result).toContain('src="app://local/assets/image.png"');
+      },
+    );
+
     it('handles image in surrounding text', () => {
       const app = createMockApp(new Map([['test.png', 'app://local/test.png']]));
       const result = replaceImageEmbedsWithHtml('Check this ![[test.png]] image', app);

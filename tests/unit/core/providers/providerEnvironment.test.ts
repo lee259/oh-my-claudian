@@ -53,6 +53,24 @@ describe('providerEnvironment', () => {
       expect(result.shared).toBe(['# shared comment', 'PATH=/usr/local/bin'].join('\n'));
       expect(result.providers.claude).toBe(['', '# claude comment', 'ANTHROPIC_MODEL=claude-custom'].join('\n'));
     });
+
+    it('keeps trailing comments inside their provider scope', () => {
+      const result = classifyEnvironmentVariablesByOwnership([
+        'PATH=/usr/local/bin',
+        'ANTHROPIC_MODEL=claude-custom',
+        '# bedrock only',
+      ].join('\n'));
+
+      expect(result.shared).toBe('PATH=/usr/local/bin');
+      expect(result.providers.claude).toBe(['ANTHROPIC_MODEL=claude-custom', '# bedrock only'].join('\n'));
+    });
+
+    it('classifies tab-separated export assignments by ownership', () => {
+      const result = classifyEnvironmentVariablesByOwnership('export\tANTHROPIC_MODEL=claude-custom');
+
+      expect(result.shared).toBe('');
+      expect(result.providers.claude).toBe('export\tANTHROPIC_MODEL=claude-custom');
+    });
   });
 
   describe('runtime env accessors', () => {

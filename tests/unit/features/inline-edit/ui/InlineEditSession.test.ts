@@ -4,6 +4,7 @@ import { Notice } from 'obsidian';
 
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { InlineEditSession } from '@/features/inline-edit/ui/InlineEditModal';
+import { VaultMentionDataProvider } from '@/shared/mention/VaultMentionDataProvider';
 
 jest.mock('@/shared/components/SelectionHighlight', () => ({
   hideSelectionHighlight: jest.fn(),
@@ -51,7 +52,11 @@ function createSession() {
   };
   const app: any = {
     metadataCache: {},
-    vault: { getMarkdownFiles: jest.fn(() => []) },
+    vault: {
+      getMarkdownFiles: jest.fn(() => []),
+      offref: jest.fn(),
+      on: jest.fn((name: string, callback: () => void) => ({ name, callback })),
+    },
   };
   const session = new InlineEditSession(
     app,
@@ -68,7 +73,7 @@ function createSession() {
     editedText: 'world',
     sourceSnapshot: { doc: sourceDoc, from: 0, to: 5, text: 'hello' },
   });
-  return { editor, editorView, resolve, service, session, sourceDoc };
+  return { app, editor, editorView, resolve, service, session, sourceDoc };
 }
 
 describe('InlineEditSession', () => {
@@ -113,6 +118,27 @@ describe('InlineEditSession', () => {
     expect((session as any).isKeyboardEventInContext({ target: previewChild })).toBe(true);
     expect((session as any).isKeyboardEventInContext({ target: editorView.dom })).toBe(true);
     expect((session as any).isKeyboardEventInContext({ target: outside })).toBe(false);
+  });
+
+  it('refreshes mention caches from vault events while the session is open', () => {
+    const filesDirty = jest.spyOn(VaultMentionDataProvider.prototype, 'markFilesDirty');
+    const foldersDirty = jest.spyOn(VaultMentionDataProvider.prototype, 'markFoldersDirty');
+    const { app, session } = createSession();
+
+    session.show();
+    const handlers = new Map<string, () => void>(
+      app.vault.on.mock.calls.map(([name, callback]: [string, () => void]) => [name, callback]),
+    );
+    handlers.get('create')?.();
+    expect(filesDirty).toHaveBeenCalledTimes(1);
+    expect(foldersDirty).toHaveBeenCalledTimes(1);
+
+    handlers.get('modify')?.();
+    expect(filesDirty).toHaveBeenCalledTimes(2);
+    expect(foldersDirty).toHaveBeenCalledTimes(1);
+
+    (session as any).cleanup();
+    expect(app.vault.offref).toHaveBeenCalledTimes(4);
   });
 
   it('ignores a provider result that arrives after the session is rejected', async () => {
