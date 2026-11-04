@@ -4476,6 +4476,51 @@ describe('CodexNotificationRouter', () => {
       }]);
     });
 
+    it('applies a function call output that follows an extension completion', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'function_call',
+          name: 'sleep',
+          namespace: 'clock',
+          call_id: 'sleep-1',
+          arguments: '{"duration_ms":5000}',
+        },
+      });
+      router.handleNotification('item/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'extension',
+          kind: 'clock.sleep',
+          id: 'sleep-1',
+          durationMs: 5000,
+        },
+      });
+      router.handleNotification('rawResponseItem/completed', {
+        threadId: 't1',
+        turnId: 'turn1',
+        item: {
+          type: 'function_call_output',
+          call_id: 'sleep-1',
+          output: 'Wall time: 5.0060 seconds\nSleep completed.',
+        },
+      });
+      router.handleNotification('turn/completed', {
+        threadId: 't1',
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([{
+        type: 'tool_result',
+        id: 'sleep-1',
+        content: 'Wall time: 5.0060 seconds\nSleep completed.',
+        isError: false,
+      }]);
+    });
+
     it('ignores a late raw output after a same-id canonical collab completion', () => {
       router.beginTurn({ isPlanTurn: false });
 

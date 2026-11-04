@@ -606,6 +606,7 @@ export class CodexNotificationRouter {
     if (
       itemId
       && item.type !== 'commandExecution'
+      && isCanonicalToolItem(item)
       && this.rawStartedCallIds.has(itemId)
       && !rawResult
     ) {
