@@ -52,6 +52,12 @@ describe('parseEnvironmentVariables', () => {
     expect(parseEnvironmentVariables(input)).toEqual({ FOO: 'bar baz', QUX: 'hello world' });
   });
 
+  it('recognizes tab-separated export assignments', () => {
+    expect(parseEnvironmentVariables('export\tANTHROPIC_MODEL=claude-custom')).toEqual({
+      ANTHROPIC_MODEL: 'claude-custom',
+    });
+  });
+
   it('ignores comments and empty lines', () => {
     const input = '# comment\nFOO=bar\n\n# another\nBAZ=qux';
     expect(parseEnvironmentVariables(input)).toEqual({ FOO: 'bar', BAZ: 'qux' });

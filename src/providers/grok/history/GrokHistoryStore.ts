@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 
+import { normalizeImageMediaType } from '@/utils/imageAttachment';
 import { forEachJSONLLine } from '@/utils/jsonlFile';
 
 import { isWriteEditTool, TOOL_ASK_USER_QUESTION } from '../../../core/tools/toolNames';
@@ -7,7 +8,6 @@ import type {
   ChatMessage,
   ContentBlock,
   ImageAttachment,
-  ImageMediaType,
   ToolCallInfo,
 } from '../../../core/types';
 import type { SDKToolUseResult } from '../../../core/types/diff';
@@ -594,7 +594,7 @@ function extractImageAttachment(
   const content = readRecord(value);
   if (!content || content.type !== 'image') return null;
   const data = readString(content.data);
-  const mediaType = readImageMediaType(content.mimeType);
+  const mediaType = normalizeImageMediaType(content.mimeType);
   if (!data || !mediaType) return null;
   const extension = mediaType === 'image/jpeg' ? 'jpg' : mediaType.slice('image/'.length);
   return {
@@ -605,18 +605,6 @@ function extractImageAttachment(
     size: Buffer.from(data, 'base64').byteLength,
     source: 'file',
   };
-}
-
-function readImageMediaType(value: unknown): ImageMediaType | null {
-  switch (value) {
-    case 'image/gif':
-    case 'image/jpeg':
-    case 'image/png':
-    case 'image/webp':
-      return value;
-    default:
-      return null;
-  }
 }
 
 function renderToolContent(value: unknown): string {

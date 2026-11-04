@@ -1,7 +1,7 @@
 import { StateEffect, StateField, type Text } from '@codemirror/state';
 import type { DecorationSet } from '@codemirror/view';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
-import type { App, Component, Editor, MarkdownView } from 'obsidian';
+import type { App, Component, Editor, EventRef, MarkdownView } from 'obsidian';
 import { Notice } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
@@ -409,6 +409,7 @@ export class InlineEditSession {
   private slashCommandDropdown: SlashCommandDropdown | null = null;
   private mentionDropdown: MentionDropdownController | null = null;
   private mentionDataProvider: VaultMentionDataProvider;
+  private vaultEventRefs: EventRef[] = [];
   private agentReplyRenderVersion = 0;
   private sourceSnapshot: InlineEditSourceSnapshot | null = null;
   private settled = false;
@@ -475,6 +476,8 @@ export class InlineEditSession {
   }
 
   show() {
+    this.subscribeMentionCacheEvents();
+
     if (!installedEditors.has(this.editorView)) {
       this.editorView.dispatch({
         effects: StateEffect.appendConfig.of(inlineEditField),
@@ -910,7 +913,29 @@ export class InlineEditSession {
     }
   }
 
+  private subscribeMentionCacheEvents(): void {
+    if (this.vaultEventRefs.length > 0) return;
+    const vault = this.app.vault;
+    const markStructureDirty = () => {
+      this.mentionDataProvider.markFilesDirty();
+      this.mentionDataProvider.markFoldersDirty();
+    };
+    this.vaultEventRefs = [
+      vault.on('create', markStructureDirty),
+      vault.on('delete', markStructureDirty),
+      vault.on('rename', markStructureDirty),
+      vault.on('modify', () => this.mentionDataProvider.markFilesDirty()),
+    ];
+  }
+
+  private releaseMentionCacheEvents(): void {
+    if (this.vaultEventRefs.length === 0) return;
+    for (const ref of this.vaultEventRefs) this.app.vault.offref(ref);
+    this.vaultEventRefs = [];
+  }
+
   private cleanup(options?: { keepSelectionHighlight?: boolean }) {
+    this.releaseMentionCacheEvents();
     this.generation += 1;
     this.inlineEditService.cancel();
     this.inlineEditService.resetConversation();

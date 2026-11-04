@@ -488,6 +488,13 @@ describe('ToolCallRenderer', () => {
       expect(getToolLabel('Bash', { command: longCmd })).toBe(`Bash: ${'a'.repeat(40)}...`);
     });
 
+    it('does not split surrogate pairs when truncating labels', () => {
+      const label = getToolLabel('Bash', { command: `${'a'.repeat(39)}😀rest of the command` });
+
+      expect(label).toBe(`Bash: ${'a'.repeat(39)}...`);
+      expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(label)).toBe(false);
+    });
+
     it('should label Bash with fallback for missing command', () => {
       expect(getToolLabel('Bash', {})).toBe('Bash: command');
     });
