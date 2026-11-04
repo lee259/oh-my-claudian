@@ -646,6 +646,7 @@ export class InputController {
       displayContent,                // Original user input (for UI display)
       timestamp: Date.now(),
       images: imagesForMessage,
+      ...(options?.answeringQuestionId ? { isProviderContinuation: true } : {}),
     };
     state.addMessage(userMsg);
     state.hasPendingConversationSave = true;

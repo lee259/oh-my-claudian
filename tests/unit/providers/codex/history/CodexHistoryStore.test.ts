@@ -1438,6 +1438,8 @@ describe('CodexHistoryStore', () => {
         resolvedAnswers: { '0': 'History' },
       });
       expect(messages.filter(message => message.role === 'user').every(message => message.displayContent === '')).toBe(true);
+      expect(messages.filter(message => message.role === 'user')
+        .every(message => message.isProviderContinuation === true)).toBe(true);
     });
 
     it('restores request_user_input options and multi-select metadata', () => {

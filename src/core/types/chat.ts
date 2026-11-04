@@ -145,6 +145,8 @@ export interface ChatMessage {
   isInterrupt?: boolean;
   /** True if this message is rebuilt context sent to SDK on session reset (should be hidden). */
   isRebuiltContext?: boolean;
+  /** Provider-generated continuation input that remains part of the current user turn. */
+  isProviderContinuation?: boolean;
   /** Duration in seconds from user send to response completion. */
   durationSeconds?: number;
   /** Model label selected for this turn, captured when execution starts. */
@@ -163,7 +165,8 @@ export interface ChatMessage {
 export function isCanonicalUserMessage(message: ChatMessage): boolean {
   return message.role === 'user'
     && !message.isInterrupt
-    && !message.isRebuiltContext;
+    && !message.isRebuiltContext
+    && !message.isProviderContinuation;
 }
 
 /** Claudian-owned display metadata correlated with a provider transcript turn. */

@@ -90,6 +90,41 @@ describe('projectTranscript', () => {
     });
   });
 
+  it('keeps provider continuation replies in their originating user turn', () => {
+    const messages: ChatMessage[] = [
+      { id: 'user-1', role: 'user', content: 'Inspect this.', timestamp: 1 },
+      {
+        id: 'assistant-1', role: 'assistant', content: '', timestamp: 2,
+        contentBlocks: [{ type: 'tool_use', toolId: 'tool-1' }],
+      },
+      {
+        id: 'continuation', role: 'user', content: '<provider reply>',
+        displayContent: '', isProviderContinuation: true, timestamp: 3,
+      },
+      {
+        id: 'assistant-2', role: 'assistant', content: 'Finished.', timestamp: 4,
+        contentBlocks: [
+          { type: 'tool_use', toolId: 'tool-2' },
+          { type: 'text', content: 'Finished.' },
+        ],
+      },
+    ];
+
+    const projection = projectTranscript(messages);
+
+    expect(projection).toHaveLength(1);
+    expect(projection[0]).toMatchObject({
+      id: 'user-1',
+      userMessageId: 'user-1',
+    });
+    expect(projection[0].runs.map((run) => run.id)).toEqual(['assistant-1', 'assistant-2']);
+    expect(projection[0].blocks.map((block) => [block.runId, block.block.type])).toEqual([
+      ['assistant-1', 'tool_use'],
+      ['assistant-2', 'tool_use'],
+      ['assistant-2', 'text'],
+    ]);
+  });
+
   it('projects legacy assistant content and interrupted runs without mutating messages', () => {
     const message: ChatMessage = {
       id: 'assistant-legacy',

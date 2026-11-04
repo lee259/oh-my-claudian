@@ -1683,6 +1683,7 @@ function flushBubbleTurnMessages(
       content: isQuestionReply ? rawUserText : visibleUserText ?? '',
       ...(displayContent !== undefined ? { displayContent } : {}),
       ...(userImages ? { images: userImages } : {}),
+      ...(isQuestionReply ? { isProviderContinuation: true } : {}),
       ...(turn.serverTurnId ? { userMessageId: turn.serverTurnId } : {}),
       timestamp: turn.userTimestamp || turn.startedAt || Date.now(),
     });
