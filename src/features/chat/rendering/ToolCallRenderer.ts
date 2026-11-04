@@ -147,7 +147,7 @@ export function getToolLabel(
       return `Edit: ${shortenPath(getInputText(input, 'file_path')) || 'file'}`;
     case TOOL_BASH: {
       const cmd = getInputText(input, 'command', 'command');
-      return `Bash: ${cmd.length > 40 ? cmd.substring(0, 40) + '...' : cmd}`;
+      return `Bash: ${truncateText(cmd, 40)}`;
     }
     case TOOL_GLOB:
       return `Glob: ${getInputText(input, 'pattern', 'files')}`;
@@ -158,7 +158,7 @@ export function getToolLabel(
     }
     case TOOL_WEB_FETCH: {
       const url = getInputText(input, 'url', 'url');
-      return `WebFetch: ${url.length > 40 ? url.substring(0, 40) + '...' : url}`;
+      return `WebFetch: ${truncateText(url, 40)}`;
     }
     case TOOL_LS:
       return `LS: ${shortenPath(getInputText(input, 'path')) || '.'}`;
@@ -269,9 +269,13 @@ function shortenPath(filePath: string | undefined): string {
   return '.../' + parts.slice(-2).join('/');
 }
 
-function truncateText(text: string, maxLength: number): string {
+export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  let end = maxLength;
+  const before = text.charCodeAt(end - 1);
+  const after = text.charCodeAt(end);
+  if (before >= 0xD800 && before <= 0xDBFF && after >= 0xDC00 && after <= 0xDFFF) end--;
+  return text.substring(0, end) + '...';
 }
 
 function parseToolSearchQuery(query: string | undefined): string {
