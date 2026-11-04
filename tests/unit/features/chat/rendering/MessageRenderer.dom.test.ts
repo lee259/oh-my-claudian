@@ -277,6 +277,54 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('folds tool runs separated by a hidden provider continuation reply', () => {
+    const messagesEl = document.createElement('div');
+    document.body.appendChild(messagesEl);
+    const component = new Component();
+    const renderer = new MessageRenderer(
+      { app: {}, settings: {} } as FeatureHost,
+      component,
+      messagesEl,
+      undefined,
+      undefined,
+      () => ProviderRegistry.getCapabilities('claude'),
+    );
+    try {
+      renderer.renderMessages([
+        { id: 'user-1', role: 'user', content: 'Make the cover.', timestamp: 1 },
+        {
+          id: 'assistant-1', role: 'assistant', content: '', timestamp: 2,
+          toolCalls: [{ id: 'sleep-1', name: 'sleep', input: { duration_ms: 5000 }, status: 'completed' }],
+          contentBlocks: [
+            { type: 'thinking', content: 'Waiting.' },
+            { type: 'tool_use', toolId: 'sleep-1' },
+          ],
+        },
+        {
+          id: 'continuation', role: 'user', content: '<provider reply>',
+          displayContent: '', isProviderContinuation: true, timestamp: 3,
+        },
+        {
+          id: 'assistant-2', role: 'assistant', content: 'Cover ready.', timestamp: 4,
+          toolCalls: [{ id: 'clock-1', name: 'clock__curr_time', input: {}, status: 'completed' }],
+          contentBlocks: [
+            { type: 'tool_use', toolId: 'clock-1' },
+            { type: 'text', content: 'Cover ready.' },
+          ],
+        },
+      ], () => 'How is it going?');
+
+      const work = messagesEl.querySelector<HTMLElement>('.claudian-completed-work')!;
+      const history = work.querySelector<HTMLElement>('.claudian-completed-work-history')!;
+      expect(history.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
+      expect([...messagesEl.querySelectorAll('.claudian-tool-call')]
+        .filter((element) => !history.contains(element))).toHaveLength(0);
+      const answer = [...messagesEl.querySelectorAll<HTMLElement>('.claudian-text-block')]
+        .find((element) => element.textContent === 'Cover ready.')!;
+      expect(history.contains(answer)).toBe(false);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it('removes blank live thinking rows and keeps their surrounding tool batches separate', () => {
     const { renderer, component, content, assistant, tool, sync } = createTurn('pi');
     try {
