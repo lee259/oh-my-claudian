@@ -156,6 +156,16 @@ describe('Sync Subagent Renderer', () => {
       expect(state.labelEl.textContent).toBe('My task description');
     });
 
+    it('does not split surrogate pairs when truncating the description', () => {
+      const state = createSubagentBlock(parentEl as any, 'task-1', {
+        description: `${'a'.repeat(39)}😀tail`,
+      });
+
+      expect(state.labelEl.textContent).toBe(`${'a'.repeat(39)}...`);
+      const label = state.labelEl.textContent ?? '';
+      expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(label)).toBe(false);
+    });
+
     it('should not show a tool count badge in the header', () => {
       const state = createSubagentBlock(parentEl as any, 'task-1', { description: 'Test task' });
 

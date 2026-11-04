@@ -64,6 +64,14 @@ describe('markdownMath', () => {
       }
     });
 
+    it.each([
+      [String.raw`Math \(a<b, c>d\) and <placeholder>.`, 'Math $a<b, c>d$ and <placeholder>.'],
+      [String.raw`Math \[a<b, c>d\] and <placeholder>.`, 'Math $$a<b, c>d$$ and <placeholder>.'],
+      ['\\[\na<b,\nc>d\n\\]', '$$\na<b,\nc>d\n$$'],
+    ])('keeps comparison text inside LaTeX expressions: %s', (markdown, expected) => {
+      expect(normalizeLatexMathDelimiters(markdown)).toBe(expected);
+    });
+
     it('preserves existing dollars and unmatched or escaped LaTeX delimiters', () => {
       expect(
         normalizeLatexMathDelimiters('Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).')

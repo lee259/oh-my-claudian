@@ -396,7 +396,7 @@ function findAutolinkEnd(line: string, start: number): number | null {
   }
 
   const destination = line.slice(start + 1, end);
-  if (!destination || /[\s<>\\()[\]]/.test(destination)) {
+  if (!destination || /[\s<>[\]]/.test(destination)) {
     return null;
   }
 
@@ -439,6 +439,10 @@ function findHtmlEnd(line: string, start: number): number | null {
     index += 1;
   }
   if (!/[A-Za-z]/.test(line[index] ?? '')) {
+    return null;
+  }
+  while (/[\w-]/.test(line[index] ?? '')) index += 1;
+  if (!/[\s/>]/.test(line[index] ?? '')) {
     return null;
   }
 
