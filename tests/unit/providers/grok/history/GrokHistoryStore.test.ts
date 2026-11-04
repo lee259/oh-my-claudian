@@ -342,6 +342,31 @@ describe('GrokHistoryStore', () => {
     expect(messages[3]).toMatchObject({ content: 'Second answer', role: 'assistant' });
   });
 
+  it.each([
+    ['image/jpg', 'image/jpeg'],
+    ['IMAGE/PNG', 'image/png'],
+    [' image/webp ', 'image/webp'],
+  ])('normalizes the native image media type %s', (mimeType, expected) => {
+    const records = [{
+      content: { text: 'Look', type: 'text' },
+      messageId: 'user-media',
+      sessionUpdate: 'user_message_chunk',
+    }, {
+      content: { data: 'aGVsbG8=', mimeType, type: 'image' },
+      messageId: 'user-media',
+      sessionUpdate: 'user_message_chunk',
+    }, { sessionUpdate: 'turn_completed' }].map((update, index) => JSON.stringify({
+      method: '_x.ai/session/update',
+      params: { sessionId: 'session-media', update },
+      timestamp: 700 + index,
+    })).join('\n');
+
+    const messages = parseGrokHistoryContent(records, 'session-media').messages;
+
+    expect(messages[0]?.images?.[0]?.mediaType).toBe(expected);
+    expect(messages[0]?.images?.[0]?.name).toBe(`Grok image 1.${expected === 'image/jpeg' ? 'jpg' : expected.slice('image/'.length)}`);
+  });
+
   it('maps an assistant checkpoint to the following zero-based Grok prompt index', () => {
     const content = fs.readFileSync(path.join(
       process.cwd(),

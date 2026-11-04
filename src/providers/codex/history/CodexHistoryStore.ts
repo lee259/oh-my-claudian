@@ -24,6 +24,7 @@ import {
 import {
   extractCodexUserVisibleText,
   joinCodexUserTextParts,
+  trimCodexUserText,
 } from '../codexUserText';
 import {
   normalizeCodexMemoryCitation,
@@ -307,7 +308,7 @@ function pushToolInvocation(bubble: CodexAssistantBubble, toolCall: ToolCallInfo
 }
 
 function appendUniqueChunk(chunks: string[], value: string): void {
-  const trimmed = value.trim();
+  const trimmed = trimCodexUserText(value);
   if (!trimmed) return;
   if (chunks[chunks.length - 1] === trimmed) return;
   chunks.push(trimmed);

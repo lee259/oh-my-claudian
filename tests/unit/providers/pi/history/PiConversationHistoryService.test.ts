@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type * as streamType from 'node:stream';
+import { pathToFileURL } from 'node:url';
 
 import type { Conversation } from '@/core/types';
 import { PiConversationHistoryService } from '@/providers/pi/history/PiConversationHistoryService';
@@ -41,6 +42,70 @@ describe('PiConversationHistoryService', () => {
       expect(await fs.readFile(sessionFile, 'utf8')).toBe(content);
     } finally {
       await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['~', () => '~'],
+    ['home-relative', () => (process.platform === 'win32' ? '~\\custom sessions' : '~/custom sessions')],
+    ['file URI', (directory: string) => pathToFileURL(directory).href],
+    ['relative', () => './custom-sessions'],
+  ])('hydrates a configured session directory expressed as %s', async (syntax, toValue) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-configured-syntax-'));
+    try {
+      const home = path.join(root, 'home');
+      const vault = path.join(root, 'vault');
+      const directory = syntax === '~'
+        ? home
+        : syntax === 'home-relative'
+          ? path.join(home, 'custom sessions')
+          : syntax === 'file URI'
+            ? path.join(root, 'Pi Sessions # 日本語')
+            : path.join(vault, 'custom-sessions');
+      const sessionFile = path.join(directory, 's1.jsonl');
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(sessionFile, JSON.stringify({
+        id: 'u',
+        message: { content: 'Configured history', role: 'user' },
+        type: 'message',
+      }));
+
+      const conversation = createConversation(sessionFile);
+      await new PiConversationHistoryService().hydrateConversationHistory(conversation, vault, {
+        environment: {
+          HOME: home,
+          USERPROFILE: home,
+          PI_CODING_AGENT_SESSION_DIR: toValue(directory),
+        },
+      });
+
+      expect(conversation.messages.map(message => message.content)).toEqual(['Configured history']);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not add trust for a malformed configured session directory', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-configured-invalid-'));
+    try {
+      const sessionFile = path.join(root, 's1.jsonl');
+      await fs.writeFile(sessionFile, JSON.stringify({
+        id: 'u',
+        message: { content: 'Untrusted history', role: 'user' },
+        type: 'message',
+      }));
+      const conversation = createConversation(sessionFile);
+
+      await new PiConversationHistoryService().hydrateConversationHistory(conversation, null, {
+        environment: {
+          HOME: path.join(root, 'home'),
+          PI_CODING_AGENT_SESSION_DIR: 'file:///%ZZ',
+        },
+      });
+
+      expect(conversation.messages).toEqual([]);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
     }
   });
 
