@@ -210,6 +210,13 @@ describe('markdownHtml', () => {
       );
     });
 
+    it.each([
+      '<https://en.wikipedia.org/wiki/Foo_(bar)>',
+      '<https://[2001:db8::1]/guide>',
+    ])('preserves punctuated angle autolinks: %s', (link) => {
+      expect(escapeRawHtmlTags(`${link} and <meta-name>`)).toBe(`${link} and &lt;meta-name&gt;`);
+    });
+
     it('preserves image wikilinks for later embed processing', () => {
       expect(escapeRawHtmlTags('![[<image-name>.png|<alt>]]')).toBe(
         '![[<image-name>.png|<alt>]]'
