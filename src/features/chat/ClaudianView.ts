@@ -850,13 +850,14 @@ export class ClaudianView extends ItemView {
         preserveListState: true,
         onRequestInlineRename: ({ beginRename, conversationId }) => {
           const restoreAndRename = () => {
-            if (signal.aborted || this.historyDropdown !== container) return;
+            if (signal.aborted || this.historyListHostEl !== container
+              || container.parentElement !== this.historyDropdown) return;
             const targetItem = Array.from(
               container.querySelectorAll<HTMLElement>('.claudian-history-item'),
             ).find(item => item.getAttribute('data-conversation-id') === conversationId);
             if (!targetItem) return;
 
-            container.addClass('visible');
+            this.historyDropdown?.addClass('visible');
             beginRename(targetItem);
           };
           scheduleAnimationFrame(
@@ -890,13 +891,14 @@ export class ClaudianView extends ItemView {
       preserveListState: true,
       onRequestInlineRename: ({ beginRename, conversationId }) => {
         const restoreAndRename = () => {
-          if (signal.aborted || this.historyDropdown !== container) return;
+          if (signal.aborted || this.historyListHostEl !== container
+            || container.parentElement !== this.historyDropdown) return;
           const targetItem = Array.from(
             container.querySelectorAll<HTMLElement>('.claudian-history-item'),
           ).find(item => item.getAttribute('data-conversation-id') === conversationId);
           if (!targetItem) return;
 
-          container.addClass('visible');
+          this.historyDropdown?.addClass('visible');
           beginRename(targetItem);
         };
         scheduleAnimationFrame(

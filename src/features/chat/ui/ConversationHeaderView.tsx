@@ -30,12 +30,22 @@ export function ConversationHeaderView({
   const [isConversationMenuOpen, setIsConversationMenuOpen] = useState(false);
   const conversationMenuAnchorRef = useRef<HTMLDivElement>(null);
 
+  const pendingMenuFocus = useRef<'first' | 'last' | null>(null);
+
   useLayoutEffect(() => {
     setIsConversationMenuOpen(false);
   }, [isHome]);
 
+  useLayoutEffect(() => {
+    if (!isConversationMenuOpen || !pendingMenuFocus.current) return;
+    const items = conversationMenuAnchorRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+    const target = pendingMenuFocus.current === 'last' ? items?.[items.length - 1] : items?.[0];
+    pendingMenuFocus.current = null;
+    target?.focus();
+  }, [isConversationMenuOpen]);
+
   useEffect(() => {
-    if (!isConversationMenuOpen) return undefined;
+    if (isHome) return undefined;
     const ownerDocument = conversationMenuAnchorRef.current?.ownerDocument;
     if (!ownerDocument) return undefined;
 
@@ -45,15 +55,44 @@ export function ConversationHeaderView({
       }
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
-      if (conversationMenuAnchorRef.current?.contains(ownerDocument.activeElement)) {
+      const anchor = conversationMenuAnchorRef.current;
+      const trigger = anchor?.querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action');
+      const active = ownerDocument.activeElement;
+      const inside = anchor?.contains(active) ?? false;
+      const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
+      if (!isConversationMenuOpen) {
+        if (!arrow || active !== trigger) return;
         event.preventDefault();
         event.stopPropagation();
-        conversationMenuAnchorRef.current
-          .querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')
-          ?.focus();
+        pendingMenuFocus.current = event.key === 'ArrowUp' ? 'last' : 'first';
+        setIsConversationMenuOpen(true);
+        return;
       }
-      setIsConversationMenuOpen(false);
+      if (event.key === 'Escape') {
+        if (inside) {
+          event.preventDefault();
+          event.stopPropagation();
+          trigger?.focus();
+        }
+        setIsConversationMenuOpen(false);
+        return;
+      }
+      if (!inside) return;
+      if (event.key === 'Tab') {
+        trigger?.focus();
+        setIsConversationMenuOpen(false);
+        return;
+      }
+      if (!arrow && event.key !== 'Home' && event.key !== 'End') return;
+      const items = Array.from(anchor!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+      if (!items.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const index = items.indexOf(active as HTMLButtonElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : index < 0 ? (event.key === 'ArrowUp' ? items.length - 1 : 0)
+          : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+      items[next].focus();
     };
 
     ownerDocument.addEventListener('pointerdown', handlePointerDown);
@@ -62,10 +101,11 @@ export function ConversationHeaderView({
       ownerDocument.removeEventListener('pointerdown', handlePointerDown);
       ownerDocument.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isConversationMenuOpen]);
+  }, [isConversationMenuOpen, isHome]);
 
   const openConversationMenu = (event: MouseEvent): void => {
     event.stopPropagation();
+    pendingMenuFocus.current = 'first';
     setIsConversationMenuOpen(open => !open);
   };
 
@@ -127,6 +167,8 @@ export function ConversationHeaderView({
               icon="more-horizontal"
               iconClassName="claudian-conversation-header-icon"
               label={t('chat.history.options')}
+              ariaExpanded={isConversationMenuOpen}
+              ariaHasPopup="menu"
               onClick={openConversationMenu}
             />
           </div>
