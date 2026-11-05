@@ -51,7 +51,7 @@ describe('DeepSeek saved configuration contracts', () => {
     expect((settings.providerConfigs as any).deepseek).toMatchObject({ extensionField: 'preserve', cliPathsByHost: { 'device:test': '/custom/dsh' } });
     const restored = { providerConfigs: { deepseek: config } };
     expect(getDeepSeekProviderSettings(restored).visibleModels).toEqual(order);
-    expect(deepseekModelPolicy.getModelOptions(restored).map(row => row.value)).toEqual([models[1].encodedId, models[0].encodedId]);
+    expect(deepseekModelPolicy.getModelOptions(restored).map(row => row.value)).toEqual([models[0].encodedId, models[1].encodedId]);
     expect(deepseekModelPolicy.getDefaultReasoningValue(models[1].encodedId, restored)).toBe('low');
     expect(getDeepSeekProviderSettings(restored).codeMode).toBe(true);
   });
