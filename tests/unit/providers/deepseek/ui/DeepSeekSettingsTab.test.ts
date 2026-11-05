@@ -183,6 +183,38 @@ describe('DeepSeekSettingsTab', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('serializes preset plugin saves so an older restart cannot overwrite a newer edit', async () => {
+    const { host, ui } = render();
+    const field = ui.getByRole('textbox', { name: 'Additional preset plugins' }) as HTMLTextAreaElement;
+    const rowsA = '- id: tool-first\n  name: "@deepseek-ai/dsh-tool-first"\n';
+    const rowsB = '- id: tool-second\n  name: "@deepseek-ai/dsh-tool-second"\n';
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const applied: string[] = [];
+    const original = host.applyProviderRuntimeSettings;
+    host.applyProviderRuntimeSettings = jest.fn(async (ids, apply) => {
+      const draft = JSON.parse(JSON.stringify(host.settings));
+      apply(draft);
+      const value = getDeepSeekProviderSettings(draft).presetPlugins;
+      if (value === rowsA) await firstGate;
+      applied.push(value);
+      return original(ids, apply);
+    });
+
+    fireEvent.input(field, { target: { value: rowsA } });
+    fireEvent.change(field);
+    await settle();
+    fireEvent.input(field, { target: { value: rowsB } });
+    fireEvent.change(field);
+    await settle();
+
+    // The newer edit waits for the in-flight restart instead of racing it.
+    expect(applied).toEqual([]);
+    releaseFirst();
+    await waitFor(() => expect(getDeepSeekProviderSettings(host.settings).presetPlugins).toBe(rowsB));
+    expect(applied).toEqual([rowsA, rowsB]);
+  });
+
   it('keeps invalid additional plugin rows out of settings and explains why', async () => {
     const { host, transitions, container, ui } = render();
     const field = ui.getByRole('textbox', { name: 'Additional preset plugins' }) as HTMLTextAreaElement;
