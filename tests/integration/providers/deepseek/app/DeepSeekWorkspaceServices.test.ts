@@ -43,7 +43,7 @@ it('discovers native models lazily and preserves explicit selection order and un
     expect(start).toHaveBeenCalledTimes(1);
     expect(peer.calls.map(call => call.method)).toEqual(['session/list', 'session/modelCatalog']);
     expect(getDeepSeekProviderSettings(settings).visibleModels).toEqual([second, first]);
-    expect(deepseekModelPolicy.getModelOptions(settings).map(option => option.value)).toEqual([second, first]);
+    expect(deepseekModelPolicy.getModelOptions(settings).map(option => option.value)).toEqual([first, second]);
     expect(deepseekModelPolicy.getReasoningOptions(second, settings)).toEqual([{ value: 'high', label: 'High' }, { value: 'max', label: 'Max' }]);
     expect(deepseekModelPolicy.getDefaultReasoningValue(second, settings)).toBe('max');
     peer.onCall = method => method === 'session/list' ? { items: [] } : { groups: [{ id: 'native/a', models: [{ id: 'model/a', name: 'A' }] }] };

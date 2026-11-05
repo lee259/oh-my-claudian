@@ -10,7 +10,7 @@ export const deepseekModelPolicy: ProviderChatUIConfig = {
   isDefaultModel: model => decodeDeepSeekModelId(model) !== null,
   getModelOptions(settings) {
     const current = getDeepSeekProviderSettings(settings);
-    return current.visibleModels.filter(id => isDeepSeekModelSelectable(current, id)).map(id => {
+    return [...current.visibleModels].reverse().filter(id => isDeepSeekModelSelectable(current, id)).map(id => {
       const model = findDeepSeekModel(current, id);
       return {
         value: id,
