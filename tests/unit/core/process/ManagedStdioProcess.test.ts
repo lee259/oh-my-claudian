@@ -161,6 +161,15 @@ describe('ManagedStdioProcess', () => {
     expect(proc.stderr.listenerCount('data')).toBe(0);
   });
 
+  it('does not retain a split surrogate half at the stderr tail boundary', () => {
+    const managed = createManagedProcess({ stderrBufferLimit: 2 });
+    managed.start();
+
+    proc.stderr.emit('data', 'a😀b');
+
+    expect(managed.getStderrSnapshot()).toBe('b');
+  });
+
   it.each([
     { text: '中', split: 1 },
     { text: '中', split: 2 },
