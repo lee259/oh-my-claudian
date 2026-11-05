@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 
 import { ConversationHeaderView } from '@/features/chat/ui/ConversationHeaderView';
 
@@ -36,6 +37,47 @@ describe('ConversationHeaderView', () => {
       button.click();
       expect(callbacks[index]).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('closes options when navigating home and keeps them closed on return', async () => {
+    const draw = (isHome = false) => render(h(ConversationHeaderView, {
+      title: 'Session', isHome, onRenameConversation: jest.fn(),
+    }), container);
+    await act(() => draw());
+    await act(() => container.querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')!.click());
+    expect(container.querySelector('[role="menu"]')).not.toBeNull();
+    await act(() => draw(true));
+    await act(() => draw(false));
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it('restores focus to options when Escape closes a focused menu', async () => {
+    await act(() => render(h(ConversationHeaderView, {
+      title: 'Session', onRenameConversation: jest.fn(),
+    }), container));
+    const trigger = container.querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')!;
+    await act(() => trigger.click());
+    const item = container.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    item.focus();
+    container.addEventListener('keydown', event => event.stopPropagation());
+    await act(() => { item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it.each(['pointerdown', 'Escape'])('keeps external focus when %s dismisses options', async eventType => {
+    await act(() => render(h(ConversationHeaderView, {
+      title: 'Session', onRenameConversation: jest.fn(),
+    }), container));
+    await act(() => container.querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')!.click());
+    const external = document.createElement('input');
+    container.append(external);
+    external.focus();
+    await act(() => { external.dispatchEvent(eventType === 'Escape'
+      ? new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      : new Event('pointerdown', { bubbles: true })); });
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(external);
   });
 
   it('offers rename and archive actions from the conversation menu', async () => {
