@@ -8,6 +8,15 @@ import type {
 } from '../providers/types';
 
 export function parseInlineEditResponse(responseText: string): InlineEditResult {
+  const trimmed = responseText.trim();
+  // A complete reply has one outer frame; its editor payload can itself contain these tags.
+  const framed = trimmed.match(/^<(replacement|insertion)>([\s\S]*)<\/\1>$/);
+  if (framed) {
+    return framed[1] === 'replacement'
+      ? { success: true, editedText: framed[2] }
+      : { success: true, insertedText: framed[2] };
+  }
+
   const replacementMatch = responseText.match(/<replacement>([\s\S]*?)<\/replacement>/);
   if (replacementMatch) {
     return { success: true, editedText: replacementMatch[1] };
@@ -18,7 +27,6 @@ export function parseInlineEditResponse(responseText: string): InlineEditResult 
     return { success: true, insertedText: insertionMatch[1] };
   }
 
-  const trimmed = responseText.trim();
   if (trimmed) {
     return { success: true, clarification: trimmed };
   }
