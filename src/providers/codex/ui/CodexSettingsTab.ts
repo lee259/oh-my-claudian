@@ -123,17 +123,23 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
             .addOption('wsl', t('settings.codex.installationMethod.wsl'))
             .setValue(installationMethod)
             .onChange(async (value) => {
-              installationMethod = value === 'wsl' ? 'wsl' : 'native-windows';
-              await context.plugin.applyProviderRuntimeSettings(
-                ['codex'],
-                (settings) => {
-                  updateCodexProviderSettings(settings, { installationMethod });
-                },
-                () => codexWorkspace.cliResolver.reset(),
-              );
-              refreshInstallationMethodUI();
-              await refreshCodexCliSummary();
-              await refreshCodexModelCatalog();
+              const requestedMethod = value === 'wsl' ? 'wsl' : 'native-windows';
+              installationMethod = requestedMethod;
+              try {
+                await context.plugin.applyProviderRuntimeSettings(
+                  ['codex'],
+                  (settings) => {
+                    updateCodexProviderSettings(settings, { installationMethod: requestedMethod });
+                  },
+                  () => codexWorkspace.cliResolver.reset(),
+                );
+              } finally {
+                // A rejected save keeps the committed installation method.
+                installationMethod = getCodexProviderSettings(settingsBag).installationMethod;
+                dropdown.setValue(installationMethod);
+                refreshInstallationMethodUI();
+                await Promise.allSettled([refreshCodexCliSummary(), refreshCodexModelCatalog()]);
+              }
             });
         });
     }
