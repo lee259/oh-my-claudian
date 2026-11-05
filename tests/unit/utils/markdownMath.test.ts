@@ -72,6 +72,26 @@ describe('markdownMath', () => {
       expect(normalizeLatexMathDelimiters(markdown)).toBe(expected);
     });
 
+    it('preserves reference-link definitions while escaping visible math', () => {
+      const markdown = [
+        '[cost]: https://host/$price "Cost $5"',
+        '[next]:',
+        '  <https://host/$next>',
+        '  "Price $8"',
+        '',
+        '$visible$',
+      ].join('\n');
+
+      expect(escapeMathDelimitersForStreaming(markdown)).toBe([
+        '[cost]: https://host/$price "Cost $5"',
+        '[next]:',
+        '  <https://host/$next>',
+        '  "Price $8"',
+        '',
+        '\\$visible\\$',
+      ].join('\n'));
+    });
+
     it('preserves existing dollars and unmatched or escaped LaTeX delimiters', () => {
       expect(
         normalizeLatexMathDelimiters('Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).')
