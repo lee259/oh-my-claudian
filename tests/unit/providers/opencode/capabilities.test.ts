@@ -1,4 +1,4 @@
-import { OPENCODE_PROVIDER_CAPABILITIES } from '@/providers/opencode/capabilities';
+import { getOpencodeConversationCapabilities, OPENCODE_PROVIDER_CAPABILITIES } from '@/providers/opencode/capabilities';
 
 describe('OPENCODE_PROVIDER_CAPABILITIES', () => {
   it('should have opencode as providerId', () => {
@@ -40,4 +40,8 @@ describe('OPENCODE_PROVIDER_CAPABILITIES', () => {
   it('should be frozen', () => {
     expect(Object.isFrozen(OPENCODE_PROVIDER_CAPABILITIES)).toBe(true);
   });
+});
+
+it.each([undefined, 1, 2])('gates steering by confirmed native version %s', nativeVersion => {
+  expect(getOpencodeConversationCapabilities({ nativeVersion }).supportsTurnSteer).toBe(nativeVersion === 2);
 });

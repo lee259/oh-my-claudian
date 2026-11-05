@@ -24,7 +24,7 @@ export const ompChatUIConfig: ProviderChatUIConfig = {
       const model = discovered.get(rawId);
       return model ? [{
         description: model.description ?? 'OMP ACP runtime',
-        label: model.label,
+        label: provider.modelAliases[rawId] ?? model.label,
         value: encodeOmpModelId(rawId),
       }] : [];
     });

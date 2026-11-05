@@ -24,6 +24,7 @@ export interface OmpProviderSettings {
   discoveredModels: OmpDiscoveredModel[];
   catalogTimestamp: number;
   visibleModels: string[];
+  modelAliases: Record<string, string>;
 }
 
 export const DEFAULT_OMP_PROVIDER_SETTINGS: Readonly<OmpProviderSettings> = Object.freeze({
@@ -36,6 +37,7 @@ export const DEFAULT_OMP_PROVIDER_SETTINGS: Readonly<OmpProviderSettings> = Obje
   discoveredModels: [],
   catalogTimestamp: 0,
   visibleModels: [],
+  modelAliases: {},
 });
 
 /** Reads availability without decoding the model catalog. */
@@ -61,6 +63,7 @@ export function getOmpProviderSettings(settings: Record<string, unknown>): OmpPr
     ),
     thinking: normalizeOmpThinkingConfig(config.thinking),
     discoveredModels,
+    modelAliases: normalizeModelAliases(config.modelAliases),
     catalogTimestamp: typeof config.catalogTimestamp === 'number'
       && Number.isFinite(config.catalogTimestamp)
       && config.catalogTimestamp >= 0
@@ -82,11 +85,20 @@ export function updateOmpProviderSettings(
     ...current,
     ...updates,
     discoveredModels,
+    modelAliases: normalizeModelAliases(updates.modelAliases ?? current.modelAliases),
     visibleModels: normalizeOmpVisibleModels(
       updates.visibleModels ?? current.visibleModels,
       discoveredModels,
     ),
   };
-  setProviderConfig(settings, 'omp', next);
+  setProviderConfig(settings, 'omp', { ...getProviderConfig(settings, 'omp'), ...next });
   return next;
+}
+
+function normalizeModelAliases(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter((entry): entry is [string, string] => entry[0].trim().length > 0
+      && typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    .map(([id, alias]) => [id, alias.trim()]));
 }

@@ -153,7 +153,7 @@ function renderCursorModelPicker(
   const getState = (): ProviderModelPickerState => {
     const provider = getCursorProviderSettings(settings);
     return {
-      aliases: {},
+      aliases: provider.modelAliases,
       catalogRefreshedAt: provider.catalogTimestamp || undefined,
       catalogStatus: deriveProviderModelCatalogStatus({
         modelCount: provider.discoveredModels.length,
@@ -184,7 +184,12 @@ function renderCursorModelPicker(
     },
     loadingCatalogText: t('settings.cursor.loadingModels'),
     modifier: 'cursor',
-    onAliasesChange: async () => undefined,
+    async onAliasesChange(modelAliases) {
+      await context.plugin.mutateSettings(target => {
+        updateCursorProviderSettings(target, { modelAliases });
+      });
+      context.notifyProviderModelOptionsChanged('cursor');
+    },
     async onSelectedIdsChange(visibleModels) {
       await context.plugin.mutateSettings(target => {
         const provider = getCursorProviderSettings(target);
