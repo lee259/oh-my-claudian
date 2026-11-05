@@ -25,7 +25,7 @@ export const cursorChatUIConfig: ProviderChatUIConfig = {
       const model = discovered.get(rawId);
       return model ? [{
         description: model.description ?? 'Cursor ACP runtime',
-        label: model.label,
+        label: provider.modelAliases[rawId] ?? model.label,
         value: encodeCursorModelId(rawId),
       }] : [];
     });

@@ -87,6 +87,22 @@ describe('Cursor settings model catalog', () => {
     return settings;
   }
 
+  it('persists an edited model alias after blur', async () => {
+    renderModels([{ label: 'Model A', rawId: 'vendor/model-a' }]);
+    const checkbox = container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-row input')!;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const alias = container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-selected-alias')!;
+    expect(alias).not.toBeNull();
+    alias.value = 'Daily model';
+    alias.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    alias.dispatchEvent(new Event('blur'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(container.querySelector<HTMLInputElement>('.claudian-provider-model-picker-selected-alias')!.value).toBe('Daily model');
+  });
+
   it('does not turn flat Cursor model IDs and their options into provider groups', async () => {
     const models = [
       { label: 'Auto Balance', rawId: 'auto-smart[optimize_for=balanced]' },

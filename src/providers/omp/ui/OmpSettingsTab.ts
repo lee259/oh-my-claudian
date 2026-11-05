@@ -153,7 +153,7 @@ function renderOmpModelPicker(
   const getState = (): ProviderModelPickerState => {
     const provider = getOmpProviderSettings(settings);
     return {
-      aliases: {},
+      aliases: provider.modelAliases,
       catalogRefreshedAt: provider.catalogTimestamp || undefined,
       catalogStatus: deriveProviderModelCatalogStatus({
         modelCount: provider.discoveredModels.length,
@@ -184,7 +184,12 @@ function renderOmpModelPicker(
     },
     loadingCatalogText: t('settings.omp.loadingModels'),
     modifier: 'omp',
-    onAliasesChange: async () => undefined,
+    async onAliasesChange(modelAliases) {
+      await context.plugin.mutateSettings(target => {
+        updateOmpProviderSettings(target, { modelAliases });
+      });
+      context.notifyProviderModelOptionsChanged('omp');
+    },
     async onSelectedIdsChange(visibleModels) {
       await context.plugin.mutateSettings(target => {
         const provider = getOmpProviderSettings(target);
