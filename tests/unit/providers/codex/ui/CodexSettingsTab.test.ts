@@ -670,6 +670,20 @@ describe('CodexSettingsTab', () => {
     expect(mockRefreshModelCatalog).toHaveBeenCalledTimes(1);
   });
 
+  it('restores the committed installation method when the save fails', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const plugin = createPlugin();
+    plugin.applyProviderRuntimeSettings.mockRejectedValueOnce(new Error('settings locked'));
+    codexSettingsTabRenderer.render(createContainer(), createContext(plugin));
+    const dropdown = findSetting('Installation method').dropdownComponents[0];
+    const committed = dropdown.value;
+
+    await expect(Promise.resolve(dropdown.onChangeCallback?.('wsl'))).rejects.toThrow('settings locked');
+
+    expect(dropdown.value).toBe(committed);
+    expect(plugin.settings.providerConfigs.codex.installationMethod).toBe(committed);
+  });
+
   it('rejects a Windows-native CLI path when installation method is WSL', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const plugin = createPlugin({
