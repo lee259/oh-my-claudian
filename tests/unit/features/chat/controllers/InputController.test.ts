@@ -239,6 +239,20 @@ function presentAsyncQuestion(fixture: ReturnType<typeof createFixture>) {
 }
 
 describe('InputController coordinator execution', () => {
+  it.each([undefined, 1, 2])('projects live provider capabilities before persistence for version %s', nativeVersion => {
+    const fixture = createFixture({ getTabProviderId: () => 'opencode' });
+    fixture.state.isStreaming = true;
+    fixture.plugin.getConversationSync.mockReturnValue({
+      id: 'conversation-1', providerId: 'opencode', providerState: { nativeVersion: 1 },
+    } as any);
+    Object.assign(fixture.coordinator, { snapshot: { providerId: 'opencode', providerState: { nativeVersion } } });
+    jest.mocked(ProviderRegistry.getCapabilities).mockImplementation((providerId, providerState) => ({
+      providerId, supportsTurnSteer: providerState?.nativeVersion === 2,
+    }) as any);
+    expect(fixture.controller.canSteerFollowUp()).toBe(nativeVersion === 2);
+    expect(ProviderRegistry.getCapabilities).toHaveBeenLastCalledWith('opencode', { nativeVersion });
+  });
+
   it('keeps a failed queued answer retryable without retaining a duplicate for later delivery', async () => {
     jest.useFakeTimers();
     const fixture = createFixture();
