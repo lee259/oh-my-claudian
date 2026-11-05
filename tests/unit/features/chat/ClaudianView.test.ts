@@ -383,8 +383,10 @@ describe('ClaudianView tab controls', () => {
     expect(archiveControl.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('keeps conversation navigation on the single-mode history surface', () => {
-    const container = createMockEl();
+  it.each(['', 'review'])('supports history rename with search query %s', searchQuery => {
+    const dropdown = createMockEl();
+    const container = dropdown.createDiv({ cls: 'claudian-history-list-host' });
+    Object.defineProperty(container, 'parentElement', { value: dropdown, configurable: true });
     const ownerRequestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -395,7 +397,8 @@ describe('ClaudianView tab controls', () => {
     const view = Object.create(ClaudianView.prototype) as any;
     Object.assign(view, {
       isArchiveSectionExpanded: false,
-      historyDropdown: container,
+      historyDropdown: dropdown,
+      historyListHostEl: container,
       openHistoryConversation: jest.fn(),
       getHistoryConversationStatus: jest.fn(),
       setConversationPinned: jest.fn(),
@@ -409,7 +412,8 @@ describe('ClaudianView tab controls', () => {
       },
     });
 
-    view.renderHistorySurface(container, new AbortController().signal);
+    const abortController = new AbortController();
+    view.renderHistorySurface(container, abortController.signal, { searchQuery });
 
     const options = renderHistoryDropdown.mock.calls[0]?.[1];
     expect(options.showOpenStateLabels).toBe(false);
@@ -418,7 +422,7 @@ describe('ClaudianView tab controls', () => {
     expect(options.showOpenStateActions).toBe(true);
     expect(options.onRequestInlineRename).toEqual(expect.any(Function));
     expect(options).not.toHaveProperty('onOpenConversationInNewTab');
-    expect(options.onBeforeRestoreListState).toEqual(expect.any(Function));
+    expect(typeof options.onBeforeRestoreListState).toBe(searchQuery ? 'undefined' : 'function');
     expect(options).not.toHaveProperty('organization');
     expect(options).not.toHaveProperty('showMetadataPopover');
 
@@ -429,10 +433,18 @@ describe('ClaudianView tab controls', () => {
       beginRename,
       conversationId: 'conversation-1',
     });
-    expect(container.hasClass('visible')).toBe(true);
+    expect(dropdown.hasClass('visible')).toBe(true);
     expect(beginRename).toHaveBeenCalledWith(targetItem);
     expect(ownerRequestAnimationFrame).toHaveBeenCalledTimes(1);
     expect(globalRequestAnimationFrame).not.toHaveBeenCalled();
+    beginRename.mockClear();
+    view.historyListHostEl = createMockEl();
+    options.onRequestInlineRename({ beginRename, conversationId: 'conversation-1' });
+    expect(beginRename).not.toHaveBeenCalled();
+    view.historyListHostEl = container;
+    abortController.abort();
+    options.onRequestInlineRename({ beginRename, conversationId: 'conversation-1' });
+    expect(beginRename).not.toHaveBeenCalled();
     globalRequestAnimationFrame.mockRestore();
   });
 

@@ -80,6 +80,37 @@ describe('ConversationHeaderView', () => {
     expect(document.activeElement).toBe(external);
   });
 
+  it('navigates options with arrow keys, skips disabled items, and exposes expanded state', async () => {
+    const draw = (isRunning = false) => render(h(ConversationHeaderView, {
+      title: 'Session', isRunning, onRenameConversation: jest.fn(), onArchiveConversation: jest.fn(),
+    }), container);
+    await act(() => draw());
+    const trigger = container.querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')!;
+    const key = async (value: string) => {
+      await act(() => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true })); });
+    };
+    trigger.focus();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    await key('ArrowDown');
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename');
+    await key('ArrowDown');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Archive');
+    await key('ArrowDown');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename');
+    await key('End');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Archive');
+    await key('Home');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename');
+    await key('Escape');
+    expect(document.activeElement).toBe(trigger);
+    await act(() => draw(true));
+    await key('ArrowUp');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename');
+    await key('ArrowDown');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename');
+  });
+
   it('offers rename and archive actions from the conversation menu', async () => {
     const onRenameConversation = jest.fn();
     const onArchiveConversation = jest.fn();

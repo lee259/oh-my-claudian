@@ -5,6 +5,8 @@ export interface IconButtonProps {
   icon: string;
   iconClassName?: string;
   label: string;
+  ariaExpanded?: boolean;
+  ariaHasPopup?: 'menu';
   onClick?: (event: MouseEvent) => void;
 }
 
@@ -17,6 +19,8 @@ export function IconButton({
   icon,
   iconClassName,
   label,
+  ariaExpanded,
+  ariaHasPopup,
   onClick,
 }: IconButtonProps) {
   return (
@@ -24,6 +28,8 @@ export function IconButton({
       className={className}
       type="button"
       aria-label={label}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
       onClick={(event) => {
         event.stopPropagation();
         onClick?.(event);
