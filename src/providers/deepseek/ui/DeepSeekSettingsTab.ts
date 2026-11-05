@@ -135,15 +135,20 @@ function renderPresetPlugins(container: HTMLElement, host: ProviderHost, setting
     field.setAttribute('aria-invalid', 'true');
     field.setAttribute('aria-describedby', error.id);
   };
-  field.addEventListener('change', () => { void commit(field.value); });
-  const commit = async (value: string): Promise<void> => {
+  let latestAttempt: { done: Promise<void> } | undefined;
+  field.addEventListener('change', () => { commit(field.value); });
+  const commit = (value: string): void => {
+    const attempt = { done: latestAttempt?.done ?? Promise.resolve() };
+    latestAttempt = attempt;
     try { parseDeepSeekPresetPlugins(value); } catch (cause) { showError(cause instanceof Error ? cause.message : String(cause)); return; }
     showError();
-    if (value === settings().presetPlugins) return;
-    // The rows are part of the launch overlay, so applying them restarts the shared Host.
-    try {
+    attempt.done = attempt.done.then(async () => {
+      if (value === settings().presetPlugins) return;
+      // The rows are part of the launch overlay, so applying them restarts the shared Host.
       await host.applyProviderRuntimeSettings(['deepseek'], next => { updateDeepSeekProviderSettings(next, { presetPlugins: value }); });
-    } catch (cause) { showError(cause instanceof Error ? cause.message : String(cause)); return; }
-    refresh();
+      refresh();
+    }).catch(cause => {
+      if (latestAttempt === attempt) showError(cause instanceof Error ? cause.message : String(cause));
+    });
   };
 }
