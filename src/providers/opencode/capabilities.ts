@@ -15,12 +15,13 @@ export const OPENCODE_PROVIDER_CAPABILITIES: Readonly<ProviderCapabilities> = Ob
   supportsImageAttachments: true,
   supportsInstructionMode: true,
   supportsMcpTools: false,
-  supportsTurnSteer: true,
+  supportsTurnSteer: false,
   reasoningControl: 'effort',
 });
 
 const OPENCODE_V2_CAPABILITIES: Readonly<ProviderCapabilities> = Object.freeze({
   ...OPENCODE_PROVIDER_CAPABILITIES,
+  supportsTurnSteer: true,
   forkMode: 'checkpoint',
 });
 

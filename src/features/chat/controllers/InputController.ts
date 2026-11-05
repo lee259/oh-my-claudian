@@ -417,7 +417,12 @@ export class InputController {
 
   private getActiveCapabilities(): ProviderCapabilities {
     const providerId = this.getActiveProviderId();
-    return ProviderRegistry.getCapabilities(providerId);
+    const snapshot = this.getExecutionCoordinator()?.snapshot;
+    const conversationId = this.deps.state.currentConversationId;
+    const providerState = snapshot?.providerId === providerId
+      ? snapshot.providerState
+      : conversationId ? this.deps.plugin.getConversationSync?.(conversationId)?.providerState : undefined;
+    return ProviderRegistry.getCapabilities(providerId, providerState);
   }
 
   // ============================================
@@ -454,6 +459,7 @@ export class InputController {
   }
 
   async handleExecutionEvent(event: ProviderExecutionEvent): Promise<void> {
+    if (event.type === 'session_state_changed') this.updateQueueIndicator();
     if (event.type === 'turn_started' && event.accepted) this.activeDelivery?.(true);
     if (event.type === 'usage_updated') {
       this.deps.streamController.updateUsage(event.usage);
