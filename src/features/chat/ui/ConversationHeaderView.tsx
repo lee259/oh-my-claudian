@@ -1,5 +1,5 @@
 import { setIcon } from 'obsidian';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import { t } from '../../../i18n/i18n';
 import { IconButton } from '../../../shared/ui/IconButton';
@@ -30,6 +30,10 @@ export function ConversationHeaderView({
   const [isConversationMenuOpen, setIsConversationMenuOpen] = useState(false);
   const conversationMenuAnchorRef = useRef<HTMLDivElement>(null);
 
+  useLayoutEffect(() => {
+    setIsConversationMenuOpen(false);
+  }, [isHome]);
+
   useEffect(() => {
     if (!isConversationMenuOpen) return undefined;
     const ownerDocument = conversationMenuAnchorRef.current?.ownerDocument;
@@ -41,14 +45,22 @@ export function ConversationHeaderView({
       }
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setIsConversationMenuOpen(false);
+      if (event.key !== 'Escape') return;
+      if (conversationMenuAnchorRef.current?.contains(ownerDocument.activeElement)) {
+        event.preventDefault();
+        event.stopPropagation();
+        conversationMenuAnchorRef.current
+          .querySelector<HTMLButtonElement>('.claudian-conversation-header-menu-action')
+          ?.focus();
+      }
+      setIsConversationMenuOpen(false);
     };
 
     ownerDocument.addEventListener('pointerdown', handlePointerDown);
-    ownerDocument.addEventListener('keydown', handleKeyDown);
+    ownerDocument.addEventListener('keydown', handleKeyDown, true);
     return () => {
       ownerDocument.removeEventListener('pointerdown', handlePointerDown);
-      ownerDocument.removeEventListener('keydown', handleKeyDown);
+      ownerDocument.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [isConversationMenuOpen]);
 
