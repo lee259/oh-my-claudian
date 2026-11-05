@@ -21,6 +21,7 @@ export interface CursorProviderSettings {
   discoveredModels: CursorDiscoveredModel[];
   catalogTimestamp: number;
   visibleModels: string[];
+  modelAliases: Record<string, string>;
 }
 
 export const DEFAULT_CURSOR_PROVIDER_SETTINGS: Readonly<CursorProviderSettings> = Object.freeze({
@@ -32,6 +33,7 @@ export const DEFAULT_CURSOR_PROVIDER_SETTINGS: Readonly<CursorProviderSettings> 
   discoveredModels: [],
   catalogTimestamp: 0,
   visibleModels: [],
+  modelAliases: {},
 });
 
 export function getCursorProviderSettings(settings: Record<string, unknown>): CursorProviderSettings {
@@ -51,6 +53,7 @@ export function getCursorProviderSettings(settings: Record<string, unknown>): Cu
         ?? DEFAULT_CURSOR_PROVIDER_SETTINGS.environmentVariables,
     ),
     discoveredModels,
+    modelAliases: normalizeModelAliases(config.modelAliases),
     catalogTimestamp: typeof config.catalogTimestamp === 'number'
       && Number.isFinite(config.catalogTimestamp)
       && config.catalogTimestamp >= 0
@@ -72,11 +75,20 @@ export function updateCursorProviderSettings(
     ...current,
     ...updates,
     discoveredModels,
+    modelAliases: normalizeModelAliases(updates.modelAliases ?? current.modelAliases),
     visibleModels: normalizeCursorVisibleModels(
       updates.visibleModels ?? current.visibleModels,
       discoveredModels,
     ),
   };
-  setProviderConfig(settings, 'cursor', next);
+  setProviderConfig(settings, 'cursor', { ...getProviderConfig(settings, 'cursor'), ...next });
   return next;
+}
+
+function normalizeModelAliases(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter((entry): entry is [string, string] => entry[0].trim().length > 0
+      && typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    .map(([id, alias]) => [id, alias.trim()]));
 }
