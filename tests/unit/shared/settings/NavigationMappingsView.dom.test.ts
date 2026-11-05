@@ -47,4 +47,36 @@ describe('NavigationMappingsView', () => {
     expect(onInvalid).toHaveBeenCalledWith('Invalid mapping');
     expect(textarea.value).toBe('map w scrollUp\nmap s scrollDown\nmap i focusInput');
   });
+
+  it('keeps a newer draft when an earlier save resolves', async () => {
+    jest.useFakeTimers();
+    let resolveSave!: (value: string) => void;
+    const onSave = jest.fn(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    const container = document.createElement('div');
+    const initial = 'map w scrollUp';
+
+    render(h(NavigationMappingsView, {
+      name: 'Navigation mappings',
+      description: 'Customize keyboard navigation.',
+      placeholder: 'Map w scrollup',
+      initialValue: initial,
+      validate: () => null,
+      onSave,
+      onInvalid: jest.fn(),
+    }), container);
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
+    if (!textarea) throw new Error('Expected navigation mapping textarea');
+
+    textarea.value = 'map b scrollUp';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    jest.advanceTimersByTime(500);
+    textarea.value = 'map c scrollUp';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    resolveSave('map b scrollUp\nmap s scrollDown');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(textarea.value).toBe('map c scrollUp');
+  });
 });
