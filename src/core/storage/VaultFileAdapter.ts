@@ -126,9 +126,26 @@ export class VaultFileAdapter {
     return this.app.vault.adapter.read(path);
   }
 
-  async write(path: string, content: string): Promise<void> {
-    await this.ensureParentFolder(path);
-    await this.app.vault.adapter.write(path, content);
+  async write(filePath: string, content: string): Promise<void> {
+    await this.ensureParentFolder(filePath);
+    const desktop = this.getDesktopAdapter();
+    if (!desktop) {
+      await this.app.vault.adapter.write(filePath, content);
+      return;
+    }
+    const target = path.join(desktop.getBasePath(), ...filePath.split('/'));
+    let stat: Stats | undefined;
+    try {
+      stat = await fs.lstat(target);
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+    }
+    // Replacing a link would change the established write-through behavior.
+    if (!stat || (stat.isFile() && stat.nlink === 1)) {
+      await this.#writeFileAtomically(filePath, content, stat?.mode);
+      return;
+    }
+    await this.app.vault.adapter.write(filePath, content);
   }
 
   /** Replace Claudian-owned state without truncating the previous desktop file. */

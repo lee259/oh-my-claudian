@@ -38,6 +38,7 @@ function createDesktopFsAdapter(
       };
     },
     mkdir: async (relativePath: string) => fs.mkdir(resolve(relativePath)),
+    write: async (relativePath: string, content: string) => fs.writeFile(resolve(relativePath), content),
     rename: async (source: string, target: string) => {
       await hooks.beforeRename?.(source, target);
       await fs.rename(resolve(source), resolve(target));
@@ -1028,6 +1029,48 @@ describe('VaultFileAdapter', () => {
           }),
         ],
       });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('writes through the desktop adapter with the existing file mode', async () => {
+    if (process.platform === 'win32') return;
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-write-mode-'));
+    try {
+      const files = new VaultFileAdapter({
+        vault: { adapter: createDesktopFsAdapter(root) },
+      } as unknown as App);
+      const target = path.join(root, 'notes', 'run.sh');
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '#!/bin/sh\n', { mode: 0o755 });
+      await fs.chmod(target, 0o755);
+
+      await files.write('notes/run.sh', '#!/bin/sh\necho hi\n');
+
+      expect(await fs.readFile(target, 'utf8')).toBe('#!/bin/sh\necho hi\n');
+      expect((await fs.lstat(target)).mode & 0o777).toBe(0o755);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps writing through a linked file instead of replacing it', async () => {
+    if (process.platform === 'win32') return;
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-write-link-'));
+    try {
+      const files = new VaultFileAdapter({
+        vault: { adapter: createDesktopFsAdapter(root) },
+      } as unknown as App);
+      const folder = path.join(root, 'notes');
+      await fs.mkdir(folder, { recursive: true });
+      await fs.writeFile(path.join(folder, 'real.md'), 'old');
+      await fs.symlink('real.md', path.join(folder, 'link.md'));
+
+      await files.write('notes/link.md', 'updated');
+
+      expect((await fs.lstat(path.join(folder, 'link.md'))).isSymbolicLink()).toBe(true);
+      expect(await fs.readFile(path.join(folder, 'real.md'), 'utf8')).toBe('updated');
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
