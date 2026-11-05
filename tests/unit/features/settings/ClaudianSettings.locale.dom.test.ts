@@ -190,4 +190,47 @@ describe('ClaudianSettingTab live locale change', () => {
       setLocale('en');
     }
   });
+
+  it('restores the committed language projection when saving fails', async () => {
+    const settings = {
+      ...DEFAULT_CLAUDIAN_SETTINGS,
+      locale: 'zh-CN',
+      customContextLimits: {} as Record<string, number>,
+      customModelAliases: {} as Record<string, string>,
+    };
+    setLocale('zh-CN');
+    const plugin = {
+      settings,
+      getActiveEnvironmentVariables: jest.fn(() => ''),
+      mutateSettings: jest.fn(async () => { throw new Error('write failed'); }),
+      getAllViews: jest.fn(() => []),
+      notifyProviderChatOptionsChanged: jest.fn(),
+      notifyAgentSkillsChanged: jest.fn(),
+      storage: { getAdapter: jest.fn(() => ({})) },
+      providerHost: {
+        settings,
+        getEnvironmentVariablesForScope: jest.fn(() => ''),
+        applyEnvironmentVariables: jest.fn(),
+      },
+    };
+    const tab = new ClaudianSettingTab({} as any, plugin as any);
+    tab.containerEl = document.createElement('div') as any;
+
+    try {
+      tab.display();
+      const languageSelect = tab.containerEl.querySelector<HTMLSelectElement>(
+        '.claudian-settings-select-list select',
+      );
+      if (!languageSelect) throw new Error('Expected the interface language selector');
+      languageSelect.value = 'en';
+      languageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+
+      expect(getLocale()).toBe('zh-CN');
+      expect(tab.containerEl.querySelector<HTMLSelectElement>('.claudian-settings-select-list select')?.value)
+        .toBe('zh-CN');
+    } finally {
+      setLocale('en');
+    }
+  });
 });
