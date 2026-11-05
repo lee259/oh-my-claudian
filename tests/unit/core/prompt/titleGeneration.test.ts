@@ -18,6 +18,10 @@ describe('titleGeneration', () => {
     },
   );
 
+  it('trims padding inside generated title quotes', () => {
+    expect(parseTitleGenerationResponse('"  Spaced title  "')).toBe('Spaced title');
+  });
+
   it('exports a non-empty default system prompt string', () => {
     expect(typeof TITLE_GENERATION_SYSTEM_PROMPT).toBe('string');
     expect(TITLE_GENERATION_SYSTEM_PROMPT.length).toBeGreaterThan(0);

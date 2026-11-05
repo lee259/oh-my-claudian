@@ -1,6 +1,7 @@
 import {
   buildInlineEditPrompt,
   getInlineEditSystemPrompt,
+  parseInlineEditResponse,
 } from '@/core/prompt/inlineEdit';
 
 describe('getInlineEditSystemPrompt', () => {
@@ -10,6 +11,24 @@ describe('getInlineEditSystemPrompt', () => {
     expect(prompt).toContain('Decode XML entities in an attribute value exactly once');
     expect(prompt).toContain('Do not decode CDATA content');
     expect(prompt).toContain('A &amp; B.md');
+  });
+});
+
+describe('parseInlineEditResponse', () => {
+  it('keeps the complete payload when the reply frame contains nested tags', () => {
+    expect(parseInlineEditResponse(
+      '<replacement>Use <replacement>inner</replacement> in the example.</replacement>',
+    )).toEqual({ success: true, editedText: 'Use <replacement>inner</replacement> in the example.' });
+    expect(parseInlineEditResponse(
+      '<insertion>Add <insertion>inner</insertion> here.</insertion>',
+    )).toEqual({ success: true, insertedText: 'Add <insertion>inner</insertion> here.' });
+  });
+
+  it('still parses a frame wrapped in surrounding prose', () => {
+    expect(parseInlineEditResponse('Here it is: <replacement>done</replacement>')).toEqual({
+      success: true,
+      editedText: 'done',
+    });
   });
 });
 

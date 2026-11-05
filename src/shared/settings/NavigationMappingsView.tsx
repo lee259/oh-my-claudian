@@ -45,9 +45,12 @@ export function NavigationMappingsView({
       return;
     }
 
-    const savedValue = await onSave(nextValue);
-    valueRef.current = savedValue;
+    const submittedValue = nextValue;
+    const savedValue = await onSave(submittedValue);
     savedValueRef.current = savedValue;
+    // A newer draft typed while this save was in flight owns the field.
+    if (valueRef.current !== submittedValue) return;
+    valueRef.current = savedValue;
     setValue(savedValue);
   };
 

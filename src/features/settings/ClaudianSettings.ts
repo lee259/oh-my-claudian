@@ -558,18 +558,22 @@ export class ClaudianSettingTab extends PluginSettingTab {
       onChange: async (id, value) => {
         if (id !== 'interface-language') return;
         const locale = value as Locale;
-        await this.plugin.mutateSettings((settings) => {
-          settings.locale = locale;
-        });
-        const nextLocale = resolveLocale(locale, getObsidianLanguage());
-        const localeChanged = getLocale() !== nextLocale;
-        setLocale(nextLocale);
-        if (localeChanged) {
-          for (const view of this.plugin.getAllViews()) {
-            view.refreshComposerLocale();
+        try {
+          await this.plugin.mutateSettings((settings) => {
+            settings.locale = locale;
+          });
+        } finally {
+          // A rejected save keeps the committed locale; project it back either way.
+          const nextLocale = resolveLocale(this.plugin.settings.locale, getObsidianLanguage());
+          const localeChanged = getLocale() !== nextLocale;
+          setLocale(nextLocale);
+          if (localeChanged) {
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshComposerLocale();
+            }
           }
+          this.renderSettings();
         }
-        this.renderSettings();
       },
     }));
 
