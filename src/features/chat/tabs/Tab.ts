@@ -840,6 +840,11 @@ async function handleTabSessionEvent(
   isCurrent: () => boolean,
 ): Promise<void> {
   if (!isCurrent()) return;
+  if (event.type === 'session_state_changed') {
+    tab.controllers.inputController?.updateQueueIndicator();
+    updateSendButton(tab);
+    return;
+  }
   if (event.type === 'subagent_progress') {
     tab.controllers.streamController?.updateSubagentProgress(event.progress);
     return;
@@ -1042,11 +1047,17 @@ function normalizeProviderMode(tab: TabData, plugin: FeatureHost, mode: string):
   return 'normal';
 }
 
+function getLiveTabCapabilities(tab: TabData): ProviderCapabilities {
+  const snapshot = tab.executionCoordinator?.snapshot;
+  return ProviderRegistry.getCapabilities(tab.session.providerId,
+    snapshot?.providerId === tab.session.providerId ? snapshot.providerState : undefined);
+}
+
 export function updateSendButton(tab: TabData): void {
   if (!tab.session.presentation) return;
   const { inputEl, sendButtonEl, stopButtonEl } = tab.dom;
   const isStreaming = tab.state.isStreaming;
-  const supportsSteer = ProviderRegistry.getCapabilities(tab.session.providerId).supportsTurnSteer === true;
+  const supportsSteer = getLiveTabCapabilities(tab).supportsTurnSteer === true;
   if (!supportsSteer) tab.state.followUpMode = 'queue';
   const canSteer = tab.controllers.inputController?.canSteerFollowUp?.() ?? supportsSteer;
   const canSend = inputEl.value.trim().length > 0 || tab.ui.quotedMessages.length > 0
@@ -2199,7 +2210,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     event.preventDefault();
     event.stopPropagation();
     const menu = new Menu();
-    const supportsSteer = ProviderRegistry.getCapabilities(tab.session.providerId).supportsTurnSteer === true;
+    const supportsSteer = getLiveTabCapabilities(tab).supportsTurnSteer === true;
     for (const mode of ['queue', 'steer'] as const) {
       menu.addItem(item => item.setTitle(t(mode === 'queue' ? 'chat.followUp.queueMode' : 'chat.followUp.steerMode'))
         .setIcon(mode === 'queue' ? 'list-end' : 'corner-down-right')
