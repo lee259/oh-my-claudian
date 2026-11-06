@@ -55,9 +55,17 @@ export class DeepSeekRoster {
           if (isRecord(projection) && isRecord(projection.values)) this.projections.set(id, projection.values);
         }
         this.baselined = true;
-      } else if (value.type === 'projection' && typeof value.sessionId === 'string' && typeof value.key === 'string') {
+      } else if (value.type === 'projection' && typeof value.sessionId === 'string') {
+        const changes: unknown[] | undefined = Array.isArray(value.changes) ? value.changes
+          : typeof value.key === 'string' ? [{ key: value.key, val: value.value }] : undefined;
+        if (!changes || !changes.every(change => isRecord(change) && typeof change.key === 'string')) {
+          throw new Error('Malformed DeepSeek control frame.');
+        }
         const values = this.projections.get(value.sessionId) ?? {};
-        values[value.key] = value.value; this.projections.set(value.sessionId, values);
+        for (const change of changes) {
+          if (isRecord(change) && typeof change.key === 'string') values[change.key] = change.val;
+        }
+        this.projections.set(value.sessionId, values);
       } else throw new Error('Malformed DeepSeek control frame.');
       this.changed();
     }, fail));

@@ -51,7 +51,7 @@ it('hydrates fixed-cut native messages, images, tools and exact completed-turn c
   expect(result.messages?.[0]).toMatchObject({ role: 'user', content: 'read image', userMessageId: 'u', images: [{ id: 'image', data: 'aW1hZ2U=', mediaType: 'image/png' }] });
   expect(result.messages?.[1]).toMatchObject({ role: 'assistant', content: 'checkingdone', assistantMessageId: 'deepseek:seq:7', contentBlocks: [{ type: 'thinking', content: 'thinking' }, { type: 'text', content: 'checking' }, { type: 'tool_use', toolId: 'read' }, { type: 'text', content: 'done' }], toolCalls: [{ name: 'Read', input: { file_path: 'note.md' }, result: 'note contents', resultImages: [{ kind: 'data', data: 'aW1hZ2U=', mediaType: 'image/png' }] }], turnStats: { outputTokens: 7 } });
   expect(peer.calls.filter(c => c.method === 'session/page').every(c => c.args.request.throughSeq === 8)).toBe(true);
-  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'root', attachmentId: 'image' } });
+  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'root', attachmentId: 'image', attachment: { attachmentId: 'image' } } });
   expect(peer.calls.some(c => c.method === 'session/create' || c.method === 'session/follow')).toBe(false);
   expect(history.buildPersistedProviderState({ ...input, messages: result.messages! })).toEqual(state);
 });
@@ -136,7 +136,7 @@ it.each(['direct', 'subagent', 'subagent_fork'])('hydrates %s child tools throug
     { id: 'failed', status: 'error', result: 'old_string not found' }] });
   // A failed edit changed nothing, so it shows no diff built from its requested input.
   expect(result.messages?.[0].toolCalls?.[0].subagent?.toolCalls[2].diffData).toBeUndefined();
-  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'child', attachmentId: 'child-image' } });
+  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'child', attachmentId: 'child-image', attachment: { attachmentId: 'child-image' } } });
   expect(peer.calls.some(c => c.method === 'session/follow' || c.method === 'session/create')).toBe(false);
 });
 

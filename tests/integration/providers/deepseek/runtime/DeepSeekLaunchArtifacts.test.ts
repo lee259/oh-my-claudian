@@ -35,7 +35,7 @@ it('gives every preset the session prompt directory and its tool policy while ke
     expect(presets['claudian-code'].config.codeModeFile).toBe(presets.claudian.config.codeModeFile);
     for (const auxiliary of ['claudian-passive', 'claudian-read-only']) {
       expect(presets[auxiliary].config.codeModeFile).toBeUndefined();
-      expect(plugins[auxiliary].find((row: any) => row.id === 'agent-tool-presentation').config).toEqual({ mode: 'native' });
+      expect(plugins[auxiliary].some((row: any) => row.id === 'agent-tool-presentation')).toBe(false);
     }
 
     const first = 'Literal {{title}} ${process.exit(99)} `quotes`\\n Unicode 笔记';
@@ -47,11 +47,10 @@ it('gives every preset the session prompt directory and its tool policy while ke
     const { stdout } = await promisify(execFile)(process.execPath, ['--input-type=module', '-e', `
       const plugin = await import(process.argv[1]);
       const config = JSON.parse(process.argv[2]);
-      const sections = [];
-      plugin.apply({ effect: fn => fn(), on: () => () => {}, sessionProjections: { stateOf: () => ({ lastTurn: 1 }) }, systemPrompt: {
-        section: section => { sections.push(section); return () => {}; },
-        getSectionOrder: name => name,
-      } }, config);
+      const { createNativePluginHost } = await import(process.argv[4]);
+      const native = createNativePluginHost('0.2.1');
+      await native.apply(plugin, config);
+      const sections = native.sections;
       for (const bad of [{}, { promptDirectory: 1 }, { promptDirectory: 'x', allow: ['write'] }, { promptDirectory: 'x', codeModeFile: 1 }, { promptDirectory: 'x', allow: [], codeModeFile: 'mode' }]) {
         let rejected = false;
         try { plugin.apply({}, bad); } catch { rejected = true; }
@@ -60,7 +59,7 @@ it('gives every preset the session prompt directory and its tool policy while ke
       const persona = sections[0];
       const session = { id: process.argv[3], header: { id: process.argv[3] } };
       process.stdout.write(JSON.stringify({ persona, text: persona.text({ agent: { id: session.id, session } }), agentless: persona.text({}), webSurface: sections.find(section => section.name === 'app:web-surface').text }));
-    `, pluginPath, JSON.stringify(presets.claudian.config), sessionId], { cwd: root });
+    `, pluginPath, JSON.stringify(presets.claudian.config), sessionId, pathToFileURL(join(__dirname, '../../../../helpers/deepseek/NativePluginHost.mjs')).href], { cwd: root });
     const result = JSON.parse(stdout);
     expect(result).toMatchObject({ persona: { interpolate: false, complete: false }, text: first, agentless: '', webSurface: '' });
     expect(await readFile(new URL(pluginPath), 'utf8')).not.toContain(first);
@@ -144,12 +143,10 @@ it('switches each chat agent between direct tools and code mode at its next turn
       import { writeFileSync } from 'node:fs';
       const plugin = await import(process.argv[1]);
       const config = JSON.parse(process.argv[2]);
-      const listeners = {};
-      const log = [];
-      plugin.apply({ effect: fn => fn(), systemPrompt: { section: () => () => {}, getSectionOrder: name => name },
-        on: (name, listener) => { (listeners[name] ??= []).push(listener); return () => {}; } }, config);
-      const agent = id => ({ id, ctx: { tools: { presentAs: mode => { log.push(id + ' present ' + mode); return () => log.push(id + ' dispose ' + mode); } } } });
-      const emit = (name, payload) => { for (const listener of listeners[name] ?? []) listener(payload); };
+      const { createNativePluginHost } = await import(process.argv[4]);
+      const native = createNativePluginHost('0.2.1');
+      await native.apply(plugin, config);
+      const { agent, emit, log } = native;
       const [first, second] = [agent('first'), agent('second')];
       for (const step of JSON.parse(process.argv[3])) {
         if (step.write !== undefined) writeFileSync(config.codeModeFile, step.write);
@@ -159,7 +156,7 @@ it('switches each chat agent between direct tools and code mode at its next turn
       process.stdout.write(JSON.stringify(log));
     `;
     const run = async (steps: unknown[]): Promise<string[]> => JSON.parse((await promisify(execFile)(process.execPath,
-      ['--input-type=module', '-e', script, compatibility.name, JSON.stringify(compatibility.config), JSON.stringify(steps)], { cwd: root })).stdout);
+      ['--input-type=module', '-e', script, compatibility.name, JSON.stringify(compatibility.config), JSON.stringify(steps), pathToFileURL(join(__dirname, '../../../../helpers/deepseek/NativePluginHost.mjs')).href], { cwd: root })).stdout);
 
     // A fresh Host starts in direct-tool mode until Claudian writes the preference.
     expect(await run([{ created: 'first' }])).toEqual(['first present native']);
@@ -207,7 +204,7 @@ it('reports ready only once every durable store an ephemeral session could reach
       const domains = { session_projcache: { table: () => ({ put: async () => {} }) } };
       const ctx = {
         get: () => backend, on: () => () => {}, effect: () => {}, logger: { warn() {} },
-        inject: (deps, apply) => { if (!deps.includes('attachments')) apply({ storageDomain: { get: name => domains[name] }, get: () => ({ saveText: async () => ({}) }), logger: { warn() {} }, effect: () => {} }); },
+        inject: (deps, apply) => { if (!deps.includes('attachments')) apply({ sessionController: { fork: async () => ({}) }, storageDomain: { get: name => domains[name] }, get: () => ({ saveText: async () => ({}) }), logger: { warn() {} }, effect: () => {} }); },
       };
       plugin.apply(ctx, JSON.parse(process.argv[2]));
     `, row.name, JSON.stringify(row.config)], { cwd: root });
@@ -269,7 +266,7 @@ it('appends user plugin rows to the chat presets after Claudian\'s own rows, nev
   }
 });
 
-it('keeps ephemeral sessions in process memory and out of every durable dsh store, leaving other sessions to native', async () => {
+it.each([['0.2.1', true], ['0.2.2', false]])('keeps ephemeral sessions out of durable dsh stores on %s', async (_version, forkLineage) => {
   const root = await mkdtemp(join(tmpdir(), 'deepseek ephemeral '));
   const artifacts = await prepareDeepSeekLaunchArtifacts(root);
   try {
@@ -341,6 +338,7 @@ it('keeps ephemeral sessions in process memory and out of every durable dsh stor
       const sessionController = {
         async prompt(request) { await Promise.resolve(); return attachments.saveImages(request.images); },
         async attachment(request) { return attachments.readImage(request.ref); },
+        async fork(request) { await Promise.resolve(); return backend.create({ version: 4, id: request.child, createdAt: 0, isSeeded: true, ...(process.argv[4] === 'true' ? { parentSession: request.sessionId } : {}) }, { inheritedEventCount: request.inheritedEventCount }); },
       };
       const loader = { import: async name => name.endsWith('attachment-local') ? { LocalAttachmentStore } : { DeepSeekUploadIndex } };
       const services = { sessionPersistence: backend, attachments, sessionController, agents, loader };
@@ -393,10 +391,13 @@ it('keeps ephemeral sessions in process memory and out of every durable dsh stor
       // Children of an ephemeral session (subagents, forks) are ephemeral too.
       const child = await backend.create(header('child', { parentSession: 'claudian-ephemeral-aux', origin: 'subagent' }));
       out.childNative = !!child.native;
+      // DSH 0.2.2 omits the source from the fork header; its call scope must preserve isolation.
+      const headerlessFork = await sessionController.fork({ sessionId: 'claudian-ephemeral-aux', child: 'headerless-fork' });
+      if (headerlessFork.native) throw new Error('Headerless ephemeral fork reached native persistence');
       // Claudian's fork token makes exactly one fork of its parent at its checkpoint ephemeral.
       const forks = {};
       for (const [id, parent, inheritedEventCount] of JSON.parse(process.argv[3])) {
-        const handle = forks[id] = await backend.create(header(id, { parentSession: parent, isSeeded: true }), { inheritedEventCount });
+        const handle = forks[id] = await sessionController.fork({ sessionId: parent, child: id, inheritedEventCount });
         out[id] = handle.native ? 'native' : 'memory';
       }
       // Native stores a fork's inherited seed as the start of its own log, from seq 0, then its live suffix.
@@ -450,7 +451,7 @@ it('keeps ephemeral sessions in process memory and out of every durable dsh stor
     // Two forks of `saved` at checkpoint 4 race for one token; a fork at another checkpoint never takes it.
     const withdraw = await artifacts.offerEphemeralFork('saved', 4);
     const result = JSON.parse((await promisify(execFile)(process.execPath, ['--input-type=module', '-e', script, row.name, JSON.stringify(row.config),
-      JSON.stringify([['other-cut', 'saved', 3], ['side', 'saved', 5], ['second', 'saved', 5]])], { cwd: root })).stdout);
+      JSON.stringify([['other-cut', 'saved', 3], ['side', 'saved', 5], ['second', 'saved', 5]]), String(forkLineage)], { cwd: root })).stdout);
     await withdraw();
     expect(JSON.parse(await readFile(row.config.stateFile, 'utf8'))).toEqual({ forks: [] });
 

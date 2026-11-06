@@ -1132,7 +1132,7 @@ it('resolves native tool image references inside the owning session', async () =
   event('tool/result', { message: { toolCallId: 'image', content: [{ type: 'image', attachment: { attachmentId: 'image-data' } }] } });
   answer('seen'); await done;
   expect(events.find(e => e.type === 'tool_completed')).toMatchObject({ resultDetails: { resultImages: [{ kind: 'data', mediaType: 'image/png', data: 'aW1hZ2U=' }] } });
-  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'root', attachmentId: 'image-data' } });
+  expect(peer.calls.find(c => c.method === 'session/attachment')?.args).toEqual({ request: { sessionId: 'root', attachmentId: 'image-data', attachment: { attachmentId: 'image-data' } } });
 });
 
 it('recovers the saved native preset before resuming an unbound conversation', async () => {
