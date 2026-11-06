@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { pathToFileURL } from 'node:url';
 
 import { nativeDefaults } from '@test/helpers/deepseek/NativeDefaults';
 import { jobsOf, NativePeer, type NativePeerLifecycle, rootFollow } from '@test/helpers/deepseek/NativePeer';
@@ -188,23 +189,18 @@ async function nativePersona(artifacts: DeepSeekLaunchArtifacts) {
   const script = String.raw`
     import { createInterface } from 'node:readline';
     const plugin = await import(process.argv[1]);
-    const sections = [], sessions = new Map(), turns = new Map();
-    plugin.apply({
-      effect: fn => fn(), on: () => () => {},
-      systemPrompt: { section: section => { sections.push(section); return () => {}; }, getSectionOrder: name => name },
-      sessionProjections: { stateOf: (session, key) => key === 'turnBoundary' ? { lastTurn: turns.get(session) } : undefined },
-    }, JSON.parse(process.argv[2]));
-    const persona = sections.find(section => section.name === 'deployment:persona-prefix');
+    const { createNativePluginHost } = await import(process.argv[3]);
+    const native = createNativePluginHost('0.2.1');
+    await native.apply(plugin, JSON.parse(process.argv[2]));
+    const persona = native.sections.find(section => section.name === 'deployment:persona-prefix');
     for await (const line of createInterface({ input: process.stdin })) {
       const step = JSON.parse(line);
-      if (!sessions.has(step.session)) sessions.set(step.session, { id: step.session, header: { id: step.session, ...(step.parent ? { parentSession: step.parent } : {}) } });
-      const session = sessions.get(step.session);
-      turns.set(session, step.turn);
-      const agent = { id: session.id, session };
+      const agent = native.agent(step.session, { parent: step.parent });
+      native.setTurn(step.session, step.turn);
       process.stdout.write(JSON.stringify(typeof persona.text === 'function' ? persona.text({ agent, scope: agent }) : persona.text) + '\n');
     }
   `;
-  const child = spawn(process.execPath, ['--input-type=module', '-e', script, row.name, JSON.stringify(row.config)], { stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script, row.name, JSON.stringify(row.config), pathToFileURL(join(__dirname, '../../../../helpers/deepseek/NativePluginHost.mjs')).href], { stdio: ['pipe', 'pipe', 'inherit'] });
   const replies: Array<(text: string) => void> = [];
   createInterface({ input: child.stdout }).on('line', line => replies.shift()?.(JSON.parse(line)));
   child.once('exit', code => { for (const reply of replies.splice(0)) reply(`native plugin exited with ${code}`); });
