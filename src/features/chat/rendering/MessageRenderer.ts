@@ -1218,7 +1218,9 @@ export class MessageRenderer {
 
   /**
    * Shows the elapsed work time without changing the streaming content's
-   * hierarchy. The completed disclosure is created only once the turn ends.
+   * hierarchy. The row anchors the turn from the start so streamed narration
+   * never appears above it and then jumps into the work fold on the next sync.
+   * The completed disclosure is created only once the turn ends.
    */
   startCompletedWork(
     contentEl: HTMLElement,
@@ -1228,16 +1230,7 @@ export class MessageRenderer {
       contentEl.querySelector('.claudian-completed-work-status')
       || contentEl.querySelector('.claudian-completed-work')
     ) return;
-    const children = Array.from(contentEl.children) as HTMLElement[];
-    const firstWork = children.find((child) => (
-      child.hasClass('claudian-thinking-block')
-      || child.hasClass('claudian-tool-call')
-      || child.hasClass('claudian-write-edit-block')
-      || child.hasClass('claudian-subagent-list')
-      || child.hasClass('claudian-compact-boundary')
-      || !!child.dataset.toolId
-    ));
-    const anchor = firstWork ?? contentEl.firstElementChild ?? contentEl.firstChild;
+    const anchor = contentEl.firstElementChild ?? contentEl.firstChild;
     if (!anchor) return;
 
     const statusEl = contentEl.createDiv({
