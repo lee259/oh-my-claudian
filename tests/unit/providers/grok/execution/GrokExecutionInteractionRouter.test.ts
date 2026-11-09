@@ -56,3 +56,33 @@ it('localizes the plan approval presentation', async () => {
     setLocale('en');
   }
 });
+
+it('dismisses a pending question when its requesting turn aborts', async () => {
+  const dismissInteraction = jest.fn();
+  let questionSignal: AbortSignal | undefined;
+  const askUserQuestion = jest.fn((request: { interactionId: string }, signal?: AbortSignal) => {
+    questionSignal = signal;
+    return new Promise(resolve => {
+      signal?.addEventListener('abort', () => resolve({ interactionId: request.interactionId, answers: null }), { once: true });
+    });
+  });
+  const router = new GrokExecutionInteractionRouter({
+    askUserQuestion,
+    dismissInteraction,
+    requestApproval: jest.fn(),
+    requestPlanDecision: jest.fn(),
+  } as never, 'instance', () => 'turn', () => 'native');
+  const caller = new AbortController();
+
+  const reply = router.handle('x.ai/ask_user_question', {
+    mode: 'default', sessionId: 'native', toolCallId: 'question',
+    questions: [{ question: 'Which area?', multiSelect: false, options: [{ label: 'Source' }] }],
+  }, caller.signal);
+  await Promise.resolve();
+
+  expect(questionSignal?.aborted).toBe(false);
+  caller.abort();
+  expect(questionSignal?.aborted).toBe(true);
+  await expect(reply).resolves.toEqual({ outcome: 'cancelled' });
+  expect(dismissInteraction).toHaveBeenCalledWith(expect.stringContaining(':question:'), 'cancelled');
+});
