@@ -124,6 +124,16 @@ describe('normalizeCodexToolInput', () => {
     ]);
   });
 
+  it('preserves secret question flags', () => {
+    const result = normalizeCodexToolInput('request_user_input', {
+      questions: [{ id: 'token', question: 'Enter API token', isSecret: true }],
+    });
+
+    expect(result.questions).toEqual([
+      { question: 'Enter API token', id: 'token', header: 'Q1', options: [], multiSelect: false, isSecret: true },
+    ]);
+  });
+
   it('normalizes async request_user_input as a user-message question', () => {
     expect(normalizeCodexToolInput('request_user_input_async', {
       questions: [{ title: 'Which check?', options: ['History', 'Rendering'] }],
@@ -391,6 +401,19 @@ describe('Codex MCP normalization helpers', () => {
       isError: false,
       status: 'completed',
       result: 'line 1\nline 2',
+    });
+  });
+
+  it('shows structured-only MCP results', () => {
+    expect(normalizeCodexMcpToolState(
+      'completed',
+      { content: null, structuredContent: { saved: true, path: 'notes/plan.md' } },
+      undefined,
+    )).toEqual({
+      isTerminal: true,
+      isError: false,
+      status: 'completed',
+      result: '{\n  "saved": true,\n  "path": "notes/plan.md"\n}',
     });
   });
 
