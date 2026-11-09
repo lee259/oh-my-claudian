@@ -900,7 +900,10 @@ describe('TabManager provider execution orchestration', () => {
     });
 
     expect(mockChooseForkTarget).toHaveBeenCalledWith(plugin.app);
-    expect(plugin.createConversation).toHaveBeenCalledWith({ providerId: 'claude' });
+    expect(plugin.createConversation).toHaveBeenCalledWith({
+      providerId: 'claude',
+      origin: { kind: 'fork', sourceConversationId: 'source' },
+    });
     expect(plugin.updateConversation).toHaveBeenCalledWith(
       'forked',
       expect.objectContaining({
