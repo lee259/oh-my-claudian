@@ -384,6 +384,29 @@ describe('ToolCallRenderer', () => {
       expect(answerEls[0].textContent).toBe('Blue');
     });
 
+    it('masks secret answers in completed question cards without changing stored values', () => {
+      const parentEl = createMockEl();
+      const answer = 'sample-sensitive-token-123';
+      const toolCall = createToolCall({
+        name: 'AskUserQuestion',
+        status: 'completed',
+        input: { questions: [
+          { id: 'token', question: 'Enter API token', isSecret: true },
+          { id: 'ordinary', question: 'Color?' },
+          { id: 'unanswered', question: 'Unanswered secret?', isSecret: true },
+        ] },
+        result: JSON.stringify({ answers: { token: { answers: [answer] }, ordinary: { answers: ['Blue'] } } }),
+      });
+
+      const toolEl = renderStoredToolCall(parentEl, toolCall);
+      const answerEls = toolEl.querySelectorAll('.claudian-ask-review-a-text');
+
+      expect([...answerEls].map(answerEl => answerEl.textContent)).toEqual(['••••••••', 'Blue']);
+      expect(toolEl.textContent?.includes(answer)).toBe(false);
+      expect(toolCall.result).toContain(answer);
+      expect(toolCall.resolvedAnswers?.token).toBe(answer);
+    });
+
     it('renders AskUserQuestion options during fallback state', () => {
       const parentEl = createMockEl();
       const toolCall = createToolCall({
