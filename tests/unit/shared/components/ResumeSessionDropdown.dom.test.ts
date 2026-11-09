@@ -45,6 +45,16 @@ describe('resume picker scrolling', () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it.each(['shiftKey', 'ctrlKey', 'metaKey', 'altKey'])(
+    'leaves modified Tab to native navigation: %s',
+    modifier => {
+      const event = new KeyboardEvent('keydown', { key: 'Tab', [modifier]: true, cancelable: true });
+      expect(dropdown.handleKeydown(event)).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+      expect(dropdown.isVisible()).toBe(true);
+    },
+  );
+
   it('retains keyboard selection when scrolling changes the row under a stationary pointer', () => {
     fireEvent.mouseEnter(options[2]);
     dropdown.handleKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
