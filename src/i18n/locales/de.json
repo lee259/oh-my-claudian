@@ -71,7 +71,8 @@
       "errorNoSession": "Keine Sitzungs-ID verfügbar",
       "errorNoActiveTab": "Kein aktiver Tab",
       "commandNoMessages": "Verzweigung nicht möglich: keine Nachrichten in der Konversation",
-      "commandNoAssistantUuid": "Verzweigung nicht möglich: keine Assistentenantwort mit Kennungen"
+      "commandNoAssistantUuid": "Verzweigung nicht möglich: keine Assistentenantwort mit Kennungen",
+      "badge": "Geforkt"
     },
     "bangBash": {
       "placeholder": "> Einen Bash-Befehl ausführen...",

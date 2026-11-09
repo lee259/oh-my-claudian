@@ -503,3 +503,15 @@
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+
+.claudian-history-item-origin {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.claudian-history-item-origin svg {
+  width: 12px;
+  height: 12px;
+}

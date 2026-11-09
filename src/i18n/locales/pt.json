@@ -71,7 +71,8 @@
       "errorNoSession": "Nenhum ID de sessão disponível",
       "errorNoActiveTab": "Nenhuma aba ativa",
       "commandNoMessages": "Não é possível bifurcar: não há mensagens na conversa",
-      "commandNoAssistantUuid": "Não é possível bifurcar: não há resposta do assistente com identificadores"
+      "commandNoAssistantUuid": "Não é possível bifurcar: não há resposta do assistente com identificadores",
+      "badge": "Bifurcado"
     },
     "bangBash": {
       "placeholder": "> Executar um comando bash...",

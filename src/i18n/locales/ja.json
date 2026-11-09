@@ -71,7 +71,8 @@
       "errorNoSession": "セッション ID がありません",
       "errorNoActiveTab": "アクティブなタブがありません",
       "commandNoMessages": "フォークできません: 会話にメッセージがありません",
-      "commandNoAssistantUuid": "フォークできません: 識別子付きのアシスタント応答がありません"
+      "commandNoAssistantUuid": "フォークできません: 識別子付きのアシスタント応答がありません",
+      "badge": "フォーク済み"
     },
     "bangBash": {
       "placeholder": "> bash コマンドを実行...",
