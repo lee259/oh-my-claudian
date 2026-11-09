@@ -394,6 +394,19 @@ describe('Codex MCP normalization helpers', () => {
     });
   });
 
+  it('shows structured-only MCP results', () => {
+    expect(normalizeCodexMcpToolState(
+      'completed',
+      { content: null, structuredContent: { saved: true, path: 'notes/plan.md' } },
+      undefined,
+    )).toEqual({
+      isTerminal: true,
+      isError: false,
+      status: 'completed',
+      result: '{\n  "saved": true,\n  "path": "notes/plan.md"\n}',
+    });
+  });
+
   it.each(['Permission denied', { message: 'Permission denied' }])('preserves native MCP error details: %j', error => {
     expect(normalizeCodexMcpToolState(
       'failed',
