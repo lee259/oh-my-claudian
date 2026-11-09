@@ -393,7 +393,12 @@ function parseYamlValue(rawValue: string): unknown {
   return unquoteYaml(rawValue);
 }
 
-export function parseYaml(content: string): Record<string, unknown> {
+// Like the host parser, a document that is only a sequence returns an array.
+export function parseYaml(content: string): Record<string, unknown> | unknown[] {
+  const sequenceLines = content.split(/\r?\n/).filter(line => line.trim() !== '');
+  if (sequenceLines.length > 0 && sequenceLines.every(line => /^\s*-\s+/.test(line))) {
+    return sequenceLines.map(line => unquoteYaml(line.replace(/^\s*-\s+/, '').trim()));
+  }
   const result: Record<string, unknown> = {};
   const lines = content.split(/\r?\n/);
   let currentArrayKey: string | null = null;
