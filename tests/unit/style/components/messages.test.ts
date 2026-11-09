@@ -232,3 +232,15 @@ describe('Message table overflow', () => {
     expect(cellRule).toContain('white-space: normal;');
   });
 });
+
+describe('Chat type scale', () => {
+  it('scales message and secondary text with the note font size', () => {
+    const messages = readFileSync(path.resolve('src/style/components/messages.css'), 'utf8');
+    const variables = readFileSync(path.resolve('src/style/base/variables.css'), 'utf8');
+    const thinking = readFileSync(path.resolve('src/style/components/thinking.css'), 'utf8');
+
+    expect(variables).toContain('--claudian-font-px: calc(var(--font-text-size) / 16)');
+    expect(messages).toMatch(/\.claudian-message-content\s*\{[^}]*font-size:\s*var\(--font-text-size\)/);
+    expect(thinking).toContain('calc(12 * var(--claudian-font-px))');
+  });
+});

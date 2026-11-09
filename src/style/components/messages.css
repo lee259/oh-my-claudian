@@ -160,7 +160,7 @@ button.claudian-message-selection-action svg {
 
 .claudian-home-title {
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: calc(16 * var(--claudian-font-px));
   font-weight: 500;
 }
 
@@ -274,7 +274,7 @@ button.claudian-message-selection-action svg {
   min-width: 0;
   overflow: hidden;
   color: var(--text-normal);
-  font-size: 16px;
+  font-size: calc(16 * var(--claudian-font-px));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -284,7 +284,7 @@ button.claudian-message-selection-action svg {
   margin-inline-start: auto;
   padding-inline-start: 14px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: calc(15 * var(--claudian-font-px));
   transition: opacity var(--claudian-motion-standard, 180ms) var(--claudian-motion-easing, cubic-bezier(0.2, 0, 0, 1));
 }
 
@@ -376,7 +376,7 @@ button.claudian-message-selection-action svg {
   width: fit-content;
   margin-top: 8px;
   color: var(--text-faint);
-  font-size: 15px;
+  font-size: calc(15 * var(--claudian-font-px));
 }
 
 .claudian-home-all-conversations:hover,
@@ -465,6 +465,7 @@ button.claudian-message-selection-action svg {
 }
 
 .claudian-message-user > .claudian-message-content {
+  font-size: var(--font-text-size);
   box-sizing: border-box;
   padding: 10px 14px;
   border: 1px solid rgba(var(--claudian-brand-rgb), 0.22);
@@ -538,6 +539,7 @@ button.claudian-message-selection-action svg {
 }
 
 .claudian-message-content {
+  font-size: var(--font-text-size);
   line-height: 1.5;
   overflow-x: clip;
   user-select: text;
@@ -548,7 +550,7 @@ button.claudian-message-selection-action svg {
 .claudian-message-timestamp {
   margin-top: 6px;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: calc(11 * var(--claudian-font-px));
   line-height: 1.2;
   user-select: none;
   -webkit-user-select: none;
@@ -641,7 +643,7 @@ button.claudian-text-copy-btn:disabled {
 
 button.claudian-text-copy-btn.copied {
   color: var(--text-accent);
-  font-size: 11px;
+  font-size: calc(11 * var(--claudian-font-px));
   font-family: var(--font-monospace);
 }
 
@@ -755,7 +757,7 @@ button.claudian-work-header {
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   cursor: pointer;
   text-align: start;
 }
@@ -787,7 +789,7 @@ button.claudian-work-header:focus-visible {
 
 .claudian-completed-work-status > .claudian-completed-work-label {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
 }
 
 .claudian-completed-work-status.claudian-streaming-work-fold {
@@ -812,7 +814,7 @@ button.claudian-completed-work-header,
   box-shadow: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   font-weight: 400;
   cursor: pointer;
   text-align: start;
@@ -942,7 +944,7 @@ button.claudian-activity-phase-header {
   box-shadow: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   cursor: pointer;
   text-align: start;
 }
@@ -1052,7 +1054,7 @@ button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity
 
 .claudian-baked-duration {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   font-weight: 500;
   font-style: italic;
 }
@@ -1125,7 +1127,7 @@ button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity
 .claudian-message-actions .claudian-message-timestamp {
   margin-inline-start: 4px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   line-height: 16px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1233,7 +1235,7 @@ button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity
 
 .claudian-message-action-row button.copied {
   color: var(--text-accent);
-  font-size: 11px;
+  font-size: calc(11 * var(--claudian-font-px));
   font-family: var(--font-monospace);
 }
 
@@ -1253,7 +1255,7 @@ button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity
   padding-block: 6px;
   color: var(--text-muted);
   font: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--claudian-font-px));
   line-height: 1.5;
 }
 
