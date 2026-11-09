@@ -2,6 +2,8 @@
 
 import '@/providers';
 
+import { setIcon } from 'obsidian';
+
 import type { ProviderId } from '@/core/types';
 import {
   createWelcomeElement,
@@ -48,15 +50,27 @@ describe('Welcome', () => {
       .toBe('dsh conversation');
   });
 
-  it('shows a readable running status instead of a title-loading spinner', () => {
+  it('shows an accessible loading animation while a recent conversation runs', () => {
+    const setIconMock = jest.mocked(setIcon);
+    setIconMock.mockClear();
+    const onStopConversation = jest.fn();
+    const onOpenConversation = jest.fn();
     const welcome = createWelcomeElement(document.createElement('div'), undefined, undefined, {
       getConversations: () => [{ id: 'running', providerId: 'codex', title: 'Running task',
         createdAt: 1, lastActivityAt: 1, messageCount: 1, preview: '' }],
       isConversationRunning: () => true,
+      onStopConversation,
+      onOpenConversation,
     });
     const status = welcome.querySelector('.claudian-home-conversation-loading');
-    expect(status?.textContent).toBe('Running');
-    expect(status?.querySelector('svg')).toBeNull();
+    expect(status?.textContent).toBe('');
+    expect(status?.getAttribute('aria-label')).toBe('Running');
+    expect(setIconMock).toHaveBeenCalledWith(status, 'loader-2');
+    expect(welcome.querySelector('.claudian-home-conversation-open')?.getAttribute('aria-label'))
+      .toBe('Running task · Running');
+    (welcome.querySelector('.claudian-home-conversation-stop') as HTMLButtonElement).click();
+    expect(onStopConversation).toHaveBeenCalledWith('running');
+    expect(onOpenConversation).not.toHaveBeenCalled();
   });
 
   it('renders Oh My Claudian branding before the dynamic greeting', () => {
