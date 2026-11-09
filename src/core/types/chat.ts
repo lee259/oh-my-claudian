@@ -179,6 +179,12 @@ export interface ConversationTurnModel {
 }
 
 /** Persisted conversation with messages and session state. */
+/** Lineage of a conversation created from another conversation. Older records omit it. */
+export interface ConversationOrigin {
+  kind: 'session' | 'fork' | 'subagent';
+  sourceConversationId?: string;
+}
+
 export interface Conversation {
   id: string;
   providerId: ProviderId;
@@ -187,6 +193,8 @@ export interface Conversation {
   /** Timestamp of the most recent user or agent conversation activity. */
   lastActivityAt: number;
   sessionId: string | null;
+  /** Optional lineage; absence means a regular user-started conversation. */
+  origin?: ConversationOrigin;
   /** Conversation-owned model selection. Missing values are migrated lazily. */
   selectedModel?: string;
   /** Historical turn labels, independent of the current model selection. */
@@ -267,6 +275,8 @@ export interface SessionMetadata {
   task?: ConversationTask;
   /** Read-only native locator retained solely for historical model recovery. */
   modelRecoverySource?: ConversationModelRecoverySource;
+  /** Optional lineage; absence means a regular user-started conversation. */
+  origin?: ConversationOrigin;
   currentNote?: string;
   isPinned?: boolean;
   isArchived?: boolean;

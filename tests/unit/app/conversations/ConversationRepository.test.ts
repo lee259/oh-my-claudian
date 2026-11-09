@@ -135,6 +135,21 @@ describe('ConversationRepository hydration', () => {
     }));
   });
 
+
+  it('persists an optional conversation origin', async () => {
+    const { repository, persistence } = createRepository();
+    const origin = { kind: 'fork' as const, sourceConversationId: 'source-1' };
+
+    const conversation = await repository.create({ origin });
+
+    expect(conversation.origin).toEqual(origin);
+    await repository.persistConversations([conversation]);
+    expect(persistence.saveMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      id: conversation.id,
+      origin,
+    }));
+  });
+
   it('persists the provider fallback before publishing a retired historically recovered model', async () => {
     const conversation = createConversation('retired-recovered-model');
     jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({

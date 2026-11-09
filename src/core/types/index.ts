@@ -8,6 +8,7 @@ export {
   CONVERSATION_TASK_SCHEMA_VERSION,
   type ConversationMeta,
   type ConversationModelRecoverySource,
+  type ConversationOrigin,
   type ConversationTask,
   type ConversationTaskStatus,
   type ConversationTurnModel,

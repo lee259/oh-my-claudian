@@ -227,6 +227,7 @@ export function createConversationMetadataShell(meta: SessionMetadata): Conversa
     providerState: meta.providerState,
     task: meta.task,
     modelRecoverySource: meta.modelRecoverySource,
+    origin: meta.origin,
     messages: [],
     currentNote: meta.currentNote,
     isPinned: meta.isPinned,

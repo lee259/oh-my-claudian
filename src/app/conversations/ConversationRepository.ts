@@ -31,6 +31,7 @@ import {
   type Conversation,
   type ConversationMeta,
   type ConversationModelRecoverySource,
+  type ConversationOrigin,
   isCanonicalUserMessage,
   type SessionMetadata,
 } from '../../core/types';
@@ -343,6 +344,7 @@ export class ConversationRepository {
     sessionId?: string;
     selectedModel?: string;
     currentNote?: string;
+    origin?: ConversationOrigin;
   }): Promise<Conversation> {
     const settings = this.deps.getSettings();
     const providerId = options?.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
@@ -369,6 +371,7 @@ export class ConversationRepository {
       providerId,
       title: this.generateDefaultTitle(),
       createdAt: Date.now(),
+      ...(options?.origin ? { origin: options.origin } : {}),
       lastActivityAt: Date.now(),
       sessionId: sessionId ?? null,
       selectedModel,
@@ -1832,6 +1835,7 @@ export class ConversationRepository {
           : undefined,
       task: conversation.task,
       ...(modelRecoverySource ? { modelRecoverySource } : {}),
+      ...(conversation.origin ? { origin: conversation.origin } : {}),
       currentNote: conversation.currentNote,
       isPinned: conversation.isPinned,
       isArchived: conversation.isArchived,
