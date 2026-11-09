@@ -2694,6 +2694,68 @@ describe('MessageRenderer', () => {
     expect(content?.children[0]?.textContent).toBe('What does this mean?');
   });
 
+  it('shows the saved source and selected text with the user message', () => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    renderer.renderStoredMessage({
+      id: 'selected-context', role: 'user', content: 'Explain this', timestamp: 1,
+      executionInput: { schemaVersion: 1, canonicalText: 'Explain this', context: {
+        editorSelection: { notePath: 'Notes/Ideas.md', mode: 'selection', selectedText: 'Original passage', startLine: 12 },
+      } },
+    });
+    const message = (messagesEl as MockElement).children.find(element => element.hasClass('claudian-message-user'));
+    const context = message?.children.find(element => element.hasClass('claudian-message-input-context'));
+    expect(context).toBeDefined();
+    const selection = context?.children[0];
+    expect(context?.children).toHaveLength(1);
+    expect(selection?.children[0].getAttribute('aria-label')).toContain('Notes/Ideas.md');
+    expect(selection?.children[1].children[1].textContent).toBe('Original passage');
+  });
+
+  it.each(['live', 'history'] as const)('renders file and browser context in %s messages', mode => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    const msg: ChatMessage = {
+      id: 'context-user', role: 'user', content: 'Explain this', timestamp: 1,
+      executionInput: { schemaVersion: 1, canonicalText: 'Explain this', context: {
+        currentNote: { path: 'Notes/Article.md' }, contextFiles: ['Notes/Article.md', 'Notes/Other.md'],
+        browserSelection: { source: 'browser', title: 'Web article', selectedText: 'A saved excerpt' },
+      } },
+    };
+    if (mode === 'live') renderer.addMessage(msg);
+    else renderer.renderStoredMessage(msg);
+    const message = (messagesEl as MockElement).children.find(element => element.hasClass('claudian-message-user'));
+    const context = message?.children.find(element => element.hasClass('claudian-message-input-context'));
+    expect(context?.children).toHaveLength(3);
+    expect(context?.children[0].children[1].children[1].textContent).toBe('A saved excerpt');
+    expect(context?.children[1].getAttribute('aria-label')).toContain('Notes/Article.md');
+    expect(context?.children[2].getAttribute('aria-label')).toContain('Notes/Other.md');
+  });
+
+  it('collapses additional references while keeping them available', () => {
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    renderer.renderStoredMessage({ id: 'many-contexts', role: 'user', content: 'Compare', timestamp: 1,
+      executionInput: { schemaVersion: 1, canonicalText: 'Compare', context: {
+        contextFiles: ['a.md', 'b.md', 'c.md', 'd.md', 'e.md'],
+      } },
+    });
+    const message = (messagesEl as MockElement).children.find(element => element.hasClass('claudian-message-user'));
+    const context = message?.children.find(element => element.hasClass('claudian-message-input-context'));
+    expect(context?.children).toHaveLength(4);
+    const overflow = context?.children[3];
+    expect(overflow?.tagName).toBe('DETAILS');
+    expect(overflow?.children[0].getAttribute('aria-label')).toBe('Show 2 more context items');
+    expect(overflow?.children[1].children).toHaveLength(2);
+    if (!overflow) throw new Error('Expected additional references');
+    overflow.open = true;
+    overflow.dispatchEvent('toggle');
+    expect(overflow.children[0].textContent).toBe('Show less');
+    overflow.open = false;
+    overflow.dispatchEvent('toggle');
+    expect(overflow.children[0].getAttribute('aria-label')).toBe('Show 2 more context items');
+  });
+
   it('does not render an empty branch prompt as a message bubble', () => {
     const messagesEl = createMockEl();
     const capabilities = { ...mockCapabilities('codex')(), providerId: 'pi', supportsConversationBranches: true };

@@ -336,6 +336,65 @@ export class MessageRenderer {
     void this.renderContent(quoteEl, quote);
   }
 
+  private renderInputContext(msgEl: HTMLElement, msg: ChatMessage): void {
+    const context = msg.executionInput?.context;
+    if (!context) return;
+    const editor = context.editorSelection?.mode === 'selection' && context.editorSelection.selectedText
+      ? context.editorSelection : undefined;
+    const browser = context.browserSelection?.selectedText ? context.browserSelection : undefined;
+    const sourceText = msg.displayContent ?? msg.content;
+    const isMentioned = (path: string) => {
+      const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`@${escaped}(?=$|[\\s,;:!?)}\\]])`, 'u').test(sourceText);
+    };
+    const paths = [...new Set([context.currentNote?.path, ...(context.contextFiles ?? [])]
+      .filter((path): path is string => !!path && path !== editor?.notePath && !isMentioned(path)))];
+    if (!editor && !browser && paths.length === 0) return;
+    const container = msgEl.createDiv({ cls: 'claudian-message-input-context' });
+    const addPath = (parent: HTMLElement, path: string, line?: number, chip = false) => {
+      const label = path.split(/[\\/]/).pop() || path;
+      const fullLabel = `${path}${line ? `:${line}` : ''}`;
+      const button = parent.createEl('button', {
+        cls: `claudian-message-input-context-file${chip ? ' claudian-message-input-context-file--chip' : ''}`,
+        attr: { type: 'button', title: fullLabel, 'aria-label': fullLabel },
+      });
+      const icon = button.createSpan({ cls: 'claudian-message-input-context-icon', attr: { 'aria-hidden': 'true' } });
+      setIcon(icon, 'file-text');
+      button.createSpan({ cls: 'claudian-message-input-context-file-name', text: `${label}${line ? `:${line}` : ''}` });
+      button.addEventListener('click', () => { void openVaultFile(this.app, { path, ...(line ? { lineStart: line } : {}) }); });
+    };
+    const addSelection = (parent: HTMLElement, source: string, text: string, path?: string, line?: number) => {
+      const card = parent.createDiv({ cls: 'claudian-message-input-context-selection' });
+      if (path) addPath(card, path, line);
+      else card.createDiv({ cls: 'claudian-message-input-context-source', text: source });
+      const details = card.createEl('details', { cls: 'claudian-message-input-context-disclosure' });
+      const summary = details.createEl('summary');
+      summary.createSpan({ cls: 'claudian-message-input-context-preview', text });
+      summary.createSpan({ cls: 'claudian-message-input-context-collapse', text: t('chat.composer.showLess') });
+      details.createEl('pre', { cls: 'claudian-message-input-context-text', text });
+    };
+    const items: Array<(parent: HTMLElement) => void> = [];
+    if (editor) {
+      items.push(parent => addSelection(parent, editor.notePath, editor.selectedText!, editor.notePath, editor.startLine));
+    }
+    if (browser) items.push(parent => addSelection(parent, browser.title || browser.url || browser.source, browser.selectedText));
+    paths.forEach(path => items.push(parent => addPath(parent, path, undefined, true)));
+    items.slice(0, 3).forEach(render => render(container));
+    if (items.length > 3) {
+      const count = items.length - 3;
+      const overflow = container.createEl('details', { cls: 'claudian-message-input-context-more' });
+      const summary = overflow.createEl('summary', {
+        text: t('chat.composer.more', { count }), attr: { 'aria-label': t('chat.composer.showMore', { count }) },
+      });
+      overflow.addEventListener('toggle', () => {
+        summary.setText(overflow.open ? t('chat.composer.showLess') : t('chat.composer.more', { count }));
+        summary.setAttribute('aria-label', overflow.open ? t('chat.composer.showLess') : t('chat.composer.showMore', { count }));
+      });
+      const extra = overflow.createDiv({ cls: 'claudian-message-input-context-extra' });
+      items.slice(3).forEach(render => render(extra));
+    }
+  }
+
   private applyTocTitle(msgEl: HTMLElement, text: string): void {
     const tocTitle = formatConversationDirectoryTitle(text);
     if (tocTitle) {
@@ -385,6 +444,7 @@ export class MessageRenderer {
     this.setTranscriptIdentity(msgEl, { turnId: msg.id, ...(msg.role === 'assistant' ? { runId: msg.id } : {}) });
 
     if (msg.role === 'user' && msg.images?.length) this.renderMessageImages(msgEl, msg.images);
+    if (msg.role === 'user') this.renderInputContext(msgEl, msg);
     if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });
@@ -691,6 +751,7 @@ export class MessageRenderer {
     this.setTranscriptIdentity(msgEl, transcriptIdentity);
 
     if (msg.role === 'user' && msg.images?.length) this.renderMessageImages(msgEl, msg.images);
+    if (msg.role === 'user') this.renderInputContext(msgEl, msg);
     if (userPresentation?.quote) this.renderQuotedMessageContext(msgEl, userPresentation.quote);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-message-content', attr: { dir: 'auto' } });

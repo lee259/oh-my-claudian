@@ -947,6 +947,12 @@ describe('InputController coordinator execution', () => {
     ]);
     expect(submission.images).toEqual([image]);
     expect(submission.images[0]).toBe(image);
+    expect(fixture.deps.renderer.addMessage).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'user',
+      executionInput: expect.objectContaining({ context: expect.objectContaining({
+        currentNote: { path: 'note.md' }, editorSelection: editorContext, browserSelection: browserContext,
+      }) }),
+    }));
   });
 
   it('keeps context feature-owned in the normalized submission', async () => {
@@ -2114,6 +2120,9 @@ describe('InputController coordinator execution', () => {
     });
 
     fixture.input.value = 'ambiguous live steer';
+    jest.mocked(fixture.deps.selectionController.getContext).mockReturnValueOnce({
+      mode: 'selection', notePath: 'Notes/steer.md', selectedText: 'steer snapshot',
+    });
     await fixture.controller.sendMessage();
     await fixture.controller.steerQueuedMessage();
     await fixture.controller.handleExecutionEvent({
@@ -2132,6 +2141,9 @@ describe('InputController coordinator execution', () => {
       .toMatchObject({
         content: 'ambiguous live steer',
         displayContent: 'ambiguous live steer',
+        executionInput: { context: { editorSelection: {
+          mode: 'selection', notePath: 'Notes/steer.md', selectedText: 'steer snapshot',
+        } } },
       });
     expect((fixture.controller as any).pendingSteersByConversation.has('conversation-1'))
       .toBe(false);

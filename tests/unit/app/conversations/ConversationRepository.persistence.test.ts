@@ -150,6 +150,8 @@ describe('ConversationRepository input ledger', () => {
       rawDisplayText: '/command',
       context: {
         currentNote: { path: 'Notes/current.md' },
+        contextFiles: ['Notes/reference.md'],
+        editorSelection: { mode: 'selection', notePath: 'Notes/current.md', selectedText: 'Saved passage' },
       },
       images: [image],
       contentDigest: computeConversationInputDigest({
@@ -190,6 +192,8 @@ describe('ConversationRepository input ledger', () => {
         canonicalText: 'Canonical input',
         context: {
           currentNote: { path: 'Notes/current.md' },
+          contextFiles: ['Notes/reference.md'],
+          editorSelection: { mode: 'selection', notePath: 'Notes/current.md', selectedText: 'Saved passage' },
         },
       },
     });
