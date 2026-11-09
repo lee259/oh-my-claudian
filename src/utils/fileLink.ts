@@ -25,7 +25,7 @@ export { stripFileLineRange } from './FileReference';
  *
  * Does NOT match image embeds ![[image.png]] (those are handled separately).
  */
-const WIKILINK_PATTERN_SOURCE = '(?<!!)\\[\\[([^\\]|#^]+)(?:#[^\\]|]+)?(?:\\^[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]';
+const WIKILINK_PATTERN_SOURCE = '(?<!!)\\[\\[([^\\]|#^]*)(?:#[^\\]|]+)?(?:\\^[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]';
 const AT_MENTION_PATTERN_SOURCE = '@([^\\s@]+(?:\\.[^\\s@]+|/))';
 
 /** Creates a fresh regex instance to avoid global state issues */
@@ -166,7 +166,7 @@ function buildWikilinkMatch(
   index: number
 ): WikilinkMatch {
   const pipeIndex = fullMatch.indexOf('|');
-  const displayText = pipeIndex > 0 ? fullMatch.slice(pipeIndex + 1, -2) : linkPath;
+  const displayText = pipeIndex > 0 ? fullMatch.slice(pipeIndex + 1, -2) : linkPath || extractLinkTarget(fullMatch);
 
   return {
     index,
@@ -187,7 +187,7 @@ export function extractLinkTarget(fullMatch: string): string {
  * Finds all wikilinks in text that exist in the vault.
  * Sorted by index descending for end-to-start processing.
  */
-function findWikilinks(app: App, text: string): WikilinkMatch[] {
+function findWikilinks(app: App, text: string, sourcePath = ''): WikilinkMatch[] {
   const pattern = createWikilinkPattern();
   const matches: WikilinkMatch[] = [];
 
@@ -196,7 +196,9 @@ function findWikilinks(app: App, text: string): WikilinkMatch[] {
     const fullMatch = match[0];
     const linkPath = match[1];
 
-    if (!fileExistsInVault(app, linkPath)) continue;
+    // A same-note target is meaningful only for a consumer with an explicit source.
+    if (!linkPath && (!sourcePath || !extractLinkTarget(fullMatch).startsWith('#'))) continue;
+    if (!fileExistsInVault(app, linkPath, sourcePath)) continue;
 
     matches.push(buildWikilinkMatch(fullMatch, linkPath, match.index));
   }
@@ -204,8 +206,9 @@ function findWikilinks(app: App, text: string): WikilinkMatch[] {
   return matches.sort((a, b) => b.index - a.index);
 }
 
-function fileExistsInVault(app: App, linkPath: string): boolean {
-  const file = app.metadataCache.getFirstLinkpathDest(linkPath, '');
+function fileExistsInVault(app: App, linkPath: string, sourcePath = ''): boolean {
+  if (!linkPath) return !!sourcePath && !!getVaultFileByPath(app, sourcePath);
+  const file = app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
   if (file) {
     return true;
   }
@@ -251,14 +254,14 @@ function createWikilink(
   });
 }
 
-function repairEmptyInternalLink(app: App, link: HTMLAnchorElement): void {
+function repairEmptyInternalLink(app: App, link: HTMLAnchorElement, sourcePath = ''): void {
   if ((link.textContent || '').trim()) return;
 
   const linkTarget = link.dataset.href || link.getAttribute('data-href') || link.getAttribute('href');
   if (!linkTarget) return;
 
   const linkPath = extractLinkPathFromTarget(linkTarget);
-  if (!linkPath || !fileExistsInVault(app, linkPath)) return;
+  if (!linkPath || !fileExistsInVault(app, linkPath, sourcePath)) return;
 
   link.classList.add('claudian-file-link');
   if (!link.dataset.href) {
@@ -275,8 +278,11 @@ function repairEmptyInternalLink(app: App, link: HTMLAnchorElement): void {
 export function registerFileLinkHandler(
   app: App,
   container: HTMLElement,
-  component: Component
+  component: Component,
+  sourcePath = ''
 ): void {
+  if (container.dataset?.claudianFileLinksBound === 'true') return;
+  if (container.dataset) container.dataset.claudianFileLinksBound = 'true';
   const handleClick = (event: MouseEvent): void => {
     if (event.type === 'auxclick' && event.button !== 1) return;
     const target = event.target as HTMLElement;
@@ -289,7 +295,7 @@ export function registerFileLinkHandler(
       if (linkTarget) {
         if (link.dataset.claudianFolderLink === 'true') void revealVaultItem(app, app.vault.getAbstractFileByPath(linkTarget));
         else if (shouldOpenThroughFileCompatibility(linkTarget)) void openVaultFile(app, linkTarget);
-        else void openVaultLink(app, linkTarget, Keymap.isModEvent(event) || 'tab');
+        else void openVaultLink(app, linkTarget, Keymap.isModEvent(event) || 'tab', sourcePath);
       }
     }
   };
@@ -336,16 +342,16 @@ function buildFragmentWithLinks(parent: HTMLElement, text: string, matches: Wiki
   return fragment;
 }
 
-function processTextNode(app: App, node: Text): boolean {
+function processTextNode(app: App, node: Text, sourcePath = ''): boolean {
   const text = node.textContent;
   if (!text || (!text.includes('[[') && !text.includes('@'))) return false;
 
-  const matches = findWikilinks(app, text);
+  const matches = findWikilinks(app, text, sourcePath);
   const atMentionPattern = createAtMentionPattern();
   let atMention: RegExpExecArray | null;
   while ((atMention = atMentionPattern.exec(text)) !== null) {
     const linkPath = atMention[1];
-    if (!fileExistsInVault(app, linkPath)) continue;
+    if (!fileExistsInVault(app, linkPath, sourcePath)) continue;
     matches.push({
       index: atMention.index,
       fullMatch: atMention[0],
@@ -370,7 +376,7 @@ function processTextNode(app: App, node: Text): boolean {
  * Call after MarkdownRenderer.renderMarkdown().
  * Catches wikilinks that remain as raw text after rendering, especially inline code spans.
  */
-export function processFileLinks(app: App, container: HTMLElement): void {
+export function processFileLinks(app: App, container: HTMLElement, sourcePath = ''): void {
   if (!app || !container) return;
 
   const citationWalker = container.ownerDocument.createTreeWalker(
@@ -402,7 +408,7 @@ export function processFileLinks(app: App, container: HTMLElement): void {
 
   // Repair resolved internal links that rendered as empty anchors.
   container.querySelectorAll('a.internal-link').forEach((linkEl) => {
-    repairEmptyInternalLink(app, linkEl as HTMLAnchorElement);
+    repairEmptyInternalLink(app, linkEl as HTMLAnchorElement, sourcePath);
   });
 
   // Wikilinks in inline code aren't rendered by Obsidian's MarkdownRenderer
@@ -412,7 +418,7 @@ export function processFileLinks(app: App, container: HTMLElement): void {
     const text = codeEl.textContent;
     if (!text || !text.includes('[[')) return;
 
-    const matches = findWikilinks(app, text);
+    const matches = findWikilinks(app, text, sourcePath);
     if (matches.length === 0) return;
 
     codeEl.textContent = '';
@@ -449,6 +455,6 @@ export function processFileLinks(app: App, container: HTMLElement): void {
   }
 
   for (const textNode of textNodes) {
-    processTextNode(app, textNode);
+    processTextNode(app, textNode, sourcePath);
   }
 }

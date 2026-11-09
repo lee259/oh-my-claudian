@@ -67,6 +67,21 @@ describe('registerFileLinkHandler', () => {
     expect(app.workspace.openLinkText).toHaveBeenCalledWith('note#section', '', 'tab');
   });
 
+  it('resolves a same-note link against the registered source path', () => {
+    jest.spyOn(Keymap, 'isModEvent').mockReturnValue('tab');
+    const app = { workspace: { openLinkText: jest.fn() } };
+    const link: any = { dataset: { href: '#Overview' }, closest: jest.fn() };
+    link.closest.mockReturnValue(link);
+    const handlers: Record<string, (event: MouseEvent) => void> = {};
+    const component = { registerDomEvent: (_el: HTMLElement, event: string, cb: (event: MouseEvent) => void) => { handlers[event] = cb; } };
+
+    registerFileLinkHandler(app as any, {} as HTMLElement, component as any, 'Notes/current.md');
+    handlers.click({ type: 'click', button: 0, target: link, preventDefault: jest.fn() } as any);
+
+    expect(app.workspace.openLinkText).toHaveBeenCalledWith('#Overview', 'Notes/current.md', 'tab');
+    jest.restoreAllMocks();
+  });
+
   it('falls back to href when data-href is missing', () => {
     const app = {
       workspace: {

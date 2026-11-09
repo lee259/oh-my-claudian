@@ -1,7 +1,7 @@
 import type { App, Component } from 'obsidian';
 import { MarkdownRenderer } from 'obsidian';
 
-import { processFileLinks } from '../../../utils/fileLink';
+import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
 import { replaceImageEmbedsWithHtml } from '../../../utils/imageEmbed';
 import { normalizeLatexMathDelimiters } from '../../../utils/markdownMath';
 
@@ -45,7 +45,8 @@ export async function renderInlineEditMarkdownPreview({
     await MarkdownRenderer.render(app, processedMarkdown, container, sourcePath, component);
 
     if (processedMarkdown.includes('[[') && app.metadataCache) {
-      processFileLinks(app, container);
+      processFileLinks(app, container, sourcePath);
+      registerFileLinkHandler(app, container, component, sourcePath);
     }
   } catch {
     emptyElement(container);
