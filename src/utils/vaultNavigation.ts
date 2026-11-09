@@ -17,9 +17,14 @@ export async function revealVaultItem(app: App, target: TAbstractFile | null): P
 }
 
 /** Open an ordinary vault link, retaining Obsidian's heading/block resolution. */
-export async function openVaultLink(app: App, target: string, pane: PaneType | boolean = 'tab'): Promise<void> {
+export async function openVaultLink(
+  app: App,
+  target: string,
+  pane: PaneType | boolean = 'tab',
+  sourcePath = '',
+): Promise<void> {
   try {
-    await app.workspace.openLinkText(target, '', pane);
+    await app.workspace.openLinkText(target, sourcePath, pane);
   } catch {
     new Notice(t('chat.composer.fileOpenFailed'));
   }

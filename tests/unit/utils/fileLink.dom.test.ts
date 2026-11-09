@@ -26,6 +26,28 @@ function createMockApp(existingFiles: string[], basePath?: string) {
 }
 
 describe('processFileLinks', () => {
+  it('links same-note heading targets only when the source note exists', () => {
+    const app = createMockApp(['Notes/current.md']);
+    const container = document.createElement('div');
+    container.textContent = 'See [[#Overview]] and [[#^quote]].';
+
+    processFileLinks(app, container, 'Notes/current.md');
+
+    const links = container.querySelectorAll('a.claudian-file-link');
+    expect([...links].map(link => link.textContent)).toEqual(['#Overview', '#^quote']);
+    expect(links[0].getAttribute('data-href')).toBe('#Overview');
+
+    const withoutSource = document.createElement('div');
+    withoutSource.textContent = 'See [[#Overview]].';
+    processFileLinks(app, withoutSource);
+    expect(withoutSource.querySelector('a')).toBeNull();
+
+    const missingSource = document.createElement('div');
+    missingSource.textContent = 'See [[#Overview]].';
+    processFileLinks(app, missingSource, 'Notes/missing.md');
+    expect(missingSource.querySelector('a')).toBeNull();
+  });
+
   it.each([
     '<a href="https://example.com"><code>[[note.md]]</code></a>',
     '<a class="internal-link" href="other.md"><code>[[note.md]]</code></a>',
