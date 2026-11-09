@@ -91,7 +91,7 @@ import {
 import { TurnCompletionCoordinator } from './TurnCompletionCoordinator';
 import type { ActiveTurnOwner } from './TurnCoordinator';
 import { TurnCoordinator } from './TurnCoordinator';
-import { TurnSubmissionBuilder } from './TurnSubmissionBuilder';
+import { snapshotTurnInput, TurnSubmissionBuilder } from './TurnSubmissionBuilder';
 
 const APPROVAL_OPTION_MAP: Record<string, ApprovalDecision> = {
   'Deny': 'deny',
@@ -652,6 +652,7 @@ export class InputController {
       displayContent,                // Original user input (for UI display)
       timestamp: Date.now(),
       images: imagesForMessage,
+      executionInput: snapshotTurnInput(turnRequest),
       ...(options?.answeringQuestionId ? { isProviderContinuation: true } : {}),
     };
     state.addMessage(userMsg);
@@ -1539,6 +1540,7 @@ export class InputController {
         timestamp: Date.now(),
         currentNote: expected?.currentNote,
         images,
+        ...(expected && pendingSteer?.message.turnRequest ? { executionInput: snapshotTurnInput(pendingSteer.message.turnRequest) } : {}),
         ...(chunk.itemId ? { userMessageId: chunk.itemId } : {}),
       };
       this.deps.state.addMessage(userMessage);

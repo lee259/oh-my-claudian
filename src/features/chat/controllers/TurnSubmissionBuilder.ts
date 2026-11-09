@@ -1,6 +1,6 @@
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderCapabilities, ProviderId } from '../../../core/providers/types';
-import { type ChatMessage,isCanonicalUserMessage } from '../../../core/types';
+import { type ChatMessage, type ExecutionInputSnapshot, isCanonicalUserMessage } from '../../../core/types';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
 import type { EditorSelectionContext } from '../../../utils/editor';
@@ -36,6 +36,23 @@ export interface BuildTurnRequestOptions {
   editorContextOverride?: EditorSelectionContext | null;
   browserContextOverride?: BrowserSelectionContext | null;
   canvasContextOverride?: CanvasSelectionContext | null;
+}
+
+export function snapshotTurnInput(request: ChatTurnRequest): ExecutionInputSnapshot {
+  return {
+    schemaVersion: 1,
+    canonicalText: request.text,
+    context: {
+      ...(request.currentNotePath ? { currentNote: { path: request.currentNotePath } } : {}),
+      ...(request.editorSelection ? { editorSelection: {
+        ...request.editorSelection,
+        ...(request.editorSelection.cursorContext ? { cursorContext: { ...request.editorSelection.cursorContext } } : {}),
+      } } : {}),
+      ...(request.browserSelection ? { browserSelection: { ...request.browserSelection } } : {}),
+      ...(request.canvasSelection ? { canvasSelection: { ...request.canvasSelection, nodeIds: [...request.canvasSelection.nodeIds] } } : {}),
+      ...(request.contextFiles ? { contextFiles: [...request.contextFiles] } : {}),
+    },
+  };
 }
 
 /** Builds provider-neutral turn requests from the current composer state. */
