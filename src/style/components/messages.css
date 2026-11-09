@@ -478,6 +478,168 @@ button.claudian-message-selection-action svg {
   display: none;
 }
 
+.claudian-message-input-context {
+  align-self: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  margin-block-end: 6px;
+  font-size: var(--font-ui-small);
+}
+
+button.claudian-message-input-context-file,
+button.claudian-message-input-context-file:hover,
+button.claudian-message-input-context-file:focus-visible,
+button.claudian-message-input-context-file:active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.claudian-message-input-context-file:hover,
+button.claudian-message-input-context-file:focus-visible {
+  color: var(--text-normal);
+}
+
+button.claudian-message-input-context-file--chip,
+button.claudian-message-input-context-file--chip:hover,
+button.claudian-message-input-context-file--chip:focus-visible,
+button.claudian-message-input-context-file--chip:active {
+  background: var(--background-secondary);
+}
+
+.claudian-message-input-context-icon {
+  display: inline-flex;
+  flex: 0 0 14px;
+}
+
+.claudian-message-input-context-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-message-input-context-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.claudian-message-input-context-file:focus-visible,
+.claudian-message-input-context-disclosure summary:focus-visible,
+.claudian-message-input-context-more > summary:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.claudian-message-input-context-selection {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border-inline-start: 3px solid var(--interactive-accent);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.claudian-message-input-context-selection > button.claudian-message-input-context-file {
+  padding: 0;
+  background: transparent;
+  font-weight: var(--font-semibold);
+}
+
+.claudian-message-input-context-disclosure summary,
+.claudian-message-input-context-more > summary {
+  cursor: pointer;
+}
+
+.claudian-message-input-context-disclosure summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  list-style: none;
+}
+
+.claudian-message-input-context-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.claudian-message-input-context-disclosure summary::before {
+  content: '▸';
+  flex: none;
+}
+
+.claudian-message-input-context-disclosure[open] summary::before {
+  content: '▾';
+}
+
+.claudian-message-input-context-source {
+  font-weight: var(--font-semibold);
+}
+
+.claudian-message-input-context-preview {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: pre-wrap;
+}
+
+.claudian-message-input-context-collapse {
+  display: none;
+}
+
+.claudian-message-input-context-disclosure[open] .claudian-message-input-context-preview {
+  display: none;
+}
+
+.claudian-message-input-context-disclosure[open] .claudian-message-input-context-collapse {
+  display: inline;
+}
+
+.claudian-message-input-context-more {
+  max-width: 100%;
+  color: var(--text-muted);
+}
+
+.claudian-message-input-context-more > summary {
+  padding: 4px 8px;
+}
+
+.claudian-message-input-context-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.claudian-message-input-context-text {
+  max-height: 240px;
+  margin: 6px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: inherit;
+}
+
 .claudian-message-quote-context {
   box-sizing: border-box;
   align-self: flex-end;

@@ -69,6 +69,7 @@ export interface ExecutionInputContextSnapshot {
   editorSelection?: ExecutionInputEditorSnapshot | null;
   browserSelection?: ExecutionInputBrowserSnapshot | null;
   canvasSelection?: ExecutionInputCanvasSnapshot | null;
+  contextFiles?: readonly string[];
 }
 
 /** Canonical feature-owned input, before provider-native prompt formatting. */
