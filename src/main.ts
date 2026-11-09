@@ -66,6 +66,7 @@ import type {
   ClaudianSettings,
   Conversation,
   ConversationMeta,
+  ConversationOrigin,
 } from './core/types';
 import {
   VIEW_TYPE_CLAUDIAN,
@@ -1088,6 +1089,7 @@ export default class ClaudianPlugin extends Plugin {
     sessionId?: string;
     selectedModel?: string;
     currentNote?: string;
+    origin?: ConversationOrigin;
   }): Promise<Conversation> {
     const conversation = await this.conversationRepository.create(options);
     this.notifyConversationViewsChanged();

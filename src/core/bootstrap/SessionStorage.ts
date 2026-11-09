@@ -13,6 +13,7 @@ import type {
   ConversationTurnModel,
   SessionMetadata,
 } from '../types';
+import type { ConversationOrigin } from '../types';
 import { CONVERSATION_TASK_SCHEMA_VERSION } from '../types';
 import {
   DELETION_MARKER_SUFFIX,
@@ -287,6 +288,7 @@ export class SessionStorage implements SessionMetadataReader {
       modelRecoverySource: rawModelRecoverySource,
       task: rawTask,
       turnModels: rawTurnModels,
+      origin: rawOrigin,
       currentNote: rawCurrentNote,
       ...metadataFields
     } = rawMetadata;
@@ -296,6 +298,7 @@ export class SessionStorage implements SessionMetadataReader {
     const modelRecoverySource = this.parseModelRecoverySource(rawModelRecoverySource);
     const task = this.parseConversationTask(rawTask);
     const turnModels = this.parseTurnModels(rawTurnModels);
+    const origin = parseConversationOrigin(rawOrigin);
     const currentNote = typeof rawCurrentNote === 'string'
       ? decodePromptXmlAttribute(rawCurrentNote)
       : undefined;
@@ -305,6 +308,7 @@ export class SessionStorage implements SessionMetadataReader {
       ...(modelRecoverySource ? { modelRecoverySource } : {}),
       ...(task ? { task } : {}),
       ...(turnModels ? { turnModels } : {}),
+      ...(origin ? { origin } : {}),
       ...(currentNote !== undefined ? { currentNote } : {}),
       lastActivityAt,
     } as unknown as SessionMetadata;
@@ -417,4 +421,15 @@ export class SessionStorage implements SessionMetadataReader {
       ? fileName.slice(0, -suffix.length)
       : null;
   }
+}
+
+
+function parseConversationOrigin(value: unknown): ConversationOrigin | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const kind = record.kind;
+  if (kind !== 'session' && kind !== 'fork' && kind !== 'subagent') return undefined;
+  const source = record.sourceConversationId;
+  if (source !== undefined && (typeof source !== 'string' || source.length === 0)) return undefined;
+  return { kind, ...(source ? { sourceConversationId: source } : {}) };
 }
