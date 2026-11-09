@@ -289,7 +289,7 @@
 }
 
 .claudian-history-item.active {
-  background: var(--background-modifier-hover);
+  background: var(--claudian-session-background-active);
   border-inline-start: 2px solid var(--interactive-accent);
   padding-inline-start: 10px;
 }
