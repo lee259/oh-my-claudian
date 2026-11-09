@@ -32,6 +32,7 @@ interface GrokQuestion {
 export class GrokExecutionInteractionRouter {
   private sequence = 0;
   private readonly pending = new Map<string, AbortController>();
+  private readonly detachCaller = new Map<string, () => void>();
 
   constructor(
     private readonly interactionPort: ProviderInteractionPort,
@@ -56,6 +57,8 @@ export class GrokExecutionInteractionRouter {
       this.interactionPort.dismissInteraction(interactionId, reason);
       controller.abort();
     }
+    for (const detach of this.detachCaller.values()) detach();
+    this.detachCaller.clear();
     this.pending.clear();
   }
 
@@ -64,7 +67,7 @@ export class GrokExecutionInteractionRouter {
     const request = parseQuestionRequest(params, this.getSessionId());
     if (!turnId || !request || signal?.aborted) return { outcome: 'cancelled' };
     const interactionId = this.nextId('question');
-    const controller = this.begin(interactionId);
+    const controller = this.begin(interactionId, signal);
     let dismissReason: ProviderInteractionDismissReason = 'cancelled';
     try {
       const response = await this.interactionPort.askUserQuestion({
@@ -151,9 +154,21 @@ export class GrokExecutionInteractionRouter {
     return `${this.sessionInstanceId}:${kind}:${++this.sequence}`;
   }
 
-  private begin(interactionId: string): AbortController {
+  private begin(interactionId: string, signal?: AbortSignal): AbortController {
     this.dismissAll('superseded');
     const controller = new AbortController();
+    if (signal?.aborted) {
+      controller.abort();
+      return controller;
+    }
+    if (signal) {
+      const onCallerAbort = (): void => {
+        this.finish(interactionId, 'cancelled');
+        controller.abort();
+      };
+      signal.addEventListener('abort', onCallerAbort, { once: true });
+      this.detachCaller.set(interactionId, () => signal.removeEventListener('abort', onCallerAbort));
+    }
     this.pending.set(interactionId, controller);
     return controller;
   }
@@ -162,6 +177,9 @@ export class GrokExecutionInteractionRouter {
     interactionId: string,
     reason: ProviderInteractionDismissReason,
   ): void {
+    const detachCaller = this.detachCaller.get(interactionId);
+    this.detachCaller.delete(interactionId);
+    detachCaller?.();
     if (!this.pending.has(interactionId)) return;
     this.pending.delete(interactionId);
     this.interactionPort.dismissInteraction(interactionId, reason);
