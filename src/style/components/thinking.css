@@ -4,7 +4,7 @@
   align-items: baseline;
   gap: 2px 8px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   font-style: normal;
   line-height: 1.5;
   padding: 4px 0;
@@ -57,7 +57,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   font-weight: 400;
   color: var(--text-muted);
   text-overflow: ellipsis;
@@ -68,7 +68,7 @@
 .claudian-thinking-content {
   padding: 4px 0;
   padding-inline-start: 24px;
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   line-height: 1.5;
   color: var(--text-muted);
   max-height: 400px;
@@ -96,7 +96,7 @@
 
 .claudian-thinking-content code {
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
 }
 
 /* Provider-owned reasoning summaries are a single transient live status. */

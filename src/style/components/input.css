@@ -20,7 +20,7 @@
   background: var(--background-primary);
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   line-height: 1.35;
   text-align: start;
   text-overflow: ellipsis;
@@ -205,7 +205,7 @@
   -webkit-text-fill-color: transparent;
   caret-color: var(--text-normal);
   font-family: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--claudian-font-px));
   line-height: 1.4;
   box-shadow: none;
   overflow-y: auto;
@@ -233,7 +233,7 @@
   z-index: 2;
   color: var(--text-normal);
   font-family: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--claudian-font-px));
   line-height: 1.4;
 }
 

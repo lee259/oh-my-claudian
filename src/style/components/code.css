@@ -61,7 +61,7 @@
 
 .claudian-message-content code {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
 }
 
 .claudian-container .claudian-message-content :not(pre) > code {

@@ -32,7 +32,7 @@
 
 .claudian-tool-name {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   font-weight: 400;
   color: var(--text-normal);
   white-space: nowrap;
@@ -44,7 +44,7 @@
 
 .claudian-tool-summary {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -69,7 +69,7 @@
 
 .claudian-tool-bash-command {
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   line-height: 1.4;
   color: var(--text-normal);
   white-space: pre-wrap;
@@ -80,7 +80,7 @@
 /* Legacy: StatusPanel bash entries still use claudian-tool-label */
 .claudian-tool-label {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   font-weight: 400;
   color: var(--text-normal);
   white-space: nowrap;
@@ -90,7 +90,7 @@
 
 .claudian-tool-current {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: calc(13 * var(--claudian-font-px));
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -150,7 +150,7 @@
 /* Expanded content: per-line rendering */
 .claudian-tool-lines {
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   line-height: 1.4;
   overflow-x: auto;
 }
@@ -192,7 +192,7 @@
   font-style: italic;
   padding: 4px 0;
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
 }
 
 /* ToolSearch expanded: icon + tool name rows */
@@ -202,7 +202,7 @@
   gap: 4px;
   padding: 2px 0;
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   color: var(--text-muted);
 }
 
@@ -230,7 +230,7 @@
   text-decoration: none;
   cursor: pointer;
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   line-height: 1.4;
 }
 
@@ -260,7 +260,7 @@
 /* Web search summary section */
 .claudian-tool-web-summary {
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   color: var(--text-muted);
   padding-top: 4px;
   border-top: 1px solid var(--background-modifier-border);
@@ -276,7 +276,7 @@
   color: var(--text-faint);
   font-style: italic;
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   padding: 4px 0;
 }
 
@@ -287,7 +287,7 @@
 
 .claudian-tool-result-text {
   font-family: var(--font-monospace);
-  font-size: 12px;
+  font-size: calc(12 * var(--claudian-font-px));
   color: var(--text-muted);
   line-height: 1.4;
   white-space: pre-wrap;
