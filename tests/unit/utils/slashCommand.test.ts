@@ -46,6 +46,15 @@ Do something`;
       expect(parsed.promptContent).toBe('Just a prompt without frontmatter');
     });
 
+    it('keeps a leading Markdown list between horizontal rules as prompt content', () => {
+      const content = '---\n- Read the note\n- Summarize its key points\n---\nUse a short reply.';
+
+      const parsed = parseSlashCommandContent(content);
+
+      expect(parsed.description).toBeUndefined();
+      expect(parsed.promptContent).toBe(content);
+    });
+
     it('should handle inline array syntax for allowed-tools', () => {
       const content = `---
 allowed-tools: [Read, Write, Bash]

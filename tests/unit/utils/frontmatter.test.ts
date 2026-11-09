@@ -29,6 +29,12 @@ Body text here`;
     expect(parseFrontmatter('Just text')).toBeNull();
   });
 
+  it('treats a sequence between rules as body instead of frontmatter', () => {
+    const content = '---\n- Read the note\n- Summarize its key points\n---\nUse a short reply.';
+
+    expect(parseFrontmatter(content)).toBeNull();
+  });
+
   it('handles empty body', () => {
     const content = `---
 key: value
