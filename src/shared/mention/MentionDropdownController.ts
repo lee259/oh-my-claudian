@@ -62,6 +62,10 @@ export class MentionDropdownController {
   private activeMentionSearchText: string | null = null;
   private fixed: boolean;
   private debounceTimer: number | null = null;
+  /** Trigger the user dismissed with Escape, retained while they keep typing it. */
+  private dismissedMention: { atIndex: number; text: string } | null = null;
+  /** Last unmatched spaced query at its trigger; growing it cannot start matching a name. */
+  private rejectedSpacedQuery: { atIndex: number; text: string } | null = null;
   private destroyed = false;
   private composing = false;
   private readonly compositionStartHandler = () => {
@@ -263,6 +267,9 @@ export class MentionDropdownController {
         this.returnToFirstLevel();
         return true;
       }
+      if (this.mentionStartIndex >= 0) {
+        this.dismissedMention = { atIndex: this.mentionStartIndex, text: this.activeMentionSearchText ?? '' };
+      }
       this.hide();
       return true;
     }
@@ -272,6 +279,22 @@ export class MentionDropdownController {
 
   private showMentionDropdown(searchText: string, deferExternalScan = false): void {
     if (this.destroyed) return;
+    if (this.dismissedMention) {
+      const dismissed = this.dismissedMention;
+      if (this.mentionStartIndex === dismissed.atIndex && searchText.startsWith(dismissed.text)) {
+        this.hide();
+        return;
+      }
+      this.dismissedMention = null;
+    }
+    if (this.rejectedSpacedQuery) {
+      const rejected = this.rejectedSpacedQuery;
+      if (this.mentionStartIndex === rejected.atIndex && searchText.startsWith(rejected.text)) {
+        this.hide();
+        return;
+      }
+      this.rejectedSpacedQuery = null;
+    }
     this.ensureAgentServiceLoaded();
     this.ensureMcpServiceLoaded();
     const searchLower = searchText.toLowerCase();
@@ -580,6 +603,7 @@ export class MentionDropdownController {
     // A space can belong to a filename, but an unmatched phrase is ordinary prose.
     if (!/\s/.test(this.activeMentionSearchText ?? '')) return false;
 
+    this.rejectedSpacedQuery = { atIndex: this.mentionStartIndex, text: this.activeMentionSearchText ?? '' };
     this.hide();
     return true;
   }

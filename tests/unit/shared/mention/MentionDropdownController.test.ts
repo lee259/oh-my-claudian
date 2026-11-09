@@ -536,6 +536,48 @@ describe('MentionDropdownController', () => {
       expect(controller.isVisible()).toBe(false);
     });
 
+    it('keeps a trigger dismissed after Escape while the user keeps typing it', () => {
+      (callbacks.getCachedVaultFiles as jest.Mock).mockReturnValue([
+        { name: 'alpha.md', path: 'notes/alpha.md', stat: { mtime: 2 } },
+        { name: 'beta.md', path: 'notes/beta.md', stat: { mtime: 1 } },
+      ]);
+      setQuery('@al');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(true);
+
+      controller.handleKeydown({ key: 'Escape', preventDefault: jest.fn() } as any);
+      expect(controller.isVisible()).toBe(false);
+      setQuery('@alp');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(false);
+
+      setQuery('@be');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(true);
+    });
+
+    it('skips vault rescans while an unmatched spaced query keeps growing', () => {
+      callbacks = createMockCallbacks({
+        getCachedVaultFiles: jest.fn().mockReturnValue([
+          { name: 'alpha.md', path: 'notes/alpha.md', stat: { mtime: 1 } },
+        ]),
+      });
+      controller.destroy();
+      controller = new MentionDropdownController(containerEl, inputEl, callbacks);
+
+      setQuery('@3pm');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(true);
+      setQuery('@3pm tomorrow');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(false);
+      const scans = (callbacks.getCachedVaultFiles as jest.Mock).mock.calls.length;
+      setQuery('@3pm tomorrow evening');
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(false);
+      expect((callbacks.getCachedVaultFiles as jest.Mock).mock.calls.length).toBe(scans);
+    });
+
     it('leaves Escape available to the host when ordinary text has a pending debounce', () => {
       setQuery('hello');
       const event = { key: 'Escape', preventDefault: jest.fn() } as any;
