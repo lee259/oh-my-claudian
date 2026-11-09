@@ -3133,11 +3133,13 @@ export class MessageRenderer {
         // Show "copied!" feedback
         copyBtn.empty();
         copyBtn.setText(t('chat.rendering.copied'));
+        copyBtn.setAttribute('aria-label', t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
 
         feedbackTimeout = { owner, id: owner.setTimeout(() => {
           copyBtn.empty();
           setIcon(copyBtn, 'copy');
+          copyBtn.setAttribute('aria-label', t('chat.rendering.copyMessage'));
           copyBtn.classList.remove('copied');
           feedbackTimeout = null;
         }, 1500) };
@@ -3271,10 +3273,12 @@ export class MessageRenderer {
         if (feedbackTimeout) feedbackTimeout.owner.clearTimeout(feedbackTimeout.id);
         copyBtn.empty();
         copyBtn.setText(t('chat.rendering.copied'));
+        copyBtn.setAttribute('aria-label', t('chat.rendering.copied'));
         copyBtn.classList.add('copied');
         feedbackTimeout = { owner, id: owner.setTimeout(() => {
           copyBtn.empty();
           setIcon(copyBtn, 'copy');
+          copyBtn.setAttribute('aria-label', t('chat.rendering.copyMessage'));
           copyBtn.classList.remove('copied');
           feedbackTimeout = null;
         }, 1500) };
