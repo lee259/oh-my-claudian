@@ -901,7 +901,11 @@ export class TabManager implements TabManagerInterface {
     sourceTab: TabData | null = this.getActiveTab(),
   ): Promise<TabData | null> {
     const sourceCoordinator = sourceTab?.executionCoordinator ?? null;
-    const conversationId = await this.createForkConversation(context, sourceCoordinator);
+    const conversationId = await this.createForkConversation(
+      context,
+      sourceCoordinator,
+      context.sourceConversationId ?? sourceTab?.conversationId ?? null,
+    );
     if (sourceTab && !this.isForkSourceCurrent(context, sourceTab)) {
       await this.plugin.deleteConversation(conversationId).catch(() => {});
       return null;
@@ -925,6 +929,7 @@ export class TabManager implements TabManagerInterface {
     const conversationId = await this.createForkConversation(
       context,
       sourceTab.executionCoordinator,
+      context.sourceConversationId ?? sourceTab.conversationId ?? null,
     );
     try {
       if (!this.isForkSourceCurrent(context, sourceTab)) {
@@ -963,9 +968,13 @@ export class TabManager implements TabManagerInterface {
   private async createForkConversation(
     context: ForkContext,
     sourceCoordinator: TabData['executionCoordinator'],
+    sourceConversationId: string | null,
   ): Promise<string> {
     const conversation = await this.plugin.createConversation({
       providerId: context.providerId,
+      ...(sourceConversationId
+        ? { origin: { kind: 'fork' as const, sourceConversationId } }
+        : {}),
       ...(context.sourceSelectedModel ? { selectedModel: context.sourceSelectedModel } : {}),
       ...(context.currentNote ? { currentNote: context.currentNote } : {}),
     });
