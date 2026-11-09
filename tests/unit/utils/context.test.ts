@@ -278,6 +278,12 @@ describe('extractUserDisplayContent', () => {
 
     expect(extractUserDisplayContent(prompt)).toBeUndefined();
   });
+
+  it('preserves an indented code example without appended context', () => {
+    const prompt = 'Explain this XML:\n\n    <linked_note path="example.md" />\n\nKeep the example.';
+
+    expect(extractUserQuery(prompt)).toBe(prompt);
+  });
 });
 
 describe('extractUserQuery', () => {
