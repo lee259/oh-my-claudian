@@ -279,6 +279,34 @@ describe('ManagedStdioProcess', () => {
     expect(proc.kill).toHaveBeenCalledTimes(1);
   });
 
+  it('closes stdin and waits for a stdin-leased child to exit before signalling it', async () => {
+    const managed = createManagedProcess({ stdinCloseGraceMs: 6_000 });
+    managed.start();
+
+    const shutdown = managed.shutdown();
+
+    expect(proc.stdin.writableEnded).toBe(true);
+    expect(proc.kill).not.toHaveBeenCalled();
+
+    proc.emit('exit', 0, null);
+    await expect(shutdown).resolves.toBeUndefined();
+    expect(proc.kill).not.toHaveBeenCalled();
+  });
+
+  it('signals a stdin-leased child that outlives the close grace period', async () => {
+    jest.useFakeTimers();
+    const managed = createManagedProcess({ stdinCloseGraceMs: 6_000 });
+    managed.start();
+
+    const shutdown = managed.shutdown();
+    expect(proc.kill).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(6_000);
+    expect(proc.kill).toHaveBeenCalledWith('SIGTERM');
+
+    proc.emit('exit', 0, 'SIGTERM');
+    await expect(shutdown).resolves.toBeUndefined();
+  });
+
   it('continues SIGKILL escalation when signal delivery emits an error', async () => {
     jest.useFakeTimers();
     const managed = createManagedProcess();

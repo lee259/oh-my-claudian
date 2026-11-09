@@ -60,6 +60,9 @@ export class DeepSeekHostProcess {
     const artifacts = await prepareDeepSeekLaunchArtifacts(undefined, options.presetPlugins);
     const child = new ManagedStdioProcess({
       ...spec,
+      // Closing stdin lets the lifecycle plugin run native's bounded interrupt, which drains session writers and
+      // removes its locks. A kill skips it on Windows, where the first signal is a forced tree termination.
+      stdinCloseGraceMs: GRACEFUL_EXIT_TIMEOUT_MS,
       args: [...spec.args, ...(desktop
         ? [artifacts.desktopRunnerPath, desktop.installAnchor, profileDirectory, artifacts.patchPath]
         : ['--profile', 'web', '--patch', artifacts.patchPath, '--no-open', '--port', '0'])],
@@ -104,25 +107,9 @@ export class DeepSeekHostProcess {
   dispose(): Promise<void> {
     if (!this.disposal) {
       this.client.dispose();
-      // Then kill what remains: a Host past its grace period with its tree, else any leftover POSIX process group.
-      this.disposal = this.exitGracefully().then(() => this.process.shutdown()).finally(() => this.artifacts.dispose());
+      this.disposal = this.process.shutdown().finally(() => this.artifacts.dispose());
     }
     return this.disposal;
-  }
-
-  /**
-   * Closing stdin lets the lifecycle plugin run native's bounded interrupt, which drains session writers and removes
-   * its locks. A kill skips it on Windows, where the first signal is a forced tree termination.
-   */
-  private exitGracefully(): Promise<void> {
-    if (!this.process.isAlive()) return Promise.resolve();
-    return new Promise(resolve => {
-      const done = (): void => { window.clearTimeout(timer); offExit(); resolve(); };
-      const timer = window.setTimeout(done, GRACEFUL_EXIT_TIMEOUT_MS);
-      const offExit = this.process.onExit(done);
-      // A pipe the Host already closed fails asynchronously; the deadline still bounds the wait.
-      this.process.stdin.on('error', () => {}).end();
-    });
   }
 }
 
