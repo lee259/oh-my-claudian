@@ -148,3 +148,12 @@ describe('Single-pane history action styles', () => {
     );
   });
 });
+
+describe('History selection surface', () => {
+  it('follows the theme active navigation background', () => {
+    const history = readFileSync(path.resolve('src/style/components/history.css'), 'utf8');
+    const variables = readFileSync(path.resolve('src/style/base/variables.css'), 'utf8');
+    expect(variables).toContain('--claudian-session-background-active: var(--nav-item-background-active');
+    expect(history).toMatch(/\.claudian-history-item\.active\s*\{[^}]*background:\s*var\(--claudian-session-background-active\)/);
+  });
+});

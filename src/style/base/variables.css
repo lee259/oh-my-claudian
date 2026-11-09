@@ -11,6 +11,8 @@ body {
   --claudian-motion-emphasized: 260ms;
   --claudian-motion-easing: cubic-bezier(0.2, 0, 0, 1);
   --oh-my-claudian-brand: #D97757;
+  /* Session selection follows the theme's active navigation surface. */
+  --claudian-session-background-active: var(--nav-item-background-active, var(--background-modifier-hover));
   --oh-my-claudian-brand-rgb: 217, 119, 87;
   --oh-my-claudian-brand-claude: #D97757;
   --oh-my-claudian-brand-claude-rgb: 217, 119, 87;
