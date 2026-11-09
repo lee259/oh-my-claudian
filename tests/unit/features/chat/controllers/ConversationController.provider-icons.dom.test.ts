@@ -117,3 +117,16 @@ describe('ConversationController history provider icons', () => {
     expect(container.querySelector('.claudian-history-render-staging')).toBeNull();
   });
 });
+
+it('marks forked conversations with an accessible origin badge', () => {
+  const { container, render } = createHarness([{
+    ...conversation('claude'),
+    id: 'forked',
+    origin: { kind: 'fork', sourceConversationId: 'source' },
+  }]);
+
+  render();
+
+  const badge = container.querySelector('.claudian-history-item-origin');
+  expect(badge?.getAttribute('aria-label')).toBe('Forked');
+});

@@ -243,6 +243,8 @@ export interface ConversationMeta {
   lastActivityAt: number;
   messageCount: number;
   preview: string;
+  /** Optional lineage mirrored from the conversation record. */
+  origin?: ConversationOrigin;
   /** Vault-relative path of the note linked to this session. */
   currentNote?: string;
   /** Whether the conversation is pinned in History. */

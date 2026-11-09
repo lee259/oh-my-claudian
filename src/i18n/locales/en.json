@@ -71,7 +71,8 @@
       "errorNoSession": "No session ID available",
       "errorNoActiveTab": "No active tab",
       "commandNoMessages": "Cannot fork: no messages in conversation",
-      "commandNoAssistantUuid": "Cannot fork: no assistant response with identifiers"
+      "commandNoAssistantUuid": "Cannot fork: no assistant response with identifiers",
+      "badge": "Forked"
     },
     "bangBash": {
       "placeholder": "> Run a bash command...",

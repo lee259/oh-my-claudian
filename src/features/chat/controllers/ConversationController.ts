@@ -1444,6 +1444,13 @@ export class ConversationController {
         height: 16,
       });
     }
+    if (conversation.origin?.kind === 'fork') {
+      const forkEl = titleRow.createSpan({
+        cls: 'claudian-history-item-origin',
+        attr: { role: 'img', 'aria-label': t('chat.fork.badge'), title: t('chat.fork.badge') },
+      });
+      setIcon(forkEl, 'git-fork');
+    }
     const titleEl = titleRow.createDiv({
       cls: 'claudian-history-item-title',
     });

@@ -71,7 +71,8 @@
       "errorNoSession": "사용 가능한 세션 ID가 없습니다",
       "errorNoActiveTab": "활성 탭이 없습니다",
       "commandNoMessages": "포크할 수 없습니다: 대화에 메시지가 없습니다",
-      "commandNoAssistantUuid": "포크할 수 없습니다: 식별자가 있는 어시스턴트 응답이 없습니다"
+      "commandNoAssistantUuid": "포크할 수 없습니다: 식별자가 있는 어시스턴트 응답이 없습니다",
+      "badge": "포크됨"
     },
     "bangBash": {
       "placeholder": "> bash 명령 실행...",
