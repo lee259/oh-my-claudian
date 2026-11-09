@@ -69,10 +69,11 @@ function HomeConversationLoadingIndicator({ label, running }: { label: string; r
     <span
       className={`claudian-home-conversation-loading${running ? ' claudian-home-conversation-loading--running' : ''}`}
       aria-label={label}
+      role="img"
       ref={(element) => {
-        if (element && !running) setIcon(element, 'loader-2');
+        if (element) setIcon(element, 'loader-2');
       }}
-    >{running ? label : null}</span>
+    />
   );
 }
 
@@ -159,7 +160,7 @@ function HomeSurface({ greeting, options }: { greeting?: string; options: Welcom
               <button
                 className="claudian-home-conversation-open"
                 type="button"
-                aria-label={conversation.title}
+                aria-label={isLoading ? `${conversation.title} · ${t(hasRuntimeStatus ? 'chat.history.running' : 'chat.history.generatingTitle')}` : conversation.title}
                 onClick={(event) => {
                   event.stopPropagation();
                   options.onOpenConversation?.(conversation.id);
