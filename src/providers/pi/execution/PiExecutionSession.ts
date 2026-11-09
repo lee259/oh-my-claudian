@@ -1887,8 +1887,8 @@ function encodePrompt(
   if (context?.externalContextPaths?.length) {
     text = appendContextFiles(text, [...context.externalContextPaths]);
   }
-  // Pi ends a leading skill name at a literal space, not at the context separator.
-  if (text !== inputText && /^\/skill:\S+$/.test(inputText)) {
+  // Pi ends a leading skill or extension command name at a literal space, not at the context separator.
+  if (text !== inputText && /^\/\S+$/.test(inputText)) {
     text = `${inputText} ${text.slice(inputText.length)}`;
   }
   if (replayConversationHistory && request.conversationHistory?.length) {
