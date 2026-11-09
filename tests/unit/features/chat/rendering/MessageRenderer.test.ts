@@ -4083,6 +4083,27 @@ describe('MessageRenderer', () => {
       expect(copyBtn.classList.contains('copied')).toBe(true);
     });
 
+    it('keeps the accessible name in sync with copy feedback', async () => {
+      const { renderer } = createRenderer();
+      const textEl = createMockEl();
+      const writeTextMock = jest.fn().mockResolvedValue(undefined);
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { clipboard: { writeText: writeTextMock } },
+        writable: true,
+        configurable: true,
+      });
+
+      renderer.addTextCopyButton(textEl, 'markdown content');
+      const copyBtn = textEl.children[0];
+      Object.defineProperty(copyBtn.ownerDocument.defaultView, 'navigator', { get: () => globalThis.navigator });
+
+      await copyBtn._eventListeners.get('click')![0]({ stopPropagation: jest.fn() });
+
+      expect(copyBtn.getAttribute('aria-label')).toBe('Copied!');
+      jest.advanceTimersByTime(1500);
+      expect(copyBtn.getAttribute('aria-label')).toBe('Copy message');
+    });
+
     it('should handle clipboard API failure gracefully', async () => {
       const { renderer } = createRenderer();
       const textEl = createMockEl();
