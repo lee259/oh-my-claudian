@@ -24,6 +24,8 @@ export interface ManagedStdioProcessOptions {
   env: NodeJS.ProcessEnv;
   finalShutdownTimeoutMs?: number;
   sigkillTimeoutMs?: number;
+  /** Shutdown first closes stdin and waits this long for a stdin-leased child to exit before signalling it. */
+  stdinCloseGraceMs?: number;
   stderrBufferLimit?: number;
   spawn?: typeof spawn;
   stdio?: 'pipe' | ['ignore', 'pipe', 'ignore'] | ['ignore', 'pipe', 'pipe'] | ['pipe', 'pipe', 'pipe'];
@@ -166,18 +168,35 @@ export class ManagedStdioProcess {
   }
 
   shutdown(): Promise<void> {
-    if (this.shutdownPromise) {
-      return this.shutdownPromise;
+    if (!this.shutdownPromise) {
+      const graceMs = this.options.stdinCloseGraceMs;
+      this.shutdownPromise = graceMs !== undefined && this.proc && this.alive
+        ? this.closeStdin(this.proc.stdin, graceMs).then(() => this.terminate())
+        : this.terminate();
     }
+    return this.shutdownPromise;
+  }
 
+  /** A signal skips the child's own cleanup; on Windows it also stops only a WSL launcher, not its Linux command. */
+  private closeStdin(stdin: Writable | null, graceMs: number): Promise<void> {
+    if (!stdin) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = (): void => { window.clearTimeout(timer); offExit(); resolve(); };
+      const timer = window.setTimeout(done, graceMs);
+      const offExit = this.onExit(done);
+      // A pipe the child already closed fails asynchronously; the deadline still bounds the wait.
+      stdin.on('error', () => {}).end();
+    });
+  }
+
+  private terminate(): Promise<void> {
     const proc = this.proc;
     if (!proc || !this.alive) {
       if (proc) this.reapOwnedProcessGroup(proc);
-      this.shutdownPromise = Promise.resolve();
-      return this.shutdownPromise;
+      return Promise.resolve();
     }
 
-    this.shutdownPromise = new Promise<void>((resolve) => {
+    return new Promise<void>((resolve) => {
       let settled = false;
       let killTimer: number | null = null;
       let finalTimer: number | null = null;
@@ -213,8 +232,6 @@ export class ManagedStdioProcess {
 
       this.killProcess(proc, 'SIGTERM');
     });
-
-    return this.shutdownPromise;
   }
 
   private readonly handleError = (error: Error): void => {
