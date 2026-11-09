@@ -5,6 +5,8 @@
  * to ensure tool identity parity between live and restored conversations.
  */
 
+import { extractToolResultContent } from '@/core/tools/toolResultContent';
+
 // ---------------------------------------------------------------------------
 // Tool name normalization
 // ---------------------------------------------------------------------------
@@ -737,6 +739,7 @@ interface CodexMcpResultPart {
 
 interface CodexMcpResultPayload {
   content?: CodexMcpResultPart[] | null;
+  structuredContent?: unknown;
 }
 
 export interface NormalizedCodexMcpToolState {
@@ -800,13 +803,12 @@ export function normalizeCodexMcpToolState(
 function extractCodexMcpResultText(resultPayload?: unknown): string {
   if (!resultPayload || typeof resultPayload !== 'object') return '';
 
-  const content = (resultPayload as CodexMcpResultPayload).content;
-  if (!Array.isArray(content)) return '';
-
-  return content
+  const { content, structuredContent } = resultPayload as CodexMcpResultPayload;
+  const text = Array.isArray(content) ? content
     .map(item => (typeof item?.text === 'string' ? item.text : ''))
     .filter(Boolean)
-    .join('\n');
+    .join('\n') : '';
+  return text || extractToolResultContent(structuredContent, { fallbackIndent: 2 });
 }
 
 // ---------------------------------------------------------------------------
