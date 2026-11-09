@@ -1569,7 +1569,7 @@ describe('MessageRenderer', () => {
       },
     );
 
-    it('keeps the streaming work row at the work anchor when the turn settles', () => {
+    it('anchors the streaming work row above narration and keeps it there when the turn settles', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const messageEl = messagesEl.createDiv({
@@ -1593,7 +1593,8 @@ describe('MessageRenderer', () => {
       });
       const streamingRow = contentEl.querySelector('.claudian-completed-work-status');
       expect(streamingRow).toBeTruthy();
-      expect(contentEl.children.indexOf(streamingRow)).toBe(contentEl.children.indexOf(thinking) - 1);
+      expect(contentEl.children.indexOf(streamingRow)).toBe(0);
+      expect(contentEl.children.indexOf(preamble)).toBe(1);
 
       const tool = contentEl.createDiv({ cls: 'claudian-tool-call' });
       tool.setAttribute('data-tool-id', 'read-1');
@@ -1638,9 +1639,10 @@ describe('MessageRenderer', () => {
       expect(streamingRow?.getAttribute('data-transcript-execution-id')).toBe('execution-stable-work-anchor');
       expect(streamingRow?.getAttribute('data-transcript-execution-turn-id'))
         .toBe('execution-turn-stable-work-anchor');
-      expect(contentEl.children.indexOf(preamble)).toBeLessThan(contentEl.children.indexOf(streamingRow));
+      expect(contentEl.children.indexOf(streamingRow)).toBe(0);
       expect(contentEl.contains(preamble)).toBe(true);
       expect(contentEl.contains(answer)).toBe(true);
+      expect(contentEl.querySelector('.claudian-completed-work-history')?.contains(preamble)).toBe(true);
       expect(contentEl.querySelector('.claudian-completed-work-history')?.contains(thinking)).toBe(true);
       expect(contentEl.children).not.toContain(thinking);
       expect(contentEl.querySelector('.claudian-completed-work-history')?.contains(answer)).toBe(false);
