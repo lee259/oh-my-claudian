@@ -191,7 +191,22 @@ export class AgentSkillDeleteModal extends Modal {
     });
     this.contentEl.createEl('code', { text: this.skill.directoryPath });
 
+    const actions = this.contentEl.createDiv({ cls: 'claudian-agent-skill-modal-actions' });
+    const cancelButton = actions.createEl('button', {
+      text: t('common.cancel'),
+      cls: 'claudian-cancel-btn',
+    });
+    cancelButton.addEventListener('click', () => this.close());
+    const deleteButton = actions.createEl('button', {
+      text: t('settings.agentSkills.delete.confirm'),
+      cls: 'mod-warning',
+    });
+
+    let removing = false;
     this.triggerDelete = async (): Promise<void> => {
+      if (removing) return;
+      removing = true;
+      deleteButton.disabled = true;
       try {
         const result = await this.onDelete();
         if (result.refreshFailed) {
@@ -206,19 +221,12 @@ export class AgentSkillDeleteModal extends Modal {
           return;
         }
         new Notice(t('settings.agentSkills.deleteFailed', { message: errorMessage(error) }));
+      } finally {
+        removing = false;
+        deleteButton.disabled = false;
       }
     };
 
-    const actions = this.contentEl.createDiv({ cls: 'claudian-agent-skill-modal-actions' });
-    const cancelButton = actions.createEl('button', {
-      text: t('common.cancel'),
-      cls: 'claudian-cancel-btn',
-    });
-    cancelButton.addEventListener('click', () => this.close());
-    const deleteButton = actions.createEl('button', {
-      text: t('settings.agentSkills.delete.confirm'),
-      cls: 'mod-warning',
-    });
     deleteButton.addEventListener('click', () => {
       void this.triggerDelete();
     });

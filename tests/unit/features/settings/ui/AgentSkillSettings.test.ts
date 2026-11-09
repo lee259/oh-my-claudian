@@ -212,4 +212,24 @@ describe('AgentSkillDeleteModal', () => {
       'The entire skill folder, including scripts, references, and assets, will be moved to trash.',
     );
   });
+
+  it('admits one deletion while the trash operation is pending', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    const onDelete = jest.fn(async () => {
+      await pending;
+      return {};
+    });
+    const modal = new AgentSkillDeleteModal({} as never, makeSkill(), onDelete as never);
+    modal.onOpen();
+
+    const trigger = modal.getTestTrigger();
+    const first = trigger();
+    const second = trigger();
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([first, second]);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
 });
