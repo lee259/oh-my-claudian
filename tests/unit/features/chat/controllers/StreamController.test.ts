@@ -1220,6 +1220,31 @@ describe('StreamController - Text Content', () => {
       );
     });
 
+    it.each([false, true])('refreshes both paths of a patch move even when the tool fails: %s', async (isError) => {
+      const vault = deps.plugin.app.vault as any;
+      vault.getAbstractFileByPath = jest.fn().mockReturnValue(null);
+      vault.adapter.list = jest.fn().mockResolvedValue([]);
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'patch-move', name: TOOL_APPLY_PATCH,
+        input: { patch: '*** Begin Patch\n*** Update File: old/a.md\n*** Move to: new/a.md\n*** End Patch' } }, msg);
+      await controller.handleStreamChunk({ type: 'tool_result', id: 'patch-move', content: 'finished', isError }, msg);
+      jest.advanceTimersByTime(200);
+      expect(vault.adapter.list).toHaveBeenCalledWith('old');
+      expect(vault.adapter.list).toHaveBeenCalledWith('new');
+    });
+
+    it('does not refresh files for a blocked patch', async () => {
+      const vault = deps.plugin.app.vault as any;
+      vault.getAbstractFileByPath = jest.fn();
+      vault.adapter.list = jest.fn().mockResolvedValue([]);
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'blocked-patch', name: TOOL_APPLY_PATCH,
+        input: { patch: '*** Add File: new/a.md' } }, msg);
+      await controller.handleStreamChunk({ type: 'tool_result', id: 'blocked-patch', content: 'denied', isBlocked: true }, msg);
+      jest.advanceTimersByTime(200);
+      expect(vault.getAbstractFileByPath).not.toHaveBeenCalled();
+    });
+
     it('should pass expanded default to apply_patch tool blocks when enabled', async () => {
       const { renderToolCall } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
       (deps.plugin.settings as any).expandFileEditsByDefault = true;

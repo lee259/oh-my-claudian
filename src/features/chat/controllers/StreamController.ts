@@ -1394,7 +1394,7 @@ export class StreamController {
       }
 
       // Runtime apply_patch: refresh each changed file path
-      if (!chunk.isError && !isBlocked && existingToolCall.name === TOOL_APPLY_PATCH) {
+      if (!isBlocked && existingToolCall.name === TOOL_APPLY_PATCH) {
         this.notifyApplyPatchFileChanges(existingToolCall.input);
       }
     }
@@ -2433,7 +2433,7 @@ export class StreamController {
     // Parse file paths from patch text markers (current custom_tool_call format)
     const patchText = typeof input.patch === 'string' ? input.patch : '';
     if (patchText) {
-      for (const match of patchText.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)) {
+      for (const match of patchText.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/gm)) {
         const filePath = match[1]?.trim();
         if (filePath && !notified.has(filePath)) {
           this.notifyVaultFileChange({ file_path: filePath });

@@ -287,6 +287,7 @@ function toolInput(name: string, value: unknown): Record<string, unknown> {
   if (['read', 'read_image', 'write', 'edit'].includes(name) && typeof input.path === 'string') {
     input.file_path = input.path; delete input.path;
   }
+  if (name === 'apply_patch' && typeof input.input === 'string') { input.patch = input.input; delete input.input; }
   if (name === 'skill' && typeof input.name === 'string') { input.skill = input.name; delete input.name; }
   if (name === 'send_message' && typeof input.agent_id === 'string') { input.target = input.agent_id; delete input.agent_id; }
   if (name === 'ask_user_question' && Array.isArray(input.questions)) {
@@ -362,7 +363,7 @@ function appliedDiff(meta: unknown): DeepSeekResultDetails['diff'] | undefined {
 
 const TOOL_NAMES: Readonly<Record<string, string>> = {
   read: ToolNames.TOOL_READ, read_image: ToolNames.TOOL_READ, write: ToolNames.TOOL_WRITE, edit: ToolNames.TOOL_EDIT,
-  glob: ToolNames.TOOL_GLOB, grep: ToolNames.TOOL_GREP, bash: ToolNames.TOOL_BASH, pwsh: ToolNames.TOOL_BASH, run_code: 'run_code',
+  apply_patch: ToolNames.TOOL_APPLY_PATCH, glob: ToolNames.TOOL_GLOB, grep: ToolNames.TOOL_GREP, bash: ToolNames.TOOL_BASH, pwsh: ToolNames.TOOL_BASH, run_code: 'run_code',
   job_output: ToolNames.TOOL_BASH_OUTPUT, job_kill: ToolNames.TOOL_KILL_SHELL, skill: ToolNames.TOOL_SKILL,
   ask_user_question: ToolNames.TOOL_ASK_USER_QUESTION, web_search: ToolNames.TOOL_WEB_SEARCH, web_fetch: ToolNames.TOOL_WEB_FETCH,
   subagent: ToolNames.TOOL_SPAWN_AGENT, subagent_fork: ToolNames.TOOL_SPAWN_AGENT,
