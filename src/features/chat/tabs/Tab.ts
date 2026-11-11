@@ -742,6 +742,13 @@ function createTabExecutionCoordinator(
         && tab.session.activeTurn === null
         && tab.lifecycleState !== 'closing'
       ),
+      canCoolForHistoryRefresh: turn => (
+        !tab.state.isStreaming
+        && !tab.state.isRewinding
+        && !tab.state.requiresAction
+        && tab.session.activeTurn === turn
+        && tab.lifecycleState !== 'closing'
+      ),
       onWarmStateChanged: (isWarm) => {
         if (tab.lifecycleState === 'closing') return;
         tab.lifecycleState = isWarm ? 'warm' : 'cold';

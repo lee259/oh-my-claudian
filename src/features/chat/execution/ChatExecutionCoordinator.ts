@@ -163,6 +163,7 @@ export interface ChatExecutionCoordinatorDeps {
     readonly ownerId: string;
     readonly pool: WarmExecutionPool;
     readonly canCool: () => boolean;
+    readonly canCoolForHistoryRefresh?: (turn: Promise<void>) => boolean;
     readonly onWarmStateChanged?: (isWarm: boolean) => void;
   };
 }
@@ -806,6 +807,10 @@ export class ChatExecutionCoordinator {
   }
 
   canCool(): boolean {
+    return this.canCoolWithOwnerCheck(() => this.deps.warmExecution?.canCool() ?? true);
+  }
+
+  private canCoolWithOwnerCheck(ownerCheck: () => boolean): boolean {
     const binding = this.sessionBinding;
     return Boolean(
       binding
@@ -819,7 +824,7 @@ export class ChatExecutionCoordinator {
       && binding.pendingWorkCount === 0
       && !(binding.session.hasBackgroundWork?.() ?? false)
       && !(binding.session.blocksIdleRelease?.() ?? false)
-      && (this.deps.warmExecution?.canCool() ?? true),
+      && ownerCheck(),
     );
   }
 
@@ -832,18 +837,26 @@ export class ChatExecutionCoordinator {
   }
 
   async cool(): Promise<void> {
+    await this.coolWithOwnerCheck(() => this.deps.warmExecution?.canCool() ?? true);
+  }
+
+  async coolForHistoryRefresh(turn: Promise<void>): Promise<void> {
+    await this.coolWithOwnerCheck(() => this.deps.warmExecution?.canCoolForHistoryRefresh?.(turn) ?? false);
+  }
+
+  private async coolWithOwnerCheck(ownerCheck: () => boolean): Promise<void> {
     this.assertAvailable();
     if (!this.sessionBinding) {
       this.releaseWarmSlot();
       return;
     }
-    if (!this.canCool()) {
+    if (!this.canCoolWithOwnerCheck(ownerCheck)) {
       throw new Error('Chat execution is busy and cannot be cooled');
     }
 
     const binding = this.sessionBinding;
     await this.persistSnapshot(binding, binding.session.getSnapshot());
-    if (this.sessionBinding !== binding || !this.canCool()) {
+    if (this.sessionBinding !== binding || !this.canCoolWithOwnerCheck(ownerCheck)) {
       throw new Error('Chat execution became busy while cooling');
     }
     await this.releaseSessionBinding();

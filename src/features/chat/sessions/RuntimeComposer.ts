@@ -4,6 +4,7 @@ import type { ComposerInputElement } from '@/shared/components/ComposerInput';
 export class RuntimeComposer {
   private text = '';
   private initialized = false;
+  private readonly listeners = new Set<(value: string) => void>();
   private binding: { input: ComposerInputElement; onInput: () => void } | null = null;
 
   get value(): string {
@@ -16,6 +17,16 @@ export class RuntimeComposer {
     if (this.binding) {
       this.binding.input.value = value;
     }
+    this.notify();
+  }
+
+  subscribe(listener: (value: string) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) listener(this.text);
   }
 
   get ownerDocument(): Document | undefined { return this.binding?.input.ownerDocument; }
@@ -29,7 +40,7 @@ export class RuntimeComposer {
     if (!this.initialized) this.text = input.value;
     this.initialized = true;
     input.value = this.text;
-    const binding = { input, onInput: () => { this.text = input.value; } };
+    const binding = { input, onInput: () => { this.text = input.value; this.notify(); } };
     this.binding = binding;
     input.addEventListener('input', binding.onInput);
     return () => this.detach(binding);

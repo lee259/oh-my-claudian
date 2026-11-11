@@ -1,3 +1,4 @@
+import type { ComposerDraftStorage } from '../../../core/bootstrap/ComposerDraftStorage';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
 import type { Conversation, ImageAttachment } from '../../../core/types';
@@ -10,6 +11,7 @@ import type { TabControllers, TabHydrationState, TabLifecycleState, TabServices 
 import { NativeHistoryGuard } from './NativeHistoryGuard';
 import { RuntimeComposer } from './RuntimeComposer';
 import { RuntimeContext } from './RuntimeContext';
+import { RuntimeDraftPersistence } from './RuntimeDraftPersistence';
 import { RuntimeMessagePresentation } from './RuntimeMessagePresentation';
 import type { RuntimePresentation } from './RuntimePresentation';
 import { createEmptyPresentationUI } from './RuntimePresentation';
@@ -63,6 +65,9 @@ export class ConversationRuntime {
   private backgroundWorkPauseDepth = 0;
   private coordinator: ChatExecutionCoordinator | null = null;
   private nativeHistoryGuard: { conversationId: string; guard: NativeHistoryGuard } | null = null;
+  private nativeHistoryPreflightCount = 0;
+  private draftPersistence: RuntimeDraftPersistence | null = null;
+  private draftInitialization: Promise<void> | null = null;
 
   constructor(
     private readonly binding: ConversationRuntimeBinding,
@@ -76,7 +81,7 @@ export class ConversationRuntime {
       onStreamingStateChanged: value => this.emit('onStreamingStateChanged', value),
       onRewindingStateChanged: value => this.emit('onRewindingStateChanged', value),
       onConversationChanged: value => {
-        this.binding.conversationId = value;
+        this.conversationId = value;
         this.emit('onConversationChanged', value);
       },
       onUsageChanged: value => this.emit('onUsageChanged', value),
@@ -130,7 +135,10 @@ export class ConversationRuntime {
     return pending;
   }
 
-  async ensureNativeHistoryCurrent(host: Pick<FeatureHost, 'readNativeHistoryRevision' | 'reloadNativeHistory'>): Promise<boolean> {
+  async ensureNativeHistoryCurrent(
+    host: Pick<FeatureHost, 'readNativeHistoryRevision' | 'reloadNativeHistory'>,
+    options?: { preflight?: boolean },
+  ): Promise<boolean> {
     const id = this.conversationId;
     if (!id || this.hydrationState !== 'ready') return true;
     if (this.state.isStreaming || this.state.requiresAction) return true;
@@ -144,13 +152,20 @@ export class ConversationRuntime {
             || this.state.requiresAction || this.state.hasPendingConversationSave || this.hasBackgroundWork) return false;
           const before = JSON.stringify(this.state.messages);
           const coordinator = this.coordinator;
+          const turn = this.nativeHistoryPreflightCount > 0 ? this.activeTurn : null;
           if (coordinator && coordinator.state !== 'absent') {
-            if (!coordinator.canCool()) return false;
-            await coordinator.cool();
+            if (turn && this.activeTurn === turn) {
+              await coordinator.coolForHistoryRefresh(turn);
+            } else {
+              if (!coordinator.canCool()) return false;
+              await coordinator.cool();
+            }
           }
-          if (this.conversationId !== id || this.state.isStreaming || JSON.stringify(this.state.messages) !== before) return false;
+          if (this.conversationId !== id || this.state.isStreaming || (turn && this.activeTurn !== turn)
+            || JSON.stringify(this.state.messages) !== before) return false;
           const conversation = await host.reloadNativeHistory(id);
           if (!conversation || this.conversationId !== id || this.state.isStreaming
+            || (turn && this.activeTurn !== turn)
             || JSON.stringify(this.state.messages) !== before) return false;
           this.state.messages = structuredClone(conversation.messages);
           this.state.toolCallElements.clear();
@@ -168,7 +183,12 @@ export class ConversationRuntime {
       );
       this.nativeHistoryGuard = { conversationId: id, guard };
     }
-    return this.nativeHistoryGuard.guard.check();
+    if (options?.preflight) this.nativeHistoryPreflightCount++;
+    try {
+      return await this.nativeHistoryGuard.guard.check();
+    } finally {
+      if (options?.preflight) this.nativeHistoryPreflightCount--;
+    }
   }
 
   get isRunning(): boolean {
@@ -253,7 +273,40 @@ export class ConversationRuntime {
   get providerId(): ProviderId { return this.binding.providerId; }
   set providerId(value: ProviderId) { this.binding.providerId = value; }
   get conversationId(): string | null { return this.binding.conversationId; }
-  set conversationId(value: string | null) { this.binding.conversationId = value; }
+  set conversationId(value: string | null) {
+    if (this.binding.conversationId === value) return;
+    this.binding.conversationId = value;
+    this.draftPersistence?.rebind(value
+      ? { scope: 'conversation', id: value }
+      : { scope: 'tab', id: this.id });
+  }
+
+  initializeComposerDraft(storage: ComposerDraftStorage, onError: (error: unknown) => void): Promise<void> {
+    if (this.draftInitialization) return this.draftInitialization;
+    const identity = this.conversationId
+      ? { scope: 'conversation' as const, id: this.conversationId }
+      : { scope: 'tab' as const, id: this.id };
+    const persistence = new RuntimeDraftPersistence(this.composer, storage, identity, onError);
+    this.draftPersistence = persistence;
+    this.draftInitialization = persistence.initialize().catch(error => {
+      onError(error);
+    });
+    return this.draftInitialization;
+  }
+
+  async flushComposerDraft(): Promise<void> { await this.draftPersistence?.flush(); }
+
+  async disposeComposerDraft(): Promise<void> {
+    const persistence = this.draftPersistence;
+    this.draftPersistence = null;
+    await persistence?.dispose();
+  }
+
+  async discardComposerDraft(): Promise<void> {
+    const persistence = this.draftPersistence;
+    this.draftPersistence = null;
+    await persistence?.discard();
+  }
   get draftModel(): string | null { return this.binding.draftModel; }
   set draftModel(value: string | null) { this.binding.draftModel = value; }
   get executionCoordinator(): ChatExecutionCoordinator | null { return this.coordinator; }

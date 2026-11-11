@@ -164,6 +164,8 @@ Use `ANTHROPIC_AUTH_TOKEN=` instead when that is the conflicting credential. Kee
 
 ## Safety and privacy
 
+Unsent chat text is saved automatically under `.claudian/drafts/` in the vault and restored when you reopen a conversation or restart Obsidian. Unsent text in blank tabs is restored too. Closing a blank tab or deleting a conversation clears its draft. These files may sync with your vault; protect them as you would your notes. Images, quotes, and other attachments are not restored after a restart and must be added again.
+
 Oh My Claudian is local-first and does not send telemetry. Your prompts, attachments, and tool results are sent to the provider you select and its configured model services. Network access also includes CLI version checks against the npm registry and configured MCP endpoints. CLI discovery and launches read relevant local environment variables, such as `PATH`, `HOME`, and `USERPROFILE`, to locate and run provider CLIs. These values are used locally and are not collected for plugin telemetry; provider CLI processes may use their inherited environment according to their own behavior.
 
 The vault is the agent's working directory, not an operating-system security boundary. A local CLI, shell command, MCP server, plugin, or child process may access files, network services, and credentials available to your OS account. Safe/approval mode reduces accidental actions but cannot guarantee isolation. Review provider permissions carefully, especially before enabling YOLO, bash mode, browser access, MCP servers, or external context paths.

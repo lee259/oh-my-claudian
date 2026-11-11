@@ -125,6 +125,8 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   private readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
   private readonly blockedToolCallIds = new Set<string>();
   private kernel: OmpAcpSessionKernel | null = null;
+  private kernelGeneration: symbol | null = null;
+  private kernelCleanup: Promise<void> = Promise.resolve();
   private kernelApprovalMode: OmpApprovalMode | null = null;
   private nativeSessionId: string | null;
   private activeRun: OmpExecutionRun | null = null;
@@ -174,6 +176,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.kernelGeneration = null;
     this.activeRun?.controller.abort();
     this.activeRun?.finish({ reason: 'session-disposed', scope: this.activeRun.scope(), type: 'cancelled' });
     this.activeRun = null;
@@ -181,6 +184,7 @@ export class OmpExecutionSession implements ProviderExecutionSession {
     const pendingDirectory = this.directoryPreparation;
     await Promise.allSettled([
       ...this.roleResolutions,
+      this.kernelCleanup,
       ...(this.kernel ? [this.kernel.dispose()] : []),
     ]);
     this.kernel = null;
@@ -225,11 +229,14 @@ export class OmpExecutionSession implements ProviderExecutionSession {
       }
       const approvalMode = resolveOmpApprovalMode(request.configuration.permissionMode);
       if (this.kernel && (this.kernelApprovalMode !== approvalMode || this.kernelRoleSelector !== role)) {
-        await this.kernel.dispose();
+        const previousKernel = this.kernel;
         this.kernel = null;
+        this.kernelGeneration = null;
         this.kernelApprovalMode = null;
+        await previousKernel.dispose();
       }
       if (!this.kernel) {
+        await this.kernelCleanup;
         if (this.disposed || run.terminal) return;
         if (this.isolated && !this.sessionDirectory) {
           const preparation = fs.mkdtemp(path.join(os.tmpdir(), 'claudian-omp-session-'));
@@ -242,27 +249,45 @@ export class OmpExecutionSession implements ProviderExecutionSession {
           }
           this.sessionDirectory = directory;
         }
-        this.kernel = this.createKernel({
+        const generation = Symbol('omp-kernel');
+        this.kernelGeneration = generation;
+        const kernel = this.createKernel({
           approvalMode,
           modelSelector: role,
           ...(this.sessionDirectory ? { sessionDirectory: this.sessionDirectory } : {}),
           config: this.config,
-          getActiveTurnId: () => this.activeRun?.turnId ?? null,
+          getActiveTurnId: () => this.kernelGeneration === generation ? this.activeRun?.turnId ?? null : null,
           onClosed: error => {
+            if (this.kernelGeneration !== generation) return;
+            const closedKernel = this.kernel;
+            this.kernelGeneration = null;
+            this.kernel = null;
+            this.kernelApprovalMode = null;
+            if (closedKernel) {
+              this.kernelCleanup = this.kernelCleanup.then(() => closedKernel.dispose()).catch(() => undefined);
+            }
             const activeRun = this.activeRun;
             if (activeRun) this.failRun(activeRun, error);
           },
           onNotification: notification => {
+            if (this.kernelGeneration !== generation) return;
             const activeRun = this.activeRun;
             if (activeRun) this.handleNotification(activeRun, notification);
           },
-          onPermissionDenied: toolCallId => this.blockedToolCallIds.add(toolCallId),
+          onPermissionDenied: toolCallId => {
+            if (this.kernelGeneration === generation) this.blockedToolCallIds.add(toolCallId);
+          },
           plugin: this.plugin,
           sessionInstanceId: this.sessionInstanceId,
         });
+        if (this.kernelGeneration !== generation) {
+          await kernel.dispose();
+          return;
+        }
+        this.kernel = kernel;
         this.kernelApprovalMode = approvalMode;
         this.kernelRoleSelector = role;
-        await this.kernel.connect();
+        await kernel.connect();
       }
       if (run.terminal) return;
       const native = await this.kernel.openSession(this.nativeSessionId ?? undefined);

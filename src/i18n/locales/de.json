@@ -278,6 +278,7 @@
       "approvedPlan": "Der genehmigte Plan konnte nicht in einer neuen Unterhaltung gestartet werden",
       "stopSession": "Sitzung konnte nicht gestoppt werden",
       "runtimeCleanup": "Bereinigung der Konversationslaufzeit fehlgeschlagen",
+      "draftPersistence": "Der nicht gesendete Chat-Entwurf konnte nicht gespeichert oder wiederhergestellt werden",
       "runningArchive": "Laufende Sitzungen können nicht archiviert werden",
       "updateOrganization": "Sitzungsorganisation konnte nicht aktualisiert werden",
       "updateSorting": "Sitzungssortierung konnte nicht aktualisiert werden",

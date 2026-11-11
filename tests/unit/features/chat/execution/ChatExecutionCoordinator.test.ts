@@ -420,6 +420,49 @@ describe('ChatExecutionCoordinator', () => {
     await harness.registry.dispose();
   });
 
+  it('allows the owning preflight to cool an idle session but still protects native work', async () => {
+    const pool = new WarmExecutionPool(() => 5);
+    const turn = Promise.resolve();
+    const harness = createHarness({ warmExecution: {
+      ownerId: 'preflight-owner', pool, canCool: () => false,
+      canCoolForHistoryRefresh: candidate => candidate === turn,
+    } });
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'codex' });
+    await harness.coordinator.prepare();
+    const session = harness.backends.get('codex')!.sessions[0];
+    session.blocksIdleRelease = () => true;
+    await expect(harness.coordinator.coolForHistoryRefresh(turn)).rejects.toThrow('busy');
+    expect(session.disposeCalls).toBe(0);
+    session.blocksIdleRelease = () => false;
+    await expect(harness.coordinator.coolForHistoryRefresh(Promise.resolve())).rejects.toThrow('busy');
+    await harness.coordinator.coolForHistoryRefresh(turn);
+    expect(session.disposeCalls).toBe(1);
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
+  });
+
+  it('keeps the session when preflight ownership changes while its snapshot is saved', async () => {
+    const pool = new WarmExecutionPool(() => 5);
+    const turn = Promise.resolve();
+    let ownsTurn = true;
+    const harness = createHarness({ warmExecution: {
+      ownerId: 'preflight-race', pool, canCool: () => false,
+      canCoolForHistoryRefresh: candidate => ownsTurn && candidate === turn,
+    } });
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'codex' });
+    await harness.coordinator.prepare();
+    const session = harness.backends.get('codex')!.sessions[0];
+    const gate = deferred<boolean>();
+    harness.repository.persistExecutionSnapshot.mockImplementationOnce(() => gate.promise);
+    const cooling = harness.coordinator.coolForHistoryRefresh(turn);
+    ownsTurn = false;
+    gate.resolve(true);
+    await expect(cooling).rejects.toThrow('busy');
+    expect(session.disposeCalls).toBe(0);
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
+  });
+
   it('rechecks warm capacity after process-bound background work ends', async () => {
     let limit = 6;
     const pool = new WarmExecutionPool(() => limit);

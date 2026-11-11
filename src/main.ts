@@ -595,7 +595,10 @@ export default class ClaudianPlugin extends Plugin {
       getSettings: () => this.settings,
       getVaultPath: () => getVaultPath(this.app),
       persistence: sharedStorage.conversationPersistence,
-      onConversationDeleted: (conversationId) => this.resetDeletedConversationTabs(conversationId),
+      onConversationDeleted: async (conversationId) => {
+        await this.resetDeletedConversationTabs(conversationId);
+        await this.storage.composerDrafts.write('conversation', conversationId, '');
+      },
     });
     this.nativeSessionArchives = new NativeSessionArchiveSync({
       getConversation: (id) => this.conversationRepository.getSync(id),

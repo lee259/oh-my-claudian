@@ -343,7 +343,10 @@ export class ClaudianView extends ItemView {
     this.eventRefs = [];
 
     try {
-      await this.flushCurrentTabState();
+      await Promise.all([
+        this.flushCurrentTabState(),
+        ...((this.tabManager?.getAllTabs?.() ?? []).map(tab => tab.session?.flushComposerDraft?.())),
+      ]);
     } catch {
       // The storage boundary reports persistence failures. Teardown must still complete.
     } finally {
@@ -1277,10 +1280,20 @@ export class ClaudianView extends ItemView {
     );
     if (currentTab) {
       await this.tabManager.createTab(currentTab.conversationId, currentTab.tabId);
-      return;
+    } else {
+      await this.tabManager.createTab();
     }
-
-    await this.tabManager.createTab();
+    if (!this.plugin.storage.composerDrafts) return;
+    try {
+      const draftTabs = await this.plugin.storage.composerDrafts.listTabDrafts();
+      for (const id of draftTabs) {
+        if (id === currentTab?.tabId) continue;
+        if (this.plugin.conversationRuntimes?.getByRuntimeId(id)) continue;
+        await this.tabManager.createTab(null, id, { activate: false });
+      }
+    } catch {
+      new Notice(t('chat.errors.draftPersistence'));
+    }
   }
 
   private persistCurrentTabState(): void {
