@@ -51,6 +51,7 @@ function createMockTab(options: Record<string, any>): any {
       },
     },
     session: {
+      discardComposerDraft: jest.fn().mockResolvedValue(undefined),
       disposeExecutionCoordinator: jest.fn().mockResolvedValue(undefined),
     },
     dom: {

@@ -26,6 +26,7 @@ describe('activateTabContent', () => {
       startHydrationProfile: () => null,
     });
     expect(result).toEqual({ status: 'aborted' });
+    expect(tab.controllers.conversationController.switchTo).toHaveBeenCalledWith('conversation-1', { preserveComposer: true });
     expect(tab.hydrationState).toBe('ready');
     expect(tab.session.hydrationWork).toBeNull();
   });

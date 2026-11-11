@@ -14,6 +14,21 @@ function createState() {
 }
 
 describe('ConversationRuntime', () => {
+
+  it('continues saving new drafts after an initial read fails', async () => {
+    const runtime = new ConversationRuntime(createState());
+    const error = new Error('disk temporarily unavailable');
+    const storage = { read: jest.fn().mockRejectedValueOnce(error), write: jest.fn().mockResolvedValue(undefined) };
+    const onError = jest.fn();
+    await runtime.initializeComposerDraft(storage as never, onError);
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(storage.write).not.toHaveBeenCalled();
+    runtime.composer.value = 'new unsent text';
+    await runtime.flushComposerDraft();
+    expect(storage.write).toHaveBeenCalledWith('tab', 'tab-1', 'new unsent text');
+    await runtime.disposeComposerDraft();
+  });
+
   it('keeps retained manual context in sync when a note or its parent is renamed', () => {
     const runtime = new ConversationRuntime(createState());
     runtime.context.capture({ currentNote: 'old/note.md', externalContextPaths: ['/outside'], enabledMcpServers: ['server'] });

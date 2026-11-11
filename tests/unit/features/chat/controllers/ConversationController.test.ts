@@ -276,6 +276,18 @@ describe('ConversationController', () => {
     });
 
     describe('Switching conversations', () => {
+      it('preserves the restored composer when hydrating its owning conversation', async () => {
+        deps.getInputEl().value = 'Restored unsent draft';
+        await controller.switchTo('switched-conv', { preserveComposer: true });
+        expect(deps.getInputEl().value).toBe('Restored unsent draft');
+        expect(deps.state.currentConversationId).toBe('switched-conv');
+      });
+
+      it('clears the composer for an ordinary conversation switch', async () => {
+        deps.getInputEl().value = 'Old conversation draft';
+        await controller.switchTo('switched-conv');
+        expect(deps.getInputEl().value).toBe('');
+      });
       it('should clear queued message on conversation switch', async () => {
         deps.state.currentConversationId = 'old-conv';
         deps.state.followUps.enqueue('waiting', { content: 'test', images: undefined, editorContext: null, canvasContext: null });

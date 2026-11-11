@@ -278,6 +278,7 @@
       "approvedPlan": "无法在新对话中启动已批准的计划",
       "stopSession": "停止会话失败",
       "runtimeCleanup": "会话运行时清理失败",
+      "draftPersistence": "无法保存或恢复未发送的聊天草稿",
       "runningArchive": "运行中的会话无法归档",
       "updateOrganization": "更新会话组织方式失败",
       "updateSorting": "更新会话排序失败",

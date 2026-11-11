@@ -278,6 +278,7 @@
       "approvedPlan": "Failed to start the approved plan in a new conversation",
       "stopSession": "Failed to stop session",
       "runtimeCleanup": "Conversation runtime cleanup failed",
+      "draftPersistence": "Unable to save or restore the unsent chat draft",
       "runningArchive": "Running sessions cannot be archived",
       "updateOrganization": "Failed to update session organization",
       "updateSorting": "Failed to update session sorting",

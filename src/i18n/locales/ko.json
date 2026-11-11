@@ -278,6 +278,7 @@
       "approvedPlan": "승인된 계획을 새 대화에서 시작하지 못했습니다",
       "stopSession": "세션을 중지하지 못했습니다",
       "runtimeCleanup": "대화 런타임 정리에 실패했습니다",
+      "draftPersistence": "보내지 않은 채팅 초안을 저장하거나 복원할 수 없습니다",
       "runningArchive": "실행 중인 세션은 보관할 수 없습니다",
       "updateOrganization": "세션 정리 방식을 업데이트하지 못했습니다",
       "updateSorting": "세션 정렬을 업데이트하지 못했습니다",

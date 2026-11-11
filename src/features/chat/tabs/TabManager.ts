@@ -207,6 +207,12 @@ export class TabManager implements TabManagerInterface {
       }
     }
     if (this.destroyed) return null;
+    if (runtime && this.plugin.storage?.composerDrafts) {
+      await runtime.initializeComposerDraft(this.plugin.storage.composerDrafts, () => {
+        new Notice(t('chat.errors.draftPersistence'));
+      });
+      if (this.destroyed) return null;
+    }
     if (runtime?.conversationId && !conversation) conversation = this.plugin.getCachedConversation(runtime.conversationId) ?? undefined;
     if (runtime && conversation) {
       await runtime.retryIncompleteHistory(conversation, () => this.plugin.getConversationById(conversation!.id));
@@ -475,6 +481,7 @@ export class TabManager implements TabManagerInterface {
     let didSaveFail = false;
     try {
       await tab.controllers.conversationController?.save();
+      if (!tab.conversationId) await tab.session.discardComposerDraft();
     } catch (error) {
       didSaveFail = true;
       saveError = error;

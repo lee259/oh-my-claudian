@@ -1,6 +1,7 @@
 import type { Plugin } from 'obsidian';
 import { Notice } from 'obsidian';
 
+import { ComposerDraftStorage } from '../../core/bootstrap/ComposerDraftStorage';
 import { ConversationPersistenceStore } from '../../core/bootstrap/ConversationPersistenceStore';
 import { SessionStorage } from '../../core/bootstrap/SessionStorage';
 import type { SharedAppStorage } from '../../core/bootstrap/storage';
@@ -17,6 +18,7 @@ export class SharedStorageService implements SharedAppStorage {
   readonly claudianSettings: ClaudianSettingsStorage;
   readonly sessions: SessionStorage;
   readonly conversationPersistence: ConversationPersistenceStore;
+  readonly composerDrafts: ComposerDraftStorage;
 
   private adapter: VaultFileAdapter;
   private plugin: Plugin;
@@ -24,6 +26,7 @@ export class SharedStorageService implements SharedAppStorage {
   constructor(plugin: Plugin) {
     this.plugin = plugin;
     this.adapter = new VaultFileAdapter(plugin.app);
+    this.composerDrafts = new ComposerDraftStorage(this.adapter);
     this.claudianSettings = new ClaudianSettingsStorage(this.adapter);
     this.sessions = new SessionStorage(this.adapter);
     this.conversationPersistence = new ConversationPersistenceStore(this.adapter);

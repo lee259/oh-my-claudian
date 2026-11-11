@@ -278,6 +278,7 @@
       "approvedPlan": "承認済みプランを新しい会話で開始できませんでした",
       "stopSession": "セッションの停止に失敗しました",
       "runtimeCleanup": "会話ランタイムの終了処理に失敗しました",
+      "draftPersistence": "未送信のチャット下書きを保存または復元できません",
       "runningArchive": "実行中のセッションはアーカイブできません",
       "updateOrganization": "セッションの整理方法を更新できませんでした",
       "updateSorting": "セッションの並べ替えを更新できませんでした",

@@ -278,6 +278,7 @@
       "approvedPlan": "Falha ao iniciar o plano aprovado em uma nova conversa",
       "stopSession": "Falha ao parar a sessão",
       "runtimeCleanup": "Falha ao limpar a execução da conversa",
+      "draftPersistence": "Não foi possível salvar ou restaurar o rascunho de conversa não enviado",
       "runningArchive": "Sessões em execução não podem ser arquivadas",
       "updateOrganization": "Falha ao atualizar a organização da sessão",
       "updateSorting": "Falha ao atualizar a ordenação das sessões",
