@@ -3331,6 +3331,7 @@ describe('CodexHistoryStore', () => {
     });
   });
 
+
   describe('parseCodexSessionContent - persisted shell tool presentation', () => {
     it('restores a readable label for historical exec_command calls', () => {
       const content = [
