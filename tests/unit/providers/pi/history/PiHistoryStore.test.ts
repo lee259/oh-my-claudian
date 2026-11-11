@@ -817,3 +817,22 @@ it('aggregates native output usage across tool continuation messages', () => {
     durationMs: 2_500,
   });
 });
+
+describe('Pi terminal errors', () => {
+  it('restores a terminal error on the assistant message that failed', () => {
+    const content = [
+      { id: 'u', type: 'message', timestamp: 1_000, message: { role: 'user', content: 'Work' } },
+      { id: 'a', parentId: 'u', type: 'message', timestamp: 2_000,
+        message: { role: 'assistant', stopReason: 'error', errorMessage: 'context window exceeded', content: 'Partial' } },
+      { id: 'next', parentId: 'a', type: 'message', timestamp: 3_000, message: { role: 'user', content: 'Retry' } },
+    ].map(entry => JSON.stringify(entry)).join('\n');
+
+    const messages = parsePiSessionContent(content);
+
+    expect(messages.map(message => message.content)).toEqual([
+      'Work',
+      'Partial\n\n**Error:** context window exceeded',
+      'Retry',
+    ]);
+  });
+});

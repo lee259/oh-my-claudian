@@ -13,6 +13,7 @@ import { extractUserQuery } from '../../../utils/context';
 import { extractDiffData } from '../../../utils/diff';
 import { buildImageAttachmentFromBase64 } from '../../../utils/imageAttachment';
 import { encodePiModelId } from '../models';
+import { getPiTerminalErrorMessage } from '../normalizations/piEventNormalization';
 import {
   extractPiToolTextContent,
   normalizePiToolInput,
@@ -542,10 +543,19 @@ function mapPiSessionEntries(
   let turnStartedAt: number | undefined;
   let responseStart = 0;
   const stats = new PiTurnStats();
+  let pendingError: { message: ChatMessage; text: string } | undefined;
+  const flushPendingError = (): void => {
+    if (!pendingError) return;
+    const content = `\n\n**Error:** ${pendingError.text}`;
+    pendingError.message.content += content;
+    (pendingError.message.contentBlocks ??= []).push({ type: 'text', content });
+    pendingError = undefined;
+  };
 
   for (const entry of entries) {
     // Hidden native triggers still separate automatic replies from a completed response.
     if (entry.type === 'custom_message' && !stats.isRunning) {
+      flushPendingError();
       responseStart = messages.length;
       turnStartedAt = parsePiTimestamp(entry.raw.timestamp);
     }
@@ -562,11 +572,19 @@ function mapPiSessionEntries(
 
       const nativeMessage = entry.message ?? entry.raw;
       if (mapped.role === 'user') {
+        flushPendingError();
         turnStartedAt = parsePiTimestamp(nativeMessage.timestamp) ?? parsePiTimestamp(entry.raw.timestamp);
       } else if (isBoundaryMessage(mapped)) {
         turnStartedAt = undefined;
       } else if (mapped.role === 'assistant') {
         const stopReason = getString(nativeMessage.stopReason);
+        const error = getPiTerminalErrorMessage({ type: 'message_end', message: nativeMessage });
+        if (error) {
+          pendingError = { message: messages[messages.length - 1], text: error };
+        } else if (stopReason === 'stop' || stopReason === 'length' || stopReason === 'aborted') {
+          // A retry can recover without a new prompt.
+          pendingError = undefined;
+        }
         const completedAt = parsePiTimestamp(entry.raw.timestamp);
         if ((stopReason === 'stop' || stopReason === 'length')
           && turnStats && turnStartedAt !== undefined && completedAt !== undefined
@@ -578,6 +596,7 @@ function mapPiSessionEntries(
     }
   }
 
+  flushPendingError();
   return messages;
 }
 
