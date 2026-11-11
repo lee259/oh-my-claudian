@@ -2,6 +2,7 @@ import {
   decodeCodexExecEnvelope,
   decodeCodexExecEnvelopeCalls,
   isCodexToolOutputError,
+  normalizeCodexMcpToolCompletion,
   normalizeCodexMcpToolInput,
   normalizeCodexMcpToolName,
   normalizeCodexMcpToolState,
@@ -574,5 +575,18 @@ describe('Codex code-mode apply_patch fragments', () => {
     const source = `patch += ${JSON.stringify('WRONG')}; var patch = ${JSON.stringify(header)}; patch += ${JSON.stringify(rest)}; text(await tools.apply_patch(patch));`;
     const [call] = decodeCodexExecEnvelopeCalls({ raw: source }) ?? [];
     expect(call?.input).toEqual({ patch: header + rest });
+  });
+});
+
+
+describe('Codex MCP completion', () => {
+  it('returns real text results for completed calls', () => {
+    expect(normalizeCodexMcpToolCompletion('completed', { content: [{ type: 'text', text: 'ok' }] }))
+      .toEqual({ result: 'ok', isError: false });
+  });
+
+  it('falls back to Failed when a failed call has no message', () => {
+    expect(normalizeCodexMcpToolCompletion('failed', undefined, undefined))
+      .toEqual({ result: 'Failed', isError: true });
   });
 });
