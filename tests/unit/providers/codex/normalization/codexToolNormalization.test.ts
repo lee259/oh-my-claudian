@@ -417,6 +417,22 @@ describe('Codex MCP normalization helpers', () => {
     });
   });
 
+  it('keeps MCP structured content beside result text', () => {
+    expect(normalizeCodexMcpToolState(
+      'completed',
+      { content: [{ type: 'text', text: 'Action completed.' }], structuredContent: { content: 'use std::collections::HashMap;\n' } },
+      undefined,
+    ).result).toBe('Action completed.\n\n{\n  "content": "use std::collections::HashMap;\\n"\n}');
+  });
+
+  it('drops an empty structured payload beside text', () => {
+    expect(normalizeCodexMcpToolState(
+      'completed',
+      { content: [{ type: 'text', text: 'Action completed.' }], structuredContent: {} },
+      undefined,
+    ).result).toBe('Action completed.');
+  });
+
   it.each(['Permission denied', { message: 'Permission denied' }])('preserves native MCP error details: %j', error => {
     expect(normalizeCodexMcpToolState(
       'failed',
