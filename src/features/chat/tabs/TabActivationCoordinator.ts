@@ -51,7 +51,9 @@ export async function activateTabContent(
       const profile = startHydrationProfile();
       try {
         const runtime = tab.session;
-        const work = runtime?.hydrationWork ?? Promise.resolve(tab.controllers.conversationController?.switchTo(tab.conversationId));
+        const work = runtime?.hydrationWork ?? Promise.resolve(
+          tab.controllers.conversationController?.switchTo(tab.conversationId, runtime ? { preserveComposer: true } : undefined),
+        );
         if (runtime) runtime.hydrationWork = work;
         try {
           await work;

@@ -628,7 +628,7 @@ export class ConversationController {
   }
 
   /** Switches to a different conversation. */
-  async switchTo(id: string): Promise<void> {
+  async switchTo(id: string, options?: { preserveComposer?: boolean }): Promise<void> {
     const { plugin, state, subagentManager } = this.deps;
 
     if (this.deps.isDisposed?.()) return;
@@ -661,7 +661,7 @@ export class ConversationController {
 
       const executionBindingChange = this.deps.ensureExecutionForConversation?.(conversation);
 
-      this.deps.getInputEl().value = '';
+      if (!options?.preserveComposer) this.deps.getInputEl().value = '';
       this.deps.clearQueuedMessage();
 
       this.restoreConversation(conversation);

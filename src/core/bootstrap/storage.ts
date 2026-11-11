@@ -1,5 +1,6 @@
 import type { AppTabManagerState } from '../providers/types';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
+import type { ComposerDraftStorage } from './ComposerDraftStorage';
 import type { SessionMetadataReader } from './SessionStorage';
 
 /**
@@ -12,6 +13,7 @@ import type { SessionMetadataReader } from './SessionStorage';
  * agents, MCP config) live behind provider-owned modules.
  */
 export interface SharedAppStorage {
+  readonly composerDrafts: ComposerDraftStorage;
   initialize(): Promise<{ claudian: Record<string, unknown> }>;
   saveClaudianSettings(settings: Record<string, unknown>): Promise<void>;
   setTabManagerState(state: AppTabManagerState): Promise<void>;

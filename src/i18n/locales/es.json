@@ -278,6 +278,7 @@
       "approvedPlan": "No se pudo iniciar el plan aprobado en una nueva conversación",
       "stopSession": "No se pudo detener la sesión",
       "runtimeCleanup": "No se pudo limpiar la ejecución de la conversación",
+      "draftPersistence": "No se pudo guardar o restaurar el borrador de chat sin enviar",
       "runningArchive": "No se pueden archivar las sesiones en ejecución",
       "updateOrganization": "No se pudo actualizar la organización de la sesión",
       "updateSorting": "No se pudo actualizar el orden de las sesiones",
