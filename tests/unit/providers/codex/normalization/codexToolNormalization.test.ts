@@ -1,5 +1,6 @@
 import {
   decodeCodexExecEnvelope,
+  decodeCodexExecEnvelopeCalls,
   isCodexToolOutputError,
   normalizeCodexMcpToolInput,
   normalizeCodexMcpToolName,
@@ -554,5 +555,24 @@ describe('Codex image-only output projection', () => {
     expect(stringifyCodexToolOutput([image])).toBe('');
     expect(stringifyCodexToolOutput([image, { type: 'metadata', count: 1 }])).toBe('[{"type":"metadata","count":1}]');
     expect(stringifyCodexToolOutput([image, { type: 'text', text: 'Visible output' }])).toBe('Visible output');
+  });
+});
+
+
+describe('Codex code-mode apply_patch fragments', () => {
+  const header = '*** Begin Patch\n';
+  const rest = '*** Add File: note.md\n+body\n*** End Patch';
+
+  it('joins mutable patch appends after the declaration', () => {
+    const source = `let patch = ${JSON.stringify(header)}; patch += ${JSON.stringify(rest)}; text(await tools.apply_patch(patch));`;
+    const [call] = decodeCodexExecEnvelopeCalls({ raw: source }) ?? [];
+    expect(call?.name).toBe('apply_patch');
+    expect(call?.input).toEqual({ patch: header + rest });
+  });
+
+  it('ignores appends that precede the declaration', () => {
+    const source = `patch += ${JSON.stringify('WRONG')}; var patch = ${JSON.stringify(header)}; patch += ${JSON.stringify(rest)}; text(await tools.apply_patch(patch));`;
+    const [call] = decodeCodexExecEnvelopeCalls({ raw: source }) ?? [];
+    expect(call?.input).toEqual({ patch: header + rest });
   });
 });
