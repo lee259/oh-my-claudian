@@ -278,6 +278,7 @@
       "approvedPlan": "Échec du démarrage du plan approuvé dans une nouvelle conversation",
       "stopSession": "Échec de l’arrêt de la session",
       "runtimeCleanup": "Échec du nettoyage de l’exécution de la conversation",
+      "draftPersistence": "Impossible d’enregistrer ou de restaurer le brouillon de conversation non envoyé",
       "runningArchive": "Les sessions en cours ne peuvent pas être archivées",
       "updateOrganization": "Échec de la mise à jour de l’organisation de la session",
       "updateSorting": "Échec de la mise à jour du tri des sessions",

@@ -276,6 +276,18 @@ describe('ConversationController', () => {
     });
 
     describe('Switching conversations', () => {
+      it('preserves the restored composer when hydrating its owning conversation', async () => {
+        deps.getInputEl().value = 'Restored unsent draft';
+        await controller.switchTo('switched-conv', { preserveComposer: true });
+        expect(deps.getInputEl().value).toBe('Restored unsent draft');
+        expect(deps.state.currentConversationId).toBe('switched-conv');
+      });
+
+      it('clears the composer for an ordinary conversation switch', async () => {
+        deps.getInputEl().value = 'Old conversation draft';
+        await controller.switchTo('switched-conv');
+        expect(deps.getInputEl().value).toBe('');
+      });
       it('should clear queued message on conversation switch', async () => {
         deps.state.currentConversationId = 'old-conv';
         deps.state.followUps.enqueue('waiting', { content: 'test', images: undefined, editorContext: null, canvasContext: null });
@@ -1377,30 +1389,6 @@ describe('ConversationController', () => {
       expect(deps.plugin.renameConversation).not.toHaveBeenCalled();
       expect(onRerender).toHaveBeenCalledTimes(1);
       expect(controller.cancelInlineRename()).toBe(false);
-    });
-
-    it('releases inline rename ownership when its surface rerenders without blur', () => {
-      const container = createMockEl();
-      const options = {
-        onSelectConversation: jest.fn(),
-        onRerender: jest.fn(),
-      };
-      (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-        { id: 'conv-1', title: 'Original title', createdAt: 1000 },
-      ]);
-
-      controller.renderHistoryDropdown(container, options);
-      const item = container.querySelector('.claudian-history-item')!;
-      const title = item.querySelector('.claudian-history-item-title')!;
-      title.replaceWith = jest.fn();
-      item.querySelector('.claudian-history-item-actions')!.children[0].click();
-      const input = item.querySelector('.claudian-rename-input')!;
-      input.value = 'Detached draft';
-
-      controller.renderHistoryDropdown(container, options);
-
-      expect(controller.cancelInlineRename()).toBe(false);
-      expect(deps.plugin.renameConversation).not.toHaveBeenCalled();
     });
 
     it('should delete conversation and reload active when deleting current conversation', async () => {

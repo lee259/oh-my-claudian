@@ -1402,6 +1402,23 @@ describe('ClaudianView runtime tab initialization', () => {
 });
 
 describe('ClaudianView current tab persistence', () => {
+  it('restores other unsent blank-tab drafts without changing the active tab', async () => {
+    const view = Object.create(ClaudianView.prototype) as any;
+    const createTab = jest.fn().mockResolvedValue({});
+    view.plugin = { conversationRuntimes: { getByRuntimeId: jest.fn(id => id === 'owned-elsewhere' ? {} : null) }, storage: {
+      getTabManagerState: jest.fn().mockResolvedValue({
+        activeTabId: 'active', openTabs: [{ conversationId: 'c1', tabId: 'active' }],
+      }),
+      composerDrafts: { listTabDrafts: jest.fn().mockResolvedValue(['blank-1', 'owned-elsewhere', 'blank-2']) },
+    } };
+    view.tabManager = { createTab };
+    await view.restoreCurrentTab();
+    expect(createTab.mock.calls).toEqual([
+      ['c1', 'active'],
+      [null, 'blank-1', { activate: false }],
+      [null, 'blank-2', { activate: false }],
+    ]);
+  });
   it('serializes only the active tab identity without draft state', () => {
     const view = Object.create(ClaudianView.prototype) as any;
     view.tabManager = {

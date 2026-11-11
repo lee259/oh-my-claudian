@@ -27,7 +27,7 @@ export class ConversationRuntimeRegistry {
       await runtime.controllers.conversationController?.save(false);
     } finally {
       try { await runtime.disposeExecutionCoordinator(); } finally {
-        runtime.disposeModels();
+        try { await runtime.disposeComposerDraft(); } finally { runtime.disposeModels(); }
       }
     }
   }, private readonly onChanged: () => void = () => undefined) {}

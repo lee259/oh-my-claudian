@@ -14,6 +14,21 @@ function createState() {
 }
 
 describe('ConversationRuntime', () => {
+
+  it('continues saving new drafts after an initial read fails', async () => {
+    const runtime = new ConversationRuntime(createState());
+    const error = new Error('disk temporarily unavailable');
+    const storage = { read: jest.fn().mockRejectedValueOnce(error), write: jest.fn().mockResolvedValue(undefined) };
+    const onError = jest.fn();
+    await runtime.initializeComposerDraft(storage as never, onError);
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(storage.write).not.toHaveBeenCalled();
+    runtime.composer.value = 'new unsent text';
+    await runtime.flushComposerDraft();
+    expect(storage.write).toHaveBeenCalledWith('tab', 'tab-1', 'new unsent text');
+    await runtime.disposeComposerDraft();
+  });
+
   it('keeps retained manual context in sync when a note or its parent is renamed', () => {
     const runtime = new ConversationRuntime(createState());
     runtime.context.capture({ currentNote: 'old/note.md', externalContextPaths: ['/outside'], enabledMcpServers: ['server'] });
@@ -112,6 +127,26 @@ describe('ConversationRuntime', () => {
 
     finish();
     await runtime.awaitBackgroundWork();
+    history.mockRestore();
+  });
+
+  it('refreshes history for the reserved preflight turn without treating it as provider work', async () => {
+    const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
+    runtime.hydrationState = 'ready';
+    const turn = new Promise<void>(() => undefined);
+    const history = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: jest.fn(),
+    } as any);
+    const coordinator = { state: 'idle', canCool: jest.fn(() => false), cool: jest.fn(),
+      coolForHistoryRefresh: jest.fn(async () => undefined) };
+    runtime.setExecutionCoordinator(coordinator as any);
+    const host = {
+      readNativeHistoryRevision: jest.fn(async () => { runtime.activeTurn = turn; return 'revision'; }),
+      reloadNativeHistory: jest.fn(async () => ({ id: 'c1', providerId: 'codex', messages: [] })),
+    } as any;
+    expect(await runtime.ensureNativeHistoryCurrent(host, { preflight: true })).toBe(true);
+    expect(coordinator.coolForHistoryRefresh).toHaveBeenCalledWith(turn);
+    expect(host.reloadNativeHistory).toHaveBeenCalledWith('c1');
     history.mockRestore();
   });
 

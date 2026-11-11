@@ -278,6 +278,7 @@
       "approvedPlan": "無法在新對話中啟動已核准的計畫",
       "stopSession": "停止工作階段失敗",
       "runtimeCleanup": "工作階段執行階段清理失敗",
+      "draftPersistence": "無法儲存或還原未傳送的聊天草稿",
       "runningArchive": "執行中的工作階段無法封存",
       "updateOrganization": "更新工作階段組織方式失敗",
       "updateSorting": "更新工作階段排序失敗",
