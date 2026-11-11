@@ -41,6 +41,7 @@ import {
   formatCodexWebSearchResults,
   isCodexInternalToolCall,
   isCodexToolOutputError,
+  normalizeCodexMcpToolCompletion,
   normalizeCodexMcpToolInput,
   normalizeCodexMcpToolName,
   normalizeCodexMcpToolState,
@@ -78,6 +79,9 @@ interface CodexItem {
   message?: string;
   server?: string;
   tool?: string;
+  arguments?: string | Record<string, unknown>;
+  result?: unknown;
+  error?: unknown;
 }
 
 interface PersistedMessagePart {
@@ -742,15 +746,16 @@ function processLegacyItem(
         turn.toolCalls.push({
           id: item.id,
           name: `mcp__${server}__${tool}`,
-          input: {},
+          input: normalizeCodexMcpToolInput(item.arguments),
           status: 'running',
         });
         turn.contentBlocks.push({ type: 'tool_use', toolId: item.id });
       } else if (eventType === 'item.completed') {
         const tc = turn.toolCalls.find(tool => tool.id === item.id);
         if (tc) {
-          tc.status = item.status === 'completed' ? 'completed' : 'error';
-          tc.result = item.status === 'completed' ? 'Completed' : 'Failed';
+          const completion = normalizeCodexMcpToolCompletion(item.status, item.result, item.error);
+          tc.status = completion.isError ? 'error' : 'completed';
+          tc.result = completion.result;
         }
       }
       break;
@@ -2435,7 +2440,7 @@ function processLegacyItemInModernContext(
         ensureModernLegacyToolCall(ctx, timestamp, item, () => ({
           id: item.id,
           name: `mcp__${item.server ?? ''}__${item.tool ?? ''}`,
-          input: {},
+          input: normalizeCodexMcpToolInput(item.arguments),
           status: 'running',
         }));
         break;
@@ -2448,8 +2453,9 @@ function processLegacyItemInModernContext(
           input: {},
           status: 'running',
         }));
-        toolCall.status = item.status === 'completed' ? 'completed' : 'error';
-        toolCall.result = item.status === 'completed' ? 'Completed' : 'Failed';
+        const completion = normalizeCodexMcpToolCompletion(item.status, item.result, item.error);
+        toolCall.status = completion.isError ? 'error' : 'completed';
+        toolCall.result = completion.result;
       }
       break;
     }

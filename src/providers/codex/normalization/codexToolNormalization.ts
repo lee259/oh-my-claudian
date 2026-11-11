@@ -814,6 +814,16 @@ export function normalizeCodexMcpToolState(
   };
 }
 
+/** The visible result of a completed MCP item, live or persisted. */
+export function normalizeCodexMcpToolCompletion(
+  rawStatus: unknown,
+  resultPayload?: unknown,
+  rawError?: unknown,
+): { result: string; isError: boolean } {
+  const state = normalizeCodexMcpToolState(rawStatus, resultPayload, rawError);
+  return { result: state.result ?? 'Failed', isError: state.isError };
+}
+
 function extractCodexMcpResultText(resultPayload?: unknown): string {
   if (!resultPayload || typeof resultPayload !== 'object') return '';
 
