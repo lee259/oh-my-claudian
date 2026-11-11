@@ -577,6 +577,22 @@ describe('MentionDropdownController', () => {
       expect(controller.isVisible()).toBe(false);
       expect((callbacks.getCachedVaultFiles as jest.Mock).mock.calls.length).toBe(scans);
     });
+    it('closes the menu when the caret leaves the trigger without an input event', () => {
+      (callbacks.getCachedVaultFiles as jest.Mock).mockReturnValue([
+        { name: 'alpha.md', path: 'notes/alpha.md', stat: { mtime: 1 } },
+      ]);
+      inputEl.value = 'hello @al';
+      inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length;
+      controller.handleInputChange();
+      jest.advanceTimersByTime(200);
+      expect(controller.isVisible()).toBe(true);
+
+      inputEl.selectionStart = inputEl.selectionEnd = 0;
+      controller.handleKeydown({ key: 'ArrowLeft', preventDefault: jest.fn() } as any);
+      jest.advanceTimersByTime(0);
+
+      expect(controller.isVisible()).toBe(false);
+    });
 
     it('leaves Escape available to the host when ordinary text has a pending debounce', () => {
       setQuery('hello');
@@ -1061,3 +1077,4 @@ describe('MentionDropdownController', () => {
     });
   });
 });
+
