@@ -226,6 +226,11 @@ export class MentionDropdownController {
   handleKeydown(e: KeyboardEvent): boolean {
     if (this.composing || isImeKeyEvent(e)) return false;
     if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    // Caret-only moves fire no input event; revalidate the trigger once the selection has moved.
+    if (this.dropdown.isVisible()
+      && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End')) {
+      window.setTimeout(() => { if (!this.destroyed) this.refreshQuery(); }, 0);
+    }
     if (e.shiftKey && (e.key === 'Tab' || e.key === 'Enter')) {
       this.hide();
       return false;
