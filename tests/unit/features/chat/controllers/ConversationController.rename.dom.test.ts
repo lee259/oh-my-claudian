@@ -85,7 +85,45 @@ describe('history inline rename', () => {
     expect(controller.cancelInlineRename()).toBe(true);
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Conversation title' })).toBeNull());
   });
-  function openRename(renameConversation: jest.Mock) {
+  it.each([false, true])('preserves the title draft and selection when the history list refreshes (preserveListState=%s)', async preserveListState => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    const { input, render } = openRename(save, preserveListState);
+    input.value = 'Unfinished title';
+    input.setSelectionRange(2, 8);
+    render();
+    const restored = screen.getByRole('textbox', { name: 'Conversation title' }) as HTMLInputElement;
+    expect(restored).toBe(input);
+    expect(restored.value).toBe('Unfinished title');
+    expect(document.activeElement).toBe(restored);
+    expect([restored.selectionStart, restored.selectionEnd]).toEqual([2, 8]);
+    fireEvent.keyDown(restored, { key: 'Enter' });
+    await waitFor(() => expect(save).toHaveBeenCalledWith('conv-1', 'Unfinished title'));
+  });
+  it('releases the editor if the conversation leaves the visible list', () => {
+    const conversation: ConversationMeta = {
+      id: 'conv-1', providerId: 'claude', title: 'Original title',
+      createdAt: 1000, lastActivityAt: 1000, messageCount: 1, preview: '',
+    };
+    const conversations = [conversation];
+    const save = jest.fn();
+    const controller = new ConversationController({
+      plugin: { getConversationList: () => conversations, renameConversation: save },
+      state: new ChatState(), getMessagesEl: () => null,
+    } as unknown as ConversationControllerDeps);
+    const container = document.body.appendChild(document.createElement('div'));
+    const render = () => controller.renderHistoryDropdown(container, {
+      onSelectConversation: jest.fn(), onRerender: render, preserveListState: true,
+    });
+    render();
+    screen.getByRole('button', { name: 'Rename' }).click();
+    (screen.getByRole('textbox') as HTMLInputElement).value = 'Draft';
+    conversations.pop();
+    render();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(controller.cancelInlineRename()).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+  });
+  function openRename(renameConversation: jest.Mock, preserveListState = false) {
     const conversation: ConversationMeta = {
       id: 'conv-1', providerId: 'claude', title: 'Original title',
       createdAt: 1000, lastActivityAt: 1000, messageCount: 1, preview: '',
@@ -96,7 +134,7 @@ describe('history inline rename', () => {
     } as unknown as ConversationControllerDeps);
     const container = document.body.appendChild(document.createElement('div'));
     const render = jest.fn((): void => controller.renderHistoryDropdown(container, {
-      onSelectConversation: jest.fn(), onRerender: render,
+      onSelectConversation: jest.fn(), onRerender: render, preserveListState,
     }));
     render();
     const begin = () => {

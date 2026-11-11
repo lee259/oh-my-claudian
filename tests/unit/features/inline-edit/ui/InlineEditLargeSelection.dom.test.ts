@@ -42,3 +42,63 @@ it('previews and accepts a one-line edit in a long selection', async () => {
   expect(settled).toHaveBeenCalledWith({ decision: 'accept', editedText: after });
   jest.restoreAllMocks();
 });
+
+it('previews and accepts a completely rewritten long selection', async () => {
+  const lines = Array.from({ length: 5000 }, (_, i) => `Line ${i}`);
+  const before = lines.join('\n');
+  for (let i = 0; i < lines.length; i++) lines[i] = `Replacement ${i}`;
+  const after = lines.join('\n');
+  const doc = Text.of(before.split('\n'));
+  const dom = document.createElement('div');
+  document.body.append(dom);
+  const dispatch = jest.fn();
+  const editorView: any = { state: { doc }, dispatch, dom, focus: jest.fn() };
+  const editor: any = { getSelection: () => before, getCursor: (which: string) => which === 'from' ? { line: 0, ch: 0 } : { line: 4999, ch: `Line 4999`.length }, replaceRange: jest.fn() };
+  const service = { editText: jest.fn().mockResolvedValue({ success: true, editedText: after }), setModelOverride: jest.fn(), cancel: jest.fn(), resetConversation: jest.fn() };
+  jest.spyOn(ProviderRegistry, 'createInlineEditService').mockReturnValue(service as any);
+  const app: any = { vault: { getFiles: () => [], getAllLoadedFiles: () => [], getMarkdownFiles: () => [] }, metadataCache: {} };
+  const plugin: any = { providerHost: {}, settings: { hiddenProviderCommands: {} } };
+  const settled = jest.fn();
+  const session = new InlineEditSession(app, plugin, editorView, editor, { mode: 'selection', selectedText: before }, 'note.md', () => [], settled, { providerId: 'claude' });
+  const input = session.createInputDOM().querySelector('input')!;
+  input.value = 'Improve';
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await waitFor(() => expect(dispatch.mock.calls.some(([transaction]) => transaction.effects?.value?.diffOps)).toBe(true));
+  const effects = dispatch.mock.calls.map(([transaction]) => transaction.effects?.value).find(value => value?.diffOps);
+  expect(effects.diffOps).toEqual([{ type: 'delete', text: before }, { type: 'insert', text: after }]);
+  session.accept();
+  expect(editor.replaceRange).toHaveBeenCalledWith(after, expect.anything(), expect.anything());
+  expect(settled).toHaveBeenCalledWith({ decision: 'accept', editedText: after });
+  jest.restoreAllMocks();
+});
+
+it('preserves repeated-line tie ordering and CRLF in the preview', async () => {
+  const before = 'A\r\nB\r\nA\r\n';
+  const after = 'B\r\nA\r\nB\r\n';
+  const doc = Text.of(before.split('\n'));
+  const dom = document.createElement('div');
+  document.body.append(dom);
+  const dispatch = jest.fn();
+  const editorView: any = { state: { doc }, dispatch, dom, focus: jest.fn() };
+  const editor: any = { getSelection: () => before, getCursor: (which: string) => which === 'from' ? { line: 0, ch: 0 } : { line: 3, ch: 0 }, replaceRange: jest.fn() };
+  const service = { editText: jest.fn().mockResolvedValue({ success: true, editedText: after }), setModelOverride: jest.fn(), cancel: jest.fn(), resetConversation: jest.fn() };
+  jest.spyOn(ProviderRegistry, 'createInlineEditService').mockReturnValue(service as any);
+  const app: any = { vault: { getFiles: () => [], getAllLoadedFiles: () => [], getMarkdownFiles: () => [] }, metadataCache: {} };
+  const plugin: any = { providerHost: {}, settings: { hiddenProviderCommands: {} } };
+  const settled = jest.fn();
+  const session = new InlineEditSession(app, plugin, editorView, editor, { mode: 'selection', selectedText: before }, 'note.md', () => [], settled, { providerId: 'claude' });
+  const input = session.createInputDOM().querySelector('input')!;
+  input.value = 'Improve';
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await waitFor(() => expect(dispatch.mock.calls.some(([transaction]) => transaction.effects?.value?.diffOps)).toBe(true));
+  const effects = dispatch.mock.calls.map(([transaction]) => transaction.effects?.value).find(value => value?.diffOps);
+  expect(effects.diffOps).toEqual([
+    { type: 'delete', text: 'A\r\n' },
+    { type: 'equal', text: 'B\r\nA\r\n' },
+    { type: 'insert', text: 'B\r\n' },
+  ]);
+  session.accept();
+  expect(editor.replaceRange).toHaveBeenCalledWith(after, expect.anything(), expect.anything());
+  expect(settled).toHaveBeenCalledWith({ decision: 'accept', editedText: after });
+  jest.restoreAllMocks();
+});
