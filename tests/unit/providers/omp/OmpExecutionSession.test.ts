@@ -15,6 +15,84 @@ async function flush(): Promise<void> {
 }
 
 describe('OmpExecutionSession', () => {
+  it('restarts a crashed kernel and ignores a late close from the old process', async () => {
+    const options: any[] = [];
+    const firstPrompt = deferred<{ userMessageId: string }>();
+    const secondPrompt = deferred<{ userMessageId: string }>();
+    const kernels = [firstPrompt, secondPrompt].map(pending => ({
+      cancel: jest.fn(), connect: jest.fn().mockResolvedValue(undefined),
+      dispose: jest.fn().mockResolvedValue(undefined),
+      openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'omp-session' }),
+      prompt: jest.fn().mockReturnValue(pending.promise),
+      setConfigOption: jest.fn(), setModel: jest.fn(),
+    }));
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never, lifecycle: 'persistent', nativePersistence: 'provider-default',
+      vaultWorkingDirectory: '/vault',
+    }, { createKernel: value => { options.push(value); return kernels[options.length - 1] as never; } });
+    const request = () => ({ configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ type: 'text', text: 'Hello' }], signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' } }) as never;
+    const first = session.execute(request());
+    const firstEvents: any[] = [];
+    const firstDone = (async () => { for await (const event of first.events) firstEvents.push(event); })();
+    await flush();
+    options[0].onClosed(new Error('process exited'));
+    await firstDone;
+    expect(firstEvents).toContainEqual(expect.objectContaining({ type: 'execution_error' }));
+
+    const second = session.execute(request());
+    const secondEvents: any[] = [];
+    const secondDone = (async () => { for await (const event of second.events) secondEvents.push(event); })();
+    await flush();
+    expect(options).toHaveLength(2);
+    expect(kernels[1].openSession).toHaveBeenCalledWith('omp-session');
+    options[0].onClosed(new Error('late close'));
+    options[0].onNotification({ sessionId: 'omp-session', update: {
+      sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'stale output' },
+    } });
+    options[1].onNotification({ sessionId: 'omp-session', update: {
+      sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'current output' },
+    } });
+    secondPrompt.resolve({ userMessageId: 'second' });
+    await secondDone;
+    expect(secondEvents).toContainEqual(expect.objectContaining({ type: 'turn_completed' }));
+    expect(secondEvents).not.toContainEqual(expect.objectContaining({ type: 'execution_error' }));
+    expect(JSON.stringify(secondEvents)).not.toContain('stale output');
+    expect(JSON.stringify(secondEvents)).toContain('current output');
+    await session.dispose();
+  });
+
+  it('waits for an idle crashed kernel to finish cleanup before resuming', async () => {
+    const options: any[] = [];
+    const cleanup = deferred<void>();
+    const kernels = [0, 1].map(index => ({
+      cancel: jest.fn(), connect: jest.fn().mockResolvedValue(undefined),
+      dispose: jest.fn().mockImplementation(() => index === 0 ? cleanup.promise : Promise.resolve()),
+      openSession: jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'omp-session' }),
+      prompt: jest.fn().mockResolvedValue({ userMessageId: 'message' }),
+      setConfigOption: jest.fn(), setModel: jest.fn(),
+    }));
+    const session = new OmpExecutionSession({ settings: {} } as never, {
+      interactionPort: {} as never, lifecycle: 'persistent', nativePersistence: 'provider-default',
+      vaultWorkingDirectory: '/vault',
+    }, { createKernel: value => { options.push(value); return kernels[options.length - 1] as never; } });
+    const request = () => ({ configuration: { systemInstructions: { kind: 'provider-default' } },
+      input: [{ type: 'text', text: 'Hello' }], signal: new AbortController().signal,
+      toolPolicy: { kind: 'provider-default' } }) as never;
+    for await (const event of session.execute(request()).events) void event;
+    options[0].onClosed(new Error('idle exit'));
+    const events: any[] = [];
+    const done = (async () => { for await (const event of session.execute(request()).events) events.push(event); })();
+    await flush();
+    expect(options).toHaveLength(1);
+    cleanup.resolve();
+    await done;
+    expect(options).toHaveLength(2);
+    expect(kernels[1].openSession).toHaveBeenCalledWith('omp-session');
+    expect(events).toContainEqual(expect.objectContaining({ type: 'turn_completed' }));
+    await session.dispose();
+  });
   it('keeps auxiliary native sessions in an isolated directory until disposal', async () => {
     let options: any;
     const openSession = jest.fn().mockResolvedValue({ configOptions: [], sessionId: 'new' });
