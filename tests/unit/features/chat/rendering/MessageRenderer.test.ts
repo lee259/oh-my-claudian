@@ -4792,7 +4792,7 @@ describe('MessageRenderer', () => {
         .mockResolvedValueOnce(undefined);
 
       const staleRender = renderer.renderContent(contentEl, '[[stale link]]');
-      const staleScope = (component.addChild as jest.Mock).mock.calls[0][0];
+      const staleScope = (component.addChild as jest.Mock).mock.calls.at(-1)![0];
       const currentRender = renderer.renderContent(contentEl, '[[current link]]');
       await currentRender;
 
@@ -5136,6 +5136,25 @@ describe('MessageRenderer', () => {
 
         expect(target?.dataset.messageId).toBe('window-10');
         expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(120);
+      } finally {
+        messagesEl.remove();
+      }
+    });
+
+    it('reveals a long transcript without rescanning the entire message list for every turn', () => {
+      const messagesEl = createContainer();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      try {
+        renderer.renderMessages(createWindowMessages(120), () => 'Hello');
+        const queries = jest.spyOn(messagesEl, 'querySelectorAll');
+        const target = renderer.revealMessage('window-10');
+        const fullListScans = queries.mock.calls.filter(([selector]) => (
+          selector === '.claudian-message' || selector === '.claudian-transcript-turn'
+        ));
+        expect(target?.dataset.messageId).toBe('window-10');
+        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(120);
+        expect(fullListScans.length).toBeLessThan(10);
       } finally {
         messagesEl.remove();
       }

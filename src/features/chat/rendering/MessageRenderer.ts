@@ -1,5 +1,5 @@
-import type { App, Component } from 'obsidian';
-import { MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
+import type { App } from 'obsidian';
+import { Component, MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
 import type { ChatRewindMode } from '../../../core/execution';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
@@ -174,6 +174,7 @@ export class MessageRenderer {
   private app: App;
   private plugin: FeatureHost;
   private component: Component;
+  private readonly fileLinkScope: Component;
   private messagesEl: HTMLElement;
   private rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>;
   private getCapabilities: () => ProviderCapabilities;
@@ -229,7 +230,14 @@ export class MessageRenderer {
     this.getWelcomeHomeOptions = getWelcomeHomeOptions;
 
     // Register delegated click handler for file links
-    registerFileLinkHandler(this.app, this.messagesEl, this.component);
+    this.fileLinkScope = new Component();
+    this.component.addChild(this.fileLinkScope);
+    const fileLinkContainer = this.messagesEl;
+    const ownsFileLinks = fileLinkContainer.dataset?.claudianFileLinksBound !== 'true';
+    registerFileLinkHandler(this.app, fileLinkContainer, this.fileLinkScope);
+    if (ownsFileLinks) this.fileLinkScope.register(() => {
+      if (fileLinkContainer.dataset) delete fileLinkContainer.dataset.claudianFileLinksBound;
+    });
     this.observeRemovedContent(this.messagesEl.parentElement ?? this.messagesEl);
   }
 
@@ -270,6 +278,7 @@ export class MessageRenderer {
     this.#cancelLayoutScroll();
     this.contentRemovalObserver?.disconnect();
     this.contentRemovalObserver = undefined;
+    this.component.removeChild(this.fileLinkScope);
     this.releaseContentRenders();
     for (const viewport of this.activityViewports) viewport.dispose();
     this.activityViewports.clear();
@@ -634,8 +643,11 @@ export class MessageRenderer {
         transcriptIdentity: transcriptIdentities.get(messages[index].id),
       });
     }
-    this.groupRenderedTranscriptTurns(renderedMessages, false);
-    for (const turn of projectTranscript(renderedMessages)) this.finalizeTranscriptTurn(turn);
+    const turnElements = this.groupRenderedTranscriptTurns(renderedMessages, false);
+    for (const turn of projectTranscript(renderedMessages)) {
+      const turnEl = turnElements.get(turn.id);
+      if (turnEl) this.finalizeRenderedTranscriptTurn(turn, turnEl);
+    }
   }
 
   private clearRenderedMessages(): void {
@@ -683,8 +695,11 @@ export class MessageRenderer {
         });
       }
       if (options?.collapseCompletedWork !== false) {
-        this.groupRenderedTranscriptTurns(messages, false);
-        for (const turn of projectTranscript(messages)) this.finalizeTranscriptTurn(turn);
+        const turnElements = this.groupRenderedTranscriptTurns(messages, false);
+        for (const turn of projectTranscript(messages)) {
+          const turnEl = turnElements.get(turn.id);
+          if (turnEl) this.finalizeRenderedTranscriptTurn(turn, turnEl);
+        }
       } else {
         this.groupRenderedTranscriptTurns(messages, false);
       }
@@ -810,26 +825,29 @@ export class MessageRenderer {
   private groupRenderedTranscriptTurns(
     messages: readonly ChatMessage[],
     mergeWork = true,
-  ): void {
+  ): Map<string, HTMLElement> {
     const turns = projectTranscript(messages);
+    const renderedMessages = new Map(
+      Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message'))
+        .map((element) => [element.dataset.messageId, element] as const),
+    );
+    const turnElements = new Map<string, HTMLElement>();
+    for (const element of Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-transcript-turn'))) {
+      const id = element.dataset.transcriptTurnId;
+      if (id && !turnElements.has(id)) turnElements.set(id, element);
+    }
     for (const turn of turns) {
       const messageIds = [
         ...(turn.userMessageId ? [turn.userMessageId] : []),
         ...turn.runs.map((run) => run.messageId),
       ];
-      const renderedMessages = new Map(
-        Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message'))
-          .map((element) => [element.dataset.messageId, element] as const),
-      );
       const messageElements = messageIds
         .map((id) => renderedMessages.get(id))
         .filter((element): element is HTMLElement => !!element);
       if (messageElements.length === 0 || (messageElements.length < 2 && turn.runs.length === 0)) continue;
 
       const first = messageElements[0];
-      const existingTurn = Array.from(
-        this.messagesEl.querySelectorAll<HTMLElement>('.claudian-transcript-turn'),
-      ).find((element) => element.dataset.transcriptTurnId === turn.id);
+      const existingTurn = turnElements.get(turn.id);
       let turnEl = existingTurn;
       if (!turnEl) {
         const parent = first.parentElement;
@@ -837,6 +855,7 @@ export class MessageRenderer {
         turnEl = parent.createDiv({ cls: 'claudian-transcript-turn' });
         turnEl.setAttribute('data-transcript-turn-id', turn.id);
         parent.insertBefore(turnEl, first);
+        turnElements.set(turn.id, turnEl);
       }
       for (const messageEl of messageElements) {
         if (messageEl.parentElement !== turnEl) turnEl.appendChild(messageEl);
@@ -851,6 +870,7 @@ export class MessageRenderer {
       });
       this.mergeTurnWorkGroups(turnEl, workGroups, turn.runs.map((run) => run.message));
     }
+    return turnElements;
   }
 
   /** Builds one completed work fold from the ordered blocks of an entire turn. */
@@ -862,6 +882,15 @@ export class MessageRenderer {
     const turnEl = Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-transcript-turn'))
       .find((element) => element.dataset.transcriptTurnId === turn.id);
     if (!turnEl) return;
+    this.finalizeRenderedTranscriptTurn(turn, turnEl, allowForkMessageId);
+  }
+
+  private finalizeRenderedTranscriptTurn(
+    turn: TranscriptTurnProjection,
+    turnEl: HTMLElement,
+    allowForkMessageId?: string,
+  ): void {
+    if (turn.runs.length === 0 || turn.blocks.length === 0) return;
     const messagesById = new Map(
       Array.from(turnEl.querySelectorAll<HTMLElement>('.claudian-message'))
         .map((element) => [element.dataset.messageId, element] as const),
