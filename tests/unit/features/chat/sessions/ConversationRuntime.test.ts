@@ -130,6 +130,26 @@ describe('ConversationRuntime', () => {
     history.mockRestore();
   });
 
+  it('refreshes history for the reserved preflight turn without treating it as provider work', async () => {
+    const runtime = new ConversationRuntime({ ...createState(), conversationId: 'c1', providerId: 'codex' });
+    runtime.hydrationState = 'ready';
+    const turn = new Promise<void>(() => undefined);
+    const history = jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      readNativeHistoryRevision: jest.fn(),
+    } as any);
+    const coordinator = { state: 'idle', canCool: jest.fn(() => false), cool: jest.fn(),
+      coolForHistoryRefresh: jest.fn(async () => undefined) };
+    runtime.setExecutionCoordinator(coordinator as any);
+    const host = {
+      readNativeHistoryRevision: jest.fn(async () => { runtime.activeTurn = turn; return 'revision'; }),
+      reloadNativeHistory: jest.fn(async () => ({ id: 'c1', providerId: 'codex', messages: [] })),
+    } as any;
+    expect(await runtime.ensureNativeHistoryCurrent(host, { preflight: true })).toBe(true);
+    expect(coordinator.coolForHistoryRefresh).toHaveBeenCalledWith(turn);
+    expect(host.reloadNativeHistory).toHaveBeenCalledWith('c1');
+    history.mockRestore();
+  });
+
   it('reports queued background work until it settles', async () => {
     let release!: () => void;
     const onWorkChanged = jest.fn();

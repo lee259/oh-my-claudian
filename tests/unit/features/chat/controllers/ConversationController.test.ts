@@ -1391,30 +1391,6 @@ describe('ConversationController', () => {
       expect(controller.cancelInlineRename()).toBe(false);
     });
 
-    it('releases inline rename ownership when its surface rerenders without blur', () => {
-      const container = createMockEl();
-      const options = {
-        onSelectConversation: jest.fn(),
-        onRerender: jest.fn(),
-      };
-      (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
-        { id: 'conv-1', title: 'Original title', createdAt: 1000 },
-      ]);
-
-      controller.renderHistoryDropdown(container, options);
-      const item = container.querySelector('.claudian-history-item')!;
-      const title = item.querySelector('.claudian-history-item-title')!;
-      title.replaceWith = jest.fn();
-      item.querySelector('.claudian-history-item-actions')!.children[0].click();
-      const input = item.querySelector('.claudian-rename-input')!;
-      input.value = 'Detached draft';
-
-      controller.renderHistoryDropdown(container, options);
-
-      expect(controller.cancelInlineRename()).toBe(false);
-      expect(deps.plugin.renameConversation).not.toHaveBeenCalled();
-    });
-
     it('should delete conversation and reload active when deleting current conversation', async () => {
       deps.state.currentConversationId = 'conv-1';
 

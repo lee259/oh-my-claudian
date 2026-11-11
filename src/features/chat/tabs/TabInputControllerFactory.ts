@@ -80,7 +80,7 @@ export function createTabInputController(
     onDiagnosticError: options.onDiagnosticError,
     onFollowUpStateChanged: options.onFollowUpStateChanged,
     preflightExecution: async () => {
-      if (tab.session.ensureNativeHistoryCurrent && !await tab.session.ensureNativeHistoryCurrent(plugin)) {
+      if (tab.session.ensureNativeHistoryCurrent && !await tab.session.ensureNativeHistoryCurrent(plugin, { preflight: true })) {
         return new Error('Conversation history changed or could not be reloaded. Try again after current work finishes.');
       }
       const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId, { includeLatestVersion: false });

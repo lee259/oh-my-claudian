@@ -213,8 +213,10 @@ function appendHighlightedHistoryTitle(
 export class ConversationController {
   private activeInlineRename: {
     cancel: () => void;
+    conversationId: string;
     input: HTMLInputElement;
   } | null = null;
+  private movingInlineRename = false;
   private deps: ConversationControllerDeps;
   private callbacks: ConversationCallbacks;
   private branchPreview: { conversationId: string; message: ChatMessage; draft: { content: string; images?: ChatMessage['images'] }; scrollTop: number } | null = null;
@@ -1273,12 +1275,11 @@ export class ConversationController {
   ): void {
     const { plugin } = this.deps;
     if (options.signal?.aborted) return;
-    if (
-      this.activeInlineRename
-      && container.contains(this.activeInlineRename.input)
-    ) {
-      this.activeInlineRename = null;
-    }
+    const rename = this.activeInlineRename && container.contains(this.activeInlineRename.input)
+      ? this.activeInlineRename : null;
+    const focused = rename?.input.ownerDocument.activeElement === rename?.input;
+    const selection = rename ? [rename.input.selectionStart, rename.input.selectionEnd, rename.input.selectionDirection] as const : null;
+    if (rename) this.movingInlineRename = true;
 
     const viewportSnapshot = this.historyViewport.capture(
       container,
@@ -1318,6 +1319,7 @@ export class ConversationController {
           : t('chat.history.noConversations'),
       });
       this.historyViewport.commit(container, renderRoot);
+      if (rename) { this.activeInlineRename = null; this.movingInlineRename = false; }
       options.onBeforeRestoreListState?.(container);
       this.historyViewport.restore(list, viewportSnapshot);
       return;
@@ -1353,6 +1355,20 @@ export class ConversationController {
     }
 
     this.historyViewport.commit(container, renderRoot);
+    if (rename) {
+      const item = Array.from(container.querySelectorAll<HTMLElement>('.claudian-history-item'))
+        .find(candidate => candidate.getAttribute('data-conversation-id') === rename.conversationId);
+      const title = item?.querySelector('.claudian-history-item-title');
+      if (title) title.replaceWith(rename.input);
+      if (!item || !item.contains(rename.input)) this.activeInlineRename = null;
+      this.movingInlineRename = false;
+      if (focused && rename.input.isConnected && selection) {
+        rename.input.focus();
+        if (selection[0] !== null && selection[1] !== null) {
+          rename.input.setSelectionRange(selection[0], selection[1], selection[2] ?? undefined);
+        }
+      }
+    }
     options.onBeforeRestoreListState?.(container);
     this.historyViewport.restore(list, viewportSnapshot);
   }
@@ -1867,7 +1883,7 @@ export class ConversationController {
       clearOwnership();
       if (input.isConnected) options.onRerender();
     };
-    this.activeInlineRename = { cancel: cancelRename, input };
+    this.activeInlineRename = { cancel: cancelRename, conversationId: convId, input };
     const finishRename = async () => {
       if (isFinishing || !ownsInput()) return;
       isFinishing = true;
@@ -1895,8 +1911,10 @@ export class ConversationController {
     };
 
     input.addEventListener('blur', () => {
+      if (this.movingInlineRename) return;
       runConversationAction(finishRename, 'Failed to rename conversation');
     });
+    input.addEventListener('click', (event) => event.stopPropagation());
     input.addEventListener('keydown', (e) => {
       // Check !e.isComposing for IME support (Chinese, Japanese, Korean, etc.)
       if (e.key === 'Enter' && !e.isComposing) {
