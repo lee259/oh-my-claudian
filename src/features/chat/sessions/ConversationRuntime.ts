@@ -63,6 +63,7 @@ export class ConversationRuntime {
   private backgroundWorkPauseDepth = 0;
   private coordinator: ChatExecutionCoordinator | null = null;
   private nativeHistoryGuard: { conversationId: string; guard: NativeHistoryGuard } | null = null;
+  private nativeHistoryPreflightCount = 0;
 
   constructor(
     private readonly binding: ConversationRuntimeBinding,
@@ -130,7 +131,10 @@ export class ConversationRuntime {
     return pending;
   }
 
-  async ensureNativeHistoryCurrent(host: Pick<FeatureHost, 'readNativeHistoryRevision' | 'reloadNativeHistory'>): Promise<boolean> {
+  async ensureNativeHistoryCurrent(
+    host: Pick<FeatureHost, 'readNativeHistoryRevision' | 'reloadNativeHistory'>,
+    options?: { preflight?: boolean },
+  ): Promise<boolean> {
     const id = this.conversationId;
     if (!id || this.hydrationState !== 'ready') return true;
     if (this.state.isStreaming || this.state.requiresAction) return true;
@@ -144,13 +148,20 @@ export class ConversationRuntime {
             || this.state.requiresAction || this.state.hasPendingConversationSave || this.hasBackgroundWork) return false;
           const before = JSON.stringify(this.state.messages);
           const coordinator = this.coordinator;
+          const turn = this.nativeHistoryPreflightCount > 0 ? this.activeTurn : null;
           if (coordinator && coordinator.state !== 'absent') {
-            if (!coordinator.canCool()) return false;
-            await coordinator.cool();
+            if (turn && this.activeTurn === turn) {
+              await coordinator.coolForHistoryRefresh(turn);
+            } else {
+              if (!coordinator.canCool()) return false;
+              await coordinator.cool();
+            }
           }
-          if (this.conversationId !== id || this.state.isStreaming || JSON.stringify(this.state.messages) !== before) return false;
+          if (this.conversationId !== id || this.state.isStreaming || (turn && this.activeTurn !== turn)
+            || JSON.stringify(this.state.messages) !== before) return false;
           const conversation = await host.reloadNativeHistory(id);
           if (!conversation || this.conversationId !== id || this.state.isStreaming
+            || (turn && this.activeTurn !== turn)
             || JSON.stringify(this.state.messages) !== before) return false;
           this.state.messages = structuredClone(conversation.messages);
           this.state.toolCallElements.clear();
@@ -168,7 +179,12 @@ export class ConversationRuntime {
       );
       this.nativeHistoryGuard = { conversationId: id, guard };
     }
-    return this.nativeHistoryGuard.guard.check();
+    if (options?.preflight) this.nativeHistoryPreflightCount++;
+    try {
+      return await this.nativeHistoryGuard.guard.check();
+    } finally {
+      if (options?.preflight) this.nativeHistoryPreflightCount--;
+    }
   }
 
   get isRunning(): boolean {
