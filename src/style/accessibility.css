@@ -8,6 +8,7 @@
 .claudian-subagent-section-header:focus-visible,
 .claudian-subagent-tool-header:focus-visible,
 .claudian-input-nav-btn:focus-visible,
+.claudian-history-item-title[role="button"]:focus-visible,
 .claudian-model-btn:focus-visible,
 .claudian-thinking-current:focus-visible {
   outline: 2px solid var(--interactive-accent);

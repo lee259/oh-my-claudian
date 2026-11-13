@@ -147,7 +147,7 @@ export type HistoryConversationStatus = {
 };
 
   type HistoryRenderOptions = {
-  onSelectConversation: (id: string) => Promise<void>;
+  onSelectConversation: (id: string, options?: { source: 'keyboard' }) => Promise<void>;
   getConversationOpenState?: (id: string) => HistoryConversationOpenState;
   getConversationStatus?: (id: string) => HistoryConversationStatus;
   onRerender: () => void;
@@ -169,6 +169,7 @@ export type HistoryConversationStatus = {
   onSetConversationPinned?: (id: string, isPinned: boolean) => Promise<void>;
   onSetConversationArchived?: (id: string, isArchived: boolean) => Promise<void>;
   onBeforeRestoreListState?: (container: HTMLElement) => void;
+  getFocusFallback?: () => HTMLElement | null;
   onRequestInlineRename?: (request: {
     beginRename: (item: HTMLElement) => void;
     conversationId: string;
@@ -1275,6 +1276,21 @@ export class ConversationController {
   ): void {
     const { plugin } = this.deps;
     if (options.signal?.aborted) return;
+    const activeElement = container.ownerDocument?.activeElement;
+    const focusedConversationId = activeElement?.matches?.('.claudian-history-item-title[role="button"]')
+      && container.contains(activeElement)
+      ? activeElement.closest('.claudian-history-item')?.getAttribute('data-conversation-id')
+      : null;
+    const restoreResultFocus = (): void => {
+      if (!focusedConversationId || options.signal?.aborted
+        || container.ownerDocument.activeElement !== container.ownerDocument.body) return;
+      const item = Array.from(container.querySelectorAll<HTMLElement>('.claudian-history-item'))
+        .find(candidate => candidate.getAttribute('data-conversation-id') === focusedConversationId);
+      const target = item?.querySelector<HTMLElement>('.claudian-history-item-title[role="button"]')
+        ?? item?.querySelector<HTMLElement>('button:not(:disabled)')
+        ?? options.getFocusFallback?.();
+      if (target?.isConnected) target.focus({ preventScroll: true });
+    };
     const rename = this.activeInlineRename && container.contains(this.activeInlineRename.input)
       ? this.activeInlineRename : null;
     const focused = rename?.input.ownerDocument.activeElement === rename?.input;
@@ -1322,6 +1338,7 @@ export class ConversationController {
       if (rename) { this.activeInlineRename = null; this.movingInlineRename = false; }
       options.onBeforeRestoreListState?.(container);
       this.historyViewport.restore(list, viewportSnapshot);
+      restoreResultFocus();
       return;
     }
 
@@ -1341,16 +1358,29 @@ export class ConversationController {
       loadMoreButton.addEventListener('click', (event) => {
         event.stopPropagation();
         if (options.signal?.aborted) return;
+        const restoreFocus = container.ownerDocument.activeElement === loadMoreButton;
         const nextVisibleCount = visibleCount + pageSize;
         if (options.preserveListState) {
           this.historyViewport.setVisibleCount(list, nextVisibleCount);
           options.onRerender();
-          return;
+        } else {
+          this.renderHistoryItems(container, {
+            ...options,
+            visibleCount: nextVisibleCount,
+          });
         }
-        this.renderHistoryItems(container, {
-          ...options,
-          visibleCount: nextVisibleCount,
-        });
+        if (restoreFocus && container.ownerDocument.activeElement === container.ownerDocument.body) {
+          const newItems = Array.from(container.querySelectorAll<HTMLElement>('.claudian-history-item'))
+            .slice(visibleConversations.length);
+          const firstSelectable = newItems
+            .map(item => item.querySelector<HTMLElement>('.claudian-history-item-title[role="button"]'))
+            .find(Boolean);
+          const firstAction = newItems
+            .map(item => item.querySelector<HTMLElement>('button:not(:disabled)'))
+            .find(Boolean);
+          (firstSelectable ?? container.querySelector<HTMLElement>('.claudian-history-load-more')
+            ?? firstAction)?.focus();
+        }
       });
     }
 
@@ -1371,6 +1401,7 @@ export class ConversationController {
     }
     options.onBeforeRestoreListState?.(container);
     this.historyViewport.restore(list, viewportSnapshot);
+    restoreResultFocus();
   }
 
   private renderHistoryConversationItem(
@@ -1482,10 +1513,12 @@ export class ConversationController {
     });
 
     if (isSelectable) {
-      const selectConversation = (): void => {
+      titleEl.setAttribute('role', 'button');
+      titleEl.setAttribute('tabindex', '0');
+      const selectConversation = (source?: 'keyboard'): void => {
         runConversationAction(
           () => this.runHistoryAction(
-            () => options.onSelectConversation(conversation.id),
+            () => source ? options.onSelectConversation(conversation.id, { source }) : options.onSelectConversation(conversation.id),
             t('chat.status.loadFailed'),
           ),
           t('chat.status.loadFailed'),
@@ -1494,6 +1527,12 @@ export class ConversationController {
       content.addEventListener('click', (event) => {
         event.stopPropagation();
         selectConversation();
+      });
+      titleEl.addEventListener('keydown', (event) => {
+        if (event.target !== titleEl || event.isComposing || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectConversation('keyboard');
       });
     }
 

@@ -804,6 +804,7 @@ export class ClaudianView extends ItemView {
     this.historySearchRoot = createPreactRoot(searchHost);
     this.historySearchRoot.render(h(HistorySearchView, {
       initialQuery: this.historySearchQuery,
+      focusReturnEl: this.historyDropdown.ownerDocument.activeElement as HTMLElement | null,
       onQueryChange: (query) => {
         this.historySearchQuery = query;
         this.historyDropdownDirty = true;
@@ -842,10 +843,11 @@ export class ClaudianView extends ItemView {
 
     if (isSearching) {
       conversationController.renderHistoryDropdown(container, {
-        onSelectConversation: (id) => this.openHistoryConversation(id),
+        onSelectConversation: (id, options) => this.openHistoryConversation(id, options),
         getConversationStatus: (id) => this.getHistoryConversationStatus(id),
         onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
         onRerender: () => this.updateHistoryDropdown(),
+        getFocusFallback: () => this.historyDropdown?.querySelector<HTMLElement>('.claudian-home-history-search-input') ?? null,
         showOpenStateLabels: overrides.showOpenStateLabels ?? false,
         showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
         showHistoryHeader: false,
@@ -883,10 +885,11 @@ export class ClaudianView extends ItemView {
     }
 
     conversationController.renderHistoryDropdown(container, {
-      onSelectConversation: (id) => this.openHistoryConversation(id),
+      onSelectConversation: (id, options) => this.openHistoryConversation(id, options),
       getConversationStatus: (id) => this.getHistoryConversationStatus(id),
       onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
       onRerender: () => this.updateHistoryDropdown(),
+      getFocusFallback: () => this.historyDropdown?.querySelector<HTMLElement>('.claudian-home-history-search-input') ?? null,
       showOpenStateLabels: overrides.showOpenStateLabels ?? false,
       showOpenStateIndicators: overrides.showOpenStateIndicators ?? false,
       showHistoryHeader: false,
@@ -921,7 +924,7 @@ export class ClaudianView extends ItemView {
       onBeforeRestoreListState: (target: HTMLElement) => this.buildHistoryArchiveSection(
         target,
         (archiveSection) => conversationController.renderHistoryDropdown(archiveSection, {
-          onSelectConversation: (id) => this.openHistoryConversation(id),
+          onSelectConversation: (id, options) => this.openHistoryConversation(id, options),
           getConversationStatus: (id) => this.getHistoryConversationStatus(id),
           onStopConversation: (id) => this.plugin.conversationRuntimes.stop(id),
           onRerender: () => {
@@ -1071,14 +1074,24 @@ export class ClaudianView extends ItemView {
     return openTabs;
   }
 
-  private async openHistoryConversation(conversationId: string): Promise<void> {
+  private async openHistoryConversation(
+    conversationId: string,
+    options?: { source: 'keyboard' },
+  ): Promise<void> {
     const activeTab = this.tabManager?.getActiveTab();
     const openOptions = activeTab?.state.isStreaming
       ? { preferNewTab: true }
       : undefined;
+    const doc = options?.source === 'keyboard' ? this.historyDropdown?.ownerDocument : undefined;
+    const previousFocus = doc?.activeElement;
     await this.tabManager?.openConversation(conversationId, openOptions);
+    const canRestoreFocus = !!doc && !!previousFocus && doc.hasFocus()
+      && (doc.activeElement === previousFocus
+        || (!previousFocus.isConnected && doc.activeElement === doc.body));
     this.historyDropdown?.removeClass('visible');
     this.cancelHistoryRendering();
+    const selectedTab = this.tabManager?.getActiveTab();
+    if (canRestoreFocus && selectedTab?.conversationId === conversationId) selectedTab.dom.inputEl.focus();
   }
 
   private cancelHistoryRendering(): void {
