@@ -286,6 +286,17 @@ function diffOpsEqual(left: DiffOp[], right: DiffOp[]): boolean {
   });
 }
 
+/** The edit mode, not the wrapper the model chose, decides how a proposal is applied. */
+export function resolveInlineEditProposal(
+  mode: InlineEditMode,
+  editedText?: string,
+  insertedText?: string,
+): { kind: 'replacement' | 'insertion'; text: string } | null {
+  const text = editedText ?? insertedText;
+  if (text === undefined) return null;
+  return mode === 'cursor' ? { kind: 'insertion', text } : { kind: 'replacement', text };
+}
+
 export type InlineEditDecision = 'accept' | 'edit' | 'reject';
 
 interface InlineEditSourceSnapshot {
@@ -766,12 +777,15 @@ export class InlineEditSession {
     }
 
     if (result.success) {
-      if (result.editedText !== undefined) {
-        this.editedText = result.editedText;
-        this.showDiffInPlace();
-      } else if (result.insertedText !== undefined) {
-        this.insertedText = result.insertedText;
-        this.showInsertionInPlace();
+      const proposal = resolveInlineEditProposal(this.mode, result.editedText, result.insertedText);
+      if (proposal) {
+        if (proposal.kind === 'insertion') {
+          this.insertedText = proposal.text;
+          this.showInsertionInPlace();
+        } else {
+          this.editedText = proposal.text;
+          this.showDiffInPlace();
+        }
       } else if (result.clarification) {
         this.showAgentReply(result.clarification);
         this.isConversing = true;
