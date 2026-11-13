@@ -831,7 +831,7 @@ export class DeepSeekExecutionSession implements ProviderExecutionSession {
     const nativeRequest = value.request as Record<string, unknown>;
     const questionInput = { ...nativeRequest,
       questions: Array.isArray(nativeRequest.questions) ? nativeRequest.questions.filter(isRecord).map(question => ({
-        ...question, ...(!Array.isArray(question.options) || !question.options.length ? { isOther: true } : {}),
+        ...question, isOther: true,
       })) : [],
     };
     const reason = localizedReason(nativeRequest, this.host.settings.locale);

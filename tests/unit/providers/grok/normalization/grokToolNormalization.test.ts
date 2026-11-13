@@ -225,4 +225,22 @@ describe('grokToolNormalization', () => {
       'How should we continue?': jsonAnswer,
     });
   });
+
+  it('keeps structured picked and typed answers', () => {
+    const input = { questions: [{ question: 'Which?', options: [{ label: 'A' }] }] };
+    const rawOutput = { UserAnswered: { answers: [{
+      question: 'Which?', picked: ['A'], typed: 'Custom text', multiSelect: false,
+    }] } };
+
+    expect(normalizeGrokToolUseResult('ask_user_question', input, rawOutput, input).answers)
+      .toEqual({ 'Which?': 'A, Custom text' });
+  });
+
+  it('reads typed Other notes from the accepted-answer message', () => {
+    const input = { questions: [{ question: 'Which?', options: [{ label: 'A' }] }] };
+    const message = 'User has answered your questions: "Which?"="Other" user notes: custom answer. You can now continue with the user\'s answers in mind.';
+
+    expect(normalizeGrokToolUseResult('ask_user_question', input, { UserAnswered: { message } }, input).answers)
+      .toEqual({ 'Which?': 'custom answer' });
+  });
 });
