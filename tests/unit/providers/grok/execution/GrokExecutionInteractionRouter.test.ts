@@ -86,3 +86,15 @@ it('dismisses a pending question when its requesting turn aborts', async () => {
   await expect(reply).resolves.toEqual({ outcome: 'cancelled' });
   expect(dismissInteraction).toHaveBeenCalledWith(expect.stringContaining(':question:'), 'cancelled');
 });
+
+it('reports typed answers as Other with notes', async () => {
+  const router = new GrokExecutionInteractionRouter({
+    askUserQuestion: async (request: { interactionId: string }) => ({ interactionId: request.interactionId, answers: { 'Which area?': 'Custom note' } }),
+    dismissInteraction: jest.fn(), requestApproval: jest.fn(), requestPlanDecision: jest.fn(),
+  } as never, 'instance', () => 'turn', () => 'native');
+  const reply = await router.handle('x.ai/ask_user_question', {
+    sessionId: 'native', toolCallId: 'question', mode: 'default',
+    questions: [{ question: 'Which area?', multiSelect: false, options: [{ label: 'Source', description: '' }] }],
+  });
+  expect(reply).toEqual({ annotations: { 'Which area?': { notes: 'Custom note' } }, answers: { 'Which area?': ['Other'] }, outcome: 'accepted' });
+});
