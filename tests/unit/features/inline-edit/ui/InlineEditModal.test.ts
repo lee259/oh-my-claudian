@@ -3,7 +3,7 @@ import '@/providers';
 import { Text } from '@codemirror/state';
 import { WidgetType } from '@codemirror/view';
 
-import { buildInlineEditInputDecorations } from '@/features/inline-edit/ui/InlineEditModal';
+import { buildInlineEditInputDecorations, resolveInlineEditProposal } from '@/features/inline-edit/ui/InlineEditModal';
 import { normalizeInsertionText } from '@/utils/inlineEdit';
 import { normalizePathForVault } from '@/utils/path';
 
@@ -477,5 +477,21 @@ describe('normalizePathForVault edge cases', () => {
     const filePath = '/home/user/vault/notes/file.md';
     const result = normalizePathForVault(filePath, vaultPath);
     expect(result).toBe('notes/file.md');
+  });
+});
+
+describe('resolveInlineEditProposal', () => {
+  it('applies a selection reply as a replacement even when wrapped as an insertion', () => {
+    expect(resolveInlineEditProposal('selection', undefined, 'New text'))
+      .toEqual({ kind: 'replacement', text: 'New text' });
+  });
+
+  it('applies a cursor reply as an insertion even when wrapped as an edit', () => {
+    expect(resolveInlineEditProposal('cursor', 'Inserted', undefined))
+      .toEqual({ kind: 'insertion', text: 'Inserted' });
+  });
+
+  it('returns null when the reply carries no proposal', () => {
+    expect(resolveInlineEditProposal('selection', undefined, undefined)).toBeNull();
   });
 });
