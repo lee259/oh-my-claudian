@@ -93,12 +93,13 @@ export class NavigationSidebar {
     // Button clicks
     this.topBtn.addEventListener('click', () => {
       this.onScrollIntent?.('away');
-      this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
+      this.revealAllMessages?.();
+      this.scrollToPosition(0);
     });
 
     this.bottomBtn.addEventListener('click', () => {
       this.onScrollIntent?.('bottom');
-      this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
+      this.scrollToPosition(this.messagesEl.scrollHeight);
     });
 
     this.prevBtn.addEventListener('click', () => {
@@ -288,10 +289,13 @@ export class NavigationSidebar {
   }
 
   private scrollToElement(el: HTMLElement): void {
-    this.messagesEl.scrollTo({
-      top: Math.max(el.offsetTop - 10, 0),
-      behavior: 'smooth',
-    });
+    this.scrollToPosition(Math.max(el.offsetTop - 10, 0));
+  }
+
+  private scrollToPosition(top: number): void {
+    const viewportHeight = this.messagesEl.clientHeight;
+    const distant = viewportHeight > 0 && Math.abs(top - this.messagesEl.scrollTop) > viewportHeight * 3;
+    this.messagesEl.scrollTo({ top, behavior: distant ? 'instant' : 'smooth' });
   }
 
   /**
@@ -320,7 +324,7 @@ export class NavigationSidebar {
         return 'away';
       }
       // Already at or above the first message — scroll to top
-      this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
+      this.scrollToPosition(0);
       return 'away';
     } else {
       // Find the first message strictly below the current scroll position
@@ -331,7 +335,7 @@ export class NavigationSidebar {
         }
       }
       // Already at or past the last message — scroll to bottom
-      this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
+      this.scrollToPosition(this.messagesEl.scrollHeight);
       return 'bottom';
     }
   }

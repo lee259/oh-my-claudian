@@ -5167,18 +5167,26 @@ describe('MessageRenderer', () => {
 
       try {
         renderer.renderMessages(createWindowMessages(120), () => 'Hello');
-        renderer.addMessage({
+        const existingMessage = messagesEl.querySelector('[data-message-id="window-80"]');
+        const liveMessage = renderer.addMessage({
           id: 'live-message',
           role: 'assistant',
           content: 'live reply',
           timestamp: 120,
           contentBlocks: [{ type: 'text', content: 'live reply' }],
         } as ChatMessage);
+        const liveContent = liveMessage.querySelector('.claudian-message-content')!;
 
         renderer.revealAllMessages();
+        liveContent.append(' continued reply');
 
-        expect(messagesEl.querySelector('[data-message-id="live-message"]')).toBeTruthy();
-        expect(messagesEl.querySelectorAll('.claudian-message')).toHaveLength(121);
+        expect(messagesEl.querySelector('[data-message-id="live-message"]')).toBe(liveMessage);
+        expect(messagesEl.querySelector('[data-message-id="window-80"]')).toBe(existingMessage);
+        expect(messagesEl.textContent).toContain('continued reply');
+        const rendered = messagesEl.querySelectorAll<HTMLElement>('.claudian-message');
+        expect(rendered).toHaveLength(121);
+        expect(rendered[0].dataset.messageId).toBe('window-0');
+        expect(rendered[120].dataset.messageId).toBe('live-message');
       } finally {
         messagesEl.remove();
       }
