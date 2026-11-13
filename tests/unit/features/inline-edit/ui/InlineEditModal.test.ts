@@ -3,7 +3,7 @@ import '@/providers';
 import { Text } from '@codemirror/state';
 import { WidgetType } from '@codemirror/view';
 
-import { buildInlineEditInputDecorations, resolveInlineEditProposal } from '@/features/inline-edit/ui/InlineEditModal';
+import { buildInlineEditInputDecorations, InlineEditSession, resolveInlineEditProposal } from '@/features/inline-edit/ui/InlineEditModal';
 import { normalizeInsertionText } from '@/utils/inlineEdit';
 import { normalizePathForVault } from '@/utils/path';
 
@@ -493,5 +493,29 @@ describe('resolveInlineEditProposal', () => {
 
   it('returns null when the reply carries no proposal', () => {
     expect(resolveInlineEditProposal('selection', undefined, undefined)).toBeNull();
+  });
+});
+
+describe('InlineEditSession dropdown Escape', () => {
+  it('stops a consumed Escape from reaching the session document handler', () => {
+    const session = Object.create(InlineEditSession.prototype) as {
+      mentionDropdown: { handleKeydown: (event: unknown) => boolean } | null;
+      slashCommandDropdown: null;
+      handleKeydown: (event: unknown) => void;
+    };
+    session.mentionDropdown = { handleKeydown: () => true };
+    session.slashCommandDropdown = null;
+    const stopPropagation = jest.fn();
+    const preventDefault = jest.fn();
+
+    session.handleKeydown({
+      key: 'Escape',
+      stopPropagation,
+      preventDefault,
+      defaultPrevented: false,
+    });
+
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });

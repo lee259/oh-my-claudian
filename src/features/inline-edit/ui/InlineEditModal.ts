@@ -1055,10 +1055,13 @@ export class InlineEditSession {
 
   private handleKeydown(e: KeyboardEvent) {
     if (this.mentionDropdown?.handleKeydown(e)) {
+      // An Escape that closed the mention menu ends there instead of also rejecting the edit.
+      if (e.key === 'Escape') e.stopPropagation();
       return;
     }
 
     if (this.slashCommandDropdown?.handleKeydown(e)) {
+      if (e.key === 'Escape') e.stopPropagation();
       return;
     }
 
