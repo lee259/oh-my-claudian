@@ -584,16 +584,28 @@ export class MessageRenderer {
       return this.messagesEl.querySelector<HTMLElement>('.claudian-message');
     }
 
-    const previousHeight = this.messagesEl.scrollHeight;
-    const previousTop = this.messagesEl.scrollTop;
-    this.clearRenderedMessages();
+    const mainMessagesEl = this.messagesEl;
+    const previousHeight = mainMessagesEl.scrollHeight;
+    const previousTop = mainMessagesEl.scrollTop;
+    const earlierMessages = mainMessagesEl.createDiv();
+    earlierMessages.remove();
+    const moreButton = mainMessagesEl.querySelector<HTMLElement>('.claudian-render-window-more');
+    this.messagesEl = earlierMessages;
+    try {
+      this.renderMessageWindow(this.transcriptMessages, 0, this.windowStart);
+    } finally {
+      this.messagesEl = mainMessagesEl;
+    }
+    while (earlierMessages.firstChild) {
+      mainMessagesEl.insertBefore(earlierMessages.firstChild, moreButton);
+    }
+    moreButton?.remove();
     this.windowStart = 0;
-    this.renderMessageWindow(this.transcriptMessages, 0);
-    this.messagesEl.scrollTop = Math.max(
+    mainMessagesEl.scrollTop = Math.max(
       0,
-      this.messagesEl.scrollHeight - previousHeight + previousTop,
+      mainMessagesEl.scrollHeight - previousHeight + previousTop,
     );
-    return this.messagesEl.querySelector<HTMLElement>('.claudian-message');
+    return mainMessagesEl.querySelector<HTMLElement>('.claudian-message');
   }
 
   /** Finds a stored message, revealing the transcript window when the target is older. */
@@ -622,7 +634,7 @@ export class MessageRenderer {
     this.transcriptMessages = next;
   }
 
-  private renderMessageWindow(messages: ChatMessage[], start: number): void {
+  private renderMessageWindow(messages: ChatMessage[], start: number, end = messages.length): void {
     if (start > 0) {
       const moreButton = this.messagesEl.createEl('button', {
         cls: 'claudian-render-window-more',
@@ -634,9 +646,9 @@ export class MessageRenderer {
       });
     }
 
-    const renderedMessages = messages.slice(start);
+    const renderedMessages = messages.slice(start, end);
     const transcriptIdentities = this.getTranscriptIdentities(renderedMessages);
-    for (let index = start; index < messages.length; index += 1) {
+    for (let index = start; index < end; index += 1) {
       this.renderStoredMessage(messages[index], messages, index, {
         collapseCompletedWork: false,
         deferCompletedWork: true,
@@ -648,19 +660,6 @@ export class MessageRenderer {
       const turnEl = turnElements.get(turn.id);
       if (turnEl) this.finalizeRenderedTranscriptTurn(turn, turnEl);
     }
-  }
-
-  private clearRenderedMessages(): void {
-    this.releaseContentRenders();
-    for (const selector of [
-      '.claudian-render-window-more',
-      '.claudian-message',
-      '.claudian-transcript-turn',
-    ]) {
-      this.messagesEl.querySelectorAll<HTMLElement>(selector)
-        .forEach(element => element.remove());
-    }
-    this.liveMessageEls.clear();
   }
 
   /**

@@ -415,6 +415,30 @@ describe('NavigationSidebar', () => {
       expect(onScrollIntent).toHaveBeenCalledWith('away');
     });
 
+    it('reveals earlier history before scrolling to the top', () => {
+      messagesEl.scrollHeight = 100_000;
+      messagesEl.clientHeight = 500;
+      messagesEl.scrollTop = 80_000;
+      const revealAllMessages = jest.fn(() => {
+        messagesEl.createDiv({ cls: 'claudian-message-user' });
+        return null;
+      });
+      const onScrollIntent = jest.fn();
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement,
+        onScrollIntent,
+        undefined,
+        revealAllMessages,
+      );
+
+      parentEl.querySelector('.claudian-nav-sidebar')!.children[0].click();
+
+      expect(revealAllMessages).toHaveBeenCalledTimes(1);
+      expect(onScrollIntent).toHaveBeenCalledWith('away');
+      expect(messagesEl.scrollToCalls.at(-1)).toEqual({ top: 0, behavior: 'instant' });
+    });
+
     it('should scroll to top when clicked', () => {
       messagesEl.scrollHeight = 1000;
       messagesEl.clientHeight = 500;
@@ -468,6 +492,27 @@ describe('NavigationSidebar', () => {
       expect(messagesEl.scrollToCalls[0].top).toBe(1000);
       expect(messagesEl.scrollToCalls[0].behavior).toBe('smooth');
     });
+  });
+
+  it.each([
+    ['top', 80_000, 0, 'away'],
+    ['bottom', 0, 100_000, 'bottom'],
+  ] as const)('navigates a long distance to the %s without animation', (direction, current, target, intent) => {
+    messagesEl.scrollHeight = 100_000;
+    messagesEl.clientHeight = 500;
+    messagesEl.scrollTop = current;
+    const onScrollIntent = jest.fn();
+    sidebar = new NavigationSidebar(
+      parentEl as unknown as HTMLElement,
+      messagesEl as unknown as HTMLElement,
+      onScrollIntent,
+    );
+
+    const container = parentEl.querySelector('.claudian-nav-sidebar')!;
+    container.children[direction === 'top' ? 0 : 4].click();
+
+    expect(onScrollIntent).toHaveBeenCalledWith(intent);
+    expect(messagesEl.scrollToCalls.at(-1)).toEqual({ top: target, behavior: 'instant' });
   });
 
   describe('previous/next message navigation', () => {
@@ -773,6 +818,24 @@ describe('NavigationSidebar', () => {
       expect(lastCall.top).toBe(390);
       expect(lastCall.behavior).toBe('smooth');
       expect(parentEl.querySelector('.claudian-nav-toc-popover')).toBeNull();
+    });
+
+    it('navigates to a distant directory entry without a long scroll animation', () => {
+      messagesEl.scrollHeight = 100_000;
+      messagesEl.clientHeight = 500;
+      messagesEl.scrollTop = 80_000;
+      addMessage(messagesEl, 'user', 100, 'Earlier prompt');
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement,
+      );
+      getDirectoryButton(parentEl).click();
+      parentEl.querySelectorAll('.claudian-nav-toc-item')[0].click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      expect(lastCall.top).toBe(90);
+      expect(lastCall.behavior).toBe('instant');
     });
 
     it('should close the directory when the directory button is clicked again', () => {
