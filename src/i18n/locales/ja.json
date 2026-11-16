@@ -675,6 +675,7 @@
     },
     "antigravity": {
       "enableDesc": "ローカルの Antigravity CLI に接続します。agy の認証とセッションを使用します。",
+      "modelsDesc": "Antigravity ACP が提供するベースモデルを表示します。思考レベルはチャットで別途選択します。",
       "cliPathDesc": "Antigravity CLI（agy）の絶対パス（任意）。空欄の場合は既知のインストール先、次に PATH を検索します。",
       "environment": {
         "name": "Antigravity 環境変数",

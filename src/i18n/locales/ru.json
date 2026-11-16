@@ -675,6 +675,7 @@
     },
     "antigravity": {
       "enableDesc": "Connect to the local Antigravity CLI. Uses native agy authentication and sessions.",
+      "modelsDesc": "Antigravity ACP exposes base models here; choose the thinking level separately in chat.",
       "cliPathDesc": "Optional absolute path to the Antigravity CLI (agy). Leave empty to prefer known installs, then PATH.",
       "environment": {
         "name": "Antigravity environment variables",

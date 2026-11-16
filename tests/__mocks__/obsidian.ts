@@ -195,6 +195,7 @@ export class Setting {
   constructor(containerEl: any) {}
   setName = jest.fn().mockReturnThis();
   setDesc = jest.fn().mockReturnThis();
+  setHeading = jest.fn().mockReturnThis();
   addToggle = jest.fn().mockReturnThis();
   addTextArea = jest.fn().mockReturnThis();
   addButton = jest.fn().mockReturnThis();
