@@ -1,6 +1,6 @@
 /* Type scale: one design pixel at Obsidian's default 16px note text, so chat surfaces follow the note font size. */
 body {
-  --claudian-font-px: calc(var(--font-text-size) / 16);
+  --claudian-font-px: calc(var(--font-text-size) / 16 * var(--claudian-chat-font-scale, 1));
 }
 
 /* Brand & semantic color tokens */

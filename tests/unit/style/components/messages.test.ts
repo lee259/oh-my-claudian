@@ -239,7 +239,7 @@ describe('Chat type scale', () => {
     const variables = readFileSync(path.resolve('src/style/base/variables.css'), 'utf8');
     const thinking = readFileSync(path.resolve('src/style/components/thinking.css'), 'utf8');
 
-    expect(variables).toContain('--claudian-font-px: calc(var(--font-text-size) / 16)');
+    expect(variables).toContain('--claudian-font-px: calc(var(--font-text-size) / 16 * var(--claudian-chat-font-scale, 1))');
     expect(messages).toMatch(/\.claudian-message-content\s*\{[^}]*font-size:\s*var\(--font-text-size\)/);
     expect(thinking).toContain('calc(12 * var(--claudian-font-px))');
   });

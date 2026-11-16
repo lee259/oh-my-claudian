@@ -1616,6 +1616,10 @@
       "previewContent": "Kopierten Inhalt anzeigen",
       "failedWithReason": "Import fehlgeschlagen: {message}",
       "blockedCount": "{count} Einträge benötigen Aufmerksamkeit"
+    },
+    "chatFontScale": {
+      "name": "Chat-Textgröße",
+      "desc": "Skaliert den Chat-Text relativ zur Notizschriftgröße."
     }
   },
   "inlineEdit": {

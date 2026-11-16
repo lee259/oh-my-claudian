@@ -758,6 +758,19 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     // --- Conversations ---
 
+    this.mountGeneralControl(display.createDiv(), h(SettingsSliderView, {
+      saveLabels: this.getSettingsSaveLabels(),
+      name: t('settings.chatFontScale.name'),
+      description: t('settings.chatFontScale.desc'),
+      min: 80,
+      max: 120,
+      step: 5,
+      value: this.plugin.settings.chatFontScale ?? 100,
+      onChange: async (value) => {
+        await this.plugin.mutateSettings(settings => { settings.chatFontScale = value; });
+      },
+    }));
+
     const conversations = section('conversations');
     this.mountGeneralControl(conversations, h(SettingsToggleListView, {
       saveLabels: this.getSettingsSaveLabels(),

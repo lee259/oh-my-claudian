@@ -179,6 +179,8 @@ export interface ClaudianSettings {
   providerDiagnosticLogDirectory: string;
   enableAutoScroll: boolean;
   showTabTitlesByDefault: boolean;
+  /** Chat text size as a percentage of the note font size. */
+  chatFontScale?: number;
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;

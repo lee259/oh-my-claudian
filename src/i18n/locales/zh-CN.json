@@ -1616,6 +1616,10 @@
       "previewContent": "预览复制后的内容",
       "failedWithReason": "导入失败：{message}",
       "blockedCount": "{count} 个条目需要处理"
+    },
+    "chatFontScale": {
+      "name": "聊天文字大小",
+      "desc": "相对于笔记字号缩放聊天文字。"
     }
   },
   "inlineEdit": {

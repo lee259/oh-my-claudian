@@ -1616,6 +1616,10 @@
       "previewContent": "コピーされる内容をプレビュー",
       "failedWithReason": "インポートに失敗しました: {message}",
       "blockedCount": "{count} 件の項目に対応が必要です"
+    },
+    "chatFontScale": {
+      "name": "チャットの文字サイズ",
+      "desc": "ノートの文字サイズに対するチャット文字の倍率です。"
     }
   },
   "inlineEdit": {

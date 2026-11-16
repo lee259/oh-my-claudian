@@ -1616,6 +1616,10 @@
       "previewContent": "복사할 내용 미리보기",
       "failedWithReason": "가져오기 실패: {message}",
       "blockedCount": "{count}개 항목을 확인해야 합니다"
+    },
+    "chatFontScale": {
+      "name": "채팅 글자 크기",
+      "desc": "노트 글자 크기에 대한 채팅 글자 배율입니다."
     }
   },
   "inlineEdit": {
