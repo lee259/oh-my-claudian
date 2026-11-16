@@ -41,7 +41,7 @@ import type {
   ToolCallInfo,
 } from '../../../core/types';
 import { createTurnStats } from '../../../core/types';
-import { t } from '../../../i18n/i18n';
+import { getLocale, t } from '../../../i18n/i18n';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -2089,7 +2089,7 @@ export class MessageRenderer {
       if (edits > 0) labels.push(t(edits === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: edits }));
       if (otherCount > 0) labels.push(t(otherCount === 1
         ? 'chat.completedWork.actionOne' : 'chat.completedWork.actions', { count: otherCount }).replace(/^\s*·\s*/, ''));
-      if (labels.length > 0) return labels.join(' · ');
+      if (labels.length > 0) return formatActivitySummary(labels);
     }
 
     if (kind === 'think' || (
@@ -3527,6 +3527,19 @@ export class MessageRenderer {
     }
   }
 
+}
+
+/** Joins activity segments as one locale-aware sentence; single segments keep their original label. */
+function formatActivitySummary(segments: readonly string[]): string {
+  if (segments.length <= 1) return segments[0] ?? '';
+  const [leading, ...rest] = segments;
+  const list = new Intl.ListFormat(getLocale(), { style: 'long', type: 'conjunction' });
+  return list.format([leading, ...rest.map(lowercaseLeading)]);
+}
+
+/** Mid-sentence segments follow the leading one, so cased languages read naturally. */
+function lowercaseLeading(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
 }
 
 /** Rounds before splitting so 119.96s displays as "2m 0s", not "1m 60s". */

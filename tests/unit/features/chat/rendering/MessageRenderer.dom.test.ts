@@ -72,6 +72,20 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('joins mixed activity segments into one sentence', () => {
+    const { renderer, component, content, assistant, tool, sync } = createTurn('omp');
+    try {
+      tool('bash-1', 'completed');
+      const read = content.createDiv({ cls: 'claudian-tool-call', attr: { 'data-tool-id': 'read-1' } });
+      read.createSpan({ cls: 'claudian-tool-name', text: 'Read' });
+      assistant.toolCalls!.push({ id: 'read-1', name: 'Read', input: { file_path: 'notes/a.md' }, status: 'completed' });
+      assistant.contentBlocks!.push({ type: 'tool_use', toolId: 'read-1' });
+      sync();
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent)
+        .toBe('Read 1 file and ran 1 command');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['claude', 'omp'] as const)('keeps a %s disclosure clickable while thinking tokens arrive', (providerId) => {
     const { renderer, component, messagesEl, user, assistant, tool } = createTurn(providerId);
     try {
