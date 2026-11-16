@@ -314,3 +314,17 @@ describe('Claude task notification presentation', () => {
     expect(events.filter(event => event.type === 'output')).toEqual([]);
   });
 });
+
+describe('Claude Stop hook feedback', () => {
+  it('turns synthetic hook feedback into a stop_hook boundary', () => {
+    const events = new ClaudeExecutionEventNormalizer().normalize({
+      type: 'user',
+      isSynthetic: true,
+      message: { content: [{ type: 'text', text: 'Stop hook feedback:\n[check]: Run the tests.\n' }] },
+    } as any, 'requested');
+
+    expect(events).toEqual([
+      { type: 'output', event: { type: 'stop_hook', content: '[check]: Run the tests.' } },
+    ]);
+  });
+});

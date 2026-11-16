@@ -149,6 +149,7 @@ function createMockDeps(): MockStreamControllerDeps {
       addTextCopyButton: jest.fn(),
       renderCitationGroup: jest.fn(),
       renderTaskNotification: jest.fn(),
+      renderStopHook: jest.fn(),
       syncStreamingActivity: jest.fn(),
     } as any,
     subagentManager: {
@@ -654,6 +655,22 @@ describe('StreamController - Text Content', () => {
       );
 
       expect(deps.state.currentTextContent).toContain('Blocked');
+    });
+
+    it('records and renders a Stop hook reply as its own block', async () => {
+      const msg = createTestMessage();
+      deps.state.currentContentEl = createMockEl();
+      const hookEl = createMockEl();
+      (deps.renderer.renderStopHook as jest.Mock).mockReturnValue(hookEl);
+
+      await controller.handleStreamChunk({ type: 'stop_hook', content: 'Continue with the fix.' }, msg);
+
+      expect(msg.contentBlocks).toContainEqual(expect.objectContaining({ type: 'stop_hook', content: 'Continue with the fix.' }));
+      expect(hookEl.dataset.transcriptItemId).toBe('assistant-1:block:0');
+      expect(deps.renderer.renderStopHook).toHaveBeenCalledWith(
+        deps.state.currentContentEl,
+        'Continue with the fix.',
+      );
     });
 
     it('records and renders task notification chunks', async () => {

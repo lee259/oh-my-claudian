@@ -339,7 +339,8 @@
       "copyMessage": "メッセージをコピー",
       "expand": "{label} - クリックして展開",
       "collapse": "{label} - クリックして折りたたむ",
-      "errorResult": "エラー"
+      "errorResult": "エラー",
+      "stopHook": "Stop フック"
     },
     "promptSuggestion": {
       "label": "次の提案：{suggestion}"

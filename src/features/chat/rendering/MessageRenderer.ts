@@ -2193,6 +2193,8 @@ export class MessageRenderer {
           element = findFallbackElement((candidate) => candidate.hasClass('claudian-citations'));
         } else if (block.type === 'task_notification') {
           element = findFallbackElement((candidate) => candidate.hasClass('claudian-task-notification'));
+        } else if (block.type === 'stop_hook') {
+          element = findFallbackElement((candidate) => candidate.hasClass('claudian-stop-hook'));
         } else if (block.type === 'context_compacted') {
           element = findFallbackElement((candidate) => candidate.hasClass('claudian-compact-boundary'));
         }
@@ -2471,6 +2473,14 @@ export class MessageRenderer {
     return wrapper;
   }
 
+  renderStopHook(contentEl: HTMLElement, content: string): HTMLElement {
+    const wrapper = contentEl.createDiv({ cls: 'claudian-stop-hook' });
+    wrapper.createDiv({ cls: 'claudian-stop-hook-label', text: t('chat.rendering.stopHook') });
+    wrapper.createDiv({ cls: 'claudian-stop-hook-content', text: content });
+    return wrapper;
+  }
+
+
   private getCompletedWorkLabel(
     durationSeconds: number | undefined,
     isInProgress = false,
@@ -2537,6 +2547,7 @@ export class MessageRenderer {
         if (block.type === 'text' && block.content.trim().length > 0) return true;
         if (block.type === 'citations' && block.citations.entries.length > 0) return true;
         if (block.type === 'task_notification') return true;
+        if (block.type === 'stop_hook') return true;
         if (block.type === 'context_compacted') return true;
         if (block.type === 'subagent') return true;
         if (block.type === 'tool_use') {
@@ -2613,6 +2624,8 @@ export class MessageRenderer {
           this.renderCitationGroup(contentEl, block.citations);
         } else if (block.type === 'task_notification') {
           this.renderTaskNotification(contentEl, block.content);
+        } else if (block.type === 'stop_hook') {
+          this.renderStopHook(contentEl, block.content);
         } else if (block.type === 'tool_use') {
           const toolCall = msg.toolCalls?.find(tc => tc.id === block.toolId);
           if (toolCall) {

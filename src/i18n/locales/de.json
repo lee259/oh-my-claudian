@@ -339,7 +339,8 @@
       "copyMessage": "Nachricht kopieren",
       "expand": "{label} – zum Aufklappen klicken",
       "collapse": "{label} – zum Einklappen klicken",
-      "errorResult": "FEHLER"
+      "errorResult": "FEHLER",
+      "stopHook": "Stop-Hook"
     },
     "promptSuggestion": {
       "label": "Vorgeschlagener nächster Schritt: {suggestion}"

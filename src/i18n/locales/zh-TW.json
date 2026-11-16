@@ -339,7 +339,8 @@
       "copyMessage": "複製訊息",
       "expand": "{label} - 點選展開",
       "collapse": "{label} - 點選收合",
-      "errorResult": "錯誤"
+      "errorResult": "錯誤",
+      "stopHook": "Stop 鉤子"
     },
     "promptSuggestion": {
       "label": "建議繼續：{suggestion}"

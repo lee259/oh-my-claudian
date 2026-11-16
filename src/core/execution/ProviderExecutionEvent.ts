@@ -185,6 +185,15 @@ export type ProviderTaskNotificationEvent = ProviderEventBase<
   readonly content: string;
 };
 
+/** A Stop hook blocked the turn's end with this feedback; the same turn continues. */
+export type ProviderStopHookEvent = ProviderEventBase<
+  'stop_hook',
+  ProviderTurnEventScope
+> &
+  ProviderOpaqueEventPayload & {
+    readonly content: string;
+  };
+
 export type ProviderNoticeEvent = ProviderEventBase<
   'notice',
   ProviderTurnEventScope
@@ -277,6 +286,7 @@ export type ProviderRequestedExecutionEvent =
   | (ProviderToolCompletedEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderUsageUpdatedEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderContextCompactedEvent & { readonly scope: ProviderRequestedEventScope })
+  | (ProviderStopHookEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderTaskNotificationEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderNoticeEvent & { readonly scope: ProviderRequestedEventScope })
   | (ProviderSessionStateChangedEvent & { readonly scope: ProviderRequestedEventScope })
@@ -355,6 +365,7 @@ export type ProviderBackgroundOutputEvent =
   | (ProviderToolCompletedEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderUsageUpdatedEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderContextCompactedEvent & { readonly scope: ProviderBackgroundEventScope })
+  | (ProviderStopHookEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderTaskNotificationEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderNoticeEvent & { readonly scope: ProviderBackgroundEventScope })
   | (ProviderSessionStateChangedEvent & { readonly scope: ProviderBackgroundEventScope })

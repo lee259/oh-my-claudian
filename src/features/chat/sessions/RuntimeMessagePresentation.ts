@@ -12,6 +12,7 @@ export type MessagePresentation = Pick<MessageRenderer,
   renderMessages(...args: Parameters<MessageRenderer['renderMessages']>): HTMLElement | null;
   renderCitationGroup(...args: Parameters<MessageRenderer['renderCitationGroup']>): HTMLElement | null;
   renderTaskNotification(...args: Parameters<MessageRenderer['renderTaskNotification']>): HTMLElement | null;
+  renderStopHook(...args: Parameters<MessageRenderer['renderStopHook']>): HTMLElement | null;
 };
 
 /** Runtime-facing projection port; detached execution never keeps an old renderer alive. */
@@ -104,6 +105,10 @@ export class RuntimeMessagePresentation implements MessagePresentation {
 
   renderTaskNotification(...args: Parameters<MessageRenderer['renderTaskNotification']>): HTMLElement | null {
     return this.binding?.renderer.renderTaskNotification(...args) ?? null;
+  }
+
+  renderStopHook(...args: Parameters<MessageRenderer['renderStopHook']>): HTMLElement | null {
+    return this.binding?.renderer.renderStopHook(...args) ?? null;
   }
 
   renderContent(...args: Parameters<MessageRenderer['renderContent']>): Promise<void> {

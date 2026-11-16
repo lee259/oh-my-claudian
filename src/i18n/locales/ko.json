@@ -339,7 +339,8 @@
       "copyMessage": "메시지 복사",
       "expand": "{label} - 클릭하여 펼치기",
       "collapse": "{label} - 클릭하여 접기",
-      "errorResult": "오류"
+      "errorResult": "오류",
+      "stopHook": "Stop 훅"
     },
     "promptSuggestion": {
       "label": "추천 후속 작업: {suggestion}"

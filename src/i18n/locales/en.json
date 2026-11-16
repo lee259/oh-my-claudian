@@ -339,7 +339,8 @@
       "copyMessage": "Copy message",
       "expand": "{label} - click to expand",
       "collapse": "{label} - click to collapse",
-      "errorResult": "ERROR"
+      "errorResult": "ERROR",
+      "stopHook": "Stop hook"
     },
     "promptSuggestion": {
       "label": "Suggested follow-up: {suggestion}"

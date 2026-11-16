@@ -339,7 +339,8 @@
       "copyMessage": "Копировать сообщение",
       "expand": "{label} — нажмите, чтобы развернуть",
       "collapse": "{label} — нажмите, чтобы свернуть",
-      "errorResult": "ОШИБКА"
+      "errorResult": "ОШИБКА",
+      "stopHook": "Хук Stop"
     },
     "promptSuggestion": {
       "label": "Предложение продолжения: {suggestion}"
