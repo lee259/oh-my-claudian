@@ -540,7 +540,9 @@
       "altQuery": "대체 검색어: {query}",
       "changes": "변경: +{added} -{removed}",
       "exitSuccess": "성공",
-      "exitCode": "종료 코드 {code}"
+      "exitCode": "종료 코드 {code}",
+      "patchRejected": "거부됨",
+      "patchStopped": "중지됨"
     },
     "toolStatus": {
       "running": "실행 중",

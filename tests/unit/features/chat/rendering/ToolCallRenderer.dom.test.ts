@@ -86,6 +86,23 @@ describe('Tool row disclosures', () => {
     expect(element.querySelector('.claudian-tool-icon svg title')?.textContent).toBe('MCP');
   });
 
+  it('uses patch outcome labels instead of the generic blocked state', () => {
+    const parent = document.createElement('div');
+    const rejected = renderStoredToolCall(parent, call({
+      name: 'apply_patch',
+      input: { patch: '*** Begin Patch\n*** Update File: notes/a.md\n@@\n-old\n+new\n*** End Patch' },
+      status: 'blocked',
+    }));
+    expect(rejected.querySelector('.claudian-tool-status')?.textContent).toBe('Rejected');
+
+    const stopped = renderStoredToolCall(parent, call({
+      name: 'apply_patch',
+      input: { patch: '*** Begin Patch\n*** Update File: notes/a.md\n@@\n-old\n+new\n*** End Patch' },
+      status: 'cancelled',
+    }));
+    expect(stopped.querySelector('.claudian-tool-status')?.textContent).toBe('Stopped');
+  });
+
   it.each([1000, 17000])('reveals completed timing of %ims only when the row is inspected', (elapsed) => {
     const style = document.head.appendChild(document.createElement('style'));
     style.textContent = readFileSync(path.resolve('src/style/components/toolcalls.css'), 'utf8');

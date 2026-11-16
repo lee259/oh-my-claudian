@@ -540,7 +540,9 @@
       "altQuery": "別の検索語: {query}",
       "changes": "変更: +{added} -{removed}",
       "exitSuccess": "成功",
-      "exitCode": "終了コード {code}"
+      "exitCode": "終了コード {code}",
+      "patchRejected": "拒否",
+      "patchStopped": "停止"
     },
     "toolStatus": {
       "running": "実行中",
