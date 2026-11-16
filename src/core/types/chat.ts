@@ -113,6 +113,7 @@ export type ContentBlock = (
   | { type: 'subagent'; subagentId: string; mode?: SubagentMode }
   | { type: 'citations'; citations: CitationGroup }
   | { type: 'task_notification'; content: string }
+  | { type: 'stop_hook'; content: string }
   | { type: 'context_compacted' }
 ) & {
   /** Stable Claudian transcript identity; absent on provider-sourced legacy blocks. */
@@ -332,6 +333,7 @@ export type StreamChunk =
   | { type: 'usage'; usage: UsageInfo; sessionId?: string | null }
   | { type: 'context_compacted' }
   | { type: 'task_notification'; content: string }
+  | { type: 'stop_hook'; content: string }
   | { type: 'subagent_tool_use'; subagentId: string; id: string; name: string; input: Record<string, unknown> }
   | {
       type: 'subagent_tool_result';

@@ -1471,3 +1471,22 @@ button.claudian-activity-phase-header[aria-expanded='true'] > .claudian-activity
   max-width: 420px;
   color: var(--text-error, var(--claudian-error));
 }
+
+.claudian-stop-hook {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-inline-start: 2px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+.claudian-stop-hook-label {
+  color: var(--text-muted);
+  font-size: calc(11 * var(--claudian-font-px));
+  margin-bottom: 2px;
+}
+
+.claudian-stop-hook-content {
+  color: var(--text-normal);
+  white-space: pre-wrap;
+}

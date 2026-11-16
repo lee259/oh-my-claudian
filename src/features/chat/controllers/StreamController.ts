@@ -446,6 +446,27 @@ export class StreamController {
         await this.appendText(`\n\n⚠️ **${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
         break;
 
+      case 'stop_hook': {
+        this.flushPendingTools();
+        if (state.response.thinking) {
+          await this.finalizeCurrentThinkingBlock(msg);
+        }
+        await this.finalizeCurrentTextBlock(msg);
+        msg.contentBlocks = msg.contentBlocks || [];
+        const block = this.appendTranscriptBlock(msg, { type: 'stop_hook', content: chunk.content });
+        if (state.currentContentEl) {
+          const element = this.deps.renderer.renderStopHook(state.currentContentEl, chunk.content);
+          if (element) {
+            element.dataset.transcriptItemId = getTranscriptBlockId(
+              msg.id,
+              block,
+              msg.contentBlocks.length - 1,
+            );
+          }
+        }
+        break;
+      }
+
       case 'task_notification': {
         this.flushPendingTools();
         if (state.response.thinking) {
@@ -2663,6 +2684,8 @@ export function providerOutputEventToStreamChunk(
       return { type: 'context_compacted' };
     case 'task_notification':
       return { type: 'task_notification', content: event.content };
+    case 'stop_hook':
+      return { type: 'stop_hook', content: event.content };
     case 'notice':
       return {
         content: event.message,

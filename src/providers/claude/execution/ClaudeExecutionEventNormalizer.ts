@@ -5,6 +5,7 @@ import type {
   ProviderCitationsEvent,
   ProviderContextCompactedEvent,
   ProviderNoticeEvent,
+  ProviderStopHookEvent,
   ProviderTaskNotificationEvent,
   ProviderTextDeltaEvent,
   ProviderThinkingDeltaEvent,
@@ -52,6 +53,7 @@ export type ClaudeNormalizedOutputEvent = WithoutScope<
   | ProviderToolCompletedEvent
   | ProviderUsageUpdatedEvent
   | ProviderContextCompactedEvent
+  | ProviderStopHookEvent
   | ProviderNoticeEvent
 >;
 
@@ -142,6 +144,10 @@ export class ClaudeExecutionEventNormalizer {
   ): ClaudeNormalizedExecutionEvent[] {
     const state = this.states[channel];
     const normalized: ClaudeNormalizedExecutionEvent[] = [];
+    const stopHook = readStopHookFeedback(message);
+    if (stopHook) {
+      return [{ type: 'output', event: { type: 'stop_hook', content: stopHook } }];
+    }
     for (const event of transformSDKMessage(message, {
       ...options,
       streamState: state.streamState,
@@ -484,6 +490,8 @@ function toOutputEvent(
       };
     case 'task_notification':
       return { type: 'task_notification', content: chunk.content };
+    case 'stop_hook':
+      return { type: 'stop_hook', content: chunk.content };
     case 'notice':
       return {
         type: 'notice',
@@ -562,6 +570,20 @@ function normalizeToolCompleted(
     isBlocked: state.blockedToolIds.has(chunk.id),
     toolUseResult: chunk.toolUseResult,
   };
+}
+
+
+/** Claude Code reports a blocking Stop hook as a synthetic user message inside the same turn. */
+function readStopHookFeedback(message: SDKMessage): string | null {
+  if (message.type !== 'user' || (message as { isSynthetic?: unknown }).isSynthetic !== true) return null;
+  const content = message.message?.content;
+  const text = Array.isArray(content)
+    ? content.filter((part): part is { type: 'text'; text: string } => part?.type === 'text' && typeof part.text === 'string')
+      .map(part => part.text).join('\n')
+    : '';
+  const prefix = 'Stop hook feedback:';
+  if (!text.trimStart().startsWith(prefix)) return null;
+  return text.trimStart().slice(prefix.length).trim();
 }
 
 function isSyntheticApiErrorMessage(message: SDKMessage): boolean {

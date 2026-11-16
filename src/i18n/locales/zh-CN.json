@@ -339,7 +339,8 @@
       "copyMessage": "复制消息",
       "expand": "{label} - 点击展开",
       "collapse": "{label} - 点击收起",
-      "errorResult": "错误"
+      "errorResult": "错误",
+      "stopHook": "Stop 钩子"
     },
     "promptSuggestion": {
       "label": "建议继续：{suggestion}"
