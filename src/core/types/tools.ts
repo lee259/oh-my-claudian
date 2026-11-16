@@ -53,6 +53,8 @@ export interface ToolCallInfo {
   input: Record<string, unknown>;
   presentation?: ToolCallPresentation;
   status: 'running' | 'completed' | 'error' | 'blocked' | 'cancelled';
+  /** Shell exit status reported by the provider for command tools. */
+  exitCode?: number;
   /** Provider reported work that may continue independently of the current turn. */
   continuesInBackground?: boolean;
   /** Local observation times for live tool execution; absent when history has no timing. */

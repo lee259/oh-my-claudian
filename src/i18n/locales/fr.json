@@ -538,7 +538,9 @@
       "find": "Rechercher « {pattern} »",
       "pattern": "Motif : {pattern}",
       "altQuery": "Autre requête : {query}",
-      "changes": "Modifications : +{added} -{removed}"
+      "changes": "Modifications : +{added} -{removed}",
+      "exitSuccess": "Réussi",
+      "exitCode": "Code de sortie {code}"
     },
     "toolStatus": {
       "running": "en cours",

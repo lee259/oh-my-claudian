@@ -1018,8 +1018,8 @@ describe('CodexHistoryStore', () => {
       ].map((record, seconds) => JSON.stringify({ timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)).toISOString(), ...record })).join('\n');
 
       expect(parseCodexSessionContent(content).flatMap(message => message.toolCalls ?? [])).toEqual([
-        expect.objectContaining({ id: 'direct', status, result: 'command output' }),
-        expect.objectContaining({ id: 'wrapped', status, result: 'command output' }),
+        expect.objectContaining({ id: 'direct', status, result: 'command output', exitCode }),
+        expect.objectContaining({ id: 'wrapped', status, result: 'command output', exitCode }),
       ]);
     });
 

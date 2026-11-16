@@ -538,7 +538,9 @@
       "find": "「{pattern}」を検索",
       "pattern": "パターン: {pattern}",
       "altQuery": "別の検索語: {query}",
-      "changes": "変更: +{added} -{removed}"
+      "changes": "変更: +{added} -{removed}",
+      "exitSuccess": "成功",
+      "exitCode": "終了コード {code}"
     },
     "toolStatus": {
       "running": "実行中",

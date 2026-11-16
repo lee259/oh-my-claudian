@@ -538,7 +538,9 @@
       "find": "\"{pattern}\" 찾기",
       "pattern": "패턴: {pattern}",
       "altQuery": "대체 검색어: {query}",
-      "changes": "변경: +{added} -{removed}"
+      "changes": "변경: +{added} -{removed}",
+      "exitSuccess": "성공",
+      "exitCode": "종료 코드 {code}"
     },
     "toolStatus": {
       "running": "실행 중",

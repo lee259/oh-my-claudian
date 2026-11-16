@@ -52,6 +52,27 @@ describe('Tool row disclosures', () => {
     jest.useRealTimers();
   });
 
+  it('shows the provider exit code footer for command rows', () => {
+    const parent = document.createElement('div');
+    const failed = renderStoredToolCall(parent, call({
+      name: 'Bash',
+      input: { command: 'missing-command' },
+      status: 'error',
+      result: 'command not found',
+      exitCode: 127,
+    }), { initiallyExpanded: true });
+    expect(failed.querySelector('.claudian-tool-exit')?.textContent).toBe('Exit code 127');
+
+    const succeeded = renderStoredToolCall(parent, call({
+      name: 'Bash',
+      input: { command: 'ls' },
+      status: 'completed',
+      result: 'notes',
+      exitCode: 0,
+    }), { initiallyExpanded: true });
+    expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
+  });
+
   it.each([1000, 17000])('reveals completed timing of %ims only when the row is inspected', (elapsed) => {
     const style = document.head.appendChild(document.createElement('style'));
     style.textContent = readFileSync(path.resolve('src/style/components/toolcalls.css'), 'utf8');
