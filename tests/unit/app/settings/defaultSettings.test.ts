@@ -14,3 +14,7 @@ describe('DEFAULT_CLAUDIAN_SETTINGS', () => {
     expect(DEFAULT_CLAUDIAN_SETTINGS.providerDiagnosticLogDirectory).toBe('');
   });
 });
+
+it('shows titles on new chat tabs by default', () => {
+  expect(DEFAULT_CLAUDIAN_SETTINGS.showTabTitlesByDefault).toBe(true);
+});

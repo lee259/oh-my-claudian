@@ -58,7 +58,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   enableZenMode: true,
   zenModePosition: null,
   enableAutoScroll: true,
-  showTabTitlesByDefault: false,
+  showTabTitlesByDefault: true,
   chatFontScale: 100,
   deferMathRenderingDuringStreaming: true,
   expandFileEditsByDefault: false,
