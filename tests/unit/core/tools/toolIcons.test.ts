@@ -60,6 +60,11 @@ describe('getToolIcon', () => {
     expect(getToolIcon('mcp__')).toBe(MCP_ICON_MARKER);
   });
 
+  it('should map provider presentation labels for file changes', () => {
+    expect(getToolIcon('Create')).toBe('file-plus');
+    expect(getToolIcon('Delete')).toBe('trash-2');
+  });
+
   it('should return fallback wrench icon for unknown tools', () => {
     expect(getToolIcon('UnknownTool')).toBe('wrench');
     expect(getToolIcon('')).toBe('wrench');
