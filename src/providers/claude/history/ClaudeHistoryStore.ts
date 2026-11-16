@@ -268,6 +268,14 @@ async function assembleSDKChatMessages(
       };
       continue;
     }
+    const stopHook = parseStopHookFeedback(sdkMsg);
+    if (stopHook !== null) {
+      if (pendingAssistant) {
+        pendingAssistant.contentBlocks = pendingAssistant.contentBlocks ?? [];
+        pendingAssistant.contentBlocks.push({ type: 'stop_hook', content: stopHook });
+      }
+      continue;
+    }
     if (isSystemInjectedMessage(sdkMsg)) continue;
 
     // Skip synthetic assistant messages (e.g., "No response requested." after /compact)
@@ -451,6 +459,21 @@ function collectManualCompactBoundaryIds(entries: SDKNativeMessage[]): Set<strin
   }
 
   return boundaryIds;
+}
+
+
+/** A blocking Stop hook arrives as a synthetic user message inside the same turn. */
+function parseStopHookFeedback(entry: SDKNativeMessage): string | null {
+  if (entry.type !== 'user' || (entry as { isSynthetic?: unknown }).isSynthetic !== true) return null;
+  const content = entry.message?.content;
+  const text = typeof content === 'string'
+    ? content
+    : content?.filter((block): block is { type: 'text'; text: string } => (
+        block.type === 'text' && typeof block.text === 'string'
+      )).map(block => block.text).join('\n') ?? '';
+  const prefix = 'Stop hook feedback:';
+  if (!text.trimStart().startsWith(prefix)) return null;
+  return text.trimStart().slice(prefix.length).trim();
 }
 
 function isManualCompactCommand(entry: SDKNativeMessage): boolean {
