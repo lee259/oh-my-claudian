@@ -2,6 +2,7 @@ import type {
   ProviderExecutionRequest,
   ProviderExecutionRun,
   ProviderExecutionSessionLease,
+  ProviderExplicitInstructionPurpose,
   ProviderToolPolicy,
 } from '../execution';
 import type { AuxiliaryExecutionContext } from './AuxiliaryExecutionContext';
@@ -15,7 +16,7 @@ export interface AuxiliaryRequest {
   readonly systemPrompt: string;
 }
 
-type AuxiliaryExecutionOwner = 'title' | 'instruction' | 'inline-edit';
+type AuxiliaryExecutionOwner = Exclude<ProviderExplicitInstructionPurpose, 'main'>;
 
 export class AuxiliarySessionController {
   private abortController: AbortController | null = null;
@@ -92,6 +93,7 @@ export class AuxiliarySessionController {
         systemInstructions: {
           instructions: request.systemPrompt,
           kind: 'explicit',
+          purpose: this.owner,
         },
       },
       input: [{ text: request.prompt, type: 'text' }],

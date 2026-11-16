@@ -673,6 +673,18 @@
         "desc": "Cursor Agent にのみ渡す環境変数。CURSOR_* 設定はシェルでエクスポートせず、ここで指定できます。"
       }
     },
+    "antigravity": {
+      "enableDesc": "ローカルの Antigravity CLI に接続します。agy の認証とセッションを使用します。",
+      "cliPathDesc": "Antigravity CLI（agy）の絶対パス（任意）。空欄の場合は既知のインストール先、次に PATH を検索します。",
+      "environment": {
+        "name": "Antigravity 環境変数",
+        "desc": "Antigravity CLI にのみ渡す環境変数。"
+      },
+      "emptyCatalog": "Antigravity モデルがまだ見つかりません。`agy acp --login` を実行してから検出してください。",
+      "failedCatalog": "Antigravity モデルカタログを読み込めません。CLI パスとログイン状態を確認してください。",
+      "loadingCatalog": "Antigravity モデルカタログを読み込み中...",
+      "searchPlaceholder": "モデル名または別名で絞り込む..."
+    },
     "grok": {
       "enableDesc": "ローカルの Grok Build に接続し、Cursor とは独立した設定とセッションを使用します。",
       "cliPathDesc": "Grok Build CLI の絶対パス（任意）。空欄の場合は既知のインストール先、次に PATH を検索します。「which grok」の出力を貼り付けてください（Windows では「where grok」）。",

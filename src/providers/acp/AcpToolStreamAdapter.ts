@@ -20,12 +20,18 @@ export interface AcpResolvedToolRawName {
 
 export interface AcpToolStreamPresentationAdapter {
   normalizeToolInput(rawName: string | undefined, input: Record<string, unknown>): Record<string, unknown>;
-  normalizeToolName(rawName: string | undefined): string;
+  normalizeToolName(rawName: string | undefined, rawInput?: unknown): string;
+  normalizeToolResult?(
+    rawName: string | undefined,
+    content: string,
+    rawOutput: unknown,
+  ): { content: string; isError: boolean };
   normalizeToolUseResult(
     rawName: string | undefined,
     input: Record<string, unknown>,
     rawOutput: unknown,
     rawInput: unknown,
+    toolCallId?: string,
   ): SDKToolUseResult | undefined;
   resolveRawToolName(
     currentRawName: AcpResolvedToolRawName | undefined,
@@ -79,7 +85,7 @@ export class AcpToolStreamAdapter {
       result.push({
         id: toolCallUpdate.toolCallId,
         input: state.input,
-        name: this.adapter.normalizeToolName(state.rawName),
+        name: this.adapter.normalizeToolName(state.rawName, state.rawInput),
         ...providerPayloadFields,
         type: 'tool_use',
       });
@@ -155,20 +161,30 @@ export class AcpToolStreamAdapter {
         return {
           ...chunk,
           input: state.input,
-          name: this.adapter.normalizeToolName(state.rawName),
+          name: this.adapter.normalizeToolName(state.rawName, state.rawInput),
           ...this.buildProviderPayloadFields(state),
         };
       case 'tool_result': {
+        const result = this.adapter.normalizeToolResult?.(
+          state.rawName,
+          chunk.content,
+          state.rawOutput,
+        );
         const providerToolUseResult = this.adapter.normalizeToolUseResult(
           state.rawName,
           state.input,
           state.rawOutput,
           state.rawInput,
+          chunk.id,
         );
         const toolUseResult = mergeToolUseResults(chunk.toolUseResult, providerToolUseResult);
-        return toolUseResult
-          ? { ...chunk, toolUseResult }
-          : chunk;
+        return {
+          ...chunk,
+          ...(result
+            ? { content: result.content, isError: chunk.isError || result.isError }
+            : {}),
+          ...(toolUseResult ? { toolUseResult } : {}),
+        };
       }
       default:
         return chunk;

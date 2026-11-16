@@ -1,3 +1,4 @@
+import type { ProviderSelectionInputs } from './ProviderRuntimeHost';
 import type { ProviderId } from './types';
 
 type ProviderConfigMap = Partial<Record<string, Record<string, unknown>>>;
@@ -31,4 +32,26 @@ export function setProviderConfig(
 
   nextConfigs[providerId] = { ...config };
   settings.providerConfigs = nextConfigs;
+}
+
+/** Replaces a configuration object in place so a transactional writer sees the exact result. */
+export function replaceProviderConfig(
+  config: Record<string, unknown>,
+  next: Record<string, unknown>,
+): void {
+  for (const key of Object.keys(config)) delete config[key];
+  Object.assign(config, next);
+}
+
+/** Model ids the current settings document references, regardless of provider ownership. */
+export function getProviderSelectionInputs(
+  settings: Readonly<Record<string, unknown>>,
+  providerId: ProviderId,
+): ProviderSelectionInputs {
+  const saved = isRecord(settings.savedProviderModel)
+    ? settings.savedProviderModel[providerId]
+    : undefined;
+  const ids = [settings.model, settings.titleGenerationModel, saved]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  return { referencedModelIds: [...new Set(ids)] };
 }

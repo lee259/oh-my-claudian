@@ -36,6 +36,7 @@ export const ACP_SERVER_NOTIFICATION_ALIASES = {
 } as const;
 
 export const ACP_SERVER_REQUEST_ALIASES = {
+  createElicitation: ['elicitation/create', 'createElicitation'],
   createTerminal: ['terminal/create', 'terminalCreate'],
   killTerminal: ['terminal/kill', 'terminalKill'],
   readTextFile: ['fs/read_text_file', 'fs/readTextFile'],

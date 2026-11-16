@@ -14,6 +14,8 @@ import type {
   AcpClientCapabilities,
   AcpCloseSessionRequest,
   AcpCloseSessionResponse,
+  AcpCreateElicitationRequest,
+  AcpCreateElicitationResponse,
   AcpCreateTerminalRequest,
   AcpCreateTerminalResponse,
   AcpForkSessionRequest,
@@ -75,6 +77,9 @@ export interface AcpTerminalDelegate {
 }
 
 export interface AcpClientConnectionDelegate {
+  createElicitation?: (
+    request: AcpCreateElicitationRequest,
+  ) => Promise<AcpCreateElicitationResponse>;
   fileSystem?: AcpFileSystemDelegate;
   onSessionNotification?: SessionNotificationListener;
   requestPermission?: (
@@ -169,6 +174,10 @@ export class AcpClientConnection {
     return this.requestWithFallback<AcpLoadSessionResponse>('loadSession', request);
   }
 
+  resumeSession(request: AcpLoadSessionRequest): Promise<AcpLoadSessionResponse> {
+    return this.loadSession(request);
+  }
+
   listSessions(request: AcpListSessionsRequest = {}): Promise<AcpListSessionsResponse> {
     return this.requestWithFallback<AcpListSessionsResponse>('listSessions', request);
   }
@@ -246,6 +255,14 @@ export class AcpClientConnection {
       subscribeRequest(
         ACP_SERVER_REQUEST_ALIASES.requestPermission,
         (params) => requestPermission(params as AcpRequestPermissionRequest),
+      );
+    }
+
+    if (delegate?.createElicitation) {
+      const createElicitation = delegate.createElicitation;
+      subscribeRequest(
+        ACP_SERVER_REQUEST_ALIASES.createElicitation,
+        (params) => createElicitation(params as AcpCreateElicitationRequest),
       );
     }
 

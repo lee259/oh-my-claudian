@@ -36,8 +36,15 @@ export type ProviderSystemInstructions =
     }
   | {
       readonly kind: 'explicit';
+      /**
+       * Auxiliary purposes let providers select a restricted native agent.
+       * Omitted means the main conversation's explicit instructions.
+       */
+      readonly purpose?: ProviderExplicitInstructionPurpose;
       readonly instructions: string;
     };
+
+export type ProviderExplicitInstructionPurpose = 'main' | 'title' | 'instruction' | 'inline-edit';
 
 export function resolveProviderSystemInstructions(
   instructions: ProviderSystemInstructions,

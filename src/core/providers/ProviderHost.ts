@@ -11,6 +11,7 @@ import type { ClaudianSettings } from '../types';
 import type { EnvironmentScope } from '../types/settings';
 import type { ProviderCliLifecyclePort } from './cli/ProviderCliLifecycle';
 import type { ProviderDiagnosticLogSink } from './ProviderDiagnosticLog';
+import type { ProviderRuntimeHost } from './ProviderRuntimeHost';
 import type { ProviderCliResolutionContext, ProviderId } from './types';
 
 /**
@@ -69,4 +70,7 @@ export interface ProviderHost {
   ): Promise<T>;
 
   notifyProviderChatOptionsChanged(providerId: ProviderId): void;
+
+  /** Provider-scoped view for provider-owned configuration and metadata services. */
+  getRuntimeHost(providerId: ProviderId): ProviderRuntimeHost;
 }

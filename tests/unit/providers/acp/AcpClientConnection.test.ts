@@ -60,6 +60,71 @@ function createConnectionHarness(
 }
 
 describe('AcpClientConnection', () => {
+  it('advertises and answers form elicitation requests', async () => {
+    const requests: unknown[] = [];
+    const harness = createConnectionHarness((transport) => new AcpClientConnection({
+      clientCapabilities: { elicitation: { form: {} } },
+      delegate: {
+        createElicitation: async (request) => {
+          requests.push(request);
+          return { action: 'accept', content: { choice: 'blue' } };
+        },
+      },
+      transport,
+    }));
+
+    try {
+      const initializePromise = harness.connection.initialize();
+      const initializeRequest = await harness.nextOutbound();
+      expect(initializeRequest).toMatchObject({
+        method: 'initialize',
+        params: {
+          clientCapabilities: { elicitation: { form: {} } },
+        },
+      });
+      harness.sendInbound({
+        id: initializeRequest.id,
+        jsonrpc: '2.0',
+        result: { protocolVersion: 1 },
+      });
+      await initializePromise;
+
+      harness.sendInbound({
+        id: 77,
+        jsonrpc: '2.0',
+        method: 'elicitation/create',
+        params: {
+          message: 'Pick a colour',
+          mode: 'form',
+          requestedSchema: {
+            properties: {
+              choice: { enum: ['blue', 'green'], title: 'Colour', type: 'string' },
+            },
+            type: 'object',
+          },
+          sessionId: 'session-1',
+          toolCallId: 'tool-1',
+        },
+      });
+
+      const response = await harness.nextOutbound();
+      expect(response).toMatchObject({
+        id: 77,
+        jsonrpc: '2.0',
+        result: { action: 'accept', content: { choice: 'blue' } },
+      });
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toMatchObject({
+        sessionId: 'session-1',
+        toolCallId: 'tool-1',
+      });
+    } finally {
+      harness.connection.dispose();
+      harness.transport.dispose();
+      harness.close();
+    }
+  });
+
   it('uses the current ACP session/resume and session/close methods', async () => {
     const harness = createConnectionHarness(transport => new AcpClientConnection({ transport }));
 
