@@ -51,6 +51,16 @@ export function presentCodexFileChange(changes: unknown, cwd?: unknown): ToolCal
   return { name: readFileChangeName(entries), ...(summary ? { summary } : {}) };
 }
 
+/** Labels a native MCP call as "<server> <tool>" instead of its raw `mcp__server__tool` id. */
+export function presentCodexMcpToolCall(server: unknown, tool: unknown): ToolCallPresentation {
+  const serverName = stringValue(server);
+  const toolName = stringValue(tool);
+  if (serverName && toolName) return { name: serverName, summary: toolName };
+  if (toolName) return { name: 'MCP', summary: toolName };
+  if (serverName) return { name: serverName };
+  return { name: 'MCP' };
+}
+
 type FileChangeIntent = 'create' | 'delete' | 'edit';
 
 /** A batch needs one intent to read as create/delete; mixed or unknown changes stay a generic edit. */

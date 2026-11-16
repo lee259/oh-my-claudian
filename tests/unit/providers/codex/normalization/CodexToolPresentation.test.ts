@@ -1,6 +1,7 @@
 import {
   presentCodexCommand,
   presentCodexFileChange,
+  presentCodexMcpToolCall,
 } from '@/providers/codex/normalization/CodexToolPresentation';
 
 describe('presentCodexCommand', () => {
@@ -63,5 +64,20 @@ describe('presentCodexFileChange', () => {
   it('keeps a single change without a kind as a generic edit', () => {
     expect(presentCodexFileChange([{ path: 'src/main.ts', kind: 'modify' }]))
       .toEqual({ name: 'Edit', summary: 'src/main.ts' });
+  });
+});
+
+describe('presentCodexMcpToolCall', () => {
+  it('reads as server and tool instead of the raw MCP id', () => {
+    expect(presentCodexMcpToolCall('github', 'search_code'))
+      .toEqual({ name: 'github', summary: 'search_code' });
+  });
+
+  it.each([
+    ['', 'search', { name: 'MCP', summary: 'search' }],
+    ['github', '', { name: 'github' }],
+    ['', '', { name: 'MCP' }],
+  ])('keeps a partial server/tool pair readable', (server, tool, expected) => {
+    expect(presentCodexMcpToolCall(server, tool)).toEqual(expected);
   });
 });
