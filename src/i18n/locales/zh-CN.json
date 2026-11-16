@@ -543,7 +543,9 @@
       "exitSuccess": "成功",
       "exitCode": "退出码 {code}",
       "patchRejected": "已拒绝",
-      "patchStopped": "已停止"
+      "patchStopped": "已停止",
+      "copyCommand": "复制命令",
+      "copyFailed": "复制到剪贴板失败"
     },
     "toolStatus": {
       "running": "运行中",

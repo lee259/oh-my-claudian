@@ -175,7 +175,7 @@ describe('ToolCallRenderer', () => {
       const content = toolEl.querySelector('.claudian-tool-content');
 
       expect(toolEl.hasClass('claudian-tool-call-bash')).toBe(true);
-      expect(toolEl.querySelector('.claudian-tool-bash-command')?.textContent).toBe('$ npm test');
+      expect(toolEl.querySelector('.claudian-tool-bash-command-text')?.textContent).toBe('$ npm test');
       expect(setIcon).toHaveBeenCalledWith(expect.anything(), 'terminal');
 
       (header as HTMLElement | null)?.click();

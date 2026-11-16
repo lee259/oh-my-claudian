@@ -73,6 +73,24 @@ describe('Tool row disclosures', () => {
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
   });
 
+  it('copies the command from a bash row', () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const parent = document.createElement('div');
+    const row = renderStoredToolCall(parent, call({
+      name: 'Bash',
+      input: { command: 'ls -la' },
+      status: 'completed',
+      result: 'notes',
+    }), { initiallyExpanded: true });
+
+    expect(row.querySelector('.claudian-tool-bash-command-text')?.textContent).toBe('$ ls -la');
+    const button = row.querySelector<HTMLButtonElement>('.claudian-tool-copy-command');
+    expect(button?.getAttribute('aria-label')).toBe('Copy command');
+    button?.click();
+    expect(writeText).toHaveBeenCalledWith('ls -la');
+  });
+
   it('keeps the MCP icon when a friendly MCP label is used', () => {
     const parent = document.createElement('div');
     const element = renderStoredToolCall(parent, call({

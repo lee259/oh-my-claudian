@@ -543,7 +543,9 @@
       "exitSuccess": "Sucesso",
       "exitCode": "Código de saída {code}",
       "patchRejected": "Rejeitado",
-      "patchStopped": "Interrompido"
+      "patchStopped": "Interrompido",
+      "copyCommand": "Copiar comando",
+      "copyFailed": "Falha ao copiar para a área de transferência"
     },
     "toolStatus": {
       "running": "em execução",

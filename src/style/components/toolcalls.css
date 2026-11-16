@@ -68,13 +68,57 @@
 }
 
 .claudian-tool-bash-command {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-family: var(--font-monospace);
   font-size: calc(12 * var(--claudian-font-px));
   line-height: 1.4;
   color: var(--text-normal);
+  padding: 2px 0 4px;
+}
+
+.claudian-tool-bash-command-text {
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  padding: 2px 0 4px;
+}
+
+.claudian-tool-copy-command {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.claudian-tool-bash-command:hover .claudian-tool-copy-command,
+.claudian-tool-copy-command:focus-visible {
+  opacity: 1;
+}
+
+.claudian-tool-copy-command:hover,
+.claudian-tool-copy-command:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.claudian-tool-copy-command svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Legacy: StatusPanel bash entries still use claudian-tool-label */

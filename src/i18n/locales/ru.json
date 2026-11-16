@@ -543,7 +543,9 @@
       "exitSuccess": "Успешно",
       "exitCode": "Код выхода {code}",
       "patchRejected": "Отклонено",
-      "patchStopped": "Остановлено"
+      "patchStopped": "Остановлено",
+      "copyCommand": "Копировать команду",
+      "copyFailed": "Не удалось скопировать в буфер обмена"
     },
     "toolStatus": {
       "running": "выполняется",

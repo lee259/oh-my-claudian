@@ -543,7 +543,9 @@
       "exitSuccess": "Success",
       "exitCode": "Exit code {code}",
       "patchRejected": "Rejected",
-      "patchStopped": "Stopped"
+      "patchStopped": "Stopped",
+      "copyCommand": "Copy command",
+      "copyFailed": "Failed to copy to clipboard"
     },
     "toolStatus": {
       "running": "running",
