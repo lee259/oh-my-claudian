@@ -1625,6 +1625,7 @@ export class CodexNotificationRouter {
       content,
       isError,
       ...(isDeclined ? { isBlocked: true } : {}),
+      ...(item.exitCode !== null ? { exitCode: item.exitCode } : {}),
     });
   }
 

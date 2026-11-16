@@ -538,7 +538,9 @@
       "find": "Найти «{pattern}»",
       "pattern": "Шаблон: {pattern}",
       "altQuery": "Альтернативный запрос: {query}",
-      "changes": "Изменения: +{added} -{removed}"
+      "changes": "Изменения: +{added} -{removed}",
+      "exitSuccess": "Успешно",
+      "exitCode": "Код выхода {code}"
     },
     "toolStatus": {
       "running": "выполняется",

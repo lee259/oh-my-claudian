@@ -538,7 +538,9 @@
       "find": "查找“{pattern}”",
       "pattern": "匹配模式：{pattern}",
       "altQuery": "备选查询：{query}",
-      "changes": "改动：+{added} -{removed}"
+      "changes": "改动：+{added} -{removed}",
+      "exitSuccess": "成功",
+      "exitCode": "退出码 {code}"
     },
     "toolStatus": {
       "running": "运行中",

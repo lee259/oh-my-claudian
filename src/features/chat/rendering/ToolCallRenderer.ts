@@ -783,6 +783,7 @@ export function renderExpandedContent(
   input: Record<string, unknown> = {},
   resultFormat?: ToolCallInfo['resultFormat'],
   resultImages: ToolResultImage[] = [],
+  exitCode?: number,
 ): void {
   const hasImages = resultImages.length > 0;
   if (!result && !hasImages && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH) {
@@ -799,7 +800,7 @@ export function renderExpandedContent(
   } else {
     switch (toolName) {
       case TOOL_BASH:
-        renderBashContent(container, input, resolvedResult);
+        renderBashContent(container, input, resolvedResult, undefined, false, exitCode);
         break;
       case TOOL_WRITE_STDIN:
         renderLinesExpanded(container, resolvedResult, 20);
@@ -1221,6 +1222,7 @@ function renderBashContent(
   result: string,
   initialText?: string,
   hasResultImages = false,
+  exitCode?: number,
 ): void {
   const command = (input.command as string) || '';
   if (command) {
@@ -1233,6 +1235,12 @@ function renderBashContent(
     renderLinesExpanded(container, result, 20);
   } else if (!hasResultImages) {
     container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
+  }
+  if (exitCode !== undefined) {
+    container.createDiv({
+      cls: 'claudian-tool-exit',
+      text: exitCode === 0 ? t('chat.tools.exitSuccess') : t('chat.tools.exitCode', { code: exitCode }),
+    });
   }
 }
 
@@ -1288,12 +1296,27 @@ function renderToolContent(
       renderAskUserQuestionFallback(content, toolCall);
     }
   } else if (toolCall.name === TOOL_BASH) {
-    renderBashContent(content, toolCall.input, toolCall.result ?? '', initialText, !!toolCall.resultImages?.length);
+    renderBashContent(
+      content,
+      toolCall.input,
+      toolCall.result ?? '',
+      initialText,
+      !!toolCall.resultImages?.length,
+      toolCall.exitCode,
+    );
     if (toolCall.resultImages?.length) renderResultImages(content, toolCall.resultImages);
   } else if (initialText) {
     contentFallback(content, initialText);
   } else {
-    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input, toolCall.resultFormat, toolCall.resultImages);
+    renderExpandedContent(
+      content,
+      toolCall.name,
+      toolCall.result,
+      toolCall.input,
+      toolCall.resultFormat,
+      toolCall.resultImages,
+      toolCall.exitCode,
+    );
   }
 }
 
@@ -1382,7 +1405,15 @@ export function updateToolCallResult(
   const content = toolEl.querySelector('.claudian-tool-content') as HTMLElement;
   if (content) {
     content.empty();
-    renderExpandedContent(content, toolCall.name, toolCall.result, toolCall.input, toolCall.resultFormat, toolCall.resultImages);
+    renderExpandedContent(
+      content,
+      toolCall.name,
+      toolCall.result,
+      toolCall.input,
+      toolCall.resultFormat,
+      toolCall.resultImages,
+      toolCall.exitCode,
+    );
   }
 }
 

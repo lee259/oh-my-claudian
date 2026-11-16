@@ -538,7 +538,9 @@
       "find": "Find \"{pattern}\"",
       "pattern": "Pattern: {pattern}",
       "altQuery": "Alt query: {query}",
-      "changes": "Changes: +{added} -{removed}"
+      "changes": "Changes: +{added} -{removed}",
+      "exitSuccess": "Success",
+      "exitCode": "Exit code {code}"
     },
     "toolStatus": {
       "running": "running",

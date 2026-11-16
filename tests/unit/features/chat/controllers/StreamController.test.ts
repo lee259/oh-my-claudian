@@ -1019,6 +1019,26 @@ describe('StreamController - Text Content', () => {
       expect(msg.toolCalls![0].result).toBe('ok');
     });
 
+    it('should keep the provider exit code when a command finishes', async () => {
+      const msg = createTestMessage();
+      msg.toolCalls = [
+        {
+          id: 'tool-1',
+          name: 'Bash',
+          input: { command: 'exit 127' },
+          status: 'running',
+        } as any,
+      ];
+      deps.state.currentContentEl = createMockEl();
+
+      await controller.handleStreamChunk(
+        { type: 'tool_result', id: 'tool-1', content: 'command not found', isError: true, exitCode: 127 },
+        msg
+      );
+
+      expect(msg.toolCalls![0]).toMatchObject({ status: 'error', exitCode: 127 });
+    });
+
     it('should add subagent entry to contentBlocks for Task tool', async () => {
       const msg = createTestMessage();
       deps.state.currentContentEl = createMockEl();

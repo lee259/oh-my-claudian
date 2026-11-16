@@ -693,6 +693,7 @@ function processLegacyItem(
           const rawOutput = item.aggregated_output ?? '';
           tc.result = normalizeCodexToolResult(tc.name, rawOutput);
           tc.status = item.exit_code === 0 ? 'completed' : 'error';
+          if (typeof item.exit_code === 'number') tc.exitCode = item.exit_code;
         }
       }
       break;
@@ -1246,6 +1247,7 @@ function applyPersistedToolOutput(
     toolCall.status = commandResult.exitCode !== undefined
       ? commandResult.exitCode === 0 ? 'completed' : 'error'
       : isCodexToolOutputError(rawOutputText) || isCodexToolOutputError(commandResult.output) ? 'error' : 'completed';
+    if (commandResult.exitCode !== undefined) toolCall.exitCode = commandResult.exitCode;
     return;
   }
 
@@ -1473,7 +1475,10 @@ function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefin
   const tool = claimPersistedNativeCall('Bash', commands.map(command => ({ command, workingDirectory })), ctx);
   if (!tool || typeof item.aggregated_output !== 'string') return;
   tool.result = item.aggregated_output;
-  if (typeof item.exit_code === 'number') tool.status = item.exit_code === 0 ? 'completed' : 'error';
+  if (typeof item.exit_code === 'number') {
+    tool.status = item.exit_code === 0 ? 'completed' : 'error';
+    tool.exitCode = item.exit_code;
+  }
 }
 
 function applyPersistedNativeWebSearchItem(
@@ -2385,6 +2390,7 @@ function processLegacyItemInModernContext(
         const rawOutput = item.aggregated_output ?? '';
         toolCall.result = normalizeCodexToolResult(toolCall.name, rawOutput);
         toolCall.status = item.exit_code === 0 ? 'completed' : 'error';
+        if (typeof item.exit_code === 'number') toolCall.exitCode = item.exit_code;
       }
       break;
     }

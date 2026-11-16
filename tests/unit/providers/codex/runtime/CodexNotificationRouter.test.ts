@@ -658,6 +658,7 @@ describe('CodexNotificationRouter', () => {
       expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([expect.objectContaining({
         content: 'native public output\n',
         isError: true,
+        exitCode: 1,
       })]);
       expect(JSON.stringify(chunks)).not.toContain('tokens_left');
     });
@@ -1250,6 +1251,7 @@ describe('CodexNotificationRouter', () => {
         id: 'call_raw_json',
         content: '{"output":"literal"}',
         isError: false,
+        exitCode: 0,
       });
       expect(chunks).not.toContainEqual(expect.objectContaining({
         type: 'tool_result',
@@ -3087,7 +3089,7 @@ describe('CodexNotificationRouter', () => {
       expect(chunks).toEqual([
         { type: 'tool_use', id: 'call_raw', name: 'Bash', input: { command: 'pwd' } },
         { type: 'tool_output', id: 'call_raw', content: '/work' },
-        { type: 'tool_result', id: 'call_raw', content: '/workspace\n', isError: false },
+        { type: 'tool_result', id: 'call_raw', content: '/workspace\n', isError: false, exitCode: 0 },
       ]);
     });
 
@@ -3347,7 +3349,7 @@ describe('CodexNotificationRouter', () => {
 
       expect(chunks).toEqual([
         { type: 'tool_use', id: 'exec_canonical', name: 'Bash', input: { command: 'pwd' } },
-        { type: 'tool_result', id: 'exec_canonical', content: '/workspace\n', isError: false },
+        { type: 'tool_result', id: 'exec_canonical', content: '/workspace\n', isError: false, exitCode: 0 },
         { type: 'tool_use', id: 'call_raw', name: 'Bash', input: { command: 'pwd' } },
         { type: 'tool_result', id: 'call_raw', content: '/workspace\n', isError: false },
       ]);

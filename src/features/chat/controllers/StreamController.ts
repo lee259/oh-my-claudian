@@ -1303,6 +1303,7 @@ export class StreamController {
       content: string;
       isError?: boolean;
       isBlocked?: boolean;
+      exitCode?: number;
       toolUseResult?: SDKToolUseResult;
     },
     msg: ChatMessage
@@ -1378,6 +1379,7 @@ export class StreamController {
       } else {
         existingToolCall.status = 'completed';
       }
+      if (chunk.exitCode !== undefined) existingToolCall.exitCode = chunk.exitCode;
       existingToolCall.result = normalizedContent;
       if (chunk.toolUseResult?.resultFormat === 'plain') {
         existingToolCall.resultFormat = 'plain';
@@ -2675,6 +2677,7 @@ export function providerOutputEventToStreamChunk(
           id: event.toolCallId,
           ...(event.isError !== undefined ? { isError: event.isError } : {}),
           ...(event.isBlocked !== undefined ? { isBlocked: event.isBlocked } : {}),
+          ...(event.exitCode !== undefined ? { exitCode: event.exitCode } : {}),
           ...(event.toolUseResult ? { toolUseResult: event.toolUseResult } : {}),
           type: 'tool_result',
         };

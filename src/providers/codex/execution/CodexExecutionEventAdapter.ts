@@ -57,6 +57,7 @@ export function adaptCodexStreamChunk(
         content: chunk.content,
         ...(chunk.isError !== undefined ? { isError: chunk.isError } : {}),
         ...(chunk.isBlocked !== undefined ? { isBlocked: chunk.isBlocked } : {}),
+        ...(chunk.exitCode !== undefined ? { exitCode: chunk.exitCode } : {}),
         ...(chunk.toolUseResult ? { toolUseResult: chunk.toolUseResult } : {}),
       };
     case 'usage':

@@ -538,7 +538,9 @@
       "find": "Localizar «{pattern}»",
       "pattern": "Padrão: {pattern}",
       "altQuery": "Consulta alternativa: {query}",
-      "changes": "Alterações: +{added} -{removed}"
+      "changes": "Alterações: +{added} -{removed}",
+      "exitSuccess": "Sucesso",
+      "exitCode": "Código de saída {code}"
     },
     "toolStatus": {
       "running": "em execução",

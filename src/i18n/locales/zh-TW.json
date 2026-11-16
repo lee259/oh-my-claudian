@@ -538,7 +538,9 @@
       "find": "尋找「{pattern}」",
       "pattern": "比對模式：{pattern}",
       "altQuery": "備選查詢：{query}",
-      "changes": "變更：+{added} -{removed}"
+      "changes": "變更：+{added} -{removed}",
+      "exitSuccess": "成功",
+      "exitCode": "結束碼 {code}"
     },
     "toolStatus": {
       "running": "執行中",
