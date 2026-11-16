@@ -1,4 +1,4 @@
-import { Platform, setIcon } from 'obsidian';
+import { Notice, Platform, setIcon } from 'obsidian';
 
 import { t } from '@/i18n/i18n';
 
@@ -1242,7 +1242,23 @@ function renderBashContent(
   const command = (input.command as string) || '';
   if (command) {
     const cmdEl = container.createDiv({ cls: 'claudian-tool-bash-command' });
-    cmdEl.setText(`$ ${command}`);
+    cmdEl.createSpan({ cls: 'claudian-tool-bash-command-text', text: `$ ${command}` });
+    const copyBtn = cmdEl.createEl('button', {
+      cls: 'claudian-tool-copy-command',
+      attr: { type: 'button', 'aria-label': t('chat.tools.copyCommand') },
+    });
+    setIcon(copyBtn, 'copy');
+    copyBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const clipboard = navigator.clipboard;
+      if (!clipboard) {
+        new Notice(t('chat.tools.copyFailed'));
+        return;
+      }
+      void clipboard.writeText(command).catch(() => {
+        new Notice(t('chat.tools.copyFailed'));
+      });
+    });
   }
   if (initialText) {
     contentFallback(container, initialText);

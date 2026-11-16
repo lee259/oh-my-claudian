@@ -543,7 +543,9 @@
       "exitSuccess": "成功",
       "exitCode": "終了コード {code}",
       "patchRejected": "拒否",
-      "patchStopped": "停止"
+      "patchStopped": "停止",
+      "copyCommand": "コマンドをコピー",
+      "copyFailed": "クリップボードにコピーできませんでした"
     },
     "toolStatus": {
       "running": "実行中",

@@ -543,7 +543,9 @@
       "exitSuccess": "성공",
       "exitCode": "종료 코드 {code}",
       "patchRejected": "거부됨",
-      "patchStopped": "중지됨"
+      "patchStopped": "중지됨",
+      "copyCommand": "명령 복사",
+      "copyFailed": "클립보드에 복사하지 못했습니다"
     },
     "toolStatus": {
       "running": "실행 중",

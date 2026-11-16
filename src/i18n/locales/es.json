@@ -543,7 +543,9 @@
       "exitSuccess": "Correcto",
       "exitCode": "Código de salida {code}",
       "patchRejected": "Rechazado",
-      "patchStopped": "Detenido"
+      "patchStopped": "Detenido",
+      "copyCommand": "Copiar comando",
+      "copyFailed": "No se pudo copiar al portapapeles"
     },
     "toolStatus": {
       "running": "en ejecución",
