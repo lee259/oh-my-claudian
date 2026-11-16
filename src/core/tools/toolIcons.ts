@@ -65,6 +65,9 @@ const TOOL_ICONS: Record<string, string> = {
   [TOOL_WAIT_AGENT]: 'clock',
   [TOOL_RESUME_AGENT]: 'bot',
   [TOOL_CLOSE_AGENT]: 'bot',
+  // Provider-supplied presentation labels that are not execution tool names.
+  Create: 'file-plus',
+  Delete: 'trash-2',
 };
 
 /** Special marker for MCP tools - signals to use custom SVG. */

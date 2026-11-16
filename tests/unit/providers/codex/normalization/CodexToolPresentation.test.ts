@@ -49,4 +49,19 @@ describe('presentCodexFileChange', () => {
       { path: 'src/main.ts' },
     ])).toEqual({ name: 'Edit', summary: 'src/main.ts +1' });
   });
+
+  it.each([
+    [[{ path: 'src/new.ts', kind: 'add' }], 'Create'],
+    [[{ path: 'src/old.ts', kind: { type: 'delete' } }], 'Delete'],
+    [[{ path: 'src/new.ts', kind: 'add' }, { path: 'src/main.ts', kind: 'update' }], 'Edit'],
+    [[{ path: 'src/old.ts', kind: { type: 'update', move_path: 'src/new.ts' } }], 'Edit'],
+  ])('uses the native change kind for %j', (changes, name) => {
+    const summary = changes.length > 1 ? `${changes[0].path} +${changes.length - 1}` : changes[0].path;
+    expect(presentCodexFileChange(changes)).toEqual({ name, summary });
+  });
+
+  it('keeps a single change without a kind as a generic edit', () => {
+    expect(presentCodexFileChange([{ path: 'src/main.ts', kind: 'modify' }]))
+      .toEqual({ name: 'Edit', summary: 'src/main.ts' });
+  });
 });

@@ -37,8 +37,9 @@ export function presentCodexCommand(input: {
 
 /** Labels Codex's native file-change event without changing its execution identity. */
 export function presentCodexFileChange(changes: unknown, cwd?: unknown): ToolCallPresentation {
-  const paths = Array.isArray(changes)
-    ? [...new Set(changes.flatMap((value) => {
+  const entries = Array.isArray(changes) ? changes : [];
+  const paths = entries.length > 0
+    ? [...new Set(entries.flatMap((value) => {
         const path = displayPath(asRecord(value)?.path, cwd);
         return path ? [path] : [];
       }))]
@@ -47,7 +48,35 @@ export function presentCodexFileChange(changes: unknown, cwd?: unknown): ToolCal
   const summary = first
     ? paths.length > 1 ? `${first} +${paths.length - 1}` : first
     : undefined;
-  return { name: 'Edit', ...(summary ? { summary } : {}) };
+  return { name: readFileChangeName(entries), ...(summary ? { summary } : {}) };
+}
+
+type FileChangeIntent = 'create' | 'delete' | 'edit';
+
+/** A batch needs one intent to read as create/delete; mixed or unknown changes stay a generic edit. */
+function readFileChangeName(changes: readonly unknown[]): string {
+  const intents = new Set(changes.map(readFileChangeIntent));
+  if (intents.size === 1 && intents.has('create')) return 'Create';
+  if (intents.size === 1 && intents.has('delete')) return 'Delete';
+  return 'Edit';
+}
+
+function readFileChangeIntent(value: unknown): FileChangeIntent {
+  const kind = asRecord(value)?.kind ?? asRecord(value)?.type;
+  const type = (stringValue(kind) ?? stringValue(asRecord(kind)?.type))?.toLowerCase();
+  switch (type) {
+    case 'add':
+    case 'create':
+    case 'created':
+      return 'create';
+    case 'delete':
+    case 'remove':
+    case 'deleted':
+    case 'removed':
+      return 'delete';
+    default:
+      return 'edit';
+  }
 }
 
 function parseSimpleCommand(source: string): { executable: string; args: string[] } | undefined {

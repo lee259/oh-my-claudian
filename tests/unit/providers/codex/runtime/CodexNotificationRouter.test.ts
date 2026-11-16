@@ -5353,9 +5353,9 @@ describe('CodexNotificationRouter', () => {
 
   describe('file change output delta', () => {
     it.each([
-      ['add', '@@ -0,0 +1,2 @@\n+first\n+second'],
-      ['delete', '@@ -1,2 +0,0 @@\n-first\n-second'],
-    ])('renders native %s-file contents as a line-based patch', (kind, expectedDiff) => {
+      ['add', 'Create', '@@ -0,0 +1,2 @@\n+first\n+second'],
+      ['delete', 'Delete', '@@ -1,2 +0,0 @@\n-first\n-second'],
+    ])('renders native %s-file contents as a line-based patch', (kind, expectedName, expectedDiff) => {
       router.beginTurn({ isPlanTurn: false });
       router.handleNotification('item/started', {
         item: {
@@ -5370,7 +5370,7 @@ describe('CodexNotificationRouter', () => {
         type: 'tool_use',
         id: 'fc_add',
         name: 'apply_patch',
-        presentation: { name: 'Edit', summary: 'note.md' },
+        presentation: { name: expectedName, summary: 'note.md' },
         input: {
           changes: [{
             path: '/workspace/note.md',
