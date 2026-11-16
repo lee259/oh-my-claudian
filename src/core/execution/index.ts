@@ -84,6 +84,7 @@ export {
   type ProviderExecutionDiagnostics,
   type ProviderExecutionInputBlock,
   type ProviderExecutionRequest,
+  type ProviderExplicitInstructionPurpose,
   type ProviderResolvedHistoryDiagnostics,
   type ProviderResolvedPromptDiagnostics,
   type ProviderResolvedToolDiagnostics,

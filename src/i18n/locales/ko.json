@@ -673,6 +673,18 @@
         "desc": "Cursor Agent에만 전달되는 환경 변수입니다. CURSOR_* 설정을 셸에서 내보내지 않고 여기에 지정할 수 있습니다."
       }
     },
+    "antigravity": {
+      "enableDesc": "로컬 Antigravity CLI에 연결합니다. agy 네이티브 인증과 세션을 사용합니다.",
+      "cliPathDesc": "Antigravity CLI(agy)의 절대 경로(선택). 비워 두면 알려진 설치 위치를 먼저 찾고 PATH를 검색합니다.",
+      "environment": {
+        "name": "Antigravity 환경 변수",
+        "desc": "Antigravity CLI에만 전달되는 환경 변수입니다."
+      },
+      "emptyCatalog": "아직 Antigravity 모델을 찾지 못했습니다. `agy acp --login` 후 검색하세요.",
+      "failedCatalog": "Antigravity 모델 카탈로그를 불러오지 못했습니다. CLI 경로와 로그인 상태를 확인하세요.",
+      "loadingCatalog": "Antigravity 모델 카탈로그를 불러오는 중...",
+      "searchPlaceholder": "모델 이름 또는 별칭으로 필터링..."
+    },
     "grok": {
       "enableDesc": "로컬 Grok Build에 연결하며 Cursor와 독립된 설정과 세션을 사용합니다.",
       "cliPathDesc": "Grok Build CLI의 선택적 절대 경로입니다. 비워 두면 알려진 설치 위치를 우선 사용한 다음 PATH를 검색합니다. “which grok” 출력 내용을 붙여 넣으세요(Windows에서는 “where grok”).",

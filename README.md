@@ -80,6 +80,7 @@ Upstream evolves independently. See [Claudian's current README](https://github.c
 The built-in provider integrations are:
 
 - [Claude Code](https://code.claude.com/docs/en/overview)
+- [Antigravity CLI](https://antigravity.google/product/antigravity-cli)
 - [Codex](https://github.com/openai/codex)
 - [Cursor Agent](https://cursor.com/docs/cli/overview)
 - [Grok Build](https://github.com/xai-org/grok-build)
@@ -87,6 +88,8 @@ The built-in provider integrations are:
 - [OpenCode](https://github.com/anomalyco/opencode)
 - [Pi](https://github.com/earendil-works/pi)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+
+For Antigravity, install `agy` 1.5.1 or newer and sign in with `agy acp --login` before enabling **Providers → Antigravity**. The account and its location must pass agy's eligibility check; Claudian cannot bypass a region or account restriction. Google's FAQ also states that using third-party software with a consumer Antigravity login violates its Terms of Service and may result in account suspension; use a Gemini Enterprise or Google AI Studio API key for third-party agents instead. Treat this provider as experimental and do not enable it with a consumer Antigravity account. The integration uses native Antigravity authentication and the `agy acp` server. It supports streaming, image attachments, steering, approvals, questions, model/thinking selection, and native transcript history. Upstream Antigravity limitations still apply: no fork, rewind, ephemeral sessions, side chat, plan mode, WSL, or fast mode; subagents that need approval may stall outside Auto/YOLO; and Antigravity retains only recent conversations. Title and Inline Edit use Claudian-owned files under `.agents/agents/claudian-*` in the vault. Inline Edit is read-only by prompt and tool set, but Antigravity does not provide a native read-only sandbox.
 
 For DeepSeek Harness, configure `dsh web` or open DeepSeek Harness Desktop once before enabling it in **Providers → DeepSeek Harness**. Discover the native model catalog, then explicitly select the models to show in chat. Auto prefers `dsh`; set the Desktop `.app` path or Windows installation folder to use its bundled runtime. The integration reuses your native profile, credentials and MCP servers. It supports native history/resume, images, permissions and Stop, with optional code mode and additional preset plugins. Chat presets include Obsidian-native vault tools through a session-scoped local bridge. Planning is not exposed by this integration.
 
@@ -166,7 +169,7 @@ Use `ANTHROPIC_AUTH_TOKEN=` instead when that is the conflicting credential. Kee
 
 Unsent chat text is saved automatically under `.claudian/drafts/` in the vault and restored when you reopen a conversation or restart Obsidian. Unsent text in blank tabs is restored too. Closing a blank tab or deleting a conversation clears its draft. These files may sync with your vault; protect them as you would your notes. Images, quotes, and other attachments are not restored after a restart and must be added again.
 
-Oh My Claudian is local-first and does not send telemetry. Your prompts, attachments, and tool results are sent to the provider you select and its configured model services. Network access also includes CLI version checks against the npm registry and configured MCP endpoints. CLI discovery and launches read relevant local environment variables, such as `PATH`, `HOME`, and `USERPROFILE`, to locate and run provider CLIs. These values are used locally and are not collected for plugin telemetry; provider CLI processes may use their inherited environment according to their own behavior.
+Oh My Claudian is local-first and does not send telemetry. Your prompts, attachments, and tool results are sent to the provider you select and its configured model services, including Google when Antigravity is selected. Network access also includes CLI version checks against the npm registry and configured MCP endpoints. CLI discovery and launches read relevant local environment variables, such as `PATH`, `HOME`, and `USERPROFILE`, to locate and run provider CLIs. These values are used locally and are not collected for plugin telemetry; provider CLI processes may use their inherited environment according to their own behavior.
 
 The vault is the agent's working directory, not an operating-system security boundary. A local CLI, shell command, MCP server, plugin, or child process may access files, network services, and credentials available to your OS account. Safe/approval mode reduces accidental actions but cannot guarantee isolation. Review provider permissions carefully, especially before enabling YOLO, bash mode, browser access, MCP servers, or external context paths.
 

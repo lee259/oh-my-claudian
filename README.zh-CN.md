@@ -79,7 +79,9 @@ Oh My Claudian 基于 [Yishen Tu 的 Claudian](https://github.com/YishenTu/claud
 
 ## 支持的提供商
 
-内置 Claude Code、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode、Pi 和 DeepSeek Harness。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
+内置 Claude Code、Antigravity CLI、Codex、Cursor Agent、Grok Build、Oh My Pi（OMP）、OpenCode、Pi 和 DeepSeek Harness。具体认证、权限、规划、历史、模型目录、命令、技能及 MCP 能力由各提供商决定；界面仅展示所选提供商支持的功能。[官方文档入口](README.md#supported-providers)
+
+Antigravity 需安装 `agy` 1.5.1 或更高版本，并先在终端执行 `agy acp --login`，再在 **提供商 → Antigravity** 中启用。账号和所在地区必须通过 agy 的 eligibility 检查；Claudian 不能绕过地区或账号限制。Google FAQ 还明确说明，使用消费级 Antigravity 登录驱动第三方软件会违反 Terms of Service，可能导致账号被暂停；第三方 Agent 应改用 Gemini Enterprise 或 Google AI Studio API key。请将该 provider 视为实验功能，不要配合消费级 Antigravity 账号启用。集成使用 Antigravity 原生认证和 `agy acp`，支持流式输出、图片、steering、审批、问题卡片、模型／思考等级和原生历史。Antigravity 自身限制仍然存在：不支持 fork、rewind、临时会话、side chat、plan mode、WSL 和 fast mode；Ask／Accept edits 下需要审批的子代理可能卡住；只保留近期会话。标题生成和 Inline Edit 会在仓库写入 `.agents/agents/claudian-*` 文件。Inline Edit 通过提示词和工具集保持只读，但 Antigravity 没有原生只读沙箱。
 
 DeepSeek Harness 需先配置好 `dsh web`，或打开一次 DeepSeek Harness Desktop 完成设置，再在 **提供商 → DeepSeek Harness** 中启用、发现模型并手动选择聊天模型。自动发现优先使用 `dsh`；要使用 Desktop，请填写 `.app` 路径或 Windows 安装目录。集成复用原生配置、凭证和 MCP，支持历史恢复、图片、权限、停止、可选代码模式及附加预设插件；聊天预设通过会话隔离的本地桥接提供 Obsidian 原生笔记工具，辅助预设保持原有策略；目前不提供规划模式。
 
@@ -99,7 +101,7 @@ DeepSeek Harness 需先配置好 `dsh web`，或打开一次 DeepSeek Harness De
 
 未发送的聊天文本草稿自动保存在仓库的 `.claudian/drafts/` 中，重新打开会话或重启 Obsidian 时会恢复；空白标签中的文本草稿也会恢复。关闭空白标签或删除会话会清除对应草稿。草稿文件可能随仓库同步，请按笔记内容同样保护。图片、引用和其他附件不会在重启后恢复，请重新添加。
 
-插件采用本地优先设计，不发送插件遥测。提示词、附件和工具结果会发送到你所选的提供商及其配置的模型服务；CLI 版本检查和配置的 MCP 服务也可能访问网络。
+插件采用本地优先设计，不发送插件遥测。提示词、附件和工具结果会发送到你所选的提供商及其配置的模型服务；选择 Antigravity 时，数据会发送到 Google。CLI 版本检查和配置的 MCP 服务也可能访问网络。
 
 仓库是 Agent 的工作目录，不是操作系统级隔离环境。CLI、shell、MCP 或子进程可能访问当前系统账号允许访问的文件和服务。使用前检查提供商权限，尤其是自动批准、浏览器、MCP 和外部路径相关设置。
 

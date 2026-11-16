@@ -48,6 +48,7 @@ export interface AcpClientAuthCapabilities {
 export interface AcpClientCapabilities {
   _meta?: AcpMetadata | null;
   auth?: AcpClientAuthCapabilities;
+  elicitation?: { form?: Record<string, never> } | null;
   fs?: AcpFileSystemCapabilities;
   terminal?: boolean;
   positionEncodings?: AcpPositionEncodingKind[];
@@ -369,6 +370,41 @@ export type AcpSetSessionConfigOptionRequest =
 export interface AcpSetSessionConfigOptionResponse {
   configOptions: AcpSessionConfigOption[];
 }
+
+export interface AcpElicitationEnumOption {
+  const: string;
+  title?: string | null;
+}
+
+/** Form field schema: a single choice, a multi-choice array, or free text. */
+export interface AcpElicitationProperty {
+  description?: string | null;
+  items?: {
+    anyOf?: AcpElicitationEnumOption[] | null;
+    enum?: string[] | null;
+    oneOf?: AcpElicitationEnumOption[] | null;
+  } | null;
+  oneOf?: AcpElicitationEnumOption[] | null;
+  enum?: string[] | null;
+  title?: string | null;
+  type: 'array' | 'boolean' | 'integer' | 'number' | 'string';
+}
+
+export interface AcpCreateElicitationRequest {
+  message: string;
+  mode: 'form';
+  requestedSchema: {
+    properties: Record<string, AcpElicitationProperty>;
+    required?: string[] | null;
+    type: 'object';
+  };
+  sessionId: AcpSessionId;
+  toolCallId?: AcpToolCallId | null;
+}
+
+export type AcpCreateElicitationResponse =
+  | { action: 'accept'; content: Record<string, string | string[] | number | boolean> }
+  | { action: 'cancel' | 'decline' };
 
 export interface AcpContentChunk {
   content: AcpContentBlock;

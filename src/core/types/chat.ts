@@ -135,6 +135,10 @@ export interface ChatMessage {
   /** Display-only content (e.g., "/tests" when content is the expanded prompt). */
   displayContent?: string;
   timestamp: number;
+  /** Assistant completion time; absent until the response finishes. */
+  completedAt?: number;
+  /** Native provider turn identity. */
+  turnId?: string;
   /** Provider-triggered response without a new user request. */
   isAutomaticResponse?: boolean;
   toolCalls?: ToolCallInfo[];

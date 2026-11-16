@@ -8,14 +8,21 @@ import type {
 import type { ObsidianWorkspaceAdapter } from '../../core/obsidian/ObsidianWorkspaceAdapter';
 import type { ObsidianWorkspaceToolBridge } from '../../core/obsidian/ObsidianWorkspaceToolBridge';
 import type { ProviderCliLifecyclePort } from '../../core/providers/cli/ProviderCliLifecycle';
+import {
+  getProviderConfig,
+  getProviderSelectionInputs,
+  setProviderConfig,
+} from '../../core/providers/providerConfig';
 import type { ProviderDiagnosticLogSink } from '../../core/providers/ProviderDiagnosticLog';
 import type { ProviderHost } from '../../core/providers/ProviderHost';
+import type { ProviderRuntimeHost } from '../../core/providers/ProviderRuntimeHost';
 import type {
   ProviderCliResolutionContext,
   ProviderId,
 } from '../../core/providers/types';
 import type { ClaudianSettings } from '../../core/types';
 import type { EnvironmentScope } from '../../core/types/settings';
+import { getVaultPath } from '../../utils/path';
 
 interface ClaudianProviderHostDependencies {
   readonly cliLifecycle?: ProviderCliLifecyclePort;
@@ -179,5 +186,37 @@ export class ClaudianProviderHost implements ProviderHost {
 
   notifyProviderChatOptionsChanged(providerId: ProviderId): void {
     void this.plugin.notifyProviderChatOptionsChanged(providerId);
+  }
+
+  getRuntimeHost(providerId: ProviderId): ProviderRuntimeHost {
+    const plugin = this.plugin;
+    return {
+      get config() {
+        return getProviderConfig(plugin.settings, providerId);
+      },
+      get selection() {
+        return getProviderSelectionInputs(plugin.settings, providerId);
+      },
+      get environmentText() {
+        return plugin.getActiveEnvironmentVariables(providerId);
+      },
+      get clientVersion() {
+        return plugin.manifest?.version;
+      },
+      get workingDirectory() {
+        return getVaultPath(plugin.app) ?? process.cwd();
+      },
+      resolveCliPath: context => plugin.getResolvedProviderCliPath(providerId, context),
+      async updateConfig(mutation) {
+        let changed = false;
+        await plugin.mutateSettings((settings) => {
+          const config = getProviderConfig(settings, providerId);
+          changed = Boolean(mutation(config, getProviderSelectionInputs(settings, providerId)));
+          if (changed) setProviderConfig(settings, providerId, config);
+        });
+        return changed;
+      },
+      notifyChatOptionsChanged: () => plugin.notifyProviderChatOptionsChanged(providerId),
+    };
   }
 }

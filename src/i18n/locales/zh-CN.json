@@ -673,6 +673,18 @@
         "desc": "仅传递给 Cursor Agent 的环境变量。CURSOR_* 设置可在此填写，无需在 shell 中导出。"
       }
     },
+    "antigravity": {
+      "enableDesc": "连接本机 Antigravity CLI，使用 agy 原生认证和会话。",
+      "cliPathDesc": "可选的 Antigravity CLI（agy）绝对路径。留空会优先使用已知安装，然后查找 PATH。",
+      "environment": {
+        "name": "Antigravity 环境变量",
+        "desc": "仅传递给 Antigravity CLI 的环境变量。"
+      },
+      "emptyCatalog": "尚未发现 Antigravity 模型。先执行 `agy acp --login`，再点击发现。",
+      "failedCatalog": "无法加载 Antigravity 模型目录，请检查 CLI 路径和账号登录状态。",
+      "loadingCatalog": "正在加载 Antigravity 模型目录...",
+      "searchPlaceholder": "按模型名称或别名筛选..."
+    },
     "grok": {
       "enableDesc": "连接本机 Grok Build，使用独立于 Cursor 的配置和会话。",
       "cliPathDesc": "可选的 Grok Build CLI 绝对路径。留空会优先使用已知安装，然后查找 PATH。可粘贴 \"which grok\" 的输出（Windows 使用 \"where grok\"）。",

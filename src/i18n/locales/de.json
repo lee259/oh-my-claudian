@@ -673,6 +673,18 @@
         "desc": "Umgebungsvariablen, die nur an Cursor Agent übergeben werden. CURSOR_*-Einstellungen gehören hierher, statt sie in der Shell zu exportieren."
       }
     },
+    "antigravity": {
+      "enableDesc": "Connect to the local Antigravity CLI. Uses native agy authentication and sessions.",
+      "cliPathDesc": "Optional absolute path to the Antigravity CLI (agy). Leave empty to prefer known installs, then PATH.",
+      "environment": {
+        "name": "Antigravity environment variables",
+        "desc": "Environment variables passed only to Antigravity CLI."
+      },
+      "emptyCatalog": "No Antigravity models discovered yet. Sign in with `agy acp --login`, then click Discover.",
+      "failedCatalog": "Could not load the Antigravity model catalog. Check the CLI path and account login.",
+      "loadingCatalog": "Loading the Antigravity model catalog...",
+      "searchPlaceholder": "Filter by model name or alias ID..."
+    },
     "grok": {
       "enableDesc": "Verbinde das lokale Grok Build mit eigenen Einstellungen und Sitzungen, getrennt von Cursor.",
       "cliPathDesc": "Optionaler absoluter Pfad zur Grok Build CLI. Leer lassen, um zuerst bekannte Installationen und danach PATH zu verwenden. Füge die Ausgabe von „which grok“ ein (unter Windows „where grok“).",

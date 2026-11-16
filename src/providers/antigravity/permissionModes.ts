@@ -1,0 +1,21 @@
+export const ANTIGRAVITY_PERMISSION_MODES = ['normal', 'acceptEdits', 'auto', 'yolo'] as const;
+
+export type AntigravityPermissionMode = typeof ANTIGRAVITY_PERMISSION_MODES[number];
+
+export function isAntigravityPermissionMode(value: string): value is AntigravityPermissionMode {
+  return ANTIGRAVITY_PERMISSION_MODES.includes(value as AntigravityPermissionMode);
+}
+
+/**
+ * agy's native `mode` option for a Claudian permission mode. Native `plan` is never selected.
+ * YOLO runs native `default` in a main-chat process launched with `--dangerously-skip-permissions`,
+ * which overrides every mode until the process restarts; entering or leaving YOLO replaces the process.
+ */
+export function resolveAntigravityNativeMode(permissionMode: string | undefined): 'accept-edits' | 'auto' | 'default' {
+  if (permissionMode === 'auto') return 'auto';
+  return permissionMode === 'acceptEdits' ? 'accept-edits' : 'default';
+}
+
+export function shouldAutoApproveAntigravityPermission(permissionMode: string | undefined): boolean {
+  return permissionMode === 'yolo';
+}
