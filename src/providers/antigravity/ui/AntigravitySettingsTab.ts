@@ -154,12 +154,20 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
       validate: validateCliPath,
     });
 
-    new Setting(container).setName(t('settings.models')).setHeading();
+    new Setting(container)
+      .setName(t('settings.models'))
+      .setDesc(t('settings.antigravity.modelsDesc'))
+      .setHeading();
     renderAntigravityModelPicker(
       container,
       modelWarning.context,
       settingsBag,
-      refreshModelCatalog,
+      async () => {
+        const result = await refreshModelCatalog();
+        await readinessPanel.refresh();
+        return result;
+      },
+      () => readinessPanel.refresh(),
     );
 
     renderEnvironmentSettingsSection({
@@ -183,6 +191,7 @@ function renderAntigravityModelPicker(
   context: ProviderSettingsTabRendererContext,
   settingsBag: Record<string, unknown>,
   loadCatalog: () => Promise<'empty' | 'failed' | 'loaded'>,
+  refreshReadiness: () => Promise<void>,
 ): void {
   const getState = (): ProviderModelPickerState => {
     const current = getAntigravityProviderSettings(settingsBag);
@@ -221,6 +230,7 @@ function renderAntigravityModelPicker(
         updateAntigravityProviderSettings(settings, { visibleModels: normalized });
       });
       context.notifyProviderModelOptionsChanged(ANTIGRAVITY_PROVIDER_ID);
+      await refreshReadiness();
     },
     providerName: DISPLAY_NAME,
     searchPlaceholder: t('settings.antigravity.searchPlaceholder'),
