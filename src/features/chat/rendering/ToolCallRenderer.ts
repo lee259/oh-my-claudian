@@ -894,8 +894,13 @@ function setTodoWriteStatus(statusEl: HTMLElement, input: Record<string, unknown
   if (isComplete) setIcon(statusEl, 'check');
 }
 
-function setToolStatus(statusEl: HTMLElement, status: ToolCallInfo['status']): void {
-  const label = status === 'cancelled' ? t('chat.rendering.interrupted') : t(`chat.toolStatus.${status}`);
+function setToolStatus(
+  statusEl: HTMLElement,
+  status: ToolCallInfo['status'],
+  labelOverride?: string,
+): void {
+  const label = labelOverride
+    ?? (status === 'cancelled' ? t('chat.rendering.interrupted') : t(`chat.toolStatus.${status}`));
   resetStatusElement(statusEl, `status-${status}`, t('chat.bangBash.statusLabel', { status: label }));
   const icon = STATUS_ICONS[status];
   if (icon) setIcon(statusEl, icon);
@@ -908,6 +913,14 @@ function setApplyPatchHeaderRight(statusEl: HTMLElement, toolCall: ToolCallInfo)
   const isError = toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled';
   const stats = isError ? undefined : getApplyPatchDiffStats(toolCall.input);
   if (!stats) {
+    if (toolCall.status === 'blocked') {
+      setToolStatus(statusEl, toolCall.status, t('chat.tools.patchRejected'));
+      return;
+    }
+    if (toolCall.status === 'cancelled') {
+      setToolStatus(statusEl, toolCall.status, t('chat.tools.patchStopped'));
+      return;
+    }
     setToolStatus(statusEl, toolCall.status);
     return;
   }

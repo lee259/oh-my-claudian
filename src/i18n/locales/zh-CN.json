@@ -540,7 +540,9 @@
       "altQuery": "备选查询：{query}",
       "changes": "改动：+{added} -{removed}",
       "exitSuccess": "成功",
-      "exitCode": "退出码 {code}"
+      "exitCode": "退出码 {code}",
+      "patchRejected": "已拒绝",
+      "patchStopped": "已停止"
     },
     "toolStatus": {
       "running": "运行中",

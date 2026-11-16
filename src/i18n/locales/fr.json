@@ -540,7 +540,9 @@
       "altQuery": "Autre requête : {query}",
       "changes": "Modifications : +{added} -{removed}",
       "exitSuccess": "Réussi",
-      "exitCode": "Code de sortie {code}"
+      "exitCode": "Code de sortie {code}",
+      "patchRejected": "Refusé",
+      "patchStopped": "Arrêté"
     },
     "toolStatus": {
       "running": "en cours",

@@ -540,7 +540,9 @@
       "altQuery": "Альтернативный запрос: {query}",
       "changes": "Изменения: +{added} -{removed}",
       "exitSuccess": "Успешно",
-      "exitCode": "Код выхода {code}"
+      "exitCode": "Код выхода {code}",
+      "patchRejected": "Отклонено",
+      "patchStopped": "Остановлено"
     },
     "toolStatus": {
       "running": "выполняется",
