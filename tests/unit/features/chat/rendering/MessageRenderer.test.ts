@@ -1124,7 +1124,7 @@ describe('MessageRenderer', () => {
       expect(contentEl.children.indexOf(work)).toBeLessThan(contentEl.children.indexOf(answer));
       expect(history?.querySelector('.claudian-activity-phase-details')?.children)
         .toEqual([firstTool, secondTool]);
-      expect(summary).toBe('Ran 2 commands');
+      expect(summary).toBe('Bash · 2 calls');
       expect(contentEl.contains(answer)).toBe(true);
     });
 

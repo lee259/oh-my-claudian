@@ -2033,6 +2033,8 @@ export class MessageRenderer {
     kind: ActivityWorkKind,
   ): string {
     const names: string[] = [];
+    const toolLabels: string[] = [];
+    let toolElementCount = 0;
     for (const element of elements) {
       const toolCall = element.dataset.toolId
         ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
@@ -2040,6 +2042,19 @@ export class MessageRenderer {
       const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
       const label = toolCall?.name || renderedLabel;
       if (label) names.push(label);
+      if (element.hasClass('claudian-tool-call')) {
+        toolElementCount += 1;
+        if (label) toolLabels.push(label);
+      }
+    }
+
+    // Consecutive calls to one tool read as the native "{tool} · N calls" disclosure; rows stay visible.
+    if (
+      toolElementCount >= 2
+      && toolLabels.length === toolElementCount
+      && toolLabels.every(label => label === toolLabels[0])
+    ) {
+      return t('chat.activity.repeatedCalls', { tool: toolLabels[0], count: toolElementCount });
     }
 
     if (names.length > 0) {
