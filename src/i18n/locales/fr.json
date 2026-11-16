@@ -450,7 +450,8 @@
       "editedOne": "{count} fichier modifié",
       "editedMany": "{count} fichiers modifiés",
       "agentWork": "Travail de l’agent",
-      "compacted": "Conversation compactée"
+      "compacted": "Conversation compactée",
+      "repeatedCalls": "{tool} · {count} appels"
     },
     "modelPicker": {
       "options": "Options du modèle",

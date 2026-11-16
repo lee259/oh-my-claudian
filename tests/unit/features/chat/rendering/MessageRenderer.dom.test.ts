@@ -64,7 +64,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     try {
       tool('first', 'running'); tool('second', 'running');
       sync();
-      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('执行了 2 条命令');
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Bash · 2 次调用');
       const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
       const expanded = header.getAttribute('aria-expanded');
       header.click();
@@ -187,7 +187,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
         node.querySelector('.claudian-tool-name')!.textContent = '$ npm view example versions --json';
       }
       sync();
-      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Ran 2 commands');
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Bash · 2 calls');
       expect(content.querySelector('.claudian-activity-phase-header')?.firstElementChild?.className)
         .toBe('claudian-activity-phase-indicator');
     } finally { renderer.dispose(); component.unload(); }

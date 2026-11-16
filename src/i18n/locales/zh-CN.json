@@ -450,7 +450,8 @@
       "editedOne": "修改了 {count} 个文件",
       "editedMany": "修改了 {count} 个文件",
       "agentWork": "Agent 执行记录",
-      "compacted": "会话已压缩"
+      "compacted": "会话已压缩",
+      "repeatedCalls": "{tool} · {count} 次调用"
     },
     "modelPicker": {
       "options": "模型选项",

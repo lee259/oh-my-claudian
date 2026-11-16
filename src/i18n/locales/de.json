@@ -450,7 +450,8 @@
       "editedOne": "{count} Datei bearbeitet",
       "editedMany": "{count} Dateien bearbeitet",
       "agentWork": "Agent-Arbeit",
-      "compacted": "Unterhaltung komprimiert"
+      "compacted": "Unterhaltung komprimiert",
+      "repeatedCalls": "{tool} · {count} Aufrufe"
     },
     "modelPicker": {
       "options": "Modelloptionen",

@@ -450,7 +450,8 @@
       "editedOne": "Изменён {count} файл",
       "editedMany": "Изменено файлов: {count}",
       "agentWork": "Работа агента",
-      "compacted": "Беседа сжата"
+      "compacted": "Беседа сжата",
+      "repeatedCalls": "{tool} · {count} вызовов"
     },
     "modelPicker": {
       "options": "Параметры модели",
