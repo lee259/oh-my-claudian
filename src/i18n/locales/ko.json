@@ -675,6 +675,7 @@
     },
     "antigravity": {
       "enableDesc": "로컬 Antigravity CLI에 연결합니다. agy 네이티브 인증과 세션을 사용합니다.",
+      "modelsDesc": "Antigravity ACP가 제공하는 기본 모델을 표시합니다. 사고 수준은 채팅에서 따로 선택합니다.",
       "cliPathDesc": "Antigravity CLI(agy)의 절대 경로(선택). 비워 두면 알려진 설치 위치를 먼저 찾고 PATH를 검색합니다.",
       "environment": {
         "name": "Antigravity 환경 변수",
