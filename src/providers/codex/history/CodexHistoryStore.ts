@@ -53,7 +53,11 @@ import {
   readCodexExecCellIdArgument,
   stringifyCodexToolOutput,
 } from '../normalization/codexToolNormalization';
-import { presentCodexCommand, presentCodexFileChange } from '../normalization/CodexToolPresentation';
+import {
+  presentCodexCommand,
+  presentCodexFileChange,
+  presentCodexMcpToolCall,
+} from '../normalization/CodexToolPresentation';
 
 interface CodexEvent {
   type: string;
@@ -748,6 +752,7 @@ function processLegacyItem(
           id: item.id,
           name: `mcp__${server}__${tool}`,
           input: normalizeCodexMcpToolInput(item.arguments),
+          presentation: presentCodexMcpToolCall(server, tool),
           status: 'running',
         });
         turn.contentBlocks.push({ type: 'tool_use', toolId: item.id });
@@ -1329,6 +1334,7 @@ function processPersistedMcpToolCall(
     id: callId,
     name: normalizeCodexMcpToolName(payload.server, payload.tool),
     input: normalizedInput,
+    presentation: presentCodexMcpToolCall(payload.server, payload.tool),
     status: normalizedState.status,
     ...(normalizedState.result ? { result: normalizedState.result } : {}),
   };
@@ -2447,6 +2453,7 @@ function processLegacyItemInModernContext(
           id: item.id,
           name: `mcp__${item.server ?? ''}__${item.tool ?? ''}`,
           input: normalizeCodexMcpToolInput(item.arguments),
+          presentation: presentCodexMcpToolCall(item.server, item.tool),
           status: 'running',
         }));
         break;
@@ -2457,6 +2464,7 @@ function processLegacyItemInModernContext(
           id: item.id,
           name: `mcp__${item.server ?? ''}__${item.tool ?? ''}`,
           input: {},
+          presentation: presentCodexMcpToolCall(item.server, item.tool),
           status: 'running',
         }));
         const completion = normalizeCodexMcpToolCompletion(item.status, item.result, item.error);

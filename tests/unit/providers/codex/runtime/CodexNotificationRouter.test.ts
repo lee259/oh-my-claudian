@@ -56,6 +56,25 @@ describe('CodexNotificationRouter', () => {
         presentation: { name: 'Edit', summary: 'src/main.ts' },
       })]);
     });
+
+    it('labels MCP calls by server and tool while retaining the raw identity', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('item/started', { item: {
+        type: 'mcpToolCall',
+        id: 'mcp-1',
+        server: 'github',
+        tool: 'search_code',
+        arguments: { query: 'Codex' },
+        status: 'inProgress',
+      } });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_use')).toEqual([expect.objectContaining({
+        id: 'mcp-1',
+        name: 'mcp__github__search_code',
+        input: { query: 'Codex' },
+        presentation: { name: 'github', summary: 'search_code' },
+      })]);
+    });
   });
 
   describe('text streaming', () => {

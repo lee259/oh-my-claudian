@@ -73,6 +73,19 @@ describe('Tool row disclosures', () => {
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
   });
 
+  it('keeps the MCP icon when a friendly MCP label is used', () => {
+    const parent = document.createElement('div');
+    const element = renderStoredToolCall(parent, call({
+      name: 'mcp__github__search_code',
+      input: { query: 'Codex' },
+      status: 'completed',
+      presentation: { name: 'github', summary: 'search_code' },
+    }));
+    expect(element.querySelector('.claudian-tool-name')?.textContent).toBe('github');
+    expect(element.querySelector('.claudian-tool-summary')?.textContent).toBe('search_code');
+    expect(element.querySelector('.claudian-tool-icon svg title')?.textContent).toBe('MCP');
+  });
+
   it.each([1000, 17000])('reveals completed timing of %ims only when the row is inspected', (elapsed) => {
     const style = document.head.appendChild(document.createElement('style'));
     style.textContent = readFileSync(path.resolve('src/style/components/toolcalls.css'), 'utf8');

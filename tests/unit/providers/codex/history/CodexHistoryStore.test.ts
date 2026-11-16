@@ -3265,6 +3265,7 @@ describe('CodexHistoryStore', () => {
       expect(mcpTool).toBeDefined();
       expect(mcpTool!.id).toBe('call_mcp_1');
       expect(mcpTool!.status).toBe('completed');
+      expect(mcpTool!.presentation).toEqual({ name: 'myserver', summary: 'mytool' });
     });
 
     it('preserves MCP arguments and structured result text', () => {

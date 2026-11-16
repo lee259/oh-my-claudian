@@ -23,7 +23,11 @@ import {
   readCodexExecCellIdArgument,
   stringifyCodexToolOutput,
 } from '../normalization/codexToolNormalization';
-import { presentCodexCommand, presentCodexFileChange } from '../normalization/CodexToolPresentation';
+import {
+  presentCodexCommand,
+  presentCodexFileChange,
+  presentCodexMcpToolCall,
+} from '../normalization/CodexToolPresentation';
 import type {
   AgentMessageDeltaNotification,
   AgentMessageItem,
@@ -1789,6 +1793,7 @@ export class CodexNotificationRouter {
       id: item.id,
       name: `mcp__${item.server}__${item.tool}`,
       input: item.arguments ?? {},
+      presentation: presentCodexMcpToolCall(item.server, item.tool),
     });
   }
 

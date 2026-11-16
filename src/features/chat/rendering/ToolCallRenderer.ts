@@ -1067,11 +1067,13 @@ function createToolElementStructure(
 
   const iconEl = header.createSpan({ cls: 'claudian-tool-icon' });
   iconEl.setAttribute('aria-hidden', 'true');
-  const iconToolName = toolCall.presentation?.name === 'Find'
-    ? TOOL_GREP
-    : toolCall.presentation?.name === 'List'
-      ? TOOL_LS
-      : toolCall.presentation?.name ?? toolCall.name;
+  const iconToolName = toolCall.name.startsWith('mcp__')
+    ? toolCall.name
+    : toolCall.presentation?.name === 'Find'
+      ? TOOL_GREP
+      : toolCall.presentation?.name === 'List'
+        ? TOOL_LS
+        : toolCall.presentation?.name ?? toolCall.name;
   setToolIcon(iconEl, iconToolName);
 
   const nameEl = header.createSpan({ cls: 'claudian-tool-name' });
