@@ -561,6 +561,7 @@ export default class ClaudianPlugin extends Plugin {
       ...claudian,
     };
     setLocale(resolveLocale(this.settings.locale, getObsidianLanguage()));
+    this.applyChatFontScale();
     const archiveSetting = this.settings.sessionAutoArchiveAfter;
     const didNormalizeSessionAutoArchiveAfter = ![
       'off', '7d', '14d', '30d',
@@ -854,6 +855,15 @@ export default class ClaudianPlugin extends Plugin {
     );
   }
 
+  /** Applies the user's chat text size relative to Obsidian's note text. */
+  private applyChatFontScale(): void {
+    const percent = this.settings.chatFontScale ?? 100;
+    const scale = Math.min(120, Math.max(80, percent)) / 100;
+    if (typeof activeDocument !== 'undefined') {
+      activeDocument.body.style.setProperty('--claudian-chat-font-scale', String(scale));
+    }
+  }
+
   async saveSettings() {
     await this.settingsCoordinator.persistCurrent();
   }
@@ -863,6 +873,7 @@ export default class ClaudianPlugin extends Plugin {
     onCommitted?: SettingsCommit<ClaudianSettings>,
   ): Promise<void> {
     await this.settingsCoordinator.mutate(mutation, onCommitted);
+    this.applyChatFontScale();
     this.zenMode.refresh();
   }
 

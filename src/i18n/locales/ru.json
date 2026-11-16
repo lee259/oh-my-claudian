@@ -1616,6 +1616,10 @@
       "previewContent": "Просмотреть копируемое содержимое",
       "failedWithReason": "Ошибка импорта: {message}",
       "blockedCount": "Требуют внимания: {count}"
+    },
+    "chatFontScale": {
+      "name": "Размер текста чата",
+      "desc": "Масштаб текста чата относительно размера текста заметки."
     }
   },
   "inlineEdit": {

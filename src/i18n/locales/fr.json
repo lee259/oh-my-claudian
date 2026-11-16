@@ -1616,6 +1616,10 @@
       "previewContent": "Prévisualiser le contenu copié",
       "failedWithReason": "Échec de l’import : {message}",
       "blockedCount": "{count} entrées nécessitent votre attention"
+    },
+    "chatFontScale": {
+      "name": "Taille du texte du chat",
+      "desc": "Met à l’échelle le texte du chat par rapport à la taille de la note."
     }
   },
   "inlineEdit": {

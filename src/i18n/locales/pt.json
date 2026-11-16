@@ -1616,6 +1616,10 @@
       "previewContent": "Visualizar o conteúdo copiado",
       "failedWithReason": "Falha na importação: {message}",
       "blockedCount": "{count} entradas precisam de atenção"
+    },
+    "chatFontScale": {
+      "name": "Tamanho do texto do chat",
+      "desc": "Dimensiona o texto do chat em relação ao tamanho da nota."
     }
   },
   "inlineEdit": {
