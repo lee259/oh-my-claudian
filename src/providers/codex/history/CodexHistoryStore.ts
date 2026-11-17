@@ -61,6 +61,7 @@ import {
   presentCodexImageTool,
   presentCodexMcpToolCall,
 } from '../normalization/CodexToolPresentation';
+import { formatCodexModelLabel } from '../types/models';
 import { recoverCodexInputContext } from './CodexInputContext';
 
 interface CodexEvent {
@@ -190,6 +191,7 @@ interface CodexAssistantBubble {
 interface CodexTurnState {
   id: string;
   serverTurnId?: string;
+  modelName?: string;
   startedAt: number;
   completedAt?: number;
   completed?: boolean;
@@ -1861,6 +1863,7 @@ function flushBubbleTurnMessages(
       role: 'assistant',
       content: contentText.trim(),
       timestamp: bubble.startedAt || turn.startedAt || Date.now(),
+      ...(turn.modelName ? { modelName: turn.modelName } : {}),
       toolCalls: hasToolCalls ? bubble.toolCalls : undefined,
       contentBlocks: contentBlocks.length > 0 ? contentBlocks : undefined,
     };
@@ -2257,6 +2260,9 @@ function parseLegacySession(records: CodexSessionRecord[]): ChatMessage[] {
 function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn[] {
   const ctx = createPersistedParseContext();
   let threadId: string | undefined;
+  // User input may open a new replay turn within the same native task.
+  let activeNativeTurnId: string | undefined;
+  const turnModels = new Map<string, string>();
   const turnOutputTokens = new Map<string, number | undefined>();
   const rawCallIds = new Set<string>();
   const compactedRecordsWithEvent = new Set<CodexSessionRecord>();
@@ -2295,7 +2301,19 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
     if (parsed.type === 'session_meta') {
       threadId ??= typeof payload?.id === 'string' ? payload.id : undefined;
     }
-    if (parsed.type === 'turn_context' && typeof payload?.cwd === 'string') ctx.workingDirectory = payload.cwd;
+    if (parsed.type === 'turn_context') {
+      if (typeof payload?.cwd === 'string') ctx.workingDirectory = payload.cwd;
+      const model = typeof payload?.model === 'string' ? payload.model.trim() : '';
+      const nativeTurnId = typeof payload?.turn_id === 'string' && payload.turn_id.trim() ? payload.turn_id : undefined;
+      if (model && (payload?.turn_id === undefined || nativeTurnId)) {
+        const modelName = formatCodexModelLabel(model);
+        if (nativeTurnId) turnModels.set(nativeTurnId, modelName);
+        const turn = ctx.currentTurnId ? ctx.turns.get(ctx.currentTurnId) : undefined;
+        if (turn && (!nativeTurnId || nativeTurnId === activeNativeTurnId || nativeTurnId === turn.serverTurnId)) {
+          turn.modelName = modelName;
+        }
+      }
+    }
     if (parsed.type === 'token_usage_record' && threadId && payload?.thread_id === threadId) {
       if (typeof payload.turn_id === 'string') {
         const usage = payload.turn_token_usage as { output_tokens?: unknown } | undefined;
@@ -2314,6 +2332,7 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
     }
 
     if (parsed.type === 'event_msg') {
+      if (payload?.type === 'task_started') activeNativeTurnId = extractServerTurnId(parsed.payload as PersistedEventPayload);
       const activity = payload?.type === 'item_completed'
         ? normalizeCodexSubagentActivity(payload.item)
         : undefined;
@@ -2328,6 +2347,7 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
         processPersistedToolOutput({ type: 'function_call_output', call_id: activity.id, output: '' }, timestamp, ctx);
       }
       processEventMsg(parsed.payload as PersistedEventPayload, timestamp, ctx);
+      if (payload?.type === 'task_complete' || payload?.type === 'turn_aborted') activeNativeTurnId = undefined;
       continue;
     }
 
@@ -2346,7 +2366,10 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
   }
 
   for (const turn of ctx.turns.values()) {
-    if (turn.serverTurnId) turn.outputTokens = turnOutputTokens.get(turn.serverTurnId);
+    if (turn.serverTurnId) {
+      turn.outputTokens = turnOutputTokens.get(turn.serverTurnId);
+      turn.modelName = turnModels.get(turn.serverTurnId) ?? turn.modelName;
+    }
   }
   deduplicatePersistedImageViewPreviews(ctx);
   const turns = flushBubbleTurnsGrouped(ctx.turns, ctx.turnOrder);
