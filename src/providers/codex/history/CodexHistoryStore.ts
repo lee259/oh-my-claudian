@@ -61,6 +61,7 @@ import {
   presentCodexImageTool,
   presentCodexMcpToolCall,
 } from '../normalization/CodexToolPresentation';
+import { recoverCodexInputContext } from './CodexInputContext';
 
 interface CodexEvent {
   type: string;
@@ -1812,11 +1813,13 @@ function flushBubbleTurnMessages(
     const displayContent = visibleUserText
       ? extractUserDisplayContent(visibleUserText)
       : isQuestionReply ? '' : undefined;
+    const executionInput = !isQuestionReply && visibleUserText ? recoverCodexInputContext(visibleUserText) : undefined;
     messages.push({
       id: `codex-msg-${msgIndex}`,
       role: 'user',
       content: isQuestionReply ? rawUserText : visibleUserText ?? '',
       ...(displayContent !== undefined ? { displayContent } : {}),
+      ...(executionInput ? { executionInput } : {}),
       ...(userImages ? { images: userImages } : {}),
       ...(isQuestionReply ? { isProviderContinuation: true } : {}),
       ...(turn.serverTurnId ? { userMessageId: turn.serverTurnId } : {}),
