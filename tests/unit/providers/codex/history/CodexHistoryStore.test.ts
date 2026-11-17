@@ -20,6 +20,86 @@ import { appendEditorContext } from '@/utils/editor';
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  describe('historical model labels', () => {
+    const turn = (id: string, model: unknown) => [
+      { type: 'event_msg', payload: { type: 'task_started', turn_id: id } },
+      { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: `Question ${id}` }] } },
+      { type: 'turn_context', payload: { turn_id: id, model } },
+      { type: 'event_msg', payload: { type: 'agent_message', message: `Answer ${id}` } },
+      { type: 'event_msg', payload: { type: 'task_complete', turn_id: id } },
+    ];
+    const jsonl = (records: unknown[]) => records.map(record => JSON.stringify(record)).join('\n');
+
+    it('restores the model of each native turn across a model switch', () => {
+      const messages = parseCodexSessionContent(jsonl([
+        ...turn('first', 'gpt-6-luna'), ...turn('second', 'gpt-6.1-terra'),
+      ]));
+      expect(messages.filter(message => message.role === 'assistant')).toEqual([
+        expect.objectContaining({ content: 'Answer first', modelName: 'GPT-6 Luna' }),
+        expect.objectContaining({ content: 'Answer second', modelName: 'GPT-6.1 Terra' }),
+      ]);
+      expect(messages.filter(message => message.role === 'user').map(message => message.modelName)).toEqual([undefined, undefined]);
+    });
+
+    it.each([undefined, null, 42, '', '   '])('does not borrow a previous model when turn metadata is invalid: %s', model => {
+      const messages = parseCodexSessionContent(jsonl([...turn('first', 'gpt-6-luna'), ...turn('second', model)]));
+      expect(messages.filter(message => message.role === 'assistant').map(message => message.modelName)).toEqual(['GPT-6 Luna', undefined]);
+    });
+
+    it('keeps unknown native model names without consulting the current catalog', () => {
+      const messages = parseCodexSessionContent(jsonl(turn('custom', '  local-model-v2  ')));
+      expect(messages.find(message => message.role === 'assistant')?.modelName).toBe('local-model-v2');
+    });
+
+    it('associates late context by native turn identity rather than the current turn', () => {
+      const first = turn('first', 'gpt-6-luna');
+      const second = turn('second', 'gpt-6.1-terra');
+      const messages = parseCodexSessionContent(jsonl([
+        ...first, ...second.slice(0, 3),
+        { type: 'turn_context', payload: { turn_id: 'first', model: 'corrected-first-model' } },
+        ...second.slice(3),
+      ]));
+      expect(messages.filter(message => message.role === 'assistant').map(message => message.modelName))
+        .toEqual(['corrected-first-model', 'GPT-6.1 Terra']);
+    });
+
+    it('recovers context recorded before its native turn starts', () => {
+      const records = turn('first', 'gpt-6-luna');
+      const messages = parseCodexSessionContent(jsonl([records[2], ...records.slice(0, 2), ...records.slice(3)]));
+      expect(messages.find(message => message.role === 'assistant')?.modelName).toBe('GPT-6 Luna');
+    });
+
+    it('uses id-less context only for the active turn', () => {
+      const records = turn('first', 'gpt-6-luna');
+      const messages = parseCodexSessionContent(jsonl([
+        ...records.slice(0, 2), { type: 'turn_context', payload: { model: 'gpt-6-luna' } }, ...records.slice(3),
+        ...turn('second', undefined),
+      ]));
+      expect(messages.filter(message => message.role === 'assistant').map(message => message.modelName)).toEqual(['GPT-6 Luna', undefined]);
+    });
+
+    it.each([null, 42, '', '   '])('does not treat malformed turn identity as id-less context: %s', turnId => {
+      const records = turn('first', 'gpt-6-luna');
+      const messages = parseCodexSessionContent(jsonl([
+        ...records.slice(0, 2), { type: 'turn_context', payload: { turn_id: turnId, model: 'gpt-6-luna' } }, ...records.slice(3),
+      ]));
+      expect(messages.find(message => message.role === 'assistant')?.modelName).toBeUndefined();
+    });
+
+    it('preserves the recorded model on an interrupted turn without a completion record', () => {
+      const messages = parseCodexSessionContent(jsonl([
+        ...turn('first', 'gpt-6-luna').slice(0, -1), { type: 'event_msg', payload: { type: 'turn_aborted' } },
+      ]));
+      expect(messages.find(message => message.role === 'assistant')).toMatchObject({ modelName: 'GPT-6 Luna', isInterrupt: true });
+    });
+
+    it('does not use models from beyond the requested history checkpoint', () => {
+      const turns = parseCodexSessionTurns(jsonl([...turn('first', 'gpt-6-luna'), ...turn('second', 'gpt-6.1-terra')]), 'first');
+      expect(turns).toHaveLength(1);
+      expect(turns[0].messages.find(message => message.role === 'assistant')?.modelName).toBe('GPT-6 Luna');
+    });
+  });
+
   describe('input context replay', () => {
     const replay = (prompt: string, event = false) => parseCodexSessionContent(JSON.stringify(event
       ? { type: 'event_msg', payload: { type: 'user_message', message: prompt } }
