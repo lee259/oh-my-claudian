@@ -1,3 +1,5 @@
+import { TOOL_GENERATE_IMAGE, TOOL_VIEW_IMAGE } from '@/core/tools/toolNames';
+
 import type { ToolCallPresentation } from '../../../core/types';
 
 type RecordValue = Record<string, unknown>;
@@ -5,6 +7,12 @@ type RecordValue = Record<string, unknown>;
 const READ_COMMANDS = new Set(['cat', 'bat', 'batcat', 'nl', 'less', 'more', 'tac', 'head', 'tail']);
 const SEARCH_COMMANDS = new Set(['rg', 'grep', 'egrep', 'fgrep', 'ack', 'ag']);
 const SHELL_NOISE_COMMANDS = new Set(['cd', 'echo', 'printf', 'pwd', 'true', 'false', 'clear', 'wc']);
+
+export function presentCodexImageTool(rawName: string | undefined): ToolCallPresentation | undefined {
+  if (rawName === 'image_gen__imagegen') return { name: TOOL_GENERATE_IMAGE };
+  if (rawName === 'view_image') return { name: TOOL_VIEW_IMAGE };
+  return undefined;
+}
 
 /** Creates display-only labels for Codex shell commands when their intent is clear. */
 export function presentCodexCommand(input: {

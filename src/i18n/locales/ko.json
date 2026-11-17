@@ -452,7 +452,13 @@
       "editedMany": "파일 {count}개 수정함",
       "agentWork": "에이전트 작업",
       "compacted": "대화가 압축되었습니다",
-      "repeatedCalls": "{tool} · {count}회 호출"
+      "repeatedCalls": "{tool} · {count}회 호출",
+      "generateImage": "이미지 생성",
+      "viewImage": "이미지 보기",
+      "generatedOne": "이미지 {count}개 생성",
+      "generatedMany": "이미지 {count}개 생성",
+      "viewedOne": "이미지 {count}개 확인",
+      "viewedMany": "이미지 {count}개 확인"
     },
     "modelPicker": {
       "options": "모델 옵션",

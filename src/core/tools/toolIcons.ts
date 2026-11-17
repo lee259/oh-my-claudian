@@ -8,6 +8,7 @@ import {
   TOOL_EDIT,
   TOOL_ENTER_PLAN_MODE,
   TOOL_EXIT_PLAN_MODE,
+  TOOL_GENERATE_IMAGE,
   TOOL_GLOB,
   TOOL_GREP,
   TOOL_KILL_SHELL,
@@ -24,6 +25,7 @@ import {
   TOOL_SUBAGENT,
   TOOL_TODO_WRITE,
   TOOL_TOOL_SEARCH,
+  TOOL_VIEW_IMAGE,
   TOOL_WAIT,
   TOOL_WAIT_AGENT,
   TOOL_WEB_FETCH,
@@ -34,6 +36,8 @@ import {
 
 const TOOL_ICONS: Record<string, string> = {
   [TOOL_READ]: 'file-text',
+  [TOOL_GENERATE_IMAGE]: 'image-plus',
+  [TOOL_VIEW_IMAGE]: 'image',
   [TOOL_WRITE]: 'file-plus',
   [TOOL_EDIT]: 'file-pen',
   [TOOL_NOTEBOOK_EDIT]: 'file-pen',

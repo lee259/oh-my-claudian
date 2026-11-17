@@ -59,6 +59,41 @@ function createTurn(
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => { setLocale('en'); document.body.replaceChildren(); });
 
+  it.each([
+    ['en', 'Read 1 file, ran 1 command, generated 2 images, and viewed 1 image'],
+    ['zh-CN', '读取了 1 个文件、执行了 1 条命令、生成了 2 张图片和查看了 1 张图片'],
+  ] as const)('counts image presentations separately from file reads in %s', (locale, expected) => {
+    setLocale(locale);
+    const { renderer, component, content, assistant, sync } = createTurn();
+    try {
+      for (const [id, name, presentation] of [
+        ['generate-1', 'provider_image_tool', 'GenerateImage'], ['generate-2', 'provider_image_tool', 'GenerateImage'],
+        ['view', 'Read', 'ViewImage'], ['file', 'Read', undefined], ['command', 'Bash', undefined],
+      ]) {
+        const node = content.createDiv({ cls: 'claudian-tool-call', attr: { 'data-tool-id': id! } });
+        node.createSpan({ cls: 'claudian-tool-name', text: 'Provider label' });
+        assistant.toolCalls!.push({ id: id!, name: name!, input: {}, status: 'completed', ...(presentation ? { presentation: { name: presentation } } : {}) });
+        assistant.contentBlocks!.push({ type: 'tool_use', toolId: id! });
+      }
+      sync();
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe(expected);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('summarizes repeated image views by image count in stored history', () => {
+    const { renderer, component, messagesEl } = createTurn();
+    try {
+      renderer.renderMessages([
+        { id: 'user-images', role: 'user', content: 'Inspect both.', timestamp: 1 },
+        { id: 'view-images', role: 'assistant', content: 'Checked.', timestamp: 2,
+          toolCalls: ['first', 'second'].map(id => ({ id, name: 'Read', input: {}, presentation: { name: 'ViewImage' }, status: 'completed' as const })),
+          contentBlocks: [{ type: 'tool_use', toolId: 'first' }, { type: 'tool_use', toolId: 'second' }, { type: 'text', content: 'Checked.' }],
+        },
+      ], () => 'Welcome');
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Viewed 2 images');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['click', 'Enter', ' '])('opens a stored tool image with %j and restores focus on Escape', action => {
     const { renderer, component, messagesEl } = createTurn();
     try {

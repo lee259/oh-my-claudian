@@ -298,10 +298,12 @@ describe('normalizeCodexToolCall', () => {
       {
         name: 'Read',
         input: { path: '/tmp/first.png', detail: 'original', file_path: '/tmp/first.png' },
+        presentation: { name: 'ViewImage' },
       },
       {
         name: 'Read',
         input: { path: '/tmp/second.png', detail: 'high', file_path: '/tmp/second.png' },
+        presentation: { name: 'ViewImage' },
       },
     ]);
   });

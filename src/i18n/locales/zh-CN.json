@@ -452,7 +452,13 @@
       "editedMany": "修改了 {count} 个文件",
       "agentWork": "Agent 执行记录",
       "compacted": "会话已压缩",
-      "repeatedCalls": "{tool} · {count} 次调用"
+      "repeatedCalls": "{tool} · {count} 次调用",
+      "generateImage": "生成图片",
+      "viewImage": "查看图片",
+      "generatedOne": "生成了 {count} 张图片",
+      "generatedMany": "生成了 {count} 张图片",
+      "viewedOne": "查看了 {count} 张图片",
+      "viewedMany": "查看了 {count} 张图片"
     },
     "modelPicker": {
       "options": "模型选项",

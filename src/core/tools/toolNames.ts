@@ -5,6 +5,7 @@ export const TOOL_BASH_OUTPUT = 'BashOutput' as const;
 export const TOOL_EDIT = 'Edit' as const;
 export const TOOL_GLOB = 'Glob' as const;
 export const TOOL_GENERATE_IMAGE = 'GenerateImage' as const;
+export const TOOL_VIEW_IMAGE = 'ViewImage' as const;
 export const TOOL_GREP = 'Grep' as const;
 export const TOOL_KILL_SHELL = 'KillShell' as const;
 export const TOOL_LS = 'LS' as const;

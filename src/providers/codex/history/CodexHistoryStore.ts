@@ -50,6 +50,7 @@ import {
   normalizeCodexToolInput,
   normalizeCodexToolName,
   normalizeCodexToolResult,
+  type NormalizedCodexToolCall,
   parseCodexArguments,
   readCodexExecCellIdArgument,
   stringifyCodexToolOutput,
@@ -57,6 +58,7 @@ import {
 import {
   presentCodexCommand,
   presentCodexFileChange,
+  presentCodexImageTool,
   presentCodexMcpToolCall,
 } from '../normalization/CodexToolPresentation';
 
@@ -942,7 +944,7 @@ function processPersistedToolCall(
 
 function processPersistedNormalizedToolCall(
   callId: string,
-  normalized: { name: string; input: Record<string, unknown> },
+  normalized: NormalizedCodexToolCall,
   timestamp: number,
   ctx: PersistedParseContext,
   cwd?: unknown,
@@ -964,12 +966,12 @@ function processPersistedNormalizedToolCall(
     // An unowned poll may be the only surviving copy of a command's failure.
   }
 
-  const presentation = normalized.name === 'Bash'
+  const presentation = normalized.presentation ?? (normalized.name === 'Bash'
     ? presentCodexCommand({
       command: normalized.input.command,
       cwd: cwd ?? ctx.workingDirectory,
     })
-    : undefined;
+    : undefined);
   pushPersistedNormalizedToolCall(callId, normalized, timestamp, ctx, presentation);
 }
 
@@ -1609,6 +1611,7 @@ function applyPersistedNativeImageItem(
   }
   const tool = findPersistedToolCallById(ctx, callId);
   if (!tool) return;
+  tool.presentation = presentCodexImageTool(name);
   const failed = item.status === 'failed' || item.status === 'error' || !!item.failure;
   tool.status = item.status === 'cancelled' ? 'cancelled' : failed ? 'error' : 'completed';
   tool.result = failed ? stringifyCodexToolOutput(item.failure) || 'Image generation failed' : imagePath ?? '';

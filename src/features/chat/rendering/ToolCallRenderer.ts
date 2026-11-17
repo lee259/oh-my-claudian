@@ -13,6 +13,7 @@ import {
   TOOL_EDIT,
   TOOL_ENTER_PLAN_MODE,
   TOOL_EXIT_PLAN_MODE,
+  TOOL_GENERATE_IMAGE,
   TOOL_GLOB,
   TOOL_GREP,
   TOOL_LS,
@@ -20,6 +21,7 @@ import {
   TOOL_SKILL,
   TOOL_TODO_WRITE,
   TOOL_TOOL_SEARCH,
+  TOOL_VIEW_IMAGE,
   TOOL_WEB_FETCH,
   TOOL_WEB_SEARCH,
   TOOL_WRITE,
@@ -66,6 +68,9 @@ export function getToolName(
   input: Record<string, unknown>,
   presentation?: ToolCallInfo['presentation'],
 ): string {
+  const displayedName = presentation?.name ?? name;
+  if (displayedName === TOOL_GENERATE_IMAGE) return t('chat.activity.generateImage');
+  if (displayedName === TOOL_VIEW_IMAGE) return t('chat.activity.viewImage');
   if (presentation?.name) return presentation.name;
   switch (name) {
     case TOOL_TODO_WRITE: {
@@ -137,7 +142,8 @@ export function getToolLabel(
 ): string {
   if (presentation) {
     const summary = presentation.summary?.trim();
-    return summary ? `${presentation.name}: ${summary}` : presentation.name;
+    const displayedName = getToolName(name, input, presentation);
+    return summary ? `${displayedName}: ${summary}` : displayedName;
   }
   switch (name) {
     case TOOL_READ:
@@ -191,6 +197,9 @@ export function getToolLabel(
       const summary = getWriteStdinSummary(input);
       return summary ? `write_stdin: ${summary}` : 'write_stdin';
     }
+    case TOOL_GENERATE_IMAGE:
+    case TOOL_VIEW_IMAGE:
+      return getToolName(name, input);
     default:
       if (isAgentLifecycleTool(name)) {
         const summary = getAgentLifecycleSummary(name, input);
@@ -1483,6 +1492,7 @@ export function renderStoredToolCall(
 ): HTMLElement {
   const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
     createToolElementStructure(parentEl, toolCall, options.onOpenFile, options.onPreviewImage);
+  toolEl.dataset.toolId = toolCall.id;
 
   if (toolCall.name === TOOL_TODO_WRITE && toolCall.status !== 'cancelled' && toolCall.status !== 'error') {
     setTodoWriteStatus(statusEl, toolCall.input);

@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-import type { CitationGroup, StreamChunk, UsageInfo } from '../../../core/types';
+import type { CitationGroup, StreamChunk, ToolCallPresentation, UsageInfo } from '../../../core/types';
 import { extractCodexUserVisibleText, joinCodexUserTextParts } from '../codexUserText';
 import {
   normalizeCodexMemoryCitation,
@@ -26,6 +26,7 @@ import {
 import {
   presentCodexCommand,
   presentCodexFileChange,
+  presentCodexImageTool,
   presentCodexMcpToolCall,
 } from '../normalization/CodexToolPresentation';
 import type {
@@ -97,6 +98,7 @@ interface DeferredRawExecCall {
   expectedCalls: Array<{
     name: string;
     input: Record<string, unknown>;
+    presentation?: ToolCallPresentation;
     comparisonInput?: Record<string, unknown>;
     claimed: boolean;
     canonicalItemId?: string;
@@ -873,6 +875,7 @@ export class CodexNotificationRouter {
       id: callId,
       name: normalized.name,
       input: normalized.input,
+      ...(normalized.presentation ? { presentation: normalized.presentation } : {}),
     });
   }
 
@@ -1282,7 +1285,9 @@ export class CodexNotificationRouter {
         : `${deferredExec.callId}:${index + 1}`;
       if (!call.fallbackId) {
         this.resetAssistantSegmentText();
-        this.emit({ type: 'tool_use', id: fallbackId, name: call.name, input: call.input });
+        this.emit({ type: 'tool_use', id: fallbackId, name: call.name, input: call.input,
+          ...(call.presentation ? { presentation: call.presentation } : {}),
+        });
         call.fallbackId = fallbackId;
       }
       if (emitResult && !call.fallbackResultEmitted) {
@@ -1720,6 +1725,7 @@ export class CodexNotificationRouter {
       id: item.id,
       name: normalizeCodexToolName('view_image'),
       input: normalizeCodexToolInput('view_image', { path: item.path }),
+      presentation: presentCodexImageTool('view_image'),
     });
   }
 
@@ -2235,6 +2241,7 @@ function projectRawSemanticToolCall(
   name: string;
   input: Record<string, unknown>;
   comparisonInput?: Record<string, unknown>;
+  presentation?: ToolCallPresentation;
 } {
   if (name === 'web__run') {
     return {
@@ -2269,7 +2276,8 @@ function projectRawSemanticToolCall(
       },
     };
   }
-  return { name: semanticToolName(name), input };
+  const presentation = presentCodexImageTool(rawName);
+  return { name: semanticToolName(name), input, ...(presentation ? { presentation } : {}) };
 }
 
 function normalizeWebRunInput(input: Record<string, unknown>): Record<string, unknown> {

@@ -14,11 +14,13 @@ import {
   TOOL_BASH,
   TOOL_BASH_OUTPUT,
   TOOL_EDIT,
+  TOOL_GENERATE_IMAGE,
   TOOL_GLOB,
   TOOL_GREP,
   TOOL_KILL_SHELL,
   TOOL_LS,
   TOOL_READ,
+  TOOL_VIEW_IMAGE,
   TOOL_WEB_FETCH,
   TOOL_WEB_SEARCH,
   TOOL_WRITE_STDIN,
@@ -2034,13 +2036,16 @@ export class MessageRenderer {
   ): string {
     const names: string[] = [];
     const toolLabels: string[] = [];
+    const imageNames = new Set<string>([TOOL_GENERATE_IMAGE, TOOL_VIEW_IMAGE]);
     let toolElementCount = 0;
     for (const element of elements) {
       const toolCall = element.dataset.toolId
         ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
         : undefined;
       const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
-      const label = toolCall?.name || renderedLabel;
+      const presentationName = toolCall?.presentation?.name;
+      const label = presentationName && imageNames.has(presentationName)
+        ? presentationName : toolCall?.name || renderedLabel;
       if (label) names.push(label);
       if (element.hasClass('claudian-tool-call')) {
         toolElementCount += 1;
@@ -2053,6 +2058,7 @@ export class MessageRenderer {
       toolElementCount >= 2
       && toolLabels.length === toolElementCount
       && toolLabels.every(label => label === toolLabels[0])
+      && !imageNames.has(toolLabels[0])
     ) {
       return t('chat.activity.repeatedCalls', { tool: toolLabels[0], count: toolElementCount });
     }
@@ -2071,6 +2077,8 @@ export class MessageRenderer {
       const reads = names.filter((name) => readNames.has(name)).length;
       const searches = names.filter((name) => searchNames.has(name)).length;
       const edits = names.filter((name) => isWriteEditTool(name) || name === TOOL_APPLY_PATCH).length;
+      const generatedImages = names.filter(name => name === TOOL_GENERATE_IMAGE).length;
+      const viewedImages = names.filter(name => name === TOOL_VIEW_IMAGE).length;
       const knownNames = new Set([
         ...commandNames,
         ...readNames,
@@ -2078,6 +2086,7 @@ export class MessageRenderer {
         TOOL_EDIT,
         'Write',
         TOOL_APPLY_PATCH,
+        ...imageNames,
       ]);
       const otherCount = names.filter(name => !knownNames.has(name)).length;
 
@@ -2087,6 +2096,8 @@ export class MessageRenderer {
       else if (reads > 0) labels.push(t(reads === 1 ? 'chat.activity.readOne' : 'chat.activity.readMany', { count: reads }));
       if (commands > 0) labels.push(t(commands === 1 ? 'chat.activity.ranOne' : 'chat.activity.ranMany', { count: commands }));
       if (edits > 0) labels.push(t(edits === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: edits }));
+      if (generatedImages > 0) labels.push(t(generatedImages === 1 ? 'chat.activity.generatedOne' : 'chat.activity.generatedMany', { count: generatedImages }));
+      if (viewedImages > 0) labels.push(t(viewedImages === 1 ? 'chat.activity.viewedOne' : 'chat.activity.viewedMany', { count: viewedImages }));
       if (otherCount > 0) labels.push(t(otherCount === 1
         ? 'chat.completedWork.actionOne' : 'chat.completedWork.actions', { count: otherCount }).replace(/^\s*·\s*/, ''));
       if (labels.length > 0) return formatActivitySummary(labels);

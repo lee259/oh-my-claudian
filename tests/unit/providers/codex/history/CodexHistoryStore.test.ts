@@ -21,6 +21,20 @@ describe('CodexHistoryStore', () => {
     const replay = (records: unknown[]) => parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
       .flatMap(message => message.toolCalls ?? []);
 
+    it('adds distinct display names for generated and viewed images without renaming tools', () => {
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'function_call', name: 'view_image', call_id: 'view', arguments: '{"path":"/tmp/a.png"}' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: { type: 'ImageView', id: 'native-view', path: '/tmp/a.png' } } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'Extension', kind: 'image_gen.generation', id: 'generate', status: 'completed', savedPath: '/tmp/b.png',
+        } } },
+      ]);
+      expect(tools).toEqual([
+        expect.objectContaining({ id: 'view', name: 'Read', presentation: { name: 'ViewImage' } }),
+        expect.objectContaining({ id: 'generate', name: 'image_gen__imagegen', presentation: { name: 'GenerateImage' } }),
+      ]);
+    });
+
     it('restores generated images from native records even inside an opaque script', () => {
       const image = (id: string) => ({ type: 'event_msg', payload: { type: 'item_completed', item: {
         type: 'Extension', kind: 'image_gen.generation', id, status: 'completed',
