@@ -251,6 +251,7 @@ function createPersistedParseContext(): PersistedParseContext {
     execCellToCommandId: new Map(),
     execEnvelopeToolCallIds: new Map(),
     execEnvelopeInternalOutputCallIds: new Set(),
+    nativeCommandResultCallIds: new Set(),
     nativeWebSearchResultCallIds: new Set(),
     observedNativeItemIds: new Set(),
     nativeCallCandidates: [],
@@ -786,11 +787,12 @@ interface PersistedParseContext {
   execCellToCommandId: Map<string, string>;
   execEnvelopeToolCallIds: Map<string, string[]>;
   execEnvelopeInternalOutputCallIds: Set<string>;
+  nativeCommandResultCallIds: Set<string>;
   nativeWebSearchResultCallIds: Set<string>;
   observedNativeItemIds: Set<string>;
   nativeCallCandidates: Array<{
     toolCallId?: string;
-    /** Opaque scripts prevent ownership inference until the turn ends. */
+    opaqueCallId?: string;
     request: { name: string; input: Record<string, unknown> } | null;
   }>;
   workingDirectory?: string;
@@ -832,7 +834,7 @@ function processPersistedToolCall(
   // A failed script can stop before later calls or emit partial results. Its
   // source and output do not establish which nested tools actually executed.
   if (payload.name === 'exec' && ctx.failedExecCallIds.has(callId)) {
-    ctx.nativeCallCandidates.push({ request: null });
+    ctx.nativeCallCandidates.push({ opaqueCallId: callId, request: null });
     pushPersistedNormalizedToolCall(callId, { name: 'exec', input: parsedArgs }, timestamp, ctx);
     return;
   }
@@ -847,16 +849,13 @@ function processPersistedToolCall(
     return;
   }
   const normalized = normalizeCodexToolCall(payload.name, parsedArgs);
-  if (payload.name === 'exec' && !execEnvelopeCalls) ctx.nativeCallCandidates.push({ request: null });
+  if (payload.name === 'exec' && !execEnvelopeCalls) ctx.nativeCallCandidates.push({ opaqueCallId: callId, request: null });
   const candidates = execEnvelopeCalls?.map(call => call.rawName === 'web__run'
     ? { ...call, name: 'WebSearch', input: normalizeCodexToolInput('web_search', call.rawInput) }
     : call) ?? [{ ...normalized, rawInput: parsedArgs }];
   candidates.forEach(({ name, input, rawInput }, index) => {
     if (name !== 'Bash' && name !== 'WebSearch') return;
-    // Single commands own their result, but still compete with identical script requests.
-    const toolCallId = name === 'WebSearch' || (execEnvelopeCalls && execEnvelopeCalls.length > 1)
-      ? (execEnvelopeCalls && execEnvelopeCalls.length > 1 ? `${callId}:${index + 1}` : callId)
-      : undefined;
+    const toolCallId = execEnvelopeCalls && execEnvelopeCalls.length > 1 ? `${callId}:${index + 1}` : callId;
     if (name === 'Bash') {
       const directory = rawInput.workdir ?? rawInput.cwd ?? rawInput.workingDirectory;
       const workingDirectory = resolvePersistedWorkingDirectory(directory, ctx.workingDirectory);
@@ -1228,12 +1227,17 @@ function applyPersistedToolOutput(
     }
     const cellId = extractCodexExecCellId(rawOutputText);
     if (cellId) ctx.execCellToCommandId.set(cellId, toolCall.id);
+    if (!cellId && /^Script (?:completed|error:|failed)(?:\r?\n|$)/.test(rawOutputText)
+      && !/Process running with session ID/i.test(rawOutputText)) {
+      ctx.nativeCallCandidates = ctx.nativeCallCandidates.filter(call => call.opaqueCallId !== toolCall.id);
+    }
     toolCall.status = cellId ? 'running'
       : ctx.failedExecCallIds.has(toolCall.id) || isCodexToolOutputError(rawOutputText) ? 'error' : 'completed';
     return;
   }
 
   if (toolCall.name === 'Bash' || toolCall.name === 'write_stdin') {
+    if (ctx.nativeCommandResultCallIds.has(toolCall.id)) return;
     const commandResult = readPersistedCommandToolResult(rawOutputText);
     toolCall.result = appendCodexCommandOutput(toolCall.result, commandResult.output);
     if (commandResult.terminalSessionId && toolCall.name === 'Bash') {
@@ -1475,7 +1479,7 @@ function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefin
   const parsedCommand = parsedCommandItem && typeof parsedCommandItem === 'object' && !Array.isArray(parsedCommandItem)
     ? (parsedCommandItem as Record<string, unknown>).cmd : undefined;
   const commands = [parsedCommand, Array.isArray(item.command) ? item.command.at(-1) : item.command]
-    .filter((command): command is string => typeof command === 'string' && command.length > 0);
+    .filter((command): command is string => typeof command === 'string');
   const workingDirectory = resolvePersistedWorkingDirectory(item.cwd);
   if (workingDirectory === null) return;
   const tool = claimPersistedNativeCall('Bash', commands.map(command => ({ command, workingDirectory })), ctx);
@@ -1484,6 +1488,7 @@ function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefin
   if (typeof item.exit_code === 'number') {
     tool.status = item.exit_code === 0 ? 'completed' : 'error';
     tool.exitCode = item.exit_code;
+    ctx.nativeCommandResultCallIds.add(tool.id);
   }
 }
 

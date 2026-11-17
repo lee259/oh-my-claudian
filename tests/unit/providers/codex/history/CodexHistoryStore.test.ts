@@ -819,6 +819,33 @@ describe('CodexHistoryStore', () => {
       expect(JSON.stringify(messages)).not.toMatch(/get_context_remaining|tokens_left/);
     });
 
+    it.each([0, 1, -1])('restores native exit code %s when a single command prints only output', exitCode => {
+      for (const shape of ['direct', 'script']) {
+        for (const order of ['before', 'after']) {
+          const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
+            type: 'CommandExecution', id: 'native-command', command: ['/bin/zsh', '-lc', 'check'],
+            cwd: 'file:///vault', aggregated_output: 'native output', exit_code: exitCode,
+          } } };
+          const records = [
+            { type: 'turn_context', payload: { cwd: '/vault' } },
+            { type: 'response_item', payload: shape === 'direct'
+              ? { type: 'function_call', name: 'exec_command', call_id: 'command', arguments: '{"cmd":"check"}' }
+              : { type: 'custom_tool_call', name: 'exec', call_id: 'command',
+                input: 'const result = await tools.exec_command({cmd:"check"}); text(result.output);' } },
+            ...(order === 'before' ? [native] : []),
+            { type: 'response_item', payload: { type: shape === 'direct' ? 'function_call_output' : 'custom_tool_call_output',
+              call_id: 'command', output: 'Script completed\nOutput:\nprinted output' } },
+            ...(order === 'after' ? [native] : []),
+          ];
+          const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+            .flatMap(message => message.toolCalls ?? []);
+          expect({ shape, order, tools }).toEqual({ shape, order, tools: [expect.objectContaining({
+            id: 'command', name: 'Bash', exitCode, status: exitCode === 0 ? 'completed' : 'error', result: 'native output',
+          })] });
+        }
+      }
+    });
+
     it.each(['before', 'after'])('uses unambiguous native command evidence %s reordered script output', position => {
       const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
         type: 'CommandExecution', id: 'native-second', command: ['/bin/zsh', '-lc', 'second'],
@@ -844,6 +871,75 @@ describe('CodexHistoryStore', () => {
         ['batch', 'completed', 'SECOND\nFIRST\n'],
       ]);
     });
+
+    it('does not let script output replace an authoritative native exit code', () => {
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'command',
+          input: 'text(await tools.exec_command({cmd:"check"}));' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'CommandExecution', id: 'native', command: 'check', cwd: '/vault', aggregated_output: 'failed', exit_code: 1,
+        } } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'command',
+          output: 'Script completed\nOutput:\n{"exit_code":0,"output":"success"}' } },
+      ];
+      expect(parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? [])).toEqual([expect.objectContaining({
+        id: 'command', exitCode: 1, status: 'error', result: 'failed',
+      })]);
+    });
+
+    it('restores an explicitly empty command outcome', () => {
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'empty',
+          input: 'text(await tools.exec_command({cmd:""}));' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'CommandExecution', id: 'empty-native', command: ['/bin/zsh', '-lc', ''],
+          cwd: '/vault', aggregated_output: '', exit_code: 0,
+        } } },
+      ];
+      expect(parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? [])).toEqual([expect.objectContaining({ id: 'empty', exitCode: 0 })]);
+    });
+
+    it.each(['Script completed', 'Script error:\nSyntaxError: invalid token'])(
+      'ends opaque ownership uncertainty after terminal script output: %s', output => {
+        const records = [
+          { type: 'turn_context', payload: { cwd: '/vault' } },
+          { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'opaque',
+            input: 'await runUnknownScript();' } },
+          { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'opaque', output } },
+          { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'next',
+            input: 'text(await tools.exec_command({cmd:"check"}));' } },
+          { type: 'event_msg', payload: { type: 'item_completed', item: {
+            type: 'CommandExecution', id: 'next-native', command: 'check', cwd: '/vault', aggregated_output: '', exit_code: 1,
+          } } },
+        ];
+        const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+          .flatMap(message => message.toolCalls ?? []);
+        expect(tools.find(tool => tool.id === 'next')).toMatchObject({ exitCode: 1, status: 'error' });
+      },
+    );
+
+    it.each(['Script running with cell ID 42', 'Script completed\nOutput:\nProcess running with session ID 123'])(
+      'retains opaque ownership uncertainty for yielded work: %s', output => {
+        const records = [
+          { type: 'turn_context', payload: { cwd: '/vault' } },
+          { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'opaque',
+            input: 'await runUnknownScript();' } },
+          { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'opaque', output } },
+          { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'next',
+            input: 'text(await tools.exec_command({cmd:"check"}));' } },
+          { type: 'event_msg', payload: { type: 'item_completed', item: {
+            type: 'CommandExecution', id: 'native', command: 'check', cwd: '/vault', aggregated_output: '', exit_code: 1,
+          } } },
+        ];
+        const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+          .flatMap(message => message.toolCalls ?? []);
+        expect(tools.find(tool => tool.id === 'next')?.exitCode).toBeUndefined();
+      },
+    );
 
     it.each(['direct', 'single script', 'opaque script'])('does not guess native ownership with a competing %s', competitor => {
       const call = competitor === 'direct'
