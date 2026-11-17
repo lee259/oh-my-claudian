@@ -17,6 +17,16 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('Codex tool presentation', () => {
+    it('labels a live raw generation without changing its execution name', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', { threadId: 't1', turnId: 'turn1', item: {
+        type: 'function_call', name: 'image_gen__imagegen', call_id: 'generate', arguments: '{"prompt":"diagram"}',
+      } });
+      expect(chunks).toContainEqual(expect.objectContaining({
+        type: 'tool_use', id: 'generate', name: 'image_gen__imagegen', presentation: { name: 'GenerateImage' },
+      }));
+    });
+
     it('labels clear read commands while retaining Bash as the execution tool', () => {
       router.beginTurn({ isPlanTurn: false });
       router.handleNotification('item/started', { item: {
@@ -2019,6 +2029,7 @@ describe('CodexNotificationRouter', () => {
           id: 'call_image',
           name: 'Read',
           input: { path: imagePath, file_path: imagePath },
+          presentation: { name: 'ViewImage' },
         },
         {
           type: 'tool_result',
@@ -2072,6 +2083,7 @@ describe('CodexNotificationRouter', () => {
           id: 'image_canonical',
           name: 'Read',
           input: { path: imagePath, file_path: imagePath },
+          presentation: { name: 'ViewImage' },
         },
         {
           type: 'tool_result',
@@ -2443,6 +2455,7 @@ describe('CodexNotificationRouter', () => {
           id: 'image_canonical',
           name: 'Read',
           input: { path: imagePath, file_path: imagePath },
+          presentation: { name: 'ViewImage' },
         },
         {
           type: 'tool_use',
@@ -2546,6 +2559,7 @@ describe('CodexNotificationRouter', () => {
           id: 'image_canonical',
           name: 'Read',
           input: { path: imagePath, file_path: imagePath },
+          presentation: { name: 'ViewImage' },
         },
         {
           type: 'tool_result',
@@ -2596,6 +2610,7 @@ describe('CodexNotificationRouter', () => {
           id: 'image_canonical',
           name: 'Read',
           input: { path: '/workspace/image.png', file_path: '/workspace/image.png' },
+          presentation: { name: 'ViewImage' },
         },
         {
           type: 'tool_result',
@@ -4637,6 +4652,7 @@ describe('CodexNotificationRouter', () => {
         id: 'call_image',
         name: 'Read',
         input: { path: '/workspace/image.png', file_path: '/workspace/image.png' },
+        presentation: { name: 'ViewImage' },
       }]);
       expect(chunks.filter(chunk => chunk.type === 'tool_result')).toHaveLength(1);
       expect(chunks[chunks.length - 1]).toEqual({ type: 'error', content: 'Transport failed' });

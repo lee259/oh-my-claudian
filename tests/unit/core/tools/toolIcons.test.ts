@@ -29,6 +29,10 @@ describe('MCP_ICON_MARKER', () => {
 });
 
 describe('getToolIcon', () => {
+  it('uses image icons for image presentation labels', () => {
+    expect(getToolIcon('GenerateImage')).toBe('image-plus');
+    expect(getToolIcon('ViewImage')).toBe('image');
+  });
   it.each([
     [TOOL_READ, 'file-text'],
     [TOOL_WRITE, 'file-plus'],

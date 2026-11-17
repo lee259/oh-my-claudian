@@ -452,7 +452,13 @@
       "editedMany": "{count} archivos editados",
       "agentWork": "Trabajo del agente",
       "compacted": "Conversación compactada",
-      "repeatedCalls": "{tool} · {count} llamadas"
+      "repeatedCalls": "{tool} · {count} llamadas",
+      "generateImage": "Generar imagen",
+      "viewImage": "Ver imagen",
+      "generatedOne": "{count} imagen generada",
+      "generatedMany": "{count} imágenes generadas",
+      "viewedOne": "{count} imagen vista",
+      "viewedMany": "{count} imágenes vistas"
     },
     "modelPicker": {
       "options": "Opciones de modelo",

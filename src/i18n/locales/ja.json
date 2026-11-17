@@ -452,7 +452,13 @@
       "editedMany": "{count} 個のファイルを編集しました",
       "agentWork": "エージェントの作業",
       "compacted": "会話を圧縮しました",
-      "repeatedCalls": "{tool} · {count} 回の呼び出し"
+      "repeatedCalls": "{tool} · {count} 回の呼び出し",
+      "generateImage": "画像を生成",
+      "viewImage": "画像を表示",
+      "generatedOne": "画像を {count} 枚生成",
+      "generatedMany": "画像を {count} 枚生成",
+      "viewedOne": "画像を {count} 枚表示",
+      "viewedMany": "画像を {count} 枚表示"
     },
     "modelPicker": {
       "options": "モデルのオプション",

@@ -452,7 +452,13 @@
       "editedMany": "Изменено файлов: {count}",
       "agentWork": "Работа агента",
       "compacted": "Беседа сжата",
-      "repeatedCalls": "{tool} · {count} вызовов"
+      "repeatedCalls": "{tool} · {count} вызовов",
+      "generateImage": "Создать изображение",
+      "viewImage": "Просмотреть изображение",
+      "generatedOne": "Создано изображений: {count}",
+      "generatedMany": "Создано изображений: {count}",
+      "viewedOne": "Просмотрено изображений: {count}",
+      "viewedMany": "Просмотрено изображений: {count}"
     },
     "modelPicker": {
       "options": "Параметры модели",

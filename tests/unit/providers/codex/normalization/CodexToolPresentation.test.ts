@@ -1,8 +1,15 @@
 import {
   presentCodexCommand,
   presentCodexFileChange,
+  presentCodexImageTool,
   presentCodexMcpToolCall,
 } from '@/providers/codex/normalization/CodexToolPresentation';
+
+it('labels only explicit image tools and leaves ordinary file reads alone', () => {
+  expect(presentCodexImageTool('image_gen__imagegen')).toEqual({ name: 'GenerateImage' });
+  expect(presentCodexImageTool('view_image')).toEqual({ name: 'ViewImage' });
+  expect(presentCodexImageTool('Read')).toBeUndefined();
+});
 
 describe('presentCodexCommand', () => {
   it('uses Codex command action metadata and shortens workspace paths', () => {

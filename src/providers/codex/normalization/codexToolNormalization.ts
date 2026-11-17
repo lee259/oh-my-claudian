@@ -6,6 +6,9 @@
  */
 
 import { extractToolResultContent } from '@/core/tools/toolResultContent';
+import type { ToolCallPresentation } from '@/core/types';
+
+import { presentCodexImageTool } from './CodexToolPresentation';
 
 // ---------------------------------------------------------------------------
 // Tool name normalization
@@ -123,6 +126,7 @@ export function normalizeCodexToolName(rawName: string | undefined): string {
 export interface NormalizedCodexToolCall {
   name: string;
   input: Record<string, unknown>;
+  presentation?: ToolCallPresentation;
 }
 
 export interface DecodedCodexExecEnvelopeCall extends NormalizedCodexToolCall {
@@ -139,18 +143,21 @@ export function normalizeCodexToolCall(
     return nestedCalls[0];
   }
 
+  const presentation = presentCodexImageTool(rawName);
   return {
     name: normalizeCodexToolName(rawName),
     input: normalizeCodexToolInput(rawName, rawInput),
+    ...(presentation ? { presentation } : {}),
   };
 }
 
 export function decodeCodexExecEnvelope(
   input: Record<string, unknown>,
 ): NormalizedCodexToolCall[] | null {
-  return decodeCodexExecEnvelopeCalls(input)?.map(({ name, input: normalizedInput }) => ({
+  return decodeCodexExecEnvelopeCalls(input)?.map(({ name, input: normalizedInput, presentation }) => ({
     name,
     input: normalizedInput,
+    ...(presentation ? { presentation } : {}),
   })) ?? null;
 }
 
@@ -170,11 +177,13 @@ export function decodeCodexExecEnvelopeCalls(
   for (const call of calls) {
     const rawInput = decodeExecEnvelopeToolInput(tokens, call);
     if (!rawInput) return null;
+    const presentation = presentCodexImageTool(call.name);
     decodedCalls.push({
       rawName: call.name,
       rawInput,
       name: normalizeCodexToolName(call.name),
       input: normalizeCodexToolInput(call.name, rawInput),
+      ...(presentation ? { presentation } : {}),
     });
   }
 

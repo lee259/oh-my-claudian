@@ -14,6 +14,7 @@ import {
   setToolIcon,
   updateToolCallResult,
 } from '@/features/chat/rendering/ToolCallRenderer';
+import { setLocale } from '@/i18n/i18n';
 
 // Mock obsidian
 jest.mock('obsidian', () => ({
@@ -33,6 +34,22 @@ function createToolCall(overrides: Partial<ToolCallInfo> = {}): ToolCallInfo {
 }
 
 describe('ToolCallRenderer', () => {
+  it.each([
+    ['en', 'GenerateImage', 'Generate image'], ['en', 'ViewImage', 'View image'],
+    ['zh-CN', 'GenerateImage', '生成图片'], ['zh-CN', 'ViewImage', '查看图片'],
+  ] as const)('localizes %s image presentation %s without changing execution identity', (locale, name, label) => {
+    setLocale(locale);
+    try {
+      const tool = createToolCall({ name: 'Read', presentation: { name }, resultImages: [{ kind: 'data', data: 'YWJj', mediaType: 'image/png' }] });
+      const el = renderStoredToolCall(createMockEl(), tool);
+      expect(el.querySelector('.claudian-tool-name')?.textContent).toBe(label);
+      expect(el.querySelector('.claudian-tool-header')?.getAttribute('aria-label')).toContain(label);
+      expect(tool.name).toBe('Read');
+      expect(el.dataset.toolId).toBe(tool.id);
+      expect(getToolName(name, {})).toBe(label);
+      expect(getToolLabel(name, {})).toBe(label);
+    } finally { setLocale('en'); }
+  });
   it.each([
     ['1→literal prefix\nordinary text', ['1→literal prefix', 'ordinary text']],
     ['1→first\n2→second\n4→not consecutive', ['1→first', '2→second', '4→not consecutive']],
