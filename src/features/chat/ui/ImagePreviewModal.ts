@@ -4,6 +4,22 @@ import { t } from '@/i18n/i18n';
 
 import type { ImageAttachment } from '../../../core/types';
 
+export function bindImagePreview(imageEl: HTMLImageElement, onPreview: (image: HTMLImageElement) => void): void {
+  imageEl.classList.add('claudian-message-image-previewable');
+  imageEl.setAttribute('role', 'button');
+  imageEl.setAttribute('tabindex', '0');
+  imageEl.setAttribute('aria-label', t('chat.images.previewNamed', { name: imageEl.alt || t('chat.images.image') }));
+  const preview = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onPreview(imageEl);
+  };
+  imageEl.addEventListener('click', preview);
+  imageEl.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') preview(event);
+  });
+}
+
 function getFocusableActiveElement(ownerDocument: Document): HTMLElement | null {
   const activeElement = ownerDocument.activeElement;
   if (!activeElement || typeof (activeElement as HTMLElement).focus !== 'function') {

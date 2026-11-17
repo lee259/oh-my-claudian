@@ -8,8 +8,9 @@ import { Component, MarkdownRenderer } from 'obsidian';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { ProviderId } from '@/core/providers/types';
 import { projectTranscript } from '@/core/transcript/TranscriptProjection';
-import type { ChatMessage, ContentBlock } from '@/core/types';
+import type { ChatMessage, ContentBlock, ToolCallInfo } from '@/core/types';
 import { MessageRenderer } from '@/features/chat/rendering/MessageRenderer';
+import { renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
 import type { FeatureHost } from '@/features/FeatureHost';
 import { setLocale } from '@/i18n/i18n';
 
@@ -57,6 +58,63 @@ function createTurn(
 
 describe('MessageRenderer live turn disclosure in a real DOM', () => {
   afterEach(() => { setLocale('en'); document.body.replaceChildren(); });
+
+  it.each(['click', 'Enter', ' '])('opens a stored tool image with %j and restores focus on Escape', action => {
+    const { renderer, component, messagesEl } = createTurn();
+    try {
+      renderer.renderStoredMessage({
+        id: 'image-result', role: 'assistant', content: '', timestamp: 3,
+        toolCalls: [{
+          id: 'image-tool', name: 'image_gen__imagegen', input: {}, status: 'completed',
+          resultImages: [{ kind: 'data', data: 'aW1hZ2U=', mediaType: 'image/png', alt: 'Technical diagram' }],
+        }],
+      });
+      const header = messagesEl.querySelector<HTMLElement>('.claudian-tool-header')!;
+      header.click();
+      const image = messagesEl.querySelector<HTMLImageElement>('.claudian-tool-result-image')!;
+      image.focus();
+      if (action === 'click') image.click();
+      else image.dispatchEvent(new KeyboardEvent('keydown', { key: action, bubbles: true, cancelable: true }));
+
+      const modal = getByRole(document.body, 'dialog', { name: 'Image preview: Technical diagram' });
+      expect(modal.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,aW1hZ2U=');
+      expect(image.getAttribute('role')).toBe('button');
+      expect(image.tabIndex).toBe(0);
+      expect(header.getAttribute('aria-expanded')).toBe('true');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      expect(document.querySelector('.claudian-image-modal-overlay')).toBeNull();
+      expect(document.activeElement).toBe(image);
+      renderer.dispose();
+      image.click();
+      expect(document.querySelector('.claudian-image-modal-overlay')).toBeNull();
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it('keeps the preview action after a live tool result is replaced', () => {
+    const { renderer, component, content } = createTurn();
+    try {
+      const tool: ToolCallInfo = { id: 'live-image', name: 'Bash', input: {}, status: 'running' };
+      const elements = new Map<string, HTMLElement>();
+      const toolEl = renderToolCall(content, tool, elements, {
+        onPreviewImage: image => renderer.showRenderedImage(image),
+      });
+      tool.status = 'completed';
+      tool.resultImages = [{ kind: 'data', data: 'Zmlyc3Q=', mediaType: 'image/png' }];
+      updateToolCallResult(tool.id, tool, elements);
+      tool.resultImages = [{ kind: 'data', data: 'c2Vjb25k', mediaType: 'image/png' }];
+      updateToolCallResult(tool.id, tool, elements);
+      toolEl.querySelector<HTMLElement>('.claudian-tool-header')!.click();
+      const image = toolEl.querySelector<HTMLImageElement>('.claudian-tool-result-image')!;
+      image.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(document.querySelector('.claudian-image-modal-overlay')).toBeNull();
+      image.click();
+      expect(document.querySelectorAll('.claudian-image-modal-overlay')).toHaveLength(1);
+      expect(document.querySelector('.claudian-image-modal img')?.getAttribute('src'))
+        .toBe('data:image/png;base64,c2Vjb25k');
+      renderer.dispose();
+      expect(document.querySelector('.claudian-image-modal-overlay')).toBeNull();
+    } finally { renderer.dispose(); component.unload(); }
+  });
 
   it('localizes the activity summary while preserving its collapse behavior', () => {
     setLocale('zh-CN');
