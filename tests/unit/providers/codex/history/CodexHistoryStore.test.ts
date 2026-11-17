@@ -157,6 +157,125 @@ describe('CodexHistoryStore', () => {
     });
   });
 
+  describe('image view envelope deduplication', () => {
+    const generated = (id: string, imagePath: string, data: string) => ({
+      type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'Extension', kind: 'image_gen.generation', id, status: 'completed',
+        savedPath: imagePath, result: `data:image/png;base64,${data}`,
+      } },
+    });
+    const viewed = (id: string, imagePath: string) => ({
+      type: 'event_msg', payload: { type: 'item_completed', item: { type: 'ImageView', id, path: imagePath } },
+    });
+    const script = {
+      type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'views',
+        input: 'const a = await tools.view_image({path:"/tmp/a.png"}); image(a.image_url); const b = await tools.view_image({path:"/tmp/b.png"}); image(b.image_url);' },
+    };
+    const output = (text = '', images = ['Yg==', 'YQ=='], header = 'Script completed') => ({
+      type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'views', output: [
+        { type: 'input_text', text: `${header}\nOutput:\n${text}` },
+        ...images.map(data => ({ type: 'input_image', image_url: `data:image/png;base64,${data}` })),
+      ] },
+    });
+    const replay = (records: unknown[]) => parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'));
+    const originals = () => [generated('generated-a', '/tmp/a.png', 'YQ=='), generated('generated-b', '/tmp/b.png', 'Yg==')];
+
+    it.each(['before', 'between', 'after'])('deduplicates reversed aggregate images when output arrives %s native views', order => {
+      const messages = replay([
+        ...originals(), script,
+        ...(order === 'before' ? [output()] : []), viewed('view-b', 'file:///tmp/b.png'),
+        ...(order === 'between' ? [output()] : []), viewed('view-a', '/tmp/a.png'),
+        ...(order === 'after' ? [output()] : []),
+      ]);
+      const tools = messages.flatMap(message => message.toolCalls ?? []);
+      expect(tools.filter(tool => tool.name === 'Read')).toEqual([
+        expect.objectContaining({ id: 'views:1', resultImages: [{ kind: 'data', data: 'YQ==', mediaType: 'image/png' }] }),
+        expect.objectContaining({ id: 'views:2', resultImages: [{ kind: 'data', data: 'Yg==', mediaType: 'image/png' }] }),
+      ]);
+      expect(tools.some(tool => tool.id === 'views')).toBe(false);
+      expect(tools.reduce((total, tool) => total + (tool.resultImages?.length ?? 0), 0)).toBe(4);
+      expect(messages.flatMap(message => message.contentBlocks ?? [])).not.toContainEqual({ type: 'tool_use', toolId: 'views' });
+    });
+
+    it('keeps script text and unrelated image output while removing only proven duplicates', () => {
+      const tools = replay([
+        ...originals(), script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'),
+        output('Inspection notes', ['Yg==', 'ZXh0cmE=', 'YQ==']),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')).toMatchObject({
+        result: 'Inspection notes', resultImages: [{ kind: 'data', data: 'ZXh0cmE=', mediaType: 'image/png' }],
+      });
+    });
+
+    it('keeps script text after all aggregate images have been deduplicated', () => {
+      const tools = replay([
+        ...originals(), script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'), output('Inspection notes'),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')).toMatchObject({ result: 'Inspection notes' });
+      expect(tools.find(tool => tool.id === 'views')?.resultImages).toBeUndefined();
+    });
+
+    it('retains additional emissions beyond the number of verified child previews', () => {
+      const tools = replay([
+        ...originals(), script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'),
+        output('', ['YQ==', 'Yg==', 'YQ==']),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')?.resultImages)
+        .toEqual([{ kind: 'data', data: 'YQ==', mediaType: 'image/png' }]);
+    });
+
+    it('preserves a mixed-tool script even when its image views have matching native content', () => {
+      const tools = replay([
+        ...originals(), { ...script, payload: { ...script.payload, input: `${script.payload.input} text(await tools.exec_command({cmd:"pwd"}));` } },
+        viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'), output(),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')?.resultImages).toHaveLength(2);
+      expect(tools.find(tool => tool.name === 'Bash')).toBeDefined();
+    });
+
+    it('preserves a failed script and its image output', () => {
+      const tools = replay([
+        ...originals(), script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'),
+        output('Script error: inspection failed', ['Yg==', 'YQ=='], 'Script failed'),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')).toMatchObject({ status: 'error', result: expect.stringContaining('inspection failed') });
+      expect(tools.find(tool => tool.id === 'views')?.resultImages).toHaveLength(2);
+    });
+
+    it('preserves unclaimed output when one native view is missing', () => {
+      const tools = replay([...originals(), script, viewed('view-a', '/tmp/a.png'), output()])
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')?.resultImages)
+        .toEqual([{ kind: 'data', data: 'Yg==', mediaType: 'image/png' }]);
+      expect(tools.find(tool => tool.id === 'views:2')?.resultImages).toBeUndefined();
+    });
+
+    it('keeps aggregate data when native paths cannot establish image content', () => {
+      const tools = replay([script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'), output()])
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')?.resultImages).toHaveLength(2);
+      expect(tools.find(tool => tool.id === 'views:1')?.resultImages).toEqual([{ kind: 'file', path: '/tmp/a.png' }]);
+    });
+
+    it('does not choose among different generated contents for the same path', () => {
+      const tools = replay([
+        ...originals(), generated('replaced-a', '/tmp/a.png', 'b3RoZXI='), script,
+        viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'), output(),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')?.resultImages)
+        .toEqual([{ kind: 'data', data: 'YQ==', mediaType: 'image/png' }]);
+    });
+
+    it('preserves images and status while the enclosing script is still running', () => {
+      const tools = replay([
+        ...originals(), script, viewed('view-a', '/tmp/a.png'), viewed('view-b', '/tmp/b.png'),
+        output('', ['Yg==', 'YQ=='], 'Script running with cell ID 42'),
+      ]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'views')).toMatchObject({ status: 'running', resultImages: expect.any(Array) });
+      expect(tools.find(tool => tool.id === 'views')?.resultImages).toHaveLength(2);
+    });
+  });
+
   it('does not restore Codex internal context calls or their private output', () => {
     const content = [
       JSON.stringify({

@@ -251,6 +251,7 @@ function createPersistedParseContext(): PersistedParseContext {
     pendingStdinCalls: new Map(),
     execCellToCommandId: new Map(),
     execEnvelopeToolCallIds: new Map(),
+    imageViewEnvelopeToolCallIds: new Map(),
     execEnvelopeInternalOutputCallIds: new Set(),
     nativeCommandResultCallIds: new Set(),
     nativeWebSearchResultCallIds: new Set(),
@@ -789,6 +790,7 @@ interface PersistedParseContext {
   pendingStdinCalls: Map<string, { parentCallId?: string }>;
   execCellToCommandId: Map<string, string>;
   execEnvelopeToolCallIds: Map<string, string[]>;
+  imageViewEnvelopeToolCallIds: Map<string, string[]>;
   execEnvelopeInternalOutputCallIds: Set<string>;
   nativeCommandResultCallIds: Set<string>;
   nativeWebSearchResultCallIds: Set<string>;
@@ -910,6 +912,9 @@ function processPersistedToolCall(
     });
     ctx.execEnvelopeToolCallIds.set(callId, toolCallIds);
     pushPersistedNormalizedToolCall(callId, { name: 'exec', input: parsedArgs }, timestamp, ctx);
+    if (execEnvelopeCalls.every(call => call.rawName === 'view_image')) {
+      ctx.imageViewEnvelopeToolCallIds.set(callId, toolCallIds);
+    }
     return;
   }
 
@@ -1176,6 +1181,42 @@ function readTerminalSessionIdArgument(input: Record<string, unknown>): string |
   if (typeof value === 'string' && value) return value;
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return undefined;
+}
+
+function deduplicatePersistedImageViewPreviews(ctx: PersistedParseContext): void {
+  if (ctx.imageViewEnvelopeToolCallIds.size === 0) return;
+  const tools = [...ctx.turns.values()].flatMap(turn => turn.assistantBubbles.flatMap(bubble => bubble.toolCalls));
+  const toolsById = new Map(tools.map(tool => [tool.id, tool]));
+  const generatedImages = new Map<string, ToolResultImage | null>();
+  for (const tool of tools) {
+    const image = tool.resultImages?.[0];
+    if (tool.name !== 'image_gen__imagegen' || tool.status !== 'completed' || !tool.result
+      || !ctx.nativeImageResultCallIds.has(tool.id) || image?.kind !== 'data') continue;
+    generatedImages.set(tool.result, generatedImages.has(tool.result) ? null : image);
+  }
+  for (const [envelopeId, childIds] of ctx.imageViewEnvelopeToolCallIds) {
+    const envelope = toolsById.get(envelopeId);
+    if (envelope?.status !== 'completed' || !envelope.resultImages?.length) continue;
+    const previews = childIds.flatMap(id => {
+      const tool = toolsById.get(id);
+      if (!tool || tool.status !== 'completed' || !ctx.nativeImageResultCallIds.has(id)) return [];
+      const preview = tool.resultImages?.[0];
+      const image = preview?.kind === 'file' ? generatedImages.get(preview.path) : preview;
+      return image?.kind === 'data' ? [{ tool, image }] : [];
+    });
+    const remaining: ToolResultImage[] = [];
+    for (const image of envelope.resultImages) {
+      const index = previews.findIndex(({ image: preview }) => image.kind === 'data'
+        && preview.mediaType === image.mediaType && preview.data === image.data);
+      if (index < 0) remaining.push(image);
+      else {
+        const [{ tool }] = previews.splice(index, 1);
+        tool.resultImages = [image];
+      }
+    }
+    envelope.resultImages = remaining.length > 0 ? remaining : undefined;
+    if (remaining.length === 0 && !envelope.result?.trim()) removePersistedToolCall(ctx, envelopeId);
+  }
 }
 
 function isSilentWriteStdinInput(input: Record<string, unknown>): boolean {
@@ -2301,6 +2342,7 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
   for (const turn of ctx.turns.values()) {
     if (turn.serverTurnId) turn.outputTokens = turnOutputTokens.get(turn.serverTurnId);
   }
+  deduplicatePersistedImageViewPreviews(ctx);
   const turns = flushBubbleTurnsGrouped(ctx.turns, ctx.turnOrder);
   const tools = turns.flatMap(turn => turn.messages.flatMap(message => message.toolCalls ?? []));
   const agents = new Map<string, ToolCallInfo>();
