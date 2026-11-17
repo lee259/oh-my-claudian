@@ -1245,9 +1245,14 @@ function renderBashContent(
     cmdEl.createSpan({ cls: 'claudian-tool-bash-command-text', text: `$ ${command}` });
     const copyBtn = cmdEl.createEl('button', {
       cls: 'claudian-tool-copy-command',
-      attr: { type: 'button', 'aria-label': t('chat.tools.copyCommand') },
+      attr: {
+        type: 'button',
+        'aria-label': t('chat.tools.copyCommand'),
+        'data-tooltip-position': 'top',
+      },
     });
     setIcon(copyBtn, 'copy');
+    let feedbackTimeout: number | undefined;
     copyBtn.addEventListener('click', (event) => {
       event.stopPropagation();
       const clipboard = navigator.clipboard;
@@ -1255,7 +1260,21 @@ function renderBashContent(
         new Notice(t('chat.tools.copyFailed'));
         return;
       }
-      void clipboard.writeText(command).catch(() => {
+      void clipboard.writeText(command).then(() => {
+        copyBtn.empty();
+        setIcon(copyBtn, 'check');
+        copyBtn.setAttribute('aria-label', t('chat.rendering.copied'));
+        copyBtn.classList.add('copied');
+        const owner = copyBtn.ownerDocument.defaultView ?? window;
+        if (feedbackTimeout) owner.clearTimeout(feedbackTimeout);
+        feedbackTimeout = owner.setTimeout(() => {
+          copyBtn.empty();
+          setIcon(copyBtn, 'copy');
+          copyBtn.setAttribute('aria-label', t('chat.tools.copyCommand'));
+          copyBtn.classList.remove('copied');
+          feedbackTimeout = undefined;
+        }, 1500);
+      }, () => {
         new Notice(t('chat.tools.copyFailed'));
       });
     });

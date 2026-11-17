@@ -73,7 +73,8 @@ describe('Tool row disclosures', () => {
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
   });
 
-  it('copies the command from a bash row', () => {
+  it('copies the command from a bash row and confirms it', async () => {
+    jest.useFakeTimers();
     const writeText = jest.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const parent = document.createElement('div');
@@ -87,8 +88,17 @@ describe('Tool row disclosures', () => {
     expect(row.querySelector('.claudian-tool-bash-command-text')?.textContent).toBe('$ ls -la');
     const button = row.querySelector<HTMLButtonElement>('.claudian-tool-copy-command');
     expect(button?.getAttribute('aria-label')).toBe('Copy command');
+    expect(button?.getAttribute('data-tooltip-position')).toBe('top');
     button?.click();
+    await Promise.resolve();
     expect(writeText).toHaveBeenCalledWith('ls -la');
+    expect(button?.getAttribute('aria-label')).toBe('Copied!');
+    expect(button?.classList.contains('copied')).toBe(true);
+
+    jest.advanceTimersByTime(1500);
+    expect(button?.getAttribute('aria-label')).toBe('Copy command');
+    expect(button?.classList.contains('copied')).toBe(false);
+    jest.useRealTimers();
   });
 
   it('keeps the MCP icon when a friendly MCP label is used', () => {
