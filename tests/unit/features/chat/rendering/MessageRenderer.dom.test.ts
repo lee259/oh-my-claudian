@@ -94,6 +94,46 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it.each([
+    ['en', 'live', 'Ran 1 command, generated 2 images, and 1 action'],
+    ['zh-CN', 'live', '执行了 1 条命令、生成了 2 张图片和1 项操作'],
+    ['en', 'history', 'Ran 1 command, generated 2 images, and 1 action'],
+    ['zh-CN', 'history', '执行了 1 条命令、生成了 2 张图片和1 项操作'],
+  ] as const)('counts exec scripts as generic activity in %s %s summaries', (locale, mode, expected) => {
+    setLocale(locale);
+    const { renderer, component, messagesEl, content, user, assistant, sync } = createTurn();
+    const result = mode === 'history' ? 'Script error: SyntaxError' : 'Saved generated image paths';
+    const calls: ToolCallInfo[] = [
+      { id: 'script', name: 'exec', input: { raw: 'generateImages()' }, status: mode === 'history' ? 'error' : 'completed', result },
+      { id: 'command', name: 'Bash', input: { command: 'pwd' }, status: 'completed', result: '/vault', exitCode: 0 },
+      ...['image-1', 'image-2'].map(id => ({
+        id, name: 'provider_image_tool', input: {}, status: 'completed' as const, presentation: { name: 'GenerateImage' },
+      })),
+    ];
+    assistant.toolCalls = calls;
+    assistant.contentBlocks = calls.map(call => ({ type: 'tool_use', toolId: call.id }));
+    if (mode === 'history') assistant.contentBlocks.push({ type: 'text', content: assistant.content });
+    try {
+      if (mode === 'history') renderer.renderMessages([user, assistant], () => 'Welcome');
+      else {
+        const elements = new Map<string, HTMLElement>();
+        for (const call of calls) {
+          renderToolCall(content, call, elements);
+          updateToolCallResult(call.id, call, elements);
+        }
+        sync();
+      }
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent).toBe(expected);
+      expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(4);
+      const script = messagesEl.querySelector<HTMLElement>('[data-tool-id="script"]')!;
+      expect(script.querySelector('.claudian-tool-name')?.textContent).toBe('exec');
+      script.querySelector<HTMLButtonElement>('.claudian-tool-header')!.click();
+      expect(script.querySelector('.claudian-tool-content')?.textContent).toContain(result);
+      const expectedStatus = mode === 'history' ? locale === 'en' ? 'error' : '错误' : '';
+      expect(script.querySelector('.claudian-tool-status')?.textContent).toBe(expectedStatus);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['click', 'Enter', ' '])('opens a stored tool image with %j and restores focus on Escape', action => {
     const { renderer, component, messagesEl } = createTurn();
     try {

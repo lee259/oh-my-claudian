@@ -2068,7 +2068,6 @@ export class MessageRenderer {
         TOOL_BASH,
         TOOL_BASH_OUTPUT,
         TOOL_KILL_SHELL,
-        'exec',
         'exec_command',
       ]);
       const readNames = new Set<string>([TOOL_READ, TOOL_WEB_FETCH]);

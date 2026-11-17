@@ -436,7 +436,7 @@ describe('MessageRenderer', () => {
 
       const phase = contentEl.querySelector('.claudian-activity-phase');
       expect(phase?.querySelector('.claudian-activity-phase-label')?.textContent)
-        .toBe('Ran 2 commands');
+        .toBe('Ran 1 command and 1 action');
       expect(phase?.querySelector('.claudian-activity-phase-details')?.contains(thinking)).toBe(true);
       const details = phase?.querySelector('.claudian-activity-phase-details') as HTMLElement | null;
       expect(details?.hidden).toBe(true);
