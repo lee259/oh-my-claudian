@@ -14,6 +14,7 @@
 - A stale provider generation, session binding, stream generation, or disposal generation must not update the current tab.
 - Warm preparation must revalidate conversation binding and disposal generation after acquisition and snapshot persistence. Superseded work must not install, retain, or publish a warm session.
 - Cooling may release an idle execution owner, but must preserve the runtime tab, conversation binding, hydrated UI state, and resumable provider snapshot.
+- Release keeps its session subscription and persistence claim until native disposal settles, then persists the last non-disposed session snapshot before giving up the claim. A replacement preparation waits for every in-flight release.
 - Active executions and unresolved interactions are protected from cooling.
 - Runtime factories allocate provider-neutral shells. Execution sessions and feature controllers are attached by the owning initialization flow.
 
