@@ -105,6 +105,7 @@ jest.mock('@/core/providers/ProviderRegistry', () => ({
       supportsImageAttachments: true,
       supportsPlanMode: true,
     }),
+    getCliLifecycleAdapter: jest.fn().mockReturnValue(null),
     getChatUIConfig: jest.fn().mockReturnValue({
       applyPermissionMode: (_mode: string, settings: Record<string, unknown>) => {
         settings.permissionMode = _mode;

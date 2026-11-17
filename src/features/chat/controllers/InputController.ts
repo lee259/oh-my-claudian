@@ -594,7 +594,12 @@ export class InputController {
     this.preparingTurn = shouldUseInput;
     try {
       if (this.deps.preflightExecution) {
-        const preflightError = await this.deps.preflightExecution();
+        let preflightError: Error | null;
+        try {
+          preflightError = await this.deps.preflightExecution();
+        } catch (error) {
+          preflightError = error instanceof Error ? error : new Error(String(error));
+        }
         if (preflightError) {
           this.deps.onDiagnosticError?.(preflightError);
           this.reportDeferredReviewableSettlement();

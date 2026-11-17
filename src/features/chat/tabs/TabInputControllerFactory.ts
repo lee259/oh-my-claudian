@@ -83,7 +83,11 @@ export function createTabInputController(
       if (tab.session.ensureNativeHistoryCurrent && !await tab.session.ensureNativeHistoryCurrent(plugin, { preflight: true })) {
         return new Error('Conversation history changed or could not be reloaded. Try again after current work finishes.');
       }
-      const installation = await plugin.providerHost.cliLifecycle?.check(tab.providerId, { includeLatestVersion: false });
+      // Providers without a CLI lifecycle adapter have no installation snapshot. Their execution
+      // session reports CLI failures instead, so readiness must not require one here.
+      const installation = ProviderRegistry.getCliLifecycleAdapter(tab.providerId)
+        ? await plugin.providerHost.cliLifecycle?.check(tab.providerId, { includeLatestVersion: false })
+        : null;
       if (installation?.operation?.status === 'running') return new Error('Wait for this provider’s CLI operation to finish.');
       if (installation?.status === 'missing' || installation?.status === 'broken') {
         return new Error(installation.error ?? 'Provider CLI not found.');
