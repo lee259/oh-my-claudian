@@ -2702,6 +2702,81 @@ describe('ChatExecutionCoordinator', () => {
     );
   });
 
+  it.each(['dispose', 'bind', 'transition'] as const)(
+    'persists provider state settled during release before giving up the binding on %s',
+    async mode => {
+      const harness = createHarness();
+      await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'claude' });
+      await harness.coordinator.prepare();
+      const session = harness.backends.get('claude')!.sessions[0];
+      harness.repository.persistExecutionSnapshot.mockClear();
+      harness.repository.releaseExecutionBinding.mockClear();
+      jest.spyOn(session, 'dispose').mockImplementationOnce(async () => {
+        await Promise.resolve();
+        session.snapshot = {
+          ...session.snapshot,
+          providerState: { leafEntryId: 'stopped' },
+          revision: session.snapshot.revision + 1,
+        };
+        session.emit({
+          type: 'session_state_changed',
+          scope: { kind: 'session', sessionInstanceId: session.sessionInstanceId, sequence: 1 },
+          snapshot: session.snapshot,
+        });
+      });
+
+      await (mode === 'dispose'
+        ? harness.coordinator.dispose()
+        : mode === 'bind'
+          ? harness.coordinator.bindConversation(null)
+          : harness.registry.runTransition(['claude'], async () => undefined));
+      await harness.coordinator.dispose();
+
+      const persist = harness.repository.persistExecutionSnapshot;
+      expect(persist).toHaveBeenCalledWith(
+        'conversation-1',
+        expect.any(String),
+        expect.any(Number),
+        expect.objectContaining({ providerState: { leafEntryId: 'stopped' } }),
+      );
+      expect(persist.mock.invocationCallOrder.at(-1)!)
+        .toBeLessThan(harness.repository.releaseExecutionBinding.mock.invocationCallOrder.at(-1)!);
+      await harness.registry.dispose();
+    },
+  );
+
+  it('waits for an in-flight release before acquiring a replacement session', async () => {
+    const harness = createHarness();
+    await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'claude' });
+    await harness.coordinator.prepare();
+    const backend = harness.backends.get('claude')!;
+    const session = backend.sessions[0];
+    const disposal = deferred<void>();
+    const disposalStarted = deferred<void>();
+    jest.spyOn(session, 'dispose').mockImplementationOnce(async () => {
+      disposalStarted.resolve();
+      await disposal.promise;
+    });
+
+    const rebind = harness.coordinator.bindConversation({
+      conversationId: 'conversation-1',
+      providerId: 'claude',
+      resumeSeed: { providerSessionId: 'updated-session' },
+    });
+    await disposalStarted.promise;
+    const preparation = harness.coordinator.prepare();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(backend.sessions).toHaveLength(1);
+
+    disposal.resolve();
+    await rebind;
+    await preparation;
+    expect(backend.sessions).toHaveLength(2);
+    await harness.coordinator.dispose();
+    await harness.registry.dispose();
+  });
+
   it('disposes idempotently and never acquires again', async () => {
     const harness = createHarness();
     await harness.coordinator.bindConversation({

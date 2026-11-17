@@ -12,6 +12,7 @@ import type {
   ProviderExecutionRun,
   ProviderInteractionPort,
   ProviderSessionConfig,
+  ProviderSessionEvent,
 } from '@/core/execution';
 import {
   isSteerableExecutionSession,
@@ -948,6 +949,65 @@ describe('PiExecutionBackend', () => {
       text: 'late recovered answer',
       type: 'text_delta',
     }));
+  });
+
+  it('follows the native leaf written by a stopped turn before shutdown settles', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-pi-stopped-turn-'));
+    const sessionDir = path.join(tempDir, '.pi', 'agent', 'sessions');
+    await fs.mkdir(sessionDir, { recursive: true });
+    const sessionFile = path.join(sessionDir, 'session.jsonl');
+    const initial = [
+      { id: 'user-old', type: 'message', message: { role: 'user', content: 'Old' } },
+      { id: 'assistant-old', parentId: 'user-old', type: 'message', message: { role: 'assistant', content: 'Old answer' } },
+    ];
+    await fs.writeFile(sessionFile, initial.map(record => JSON.stringify(record)).join('\n'));
+
+    let harness: ReturnType<typeof createHarness> | undefined;
+    try {
+      const current = createHarness(createConfig({
+        vaultWorkingDirectory: tempDir,
+        resumeSeed: {
+          providerSessionId: 'pi-session-1',
+          providerState: {
+            leafEntryId: 'assistant-old',
+            sessionFile,
+            sessionId: 'pi-session-1',
+          },
+        },
+      }));
+      harness = current;
+      current.responses.set('get_state', {
+        leafEntryId: 'assistant-old',
+        sessionFile,
+        sessionId: 'pi-session-1',
+      });
+      const sessionEvents: ProviderSessionEvent[] = [];
+      current.session.onEvent(event => sessionEvents.push(event));
+      const run = current.session.execute(createRequest());
+      const eventsPromise = collect(run.events);
+      await waitFor(() => current.kernels.length === 1);
+      await waitFor(() => current.kernels[0].requests.some(request => request.type === 'prompt'));
+      current.kernels[0].shutdown.mockImplementationOnce(async () => {
+        await fs.writeFile(sessionFile, [
+          ...initial,
+          { id: 'user-stopped', parentId: 'assistant-old', type: 'message', message: { role: 'user', content: 'Stopped' } },
+          { id: 'assistant-stopped', parentId: 'user-stopped', type: 'message', message: { role: 'assistant', stopReason: 'aborted', content: 'Partial' } },
+        ].map(record => JSON.stringify(record)).join('\n'));
+      });
+
+      run.cancel();
+      const events = await eventsPromise;
+      expect(events.at(-1)).toMatchObject({ type: 'cancelled' });
+      await waitFor(() => sessionEvents.some(event => (
+        event.type === 'session_state_changed'
+        && event.snapshot.providerState?.leafEntryId === 'assistant-stopped'
+      )));
+      expect(current.kernels[0].shutdown).toHaveBeenCalledTimes(1);
+      expect(current.session.getSnapshot().providerState?.leafEntryId).toBe('assistant-stopped');
+    } finally {
+      await harness?.session.dispose();
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('launches resumed persistent sessions with their native session file', async () => {
