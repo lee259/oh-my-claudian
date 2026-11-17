@@ -28,6 +28,7 @@
 
 - `PiProviderState` may store `sessionId`, `sessionFile`, `leafEntryId`, `treeCursor`, `treeSelections`, `parentSession`, `previousSessions`, and fork metadata. Do not infer these fields in feature code. `treeCursor` is the selected native branch and must be restored before execution; the cursor and native leaf must be persisted together after navigation.
 - Pi can resume by session ID or absolute session file. Absolute session files can be switched in a live process; other target changes require process restart.
+- Cancelling a dispatched turn must wait for the kernel writer to exit and sync the stopped turn's native leaf before teardown settles. A saved `treeCursor` already follows native appends on reload; an undispatched prompt appended nothing.
 - History hydration reads Pi JSONL sessions from vault-local (`.pi/agent/sessions/`) and user-level (`~/.pi/agent/sessions/`) roots.
 - Forking creates a new Pi session file by copying the source branch up to `resumeAt` without altering or truncating the source. Keep fork materialization provider-owned.
 - Historical selected-model recovery walks the active JSONL branch to `leafEntryId` and preserves the last native provider/model pair. A missing persisted leaf must fail closed instead of using another branch; never promote `previousSessions` or a recovery-only locator into the live binding.

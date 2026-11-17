@@ -252,6 +252,8 @@ export class ChatExecutionCoordinator {
   private protectedOperationCount = 0;
   private conversationBindingGeneration = 0;
   private preparationTail: Promise<void> = Promise.resolve();
+  /** Settles once every released binding has persisted its final state and given up its claim. */
+  private bindingReleases: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: ChatExecutionCoordinatorDeps) {
     this.supervisor = new ExecutionSessionSupervisor(deps.lifecycleRegistry);
@@ -321,10 +323,20 @@ export class ChatExecutionCoordinator {
   }
 
   private async prepareSession(): Promise<void> {
+    // A release can start while this waits; nothing below awaits before registering, so once the barrier is
+    // unchanged after settling, no release can start before the claim.
+    await this.waitForBindingReleases();
     this.assertAvailable();
     const conversation = this.requireConversation();
     const bindingGeneration = this.conversationBindingGeneration;
     await this.acquireWarmSlot();
+    if (!this.isPreparationCurrent(conversation, bindingGeneration)) {
+      this.releaseWarmSlot();
+      return;
+    }
+    if (this.sessionBinding && this.isBindingCurrent(this.sessionBinding)) return;
+    // Warm-slot acquisition awaits, so release the barrier once more immediately before registering the claim.
+    await this.waitForBindingReleases();
     if (!this.isPreparationCurrent(conversation, bindingGeneration)) {
       this.releaseWarmSlot();
       return;
@@ -347,7 +359,7 @@ export class ChatExecutionCoordinator {
           vaultWorkingDirectory: this.deps.vaultWorkingDirectory,
           interactionPort: this.fencedInteractionPort,
         },
-        (reason) => this.handleLeaseInvalidation(reason),
+        (reason, released) => this.handleLeaseInvalidation(reason, released),
         (event) => this.handleSessionEvent(event),
       );
       const binding: SessionBinding = {
@@ -802,7 +814,8 @@ export class ChatExecutionCoordinator {
     this.pendingSteerAttempts.clear();
     this.disposePromise = this.preparationTail
       .catch(() => undefined)
-      .then(() => this.releaseSessionBinding());
+      .then(() => this.releaseSessionBinding())
+      .then(() => this.bindingReleases);
     return this.disposePromise;
   }
 
@@ -1146,9 +1159,18 @@ export class ChatExecutionCoordinator {
     snapshot: ProviderSessionSnapshot,
     requirePersistence = false,
   ): Promise<void> {
+    if (!this.isBindingCurrent(binding)) return;
+    await this.writeSnapshot(binding, snapshot, requirePersistence);
+  }
+
+  /** Writes a newer snapshot; release-time callers establish that the binding's claim is still held. */
+  private async writeSnapshot(
+    binding: SessionBinding,
+    snapshot: ProviderSessionSnapshot,
+    requirePersistence = false,
+  ): Promise<void> {
     if (
-      !this.isBindingCurrent(binding)
-      || snapshot.providerId !== binding.conversation.providerId
+      snapshot.providerId !== binding.conversation.providerId
       || snapshot.revision <= binding.lastSnapshotRevision
     ) {
       return;
@@ -1183,6 +1205,7 @@ export class ChatExecutionCoordinator {
 
   private handleLeaseInvalidation(
     _reason: ProviderExecutionInvalidationReason,
+    released: Promise<void>,
   ): void {
     const binding = this.sessionBinding;
     if (!binding) return;
@@ -1190,27 +1213,63 @@ export class ChatExecutionCoordinator {
     this.stale = true;
     this.pendingSteerAttempts.clear();
     this.invalidateActiveExecution('invalidated', 'provider-transition');
-    this.deps.persistence.releaseExecutionBinding(
-      binding.conversation.conversationId,
-      binding.bindingId,
-    );
+    const settle = this.holdReleasedBinding(binding);
+    void this.trackBindingRelease(settle(released)).catch(error => this.deps.onError?.(error));
     this.releaseWarmSlot();
   }
 
   private async releaseSessionBinding(): Promise<void> {
     const binding = this.sessionBinding;
     this.sessionBinding = null;
-    if (binding) {
-      this.deps.persistence.releaseExecutionBinding(
-        binding.conversation.conversationId,
-        binding.bindingId,
-      );
-    }
+    const settle = binding ? this.holdReleasedBinding(binding) : null;
+    const release = this.supervisor.release();
     try {
-      await this.supervisor.release();
+      await (settle ? this.trackBindingRelease(settle(release)) : release);
     } finally {
       this.releaseWarmSlot();
     }
+  }
+
+  private trackBindingRelease(release: Promise<void>): Promise<void> {
+    const settled = release.catch(() => undefined);
+    this.bindingReleases = Promise.all([this.bindingReleases, settled]).then(() => undefined);
+    return release;
+  }
+
+  private async waitForBindingReleases(): Promise<void> {
+    let releases: Promise<void>;
+    do {
+      releases = this.bindingReleases;
+      await releases;
+    } while (releases !== this.bindingReleases);
+  }
+
+  /**
+   * Release can settle provider state after event routing ends (Pi follows a stopped turn's native leaf once
+   * its process exits). Listen from before the release starts, persist that state while the claim is still
+   * held, then give up the claim once the native session has finished disposal.
+   */
+  private holdReleasedBinding(binding: SessionBinding): (release: Promise<void>) => Promise<void> {
+    let settled: ProviderSessionSnapshot | undefined;
+    const stopListening = binding.session.onEvent((event) => {
+      if (event.type === 'session_state_changed' && event.snapshot.status !== 'disposed') {
+        settled = event.snapshot;
+      }
+    });
+    return async (release) => {
+      try {
+        await release;
+        if (settled) {
+          await this.writeSnapshot(binding, settled).catch(error => this.deps.onError?.(error));
+        }
+      } finally {
+        stopListening();
+        this.deps.persistence.releaseExecutionBinding(
+          binding.conversation.conversationId,
+          binding.bindingId,
+        );
+      }
+    };
   }
 
   private async acquireWarmSlot(): Promise<void> {
