@@ -756,6 +756,7 @@ export class StreamController {
       state.writeEditStates.delete(toolCall.id);
       replacementEl = renderToolCall(parentEl, toolCall, state.toolCallElements, {
         initiallyExpanded,
+        onPreviewImage: (image) => this.deps.renderer.showRenderedImage(image),
         onOpenFile: (filePath) => { void openVaultFile(this.deps.plugin.app, filePath); },
       });
       state.toolCallElements.set(toolCall.id, replacementEl);
@@ -871,6 +872,7 @@ export class StreamController {
     } else {
       renderToolCall(parentEl, toolCall, state.toolCallElements, {
         initiallyExpanded: toolCall.name === TOOL_APPLY_PATCH && this.shouldExpandFileEditsByDefault(),
+        onPreviewImage: (image) => this.deps.renderer.showRenderedImage(image),
         onOpenFile: (filePath) => { void openVaultFile(this.deps.plugin.app, filePath); },
       });
     }

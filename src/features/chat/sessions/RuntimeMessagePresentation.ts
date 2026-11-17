@@ -7,6 +7,7 @@ export type MessagePresentation = Pick<MessageRenderer,
   | 'setTranscriptExecutionScope' | 'addTextCopyButton' | 'startCompletedWork'
   | 'syncStreamingActivity' | 'refreshBranchButtonState' | 'refreshBranchButtons'
   | 'renderMessagesInto' | 'updateLiveUserMessage' | 'renderContent'
+  | 'showRenderedImage'
 > & {
   addMessage(...args: Parameters<MessageRenderer['addMessage']>): HTMLElement | null;
   renderMessages(...args: Parameters<MessageRenderer['renderMessages']>): HTMLElement | null;
@@ -113,5 +114,9 @@ export class RuntimeMessagePresentation implements MessagePresentation {
 
   renderContent(...args: Parameters<MessageRenderer['renderContent']>): Promise<void> {
     return this.binding?.renderer.renderContent(...args) ?? Promise.resolve();
+  }
+
+  showRenderedImage(...args: Parameters<MessageRenderer['showRenderedImage']>): void {
+    this.binding?.renderer.showRenderedImage(...args);
   }
 }

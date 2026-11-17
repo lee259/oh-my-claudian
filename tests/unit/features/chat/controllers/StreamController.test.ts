@@ -151,6 +151,7 @@ function createMockDeps(): MockStreamControllerDeps {
       renderTaskNotification: jest.fn(),
       renderStopHook: jest.fn(),
       syncStreamingActivity: jest.fn(),
+      showRenderedImage: jest.fn(),
     } as any,
     subagentManager: {
       isAsyncTask: jest.fn().mockReturnValue(false),
@@ -1748,6 +1749,17 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Tool handling - continued', () => {
+    it('routes live tool image previews to the message renderer', async () => {
+      const { renderToolCall } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
+      const msg = createTestMessage();
+      await controller.handleStreamChunk({ type: 'tool_use', id: 'image', name: 'Read', input: {} }, msg);
+      controller.flushPendingTools();
+      const options = renderToolCall.mock.calls.at(-1)[3];
+      const image = createMockEl();
+      options.onPreviewImage(image);
+      expect(deps.renderer.showRenderedImage).toHaveBeenCalledWith(image);
+    });
+
     it('should handle multiple pending tools and flush in order', async () => {
       const { renderToolCall } = jest.requireMock('@/features/chat/rendering/ToolCallRenderer');
       const msg = createTestMessage();

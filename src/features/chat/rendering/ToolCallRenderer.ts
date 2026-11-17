@@ -30,6 +30,7 @@ import type { DiffStats } from '../../../core/types/diff';
 import { appendMcpIcon } from '../../../shared/icons';
 import { parseApplyPatchDiffs, parseFileUpdateChangeDiffs } from '../../../utils/diff';
 import { type FileReference,parseFileReference } from '../../../utils/FileReference';
+import { bindImagePreview } from '../ui/ImagePreviewModal';
 import { setupCollapsible } from './collapsible';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { renderTodoItems } from './todoUtils';
@@ -842,14 +843,18 @@ function resultImageSource(image: ToolResultImage): string {
     .join('/');
 }
 
+const toolImagePreviewHandlers = new WeakMap<HTMLElement, (image: HTMLImageElement) => void>();
+
 function renderResultImages(container: HTMLElement, images: ToolResultImage[]): void {
   const imagesEl = container.createDiv({ cls: 'claudian-tool-result-images' });
+  const onPreview = toolImagePreviewHandlers.get(container);
   for (const image of images) {
     const alt = image.alt ?? (image.kind === 'file' ? image.path.split(/[\\/]/).pop() ?? image.path : image.mediaType);
-    imagesEl.createEl('img', {
+    const imageEl = imagesEl.createEl('img', {
       cls: 'claudian-tool-result-image',
       attr: { alt, loading: 'lazy', src: resultImageSource(image) },
     });
+    if (onPreview) bindImagePreview(imageEl, onPreview);
   }
 }
 
@@ -981,6 +986,7 @@ export function refreshToolCallHeader(toolEl: HTMLElement | undefined, tool: Too
 export interface ToolCallRenderOptions {
   initiallyExpanded?: boolean;
   onOpenFile?: (fileReference: FileReference) => void;
+  onPreviewImage?: (image: HTMLImageElement) => void;
 }
 
 export function getToolFilePath(toolCall: ToolCallInfo): FileReference | undefined {
@@ -1067,6 +1073,7 @@ function createToolElementStructure(
   parentEl: HTMLElement,
   toolCall: ToolCallInfo,
   onOpenFile?: (fileReference: FileReference) => void,
+  onPreviewImage?: (image: HTMLImageElement) => void,
 ): ToolElementStructure {
   let currentTool = toolCall;
   const toolEl = parentEl.createDiv({ cls: 'claudian-tool-call' });
@@ -1105,6 +1112,7 @@ function createToolElementStructure(
   const statusEl = header.createSpan({ cls: 'claudian-tool-status' });
 
   const content = toolEl.createDiv({ cls: 'claudian-tool-content' });
+  if (onPreviewImage) toolImagePreviewHandlers.set(content, onPreviewImage);
 
   const getAriaLabel = () => getToolLabel(currentTool.name, currentTool.input, currentTool.presentation);
   toolHeaderRefreshers.set(toolEl, (tool) => {
@@ -1377,7 +1385,7 @@ export function renderToolCall(
   options: ToolCallRenderOptions = {}
 ): HTMLElement {
   const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
-    createToolElementStructure(parentEl, toolCall, options.onOpenFile);
+    createToolElementStructure(parentEl, toolCall, options.onOpenFile, options.onPreviewImage);
 
   toolEl.dataset.toolId = toolCall.id;
   toolCallElements.set(toolCall.id, toolEl);
@@ -1474,7 +1482,7 @@ export function renderStoredToolCall(
   options: ToolCallRenderOptions = {}
 ): HTMLElement {
   const { toolEl, header, statusEl, content, currentTaskEl, getAriaLabel, setExpanded } =
-    createToolElementStructure(parentEl, toolCall, options.onOpenFile);
+    createToolElementStructure(parentEl, toolCall, options.onOpenFile, options.onPreviewImage);
 
   if (toolCall.name === TOOL_TODO_WRITE && toolCall.status !== 'cancelled' && toolCall.status !== 'error') {
     setTodoWriteStatus(statusEl, toolCall.input);
