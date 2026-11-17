@@ -1805,6 +1805,53 @@ describe('ClaudianView Escape handling', () => {
     expect(view.historyDropdown.hasClass('visible')).toBe(true);
   });
 
+  it('keeps the mention picker open when the add-context action triggers the click', () => {
+    const { view } = createEscapeHarness({ isStreaming: false });
+    const tab = view.tabManager.getActiveTab();
+    const hideMentionDropdown = jest.fn();
+    tab.dom = { inputEl: createMockEl() };
+    tab.ui.fileContextManager.hideMentionDropdown = hideMentionDropdown;
+    tab.ui.fileContextManager.containsElement = jest.fn().mockReturnValue(false);
+    view.wireEventHandlers();
+
+    const documentClickHandlers = view.registerDomEvent.mock.calls
+      .filter(([, eventName]: unknown[]) => eventName === 'click')
+      .map(([, , handler]: unknown[]) => handler as (event: MouseEvent) => void);
+    const action = createMockEl('button');
+    action.addClass('claudian-context-action-add-context');
+    action.closest = (selector: string) => (
+      selector === '.claudian-context-action-add-context' ? action : null
+    );
+
+    for (const handler of documentClickHandlers) {
+      handler({ target: action } as unknown as MouseEvent);
+    }
+
+    expect(hideMentionDropdown).not.toHaveBeenCalled();
+  });
+
+  it('still hides the mention picker for ordinary outside clicks', () => {
+    const { view } = createEscapeHarness({ isStreaming: false });
+    const tab = view.tabManager.getActiveTab();
+    const hideMentionDropdown = jest.fn();
+    tab.dom = { inputEl: createMockEl() };
+    tab.ui.fileContextManager.hideMentionDropdown = hideMentionDropdown;
+    tab.ui.fileContextManager.containsElement = jest.fn().mockReturnValue(false);
+    view.wireEventHandlers();
+
+    const documentClickHandlers = view.registerDomEvent.mock.calls
+      .filter(([, eventName]: unknown[]) => eventName === 'click')
+      .map(([, , handler]: unknown[]) => handler as (event: MouseEvent) => void);
+    const outside = createMockEl('div');
+    outside.closest = () => null;
+
+    for (const handler of documentClickHandlers) {
+      handler({ target: outside } as unknown as MouseEvent);
+    }
+
+    expect(hideMentionDropdown).toHaveBeenCalledTimes(1);
+  });
+
   it('registers Escape on the Obsidian view scope instead of document keydown capture', () => {
     const { view } = createEscapeHarness({ isStreaming: true });
 
