@@ -172,6 +172,10 @@ describe('ConversationRepository input ledger', () => {
           content: 'Provider-formatted prompt',
           timestamp: 10,
           userMessageId: 'native-user-1',
+          executionInput: { schemaVersion: 1, canonicalText: 'Native fallback', context: {
+            currentNote: { path: 'Notes/native-fallback.md' },
+            editorSelection: { mode: 'selection', notePath: 'Notes/native-fallback.md', selectedText: 'Native fallback selection' },
+          } },
         }];
       },
     } as any);

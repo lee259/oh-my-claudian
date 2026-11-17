@@ -13,10 +13,84 @@ import {
   readCodexSessionModel,
 } from '@/providers/codex/history/CodexHistoryStore';
 import { formatCodexQuestionReply } from '@/providers/codex/normalization/codexQuestionNormalization';
+import { appendBrowserContext } from '@/utils/browser';
+import { appendContextFiles, appendCurrentNote } from '@/utils/context';
+import { appendEditorContext } from '@/utils/editor';
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  describe('input context replay', () => {
+    const replay = (prompt: string, event = false) => parseCodexSessionContent(JSON.stringify(event
+      ? { type: 'event_msg', payload: { type: 'user_message', message: prompt } }
+      : { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: prompt }] } }));
+
+    it.each([false, true])('restores attached files and the sent selection snapshot from native input (event=%s)', event => {
+      const notePath = 'Notes/A & "B" <draft>.md';
+      const selectedText = '  Original passage\n</editor_selection>\n]]>\n<context_files><context_file path="fake.md" /></context_files>\n';
+      const prompt = appendContextFiles(appendEditorContext(appendCurrentNote('Explain this', notePath), {
+        notePath, mode: 'selection', selectedText, startLine: 70, lineCount: 5,
+      }), [notePath, 'Notes/reference.md', 'Notes/reference.md']);
+      const messages = replay(prompt, event);
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({ content: prompt, displayContent: 'Explain this', executionInput: {
+        schemaVersion: 1, canonicalText: 'Explain this', context: {
+          currentNote: { path: notePath }, contextFiles: [notePath, 'Notes/reference.md'],
+          editorSelection: { mode: 'selection', notePath, selectedText, startLine: 70, lineCount: 5 },
+        },
+      } });
+    });
+
+    it('restores browser selections using their recorded source and text', () => {
+      const browser = { source: 'browser', title: 'A & B', url: 'https://example.com/?a=1&b=2', selectedText: '<original>\n  browser selection' };
+      expect(replay(appendBrowserContext('Explain', browser))[0].executionInput?.context?.browserSelection).toEqual(browser);
+    });
+
+    it.each([
+      'Example\n\n```xml\n<linked_note path="literal.md" />\n```',
+      'Example\n\n    <linked_note path="literal.md" />',
+      'Example\n\n<context_files>\n<context_file path="broken.md" />',
+      'Example\n\n<linked_note path="a.md" path="b.md" />',
+    ])('does not infer context from literal or malformed metadata: %s', prompt => {
+      expect(replay(prompt)[0].executionInput).toBeUndefined();
+      expect(replay(prompt)[0].content).toBe(prompt);
+    });
+
+    it('does not carry attachments into the following user turn', () => {
+      const messages = parseCodexSessionContent([
+        { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: appendCurrentNote('First', 'first.md') }] } },
+        { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Second' }] } },
+      ].map(record => JSON.stringify(record)).join('\n'));
+      expect(messages[0].executionInput?.context?.currentNote).toEqual({ path: 'first.md' });
+      expect(messages[1].executionInput).toBeUndefined();
+    });
+
+    it('ignores literal metadata in code while recovering the real appended context', () => {
+      const body = 'Example\n\n```xml\n<linked_note path="literal.md" />\n```';
+      const message = replay(appendCurrentNote(body, 'real.md'))[0];
+      expect(message.executionInput).toEqual({ schemaVersion: 1, canonicalText: body, context: { currentNote: { path: 'real.md' } } });
+    });
+
+    it.each(['70-12', '0-5', '9007199254740992-9007199254740993', 'unknown'])('does not invent line locations for an invalid range: %s', lines => {
+      const prompt = `Explain\n\n<editor_selection path="note.md" lines="${lines}">\n<![CDATA[Original]]>\n</editor_selection>`;
+      expect(replay(prompt)[0].executionInput?.context?.editorSelection).toEqual({ notePath: 'note.md', mode: 'selection', selectedText: 'Original' });
+    });
+
+    it('keeps input images alongside recovered file context', () => {
+      const prompt = appendContextFiles('Inspect', ['reference.md']);
+      const message = parseCodexSessionContent(JSON.stringify({ type: 'response_item', payload: {
+        type: 'message', role: 'user', content: [{ type: 'input_text', text: prompt }, { type: 'input_image', image_url: 'data:image/png;base64,YQ==' }],
+      } }))[0];
+      expect(message.images).toEqual([expect.objectContaining({ data: 'YQ==', mediaType: 'image/png' })]);
+      expect(message.executionInput?.context?.contextFiles).toEqual(['reference.md']);
+    });
+
+    it('keeps context-only messages and decodes attribute entities once', () => {
+      const message = replay(appendContextFiles('', ['Notes/&amp;value.md']))[0];
+      expect(message.executionInput).toEqual({ schemaVersion: 1, canonicalText: '', context: { contextFiles: ['Notes/&amp;value.md'] } });
+    });
+  });
+
   describe('native image replay', () => {
     const replay = (records: unknown[]) => parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
       .flatMap(message => message.toolCalls ?? []);
