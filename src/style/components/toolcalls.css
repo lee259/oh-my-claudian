@@ -116,6 +116,11 @@
   color: var(--text-normal);
 }
 
+.claudian-tool-copy-command.copied {
+  opacity: 1;
+  color: var(--text-success, var(--text-normal));
+}
+
 .claudian-tool-copy-command svg {
   width: 14px;
   height: 14px;
