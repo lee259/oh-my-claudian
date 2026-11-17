@@ -17,6 +17,146 @@ import { formatCodexQuestionReply } from '@/providers/codex/normalization/codexQ
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  describe('native image replay', () => {
+    const replay = (records: unknown[]) => parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+      .flatMap(message => message.toolCalls ?? []);
+
+    it('restores generated images from native records even inside an opaque script', () => {
+      const image = (id: string) => ({ type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'Extension', kind: 'image_gen.generation', id, status: 'completed',
+        revisedPrompt: 'A technical diagram', savedPath: `/tmp/${id}.png`, result: null,
+      } } });
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'script',
+          input: 'const prompt = getPrompt(); await tools.image_gen__imagegen({prompt});' } },
+        image('image-1'), image('image-1'), image('image-2'),
+      ]);
+      expect(tools.filter(tool => tool.name === 'image_gen__imagegen')).toEqual([
+        expect.objectContaining({ id: 'image-1', status: 'completed', resultImages: [{ kind: 'file', path: '/tmp/image-1.png' }] }),
+        expect.objectContaining({ id: 'image-2', status: 'completed', resultImages: [{ kind: 'file', path: '/tmp/image-2.png' }] }),
+      ]);
+    });
+
+    it.each(['before', 'after'])('attaches native image previews %s raw output without duplicating calls', order => {
+      const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'ImageView', id: 'native-view', path: 'file:///tmp/view.png',
+      } } };
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'view',
+          input: 'const result = await tools.view_image({path:"/tmp/view.png"}); image(result.image_url);' } },
+        ...(order === 'before' ? [native] : []),
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'view', output: 'Script completed\nOutput:\n' } },
+        ...(order === 'after' ? [native] : []),
+      ]);
+      expect(tools).toEqual([expect.objectContaining({
+        id: 'view', name: 'Read', status: 'completed', resultImages: [{ kind: 'file', path: '/tmp/view.png' }],
+      })]);
+    });
+
+    it('keeps generation failures authoritative over later script output', () => {
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'generate',
+          input: 'text(await tools.image_gen__imagegen({prompt:"diagram"}));' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'Extension', kind: 'image_gen.generation', id: 'failed-generation', revisedPrompt: 'diagram',
+          status: 'failed', failure: 'Generation failed', savedPath: '/tmp/incomplete.png',
+        } } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'generate', output: 'Script completed\nOutput:\n' } },
+      ]);
+      expect(tools).toEqual([expect.objectContaining({ id: 'generate', status: 'error', result: 'Generation failed' })]);
+      expect(tools[0].resultImages).toBeUndefined();
+    });
+
+    it.each(['before', 'after'])('preserves embedded view images when native completion arrives %s output', order => {
+      const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'ImageView', id: 'native-view', path: '/removed/view.png',
+      } } };
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'function_call', name: 'view_image', call_id: 'view',
+          arguments: '{"path":"/removed/view.png"}' } },
+        ...(order === 'before' ? [native] : []),
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'view',
+          output: [{ type: 'input_image', image_url: 'data:image/png;base64,aGVsbG8=' }] } },
+        ...(order === 'after' ? [native] : []),
+      ]);
+      expect(tools).toHaveLength(1);
+      expect(tools[0].resultImages).toEqual([{ kind: 'data', data: 'aGVsbG8=', mediaType: 'image/png' }]);
+    });
+
+    it('keeps direct view_image output images attached to the view call', () => {
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'function_call', name: 'view_image', call_id: 'view',
+          arguments: '{"path":"/tmp/view.png"}' } },
+        { type: 'response_item', payload: { type: 'function_call_output', call_id: 'view',
+          output: [{ type: 'input_image', image_url: 'data:image/png;base64,aGVsbG8=' }] } },
+      ]);
+      expect(tools[0].resultImages).toEqual([{ kind: 'data', data: 'aGVsbG8=', mediaType: 'image/png' }]);
+    });
+
+    it('associates parallel image views by path rather than completion order', () => {
+      const native = (id: string, imagePath: string) => ({ type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'ImageView', id, path: imagePath,
+      } } });
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'views',
+          input: 'await tools.view_image({path:"/tmp/a.png"}); await tools.view_image({path:"/tmp/b.png"});' } },
+        native('second', 'file:///tmp/b.png'), native('first', '/tmp/a.png'),
+      ]);
+      expect(tools.filter(tool => tool.name === 'Read')).toEqual([
+        expect.objectContaining({ id: 'views:1', resultImages: [{ kind: 'file', path: '/tmp/a.png' }] }),
+        expect.objectContaining({ id: 'views:2', resultImages: [{ kind: 'file', path: '/tmp/b.png' }] }),
+      ]);
+    });
+
+    it.each(['iVBORw0KGgoAAAANSUhEUg==', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='])(
+      'replays embedded generation data when the original file is unavailable: %s', result => {
+        const tools = replay([{ type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'Extension', kind: 'image_gen.generation', id: 'generated', status: 'completed', result,
+          savedPath: '/removed/generated.png',
+        } } }]);
+        expect(tools[0].resultImages).toEqual([{ kind: 'data', data: 'iVBORw0KGgoAAAANSUhEUg==', mediaType: 'image/png' }]);
+      },
+    );
+
+    it.each(['https://example.com/image.png', 'javascript:alert(1)', 'file://%', 'relative.png'])(
+      'does not treat an invalid or nonlocal native image path as a preview: %s', imagePath => {
+        const tools = replay([{ type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'ImageView', id: 'view', path: imagePath,
+        } } }]);
+        expect(tools[0].resultImages).toBeUndefined();
+      },
+    );
+
+    it('does not assign an ambiguous native result to one of two identical requests', () => {
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'generate',
+          input: 'await tools.image_gen__imagegen({prompt:"diagram"}); await tools.image_gen__imagegen({prompt:"diagram"});' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'Extension', kind: 'image_gen.generation', id: 'native', status: 'completed',
+          revisedPrompt: 'diagram', savedPath: '/tmp/native.png',
+        } } },
+      ]);
+      expect(tools.filter(tool => tool.resultImages?.length).map(tool => tool.id)).toEqual(['native']);
+    });
+
+    it('does not associate native images with requests from a previous turn', () => {
+      const tools = replay([
+        { type: 'response_item', payload: { type: 'function_call', name: 'view_image', call_id: 'old', arguments: '{"path":"/tmp/view.png"}' } },
+        { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Continue' }] } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: { type: 'ImageView', id: 'new', path: '/tmp/view.png' } } },
+      ]);
+      expect(tools.filter(tool => tool.resultImages?.length).map(tool => tool.id)).toEqual(['new']);
+    });
+
+    it('does not expose a cancelled generation as a completed preview', () => {
+      const tools = replay([{ type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'Extension', kind: 'image_gen.generation', id: 'cancelled', status: 'cancelled', savedPath: '/tmp/partial.png',
+      } } }]);
+      expect(tools[0]).toMatchObject({ status: 'cancelled' });
+      expect(tools[0].resultImages).toBeUndefined();
+    });
+  });
+
   it('does not restore Codex internal context calls or their private output', () => {
     const content = [
       JSON.stringify({

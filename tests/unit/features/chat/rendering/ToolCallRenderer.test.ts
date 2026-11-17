@@ -18,6 +18,7 @@ import {
 // Mock obsidian
 jest.mock('obsidian', () => ({
   setIcon: jest.fn(),
+  Platform: { resourcePathPrefix: 'app://local/' },
 }));
 
 // Helper to create a basic tool call
@@ -229,6 +230,16 @@ describe('ToolCallRenderer', () => {
   });
 
   describe('renderStoredToolCall', () => {
+    it.each(['Read', 'image_gen__imagegen'])('expands stored %s image previews in the existing tool layout', name => {
+      const toolEl = renderStoredToolCall(createMockEl(), createToolCall({
+        name, status: 'completed', input: { file_path: '/tmp/view image.png' },
+        resultImages: [{ kind: 'file', path: '/tmp/view image.png' }],
+      }));
+      (toolEl.querySelector('.claudian-tool-header') as HTMLElement).click();
+      expect(toolEl.querySelector('.claudian-tool-result-image')?.getAttribute('src'))
+        .toBe('app://local/tmp/view%20image.png');
+    });
+
     it('renders plain Read output without stripping arrow-prefixed content', () => {
       const toolCall = createToolCall({
         name: 'Read',
