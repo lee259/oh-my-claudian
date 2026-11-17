@@ -14,6 +14,7 @@ import type {
   ImageAttachment,
   SubagentInfo,
   ToolCallInfo,
+  ToolResultImage,
 } from '../../../core/types';
 import { createTurnStats, isTokenCount } from '../../../core/types';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -253,6 +254,8 @@ function createPersistedParseContext(): PersistedParseContext {
     execEnvelopeInternalOutputCallIds: new Set(),
     nativeCommandResultCallIds: new Set(),
     nativeWebSearchResultCallIds: new Set(),
+    nativeImageResultCallIds: new Set(),
+    imageCallCandidates: new Map(),
     observedNativeItemIds: new Set(),
     nativeCallCandidates: [],
     withheldExecCellIds: new Set(),
@@ -789,6 +792,8 @@ interface PersistedParseContext {
   execEnvelopeInternalOutputCallIds: Set<string>;
   nativeCommandResultCallIds: Set<string>;
   nativeWebSearchResultCallIds: Set<string>;
+  nativeImageResultCallIds: Set<string>;
+  imageCallCandidates: Map<string, { name: string; input: Record<string, unknown> }>;
   observedNativeItemIds: Set<string>;
   nativeCallCandidates: Array<{
     toolCallId?: string;
@@ -852,10 +857,13 @@ function processPersistedToolCall(
   if (payload.name === 'exec' && !execEnvelopeCalls) ctx.nativeCallCandidates.push({ opaqueCallId: callId, request: null });
   const candidates = execEnvelopeCalls?.map(call => call.rawName === 'web__run'
     ? { ...call, name: 'WebSearch', input: normalizeCodexToolInput('web_search', call.rawInput) }
-    : call) ?? [{ ...normalized, rawInput: parsedArgs }];
-  candidates.forEach(({ name, input, rawInput }, index) => {
-    if (name !== 'Bash' && name !== 'WebSearch') return;
+    : call) ?? [{ ...normalized, rawInput: parsedArgs, rawName: payload.name }];
+  candidates.forEach(({ name, input, rawInput, rawName }, index) => {
     const toolCallId = execEnvelopeCalls && execEnvelopeCalls.length > 1 ? `${callId}:${index + 1}` : callId;
+    if (rawName === 'view_image' || rawName === 'image_gen__imagegen') {
+      ctx.imageCallCandidates.set(toolCallId, { name: rawName, input });
+    }
+    if (name !== 'Bash' && name !== 'WebSearch') return;
     if (name === 'Bash') {
       const directory = rawInput.workdir ?? rawInput.cwd ?? rawInput.workingDirectory;
       const workingDirectory = resolvePersistedWorkingDirectory(directory, ctx.workingDirectory);
@@ -1218,6 +1226,15 @@ function applyPersistedToolOutput(
   ctx: PersistedParseContext,
   options: { allowImplicitCommandCompletion?: boolean } = {},
 ): void {
+  const nativeImageResult = ctx.nativeImageResultCallIds.has(toolCall.id);
+  const isImageView = ctx.imageCallCandidates.get(toolCall.id)?.name === 'view_image'
+    || (nativeImageResult && toolCall.name === 'Read');
+  if (isImageView && toolCall.status !== 'error' && toolCall.status !== 'cancelled' && Array.isArray(rawOutputValue)) {
+    const images = extractMessageImages(rawOutputValue as PersistedMessagePart[], toolCall.id)
+      .map(({ data, mediaType }) => ({ kind: 'data' as const, data, mediaType }));
+    if (images.length > 0) toolCall.resultImages = images;
+  }
+  if (nativeImageResult) return;
   if (toolCall.name === 'exec') {
     toolCall.result = appendCodexCommandOutput(toolCall.result, normalizeCodexToolResult('exec', rawOutputText));
     if (Array.isArray(rawOutputValue)) {
@@ -1371,6 +1388,7 @@ function processPersistedPayload(
         const visibleText = extractCodexUserVisibleText(text);
         const hasImages = hasMessageImages(messagePayload.content);
         if (visibleText === null && !hasImages && !isQuestionReply) break;
+        ctx.imageCallCandidates.clear();
 
         // Close any active bubble in the current turn before starting user content
         if (ctx.currentTurnId) {
@@ -1518,6 +1536,56 @@ function applyPersistedNativeWebSearchItem(
   if (itemId) ctx.observedNativeItemIds.add(itemId);
 }
 
+function resolvePersistedImagePath(value: unknown, workingDirectory?: string): string | undefined {
+  if (typeof value !== 'string' || !value || value.includes('\0')) return undefined;
+  if (/^[a-z][a-z\d+.-]*:/i.test(value) && !value.startsWith('file:') && !/^[a-z]:[\\/]/i.test(value)) return undefined;
+  if (/^[a-z]:[\\/]/i.test(value)) return path.win32.normalize(value);
+  if (!value.startsWith('file:') && !path.isAbsolute(value) && !path.win32.isAbsolute(value) && !workingDirectory) return undefined;
+  return resolvePersistedWorkingDirectory(value, workingDirectory) || undefined;
+}
+
+function applyPersistedNativeImageItem(
+  item: Record<string, unknown> | undefined,
+  timestamp: number,
+  ctx: PersistedParseContext,
+): void {
+  if (!item || typeof item.id !== 'string' || !item.id || ctx.observedNativeItemIds.has(item.id)) return;
+  const isGeneration = item.type === 'Extension' && item.kind === 'image_gen.generation';
+  if (!isGeneration && item.type !== 'ImageView') return;
+  const name = isGeneration ? 'image_gen__imagegen' : 'view_image';
+  const imagePath = resolvePersistedImagePath(isGeneration ? item.savedPath : item.path, ctx.workingDirectory);
+  const prompt = typeof item.revisedPrompt === 'string' ? item.revisedPrompt : undefined;
+  const matches = [...ctx.imageCallCandidates].filter(([, candidate]) => candidate.name === name && (
+    isGeneration ? !!prompt && candidate.input.prompt === prompt
+      : !!imagePath && resolvePersistedImagePath(candidate.input.file_path ?? candidate.input.path, ctx.workingDirectory) === imagePath
+  ));
+  const callId = matches.length === 1 ? matches[0][0] : item.id;
+  if (!findPersistedToolCallById(ctx, callId)) {
+    pushPersistedNormalizedToolCall(callId, {
+      name: isGeneration ? name : 'Read',
+      input: isGeneration ? { ...(prompt ? { prompt } : {}) } : { file_path: imagePath ?? '' },
+    }, timestamp, ctx);
+  }
+  const tool = findPersistedToolCallById(ctx, callId);
+  if (!tool) return;
+  const failed = item.status === 'failed' || item.status === 'error' || !!item.failure;
+  tool.status = item.status === 'cancelled' ? 'cancelled' : failed ? 'error' : 'completed';
+  tool.result = failed ? stringifyCodexToolOutput(item.failure) || 'Image generation failed' : imagePath ?? '';
+  let image: ToolResultImage | undefined;
+  if (!failed && tool.status === 'completed') {
+    const data = parseImageDataUri(item.result);
+    if (data) image = { kind: 'data', ...data };
+    else if (typeof item.result === 'string' && item.result.startsWith('iVBORw0KGgo')) {
+      image = { kind: 'data', data: item.result, mediaType: 'image/png' };
+    } else if (!isGeneration && tool.resultImages?.[0]?.kind === 'data') image = tool.resultImages[0];
+    else if (imagePath) image = { kind: 'file', path: imagePath };
+  }
+  tool.resultImages = image ? [image] : undefined;
+  ctx.imageCallCandidates.delete(callId);
+  ctx.nativeImageResultCallIds.add(callId);
+  ctx.observedNativeItemIds.add(item.id);
+}
+
 function processEventMsg(
   payload: PersistedEventPayload,
   timestamp: number,
@@ -1529,6 +1597,7 @@ function processEventMsg(
     case 'item_completed': {
       applyPersistedNativeCommandItem(payload.item, ctx);
       applyPersistedNativeWebSearchItem(payload.item, ctx);
+      applyPersistedNativeImageItem(payload.item, timestamp, ctx);
       const activity = normalizeCodexSubagentActivity((payload as Record<string, unknown>).item);
       if (activity?.kind === 'started' && !ctx.toolCallToTurn.has(activity.id)) {
         pushPersistedNormalizedToolCall(
@@ -1559,6 +1628,7 @@ function processEventMsg(
     }
     case 'task_started': {
       ctx.nativeCallCandidates.length = 0;
+      ctx.imageCallCandidates.clear();
       const serverTurnId = extractServerTurnId(payload);
       const id = nextTurnId(ctx);
       const turn = ensureTurn(ctx.turns, ctx.turnOrder, id, null, timestamp);
