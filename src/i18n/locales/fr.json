@@ -196,6 +196,7 @@
       "externalContextAdded": "Contexte externe ajouté : {path}",
       "modeGrokAuto": "Automatique",
       "modeGrokAutoDescription": "Grok peut effectuer les actions qu’il juge sûres et demander confirmation pour les plus risquées.",
+      "modeAutoSafeActionsDescription": "Exécute automatiquement les actions jugées sûres et demande confirmation avant les actions plus risquées.",
       "modeGrokAcceptEdits": "Accepter les modifications",
       "modeGrokAcceptEditsDescription": "Accepte automatiquement les modifications de fichiers et demande toujours confirmation pour les autres actions.",
       "placeholder": "Demander des modifications, mentionner des @fichiers, lancer des /commandes",

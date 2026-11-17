@@ -142,7 +142,7 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
       {
         value: 'normal',
         label: t('chat.composer.modeGrokAsk'),
-        description: t('chat.composer.modeGrokAskDescription'),
+        description: t('chat.composer.modeApprovalDescription'),
         icon: 'hand',
       },
       {
@@ -154,7 +154,7 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
       {
         value: 'auto',
         label: t('chat.composer.modeGrokAuto'),
-        description: t('chat.composer.modeGrokAutoDescription'),
+        description: t('chat.composer.modeAutoSafeActionsDescription'),
         icon: 'sparkles',
       },
       {
