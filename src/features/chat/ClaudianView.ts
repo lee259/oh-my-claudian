@@ -1273,7 +1273,14 @@ export class ClaudianView extends ItemView {
       const activeTab = this.tabManager?.getActiveTab();
       if (activeTab) {
         const fcm = activeTab.ui.fileContextManager;
-        if (fcm && !fcm.containsElement(e.target as Node) && e.target !== activeTab.dom.inputEl) {
+        const target = e.target as Node | null;
+        // The add-context action opens the picker during this same click; closing it here
+        // would cancel the picker's pending open before the click finishes.
+        const opensMentionPicker = Boolean(
+          (target as HTMLElement | null)?.closest?.('.claudian-context-action-add-context'),
+        );
+        if (fcm && target && !opensMentionPicker
+          && !fcm.containsElement(target) && target !== activeTab.dom.inputEl) {
           fcm.hideMentionDropdown();
         }
       }
