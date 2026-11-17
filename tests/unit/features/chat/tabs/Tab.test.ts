@@ -22,6 +22,7 @@ import {
   initializeTabExecution,
   initializeTabUI,
   onProviderAvailabilityChanged,
+  refreshTabWorkspaceServices,
   updatePlanModeUI,
   updateSendButton,
   wireTabInputEvents,
@@ -117,6 +118,7 @@ jest.mock('@/core/providers/ProviderRegistry', () => ({
         { label: 'Claude Default', value: 'claude-default' },
         { label: 'Claude Alternate', value: 'claude-alternate' },
       ]),
+      getPermissionModeOptions: jest.fn().mockReturnValue([]),
       getReasoningOptions: jest.fn().mockReturnValue([]),
       isAdaptiveReasoningModel: jest.fn().mockReturnValue(false),
       isDefaultModel: jest.fn().mockReturnValue(true),
@@ -354,6 +356,33 @@ describe('Tab provider execution ownership', () => {
 
     expect(tab.executionCoordinator).toBe(coordinatorInstances[0]);
     expect(coordinatorInstances).toHaveLength(1);
+  });
+
+  it('shows the permission mode menu when the provider exposes options without a toggle descriptor', () => {
+    const plugin = createPlugin();
+    const uiConfig = ProviderRegistry.getChatUIConfig('antigravity');
+    (uiConfig.getPermissionModeOptions as jest.Mock).mockReturnValue([
+      { label: 'Ask', value: 'normal' },
+      { label: 'Auto', value: 'auto' },
+    ]);
+    expect('getPermissionModeToggle' in uiConfig).toBe(false);
+    const setVisible = jest.fn();
+    const tab = {
+      conversationId: null,
+      draftModel: 'antigravity-model',
+      providerId: 'antigravity',
+      session: {
+        permissionSelections: new Map(),
+        providerId: 'antigravity',
+        reasoningSelections: new Map(),
+      },
+      state: {},
+      ui: { permissionToggle: { setVisible } },
+    } as any;
+
+    refreshTabWorkspaceServices(tab, plugin);
+
+    expect(setVisible).toHaveBeenCalledWith(true);
   });
 
   it('snapshots the global provider-qualified model without changing an existing blank tab', () => {

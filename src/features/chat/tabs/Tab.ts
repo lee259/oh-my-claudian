@@ -451,12 +451,14 @@ function applyProviderUIGating(tab: TabData, plugin: FeatureHost): void {
   const mcpManager = capabilities.supportsMcpTools
     ? getProviderMcpManager(capabilities.providerId)
     : null;
-  const hasPermissionToggle = Boolean(uiConfig.getPermissionModeToggle?.());
+  const hasPermissionModeOptions = Boolean(
+    uiConfig.getPermissionModeOptions?.(getTabSettingsSnapshot(tab, plugin))?.length,
+  );
 
   if (!capabilities.supportsMcpTools) {
     tab.ui.mcpServerSelector?.clearEnabled();
   }
-  tab.ui.permissionToggle?.setVisible(hasPermissionToggle);
+  tab.ui.permissionToggle?.setVisible(hasPermissionModeOptions);
   tab.ui.fileContextManager?.setMcpManager(mcpManager);
 
   tab.ui.fileContextManager?.setAgentService(
