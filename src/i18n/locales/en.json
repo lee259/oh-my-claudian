@@ -196,6 +196,7 @@
       "externalContextAdded": "Added external context: {path}",
       "modeGrokAuto": "Auto",
       "modeGrokAutoDescription": "Grok may perform actions it judges safe and asks about riskier actions.",
+      "modeAutoSafeActionsDescription": "Automatically perform actions judged safe, and ask before riskier actions.",
       "modeGrokAcceptEdits": "Accept edits",
       "modeGrokAcceptEditsDescription": "Automatically accept file edits; continue asking before other actions.",
       "placeholder": "Ask to make changes, @mention files, run /commands",

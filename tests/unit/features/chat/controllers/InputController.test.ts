@@ -453,11 +453,16 @@ describe('InputController coordinator execution', () => {
     expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
   });
 
-  it('releases the composer guard after readiness rejects so the unchanged draft can retry', async () => {
-    const fixture = createFixture({ preflightExecution: jest.fn()
-      .mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue(null) });
+  it('reports readiness rejections and releases the composer guard so the unchanged draft can retry', async () => {
+    const onDiagnosticError = jest.fn();
+    const fixture = createFixture({
+      onDiagnosticError,
+      preflightExecution: jest.fn()
+        .mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue(null),
+    });
     fixture.input.value = 'Run tests';
-    await expect(fixture.controller.sendMessage()).rejects.toThrow('Unavailable');
+    await fixture.controller.sendMessage();
+    expect(onDiagnosticError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Unavailable' }));
     expect(fixture.input.value).toBe('Run tests');
     await fixture.controller.sendMessage();
     expect(fixture.coordinator.execute).toHaveBeenCalledTimes(1);
