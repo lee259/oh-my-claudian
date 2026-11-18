@@ -41,3 +41,22 @@ test('ESLint import and React rules can evaluate configured glob patterns', () =
   );
   assert.deepEqual(messages, []);
 });
+
+const jestRequire = createRequire(require.resolve('jest'));
+const jestCliRequire = createRequire(jestRequire.resolve('jest-cli'));
+const jestCoreRequire = createRequire(jestCliRequire.resolve('@jest/core'));
+const hasteMapRequire = createRequire(jestCoreRequire.resolve('jest-haste-map'));
+const anymatchRequire = createRequire(hasteMapRequire.resolve('anymatch'));
+
+for (const [consumer, resolveFrom] of [['jest-haste-map', hasteMapRequire], ['anymatch', anymatchRequire]]) {
+  test(`${consumer} uses picomatch with repeated extglobs disabled`, () => {
+    const picomatch = resolveFrom('picomatch');
+    const testFile = picomatch('tests/**/*.test.ts');
+    assert.equal(testFile('tests/unit/file.test.ts'), true);
+    assert.equal(testFile('tests/unit/file.ts'), false);
+    assert.equal(picomatch.isMatch('file.ts', 'file.@(ts|tsx)'), true);
+    for (const operator of ['+', '*']) {
+      assert.throws(() => picomatch(`${operator}(logs)`), /Repeated extglobs are disabled/);
+    }
+  });
+}
