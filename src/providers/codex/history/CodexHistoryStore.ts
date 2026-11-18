@@ -101,6 +101,7 @@ interface PersistedMessagePart {
 
 interface PersistedMessagePayload {
   type: 'message';
+  id?: string;
   role?: string;
   content?: PersistedMessagePart[];
 }
@@ -263,6 +264,7 @@ function createPersistedParseContext(): PersistedParseContext {
     nativeImageResultCallIds: new Set(),
     imageCallCandidates: new Map(),
     observedNativeItemIds: new Set(),
+    nativeMessageCitations: new Map(),
     nativeCallCandidates: [],
     withheldExecCellIds: new Set(),
     withheldOutputCallIds: new Set(),
@@ -354,8 +356,7 @@ function appendOrderedTextChunk(
   bubble.contentBlocks.push({ type, content: trimmed });
 }
 
-function appendCitationBlock(bubble: CodexAssistantBubble, value: unknown): void {
-  const citations = normalizeCodexMemoryCitation(value);
+function appendCitationBlock(bubble: CodexAssistantBubble, citations: CitationGroup | null | undefined): void {
   if (!citations) return;
 
   const lastBlock = bubble.contentBlocks[bubble.contentBlocks.length - 1];
@@ -392,7 +393,7 @@ function appendPersistedAssistantText(
   if (
     lastBlock?.type === 'citations'
     && previousBlock?.type === 'text'
-    && previousBlock.content.trim() === trimmed
+    && bubble.contentChunks.at(-1) === trimmed
   ) {
     return;
   }
@@ -802,6 +803,7 @@ interface PersistedParseContext {
   nativeImageResultCallIds: Set<string>;
   imageCallCandidates: Map<string, { name: string; input: Record<string, unknown> }>;
   observedNativeItemIds: Set<string>;
+  nativeMessageCitations: Map<string, CitationGroup>;
   nativeCallCandidates: Array<{
     toolCallId?: string;
     opaqueCallId?: string;
@@ -1459,6 +1461,9 @@ function processPersistedPayload(
         if (text) {
           appendPersistedAssistantText(bubble, text);
         }
+        if (typeof messagePayload.id === 'string') {
+          appendCitationBlock(bubble, ctx.nativeMessageCitations.get(messagePayload.id));
+        }
       }
       break;
     }
@@ -1755,7 +1760,7 @@ function processEventMsg(
       }
       appendCitationBlock(
         bubble,
-        payload.memory_citation ?? payload.memoryCitation,
+        normalizeCodexMemoryCitation(payload.memory_citation ?? payload.memoryCitation),
       );
       break;
     }
@@ -2275,6 +2280,15 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
   // older compaction records with their explicit marker without replaying context.
   for (const record of records) {
     const payload = record.payload;
+    if (record.type === 'event_msg' && payload?.type === 'item_completed') {
+      const item = payload.item;
+      if ((item?.type === 'AgentMessage' || item?.type === 'agentMessage')
+        && typeof item.id === 'string' && item.id && !ctx.nativeMessageCitations.has(item.id)) {
+        // Correlate with the response record by identity, regardless of record order.
+        const citations = normalizeCodexMemoryCitation(item.memory_citation ?? item.memoryCitation);
+        if (citations) ctx.nativeMessageCitations.set(item.id, citations);
+      }
+    }
     if (record.type === 'response_item'
       && (payload?.type === 'function_call' || payload?.type === 'custom_tool_call')) {
       const call = payload as PersistedToolCallPayload;
