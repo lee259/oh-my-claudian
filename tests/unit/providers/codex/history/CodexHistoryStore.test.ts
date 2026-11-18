@@ -3255,6 +3255,67 @@ describe('CodexHistoryStore', () => {
   });
 
   describe('parseCodexSessionContent - response duration', () => {
+    const nativeTurn = (duration: unknown) => [
+      { timestamp: '2026-03-27T00:00:00.000Z', type: 'event_msg', payload: { type: 'task_started', turn_id: 'timed-turn' } },
+      { timestamp: '2026-03-27T00:00:02.000Z', type: 'response_item', payload: {
+        type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Do the work.' }],
+      } },
+      { timestamp: '2026-03-27T00:03:12.000Z', type: 'event_msg', payload: { type: 'agent_message', message: 'Done.' } },
+      { timestamp: '2026-03-27T00:03:12.165Z', type: 'event_msg', payload: { type: 'task_complete', turn_id: 'timed-turn', duration_ms: duration } },
+    ];
+    const jsonl = (records: unknown[]) => records.map(record => JSON.stringify(record)).join('\n');
+
+    it('prefers the complete native turn duration and preserves millisecond precision', () => {
+      const messages = parseCodexSessionContent(jsonl(nativeTurn(192_165)));
+      expect(messages.find(message => message.role === 'assistant')?.durationSeconds).toBe(192.165);
+    });
+
+    it.each([[0, 0], [180_500, 180.5]] as const)('keeps valid native duration %s even when the timestamp estimate is longer', (duration, expected) => {
+      expect(parseCodexSessionContent(jsonl(nativeTurn(duration))).at(-1)?.durationSeconds).toBe(expected);
+    });
+
+    it.each([undefined, null, -1, '192165'])('falls back to timestamps when native duration is unavailable or invalid: %s', duration => {
+      expect(parseCodexSessionContent(jsonl(nativeTurn(duration))).at(-1)?.durationSeconds).toBe(190);
+    });
+
+    it('rejects a non-finite native duration decoded from JSON', () => {
+      const content = jsonl(nativeTurn(0)).replace('"duration_ms":0', '"duration_ms":1e309');
+      expect(parseCodexSessionContent(content).at(-1)?.durationSeconds).toBe(190);
+    });
+
+    it('restores native duration even when transcript timestamps are missing', () => {
+      const records = nativeTurn(192_165).map(record => ({ ...record, timestamp: undefined }));
+      expect(parseCodexSessionContent(jsonl(records)).at(-1)?.durationSeconds).toBe(192.165);
+    });
+
+    it('does not carry a measured duration into the next turn', () => {
+      const later = nativeTurn(undefined).map(record => ({
+        ...record, timestamp: new Date(Date.parse(record.timestamp) + 300_000).toISOString(),
+        payload: { ...record.payload, turn_id: 'later-turn' },
+      }));
+      const messages = parseCodexSessionContent(jsonl([...nativeTurn(192_165), ...later]));
+      expect(messages.filter(message => message.role === 'assistant').map(message => message.durationSeconds)).toEqual([192.165, 190]);
+    });
+
+    it('retains the timestamp fallback for interrupted turns without native completion', () => {
+      const records = [...nativeTurn(undefined).slice(0, -1), {
+        timestamp: '2026-03-27T00:03:12.165Z', type: 'event_msg', payload: { type: 'turn_aborted' },
+      }];
+      expect(parseCodexSessionContent(jsonl(records)).at(-1)).toMatchObject({ isInterrupt: true, durationSeconds: 190 });
+    });
+
+    it('attaches the native duration only to the final bubble across compaction', () => {
+      const records = nativeTurn(192_165);
+      const messages = parseCodexSessionContent(jsonl([
+        ...records.slice(0, -1),
+        { timestamp: '2026-03-27T00:03:12.001Z', type: 'event_msg', payload: { type: 'context_compacted' } },
+        { timestamp: '2026-03-27T00:03:12.100Z', type: 'event_msg', payload: { type: 'agent_message', message: 'Finished after compaction.' } },
+        records.at(-1),
+      ]));
+      expect(messages.filter(message => message.role === 'assistant').map(message => message.durationSeconds))
+        .toEqual([undefined, undefined, 192.165]);
+    });
+
     it('calculates durationSeconds from user timestamp to last assistant event', () => {
       const content = [
         JSON.stringify({
@@ -4261,4 +4322,5 @@ it('restores native output token usage and duration for the main thread turn', (
     outputTokens: 125,
     durationMs: 2_500,
   });
+  expect(parseCodexSessionContent(records).at(-1)?.durationSeconds).toBe(2.5);
 });
