@@ -1272,7 +1272,7 @@ function renderBashContent(
     let feedbackTimeout: number | undefined;
     copyBtn.addEventListener('click', (event) => {
       event.stopPropagation();
-      const clipboard = navigator.clipboard;
+      const clipboard = copyBtn.ownerDocument.defaultView?.navigator.clipboard ?? navigator.clipboard;
       if (!clipboard) {
         new Notice(t('chat.tools.copyFailed'));
         return;
