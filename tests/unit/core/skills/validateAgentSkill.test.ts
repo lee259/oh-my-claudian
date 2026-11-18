@@ -5,13 +5,14 @@ import {
 } from '@/core/skills/validateAgentSkill';
 
 describe('validateAgentSkill', () => {
-  it.each(['skill', 'skill-2', 'a', 'a'.repeat(64)])('accepts portable name %s', name => {
+  it.each(['skill', 'skill-2', 'a', 'a'.repeat(64), 'console', 'com10', 'lpt0'])('accepts portable name %s', name => {
     expect(validateAgentSkillName(name)).toBeNull();
   });
 
   it.each([
     '', '-skill', 'skill-', 'skill--name', 'Skill', 'skill_name', 'skill/name',
     'a'.repeat(65), 'true', 'false', 'null', 'yes', 'no', 'on', 'off',
+    'con', 'prn', 'aux', 'nul', 'com1', 'com9', 'lpt1', 'lpt9',
   ])('rejects non-portable name %s', name => {
     expect(validateAgentSkillName(name)).not.toBeNull();
   });

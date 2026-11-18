@@ -3,6 +3,7 @@ import type { AgentSkillInput } from './AgentSkill';
 const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 1024;
 const PORTABLE_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const WINDOWS_DEVICE_NAME_PATTERN = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 const YAML_RESERVED_NAMES = new Set(['true', 'false', 'null', 'yes', 'no', 'on', 'off']);
 
 export type AgentSkillValidationField = 'name' | 'description' | 'instructions';
@@ -26,6 +27,9 @@ export function validateAgentSkillName(name: string): string | null {
   }
   if (!PORTABLE_NAME_PATTERN.test(name)) {
     return 'Skill name must contain lowercase letters or numbers separated by single hyphens';
+  }
+  if (WINDOWS_DEVICE_NAME_PATTERN.test(name)) {
+    return 'Skill name cannot be a Windows reserved device name';
   }
   if (YAML_RESERVED_NAMES.has(name)) {
     return 'Skill name cannot be a YAML reserved word';
