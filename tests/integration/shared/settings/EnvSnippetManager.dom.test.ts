@@ -229,6 +229,74 @@ describe('environment snippet persistence', () => {
 
     await waitFor(() => expect(host.notifyProviderChatOptionsChanged).toHaveBeenCalledWith('claude'));
   });
+
+  it.each([
+    ['__proto__', '{"__proto__":"Fast"}', 'Fast'],
+    ['constructor', '{}', ''],
+    ['toString', '{}', ''],
+  ])('preserves prototype-named model overrides for %s', async (modelId, rawAliases, initialAlias) => {
+    const saved: EnvSnippet = {
+      id: 'proto-alias-snippet',
+      name: 'Prototype alias',
+      description: '',
+      envVars: `ANTHROPIC_MODEL=${modelId}`,
+      scope: 'provider:claude',
+      modelAliases: JSON.parse(rawAliases) as Record<string, string>,
+    };
+    const settings: {
+      envSnippets: EnvSnippet[];
+      customContextLimits: Record<string, number>;
+      customModelAliases: Record<string, string>;
+    } = { envSnippets: [saved], customContextLimits: {}, customModelAliases: {} };
+    const host = {
+      app: {},
+      settings,
+      notifyProviderChatOptionsChanged: jest.fn(),
+      applyEnvironmentVariables: jest.fn().mockResolvedValue(undefined),
+      applyEnvironmentVariablesBatch: jest.fn().mockResolvedValue(undefined),
+      getEnvironmentVariablesForScope: () => saved.envVars,
+      mutateSettings: jest.fn(async (mutation: (value: typeof settings) => void) => { mutation(settings); }),
+    } as unknown as ProviderHost;
+    const container = document.body.createDiv();
+    managers.push(new EnvSnippetManager(container, host, 'provider:claude'));
+    fireEvent.click(within(container).getByRole('button', {
+      name: new RegExp(`^${t('settings.envSnippets.editBtn')}`),
+    }));
+    const dialog = within(document.body).getByRole('dialog');
+    const aliasInput = within(dialog).getByRole<HTMLInputElement>('textbox', {
+      name: t('settings.customModelAliases.ariaLabel', { model: modelId }),
+    });
+    const contextInput = within(dialog).getByRole<HTMLInputElement>('textbox', {
+      name: t('settings.envSnippets.contextWindow', { model: modelId }),
+    });
+    expect(aliasInput.value).toBe(initialAlias);
+    expect(contextInput.value).toBe('');
+
+    fireEvent.input(aliasInput, { target: { value: 'Proto alias' } });
+    fireEvent.input(contextInput, { target: { value: '64k' } });
+    fireEvent.click(within(dialog).getByRole('button', {
+      name: t('settings.envSnippets.modal.update'),
+    }));
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+
+    const updated = settings.envSnippets[0];
+    expect(Object.hasOwn(updated.modelAliases!, modelId)).toBe(true);
+    expect(updated.modelAliases![modelId]).toBe('Proto alias');
+    expect(Object.hasOwn(updated.contextLimits!, modelId)).toBe(true);
+    expect(updated.contextLimits![modelId]).toBe(64000);
+
+    fireEvent.click(within(container).getByRole('button', {
+      name: new RegExp(`^${t('settings.envSnippets.insertBtn')}`),
+    }));
+    await waitFor(() => expect(host.notifyProviderChatOptionsChanged).toHaveBeenCalledWith('claude'));
+
+    expect(Object.hasOwn(settings.customModelAliases, modelId)).toBe(true);
+    expect(settings.customModelAliases[modelId]).toBe('Proto alias');
+    expect(Object.getPrototypeOf(settings.customModelAliases)).toBe(Object.prototype);
+    expect(Object.hasOwn(settings.customContextLimits, modelId)).toBe(true);
+    expect(settings.customContextLimits[modelId]).toBe(64000);
+    expect(Object.getPrototypeOf(settings.customContextLimits)).toBe(Object.prototype);
+  });
 });
 
 

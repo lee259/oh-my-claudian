@@ -18,6 +18,24 @@ import { confirmDelete } from '../modals/ConfirmModal';
 import { createPreactRoot, type PreactRoot } from '../ui/PreactRoot';
 import { EnvSnippetListView } from './EnvSnippetListView';
 
+function defineOwnEntry<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
+function copyOwnEntries<T>(record: Record<string, T> | undefined): Record<string, T> {
+  const copy: Record<string, T> = {};
+  if (!record) return copy;
+  for (const key of Object.keys(record)) {
+    defineOwnEntry(copy, key, record[key]);
+  }
+  return copy;
+}
+
 export class EnvSnippetModal extends Modal {
   plugin: ProviderHost;
   snippet: EnvSnippet | null;
@@ -81,7 +99,7 @@ export class EnvSnippetModal extends Modal {
             new Notice(t('settings.customContextLimits.invalid'));
             return;
           }
-          contextLimits[modelId] = parsed;
+          defineOwnEntry(contextLimits, modelId, parsed);
         }
       }
 
@@ -89,7 +107,7 @@ export class EnvSnippetModal extends Modal {
       for (const [modelId, input] of modelAliasInputs) {
         const value = input.value.trim();
         if (value) {
-          modelAliases[modelId] = value;
+          defineOwnEntry(modelAliases, modelId, value);
         }
       }
 
@@ -162,7 +180,7 @@ export class EnvSnippetModal extends Modal {
           placeholder: t('settings.customModelAliases.placeholder'),
           cls: 'claudian-snippet-alias-input',
         });
-        aliasInput.value = existingAliases[modelId] ?? '';
+        aliasInput.value = Object.hasOwn(existingAliases, modelId) ? existingAliases[modelId] : '';
         aliasInput.setAttribute('aria-label', t('settings.customModelAliases.ariaLabel', { model: modelId }));
         aliasInput.title = t('settings.customModelAliases.ariaDescription');
         modelAliasInputs.set(modelId, aliasInput);
@@ -172,7 +190,8 @@ export class EnvSnippetModal extends Modal {
           placeholder: '200k',
           cls: 'claudian-snippet-limit-input',
         });
-        input.value = existingLimits[modelId] ? formatContextLimit(existingLimits[modelId]) : '';
+        const existingLimit = Object.hasOwn(existingLimits, modelId) ? existingLimits[modelId] : undefined;
+        input.value = existingLimit ? formatContextLimit(existingLimit) : '';
         input.setAttribute('aria-label', t('settings.envSnippets.contextWindow', { model: modelId }));
         contextLimitInputs.set(modelId, input);
       }
@@ -361,21 +380,24 @@ export class EnvSnippetManager {
     // Legacy snippets without contextLimits don't modify limits
     await this.plugin.mutateSettings((settings) => {
       if (snippet.contextLimits) {
-        settings.customContextLimits = {
-          ...settings.customContextLimits,
-          ...snippet.contextLimits,
-        };
+        const nextLimits = copyOwnEntries(settings.customContextLimits);
+        for (const [modelId, value] of Object.entries(snippet.contextLimits)) {
+          defineOwnEntry(nextLimits, modelId, value);
+        }
+        settings.customContextLimits = nextLimits;
       }
 
       // Legacy snippets without modelAliases don't modify aliases. Snippets saved
       // with alias fields clear aliases for their own model IDs when left empty.
       if (snippet.modelAliases) {
         const modelIds = ProviderRegistry.getCustomModelIds(parseEnvironmentVariables(snippet.envVars));
-        const nextAliases = { ...(settings.customModelAliases ?? {}) };
+        const nextAliases = copyOwnEntries(settings.customModelAliases);
         for (const modelId of modelIds) {
-          const alias = snippet.modelAliases[modelId]?.trim();
+          const alias = Object.hasOwn(snippet.modelAliases, modelId)
+            ? snippet.modelAliases[modelId]?.trim()
+            : undefined;
           if (alias) {
-            nextAliases[modelId] = alias;
+            defineOwnEntry(nextAliases, modelId, alias);
           } else {
             delete nextAliases[modelId];
           }
