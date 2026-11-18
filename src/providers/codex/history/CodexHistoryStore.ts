@@ -1692,7 +1692,7 @@ function processEventMsg(
           turn.completedAt = timestamp;
           turn.completed = true;
           const duration = (payload as Record<string, unknown>).duration_ms;
-          if (typeof duration === 'number') turn.durationMs = duration;
+          if (typeof duration === 'number' && Number.isFinite(duration) && duration >= 0) turn.durationMs = duration;
           closeAssistantBubble(turn);
           const serverTurnId = extractServerTurnId(payload);
           if (serverTurnId && !turn.serverTurnId) turn.serverTurnId = serverTurnId;
@@ -1881,10 +1881,13 @@ function flushBubbleTurnMessages(
     msgIndex += 1;
   }
 
-  if (assistantMessages.length > 0 && turn.userTimestamp && lastAssistantTimestamp > turn.userTimestamp) {
-    const durationMs = lastAssistantTimestamp - turn.userTimestamp;
+  if (assistantMessages.length > 0) {
     const lastMsg = assistantMessages[assistantMessages.length - 1];
-    lastMsg.durationSeconds = Math.round(durationMs / 1000);
+    if (turn.durationMs !== undefined) {
+      lastMsg.durationSeconds = turn.durationMs / 1000;
+    } else if (turn.userTimestamp && lastAssistantTimestamp > turn.userTimestamp) {
+      lastMsg.durationSeconds = Math.round((lastAssistantTimestamp - turn.userTimestamp) / 1000);
+    }
   }
 
   if (turn.serverTurnId && turn.completed && assistantMessages.length > 0) {
