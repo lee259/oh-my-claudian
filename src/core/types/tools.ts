@@ -55,6 +55,8 @@ export interface ToolCallInfo {
   status: 'running' | 'completed' | 'error' | 'blocked' | 'cancelled';
   /** Shell exit status reported by the provider for command tools. */
   exitCode?: number;
+  /** Provider-confirmed read and search activity for a command that only explored files. */
+  exploration?: { reads: number; searches: number };
   /** Provider reported work that may continue independently of the current turn. */
   continuesInBackground?: boolean;
   /** Local observation times for live tool execution; absent when history has no timing. */
