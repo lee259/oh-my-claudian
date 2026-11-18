@@ -1534,12 +1534,26 @@ function claimPersistedNativeCall(
   return tool;
 }
 
+function readPersistedCommandExploration(actions: readonly unknown[]): ToolCallInfo['exploration'] {
+  if (!actions.length) return undefined;
+  let reads = 0;
+  let searches = 0;
+  for (const action of actions) {
+    if (!action || typeof action !== 'object' || !('type' in action)) return undefined;
+    if (action.type === 'read') reads++;
+    else if (action.type === 'search') searches++;
+    else return undefined;
+  }
+  return { reads, searches };
+}
+
 function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefined, ctx: PersistedParseContext): void {
   if (!item || !['CommandExecution', 'commandExecution', 'command_execution'].includes(String(item.type))) return;
   const itemId = typeof item.id === 'string' ? item.id : undefined;
   if (itemId && ctx.observedNativeItemIds.has(itemId)) return;
   if (itemId) ctx.observedNativeItemIds.add(itemId);
-  const parsedCommandItem: unknown = Array.isArray(item.parsed_cmd) ? item.parsed_cmd[0] : undefined;
+  const actions: unknown[] = Array.isArray(item.parsed_cmd) ? item.parsed_cmd : [];
+  const parsedCommandItem = actions[0];
   const parsedCommand = parsedCommandItem && typeof parsedCommandItem === 'object' && !Array.isArray(parsedCommandItem)
     ? (parsedCommandItem as Record<string, unknown>).cmd : undefined;
   const commands = [parsedCommand, Array.isArray(item.command) ? item.command.at(-1) : item.command]
@@ -1553,6 +1567,10 @@ function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefin
     tool.status = item.exit_code === 0 ? 'completed' : 'error';
     tool.exitCode = item.exit_code;
     ctx.nativeCommandResultCallIds.add(tool.id);
+    if (item.exit_code === 0) {
+      const exploration = readPersistedCommandExploration(actions);
+      if (exploration) tool.exploration = exploration;
+    }
   }
 }
 

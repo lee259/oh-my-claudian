@@ -1299,6 +1299,28 @@ describe('CodexHistoryStore', () => {
       ]);
     });
 
+    it.each([
+      ['read and search', ['search', 'read', 'read'], 0, { reads: 2, searches: 1 }],
+      ['unknown action', ['read', 'unknown'], 0, undefined],
+      ['no actions', [], 0, undefined],
+      ['failed command', ['read'], 7, undefined],
+    ] as const)('projects exploration only for successful native commands: %s', (_case, actions, exitCode, expected) => {
+      const cmd = 'rg match && cat a.md b.md';
+      const records = [
+        { type: 'turn_context', payload: { cwd: '/vault' } },
+        { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 'command',
+          arguments: JSON.stringify({ cmd }) } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'CommandExecution', id: 'native', cwd: '/vault', command: ['/bin/zsh', '-lc', cmd],
+          parsed_cmd: actions.map(type => ({ type })), exit_code: exitCode, aggregated_output: 'Native output',
+        } } },
+      ];
+      const [tool] = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tool.exploration).toEqual(expected);
+      expect(tool).toMatchObject({ name: 'Bash', input: { command: cmd }, exitCode, result: 'Native output' });
+    });
+
     it('does not let script output replace an authoritative native exit code', () => {
       const records = [
         { type: 'turn_context', payload: { cwd: '/vault' } },

@@ -95,6 +95,40 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
   });
 
   it.each([
+    ['all exploration', false, '探索了项目'],
+    ['with a failed command', true, '探索了项目和执行了 1 条命令'],
+  ] as const)('summarizes stored command activity %s', (_case, includeFailure, expected) => {
+    setLocale('zh-CN');
+    const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
+    const calls: ToolCallInfo[] = [
+      { id: 'inspect', name: 'Bash', input: { command: 'rg match && cat a.md' }, status: 'completed',
+        exploration: { reads: 1, searches: 1 }, exitCode: 0 },
+      { id: 'read', name: 'Bash', input: { command: 'cat b.md' }, status: 'completed',
+        presentation: { name: 'Read', summary: 'b.md' }, exploration: { reads: 1, searches: 0 }, exitCode: 0 },
+    ];
+    if (includeFailure) calls.push({
+      id: 'failed', name: 'Bash', input: { command: 'build' }, status: 'error', exitCode: 7, result: 'Build failed',
+    });
+    assistant.toolCalls = calls;
+    assistant.contentBlocks = [
+      ...calls.map(call => ({ type: 'tool_use' as const, toolId: call.id })),
+      { type: 'text', content: assistant.content },
+    ];
+    try {
+      renderer.renderMessages([user, assistant], () => 'Welcome');
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent).toBe(expected);
+      expect([...messagesEl.querySelectorAll('.claudian-tool-name')].map(el => el.textContent))
+        .toEqual(includeFailure ? ['Bash', 'Read', 'Bash'] : ['Bash', 'Read']);
+      const failed = messagesEl.querySelector('[data-tool-id="failed"]');
+      failed?.querySelector<HTMLButtonElement>('.claudian-tool-header')?.click();
+      expect(failed?.querySelector('.claudian-tool-exit')?.textContent)
+        .toBe(includeFailure ? '退出码 7' : undefined);
+      expect(failed?.querySelector('.claudian-tool-content')?.textContent?.includes('Build failed'))
+        .toBe(includeFailure ? true : undefined);
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
+  it.each([
     ['en', 'live', 'Ran 1 command, generated 2 images, and 1 action'],
     ['zh-CN', 'live', '执行了 1 条命令、生成了 2 张图片和1 项操作'],
     ['en', 'history', 'Ran 1 command, generated 2 images, and 1 action'],

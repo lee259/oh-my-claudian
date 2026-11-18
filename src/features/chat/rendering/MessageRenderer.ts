@@ -2038,19 +2038,25 @@ export class MessageRenderer {
     const toolLabels: string[] = [];
     const imageNames = new Set<string>([TOOL_GENERATE_IMAGE, TOOL_VIEW_IMAGE]);
     let toolElementCount = 0;
+    let explorationReads = 0;
+    let explorationSearches = 0;
     for (const element of elements) {
       const toolCall = element.dataset.toolId
         ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
         : undefined;
+      const isToolElement = element.hasClass('claudian-tool-call');
+      if (isToolElement) toolElementCount += 1;
+      if (toolCall?.status === 'completed' && toolCall.exploration) {
+        explorationReads += toolCall.exploration.reads;
+        explorationSearches += toolCall.exploration.searches;
+        continue;
+      }
       const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
       const presentationName = toolCall?.presentation?.name;
       const label = presentationName && imageNames.has(presentationName)
         ? presentationName : toolCall?.name || renderedLabel;
       if (label) names.push(label);
-      if (element.hasClass('claudian-tool-call')) {
-        toolElementCount += 1;
-        if (label) toolLabels.push(label);
-      }
+      if (isToolElement && label) toolLabels.push(label);
     }
 
     // Consecutive calls to one tool read as the native "{tool} · N calls" disclosure; rows stay visible.
@@ -2063,7 +2069,7 @@ export class MessageRenderer {
       return t('chat.activity.repeatedCalls', { tool: toolLabels[0], count: toolElementCount });
     }
 
-    if (names.length > 0) {
+    if (names.length > 0 || explorationReads > 0 || explorationSearches > 0) {
       const commandNames = new Set<string>([
         TOOL_BASH,
         TOOL_BASH_OUTPUT,
@@ -2073,8 +2079,8 @@ export class MessageRenderer {
       const readNames = new Set<string>([TOOL_READ, TOOL_WEB_FETCH]);
       const searchNames = new Set<string>([TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_WEB_SEARCH, 'Search']);
       const commands = names.filter((name) => commandNames.has(name)).length;
-      const reads = names.filter((name) => readNames.has(name)).length;
-      const searches = names.filter((name) => searchNames.has(name)).length;
+      const reads = explorationReads + names.filter((name) => readNames.has(name)).length;
+      const searches = explorationSearches + names.filter((name) => searchNames.has(name)).length;
       const edits = names.filter((name) => isWriteEditTool(name) || name === TOOL_APPLY_PATCH).length;
       const generatedImages = names.filter(name => name === TOOL_GENERATE_IMAGE).length;
       const viewedImages = names.filter(name => name === TOOL_VIEW_IMAGE).length;
