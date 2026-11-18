@@ -922,6 +922,47 @@ describe('CodexHistoryStore', () => {
       ]);
     });
 
+    describe('completed AgentMessage memory citations', () => {
+      const entries = [
+        { path: 'MEMORY.md', lineStart: 10, lineEnd: 12, note: 'Project conventions' },
+        { path: 'rollout_summaries/check.md', lineStart: 3, lineEnd: 5, note: 'Prior results' },
+      ];
+      const citation = { entries };
+      const completed = (id: string, memoryCitation: unknown = citation) => ({ type: 'event_msg', payload: {
+        type: 'item_completed', item: { type: 'AgentMessage', id, memory_citation: memoryCitation },
+      } });
+      const response = (id: string, text: string) => ({ type: 'response_item', payload: {
+        type: 'message', role: 'assistant', id, content: [{ type: 'output_text', text }],
+      } });
+      const legacy = { type: 'event_msg', payload: { type: 'agent_message', message: 'Answer', memory_citation: citation } };
+      const answer = response('msg-answer', 'Answer\n<oai-mem-citation>ignored wire markup</oai-mem-citation>');
+      const citationBlock = { type: 'citations', citations: { kind: 'memory', entries } };
+      const replay = (records: unknown[]) => parseCodexSessionContent([
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'citation-turn' } },
+        ...records,
+      ].map(record => JSON.stringify(record)).join('\n'));
+
+      it.each(['before', 'after'])('restores structured sources when completion arrives %s the reply', order => {
+        const completion = completed('msg-answer');
+        const [message] = replay(order === 'before' ? [completion, answer] : [answer, completion]);
+        expect(message.content).toBe('Answer');
+        expect(message.contentBlocks).toEqual([{ type: 'text', content: 'Answer' }, citationBlock]);
+      });
+
+      it.each(['before', 'after'])('deduplicates equivalent legacy citations %s the paired reply', order => {
+        const replies = order === 'before' ? [legacy, answer] : [answer, legacy];
+        const [message] = replay([response('msg-commentary', 'Checking the records.'), completed('msg-answer'),
+          ...replies, completed('msg-answer')]);
+        expect(message.content).toBe('Checking the records.\n\nAnswer');
+        expect(message.contentBlocks).toEqual([{ type: 'text', content: message.content }, citationBlock]);
+      });
+
+      it('does not attach source metadata to a different reply or restore invalid entries', () => {
+        const [message] = replay([completed('unmatched'), completed('msg-answer', { entries: [{ path: 'MEMORY.md' }] }), answer]);
+        expect(message.contentBlocks).toEqual([{ type: 'text', content: 'Answer' }]);
+      });
+    });
+
     it('rehydrates user images from persisted input_image parts', () => {
       const content = [
         JSON.stringify({
