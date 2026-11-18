@@ -453,6 +453,19 @@ describe('buildActivityTimeline', () => {
     expect(timeline.fold).toEqual({ start: 2, end: 2 });
   });
 
+  it('keeps the reply before a Stop hook outside the following work fold', () => {
+    const blocks: ContentBlock[] = [
+      { type: 'text', content: 'The first answer.' },
+      { type: 'stop_hook', content: 'Run the focused tests.' },
+      { type: 'tool_use', toolId: 'read-1' },
+      { type: 'text', content: 'The final answer.' },
+    ];
+
+    const timeline = buildTimeline(blocks, { toolNames: new Map([['read-1', 'Read']]) });
+    expect(timeline.items.map((item) => item.type)).toEqual(['block', 'block', 'activity', 'block']);
+    expect(timeline.fold).toEqual({ start: 2, end: 2 });
+  });
+
   it('keeps pending tool interactions as standalone fold boundaries', () => {
     const blocks: ContentBlock[] = [
       { type: 'tool_use', toolId: 'read-1' },

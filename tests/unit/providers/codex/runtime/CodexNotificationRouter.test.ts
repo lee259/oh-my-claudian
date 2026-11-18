@@ -501,6 +501,42 @@ describe('CodexNotificationRouter', () => {
     });
   });
 
+  describe('Stop hooks', () => {
+    it('emits a blocking Stop hook once across completion recovery', () => {
+      router.beginTurn({ isPlanTurn: false });
+      const params = {
+        item: {
+          type: 'hookPrompt',
+          id: 'hook-1',
+          fragments: [
+            { hookRunId: 'stop:0:check', text: 'Run the focused tests.' },
+            { hookRunId: 'start:0:check', text: 'Ignore this.' },
+          ],
+        },
+      };
+
+      router.handleNotification('item/completed', params);
+      router.handleNotification('item/completed', params);
+
+      expect(chunks.filter(chunk => chunk.type === 'stop_hook')).toEqual([
+        { type: 'stop_hook', content: 'Run the focused tests.' },
+      ]);
+    });
+
+    it('ignores hook prompts without Stop hook feedback', () => {
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('item/completed', {
+        item: {
+          type: 'hookPrompt',
+          id: 'hook-1',
+          fragments: [{ hookRunId: 'start:0:check', text: 'Not a Stop hook.' }],
+        },
+      });
+
+      expect(chunks.filter(chunk => chunk.type === 'stop_hook')).toEqual([]);
+    });
+  });
+
   describe('reasoning', () => {
     it('does not emit a chunk when a reasoning item starts (deltas carry content)', () => {
       router.handleNotification('item/started', {

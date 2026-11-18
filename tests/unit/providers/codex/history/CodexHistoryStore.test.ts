@@ -20,6 +20,39 @@ import { appendEditorContext } from '@/utils/editor';
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 describe('CodexHistoryStore', () => {
+  describe('Stop hook replay', () => {
+    const jsonl = (records: unknown[]) => records.map(record => JSON.stringify(record)).join('\n');
+
+    it('keeps both replies around a Stop hook and hides the synthetic hook prompt', () => {
+      const messages = parseCodexSessionContent(jsonl([
+        { type: 'event_msg', payload: { type: 'task_started', turn_id: 'stop-turn' } },
+        { type: 'response_item', payload: {
+          type: 'message',
+          role: 'user',
+          content: [{
+            type: 'input_text',
+            text: '<hook_prompt hook_run_id="stop:0:check">Run the focused tests.</hook_prompt>',
+          }],
+        } },
+        { type: 'event_msg', payload: { type: 'agent_message', message: 'Initial answer.' } },
+        { type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'HookPrompt',
+          id: 'hook-1',
+          fragments: [{ hookRunId: 'stop:0:check', text: 'Run the focused tests.' }],
+        } } },
+        { type: 'event_msg', payload: { type: 'agent_message', message: 'Tests passed.' } },
+        { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'stop-turn' } },
+      ]));
+
+      expect(messages.filter(message => message.role === 'user')).toEqual([]);
+      expect(messages.find(message => message.role === 'assistant')?.contentBlocks).toEqual([
+        { type: 'text', content: 'Initial answer.' },
+        { type: 'stop_hook', content: 'Run the focused tests.' },
+        { type: 'text', content: 'Tests passed.' },
+      ]);
+    });
+  });
+
   describe('historical model labels', () => {
     const turn = (id: string, model: unknown) => [
       { type: 'event_msg', payload: { type: 'task_started', turn_id: id } },

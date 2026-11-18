@@ -1,5 +1,6 @@
 import {
   extractCodexUserVisibleText,
+  getCodexStopHookFeedback,
   joinCodexUserTextParts,
   stripCodexImagePlaceholderText,
 } from '@/providers/codex/codexUserText';
@@ -38,5 +39,23 @@ describe('codexUserText', () => {
     const protocol = '<send_user_message_question_reply>\n[{"questionItemId":"[\\"request_user_input_async\\",\\"call\\",0]","question":"Which?","answer":"History"}]\n</send_user_message_question_reply>';
     expect(extractCodexUserVisibleText(protocol)).toBeNull();
     expect(extractCodexUserVisibleText(`Visible context\n${protocol}`)).toBe('Visible context');
+  });
+
+  it('strips hook prompts from user-visible text', () => {
+    const hookPrompt = '<hook_prompt hook_run_id="stop:0:check">Run the focused tests.</hook_prompt>';
+    expect(extractCodexUserVisibleText(hookPrompt)).toBeNull();
+    expect(extractCodexUserVisibleText(`${hookPrompt}\nVisible context`)).toBe('Visible context');
+  });
+
+  it('extracts only blocking Stop hook feedback from hook prompt fragments', () => {
+    expect(getCodexStopHookFeedback([
+      { hookRunId: 'stop:0:check', text: ' Run the focused tests. ' },
+      { hookRunId: 'start:0:check', text: 'Ignore this.' },
+      { hookRunId: 'stop:1:review', text: 'Address the review.' },
+      { hookRunId: 'stop:2:empty', text: '   ' },
+    ])).toBe('Run the focused tests.\n\nAddress the review.');
+    expect(getCodexStopHookFeedback([{ hookRunId: 'start:0:check', text: 'Not a Stop hook.' }]))
+      .toBeNull();
+    expect(getCodexStopHookFeedback(undefined)).toBeNull();
   });
 });

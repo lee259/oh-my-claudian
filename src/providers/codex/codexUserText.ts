@@ -19,6 +19,7 @@ const CODEX_CONTROL_BLOCK_TAGS = [
 
 const CODEX_AGENTS_INSTRUCTIONS_PREFIX = '# AGENTS.md instructions';
 const CODEX_AGENTS_INSTRUCTIONS_CLOSE_TAG = '</INSTRUCTIONS>';
+const CODEX_HOOK_PROMPT_PATTERN = /^<hook_prompt\b[^>]*>[\s\S]*?<\/hook_prompt>/;
 
 function stripLeadingTaggedBlock(text: string, tagName: string): string | null {
   const openTag = `<${tagName}>`;
@@ -56,6 +57,11 @@ function stripLeadingCodexControlMetadata(text: string): string {
     const withoutAgentsInstructions = stripLeadingAgentsInstructions(candidate);
     if (withoutAgentsInstructions !== null) {
       remaining = withoutAgentsInstructions;
+      continue;
+    }
+    const hookPrompt = CODEX_HOOK_PROMPT_PATTERN.exec(candidate);
+    if (hookPrompt) {
+      remaining = candidate.slice(hookPrompt[0].length);
       continue;
     }
 
@@ -160,4 +166,21 @@ export function extractCodexUserVisibleText(text: string): string | null {
   ));
 
   return visible ? visible : null;
+}
+
+export interface CodexHookPromptFragment {
+  readonly text: string;
+  readonly hookRunId: string;
+}
+
+export function getCodexStopHookFeedback(fragments: unknown): string | null {
+  if (!Array.isArray(fragments)) return null;
+  const texts = fragments.flatMap((fragment: unknown) => {
+    if (typeof fragment !== 'object' || fragment === null) return [];
+    const { text, hookRunId } = fragment as Partial<Record<keyof CodexHookPromptFragment, unknown>>;
+    return typeof text === 'string' && typeof hookRunId === 'string'
+      && hookRunId.startsWith('stop:') && text.trim()
+      ? [text.trim()] : [];
+  });
+  return texts.length > 0 ? texts.join('\n\n') : null;
 }
