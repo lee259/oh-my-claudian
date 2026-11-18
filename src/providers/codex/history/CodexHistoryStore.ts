@@ -24,6 +24,7 @@ import {
 } from '../../../utils/imageAttachment';
 import {
   extractCodexUserVisibleText,
+  getCodexStopHookFeedback,
   joinCodexUserTextParts,
   trimCodexUserText,
 } from '../codexUserText';
@@ -154,7 +155,13 @@ interface PersistedMcpToolCallPayload {
 }
 
 interface PersistedEventPayload {
-  item?: Record<string, unknown> & { type?: string; id?: string; delivery?: string; questions?: unknown[] };
+  item?: Record<string, unknown> & {
+    type?: string;
+    id?: string;
+    delivery?: string;
+    questions?: unknown[];
+    fragments?: unknown;
+  };
   type?: string;
   text?: string;
   message?: string;
@@ -1678,6 +1685,10 @@ function processEventMsg(
         );
       }
       const item = payload.item;
+      if (item?.type === 'HookPrompt' || item?.type === 'hookPrompt') {
+        appendPersistedStopHook(item.fragments, timestamp, ctx);
+        break;
+      }
       if ((item?.type === 'AgentMessage' || item?.type === 'agentMessage')
         && item.delivery === 'async' && item.id && Array.isArray(item.questions)) {
         if (!findPersistedToolCallById(ctx, item.id)) {
@@ -1818,6 +1829,18 @@ function processEventMsg(
     default:
       break;
   }
+}
+
+function appendPersistedStopHook(
+  fragments: unknown,
+  timestamp: number,
+  ctx: PersistedParseContext,
+): void {
+  const feedback = getCodexStopHookFeedback(fragments);
+  if (feedback === null || !ctx.currentTurnId) return;
+  const turn = ctx.turns.get(ctx.currentTurnId);
+  if (!turn) return;
+  ensureAssistantBubble(turn, timestamp).contentBlocks.push({ type: 'stop_hook', content: feedback });
 }
 
 // ---------------------------------------------------------------------------

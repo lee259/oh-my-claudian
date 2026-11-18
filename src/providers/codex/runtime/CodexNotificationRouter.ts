@@ -1,7 +1,11 @@
 import * as path from 'path';
 
 import type { CitationGroup, StreamChunk, ToolCallPresentation, UsageInfo } from '../../../core/types';
-import { extractCodexUserVisibleText, joinCodexUserTextParts } from '../codexUserText';
+import {
+  extractCodexUserVisibleText,
+  getCodexStopHookFeedback,
+  joinCodexUserTextParts,
+} from '../codexUserText';
 import {
   normalizeCodexMemoryCitation,
   stripCodexMemoryCitationMarkup,
@@ -126,6 +130,7 @@ export class CodexNotificationRouter {
   private sawPlanDelta = false;
   private startedUserMessageIds = new Set<string>();
   private startedAssistantMessageIds = new Set<string>();
+  private hookPromptIds = new Set<string>();
   private streamedAgentMessageTextById = new Map<string, string>();
   private emittedMemoryCitationIds = new Set<string>();
   private emittedMemoryCitationKeys = new Set<string>();
@@ -253,6 +258,7 @@ export class CodexNotificationRouter {
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
     this.startedAssistantMessageIds.clear();
+    this.hookPromptIds.clear();
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
@@ -297,6 +303,7 @@ export class CodexNotificationRouter {
     this.sawPlanDelta = false;
     this.startedUserMessageIds.clear();
     this.startedAssistantMessageIds.clear();
+    this.hookPromptIds.clear();
     this.streamedAgentMessageTextById.clear();
     this.emittedMemoryCitationIds.clear();
     this.emittedMemoryCitationKeys.clear();
@@ -601,6 +608,14 @@ export class CodexNotificationRouter {
       case 'contextCompaction':
         this.emitContextCompactionBoundary(item);
         break;
+
+      case 'hookPrompt': {
+        if (this.hookPromptIds.has(item.id)) break;
+        this.hookPromptIds.add(item.id);
+        const feedback = getCodexStopHookFeedback(item.fragments);
+        if (feedback !== null) this.emit({ type: 'stop_hook', content: feedback });
+        break;
+      }
 
       default:
         if (itemId && rawResult) {

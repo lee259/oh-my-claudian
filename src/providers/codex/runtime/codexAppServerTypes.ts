@@ -113,7 +113,8 @@ export type ThreadItem =
   | CollabAgentToolCallItem
   | McpToolCallItem
   | DynamicToolCallItem
-  | ContextCompactionItem;
+  | ContextCompactionItem
+  | HookPromptItem;
 
 export interface UserMessageItem {
   type: 'userMessage';
@@ -261,6 +262,12 @@ export interface DynamicToolCallItem {
   contentItems?: DynamicToolCallOutputContentItem[] | null;
   success?: boolean | null;
   durationMs?: number | null;
+}
+
+export interface HookPromptItem {
+  type: 'hookPrompt';
+  id: string;
+  fragments: Array<{ text: string; hookRunId: string }>;
 }
 
 export interface ContextCompactionItem {
