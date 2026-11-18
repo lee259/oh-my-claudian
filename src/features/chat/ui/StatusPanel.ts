@@ -611,7 +611,9 @@ export class StatusPanel {
     const output = latest.output?.trim() || (latest.status === 'running' ? t('chat.bangBash.running') : '');
     const text = output ? `$ ${latest.command}\n${output}` : `$ ${latest.command}`;
     try {
-      await navigator.clipboard.writeText(text);
+      const clipboard = this.bashContentEl?.ownerDocument.defaultView?.navigator.clipboard
+        ?? navigator.clipboard;
+      await clipboard.writeText(text);
     } catch {
       new Notice(t('chat.bangBash.copyFailed'));
     }
