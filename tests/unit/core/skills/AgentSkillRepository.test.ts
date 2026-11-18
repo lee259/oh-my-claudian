@@ -6,6 +6,7 @@ import {
   AgentSkillRepository,
   AgentSkillRevisionConflictError,
 } from '@/core/skills/AgentSkillRepository';
+import { AgentSkillValidationError } from '@/core/skills/validateAgentSkill';
 import {
   ManagedResourceCollisionError,
   VaultFileAdapter,
@@ -258,6 +259,27 @@ describe('AgentSkillRepository', () => {
       description: 'Description',
       instructions: 'Instructions',
     })).rejects.toBeInstanceOf(AgentSkillCollisionError);
+  });
+
+  it('rejects Windows device names without mutating the vault', async () => {
+    const initialNodes = [...dataAdapter.nodes.keys()].sort();
+    await expect(repository.create({
+      name: 'con',
+      description: 'Description',
+      instructions: 'Instructions',
+    })).rejects.toBeInstanceOf(AgentSkillValidationError);
+    expect([...dataAdapter.nodes.keys()].sort()).toEqual(initialNodes);
+
+    useMemoryRelocation();
+    addSkill('old-name');
+    const loaded = (await repository.list()).skills[0];
+    await expect(repository.update('old-name', loaded.revision, {
+      name: 'aux',
+      description: 'Description',
+      instructions: 'Instructions',
+    })).rejects.toBeInstanceOf(AgentSkillValidationError);
+    expect(await dataAdapter.exists(`${AGENT_SKILLS_ROOT}/old-name/SKILL.md`)).toBe(true);
+    expect(await dataAdapter.exists(`${AGENT_SKILLS_ROOT}/aux`)).toBe(false);
   });
 
   it('rejects a target created during the exclusive claim race', async () => {
