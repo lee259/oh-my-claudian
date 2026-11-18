@@ -26,6 +26,12 @@ patchedDependencies:
   minimatch@11.0.3:
     hash: 82ddeca2d5c7aec0239943dbb3cf84600fd2e13cb019defc2fa8572da5d94846
     path: patches/minimatch@11.0.3.patch
+  picomatch@2.3.2:
+    hash: 21a232ccbc95bd5f487bdc7d3b9c8e71ee53d2b93f0c293c257c9dd6a50b80b5
+    path: patches/picomatch@2.3.2.patch
+  picomatch@4.0.5:
+    hash: 3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a
+    path: patches/picomatch@4.0.5.patch
 
 importers:
 
@@ -4374,7 +4380,7 @@ snapshots:
   anymatch@3.1.3:
     dependencies:
       normalize-path: 3.0.0
-      picomatch: 2.3.2
+      picomatch: 2.3.2(patch_hash=21a232ccbc95bd5f487bdc7d3b9c8e71ee53d2b93f0c293c257c9dd6a50b80b5)
 
   argparse@2.0.1: {}
 
@@ -5204,9 +5210,9 @@ snapshots:
     dependencies:
       bser: 2.1.1
 
-  fdir@6.5.0(picomatch@4.0.5):
+  fdir@6.5.0(picomatch@4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)):
     optionalDependencies:
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)
 
   file-entry-cache@8.0.0:
     dependencies:
@@ -5726,7 +5732,7 @@ snapshots:
       jest-regex-util: 30.4.0
       jest-util: 30.4.1
       jest-worker: 30.4.1
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -5751,7 +5757,7 @@ snapshots:
       chalk: 4.1.2
       graceful-fs: 4.2.11
       jest-util: 30.4.1
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)
       pretty-format: 30.4.1
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -5873,7 +5879,7 @@ snapshots:
       chalk: 4.1.2
       ci-info: 4.4.0
       graceful-fs: 4.2.11
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)
 
   jest-validate@30.4.1:
     dependencies:
@@ -6224,9 +6230,9 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  picomatch@2.3.2: {}
+  picomatch@2.3.2(patch_hash=21a232ccbc95bd5f487bdc7d3b9c8e71ee53d2b93f0c293c257c9dd6a50b80b5): {}
 
-  picomatch@4.0.5: {}
+  picomatch@4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a): {}
 
   pirates@4.0.7: {}
 
@@ -6610,8 +6616,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
+      fdir: 6.5.0(picomatch@4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a))
+      picomatch: 4.0.5(patch_hash=3c6bbebfe5a5927cea3ad29be3e018bb4f857e1c4798df431b40bc5836289a3a)
 
   tldts-core@6.1.86: {}
 

@@ -45,8 +45,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Audit dependencies
-        run: pnpm audit --audit-level moderate
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level moderate
+
+      - name: Verify local dependency patches
+        run: node --test scripts/dependency-compatibility.test.mjs
+
+      - name: Audit development dependencies
+        run: node scripts/check-dev-dependency-audit.mjs
 
   lint:
     runs-on: ubuntu-latest
