@@ -77,7 +77,7 @@ export class ProviderDiagnosticModal extends Modal {
     }
     const copyButton = actions.createEl('button', { text: t('settings.providerDiagnostics.copy') });
     copyButton.addEventListener('click', () => {
-      void this.copyReport();
+      void this.copyReport(copyButton);
     });
     const closeButton = actions.createEl('button', { text: t('settings.providerDiagnostics.close') });
     closeButton.addEventListener('click', () => this.close());
@@ -92,9 +92,11 @@ export class ProviderDiagnosticModal extends Modal {
     container.createEl('dd', { text: value });
   }
 
-  private async copyReport(): Promise<void> {
+  private async copyReport(ownerElement: HTMLElement): Promise<void> {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(this.report, null, 2));
+      const clipboard = ownerElement.ownerDocument.defaultView?.navigator.clipboard
+        ?? navigator.clipboard;
+      await clipboard.writeText(JSON.stringify(this.report, null, 2));
       new Notice(t('settings.providerDiagnostics.copied'));
     } catch {
       new Notice(t('settings.providerDiagnostics.copyFailed'));

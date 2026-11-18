@@ -101,6 +101,44 @@ describe('Tool row disclosures', () => {
     jest.useRealTimers();
   });
 
+  it('copies a command through the owner window after moving into a popout', async () => {
+    const frame = document.createElement('iframe');
+    document.body.appendChild(frame);
+    const secondary = frame.contentDocument!;
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const mainWrite = jest.fn().mockResolvedValue(undefined);
+    const popoutWrite = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: mainWrite } });
+    Object.defineProperty(frame.contentWindow!.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: popoutWrite },
+    });
+    jest.spyOn(frame.contentWindow!, 'setTimeout').mockReturnValue(17);
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    try {
+      const row = renderStoredToolCall(parent, call({
+        name: 'Bash',
+        input: { command: 'ls -la' },
+        status: 'completed',
+        result: 'notes',
+      }), { initiallyExpanded: true });
+      secondary.body.appendChild(secondary.adoptNode(parent));
+
+      row.querySelector<HTMLButtonElement>('.claudian-tool-copy-command')!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(popoutWrite).toHaveBeenCalledWith('ls -la');
+      expect(mainWrite).not.toHaveBeenCalled();
+    } finally {
+      frame.remove();
+      document.body.replaceChildren();
+      if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
+
   it('keeps the MCP icon when a friendly MCP label is used', () => {
     const parent = document.createElement('div');
     const element = renderStoredToolCall(parent, call({
