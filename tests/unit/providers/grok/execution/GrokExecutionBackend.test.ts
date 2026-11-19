@@ -1575,6 +1575,56 @@ describe('GrokExecutionBackend', () => {
     }
   });
 
+  it('marks blocking Stop hooks and ignores session-end and unconsumed extension updates', async () => {
+    const native = new FakeNativeConnection();
+    native.promptImplementation = async () => {
+      native.emit({
+        content: { text: 'Initial answer.', type: 'text' },
+        messageId: 'assistant-before-stop',
+        sessionUpdate: 'agent_message_chunk',
+      });
+      native.emit({
+        event_name: 'stop',
+        prompt_id: 'prompt-1',
+        runs: [
+          { status: { blocked: true, error: 'blocked stop: Run the focused tests.' } },
+          { status: { blocked: false, error: 'continue normally' } },
+        ],
+        sessionUpdate: 'hook_execution',
+      }, 'extension');
+      native.emit({
+        event_name: 'stop',
+        runs: [{ status: { blocked: true, error: 'blocked stop: Ignore session end.' } }],
+        sessionUpdate: 'hook_execution',
+      }, 'extension');
+      native.emit({ sessionUpdate: 'x.ai/compaction_progress', progress: 50 }, 'extension');
+      native.emit({
+        content: { text: 'Tests passed.', type: 'text' },
+        messageId: 'assistant-after-stop',
+        sessionUpdate: 'agent_message_chunk',
+      });
+      native.emit({ prompt_id: 'prompt-1', sessionUpdate: 'turn_completed' }, 'extension');
+      return { stopReason: 'end_turn' };
+    };
+    const session = new GrokExecutionBackend(
+      { settings: {} } as ProviderHost,
+      { nativeFactory: { create: () => native } },
+    ).createSession(sessionConfig);
+
+    try {
+      const events = await collect(session.execute(executionRequest()).events);
+      expect(events.filter(event => event.type === 'stop_hook')).toEqual([
+        expect.objectContaining({ content: 'Run the focused tests.', type: 'stop_hook' }),
+      ]);
+      expect(events.filter(event => event.type === 'notice')).toEqual([]);
+      expect(events.filter(event => event.type === 'text_delta').map(event => (
+        event.type === 'text_delta' ? event.text : ''
+      ))).toEqual(['Initial answer.', 'Tests passed.']);
+    } finally {
+      await session.dispose();
+    }
+  });
+
   it('combines final Grok Build token usage with the streamed context window', async () => {
     const native = new FakeNativeConnection();
     native.promptImplementation = async () => {

@@ -9,6 +9,45 @@ import {
 } from '@/providers/grok/history/GrokHistoryStore';
 
 describe('GrokHistoryStore', () => {
+  it('keeps both replies around a blocking Stop hook in native history', () => {
+    const updates = [
+      {
+        _meta: { promptIndex: 0 },
+        content: { text: 'Inspect the change.', type: 'text' },
+        sessionUpdate: 'user_message_chunk',
+      },
+      {
+        content: { text: 'Initial answer.', type: 'text' },
+        messageId: 'assistant-before-stop',
+        sessionUpdate: 'agent_message_chunk',
+      },
+      {
+        event_name: 'stop',
+        prompt_id: 'prompt-1',
+        runs: [{ status: { blocked: true, error: 'blocked stop: Run the focused tests.' } }],
+        sessionUpdate: 'hook_execution',
+      },
+      {
+        content: { text: 'Tests passed.', type: 'text' },
+        messageId: 'assistant-after-stop',
+        sessionUpdate: 'agent_message_chunk',
+      },
+      { prompt_id: 'prompt-1', sessionUpdate: 'turn_completed' },
+    ];
+    const content = updates.map((update, index) => JSON.stringify({
+      method: 'session/update',
+      params: { sessionId: 'stop-session', update },
+      timestamp: 1_700_000_000_000 + index,
+    })).join('\n');
+
+    const messages = parseGrokHistoryContent(content, 'stop-session').messages;
+    expect(messages.find(message => message.role === 'assistant')?.contentBlocks).toEqual([
+      { content: 'Initial answer.', type: 'text' },
+      { content: 'Run the focused tests.', type: 'stop_hook' },
+      { content: 'Tests passed.', type: 'text' },
+    ]);
+  });
+
   it('distinguishes a missing history from an unreadable one', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-read-'));
     try {

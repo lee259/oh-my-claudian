@@ -20,7 +20,7 @@ describe('GrokSessionNotifications', () => {
     },
   );
 
-  it('unwraps only the exact xAI session notification envelope', () => {
+  it('accepts bare and exact-envelope xAI session notifications', () => {
     expect(parseGrokSessionNotification(GROK_WRAPPED_SESSION_NOTIFICATION_METHOD, {
       method: 'x.ai/session_notification',
       params: notification,
@@ -30,7 +30,7 @@ describe('GrokSessionNotifications', () => {
       params: notification,
     })).toBeNull();
     expect(parseGrokSessionNotification(GROK_WRAPPED_SESSION_NOTIFICATION_METHOD, notification))
-      .toBeNull();
+      .toEqual(notification);
   });
 
   it('rejects malformed and unrelated notifications', () => {
