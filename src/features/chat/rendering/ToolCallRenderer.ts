@@ -1052,9 +1052,26 @@ export function makeFileSummaryInteractive(
   summaryEl.setAttribute('title', `Open ${fileReference.path}`);
 }
 
-/** Normalized read/navigation summaries do not expose redundant raw output. */
+function getExplorationPresentation(toolCall: ToolCallInfo): ToolCallInfo['presentation'] {
+  const exploration = toolCall.status === 'completed' ? toolCall.exploration : undefined;
+  if (!exploration?.actions?.length) return undefined;
+  const mixed = exploration.reads > 0 && exploration.searches > 0;
+  const summary = exploration.actions.map(action => {
+    const detail = action.type === 'read' ? action.path : [action.query, action.path].filter(Boolean).join(' · ');
+    if (!mixed) return detail;
+    return `${action.type === 'read' ? 'Read' : 'Find'} ${detail}`;
+  }).join('\n');
+  return { name: mixed ? 'Explore' : exploration.reads > 0 ? 'Read' : 'Find', summary };
+}
+
+function getToolDisclosureLabel(toolCall: ToolCallInfo): string {
+  return getToolLabel(toolCall.name, toolCall.input, getExplorationPresentation(toolCall) ?? toolCall.presentation);
+}
+
+/** Normalized read/navigation summaries are compact unless backed by a terminal command. */
 export function canExpandToolCall(toolCall: ToolCallInfo): boolean {
   if (toolCall.status === 'error' || toolCall.status === 'blocked' || toolCall.status === 'cancelled' || toolCall.resultImages?.length) return true;
+  if (toolCall.name === TOOL_BASH && toolCall.status === 'completed' && toolCall.exploration?.actions?.length) return true;
   const name = toolCall.presentation?.name ?? toolCall.name;
   const summaryTools: string[] = [TOOL_READ, TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_SKILL, 'Find', 'List'];
   return !summaryTools.includes(name);
@@ -1069,7 +1086,7 @@ export function syncToolDisclosure(
     header.setAttribute('role', 'button');
     header.setAttribute('tabindex', '0');
     header.setAttribute('aria-expanded', String(toolEl.hasClass('expanded')));
-    header.setAttribute('aria-label', t(toolEl.hasClass('expanded') ? 'chat.rendering.collapse' : 'chat.rendering.expand', { label: getToolLabel(toolCall.name, toolCall.input, toolCall.presentation) }));
+    header.setAttribute('aria-label', t(toolEl.hasClass('expanded') ? 'chat.rendering.collapse' : 'chat.rendering.expand', { label: getToolDisclosureLabel(toolCall) }));
   } else {
     for (const attribute of ['role', 'tabindex', 'aria-expanded', 'aria-label']) header.removeAttribute(attribute);
     toolEl.removeClass('expanded');
@@ -1096,22 +1113,29 @@ function createToolElementStructure(
 
   const iconEl = header.createSpan({ cls: 'claudian-tool-icon' });
   iconEl.setAttribute('aria-hidden', 'true');
-  const iconToolName = toolCall.name.startsWith('mcp__')
-    ? toolCall.name
-    : toolCall.presentation?.name === 'Find'
-      ? TOOL_GREP
-      : toolCall.presentation?.name === 'List'
-        ? TOOL_LS
-        : toolCall.presentation?.name ?? toolCall.name;
-  setToolIcon(iconEl, iconToolName);
-
   const nameEl = header.createSpan({ cls: 'claudian-tool-name' });
-  nameEl.setText(getToolName(toolCall.name, toolCall.input, toolCall.presentation));
-  nameEl.setAttribute('title', getToolName(toolCall.name, toolCall.input, toolCall.presentation));
-
   const summaryEl = header.createSpan({ cls: 'claudian-tool-summary' });
-  summaryEl.setText(getToolSummary(toolCall.name, toolCall.input, toolCall.presentation));
-  makeFileSummaryInteractive(summaryEl, getToolFilePath(toolCall), onOpenFile);
+  let currentIcon: string | undefined;
+  const updateHeader = (tool: ToolCallInfo) => {
+    const exploration = getExplorationPresentation(tool);
+    const presentation = exploration ?? tool.presentation;
+    const name = getToolName(tool.name, tool.input, presentation);
+    const icon = tool.name.startsWith('mcp__') ? tool.name
+      : presentation?.name === 'Find' || exploration?.name === 'Explore' ? TOOL_GREP
+        : presentation?.name === 'List' ? TOOL_LS : presentation?.name ?? tool.name;
+    if (currentIcon !== icon) {
+      iconEl.empty();
+      setToolIcon(iconEl, icon);
+      currentIcon = icon;
+    }
+    header.toggleClass('claudian-tool-header--exploration', !!exploration);
+    nameEl.setText(name);
+    nameEl.setAttribute('title', name);
+    summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
+    const fileReference = exploration && tool.exploration?.actions?.length !== 1 ? undefined : getToolFilePath(tool);
+    makeFileSummaryInteractive(summaryEl, fileReference, onOpenFile);
+  };
+  updateHeader(toolCall);
 
   const currentTaskEl = toolCall.name === TOOL_TODO_WRITE
     ? createCurrentTaskPreview(header, toolCall.input)
@@ -1123,15 +1147,11 @@ function createToolElementStructure(
   const content = toolEl.createDiv({ cls: 'claudian-tool-content' });
   if (onPreviewImage) toolImagePreviewHandlers.set(content, onPreviewImage);
 
-  const getAriaLabel = () => getToolLabel(currentTool.name, currentTool.input, currentTool.presentation);
+  const getAriaLabel = () => getToolDisclosureLabel(currentTool);
   toolHeaderRefreshers.set(toolEl, (tool) => {
     currentTool = tool;
     refreshDuration(tool);
-    const name = getToolName(tool.name, tool.input, tool.presentation);
-    nameEl.setText(name);
-    nameEl.setAttribute('title', name);
-    summaryEl.setText(getToolSummary(tool.name, tool.input, tool.presentation));
-    makeFileSummaryInteractive(summaryEl, getToolFilePath(tool), onOpenFile);
+    updateHeader(tool);
     syncToolDisclosure(toolEl, header, content, tool);
   });
   const setExpanded = (expanded: boolean) => { currentTool.isExpanded = expanded; };

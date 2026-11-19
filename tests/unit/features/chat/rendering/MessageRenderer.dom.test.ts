@@ -102,9 +102,13 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
     const calls: ToolCallInfo[] = [
       { id: 'inspect', name: 'Bash', input: { command: 'rg match && cat a.md' }, status: 'completed',
-        exploration: { reads: 1, searches: 1 }, exitCode: 0 },
+        exploration: { reads: 1, searches: 1, actions: [
+          { type: 'search', query: 'match.*value', path: 'notes/' },
+          { type: 'read', path: 'notes/a.md' },
+        ] }, result: 'Native output', exitCode: 0 },
       { id: 'read', name: 'Bash', input: { command: 'cat b.md' }, status: 'completed',
-        presentation: { name: 'Read', summary: 'b.md' }, exploration: { reads: 1, searches: 0 }, exitCode: 0 },
+        presentation: { name: 'Read', summary: 'b.md' },
+        exploration: { reads: 1, searches: 0, actions: [{ type: 'read', path: 'b.md' }] }, exitCode: 0 },
     ];
     if (includeFailure) calls.push({
       id: 'failed', name: 'Bash', input: { command: 'build' }, status: 'error', exitCode: 7, result: 'Build failed',
@@ -117,8 +121,21 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     try {
       renderer.renderMessages([user, assistant], () => 'Welcome');
       expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent).toBe(expected);
+      const phase = messagesEl.querySelector<HTMLButtonElement>('.claudian-activity-phase-header[aria-expanded="false"]');
+      phase?.click();
       expect([...messagesEl.querySelectorAll('.claudian-tool-name')].map(el => el.textContent))
-        .toEqual(includeFailure ? ['Bash', 'Read', 'Bash'] : ['Bash', 'Read']);
+        .toEqual(includeFailure ? ['Explore', 'Read', 'Bash'] : ['Explore', 'Read']);
+      const inspected = messagesEl.querySelector('[data-tool-id="inspect"]')!;
+      const inspectHeader = inspected.querySelector<HTMLElement>('.claudian-tool-header')!;
+      expect(inspectHeader.querySelector('.claudian-tool-summary')?.textContent)
+        .toBe('Find match.*value · notes/\nRead notes/a.md');
+      inspectHeader.click();
+      expect(inspected.querySelector('.claudian-tool-bash-command-text')?.textContent).toBe('$ rg match && cat a.md');
+      expect(inspected.querySelector('.claudian-tool-content')?.textContent).toContain('Native output');
+      expect(inspected.querySelector('.claudian-tool-exit')?.textContent).toBe('成功');
+      const read = messagesEl.querySelector('[data-tool-id="read"] .claudian-tool-header');
+      expect(read?.querySelector('.claudian-tool-summary')?.textContent).toBe('b.md');
+      expect(read?.getAttribute('aria-expanded')).toBe('false');
       const failed = messagesEl.querySelector('[data-tool-id="failed"]');
       failed?.querySelector<HTMLButtonElement>('.claudian-tool-header')?.click();
       expect(failed?.querySelector('.claudian-tool-exit')?.textContent)

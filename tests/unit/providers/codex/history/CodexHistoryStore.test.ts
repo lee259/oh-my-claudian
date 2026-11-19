@@ -1374,10 +1374,19 @@ describe('CodexHistoryStore', () => {
     });
 
     it.each([
-      ['read and search', ['search', 'read', 'read'], 0, { reads: 2, searches: 1 }],
-      ['unknown action', ['read', 'unknown'], 0, undefined],
+      ['read and search', [
+        { type: 'search', query: 'match.*value', path: 'notes/' },
+        { type: 'read', path: 'notes/a.md' },
+        { type: 'read', path: 'notes/b.md' },
+      ], 0, { reads: 2, searches: 1, actions: [
+        { type: 'search', query: 'match.*value', path: 'notes/' },
+        { type: 'read', path: 'notes/a.md' },
+        { type: 'read', path: 'notes/b.md' },
+      ] }],
+      ['missing details', [{ type: 'search', query: null }, { type: 'read', path: 10 }], 0, { reads: 1, searches: 1 }],
+      ['unknown action', [{ type: 'read', path: 'a.md' }, { type: 'unknown' }], 0, undefined],
       ['no actions', [], 0, undefined],
-      ['failed command', ['read'], 7, undefined],
+      ['failed command', [{ type: 'read', path: 'a.md' }], 7, undefined],
     ] as const)('projects exploration only for successful native commands: %s', (_case, actions, exitCode, expected) => {
       const cmd = 'rg match && cat a.md b.md';
       const records = [
@@ -1386,7 +1395,7 @@ describe('CodexHistoryStore', () => {
           arguments: JSON.stringify({ cmd }) } },
         { type: 'event_msg', payload: { type: 'item_completed', item: {
           type: 'CommandExecution', id: 'native', cwd: '/vault', command: ['/bin/zsh', '-lc', cmd],
-          parsed_cmd: actions.map(type => ({ type })), exit_code: exitCode, aggregated_output: 'Native output',
+          parsed_cmd: actions, exit_code: exitCode, aggregated_output: 'Native output',
         } } },
       ];
       const [tool] = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
