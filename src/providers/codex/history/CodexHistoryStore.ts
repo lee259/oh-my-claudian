@@ -38,6 +38,7 @@ import { applyCodexSubagentActivity, normalizeCodexSubagentActivity } from '../n
 import { buildCodexSubagentInfo } from '../normalization/codexSubagentNormalization';
 import {
   appendCodexCommandOutput,
+  codexScriptToolNamesMatch,
   codexToolRequestsMatch,
   decodeCodexExecEnvelopeCalls,
   extractCodexExecCellId,
@@ -882,7 +883,7 @@ function processPersistedToolCall(
     if (rawName === 'view_image' || rawName === 'image_gen__imagegen') {
       ctx.imageCallCandidates.set(toolCallId, { name: rawName, input });
     }
-    if (name !== 'Bash' && name !== 'WebSearch') return;
+    if (name !== 'Bash' && name !== 'WebSearch' && !name.startsWith('mcp__')) return;
     if (name === 'Bash') {
       const directory = rawInput.workdir ?? rawInput.cwd ?? rawInput.workingDirectory;
       const workingDirectory = resolvePersistedWorkingDirectory(directory, ctx.workingDirectory);
@@ -1595,7 +1596,7 @@ function claimPersistedNativeCall(
   nativeInputs: Record<string, unknown>[],
   ctx: PersistedParseContext,
 ): ToolCallInfo | null {
-  const matches = ctx.nativeCallCandidates.filter(({ request }) => !request || (request.name === name
+  const matches = ctx.nativeCallCandidates.filter(({ request }) => !request || (codexScriptToolNamesMatch(request.name, name)
     && nativeInputs.some(input => codexToolRequestsMatch(name, request.input, input))));
   if (matches.length !== 1 || !matches[0].request) return null;
   const [call] = matches;
@@ -1681,6 +1682,35 @@ function applyPersistedNativeWebSearchItem(
   if (itemId) ctx.observedNativeItemIds.add(itemId);
 }
 
+function applyPersistedNativeMcpItem(
+  item: Record<string, unknown> | undefined,
+  timestamp: number,
+  ctx: PersistedParseContext,
+): void {
+  if (item?.type !== 'McpToolCall' && item?.type !== 'mcpToolCall') return;
+  const itemId = typeof item.id === 'string' ? item.id : undefined;
+  if (itemId && ctx.observedNativeItemIds.has(itemId)) return;
+  if (itemId) ctx.observedNativeItemIds.add(itemId);
+  const name = normalizeCodexMcpToolName(item.server, item.tool);
+  const input = normalizeCodexMcpToolInput(item.arguments);
+  let toolCall = claimPersistedNativeCall(name, [input], ctx);
+  if (toolCall) {
+    ctx.suppressedToolOutputIds.add(toolCall.id);
+  } else if (itemId) {
+    pushPersistedNormalizedToolCall(itemId, { name, input }, timestamp, ctx);
+    toolCall = findPersistedToolCallById(ctx, itemId);
+  }
+  if (!toolCall) return;
+  const completion = normalizeCodexMcpToolCompletion(item.status, item.result, item.error);
+  Object.assign(toolCall, {
+    name,
+    input,
+    presentation: presentCodexMcpToolCall(item.server, item.tool),
+    status: completion.isError ? 'error' : 'completed',
+    result: completion.result,
+  });
+}
+
 function resolvePersistedImagePath(value: unknown, workingDirectory?: string): string | undefined {
   if (typeof value !== 'string' || !value || value.includes('\0')) return undefined;
   if (/^[a-z][a-z\d+.-]*:/i.test(value) && !value.startsWith('file:') && !/^[a-z]:[\\/]/i.test(value)) return undefined;
@@ -1744,6 +1774,7 @@ function processEventMsg(
       applyPersistedNativeCommandItem(payload.item, ctx);
       applyPersistedNativeWebSearchItem(payload.item, ctx);
       applyPersistedNativeImageItem(payload.item, timestamp, ctx);
+      applyPersistedNativeMcpItem(payload.item, timestamp, ctx);
       const activity = normalizeCodexSubagentActivity((payload as Record<string, unknown>).item);
       if (activity?.kind === 'started' && !ctx.toolCallToTurn.has(activity.id)) {
         pushPersistedNormalizedToolCall(
