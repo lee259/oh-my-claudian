@@ -690,6 +690,7 @@
       }
     },
     "antigravity": {
+      "listModelsFailed": "No se pudieron listar los modelos de Antigravity. Ejecuta agy models en una terminal para ver los detalles. Para iniciar sesión, ejecuta agy acp --login.",
       "enableDesc": "Connect to the local Antigravity CLI. Uses native agy authentication and sessions.",
       "modelsDesc": "Antigravity ACP exposes base models here; choose the thinking level separately in chat.",
       "cliPathDesc": "Optional absolute path to the Antigravity CLI (agy). Leave empty to prefer known installs, then PATH.",
