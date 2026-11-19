@@ -1,6 +1,8 @@
 import type { Readable } from 'node:stream';
 
-import { subscribePiJsonlLines, writePiJsonl } from './PiJsonl';
+import { subscribeJSONLLines } from '@/utils/jsonlLines';
+
+import { writePiJsonl } from './PiJsonl';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -70,7 +72,7 @@ export class PiRpcTransport {
 
     this.streams.output.on('error', this.handleOutputError);
     this.streams.output.on('close', this.handleOutputClose);
-    this.unsubscribeLines = subscribePiJsonlLines(
+    this.unsubscribeLines = subscribeJSONLLines(
       this.streams.input,
       (line) => this.handleLine(line),
       () => {
