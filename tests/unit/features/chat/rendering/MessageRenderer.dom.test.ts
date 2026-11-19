@@ -185,6 +185,28 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('keeps supplemental script output expandable without counting it as activity', () => {
+    const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
+    const calls: ToolCallInfo[] = [
+      { id: 'output', name: 'exec', input: {}, status: 'completed', result: '{"p1":"Independent output"}',
+        presentation: { name: 'Script output', countsAsActivity: false } },
+      { id: 'image', name: 'image_gen__imagegen', input: {}, status: 'completed', presentation: { name: 'GenerateImage' } },
+    ];
+    assistant.toolCalls = calls;
+    assistant.contentBlocks = [
+      ...calls.map(call => ({ type: 'tool_use' as const, toolId: call.id })),
+      { type: 'text', content: assistant.content },
+    ];
+    try {
+      renderer.renderMessages([user, assistant], () => 'Welcome');
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Generated 1 image');
+      const row = messagesEl.querySelector('[data-tool-id="output"]')!;
+      expect(row.querySelector('.claudian-tool-name')?.textContent).toBe('Script output');
+      row.querySelector<HTMLElement>('.claudian-tool-header')!.click();
+      expect(row.querySelector('.claudian-tool-content')?.textContent).toContain('Independent output');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['click', 'Enter', ' '])('opens a stored tool image with %j and restores focus on Escape', action => {
     const { renderer, component, messagesEl } = createTurn();
     try {

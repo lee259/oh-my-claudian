@@ -270,6 +270,7 @@ function createPersistedParseContext(): PersistedParseContext {
     nativeCommandResultCallIds: new Set(),
     nativeWebSearchResultCallIds: new Set(),
     nativeImageResultCallIds: new Set(),
+    completedExecCallIds: new Set(),
     imageCallCandidates: new Map(),
     observedNativeItemIds: new Set(),
     nativeMessageCitations: new Map(),
@@ -809,6 +810,7 @@ interface PersistedParseContext {
   nativeCommandResultCallIds: Set<string>;
   nativeWebSearchResultCallIds: Set<string>;
   nativeImageResultCallIds: Set<string>;
+  completedExecCallIds: Set<string>;
   imageCallCandidates: Map<string, { name: string; input: Record<string, unknown> }>;
   observedNativeItemIds: Set<string>;
   nativeMessageCitations: Map<string, CitationGroup>;
@@ -1234,6 +1236,58 @@ function deduplicatePersistedImageViewPreviews(ctx: PersistedParseContext): void
   }
 }
 
+function removeImageGenerationHints(output: string, hints: ReadonlySet<string>): string | undefined {
+  if (hints.has(output.trim())) return '';
+
+  let value: unknown;
+  try { value = JSON.parse(output); } catch { return undefined; }
+  if (typeof value === 'string') return hints.has(value) ? '' : undefined;
+  if (!value || typeof value !== 'object') return undefined;
+
+  // Only rewrite collections whose JSON round-trip preserves the original
+  // representation, including every independent value.
+  if (JSON.stringify(value) !== output.trim()) return undefined;
+  const entries: [string, unknown][] = Object.entries(value);
+  const remaining = entries.filter(([, entry]) => typeof entry !== 'string' || !hints.has(entry));
+  if (remaining.length === entries.length) return undefined;
+  if (remaining.length === 0) return '';
+  return JSON.stringify(Array.isArray(value) ? remaining.map(([, entry]) => entry) : Object.fromEntries(remaining));
+}
+
+function deduplicatePersistedImageGenerationHints(ctx: PersistedParseContext): void {
+  if (ctx.completedExecCallIds.size === 0 || ctx.nativeImageResultCallIds.size === 0) return;
+  for (const turn of ctx.turns.values()) {
+    for (const bubble of turn.assistantBubbles) {
+      const hints = new Set<string>();
+      for (const tool of bubble.toolCalls) {
+        const imagePath = tool.result;
+        if (tool.name !== 'image_gen__imagegen' || tool.status !== 'completed'
+          || !imagePath || !tool.resultImages?.length || !ctx.nativeImageResultCallIds.has(tool.id)) continue;
+        const directory = path.isAbsolute(imagePath) ? path.dirname(imagePath) : path.win32.dirname(imagePath);
+        // Match the complete provider output hint, including its saved image path.
+        hints.add([
+          `Generated images are saved to ${directory} as ${imagePath} by default.`,
+          'If you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.',
+          'The generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.',
+        ].join('\n'));
+      }
+      if (hints.size === 0) continue;
+      for (const script of bubble.toolCalls) {
+        if (script.name !== 'exec' || script.status !== 'completed' || !script.result
+          || !ctx.completedExecCallIds.has(script.id)) continue;
+        const remaining = removeImageGenerationHints(script.result, hints);
+        if (remaining === undefined) continue;
+        if (!remaining && !script.resultImages?.length) {
+          removePersistedToolCall(ctx, script.id);
+        } else {
+          script.result = remaining;
+          script.presentation = { name: 'Script output', countsAsActivity: false };
+        }
+      }
+    }
+  }
+}
+
 function isSilentWriteStdinInput(input: Record<string, unknown>): boolean {
   return typeof input.chars !== 'string' || input.chars.length === 0;
 }
@@ -1306,6 +1360,11 @@ function applyPersistedToolOutput(
     }
     toolCall.status = cellId ? 'running'
       : ctx.failedExecCallIds.has(toolCall.id) || isCodexToolOutputError(rawOutputText) ? 'error' : 'completed';
+    if (toolCall.status === 'completed' && /^Script completed(?:\r?\n|$)/.test(rawOutputText)) {
+      ctx.completedExecCallIds.add(toolCall.id);
+    } else {
+      ctx.completedExecCallIds.delete(toolCall.id);
+    }
     return;
   }
 
@@ -2440,6 +2499,7 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
     }
   }
   deduplicatePersistedImageViewPreviews(ctx);
+  deduplicatePersistedImageGenerationHints(ctx);
   const turns = flushBubbleTurnsGrouped(ctx.turns, ctx.turnOrder);
   const tools = turns.flatMap(turn => turn.messages.flatMap(message => message.toolCalls ?? []));
   const agents = new Map<string, ToolCallInfo>();
