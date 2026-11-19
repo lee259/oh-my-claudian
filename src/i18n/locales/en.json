@@ -551,6 +551,8 @@
       "exitCode": "Exit code {code}",
       "patchRejected": "Rejected",
       "patchStopped": "Stopped",
+      "viewFullOutput": "View full output ({count} lines)",
+      "showOutputPreview": "Show preview",
       "copyCommand": "Copy command",
       "copyFailed": "Failed to copy to clipboard"
     },

@@ -551,6 +551,8 @@
       "exitCode": "結束碼 {code}",
       "patchRejected": "已拒絕",
       "patchStopped": "已停止",
+      "viewFullOutput": "查看完整輸出（{count} 行）",
+      "showOutputPreview": "顯示預覽",
       "copyCommand": "複製命令",
       "copyFailed": "複製到剪貼簿失敗"
     },
