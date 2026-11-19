@@ -29,7 +29,7 @@ export interface AntigravityWorkspaceServices extends ProviderWorkspaceServices 
 export async function createAntigravityWorkspaceServices(plugin: ProviderHost): Promise<AntigravityWorkspaceServices> {
   const runtimeHost = plugin.getRuntimeHost(ANTIGRAVITY_PROVIDER_ID);
   const metadataProbe = new AntigravityMetadataProbe(runtimeHost);
-  const modelCatalogOwner = new AntigravityModelCatalog(runtimeHost, signal => metadataProbe.load(signal));
+  const modelCatalogOwner = new AntigravityModelCatalog(runtimeHost);
   const unregisterTransitionHook = plugin.executionLifecycleRegistry.registerTransitionHook(ANTIGRAVITY_PROVIDER_ID, {
     beforeTransition: async () => {
       metadataProbe.beginEnvironmentTransition();

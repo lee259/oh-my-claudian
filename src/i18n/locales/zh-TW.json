@@ -690,6 +690,7 @@
       }
     },
     "antigravity": {
+      "listModelsFailed": "無法取得 Antigravity 模型清單。請在終端機執行 agy models 查看詳細資訊。如需登入，請執行 agy acp --login。",
       "enableDesc": "連接本機 Antigravity CLI，使用 agy 原生認證和會話。",
       "modelsDesc": "這裡顯示 Antigravity ACP 提供的基礎模型；思考等級在聊天中單獨選擇。",
       "cliPathDesc": "可選的 Antigravity CLI（agy）絕對路徑。留空會優先使用已知安裝，然後搜尋 PATH。",
