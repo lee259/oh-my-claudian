@@ -13,6 +13,7 @@ import type {
 import type { SDKToolUseResult } from '../../../core/types/diff';
 import { extractDiffData } from '../../../utils/diff';
 import { extractAcpDiffToolUseResult } from '../../acp/AcpToolResultNormalization';
+import { getGrokStopHookFeedback } from '../normalization/grokStopHook';
 import {
   type GrokRawToolNameResolution,
   normalizeGrokToolCall,
@@ -229,6 +230,12 @@ export function createGrokHistoryParser(
     }
 
     if (!pending) {
+      return;
+    }
+
+    const stopHookFeedback = getGrokStopHookFeedback(update);
+    if (stopHookFeedback !== null) {
+      pending.blocks.push({ type: 'stop_hook', content: stopHookFeedback });
       return;
     }
 

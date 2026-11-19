@@ -45,6 +45,7 @@ import {
   type AcpUsage,
   type AcpUsageUpdate,
   buildAcpUsageInfo,
+  isKnownACPSessionUpdate,
   mapAcpApprovalDecision,
 } from '../../acp';
 import type { GrokCommandCatalog } from '../commands/GrokCommandCatalog';
@@ -61,6 +62,7 @@ import {
   type GrokDiscoveredModel,
   normalizeGrokDiscoveredModels,
 } from '../models';
+import { getGrokStopHookFeedback } from '../normalization/grokStopHook';
 import {
   normalizeGrokToolCall,
   normalizeGrokToolName,
@@ -821,6 +823,18 @@ RewindableExecutionSession {
       || notification.sessionId !== this.providerSessionId
       || !this.mirrorDeduplicator.shouldProcess(notification, source)
     ) return;
+    const stopHookFeedback = getGrokStopHookFeedback(notification.update);
+    if (stopHookFeedback !== null) {
+      if (active.acceptingLiveOutput) {
+        this.accept(active);
+        active.run.emit({
+          content: stopHookFeedback,
+          scope: this.nextScope(active),
+          type: 'stop_hook',
+        });
+      }
+      return;
+    }
     if (isTurnCompleted(notification.update)) {
       if (active.acceptingLiveOutput) {
         active.promptUsage = parseGrokUsage(
@@ -831,6 +845,8 @@ RewindableExecutionSession {
       }
       return;
     }
+    // Other xAI extension updates carry nothing Claudian displays.
+    if (source === 'extension' && !isKnownACPSessionUpdate(notification.update)) return;
     let update = notification.update;
     if (
       update.sessionUpdate === 'agent_message_chunk'
