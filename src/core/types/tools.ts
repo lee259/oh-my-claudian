@@ -46,6 +46,10 @@ export type ToolResultImage =
   | { kind: 'file'; path: string; alt?: string }
   | { kind: 'data'; mediaType: string; data: string; alt?: string };
 
+export type ToolExplorationAction =
+  | { type: 'read'; path: string }
+  | { type: 'search'; path?: string; query?: string };
+
 /** Tool call tracking with status and result. */
 export interface ToolCallInfo {
   id: string;
@@ -56,7 +60,7 @@ export interface ToolCallInfo {
   /** Shell exit status reported by the provider for command tools. */
   exitCode?: number;
   /** Provider-confirmed read and search activity for a command that only explored files. */
-  exploration?: { reads: number; searches: number };
+  exploration?: { reads: number; searches: number; actions?: readonly ToolExplorationAction[] };
   /** Provider reported work that may continue independently of the current turn. */
   continuesInBackground?: boolean;
   /** Local observation times for live tool execution; absent when history has no timing. */

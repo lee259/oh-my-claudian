@@ -14,6 +14,7 @@ import type {
   ImageAttachment,
   SubagentInfo,
   ToolCallInfo,
+  ToolExplorationAction,
   ToolResultImage,
 } from '../../../core/types';
 import { createTurnStats, isTokenCount } from '../../../core/types';
@@ -1550,13 +1551,22 @@ function readPersistedCommandExploration(actions: readonly unknown[]): ToolCallI
   if (!actions.length) return undefined;
   let reads = 0;
   let searches = 0;
+  const details: ToolExplorationAction[] = [];
   for (const action of actions) {
     if (!action || typeof action !== 'object' || !('type' in action)) return undefined;
-    if (action.type === 'read') reads++;
-    else if (action.type === 'search') searches++;
-    else return undefined;
+    const path = 'path' in action && typeof action.path === 'string' && action.path.trim() ? action.path : undefined;
+    if (action.type === 'read') {
+      reads++;
+      if (path) details.push({ type: 'read', path });
+    } else if (action.type === 'search') {
+      searches++;
+      const query = 'query' in action && typeof action.query === 'string' && action.query.trim() ? action.query : undefined;
+      if (query || path) details.push({ type: 'search', ...(query ? { query } : {}), ...(path ? { path } : {}) });
+    } else {
+      return undefined;
+    }
   }
-  return { reads, searches };
+  return { reads, searches, ...(details.length ? { actions: details } : {}) };
 }
 
 function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefined, ctx: PersistedParseContext): void {

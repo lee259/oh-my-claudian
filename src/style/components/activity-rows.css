@@ -32,6 +32,19 @@
   white-space: nowrap;
 }
 
+.claudian-messages .claudian-tool-header--exploration {
+  align-items: flex-start;
+}
+
+.claudian-messages .claudian-tool-header--exploration .claudian-tool-name {
+  flex-shrink: 0;
+}
+
+.claudian-messages .claudian-tool-header--exploration .claudian-tool-summary {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .claudian-messages :is(.claudian-tool-icon, .claudian-subagent-icon, .claudian-write-edit-icon, .claudian-subagent-tool-icon) {
   color: inherit;
 }

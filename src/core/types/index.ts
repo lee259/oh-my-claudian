@@ -74,6 +74,7 @@ export {
   type ToolCallInfo,
   type ToolCallPresentation,
   type ToolDiffData,
+  type ToolExplorationAction,
   type ToolProviderPayload,
   type ToolResultImage,
 } from './tools';
