@@ -555,7 +555,7 @@ function renderFileSearchExpanded(container: HTMLElement, result: string): void 
     container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noMatches') });
     return;
   }
-  renderLinesExpanded(container, result, 15, true);
+  renderLinesExpanded(container, result, 15, { hoverable: true });
 }
 
 /** Removes legacy Read gutters only when the entire result has consecutive line numbers. */
@@ -578,8 +578,11 @@ function renderLinesExpanded(
   container: HTMLElement,
   result: string,
   maxLines: number,
-  hoverable = false,
-  stripLineNumberGutters = true,
+  { hoverable = false, stripLineNumberGutters = true, allowFullOutput = false }: {
+    hoverable?: boolean;
+    stripLineNumberGutters?: boolean;
+    allowFullOutput?: boolean;
+  } = {},
 ): void {
   const displayLines = result.split(/\r?\n/, maxLines);
   let lineCount = 1;
@@ -594,12 +597,37 @@ function renderLinesExpanded(
     lineEl.setText(stripped || ' ');
   }
 
-  if (truncated) {
+  if (truncated && allowFullOutput) {
+    addFullOutputToggle(container, linesEl, result, lineCount);
+  } else if (truncated) {
     linesEl.createDiv({
       cls: 'claudian-tool-truncated',
       text: `... ${lineCount - maxLines} more lines`,
     });
   }
+}
+
+let nextFullOutputId = 0;
+
+function addFullOutputToggle(container: HTMLElement, preview: HTMLElement, result: string, lineCount: number): void {
+  const outputId = `claudian-tool-full-output-${nextFullOutputId++}`;
+  const viewLabel = t('chat.tools.viewFullOutput', { count: lineCount });
+  const button = container.createEl('button', {
+    cls: 'claudian-tool-output-toggle',
+    text: viewLabel,
+    attr: { type: 'button', 'aria-expanded': 'false', 'aria-controls': outputId },
+  });
+  container.insertBefore(button, preview);
+  const full = container.createEl('pre', { cls: 'claudian-tool-full-output claudian-hidden', attr: { id: outputId } });
+  let expanded = false;
+  button.addEventListener('click', () => {
+    expanded = !expanded;
+    button.setAttribute('aria-expanded', String(expanded));
+    button.setText(expanded ? t('chat.tools.showOutputPreview') : viewLabel);
+    preview.toggleClass('claudian-hidden', expanded);
+    full.setText(expanded ? result : '');
+    full.toggleClass('claudian-hidden', !expanded);
+  });
 }
 
 function renderToolSearchExpanded(container: HTMLElement, result: string): void {
@@ -816,7 +844,7 @@ export function renderExpandedContent(
         renderLinesExpanded(container, resolvedResult, 20);
         break;
       case TOOL_READ:
-        renderLinesExpanded(container, resultFormat === 'plain' ? resolvedResult : stripLegacyReadGutters(resolvedResult), 15, false, false);
+        renderLinesExpanded(container, resultFormat === 'plain' ? resolvedResult : stripLegacyReadGutters(resolvedResult), 15, { stripLineNumberGutters: false });
         break;
       case TOOL_GLOB:
       case TOOL_GREP:
@@ -1319,7 +1347,7 @@ function renderBashContent(
   if (initialText) {
     contentFallback(container, initialText);
   } else if (result) {
-    renderLinesExpanded(container, result, 20);
+    renderLinesExpanded(container, result, 20, { allowFullOutput: true });
   } else if (!hasResultImages) {
     container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
   }

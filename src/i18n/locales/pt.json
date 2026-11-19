@@ -551,6 +551,8 @@
       "exitCode": "Código de saída {code}",
       "patchRejected": "Rejeitado",
       "patchStopped": "Interrompido",
+      "viewFullOutput": "Ver saída completa ({count} linhas)",
+      "showOutputPreview": "Mostrar prévia",
       "copyCommand": "Copiar comando",
       "copyFailed": "Falha ao copiar para a área de transferência"
     },

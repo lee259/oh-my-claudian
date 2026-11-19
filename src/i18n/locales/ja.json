@@ -551,6 +551,8 @@
       "exitCode": "終了コード {code}",
       "patchRejected": "拒否",
       "patchStopped": "停止",
+      "viewFullOutput": "出力全体を表示（{count} 行）",
+      "showOutputPreview": "プレビューを表示",
       "copyCommand": "コマンドをコピー",
       "copyFailed": "クリップボードにコピーできませんでした"
     },

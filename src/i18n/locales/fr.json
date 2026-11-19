@@ -551,6 +551,8 @@
       "exitCode": "Code de sortie {code}",
       "patchRejected": "Refusé",
       "patchStopped": "Arrêté",
+      "viewFullOutput": "Voir la sortie complète ({count} lignes)",
+      "showOutputPreview": "Afficher l’aperçu",
       "copyCommand": "Copier la commande",
       "copyFailed": "Échec de la copie dans le presse-papiers"
     },
