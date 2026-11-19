@@ -358,6 +358,74 @@ describe('CodexHistoryStore', () => {
     });
   });
 
+  describe('image generation script output deduplication', () => {
+    const generated = (id: string, status = 'completed') => ({
+      type: 'event_msg', payload: { type: 'item_completed', item: {
+        type: 'Extension', kind: 'image_gen.generation', id, status,
+        savedPath: `/tmp/${id}.png`, result: 'data:image/png;base64,YQ==',
+      } },
+    });
+    const script = { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'script',
+      input: 'const prompt = getPrompt(); await tools.image_gen__imagegen({prompt});' } };
+    const hint = (id: string) => [
+      `Generated images are saved to /tmp as /tmp/${id}.png by default.`,
+      'If you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.',
+      'The generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.',
+    ].join('\n');
+    const output = (value: unknown, header = 'Script completed') => ({
+      type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'script', output:
+        [{ type: 'input_text', text: `${header}\nWall time 1.0 seconds\nOutput:\n` },
+          { type: 'input_text', text: JSON.stringify(value) }] },
+    });
+    const start = { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } };
+    const replay = (records: unknown[]) => parseCodexSessionContent([start, ...records].map(record => JSON.stringify(record)).join('\n'));
+
+    it.each(['array before native images', 'object after native images'])('removes a fully redundant script result: %s', shape => {
+      const images = [generated('alpha'), generated('beta')];
+      const records = shape.startsWith('array')
+        ? [script, output([hint('beta'), hint('alpha')]), ...images]
+        : [script, ...images, output({ a: hint('alpha'), b: hint('beta') })];
+      const messages = replay(records);
+      expect(messages.flatMap(message => message.toolCalls ?? []).map(tool => tool.id)).toEqual(['alpha', 'beta']);
+      expect(messages.flatMap(message => message.contentBlocks ?? [])).not.toContainEqual({ type: 'tool_use', toolId: 'script' });
+    });
+
+    it.each(['array', 'object'])('keeps mixed %s output when generated hints are removed', shape => {
+      const independent = { p1: 'Inspect /tmp/alpha.png', p2: { important: true } };
+      const value = shape === 'array' ? [independent.p1, hint('alpha'), independent.p2] : { image: hint('alpha'), ...independent };
+      const tools = replay([script, generated('alpha'), output(value)])
+        .flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'script')).toMatchObject({
+        name: 'exec', result: JSON.stringify(shape === 'array' ? Object.values(independent) : independent),
+        presentation: { name: 'Script output', countsAsActivity: false },
+      });
+      expect(tools.find(tool => tool.id === 'alpha')?.resultImages).toHaveLength(1);
+    });
+
+    it.each(['failed script', 'failed image', 'different turn', 'additional text'])('preserves output without a verified duplicate: %s', scenario => {
+      const records = [script, generated('alpha', scenario === 'failed image' ? 'failed' : 'completed')];
+      if (scenario === 'different turn') records.reverse();
+      const value = [scenario === 'additional text' ? `${hint('alpha')}\nIndependent notes` : hint('alpha')];
+      const boundary = { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-2' } };
+      const messages = replay([
+        ...(scenario === 'different turn' ? [records[0], boundary, records[1]] : records),
+        output(value, scenario === 'failed script' ? 'Script failed' : 'Script completed'),
+      ]);
+      const wrapped = messages.flatMap(message => message.toolCalls ?? []).find(tool => tool.id === 'script');
+      expect(wrapped).toMatchObject({ result: JSON.stringify(value) });
+      expect(wrapped?.status).toBe(scenario === 'failed script' ? 'error' : 'completed');
+      expect(wrapped?.presentation).toBeUndefined();
+    });
+
+    it('keeps script output intact when parsing would change independent values', () => {
+      const text = `{"image":${JSON.stringify(hint('alpha'))},"value":9007199254740993}`;
+      const record = output(null);
+      record.payload.output[1].text = text;
+      const tools = replay([script, generated('alpha'), record]).flatMap(message => message.toolCalls ?? []);
+      expect(tools.find(tool => tool.id === 'script')?.result).toBe(text);
+    });
+  });
+
   describe('image view envelope deduplication', () => {
     const generated = (id: string, imagePath: string, data: string) => ({
       type: 'event_msg', payload: { type: 'item_completed', item: {

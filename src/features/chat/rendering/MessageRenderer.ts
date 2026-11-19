@@ -2040,10 +2040,15 @@ export class MessageRenderer {
     let toolElementCount = 0;
     let explorationReads = 0;
     let explorationSearches = 0;
+    let supplementalLabel: string | undefined;
     for (const element of elements) {
       const toolCall = element.dataset.toolId
         ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
         : undefined;
+      if (toolCall?.status === 'completed' && toolCall.presentation?.countsAsActivity === false) {
+        supplementalLabel ??= toolCall.presentation.name;
+        continue;
+      }
       const isToolElement = element.hasClass('claudian-tool-call');
       if (isToolElement) toolElementCount += 1;
       if (toolCall?.status === 'completed' && toolCall.exploration) {
@@ -2118,6 +2123,7 @@ export class MessageRenderer {
       return elements.find((element) => element.hasClass('claudian-compact-boundary'))
         ?.textContent?.trim() || t('chat.activity.compacted');
     }
+    if (supplementalLabel) return supplementalLabel;
     if (kind === 'agent') return t('chat.activity.agentWork');
     if (kind === 'run') return t(summary.actionCount === 1 ? 'chat.activity.ranOne' : 'chat.activity.ranMany', { count: summary.actionCount });
     if (kind === 'edit') return t(summary.actionCount === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: summary.actionCount });
@@ -2446,11 +2452,14 @@ export class MessageRenderer {
     workEls: HTMLElement[],
     msg: ChatMessage,
   ): { actionCount: number; errorCount: number } {
+    const supplementalToolIds = new Set((msg.toolCalls ?? [])
+      .filter(tool => tool.status === 'completed' && tool.presentation?.countsAsActivity === false)
+      .map(tool => tool.id));
     const actionElements = workEls.filter((element) => (
       element.hasClass('claudian-tool-call')
       || element.hasClass('claudian-write-edit-block')
       || element.hasClass('claudian-subagent-list')
-    ));
+    ) && !supplementalToolIds.has(element.dataset.toolId ?? ''));
     const renderedToolIds = new Set(actionElements
       .map((element) => element.dataset.toolId)
       .filter((id): id is string => !!id));

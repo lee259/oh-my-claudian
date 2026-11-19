@@ -35,10 +35,12 @@ export interface ToolProviderPayload {
   rawOutput?: unknown;
 }
 
-/** Provider-supplied, display-only tool naming. Execution identity stays in `name`. */
+/** Provider-supplied tool presentation. Execution identity stays in `ToolCallInfo.name`. */
 export interface ToolCallPresentation {
   name: string;
   summary?: string;
+  /** Output that accompanies other work and contributes no additional activity. */
+  countsAsActivity?: false;
 }
 
 /** Image data returned by a provider tool. */
