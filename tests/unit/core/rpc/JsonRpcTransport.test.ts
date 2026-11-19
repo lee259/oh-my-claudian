@@ -107,6 +107,22 @@ describe('JsonRpcTransport', () => {
     await expect(failed).rejects.toBeInstanceOf(JsonRpcErrorResponse);
   });
 
+  it('keeps U+2028 and U+2029 inside a JSON-RPC response', async () => {
+    const lineSeparator = String.fromCharCode(0x2028);
+    const paragraphSeparator = String.fromCharCode(0x2029);
+    const text = `line${lineSeparator}separator${paragraphSeparator}still one record`;
+    const request = harness.transport.request('unicode', {}, { timeoutMs: 250 });
+    const outbound = await harness.nextOutbound();
+
+    harness.sendInbound({
+      id: outbound.id,
+      jsonrpc: '2.0',
+      result: { text },
+    });
+
+    await expect(request).resolves.toEqual({ text });
+  });
+
   it('times out and ignores a later response', async () => {
     jest.useFakeTimers();
     const request = harness.transport.request('slow', {}, { timeoutMs: 500 });
