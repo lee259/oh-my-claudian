@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { getByRole, queryByRole } from '@testing-library/dom';
+
 import type { ToolCallInfo } from '@/core/types';
 import { addSubagentToolCall, createSubagentBlock, updateSubagentToolResult } from '@/features/chat/rendering/SubagentRenderer';
 import { refreshToolCallHeader, renderStoredToolCall, renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
@@ -71,6 +73,51 @@ describe('Tool row disclosures', () => {
       exitCode: 0,
     }), { initiallyExpanded: true });
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
+  });
+
+  it.each(['stored', 'live'])('shows the full output on demand for a %s command', mode => {
+    const parent = document.createElement('div');
+    const calls = new Map<string, HTMLElement>();
+    const result = [...Array.from({ length: 20 }, (_, index) => `line ${index + 1}`),
+      '  21→ preserved output', '', 'final error detail'].join('\n');
+    const tool = call({ name: 'Bash', input: { command: 'check' } });
+    const row = mode === 'stored'
+      ? renderStoredToolCall(parent, { ...tool, status: 'error', result, exitCode: 1 }, { initiallyExpanded: true })
+      : renderToolCall(parent, tool, calls, { initiallyExpanded: true });
+    if (mode === 'live') updateToolCallResult(tool.id, { ...tool, status: 'error', result, exitCode: 1 }, calls);
+
+    const content = row.querySelector<HTMLElement>('.claudian-tool-content')!;
+    const preview = content.querySelector<HTMLElement>('.claudian-tool-lines')!;
+    const entry = getByRole(content, 'button', { name: 'View full output (23 lines)' });
+    const full = content.querySelector('.claudian-tool-full-output')!;
+    expect(entry.getAttribute('aria-expanded')).toBe('false');
+    expect(entry.getAttribute('aria-controls')).toBe(full.id);
+    expect(preview.querySelectorAll('.claudian-tool-line')).toHaveLength(20);
+    expect(content.textContent).not.toContain('final error detail');
+
+    entry.click();
+    expect(getByRole(content, 'button', { name: 'Show preview' })).toBe(entry);
+    expect(entry.getAttribute('aria-expanded')).toBe('true');
+    expect(full.textContent).toBe(result);
+    expect(full.classList.contains('claudian-hidden')).toBe(false);
+    expect(preview.classList.contains('claudian-hidden')).toBe(true);
+    expect(content.querySelector('.claudian-tool-exit')?.textContent).toBe('Exit code 1');
+    expect(row.querySelector('.claudian-tool-header')?.getAttribute('aria-expanded')).toBe('true');
+
+    entry.click();
+    expect(entry.getAttribute('aria-expanded')).toBe('false');
+    expect(preview.classList.contains('claudian-hidden')).toBe(false);
+    expect(content.textContent).not.toContain('final error detail');
+    expect(preview.querySelectorAll('.claudian-tool-line')).toHaveLength(20);
+  });
+
+  it('omits the full output control when the command fits in the preview', () => {
+    const result = Array.from({ length: 20 }, (_, index) => `line ${index + 1}`).join('\n');
+    const row = renderStoredToolCall(document.createElement('div'), call({
+      name: 'Bash', input: { command: 'check' }, status: 'completed', result,
+    }), { initiallyExpanded: true });
+    expect(row.querySelectorAll('.claudian-tool-line')).toHaveLength(20);
+    expect(queryByRole(row, 'button', { name: /^View full output/ })).toBeNull();
   });
 
   it('copies the command from a bash row and confirms it', async () => {

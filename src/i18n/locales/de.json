@@ -551,6 +551,8 @@
       "exitCode": "Exit-Code {code}",
       "patchRejected": "Abgelehnt",
       "patchStopped": "Gestoppt",
+      "viewFullOutput": "Vollständige Ausgabe anzeigen ({count} Zeilen)",
+      "showOutputPreview": "Vorschau anzeigen",
       "copyCommand": "Befehl kopieren",
       "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen"
     },

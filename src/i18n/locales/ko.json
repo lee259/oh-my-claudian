@@ -551,6 +551,8 @@
       "exitCode": "종료 코드 {code}",
       "patchRejected": "거부됨",
       "patchStopped": "중지됨",
+      "viewFullOutput": "전체 출력 보기({count}줄)",
+      "showOutputPreview": "미리 보기 표시",
       "copyCommand": "명령 복사",
       "copyFailed": "클립보드에 복사하지 못했습니다"
     },

@@ -551,6 +551,8 @@
       "exitCode": "Код выхода {code}",
       "patchRejected": "Отклонено",
       "patchStopped": "Остановлено",
+      "viewFullOutput": "Показать полный вывод (строк: {count})",
+      "showOutputPreview": "Показать предпросмотр",
       "copyCommand": "Копировать команду",
       "copyFailed": "Не удалось скопировать в буфер обмена"
     },
