@@ -26,7 +26,11 @@ jest.mock('obsidian', () => {
         setValue(value: boolean) { toggleEl.checked = value; return this; },
         setDisabled(value: boolean) { toggleEl.disabled = value; return this; },
         onChange(fn: (value: boolean) => Promise<void>) {
-          toggleEl.addEventListener('change', () => { void fn(toggleEl.checked); });
+          toggleEl.addEventListener('change', () => {
+            const pending = fn(toggleEl.checked);
+            (toggleEl as HTMLInputElement & { lastChange?: Promise<void> }).lastChange = pending;
+            void pending.catch(() => {});
+          });
           return this;
         },
       };
@@ -154,6 +158,25 @@ describe('DeepSeekSettingsTab', () => {
     await waitFor(() => expect(getDeepSeekProviderSettings(host.settings).codeMode).toBe(false));
     expect(host.runProviderExecutionTransition).not.toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('restores the committed code-mode state after a rejected save and permits retry', async () => {
+    const { host, ui } = render();
+    const toggle = ui.getByRole('switch', { name: 'Enable code mode' }) as HTMLInputElement & {
+      lastChange?: Promise<void>;
+    };
+    host.mutateSettings.mockRejectedValueOnce(new Error('Settings write failed'));
+
+    fireEvent.click(toggle);
+    await expect(toggle.lastChange).rejects.toThrow('Settings write failed');
+
+    expect(getDeepSeekProviderSettings(host.settings).codeMode).toBe(false);
+    expect(toggle.checked).toBe(false);
+
+    fireEvent.click(toggle);
+    await toggle.lastChange;
+    await waitFor(() => expect(getDeepSeekProviderSettings(host.settings).codeMode).toBe(true));
+    expect(toggle.checked).toBe(true);
   });
 
   it('previews the effective chat preset and applies valid additional plugin rows as a provider runtime change', async () => {
