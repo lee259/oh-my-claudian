@@ -779,6 +779,14 @@ export function normalizeCodexMcpToolName(server: unknown, tool: unknown): strin
   return `mcp__${serverName}__${toolName}`;
 }
 
+/** Code Mode calls MCP tools by identifier-safe names, e.g. `github.fetch` as `github_fetch`. */
+export function codexScriptToolNamesMatch(requested: string, native: string): boolean {
+  const scriptName = (name: string) => (name.startsWith('mcp__')
+    ? name.replace(/[^A-Za-z0-9_]/g, '_')
+    : name);
+  return scriptName(requested) === scriptName(native);
+}
+
 export function normalizeCodexMcpToolInput(rawArguments: unknown): Record<string, unknown> {
   if (typeof rawArguments === 'string') {
     return parseCodexArguments(rawArguments);

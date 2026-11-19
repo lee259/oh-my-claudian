@@ -3980,6 +3980,82 @@ describe('CodexHistoryStore', () => {
   });
 
   describe('parseCodexSessionContent - persisted mcp_tool_call', () => {
+    it('keeps a native MCP card when an opaque script cannot claim it', () => {
+      const content = [
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: 'opaque-mcp-turn' } }),
+        JSON.stringify({ type: 'response_item', payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'opaque-mcp-script',
+          input: 'await runUnknownScript();',
+        } }),
+        JSON.stringify({ type: 'response_item', payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'opaque-mcp-script',
+          output: 'Script completed',
+        } }),
+        JSON.stringify({ type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'McpToolCall',
+          id: 'opaque-native-mcp',
+          server: 'codex_apps',
+          tool: 'github.fetch',
+          arguments: { query: 'Codex app server' },
+          status: 'completed',
+          result: { content: [{ type: 'text', text: 'Native MCP result.' }] },
+          error: null,
+        } } }),
+      ].join('\n');
+
+      const messages = parseCodexSessionContent(content);
+      const tools = messages.flatMap(message => message.toolCalls ?? []);
+      expect(tools).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: 'opaque-native-mcp',
+          name: 'mcp__codex_apps__github.fetch',
+          result: 'Native MCP result.',
+          status: 'completed',
+        }),
+      ]));
+    });
+
+    it('attaches a native McpToolCall result to its Code Mode script card', () => {
+      const content = [
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: 'mcp-script-turn' } }),
+        JSON.stringify({ type: 'response_item', payload: {
+          type: 'custom_tool_call',
+          name: 'exec',
+          call_id: 'script-mcp-call',
+          input: 'const r = await tools.mcp__codex_apps__github_fetch({query:"Codex app server"}); text(r);',
+        } }),
+        JSON.stringify({ type: 'event_msg', payload: { type: 'item_completed', item: {
+          type: 'McpToolCall',
+          id: 'native-mcp-call',
+          server: 'codex_apps',
+          tool: 'github.fetch',
+          arguments: { query: 'Codex app server' },
+          status: 'completed',
+          result: { content: [{ type: 'text', text: 'Native MCP result.' }] },
+          error: null,
+        } } }),
+        JSON.stringify({ type: 'response_item', payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'script-mcp-call',
+          output: 'Raw script output',
+        } }),
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete', turn_id: 'mcp-script-turn' } }),
+      ].join('\n');
+
+      const messages = parseCodexSessionContent(content);
+      const tools = messages.flatMap(message => message.toolCalls ?? []);
+      expect(tools).toHaveLength(1);
+      expect(tools[0]).toMatchObject({
+        id: 'script-mcp-call',
+        name: 'mcp__codex_apps__github.fetch',
+        status: 'completed',
+        result: 'Native MCP result.',
+      });
+    });
+
     it('restores mcp_tool_call from response_item as mcp__server__tool', () => {
       const content = [
         JSON.stringify({

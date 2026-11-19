@@ -1,4 +1,5 @@
 import {
+  codexScriptToolNamesMatch,
   decodeCodexExecEnvelope,
   decodeCodexExecEnvelopeCalls,
   isCodexToolOutputError,
@@ -582,6 +583,17 @@ describe('Codex code-mode apply_patch fragments', () => {
 
 
 describe('Codex MCP completion', () => {
+  it('matches Code Mode MCP names against dotted native names', () => {
+    expect(codexScriptToolNamesMatch(
+      'mcp__codex_apps__github_fetch',
+      'mcp__codex_apps__github.fetch',
+    )).toBe(true);
+    expect(codexScriptToolNamesMatch(
+      'mcp__codex_apps__github_fetch',
+      'mcp__codex_apps__github_search',
+    )).toBe(false);
+  });
+
   it('returns real text results for completed calls', () => {
     expect(normalizeCodexMcpToolCompletion('completed', { content: [{ type: 'text', text: 'ok' }] }))
       .toEqual({ result: 'ok', isError: false });

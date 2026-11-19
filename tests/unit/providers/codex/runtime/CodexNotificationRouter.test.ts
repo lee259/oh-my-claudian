@@ -2813,6 +2813,30 @@ describe('CodexNotificationRouter', () => {
         },
       },
       {
+        label: 'dotted native MCP tool',
+        nestedCall: 'mcp__codex_apps__github_fetch',
+        nestedInput: { query: 'Codex app server' },
+        canonicalId: 'mcp_dotted_canonical',
+        startedItem: {
+          type: 'mcpToolCall',
+          id: 'mcp_dotted_canonical',
+          server: 'codex_apps',
+          tool: 'github.fetch',
+          arguments: { query: 'Codex app server' },
+          status: 'inProgress',
+        },
+        completedItem: {
+          type: 'mcpToolCall',
+          id: 'mcp_dotted_canonical',
+          server: 'codex_apps',
+          tool: 'github.fetch',
+          arguments: { query: 'Codex app server' },
+          status: 'completed',
+          result: { content: [{ type: 'text', text: 'Native MCP result.' }] },
+          error: null,
+        },
+      },
+      {
         label: 'dynamic tool',
         nestedCall: 'probe_tool',
         nestedInput: {},
@@ -5608,6 +5632,53 @@ describe('CodexNotificationRouter', () => {
   });
 
   describe('streamed raw exec reconciliation', () => {
+    it('keeps a claimed MCP call open until its native completion', () => {
+      router = new CodexNotificationRouter(
+        chunk => chunks.push(chunk),
+        update => turnMetadata.push(update),
+        '/workspace',
+        true,
+      );
+      router.beginTurn({ isPlanTurn: false });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call',
+        name: 'exec',
+        call_id: 'call_mcp_stream',
+        input: 'const r = await tools.mcp__codex_apps__github_fetch({query:"Codex app server"}); text(r);',
+      } });
+      router.handleNotification('item/started', { item: {
+        type: 'mcpToolCall',
+        id: 'native_mcp_stream',
+        server: 'codex_apps',
+        tool: 'github.fetch',
+        arguments: { query: 'Codex app server' },
+        status: 'inProgress',
+      } });
+      router.handleNotification('rawResponseItem/completed', { item: {
+        type: 'custom_tool_call_output',
+        call_id: 'call_mcp_stream',
+        output: 'Process running with session ID 1',
+      } });
+      router.handleNotification('item/completed', { item: {
+        type: 'mcpToolCall',
+        id: 'native_mcp_stream',
+        server: 'codex_apps',
+        tool: 'github.fetch',
+        arguments: { query: 'Codex app server' },
+        status: 'completed',
+        result: { content: [{ type: 'text', text: 'Native MCP result.' }] },
+        error: null,
+      } });
+      router.handleNotification('turn/completed', {
+        threadId: 't1',
+        turn: { id: 'turn1', items: [], status: 'completed', error: null },
+      });
+
+      expect(chunks.filter(chunk => chunk.type === 'tool_result')).toEqual([
+        expect.objectContaining({ id: 'call_mcp_stream', content: 'Native MCP result.' }),
+      ]);
+    });
+
     it('keeps one tool result when a streamed fallback later matches a native file change', () => {
       router = new CodexNotificationRouter(
         chunk => chunks.push(chunk),

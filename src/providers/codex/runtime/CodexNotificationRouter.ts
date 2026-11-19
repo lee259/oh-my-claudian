@@ -13,6 +13,7 @@ import {
 import { parseCodexQuestionReply } from '../normalization/codexQuestionNormalization';
 import {
   appendCodexCommandOutput,
+  codexScriptToolNamesMatch,
   decodeCodexExecEnvelopeCalls,
   extractCodexExecCellId,
   formatCodexWebSearchResults,
@@ -1177,6 +1178,7 @@ export class CodexNotificationRouter {
         deferredExec.rawOutput,
         true,
         terminalError,
+        true,
       )) {
         continue;
       }
@@ -1274,6 +1276,7 @@ export class CodexNotificationRouter {
     rawOutput?: unknown,
     emitResult = false,
     terminalError = false,
+    turnEnded = false,
   ): boolean {
     if (deferredExec.expectedCalls.length === 0) {
       return false;
@@ -1282,7 +1285,8 @@ export class CodexNotificationRouter {
     const rawOutputText = stringifyCodexToolOutput(rawOutput);
     deferredExec.expectedCalls.forEach((call, index) => {
       if (call.claimed) {
-        if (emitResult && !call.canonicalCompleted && call.canonicalItemId) {
+        if (emitResult && !call.canonicalCompleted && call.canonicalItemId
+          && (turnEnded || (call.name !== 'WebSearch' && !call.name.startsWith('mcp__')))) {
           this.completedCanonicalToolItemIds.add(call.canonicalItemId);
           this.emit({
             type: 'tool_result',
@@ -1411,7 +1415,7 @@ export class CodexNotificationRouter {
     const projectedName = semanticToolName(name);
     const availableCalls = [...this.deferredRawExecCalls.values()].flatMap(deferredExec => (
       deferredExec.expectedCalls
-        .filter(call => !call.claimed && call.name === projectedName)
+        .filter(call => !call.claimed && codexScriptToolNamesMatch(call.name, projectedName))
         .map(expectedCall => ({ deferredExec, expectedCall }))
     ));
     const sameIdCalls = canonicalItemId
