@@ -698,6 +698,7 @@
         "name": "Antigravity 環境變數",
         "desc": "僅傳遞給 Antigravity CLI 的環境變數。"
       },
+      "updateReminder": "Claudian 僅支援 agy 的最新版本，且 agy 變化很快。請保持更新：",
       "emptyCatalog": "尚未發現 Antigravity 模型。先執行 `agy acp --login`，再點擊發現。",
       "failedCatalog": "無法載入 Antigravity 模型目錄，請檢查 CLI 路徑和帳號登入狀態。",
       "loadingCatalog": "正在載入 Antigravity 模型目錄...",

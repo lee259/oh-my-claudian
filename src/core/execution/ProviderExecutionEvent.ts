@@ -231,6 +231,7 @@ export type ProviderModeChangedEvent = ProviderEventBase<
 
 export type ProviderTurnCompletionReason =
   | 'completed'
+  | 'interrupted'
   | 'max-tokens'
   | 'tool-ended'
   | 'provider-ended';

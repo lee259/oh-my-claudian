@@ -1,5 +1,6 @@
 import type {
   ProviderAssistantMessageStartedEvent,
+  ProviderBackgroundEventScope,
   ProviderNoticeEvent,
   ProviderRequestedEventScope,
   ProviderTextDeltaEvent,
@@ -26,11 +27,7 @@ import type {
 
 export type AcpExecutionTurnScopeSeed =
   | Omit<ProviderRequestedEventScope, 'sequence'>
-  | {
-      readonly kind: 'background';
-      readonly sessionInstanceId: string;
-      readonly turnId: string;
-    };
+  | Omit<ProviderBackgroundEventScope, 'sequence'>;
 
 export interface AcpToolScopeContext {
   readonly toolCallId: string;

@@ -698,6 +698,7 @@
         "name": "Antigravity 環境変数",
         "desc": "Antigravity CLI にのみ渡す環境変数。"
       },
+      "updateReminder": "Claudian は agy の最新リリースのみをサポートしており、agy は頻繁に変更されます。常に最新の状態に保ってください：",
       "emptyCatalog": "Antigravity モデルがまだ見つかりません。`agy acp --login` を実行してから検出してください。",
       "failedCatalog": "Antigravity モデルカタログを読み込めません。CLI パスとログイン状態を確認してください。",
       "loadingCatalog": "Antigravity モデルカタログを読み込み中...",

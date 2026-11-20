@@ -1,7 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { parseAntigravityTranscript } from '@/providers/antigravity/history/AntigravityHistoryStore';
+import {
+  parseAntigravityTranscript,
+  readAntigravityLatestRequest,
+} from '@/providers/antigravity/history/AntigravityHistoryStore';
 import { readAntigravitySessionModels } from '@/providers/antigravity/models';
 import { getAntigravityProviderSettings } from '@/providers/antigravity/settings';
 
@@ -61,5 +64,16 @@ describe('Antigravity history and models', () => {
 
   it('has stable defaults when reading settings', () => {
     expect(getAntigravityProviderSettings({}).visibleModels).toBeNull();
+  });
+
+  it('finds the latest user request in the transcript', () => {
+    expect(readAntigravityLatestRequest({
+      argumentsEncoded: false,
+      steps: [
+        { step_index: 3, type: 'PLANNER_RESPONSE' },
+        { step_index: 4, type: 'USER_INPUT' },
+        { step_index: 5, type: 'SYSTEM_MESSAGE' },
+      ],
+    })).toBe(4);
   });
 });
