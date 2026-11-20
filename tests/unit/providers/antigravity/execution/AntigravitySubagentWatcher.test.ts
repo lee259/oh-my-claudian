@@ -15,6 +15,7 @@ jest.mock('node:fs', () => {
 
 jest.mock('@/providers/antigravity/history/AntigravityHistoryStore', () => ({
   hasAntigravityOutstandingSubagents: jest.fn(),
+  readAntigravityHistoryRevision: jest.fn(),
   readAntigravityLatestRequest: jest.fn(),
   readAntigravityTranscript: jest.fn(),
 }));
@@ -22,6 +23,7 @@ jest.mock('@/providers/antigravity/history/AntigravityHistoryStore', () => ({
 import { AntigravitySubagentWatcher } from '@/providers/antigravity/execution/AntigravitySubagentWatcher';
 import {
   hasAntigravityOutstandingSubagents,
+  readAntigravityHistoryRevision,
   readAntigravityLatestRequest,
   readAntigravityTranscript,
 } from '@/providers/antigravity/history/AntigravityHistoryStore';
@@ -61,6 +63,35 @@ it('records the latest request after a failed read and releases the session once
     expect(readAntigravityLatestRequest).toHaveBeenCalledWith(transcript);
     expect(hasAntigravityOutstandingSubagents).toHaveBeenCalledWith(transcript, 1);
     expect(watcher.isWatching).toBe(false);
+  } finally {
+    await watcher.dispose();
+    jest.useRealTimers();
+  }
+});
+
+it('polls either transcript when directory watching is unavailable', async () => {
+  jest.useFakeTimers();
+  const fs = jest.requireMock('node:fs') as { watch: jest.Mock };
+  fs.watch.mockImplementationOnce(() => {
+    throw new Error('watch unavailable');
+  });
+  jest.mocked(readAntigravityTranscript).mockResolvedValue(transcript);
+  jest.mocked(hasAntigravityOutstandingSubagents).mockReturnValue(true);
+  jest.mocked(readAntigravityHistoryRevision).mockResolvedValue('revision-1');
+  const watcher = new AntigravitySubagentWatcher({
+    storeRoot: '/native',
+    sessionId: 'session-1',
+  });
+
+  try {
+    watcher.subagentLaunched();
+    watcher.turnEnded(true);
+    await flushPromises();
+
+    expect(readAntigravityHistoryRevision).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(5_000);
+
+    expect(readAntigravityHistoryRevision).toHaveBeenCalledWith('/native', 'session-1');
   } finally {
     await watcher.dispose();
     jest.useRealTimers();
