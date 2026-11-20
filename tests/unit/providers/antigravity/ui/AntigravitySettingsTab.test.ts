@@ -75,7 +75,11 @@ jest.mock('@/shared/settings/EnvironmentSettingsSection', () => ({
 }));
 
 function mockCreateContainer(): HTMLElement {
-  return { createDiv: () => mockCreateContainer() } as unknown as HTMLElement;
+  const container = {
+    createDiv: () => mockCreateContainer(),
+    createEl: () => mockCreateContainer(),
+  };
+  return container as unknown as HTMLElement;
 }
 
 function createSettings() {

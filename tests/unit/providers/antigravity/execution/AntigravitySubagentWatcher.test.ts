@@ -1,7 +1,5 @@
 /** @jest-environment jsdom */
 
-import type { ChatMessage } from '@/core/types';
-
 jest.mock('node:fs', () => {
   const actual = jest.requireActual('node:fs');
   const callbacks: Array<() => void> = [];
@@ -17,17 +15,15 @@ jest.mock('node:fs', () => {
 
 jest.mock('@/providers/antigravity/history/AntigravityHistoryStore', () => ({
   hasAntigravityOutstandingSubagents: jest.fn(),
-  readAntigravityAutomaticResponses: jest.fn(),
+  readAntigravityLatestRequest: jest.fn(),
   readAntigravityTranscript: jest.fn(),
-  readAntigravityTurnBoundary: jest.fn(),
 }));
 
-import { AntigravityAutomaticResponseFollower } from '@/providers/antigravity/execution/AntigravityAutomaticResponseFollower';
+import { AntigravitySubagentWatcher } from '@/providers/antigravity/execution/AntigravitySubagentWatcher';
 import {
   hasAntigravityOutstandingSubagents,
-  readAntigravityAutomaticResponses,
+  readAntigravityLatestRequest,
   readAntigravityTranscript,
-  readAntigravityTurnBoundary,
 } from '@/providers/antigravity/history/AntigravityHistoryStore';
 
 const transcript = { argumentsEncoded: false, steps: [] };
@@ -36,34 +32,25 @@ async function flushPromises(): Promise<void> {
   for (let index = 0; index < 4; index += 1) await Promise.resolve();
 }
 
-it('retries the turn boundary after a transcript read fails', async () => {
+it('records the latest request after a failed read and releases the session once subagents report', async () => {
   jest.useFakeTimers();
   const read = jest.mocked(readAntigravityTranscript);
   read
     .mockRejectedValueOnce(new Error('EIO: i/o error, read'))
     .mockResolvedValue(transcript);
-  jest.mocked(readAntigravityTurnBoundary).mockReturnValue({ userInput: 1, lastStep: 2 });
+  jest.mocked(readAntigravityLatestRequest).mockReturnValue(1);
   jest.mocked(hasAntigravityOutstandingSubagents).mockReturnValue(false);
-  const message = { id: 'late-reply', role: 'assistant', content: 'Late reply', timestamp: 1 } as ChatMessage;
-  jest.mocked(readAntigravityAutomaticResponses).mockReturnValue([{
-    message,
-    afterUserInput: 1,
-    startStep: 3,
-    complete: true,
-  }]);
-  const publish = jest.fn();
-  const follower = new AntigravityAutomaticResponseFollower({
+  const watcher = new AntigravitySubagentWatcher({
     storeRoot: '/native',
     sessionId: 'session-1',
-    publish,
   });
 
   try {
-    follower.subagentLaunched();
-    follower.turnEnded(true);
+    watcher.subagentLaunched();
+    watcher.turnEnded(true);
     await flushPromises();
     expect(read).toHaveBeenCalledTimes(1);
-    expect(publish).not.toHaveBeenCalled();
+    expect(watcher.isWatching).toBe(true);
 
     const callbacks = (jest.requireMock('node:fs') as { __watchCallbacks: Array<() => void> }).__watchCallbacks;
     callbacks.at(-1)?.();
@@ -71,10 +58,11 @@ it('retries the turn boundary after a transcript read fails', async () => {
     await flushPromises();
 
     expect(read).toHaveBeenCalledTimes(2);
-    expect(readAntigravityTurnBoundary).toHaveBeenCalledWith(transcript);
-    expect(publish).toHaveBeenCalledWith(message);
+    expect(readAntigravityLatestRequest).toHaveBeenCalledWith(transcript);
+    expect(hasAntigravityOutstandingSubagents).toHaveBeenCalledWith(transcript, 1);
+    expect(watcher.isWatching).toBe(false);
   } finally {
-    await follower.dispose();
+    await watcher.dispose();
     jest.useRealTimers();
   }
 });
