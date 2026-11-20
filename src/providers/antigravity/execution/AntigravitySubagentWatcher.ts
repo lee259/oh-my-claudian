@@ -1,12 +1,11 @@
 import { type FSWatcher, watch } from 'node:fs';
 import path from 'node:path';
 
-import { readFileRevision } from '@/utils/fileRevision';
-
 import { resolveAntigravityTranscriptPaths } from '../history/AntigravityHistoryPaths';
 import {
   type AntigravityTranscript,
   hasAntigravityOutstandingSubagents,
+  readAntigravityHistoryRevision,
   readAntigravityLatestRequest,
   readAntigravityTranscript,
 } from '../history/AntigravityHistoryStore';
@@ -180,7 +179,8 @@ export class AntigravitySubagentWatcher {
     let poll: number | undefined;
     // Only a changed file counts, so an unchanged transcript still reaches the quiet limit.
     let revision: string | null | undefined;
-    const pollOnce = () => void readFileRevision(transcriptPath).then(next => {
+    // Either transcript file may be the one agy appends to.
+    const pollOnce = () => void readAntigravityHistoryRevision(this.options.storeRoot, this.options.sessionId).then(next => {
       if (next === revision) return;
       revision = next;
       onChange();
