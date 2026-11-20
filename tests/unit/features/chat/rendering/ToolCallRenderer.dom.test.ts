@@ -75,6 +75,28 @@ describe('Tool row disclosures', () => {
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
   });
 
+  it('lists each distinct exploration action on its own row with the filename first', () => {
+    const path = '平台方案/SpreadFun Harness/README.md';
+    const query = '6 个\\|五个\\|第一轮只做\\|MR 周期\\|变更失败率';
+    const row = renderStoredToolCall(document.createElement('div'), call({
+      name: 'Bash', status: 'completed', input: { command: 'rg checklist' }, result: 'Original output', exitCode: 0,
+      exploration: { reads: 2, searches: 1, actions: [
+        { type: 'read', path }, { type: 'read', path },
+        { type: 'search', query, path: 'README.md' },
+      ] },
+    }));
+    const header = row.querySelector<HTMLElement>('.claudian-tool-header')!;
+    const items = [...header.querySelectorAll('.claudian-tool-exploration-row')];
+    expect(items).toHaveLength(2);
+    expect(items[0].querySelector('.claudian-tool-exploration-preview')?.textContent)
+      .toBe('README.md · 平台方案/SpreadFun Harness');
+    expect(items[0].querySelector('.claudian-tool-exploration-full')?.textContent).toBe(path);
+    expect(items[1].querySelector('.claudian-tool-exploration-value')?.getAttribute('title')).toBe(`${query} · README.md`);
+    header.click();
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(row.querySelector('.claudian-tool-content')?.textContent).toContain('Original output');
+  });
+
   it.each(['stored', 'live'])('shows the full output on demand for a %s command', mode => {
     const parent = document.createElement('div');
     const calls = new Map<string, HTMLElement>();

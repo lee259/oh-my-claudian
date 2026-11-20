@@ -1489,18 +1489,24 @@ describe('CodexHistoryStore', () => {
       })]);
     });
 
-    it('restores an explicitly empty command outcome', () => {
+    it.each([
+      [0, '', []],
+      [1, '', [expect.objectContaining({ id: 'empty', exitCode: 1 })]],
+      [0, 'Native output', [expect.objectContaining({ id: 'empty', result: 'Native output' })]],
+    ] as const)('projects an empty native command with exit %s and output %j', (exitCode, result, expected) => {
       const records = [
         { type: 'turn_context', payload: { cwd: '/vault' } },
         { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', call_id: 'empty',
           input: 'text(await tools.exec_command({cmd:""}));' } },
         { type: 'event_msg', payload: { type: 'item_completed', item: {
           type: 'CommandExecution', id: 'empty-native', command: ['/bin/zsh', '-lc', ''],
-          cwd: '/vault', aggregated_output: '', exit_code: 0,
+          cwd: '/vault', aggregated_output: result, exit_code: exitCode,
         } } },
+        { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'empty',
+          output: 'Script completed\nOutput:\n' } },
       ];
       expect(parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
-        .flatMap(message => message.toolCalls ?? [])).toEqual([expect.objectContaining({ id: 'empty', exitCode: 0 })]);
+        .flatMap(message => message.toolCalls ?? [])).toEqual(expected);
     });
 
     it.each(['Script completed', 'Script error:\nSyntaxError: invalid token'])(

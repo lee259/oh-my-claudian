@@ -2531,6 +2531,13 @@ function parseModernSessionTurns(records: CodexSessionRecord[]): CodexParsedTurn
   }
   deduplicatePersistedImageViewPreviews(ctx);
   deduplicatePersistedImageGenerationHints(ctx);
+  for (const callId of ctx.nativeCommandResultCallIds) {
+    const tool = findPersistedToolCallById(ctx, callId);
+    if (tool?.name === 'Bash' && tool.status === 'completed' && tool.exitCode === 0
+      && tool.input.command === '' && tool.result === '' && !tool.resultImages?.length) {
+      removePersistedToolCall(ctx, callId);
+    }
+  }
   const turns = flushBubbleTurnsGrouped(ctx.turns, ctx.turnOrder);
   const tools = turns.flatMap(turn => turn.messages.flatMap(message => message.toolCalls ?? []));
   const agents = new Map<string, ToolCallInfo>();
