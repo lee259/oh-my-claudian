@@ -238,17 +238,24 @@ describe('Tool row disclosures', () => {
     expect(stopped.querySelector('.claudian-tool-status')?.textContent).toBe('Stopped');
   });
 
-  it.each([1000, 17000])('reveals completed timing of %ims only when the row is inspected', (elapsed) => {
+  it.each([
+    ['observed second', { startedAt: 1000, completedAt: 2000 }, 'completed', '1s'],
+    ['observed seconds', { startedAt: 1000, completedAt: 18000 }, 'completed', '17s'],
+    ['recorded sub-millisecond', { durationMs: 0.009834 }, 'completed', '<1ms'],
+    ['recorded milliseconds', { durationMs: 485.852875 }, 'completed', '486ms'],
+    ['recorded zero', { durationMs: 0 }, 'completed', '0ms'],
+    ['recorded failure', { durationMs: 62000 }, 'error', '1m 2s'],
+  ] as const)('reveals %s timing only when the row is inspected', (_case, timing, status, expected) => {
     const style = document.head.appendChild(document.createElement('style'));
     style.textContent = readFileSync(path.resolve('src/style/components/toolcalls.css'), 'utf8');
     const parent = document.body.appendChild(document.createElement('div'));
     try {
       const completed = renderStoredToolCall(parent, call({
         name: 'Bash', input: { command: 'echo done' }, result: 'done',
-        status: 'completed', startedAt: 1000, completedAt: 1000 + elapsed,
+        status, ...timing,
       }));
       const duration = completed.querySelector<HTMLElement>('.claudian-tool-duration')!;
-      expect(duration.textContent).toBe(elapsed === 1000 ? '1s' : '17s');
+      expect(duration.textContent).toBe(expected);
       expect(getComputedStyle(duration).display).toBe('none');
       const header = completed.querySelector<HTMLElement>('.claudian-tool-header')!;
       header.click();

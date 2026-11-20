@@ -1388,12 +1388,13 @@ describe('CodexHistoryStore', () => {
       expect(JSON.stringify(messages)).not.toMatch(/get_context_remaining|tokens_left/);
     });
 
-    it.each([0, 1, -1])('restores native exit code %s when a single command prints only output', exitCode => {
+    it.each([0, 1, -1])('restores native exit code %s and duration when a single command prints only output', exitCode => {
       for (const shape of ['direct', 'script']) {
         for (const order of ['before', 'after']) {
           const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
             type: 'CommandExecution', id: 'native-command', command: ['/bin/zsh', '-lc', 'check'],
             cwd: 'file:///vault', aggregated_output: 'native output', exit_code: exitCode,
+            duration: { secs: 1, nanos: 485_852_000 },
           } } };
           const records = [
             { type: 'turn_context', payload: { cwd: '/vault' } },
@@ -1409,11 +1410,30 @@ describe('CodexHistoryStore', () => {
           const tools = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
             .flatMap(message => message.toolCalls ?? []);
           expect({ shape, order, tools }).toEqual({ shape, order, tools: [expect.objectContaining({
-            id: 'command', name: 'Bash', exitCode, status: exitCode === 0 ? 'completed' : 'error', result: 'native output',
+            id: 'command', name: 'Bash', exitCode, durationMs: expect.closeTo(1485.852, 6),
+            status: exitCode === 0 ? 'completed' : 'error', result: 'native output',
           })] });
         }
       }
     });
+
+    it.each([undefined, null, { secs: -1, nanos: 0 }, { secs: 0, nanos: 1_000_000_000 }])(
+      'leaves timing unset for an absent or invalid native duration: %j', duration => {
+        const records = [
+          { type: 'turn_context', payload: { cwd: '/vault' } },
+          { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 'command',
+            arguments: '{"cmd":"check"}' } },
+          { type: 'event_msg', payload: { type: 'item_completed', item: {
+            type: 'CommandExecution', id: 'native', command: 'check', cwd: '/vault',
+            aggregated_output: 'done', exit_code: 0, duration,
+          } } },
+        ];
+        const [tool] = parseCodexSessionContent(records.map(record => JSON.stringify(record)).join('\n'))
+          .flatMap(message => message.toolCalls ?? []);
+        expect(tool).toMatchObject({ exitCode: 0, result: 'done' });
+        expect(tool).not.toHaveProperty('durationMs');
+      },
+    );
 
     it.each(['before', 'after'])('uses unambiguous native command evidence %s reordered script output', position => {
       const native = { type: 'event_msg', payload: { type: 'item_completed', item: {
