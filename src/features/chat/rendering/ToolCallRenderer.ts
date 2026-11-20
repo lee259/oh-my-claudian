@@ -27,7 +27,7 @@ import {
   TOOL_WRITE,
   TOOL_WRITE_STDIN,
 } from '../../../core/tools/toolNames';
-import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo, ToolResultImage } from '../../../core/types';
+import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo, ToolExplorationAction, ToolResultImage } from '../../../core/types';
 import type { DiffStats } from '../../../core/types/diff';
 import { appendMcpIcon } from '../../../shared/icons';
 import { parseApplyPatchDiffs, parseFileUpdateChangeDiffs } from '../../../utils/diff';
@@ -1080,20 +1080,43 @@ export function makeFileSummaryInteractive(
   summaryEl.setAttribute('title', `Open ${fileReference.path}`);
 }
 
-function getExplorationPresentation(toolCall: ToolCallInfo): ToolCallInfo['presentation'] {
-  const exploration = toolCall.status === 'completed' ? toolCall.exploration : undefined;
-  if (!exploration?.actions?.length) return undefined;
-  const mixed = exploration.reads > 0 && exploration.searches > 0;
-  const summary = exploration.actions.map(action => {
-    const detail = action.type === 'read' ? action.path : [action.query, action.path].filter(Boolean).join(' · ');
-    if (!mixed) return detail;
-    return `${action.type === 'read' ? 'Read' : 'Find'} ${detail}`;
-  }).join('\n');
-  return { name: mixed ? 'Explore' : exploration.reads > 0 ? 'Read' : 'Find', summary };
+function getExplorationActions(toolCall: ToolCallInfo): readonly ToolExplorationAction[] {
+  return toolCall.status === 'completed' ? toolCall.exploration?.actions ?? [] : [];
+}
+
+function getExplorationValue(action: ToolExplorationAction): string {
+  return action.type === 'read' ? action.path : [action.query, action.path].filter(Boolean).join(' · ');
+}
+
+function renderExplorationActions(container: HTMLElement, actions: readonly ToolExplorationAction[]): void {
+  container.empty();
+  const seen = new Set<string>();
+  for (const action of actions) {
+    const key = JSON.stringify([action.type, action.path, action.type === 'search' ? action.query : undefined]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const row = container.createSpan({ cls: 'claudian-tool-exploration-row' });
+    const icon = row.createSpan({ cls: 'claudian-tool-icon', attr: { 'aria-hidden': 'true' } });
+    setToolIcon(icon, action.type === 'read' ? TOOL_READ : TOOL_GREP);
+    row.createSpan({ cls: 'claudian-tool-name', text: action.type === 'read' ? 'Read' : 'Find' });
+    const detail = getExplorationValue(action);
+    const value = row.createSpan({ cls: 'claudian-tool-exploration-value', attr: { title: detail } });
+    if (action.type === 'read') {
+      const directoryEnd = Math.max(detail.lastIndexOf('/'), detail.lastIndexOf('\\'));
+      const preview = directoryEnd > 0 ? `${detail.slice(directoryEnd + 1)} · ${detail.slice(0, directoryEnd)}` : detail;
+      value.createSpan({ cls: 'claudian-tool-exploration-preview', text: preview });
+      value.createSpan({ cls: 'claudian-tool-exploration-full', text: detail });
+    } else {
+      value.setText(detail);
+    }
+  }
 }
 
 function getToolDisclosureLabel(toolCall: ToolCallInfo): string {
-  return getToolLabel(toolCall.name, toolCall.input, getExplorationPresentation(toolCall) ?? toolCall.presentation);
+  const first = getExplorationActions(toolCall)[0];
+  if (first) return `${first.type === 'read' ? 'Read' : 'Find'}: ${getExplorationValue(first)}`;
+  return getToolLabel(toolCall.name, toolCall.input, toolCall.presentation);
 }
 
 /** Normalized read/navigation summaries are compact unless backed by a terminal command. */
@@ -1145,22 +1168,23 @@ function createToolElementStructure(
   const summaryEl = header.createSpan({ cls: 'claudian-tool-summary' });
   let currentIcon: string | undefined;
   const updateHeader = (tool: ToolCallInfo) => {
-    const exploration = getExplorationPresentation(tool);
-    const presentation = exploration ?? tool.presentation;
+    const exploration = getExplorationActions(tool);
+    const presentation = tool.presentation;
     const name = getToolName(tool.name, tool.input, presentation);
     const icon = tool.name.startsWith('mcp__') ? tool.name
-      : presentation?.name === 'Find' || exploration?.name === 'Explore' ? TOOL_GREP
+      : presentation?.name === 'Find' ? TOOL_GREP
         : presentation?.name === 'List' ? TOOL_LS : presentation?.name ?? tool.name;
     if (currentIcon !== icon) {
       iconEl.empty();
       setToolIcon(iconEl, icon);
       currentIcon = icon;
     }
-    header.toggleClass('claudian-tool-header--exploration', !!exploration);
+    header.toggleClass('claudian-tool-header--exploration', exploration.length > 0);
     nameEl.setText(name);
     nameEl.setAttribute('title', name);
-    summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
-    const fileReference = exploration && tool.exploration?.actions?.length !== 1 ? undefined : getToolFilePath(tool);
+    if (exploration.length > 0) renderExplorationActions(summaryEl, exploration);
+    else summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
+    const fileReference = exploration.length > 1 ? undefined : getToolFilePath(tool);
     makeFileSummaryInteractive(summaryEl, fileReference, onOpenFile);
   };
   updateHeader(toolCall);
