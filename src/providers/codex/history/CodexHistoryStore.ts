@@ -1629,6 +1629,15 @@ function readPersistedCommandExploration(actions: readonly unknown[]): ToolCallI
   return { reads, searches, ...(details.length ? { actions: details } : {}) };
 }
 
+function readPersistedCommandDurationMs(value: unknown): number | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const { secs, nanos } = value as Record<string, unknown>;
+  if (typeof secs !== 'number' || !Number.isSafeInteger(secs) || secs < 0
+    || typeof nanos !== 'number' || !Number.isInteger(nanos) || nanos < 0 || nanos >= 1_000_000_000) return undefined;
+  const duration = secs * 1000 + nanos / 1_000_000;
+  return duration <= Number.MAX_SAFE_INTEGER ? duration : undefined;
+}
+
 function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefined, ctx: PersistedParseContext): void {
   if (!item || !['CommandExecution', 'commandExecution', 'command_execution'].includes(String(item.type))) return;
   const itemId = typeof item.id === 'string' ? item.id : undefined;
@@ -1643,7 +1652,10 @@ function applyPersistedNativeCommandItem(item: Record<string, unknown> | undefin
   const workingDirectory = resolvePersistedWorkingDirectory(item.cwd);
   if (workingDirectory === null) return;
   const tool = claimPersistedNativeCall('Bash', commands.map(command => ({ command, workingDirectory })), ctx);
-  if (!tool || typeof item.aggregated_output !== 'string') return;
+  if (!tool) return;
+  const duration = readPersistedCommandDurationMs(item.duration);
+  if (duration !== undefined) tool.durationMs = duration;
+  if (typeof item.aggregated_output !== 'string') return;
   tool.result = item.aggregated_output;
   if (typeof item.exit_code === 'number') {
     tool.status = item.exit_code === 0 ? 'completed' : 'error';

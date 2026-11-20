@@ -65,7 +65,9 @@ export interface ToolCallInfo {
   exploration?: { reads: number; searches: number; actions?: readonly ToolExplorationAction[] };
   /** Provider reported work that may continue independently of the current turn. */
   continuesInBackground?: boolean;
-  /** Local observation times for live tool execution; absent when history has no timing. */
+  /** Provider-recorded elapsed execution time in milliseconds. */
+  durationMs?: number;
+  /** Local observation times for live tool execution. */
   startedAt?: number;
   completedAt?: number;
   result?: string;
