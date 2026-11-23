@@ -75,3 +75,76 @@
   transform: translateX(10px);
   background: var(--text-normal);
 }
+
+/* Several accelerated tiers: one row of zap-count segments in the switch's slot. */
+.claudian-model-service-tiers {
+  display: flex;
+  gap: 2px;
+}
+
+.claudian-model-service-tier-option,
+.claudian-model-service-tier-option:is(:hover, :focus, :focus-visible, :active) {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+}
+
+.claudian-model-service-tier-option:is(:hover, :focus-visible) {
+  color: var(--text-normal);
+}
+
+.claudian-model-service-tier-option:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* The name is the segment's accessible name and tooltip; the glyph alone shows. */
+.claudian-model-service-tier-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.claudian-model-service-tier-glyph {
+  display: inline-flex;
+}
+
+.claudian-model-service-tier-glyph svg {
+  width: 12px;
+  height: 12px;
+}
+
+.claudian-model-service-tier-glyph > span + span {
+  margin-inline-start: -3px;
+}
+
+.claudian-model-service-tier-option.selected,
+.claudian-model-service-tier-option.selected:is(:hover, :focus, :focus-visible, :active) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-model-service-tier-option.selected:not(:first-child),
+.claudian-model-service-tier-option.selected:not(:first-child):is(:hover, :focus, :focus-visible, :active) {
+  background: color-mix(in srgb, var(--claudian-fast-mode) 10%, transparent);
+  color: var(--claudian-fast-mode);
+}

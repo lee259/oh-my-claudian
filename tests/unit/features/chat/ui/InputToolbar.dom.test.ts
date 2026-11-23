@@ -640,10 +640,12 @@ describe('createInputToolbar', () => {
     callbacks.getUIConfig = () => ({
       ...getUIConfig(),
       getServiceTierToggle: () => ({
-        inactiveValue: 'default',
-        inactiveLabel: 'Standard',
-        activeValue: 'priority',
-        activeLabel: 'Fast',
+          fastValue: 'priority',
+          options: [
+            { label: 'Standard', value: 'default' },
+            { label: 'Fast', value: 'priority' },
+          ],
+          selectedValue: 'default',
       }),
     });
     toolbar?.modelSelector.updateDisplay();
