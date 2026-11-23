@@ -95,4 +95,26 @@ describe('DiffRenderer review notes', () => {
     expect(host.querySelectorAll('.claudian-diff-note-draft')).toHaveLength(1);
     expect(host.querySelector('textarea')).toBe(textarea);
   });
+
+  it('extends the open draft with Shift+click and saves a line range', () => {
+    const onAddNote = jest.fn();
+    const host = render(onAddNote);
+    const buttons = host.querySelectorAll<HTMLElement>('.claudian-diff-note-add');
+
+    buttons[0].click();
+    const textarea = host.querySelector('textarea')!;
+    textarea.value = 'both lines';
+    buttons[1].dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+    expect(host.querySelectorAll('.claudian-diff-note-range')).toHaveLength(2);
+
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+    expect(onAddNote).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'src/a.ts:10-11',
+      line: 11,
+      startLine: 10,
+    }));
+    expect(host.querySelectorAll('.claudian-diff-note-range')).toHaveLength(0);
+  });
 });

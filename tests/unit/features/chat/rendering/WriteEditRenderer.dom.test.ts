@@ -47,3 +47,28 @@ it('shows an interrupted state for cancelled live and restored edits', () => {
   const restored = renderStoredWriteEdit(document.createElement('div'), tool);
   expect(restored.querySelector('.claudian-write-edit-status')?.getAttribute('aria-label')).toContain('Interrupted');
 });
+
+it('offers the review note affordance on a restored diff', () => {
+  const onAddDiffNote = jest.fn();
+  const tool: ToolCallInfo = {
+    id: 'history-edit',
+    name: 'Edit',
+    input: { file_path: 'note.md' },
+    status: 'completed',
+    diffData: {
+      diffLines: [
+        { type: 'equal', text: 'keep', oldLineNum: 1, newLineNum: 1 },
+        { type: 'insert', text: 'added', newLineNum: 2 },
+      ],
+      filePath: 'note.md',
+      stats: { added: 1, removed: 0 },
+    },
+  };
+
+  const restored = renderStoredWriteEdit(document.createElement('div'), tool, {
+    initiallyExpanded: true,
+    onAddDiffNote,
+  });
+
+  expect(restored.querySelectorAll('.claudian-diff-note-add')).toHaveLength(2);
+});

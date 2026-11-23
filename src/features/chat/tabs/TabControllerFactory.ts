@@ -50,6 +50,7 @@ export function initializeTabPresentationControllers(
     () => tab.state.autoScrollEnabled,
     state => tab.controllers.streamController?.bindSubagentPresentation(state),
     options.onSaveReply,
+    note => tab.state.addDiffNote(note),
   );
 
   dom.eventCleanups.push(tab.session.messagePresentation.attach(tab.renderer, dom.messagesEl));

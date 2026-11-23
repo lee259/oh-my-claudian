@@ -10,6 +10,11 @@ describe('diff notes', () => {
     expect(diffNoteId('src/app.ts', 12)).toBe('src/app.ts:12');
   });
 
+  it('keys a range by its first and last line', () => {
+    expect(diffNoteId('src/app.ts', 14, 12)).toBe('src/app.ts:12-14');
+    expect(diffNoteId('src/app.ts', 12, 12)).toBe('src/app.ts:12');
+  });
+
   it('formats the fixed English contract sent to the agent', () => {
     expect(formatDiffNote({
       body: 'Use the shared helper here.',
@@ -44,6 +49,20 @@ describe('diff notes', () => {
       id: 'b.ts:7',
       line: 7,
     })).toContain('Excerpt: if (value) {');
+  });
+
+  it('labels a multi-line note as a range', () => {
+    expect(formatDiffNote({
+      body: 'rewrite this block',
+      filePath: 'c.ts',
+      id: 'c.ts:4-7',
+      line: 7,
+      startLine: 4,
+    })).toBe([
+      'File: c.ts',
+      'Lines: 4-7',
+      'User comment: "rewrite this block"',
+    ].join('\n'));
   });
 
   it('joins several notes with a blank line', () => {
