@@ -291,6 +291,49 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('does not repeat a file that already has its own activity row', () => {
+    const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
+    try {
+      const read: ToolCallInfo = {
+        id: 'read-a',
+        name: 'Read',
+        input: { file_path: 'notes/a.md' },
+        status: 'completed',
+        result: 'a',
+      };
+      const bash: ToolCallInfo = {
+        id: 'bash-1',
+        name: 'Bash',
+        input: { command: 'cat notes/a.md notes/b.md' },
+        status: 'completed',
+        exploration: {
+          reads: 2,
+          searches: 0,
+          actions: [
+            { type: 'read', path: 'notes/a.md' },
+            { type: 'read', path: 'notes/b.md' },
+          ],
+        },
+        exitCode: 0,
+      };
+      assistant.toolCalls = [read, bash];
+      assistant.contentBlocks = [
+        { type: 'tool_use', toolId: 'read-a' },
+        { type: 'tool_use', toolId: 'bash-1' },
+        { type: 'text', content: assistant.content },
+      ];
+
+      renderer.renderMessages([user, assistant], () => 'Welcome');
+
+      const rows = [...messagesEl.querySelectorAll('.claudian-tool-exploration-row')];
+      expect(rows).toHaveLength(2);
+      expect(rows.filter(row => !row.classList.contains('claudian-tool-exploration-row--duplicate')))
+        .toHaveLength(1);
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent)
+        .toBe('Read 2 files and ran 1 command');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['claude', 'omp'] as const)('keeps a %s disclosure clickable while thinking tokens arrive', (providerId) => {
     const { renderer, component, messagesEl, user, assistant, tool } = createTurn(providerId);
     try {

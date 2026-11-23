@@ -1931,6 +1931,7 @@ export class MessageRenderer {
       if (streaming) this.rememberStreamingActivityOrigin(element);
       detailsEl.appendChild(element);
     }
+    this.markDuplicateExplorationRows(detailsEl, this.getStandaloneReadPaths(elements, msg));
     if (streaming) {
       const previous = this.streamingPhaseViewports.get(elements[0]);
       this.streamingPhaseViewports.set(elements[0], this.createActivityViewport(detailsEl, previous));
@@ -1962,6 +1963,10 @@ export class MessageRenderer {
             this.rememberStreamingActivityOrigin(element);
             if (element.parentElement !== detailsEl) this.moveActivityElement(detailsEl, element);
           }
+          this.markDuplicateExplorationRows(
+            detailsEl,
+            this.getStandaloneReadPaths(nextElements, nextMessage),
+          );
           const viewport = this.streamingPhaseViewports.get(nextElements[0]);
           this.streamingPhaseViewports.set(nextElements[0], this.createActivityViewport(detailsEl, viewport));
         },
@@ -2042,6 +2047,7 @@ export class MessageRenderer {
     let explorationSearches = 0;
     let explorationRows = 0;
     let supplementalLabel: string | undefined;
+    const standaloneReadPaths = this.getStandaloneReadPaths(elements, msg);
     for (const element of elements) {
       const toolCall = element.dataset.toolId
         ? msg.toolCalls?.find((candidate) => candidate.id === element.dataset.toolId)
@@ -2053,7 +2059,11 @@ export class MessageRenderer {
       const isToolElement = element.hasClass('claudian-tool-call');
       if (isToolElement) toolElementCount += 1;
       if (toolCall?.status === 'completed' && toolCall.exploration) {
-        explorationReads += toolCall.exploration.reads;
+        // A read that already has its own row should not be counted twice.
+        const duplicatedReads = (toolCall.exploration.actions ?? [])
+          .filter(action => action.type === 'read' && action.path && standaloneReadPaths.has(action.path))
+          .length;
+        explorationReads += Math.max(0, toolCall.exploration.reads - duplicatedReads);
         explorationSearches += toolCall.exploration.searches;
         explorationRows += 1;
         continue;
@@ -2131,6 +2141,37 @@ export class MessageRenderer {
     if (kind === 'run') return t(summary.actionCount === 1 ? 'chat.activity.ranOne' : 'chat.activity.ranMany', { count: summary.actionCount });
     if (kind === 'edit') return t(summary.actionCount === 1 ? 'chat.activity.editedOne' : 'chat.activity.editedMany', { count: summary.actionCount });
     return this.getCompletedWorkLabel(undefined, false, summary);
+  }
+
+  /** File paths that already have their own activity row, so a bash's exploration should not repeat them. */
+  private getStandaloneReadPaths(
+    elements: readonly HTMLElement[],
+    msg: ChatMessage,
+  ): Set<string> {
+    const paths = new Set<string>();
+    for (const element of elements) {
+      const toolId = element.dataset.toolId;
+      const tool = toolId ? msg.toolCalls?.find((candidate) => candidate.id === toolId) : undefined;
+      if (!tool || tool.exploration) continue;
+      const path = typeof tool.input.file_path === 'string' ? tool.input.file_path.trim() : '';
+      if (path) paths.add(path);
+    }
+    return paths;
+  }
+
+  /** Hides exploration rows whose file already renders as its own row in the same activity. */
+  private markDuplicateExplorationRows(
+    detailsEl: HTMLElement,
+    readPaths: ReadonlySet<string>,
+  ): void {
+    if (readPaths.size === 0) return;
+    for (const row of detailsEl.querySelectorAll<HTMLElement>('.claudian-tool-exploration-row')) {
+      const value = row
+        .querySelector('.claudian-tool-exploration-value')
+        ?.getAttribute('title')
+        ?.trim() ?? '';
+      row.classList.toggle('claudian-tool-exploration-row--duplicate', readPaths.has(value));
+    }
   }
 
   /** Some tool-use runs contain a lone period in place of a progress update. */
