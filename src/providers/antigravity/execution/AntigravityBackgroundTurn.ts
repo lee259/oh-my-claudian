@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ProviderSessionEvent, ProviderTurnCompletionReason } from '@/core/execution';
+import type {
+  BackgroundTurnCompletionDropCause,
+  ProviderSessionEvent,
+  ProviderTurnCompletionReason,
+} from '@/core/execution';
 import type { AskUserAnswers } from '@/core/types';
 import {
   AcpExecutionEventNormalizer,
@@ -31,6 +35,8 @@ export interface AntigravityBackgroundTurnOptions {
   readonly notify: (event: ProviderSessionEvent) => void;
   /** Called once the reply has settled; the owner then completes the turn. */
   readonly onSettled: () => void;
+  /** Called when the quiet window expires without settling the reply. */
+  readonly onCompletionDropped?: (cause: BackgroundTurnCompletionDropCause) => void;
   readonly providerSessionId: string | undefined;
   readonly sessionInstanceId: string;
   readonly takeAnswers?: (toolCallId: string) => AskUserAnswers | undefined;
@@ -107,7 +113,10 @@ export class AntigravityBackgroundTurn {
     window.clearTimeout(this.#settleTimer);
     if (this.signal.aborted || this.#pendingRequests > 0) return;
     this.#settleTimer = window.setTimeout(() => {
-      if (delay === SETTLE_WITHOUT_USAGE_MS && this.#normalizer.hasOpenTools) return;
+      if (delay === SETTLE_WITHOUT_USAGE_MS && this.#normalizer.hasOpenTools) {
+        this.options.onCompletionDropped?.('open-tools');
+        return;
+      }
       this.options.onSettled();
     }, delay);
   }

@@ -1,3 +1,4 @@
+import { reportBackgroundTurnCompletionDrop } from '../../core/execution/BackgroundTurnCompletionDrop';
 import { buildSystemPrompt } from '../../core/prompt/mainAgent';
 import { NOOP_TASK_RESULT_INTERPRETER } from '../../core/providers/NoopTaskResultInterpreter';
 import { getProviderConfig } from '../../core/providers/providerConfig';
@@ -36,6 +37,8 @@ export const antigravityProviderRegistration: ProviderModule = {
     }),
     modelSink: getAntigravityWorkspaceServices().modelCatalogOwner,
     obsidianWorkspaceToolBridge: plugin.obsidianWorkspaceToolBridge,
+    onBackgroundTurnCompletionDropped: report =>
+      reportBackgroundTurnCompletionDrop(plugin.diagnosticLog, report),
   }),
   displayName: 'Antigravity',
   environmentKeyPatterns: [/^AGY_/i, /^ANTIGRAVITY_/i, /^GEMINI_/i],

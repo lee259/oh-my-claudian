@@ -241,6 +241,7 @@ function createHarness(options: {
     event: ProviderSessionEvent,
     context: ChatExecutionEventContext,
   ) => void | Promise<void>;
+  onBackgroundTurnCompletionDropped?: ChatExecutionCoordinatorDeps['onBackgroundTurnCompletionDropped'];
   warmExecution?: ChatExecutionCoordinatorDeps['warmExecution'];
 } = {}) {
   const registry = new ProviderExecutionLifecycleRegistry();
@@ -303,6 +304,7 @@ function createHarness(options: {
     },
     onError: options.onError,
     resolveMissingProviderSession: missingSession,
+    onBackgroundTurnCompletionDropped: options.onBackgroundTurnCompletionDropped,
     ...(options.warmExecution ? { warmExecution: options.warmExecution } : {}),
   });
 
@@ -2058,6 +2060,114 @@ describe('ChatExecutionCoordinator', () => {
       0,
       snapshot,
     );
+  });
+
+  describe('background turn completion drops', () => {
+    async function bindBackgroundSession() {
+      const onDrop = jest.fn();
+      const harness = createHarness({ onBackgroundTurnCompletionDropped: onDrop });
+      await harness.coordinator.bindConversation({
+        conversationId: 'conversation-1',
+        providerId: 'claude',
+      });
+      await harness.coordinator.prepare();
+      const session = harness.backends.get('claude')!.sessions[0];
+      const scope = (sequence: number, turnId = 'turn-1') => ({
+        kind: 'background' as const,
+        sessionInstanceId: session.sessionInstanceId,
+        turnId,
+        sequence,
+      });
+      return { harness, onDrop, scope, session };
+    }
+
+    it('names a start that carries no sequence', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({ type: 'background_turn_started', scope: scope(0) });
+
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'malformed-start',
+        providerId: 'claude',
+        turnId: 'turn-1',
+      }));
+    });
+
+    it('names a start repeated for the same turn', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({ type: 'background_turn_started', scope: scope(1) });
+      session.emit({ type: 'background_turn_started', scope: scope(2) });
+
+      expect(onDrop).toHaveBeenCalledTimes(1);
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'duplicate-start',
+        turnId: 'turn-1',
+      }));
+    });
+
+    it('names a start replayed after its turn completed', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({ type: 'background_turn_started', scope: scope(1) });
+      session.emit({
+        type: 'background_turn_completed',
+        reason: 'completed',
+        scope: scope(2),
+      });
+      session.emit({ type: 'background_turn_started', scope: scope(3) });
+
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'replayed-completed-turn',
+        turnId: 'turn-1',
+      }));
+    });
+
+    it('names a completion with no open turn', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({
+        type: 'background_turn_completed',
+        reason: 'completed',
+        scope: scope(2, 'never-started'),
+      });
+
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'stale-completion-sequence',
+        turnId: 'never-started',
+      }));
+    });
+
+    it('names a completion whose sequence went backwards', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({ type: 'background_turn_started', scope: scope(3) });
+      session.emit({
+        type: 'background_turn_completed',
+        reason: 'completed',
+        scope: scope(3),
+      });
+
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'stale-completion-sequence',
+        sequence: 3,
+        turnId: 'turn-1',
+      }));
+    });
+
+    it('names an event from another session instance', async () => {
+      const { onDrop, scope, session } = await bindBackgroundSession();
+
+      session.emit({
+        type: 'background_turn_started',
+        scope: { ...scope(1), sessionInstanceId: 'other-instance' },
+      });
+
+      expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({
+        cause: 'foreign-session-instance',
+        sessionInstanceId: 'other-instance',
+      }));
+    });
   });
 
   it('exposes session-event context validity and fences it before binding release awaits', async () => {

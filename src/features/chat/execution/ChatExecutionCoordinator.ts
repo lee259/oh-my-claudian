@@ -4,6 +4,8 @@ import {
   type ConversationInputRecord,
 } from '@/core/bootstrap/ConversationInputLedgerStorage';
 import type {
+  BackgroundTurnCompletionDropCause,
+  BackgroundTurnCompletionDropReport,
   ChatRewindMode,
   ChatRewindPreview,
   ChatRewindResult,
@@ -142,6 +144,9 @@ export interface ChatExecutionEventContext {
 export interface ChatExecutionCoordinatorDeps {
   readonly lifecycleRegistry: ProviderExecutionLifecycleRegistry;
   readonly resolveBackend: (providerId: ProviderId) => ProviderExecutionBackend;
+  readonly onBackgroundTurnCompletionDropped?: (
+    report: BackgroundTurnCompletionDropReport,
+  ) => void;
   readonly persistence: ChatExecutionPersistence;
   readonly interactionPort: ProviderInteractionPort;
   readonly vaultWorkingDirectory: string;
@@ -1116,23 +1121,43 @@ export class ChatExecutionCoordinator {
 
   private handleSessionEvent(event: ProviderSessionEvent): void {
     const binding = this.sessionBinding;
-    if (!binding || !this.isBindingCurrent(binding)) return;
-    if (event.scope.sessionInstanceId !== binding.session.sessionInstanceId) return;
+    if (!binding) {
+      this.reportBackgroundCompletionDrop(event, 'no-binding');
+      return;
+    }
+    if (!this.isBindingCurrent(binding)) {
+      this.reportBackgroundCompletionDrop(event, 'stale-binding');
+      return;
+    }
+    if (event.scope.sessionInstanceId !== binding.session.sessionInstanceId) {
+      this.reportBackgroundCompletionDrop(event, 'foreign-session-instance');
+      return;
+    }
 
     if (event.scope.kind === 'background') {
       const previous = binding.backgroundSequences.get(event.scope.turnId);
       if (event.type === 'background_turn_started') {
-        if (
-          previous !== undefined
-          || binding.completedBackgroundTurns.has(event.scope.turnId)
-          || event.scope.sequence <= 0
-        ) {
+        if (previous !== undefined) {
+          this.reportBackgroundCompletionDrop(event, 'duplicate-start');
+          return;
+        }
+        if (binding.completedBackgroundTurns.has(event.scope.turnId)) {
+          this.reportBackgroundCompletionDrop(event, 'replayed-completed-turn');
+          return;
+        }
+        if (event.scope.sequence <= 0) {
+          this.reportBackgroundCompletionDrop(event, 'malformed-start');
           return;
         }
         binding.backgroundSequences.set(event.scope.turnId, event.scope.sequence);
         this.fireAndReport(this.touchWarmSlot());
       } else {
-        if (previous === undefined || event.scope.sequence <= previous) return;
+        if (previous === undefined || event.scope.sequence <= previous) {
+          if (event.type === 'background_turn_completed') {
+            this.reportBackgroundCompletionDrop(event, 'stale-completion-sequence');
+          }
+          return;
+        }
         binding.backgroundSequences.set(event.scope.turnId, event.scope.sequence);
       }
     } else {
@@ -1157,6 +1182,30 @@ export class ChatExecutionCoordinator {
       binding.completedBackgroundTurns.add(event.scope.turnId);
       this.notifyMayCool();
     }
+  }
+
+  /** Names a background turn that ended without reaching the chat; other scopes and event kinds are normal traffic. */
+  private reportBackgroundCompletionDrop(
+    event: ProviderSessionEvent,
+    cause: BackgroundTurnCompletionDropCause,
+  ): void {
+    if (event.scope.kind !== 'background') return;
+    if (
+      event.type !== 'background_turn_started'
+      && event.type !== 'background_turn_completed'
+    ) {
+      return;
+    }
+    const providerId = this.sessionBinding?.conversation.providerId
+      ?? this.conversation?.providerId;
+    if (!providerId) return;
+    this.deps.onBackgroundTurnCompletionDropped?.({
+      cause,
+      providerId,
+      sequence: event.scope.sequence,
+      sessionInstanceId: event.scope.sessionInstanceId,
+      turnId: event.scope.turnId,
+    });
   }
 
   private getActiveExecutionMutationError(operation: string): string | null {

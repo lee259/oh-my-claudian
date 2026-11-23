@@ -1,4 +1,10 @@
 export {
+  type BackgroundTurnCompletionDropCause,
+  backgroundTurnCompletionDropMessage,
+  type BackgroundTurnCompletionDropReport,
+  reportBackgroundTurnCompletionDrop,
+} from './BackgroundTurnCompletionDrop';
+export {
   type BranchableExecutionSession,
   type ConversationBranchRecoveryRequest,
   type ConversationBranchRequest,
