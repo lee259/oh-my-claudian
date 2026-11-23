@@ -414,6 +414,9 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
     case 'passive':
       return {
         tools: [],
+        hooks: {
+          PreToolUse: [createToolGateHook(() => false, 'Passive')],
+        },
         allowedTools: new Set(),
       };
     case 'read-only': {
@@ -421,7 +424,7 @@ function resolveToolPolicy(request: ProviderExecutionRequest): {
       return {
         tools: [...READ_ONLY_TOOLS],
         hooks: {
-          PreToolUse: [createReadOnlyHook()],
+          PreToolUse: [createToolGateHook(isReadOnlyTool, 'Read-only')],
         },
         allowedTools,
       };
@@ -474,7 +477,10 @@ function getResolvedPromptSections(
   ];
 }
 
-function createReadOnlyHook(): HookCallbackMatcher {
+function createToolGateHook(
+  isAllowed: (toolName: string) => boolean,
+  policyLabel: string,
+): HookCallbackMatcher {
   return {
     hooks: [async (hookInput) => {
       const record = hookInput as unknown as Record<string, unknown>;
@@ -482,7 +488,7 @@ function createReadOnlyHook(): HookCallbackMatcher {
         && typeof record.tool_name === 'string'
         ? record.tool_name
         : '';
-      if (isReadOnlyTool(toolName)) {
+      if (isAllowed(toolName)) {
         return { continue: true };
       }
       return {
@@ -491,7 +497,7 @@ function createReadOnlyHook(): HookCallbackMatcher {
           hookEventName: 'PreToolUse' as const,
           permissionDecision: 'deny' as const,
           permissionDecisionReason:
-            `Read-only execution: tool "${toolName}" is not allowed.`,
+            `${policyLabel} execution: tool "${toolName}" is not allowed.`,
         },
       };
     }],

@@ -47,6 +47,7 @@ The execution session owns the live provider snapshot. History services reconstr
 - Claude session files are tree-structured. Branch filtering must preserve the canonical branch plus relevant sibling tool results.
 - A late steer can report `queued_turn_count: 0` before its native turn starts. When session-state events are present, wait for native idle before settling unconsumed inputs; only explicit consumption lists confirm delivery on error results.
 - Task-notification timestamps mark enqueue time, not consumption. Preserve native notification boundaries across timestamp sorting and emit live notifications at their consumed or automatic-turn boundary. A selected notification opens its automatic turn at native `init`, before the first token; a query close with no following end must publish the turn's selected notification and close the turn itself.
+- `options.tools` limits only Claude's built-in tools. Passive and read-only execution therefore also install a `PreToolUse` gate, which denies MCP and other tools the policy excludes.
 - `EnterPlanMode` does not hit `canUseTool`; `ExitPlanMode` does.
 - Context-window selection must handle multi-model runs by exact model match first, then family match, and null on ambiguity.
 
