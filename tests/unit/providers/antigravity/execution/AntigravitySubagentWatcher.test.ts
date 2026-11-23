@@ -14,17 +14,21 @@ jest.mock('node:fs', () => {
 });
 
 jest.mock('@/providers/antigravity/history/AntigravityHistoryStore', () => ({
-  hasAntigravityOutstandingSubagents: jest.fn(),
+  areAntigravitySubagentReports: jest.fn(),
+  readAntigravityAppendedSteps: jest.fn(),
   readAntigravityHistoryRevision: jest.fn(),
   readAntigravityLatestRequest: jest.fn(),
+  readAntigravitySubagentProgress: jest.fn(),
   readAntigravityTranscript: jest.fn(),
 }));
 
 import { AntigravitySubagentWatcher } from '@/providers/antigravity/execution/AntigravitySubagentWatcher';
 import {
-  hasAntigravityOutstandingSubagents,
+  areAntigravitySubagentReports,
+  readAntigravityAppendedSteps,
   readAntigravityHistoryRevision,
   readAntigravityLatestRequest,
+  readAntigravitySubagentProgress,
   readAntigravityTranscript,
 } from '@/providers/antigravity/history/AntigravityHistoryStore';
 
@@ -41,7 +45,7 @@ it('records the latest request after a failed read and releases the session once
     .mockRejectedValueOnce(new Error('EIO: i/o error, read'))
     .mockResolvedValue(transcript);
   jest.mocked(readAntigravityLatestRequest).mockReturnValue(1);
-  jest.mocked(hasAntigravityOutstandingSubagents).mockResolvedValue(false);
+  jest.mocked(readAntigravitySubagentProgress).mockResolvedValue({ outstanding: false, unanswered: false });
   const watcher = new AntigravitySubagentWatcher({
     storeRoot: '/native',
     sessionId: 'session-1',
@@ -61,7 +65,7 @@ it('records the latest request after a failed read and releases the session once
 
     expect(read).toHaveBeenCalledTimes(2);
     expect(readAntigravityLatestRequest).toHaveBeenCalledWith(transcript);
-    expect(hasAntigravityOutstandingSubagents).toHaveBeenCalledWith(transcript, 1, '/native', 'session-1');
+    expect(readAntigravitySubagentProgress).toHaveBeenCalledWith(transcript, 1, '/native', 'session-1');
     expect(watcher.isWatching).toBe(false);
   } finally {
     await watcher.dispose();
@@ -76,7 +80,7 @@ it('polls either transcript when directory watching is unavailable', async () =>
     throw new Error('watch unavailable');
   });
   jest.mocked(readAntigravityTranscript).mockResolvedValue(transcript);
-  jest.mocked(hasAntigravityOutstandingSubagents).mockResolvedValue(true);
+  jest.mocked(readAntigravitySubagentProgress).mockResolvedValue({ outstanding: true, unanswered: false });
   jest.mocked(readAntigravityHistoryRevision).mockResolvedValue('revision-1');
   const watcher = new AntigravitySubagentWatcher({
     storeRoot: '/native',
@@ -92,6 +96,59 @@ it('polls either transcript when directory watching is unavailable', async () =>
     await jest.advanceTimersByTimeAsync(5_000);
 
     expect(readAntigravityHistoryRevision).toHaveBeenCalledWith('/native', 'session-1');
+  } finally {
+    await watcher.dispose();
+    jest.useRealTimers();
+  }
+});
+
+it('keeps agy alive briefly after the last report until its reply starts', async () => {
+  jest.useFakeTimers();
+  jest.mocked(readAntigravityTranscript).mockResolvedValue(transcript);
+  jest.mocked(readAntigravityLatestRequest).mockReturnValue(1);
+  jest.mocked(readAntigravitySubagentProgress).mockResolvedValue({ outstanding: false, unanswered: true });
+  const watcher = new AntigravitySubagentWatcher({
+    storeRoot: '/native',
+    sessionId: 'session-1',
+  });
+
+  try {
+    watcher.subagentLaunched();
+    watcher.turnEnded(true);
+    await flushPromises();
+    expect(watcher.isWatching).toBe(true);
+
+    await jest.advanceTimersByTimeAsync(119_999);
+    expect(watcher.isWatching).toBe(true);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(watcher.isWatching).toBe(false);
+  } finally {
+    await watcher.dispose();
+    jest.useRealTimers();
+  }
+});
+
+it('recognizes a report-only history change as the session\'s own write', async () => {
+  jest.useFakeTimers();
+  jest.mocked(readAntigravityTranscript).mockResolvedValue(transcript);
+  jest.mocked(readAntigravityLatestRequest).mockReturnValue(1);
+  jest.mocked(readAntigravitySubagentProgress).mockResolvedValue({ outstanding: false, unanswered: true });
+  const appended = [{ content: 'report', type: 'SYSTEM_MESSAGE' }];
+  jest.mocked(readAntigravityAppendedSteps).mockResolvedValue(appended);
+  jest.mocked(areAntigravitySubagentReports).mockReturnValue(true);
+  const watcher = new AntigravitySubagentWatcher({
+    storeRoot: '/native',
+    sessionId: 'session-1',
+  });
+
+  try {
+    watcher.subagentLaunched();
+    watcher.turnEnded(true);
+    await flushPromises();
+
+    await expect(watcher.ownsHistoryChange('first', 'second')).resolves.toBe(true);
+    expect(readAntigravityAppendedSteps).toHaveBeenCalledWith('/native', 'session-1', 'first', 'second');
+    expect(areAntigravitySubagentReports).toHaveBeenCalledWith(transcript, appended, 1);
   } finally {
     await watcher.dispose();
     jest.useRealTimers();

@@ -106,25 +106,56 @@ export function readAntigravityLatestRequest(transcript: AntigravityTranscript):
   return undefined;
 }
 
-/**
- * Whether a subagent the conversation created at or after `sinceStep` is still running (its id is the report's
- * sender; a killed subagent's native child record says so).
- */
-export async function hasAntigravityOutstandingSubagents(
+/** Where the subagents the conversation created at or after a step stand. */
+export interface AntigravitySubagentProgress {
+  /** A subagent has neither reported back nor been killed. */
+  readonly outstanding: boolean;
+  /** agy has not answered a report from one of them yet: no model reply follows it. */
+  readonly unanswered: boolean;
+}
+
+/** The subagents the conversation created at or after `sinceStep`. */
+function createdSubagents(transcript: AntigravityTranscript, sinceStep: number): Set<string> {
+  const subagents = new Set<string>();
+  for (const [index, step] of transcript.steps.entries()) {
+    const match = step.type === 'GENERIC' && stepIndexOf(step, index) >= sinceStep
+      ? CREATED_SUBAGENT_PATTERN.exec(step.content ?? '') : null;
+    if (match) subagents.add(match[1]);
+  }
+  return subagents;
+}
+
+/** The sender of a task report; agy's own `sender=system` notices are not reports. */
+function reportSender(step: TranscriptStep): string | undefined {
+  const report = step.type === 'SYSTEM_MESSAGE' ? SYSTEM_REPORT_PATTERN.exec(step.content ?? '') : null;
+  return report && report[1] !== 'system' ? report[1] : undefined;
+}
+
+/** Reads the progress of subagents created at or after `sinceStep` (a killed child's record says so). */
+export async function readAntigravitySubagentProgress(
   transcript: AntigravityTranscript,
   sinceStep: number,
   storeRoot: string,
   sessionId: string,
-): Promise<boolean> {
-  const outstanding = new Set<string>();
-  for (const [index, step] of transcript.steps.entries()) {
-    const created = step.type === 'GENERIC' && stepIndexOf(step, index) >= sinceStep
-      ? CREATED_SUBAGENT_PATTERN.exec(step.content ?? '') : null;
-    if (created) outstanding.add(created[1]);
-    const report = step.type === 'SYSTEM_MESSAGE' ? SYSTEM_REPORT_PATTERN.exec(step.content ?? '') : null;
-    if (report) outstanding.delete(report[1]);
+): Promise<AntigravitySubagentProgress> {
+  const created = createdSubagents(transcript, sinceStep);
+  const outstanding = new Set(created);
+  let unanswered = false;
+  for (const step of transcript.steps) {
+    const sender = reportSender(step);
+    if (sender !== undefined) outstanding.delete(sender);
+    if (sender !== undefined && created.has(sender)) unanswered = true;
+    else if (step.type === 'PLANNER_RESPONSE') unanswered = false;
   }
-  for (const childId of outstanding) {
+  return { outstanding: await anyAlive(outstanding, storeRoot, sessionId), unanswered };
+}
+
+async function anyAlive(
+  subagents: ReadonlySet<string>,
+  storeRoot: string,
+  sessionId: string,
+): Promise<boolean> {
+  for (const childId of subagents) {
     if (!/^[\w-]+$/.test(childId) || !/^[\w-]+$/.test(sessionId)) return true;
     const recordPath = path.join(
       storeRoot,
@@ -146,12 +177,80 @@ export async function hasAntigravityOutstandingSubagents(
   return false;
 }
 
+/** Whether every step is a report from a subagent the conversation created at or after `sinceStep`. */
+export function areAntigravitySubagentReports(
+  transcript: AntigravityTranscript,
+  steps: readonly TranscriptStep[],
+  sinceStep: number,
+): boolean {
+  const created = createdSubagents(transcript, sinceStep);
+  return steps.length > 0 && steps.every(step => {
+    const sender = reportSender(step);
+    return sender !== undefined && created.has(sender);
+  });
+}
+
 export async function readAntigravityHistoryRevision(storeRoot: string, sessionId: string): Promise<string | null> {
+  return (await readCurrentTranscriptRevision(storeRoot, sessionId))?.revision ?? null;
+}
+
+async function readCurrentTranscriptRevision(
+  storeRoot: string,
+  sessionId: string,
+): Promise<{ readonly path: string; readonly revision: string } | null> {
   for (const transcriptPath of resolveAntigravityTranscriptPaths(storeRoot, sessionId)) {
     const revision = await readFileRevision(transcriptPath);
-    if (revision) return revision;
+    if (revision) return { path: transcriptPath, revision };
   }
   return null;
+}
+
+/**
+ * Whole transcript steps between the sizes in revisions `from` and `to`; null unless the range is line-aligned
+ * in the current transcript.
+ */
+export async function readAntigravityAppendedSteps(
+  storeRoot: string,
+  sessionId: string,
+  from: string,
+  to: string,
+): Promise<TranscriptStep[] | null> {
+  const start = revisionSize(from);
+  const end = revisionSize(to);
+  if (start === undefined || end === undefined || start >= end) return null;
+  const current = await readCurrentTranscriptRevision(storeRoot, sessionId);
+  const currentSize = current ? revisionSize(current.revision) : undefined;
+  if (!current || currentSize === undefined || currentSize < end) return null;
+  const offset = start > 0 ? start - 1 : 0;
+  const bytes = Buffer.alloc(end - offset);
+  const file = await fs.open(current.path, 'r');
+  try {
+    const { bytesRead } = await file.read(bytes, 0, bytes.length, offset);
+    if (bytesRead !== bytes.length) return null;
+  } finally {
+    await file.close();
+  }
+  const text = bytes.toString('utf8');
+  if ((start > 0 && !text.startsWith('\n')) || !text.endsWith('\n')) return null;
+  const steps: TranscriptStep[] = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const step: unknown = JSON.parse(line);
+      if (!step || typeof step !== 'object' || Array.isArray(step)) return null;
+      steps.push(step);
+    } catch {
+      return null;
+    }
+  }
+  return steps;
+}
+
+function revisionSize(revision: string): number | undefined {
+  const separator = revision.lastIndexOf(':');
+  if (separator < 0) return undefined;
+  const size = Number(revision.slice(separator + 1));
+  return Number.isInteger(size) && size >= 0 ? size : undefined;
 }
 
 /**
