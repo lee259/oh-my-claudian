@@ -36,6 +36,12 @@
     "errorDetails": "{message}: {error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "レビューコメントを追加",
+      "heading": "差分コメント",
+      "itemLabel": "{{location}} のレビューコメント",
+      "placeholder": "この行をどう変更しますか？"
+    },
     "rewind": {
       "confirmMessage": "この時点に巻き戻しますか？このメッセージ以降のファイル変更は上書きまたは削除される可能性があります。この操作は元に戻せません。",
       "confirmMessageConflicts": "この時点に巻き戻しますか？エージェント外で変更された {count} 個のファイルが上書きされます：\n{files}",

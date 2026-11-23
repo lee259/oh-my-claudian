@@ -36,6 +36,12 @@
     "errorDetails": "{message}: {error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "Añadir una nota de revisión",
+      "heading": "Nota del diff",
+      "itemLabel": "Nota de revisión en {{location}}",
+      "placeholder": "¿Qué debería cambiar en esta línea?"
+    },
     "rewind": {
       "confirmMessage": "¿Rebobinar a este punto? Los cambios de archivos posteriores a este mensaje podrían sobrescribirse o eliminarse. Esta acción no se puede deshacer.",
       "confirmMessageConflicts": "¿Rebobinar a este punto? Se sobrescribirán {count} archivo(s) modificados fuera del agente:\n{files}",

@@ -36,6 +36,12 @@
     "errorDetails": "{message}：{error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "添加修改意见",
+      "heading": "改动意见",
+      "itemLabel": "{{location}} 的修改意见",
+      "placeholder": "这一行需要怎么改？"
+    },
     "rewind": {
       "confirmMessage": "回退到此处？此消息之后的文件更改可能被覆盖或删除。此操作无法撤销。",
       "confirmMessageConflicts": "回退到此处？检测到 {count} 个文件在代理之外被修改，继续操作将覆盖这些更改：\n{files}",

@@ -36,6 +36,12 @@
     "errorDetails": "{message}: {error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "Anmerkung hinzufügen",
+      "heading": "Diff-Anmerkung",
+      "itemLabel": "Anmerkung zu {{location}}",
+      "placeholder": "Was soll sich in dieser Zeile ändern?"
+    },
     "rewind": {
       "confirmMessage": "Zu diesem Punkt zurückspulen? Dateiänderungen nach dieser Nachricht können überschrieben oder entfernt werden. Dies kann nicht rückgängig gemacht werden.",
       "confirmMessageConflicts": "Zu diesem Punkt zurückspulen? {count} außerhalb des Agenten geänderte Datei(en) werden überschrieben:\n{files}",

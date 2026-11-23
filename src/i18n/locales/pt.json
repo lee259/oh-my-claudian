@@ -36,6 +36,12 @@
     "errorDetails": "{message}: {error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "Adicionar nota de revisão",
+      "heading": "Nota do diff",
+      "itemLabel": "Nota de revisão em {{location}}",
+      "placeholder": "O que deve mudar nesta linha?"
+    },
     "rewind": {
       "confirmMessage": "Retroceder até este ponto? As alterações de arquivos após esta mensagem podem ser sobrescritas ou removidas. Esta ação não pode ser desfeita.",
       "confirmMessageConflicts": "Retroceder até este ponto? {count} arquivo(s) modificados fora do agente serão sobrescritos:\n{files}",

@@ -10,6 +10,7 @@ import type {
 } from '../../../core/types';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
+import type { DiffNote } from '../../../utils/diffNotes';
 import type { EditorSelectionContext } from '../../../utils/editor';
 import type { ThinkingBlockState } from '../rendering/ThinkingBlockRenderer';
 import type { WriteEditState } from '../rendering/WriteEditRenderer';
@@ -147,6 +148,7 @@ export interface ChatStateCallbacks {
   onUsageChanged?: (usage: UsageInfo | null) => void;
   onTodosChanged?: (todos: TodoItem[] | null) => void;
   onAttentionChanged?: (attention: TabAttention) => void;
+  onDiffNotesChanged?: (notes: readonly DiffNote[]) => void;
   onAutoScrollChanged?: (enabled: boolean) => void;
 }
 

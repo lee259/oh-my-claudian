@@ -220,3 +220,61 @@
 .claudian-write-edit-status.status-running svg {
   animation: spin 1s linear infinite;
 }
+
+.claudian-diff-line--commentable {
+  position: relative;
+}
+
+/* Fixed square pinned to the line box, revealed on hover or keyboard focus. */
+.claudian-diff-note-add {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.claudian-diff-line--commentable:hover .claudian-diff-note-add,
+.claudian-diff-note-add:focus-visible {
+  opacity: 1;
+}
+
+.claudian-diff-note-add:hover {
+  border-color: var(--text-accent);
+  color: var(--text-accent);
+}
+
+.claudian-diff-note-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-inline-start: 2px solid var(--text-accent);
+  background: var(--background-secondary);
+}
+
+.claudian-diff-note-input {
+  width: 100%;
+  min-height: 60px;
+  max-height: 240px;
+  resize: vertical;
+  font-family: var(--font-text);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-diff-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

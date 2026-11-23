@@ -737,6 +737,7 @@ export class StreamController {
     if (needsWriteEditRenderer) {
       const writeEditState = createWriteEditBlock(parentEl, toolCall, {
         initiallyExpanded,
+        onAddDiffNote: note => state.addDiffNote(note),
         onOpenFile: (filePath) => { void openVaultFile(this.deps.plugin.app, filePath); },
       });
       replacementEl = writeEditState.wrapperEl;
@@ -865,6 +866,7 @@ export class StreamController {
     if (isWriteEditTool(toolCall.name)) {
       const writeEditState = createWriteEditBlock(parentEl, toolCall, {
         initiallyExpanded: this.shouldExpandFileEditsByDefault(),
+        onAddDiffNote: note => state.addDiffNote(note),
         onOpenFile: (filePath) => { void openVaultFile(this.deps.plugin.app, filePath); },
       });
       state.writeEditStates.set(toolId, writeEditState);

@@ -382,6 +382,27 @@ describe('ChatState', () => {
       expect(chatState.phase).toBe('rest');
     });
 
+    it('keeps one pending diff note per line and reports changes', () => {
+      const onDiffNotesChanged = jest.fn();
+      const chatState = new ChatState({ onDiffNotesChanged });
+      const note = {
+        body: 'Use the helper',
+        filePath: 'src/a.ts',
+        id: 'src/a.ts:4',
+        line: 4,
+      };
+
+      chatState.addDiffNote(note);
+      expect(chatState.diffNotes).toEqual([note]);
+
+      chatState.addDiffNote({ ...note, body: 'Use the shared helper' });
+      expect(chatState.diffNotes).toEqual([{ ...note, body: 'Use the shared helper' }]);
+
+      chatState.removeDiffNote(note.id);
+      expect(chatState.diffNotes).toEqual([]);
+      expect(onDiffNotesChanged).toHaveBeenLastCalledWith([]);
+    });
+
     it('tracks multiple action-required interactions until the last one ends', () => {
       jest.spyOn(Date, 'now')
         .mockReturnValueOnce(100)
