@@ -21,6 +21,17 @@ describe('ClaudeTaskNotificationQueue', () => {
     expect(queue.takeTurnNotifications()).toEqual([]);
   });
 
+  it('reports whether the latest init selected a notification for an automatic turn', () => {
+    const queue = new ClaudeTaskNotificationQueue();
+    expect(queue.hasTurnNotifications()).toBe(false);
+    queue.observe(systemMessage({ subtype: 'task_started', task_id: 'task-1', is_backgrounded: true }));
+    queue.complete(systemMessage({ subtype: 'task_notification', task_id: 'task-1' }), 'result');
+    queue.observe(systemMessage({ subtype: 'init' }));
+    expect(queue.hasTurnNotifications()).toBe(true);
+    queue.takeTurnNotifications();
+    expect(queue.hasTurnNotifications()).toBe(false);
+  });
+
   it('does not queue foreground or transcript-suppressed task completions', () => {
     const queue = new ClaudeTaskNotificationQueue();
     queue.observe(systemMessage({ subtype: 'task_started', task_id: 'foreground', is_backgrounded: false }));

@@ -211,7 +211,7 @@ describe('ClaudeExecutionBackend', () => {
       expect(session.blocksIdleRelease()).toBe(false);
       await session.handleNativeMessage(tasksChanged([shell]), 1);
       notifications.mockClear();
-      session.handleNativeQueryClosed(query);
+      session.handleNativeQueryClosed(query, { endFollows: false });
       expect(session.blocksIdleRelease()).toBe(false);
       expect(notifications).toHaveBeenCalledWith(expect.objectContaining({ type: 'session_state_changed' }));
     } finally { await session.dispose(); }
@@ -2150,6 +2150,79 @@ describe('ClaudeExecutionBackend', () => {
     expect(sessionEvents.map(event => event.type).indexOf('task_notification'))
       .toBeLessThan(sessionEvents.map(event => event.type).indexOf('text_delta'));
     expect(sessionEvents.filter(event => event.type === 'async_subagent_completed')).toHaveLength(1);
+  });
+
+  it('opens a selected notification turn at native init, before its first token', async () => {
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig()) as any;
+    const sessionEvents: ProviderSessionEvent[] = [];
+    session.onEvent((event: ProviderSessionEvent) => sessionEvents.push(event));
+    const query = {};
+    session.handleNativeQueryOpened(query);
+
+    await session.handleNativeMessage(
+      { type: 'system', subtype: 'task_started', task_id: 'task-1', is_backgrounded: true },
+      1,
+    );
+    await session.handleNativeMessage({
+      type: 'system',
+      subtype: 'task_notification',
+      session_id: 'session-1',
+      task_id: 'task-1',
+      status: 'completed',
+      summary: 'Task finished',
+    }, 1);
+    await session.handleNativeMessage(
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      1,
+    );
+
+    expect(sessionEvents.map(event => event.type)).toContain('background_turn_started');
+    expect(sessionEvents.filter(event => event.type === 'task_notification')).toEqual([]);
+
+    await session.handleNativeMessage({
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: 'Automatic result' }] },
+    }, 1);
+    expect(sessionEvents.filter(event => event.type === 'task_notification')).toEqual([
+      expect.objectContaining({ content: 'Task finished' }),
+    ]);
+    expect(sessionEvents.filter(event => event.type === 'text_delta')).toHaveLength(1);
+    await session.dispose();
+  });
+
+  it.each([false, true])('publishes a selected notification before closing its query (end follows %s)', async endFollows => {
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig()) as any;
+    const sessionEvents: ProviderSessionEvent[] = [];
+    session.onEvent((event: ProviderSessionEvent) => sessionEvents.push(event));
+    const query = {};
+    session.handleNativeQueryOpened(query);
+    await session.handleNativeMessage(
+      { type: 'system', subtype: 'task_started', task_id: 'task-1', is_backgrounded: true },
+      1,
+    );
+    await session.handleNativeMessage({
+      type: 'system',
+      subtype: 'task_notification',
+      session_id: 'session-1',
+      task_id: 'task-1',
+      status: 'completed',
+      summary: 'Task finished',
+    }, 1);
+    await session.handleNativeMessage(
+      { type: 'system', subtype: 'init', session_id: 'session-1' },
+      1,
+    );
+
+    session.handleNativeQueryClosed(query, { endFollows });
+    expect(sessionEvents.filter(event => event.type === 'task_notification')).toHaveLength(1);
+    expect(sessionEvents.some(event => event.type === 'background_turn_completed')).toBe(!endFollows);
+    if (endFollows) session.handleNativeEnd(1);
+    expect(sessionEvents.some(event => event.type === 'background_turn_completed')).toBe(true);
+    await session.dispose();
   });
 
   it('cancels one active run, fences late output, and rejects execution after disposal', async () => {

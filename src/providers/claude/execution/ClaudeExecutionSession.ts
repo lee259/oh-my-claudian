@@ -559,9 +559,7 @@ ClaudeExecutionStrategySink {
       : undefined;
     if (!active && ((message.type === 'stream_event' && message.event.type === 'message_start')
       || (message.type === 'assistant' && message.parent_tool_use_id == null))) {
-      for (const content of this.taskNotifications.takeTurnNotifications()) {
-        this.emitTaskNotification(content);
-      }
+      this.publishTurnNotifications();
     }
     const normalizedEvents = this.eventNormalizer.normalize(
       message,
@@ -592,6 +590,12 @@ ClaudeExecutionStrategySink {
             this.currentPermissionMode = nativeMode;
           }
           this.emitModeForCurrentTurn(event.permissionMode);
+        }
+        // Native records a notification turn when it selects the notification, and its first token can follow
+        // seconds later. Opening the turn at init keeps a send in that gap from counting those writes as an
+        // external change. The notification itself is still published where the turn consumes it.
+        if (!active && this.taskNotifications.hasTurnNotifications()) {
+          this.getOutputTarget();
         }
         continue;
       }
@@ -880,13 +884,18 @@ ClaudeExecutionStrategySink {
     if (wasBlocked && !this.disposed) this.emitSession({ type: 'session_state_changed', snapshot: this.getSnapshot() });
   }
 
-  handleNativeQueryClosed(query: Query): void {
+  handleNativeQueryClosed(query: Query, { endFollows }: { endFollows: boolean }): void {
     if (this.nativeQuery !== query) return;
     this.nativeQuery = null;
     const wasBlocked = this.blocksIdleRelease();
+    // The open turn consumed what its init selected, whichever handler ends it.
+    if (this.backgroundTurn) this.publishTurnNotifications();
     this.taskNotifications.reset();
     this.authoritativeContextWindow = null;
     if (wasBlocked && !this.disposed) this.emitSession({ type: 'session_state_changed', snapshot: this.getSnapshot() });
+    if (endFollows) return;
+    // No result or end will arrive, so the automatic turn ends here.
+    this.finishBackgroundTurn('provider-ended');
   }
 
   handleAuthoritativeContextWindow(
@@ -1137,6 +1146,13 @@ ClaudeExecutionStrategySink {
   private emitTaskNotification(content: string): void {
     const target = this.getOutputTarget();
     if (target) this.emitTurnOutput(target, { type: 'task_notification', content });
+  }
+
+  /** Publishes the notifications native selected for the automatic turn at its consumption boundary. */
+  private publishTurnNotifications(): void {
+    for (const content of this.taskNotifications.takeTurnNotifications()) {
+      this.emitTaskNotification(content);
+    }
   }
 
   private emitRequested(
