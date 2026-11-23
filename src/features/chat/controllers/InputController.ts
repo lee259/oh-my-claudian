@@ -58,6 +58,7 @@ import type { ImageContextManager } from '../ui/ImageContext';
 import type { AddExternalContextResult, McpServerSelector } from '../ui/InputToolbar';
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
 import type { StatusPanel } from '../ui/StatusPanel';
+import { resolveApprovalSelection } from './approvalSelection';
 import type { BrowserSelectionController } from './BrowserSelectionController';
 import { BuiltInCommandController } from './BuiltInCommandController';
 import type { CanvasSelectionController } from './CanvasSelectionController';
@@ -111,6 +112,7 @@ interface ApprovalCallbackOptions {
   blockedPath?: string;
   agentID?: string;
   decisionOptions?: ApprovalDecisionOption[];
+  exactOptionSelection?: boolean;
   additionalPermissions?: unknown;
 }
 
@@ -345,6 +347,7 @@ export class InputController {
         decision: await this.handleApprovalRequest(request.toolName, { ...request.input }, request.description, {
           decisionReason: request.decisionReason, blockedPath: request.blockedPath,
           decisionOptions: request.decisionOptions?.map(option => ({ ...option })),
+          exactOptionSelection: request.exactOptionSelection,
           additionalPermissions: request.additionalPermissions,
         }, signal),
       }),
@@ -1906,15 +1909,11 @@ export class InputController {
       return 'cancel';
     }
 
-    const decision = optionDecisionMap.get(selectedValue);
-    if (decision) {
-      return decision;
-    }
-
-    return {
-      type: 'select-option',
-      value: selectedValue,
-    };
+    return resolveApprovalSelection(
+      selectedValue,
+      optionDecisionMap,
+      approvalOptions?.exactOptionSelection === true,
+    );
   }
 
   async handleAskUserQuestion(

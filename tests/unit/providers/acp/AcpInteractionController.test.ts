@@ -52,6 +52,7 @@ describe('AcpInteractionController', () => {
         input: { path: 'README.md' },
         interactionId: 'session-instance-1:approval:1',
         kind: 'approval',
+        exactOptionSelection: true,
         nativeContext: {
           sessionId: 'native-session-1',
           toolCallId: 'tool-1',
@@ -66,6 +67,30 @@ describe('AcpInteractionController', () => {
       'session-instance-1:approval:1',
       'resolved',
     );
+  });
+
+  it('replies with the exact native option selected by the approval UI', async () => {
+    const port = createPort();
+    port.requestApproval.mockImplementation(async (request) => ({
+      decision: { type: 'select-option', value: 'allow-second' },
+      interactionId: request.interactionId,
+    }));
+    const controller = new AcpInteractionController({
+      getTurnId: () => 'turn-1',
+      interactionPort: port,
+      sessionInstanceId: 'session-instance-1',
+    });
+    const request = {
+      ...PERMISSION_REQUEST,
+      options: [
+        { kind: 'allow_once' as const, name: 'Allow first', optionId: 'allow-first' },
+        { kind: 'allow_once' as const, name: 'Allow second', optionId: 'allow-second' },
+      ],
+    };
+
+    await expect(controller.requestPermission(request)).resolves.toEqual({
+      outcome: { optionId: 'allow-second', outcome: 'selected' },
+    });
   });
 
   it('allows a provider-owned permission presentation without changing ACP decisions', async () => {
