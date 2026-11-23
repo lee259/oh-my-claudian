@@ -1168,8 +1168,17 @@ function createToolElementStructure(
   const summaryEl = header.createSpan({ cls: 'claudian-tool-summary' });
   let currentIcon: string | undefined;
   const updateHeader = (tool: ToolCallInfo) => {
-    const exploration = getExplorationActions(tool);
     const presentation = tool.presentation;
+    const summary = getToolSummary(tool.name, tool.input, presentation);
+    // A tool whose own summary already names the file should not repeat it as an action.
+    const ownPaths = new Set<string>();
+    const filePath = typeof tool.input.file_path === 'string' ? tool.input.file_path.trim() : '';
+    if (filePath) ownPaths.add(filePath);
+    const ownReference = getToolFilePath(tool);
+    if (ownReference?.path) ownPaths.add(ownReference.path);
+    if (summary.trim()) ownPaths.add(summary.trim());
+    const exploration = getExplorationActions(tool)
+      .filter(action => !(action.type === 'read' && action.path && ownPaths.has(action.path.trim())));
     const name = getToolName(tool.name, tool.input, presentation);
     const icon = tool.name.startsWith('mcp__') ? tool.name
       : presentation?.name === 'Find' ? TOOL_GREP
@@ -1187,16 +1196,15 @@ function createToolElementStructure(
       // A bash row that only lists its exploration hides the command that ran it, so consecutive
       // cards read as one block. Keep the command above the rows.
       if (tool.name === TOOL_BASH) {
-        const command = getToolSummary(tool.name, tool.input, presentation);
-        if (command) {
+        if (summary) {
           const commandEl = summaryEl.createSpan({
             cls: 'claudian-tool-exploration-command',
-            text: command,
+            text: summary,
           });
           summaryEl.insertBefore(commandEl, summaryEl.firstChild);
         }
       }
-    } else summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
+    } else summaryEl.setText(summary);
     const fileReference = exploration.length > 1 ? undefined : getToolFilePath(tool);
     makeFileSummaryInteractive(summaryEl, fileReference, onOpenFile);
   };
