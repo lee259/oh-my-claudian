@@ -4,12 +4,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
-  hasAntigravityOutstandingSubagents,
   parseAntigravityTranscript,
+  readAntigravityAppendedSteps,
   readAntigravityLatestRequest,
+  readAntigravitySubagentProgress,
 } from '@/providers/antigravity/history/AntigravityHistoryStore';
 import { readAntigravitySessionModels } from '@/providers/antigravity/models';
 import { getAntigravityProviderSettings } from '@/providers/antigravity/settings';
+import { readFileRevision } from '@/utils/fileRevision';
 
 function readJsonFixture<T>(name: string): T {
   return JSON.parse(
@@ -80,7 +82,7 @@ describe('Antigravity history and models', () => {
     })).toBe(4);
   });
 
-  it('stops waiting for a subagent only when its native record is killed', async () => {
+  it('tracks whether subagents are alive and whether agy has answered their report', async () => {
     const storeRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'antigravity-history-'));
     const records = path.join(storeRoot, 'brain', 'session-1', '.system_generated', 'subagents');
     await fsp.mkdir(records, { recursive: true });
@@ -101,15 +103,56 @@ describe('Antigravity history and models', () => {
         path.join(records, 'sub-2.json'),
         JSON.stringify({ conversationId: 'sub-2', state: 'SUBAGENT_STATE_RUNNING' }),
       );
-      await expect(hasAntigravityOutstandingSubagents(transcript, 0, storeRoot, 'session-1'))
-        .resolves.toBe(true);
+      await expect(readAntigravitySubagentProgress(transcript, 0, storeRoot, 'session-1'))
+        .resolves.toEqual({ outstanding: true, unanswered: false });
 
       await fsp.writeFile(
         path.join(records, 'sub-2.json'),
         JSON.stringify({ conversationId: 'sub-2', state: 'SUBAGENT_STATE_KILLED' }),
       );
-      await expect(hasAntigravityOutstandingSubagents(transcript, 0, storeRoot, 'session-1'))
-        .resolves.toBe(false);
+      await expect(readAntigravitySubagentProgress(transcript, 0, storeRoot, 'session-1'))
+        .resolves.toEqual({ outstanding: false, unanswered: false });
+
+      const reported = {
+        ...transcript,
+        steps: [...transcript.steps, {
+          content: '<SYSTEM_MESSAGE>\n[Message] sender=sub-1 content=Done\n</SYSTEM_MESSAGE>',
+          type: 'SYSTEM_MESSAGE',
+        }],
+      };
+      await expect(readAntigravitySubagentProgress(reported, 0, storeRoot, 'session-1'))
+        .resolves.toEqual({ outstanding: false, unanswered: true });
+      await expect(readAntigravitySubagentProgress({
+        ...reported,
+        steps: [...reported.steps, { content: 'Answering.', type: 'PLANNER_RESPONSE' }],
+      }, 0, storeRoot, 'session-1')).resolves.toEqual({ outstanding: false, unanswered: false });
+    } finally {
+      await fsp.rm(storeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it('reads only the transcript steps appended between two revisions', async () => {
+    const storeRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'antigravity-revision-'));
+    const logs = path.join(
+      storeRoot,
+      'brain',
+      'session-1',
+      '.system_generated',
+      'logs',
+    );
+    const transcript = path.join(logs, 'transcript_full.jsonl');
+    await fsp.mkdir(logs, { recursive: true });
+    const first = { step_index: 0, type: 'USER_INPUT' };
+    const second = { step_index: 1, type: 'PLANNER_RESPONSE' };
+
+    try {
+      await fsp.writeFile(transcript, `${JSON.stringify(first)}\n`);
+      const from = await readFileRevision(transcript);
+      await fsp.appendFile(transcript, `${JSON.stringify(second)}\n`);
+      const to = await readFileRevision(transcript);
+
+      await expect(readAntigravityAppendedSteps(storeRoot, 'session-1', from!, to!))
+        .resolves.toEqual([second]);
     } finally {
       await fsp.rm(storeRoot, { force: true, recursive: true });
     }

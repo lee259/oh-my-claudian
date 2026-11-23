@@ -43,6 +43,11 @@ export interface ProviderExecutionSession {
   hasBackgroundWork?(): boolean;
   /** Process-bound work may prevent cooling without making the chat busy. */
   blocksIdleRelease?(): boolean;
+  /**
+   * Whether native history moving from revision `from` to `to` was written only by this session's own live work.
+   * Mixed, unknown, or unverifiable changes answer false.
+   */
+  ownsNativeHistoryChange?(from: string, to: string): Promise<boolean>;
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void;
   dispose(): Promise<void>;
 }

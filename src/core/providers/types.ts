@@ -600,7 +600,10 @@ export interface ProviderConversationHistoryService {
     conversation: Conversation,
     options?: { projectionOnly?: boolean },
   ): boolean;
-  /** Reads an opaque revision for the live native history, without starting a provider session. */
+  /**
+   * Reads an opaque revision for the live native history without starting a provider session. Callers compare
+   * revisions, or hand two back to the bound execution session, which may verify an in-session write.
+   */
   readNativeHistoryRevision?(
     conversation: Conversation,
     vaultPath: string | null,
