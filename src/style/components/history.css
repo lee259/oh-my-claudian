@@ -369,6 +369,22 @@
   min-width: 0;
 }
 
+.claudian-history-item-attention {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+}
+
+.claudian-history-item-attention[data-attention='needs-you'] {
+  background: var(--text-warning);
+}
+
+.claudian-history-item-attention[data-attention='error'] {
+  background: var(--text-error);
+}
+
 .claudian-history-item-provider,
 .claudian-home-conversation-provider {
   display: flex;

@@ -146,6 +146,24 @@ export type HistoryConversationStatus = {
   tabIndex?: number;
 };
 
+type HistoryAttentionDotState = 'needs-you' | 'done' | 'error';
+
+/** The dot a history row shows for unfinished attention; a running row already shows its spinner. */
+function readHistoryAttentionDot(
+  status: HistoryConversationStatus,
+): { state: HistoryAttentionDotState; label: string } | null {
+  const attention = status.attention;
+  if (attention?.kind === 'action-required') {
+    return { state: 'needs-you', label: t('chat.history.awaitingInput') };
+  }
+  if (attention?.kind === 'review') {
+    return attention.outcome === 'error'
+      ? { state: 'error', label: t('chat.history.failedResult') }
+      : { state: 'done', label: t('chat.history.unreviewedResult') };
+  }
+  return null;
+}
+
   type HistoryRenderOptions = {
   onSelectConversation: (id: string, options?: { source: 'keyboard' }) => Promise<void>;
   getConversationOpenState?: (id: string) => HistoryConversationOpenState;
@@ -1503,6 +1521,18 @@ export class ConversationController {
     });
     appendHighlightedHistoryTitle(titleEl, conversation.title, searchTerms);
     titleEl.setAttribute('title', conversation.title);
+    const attentionDot = readHistoryAttentionDot(conversationStatus);
+    if (attentionDot) {
+      titleRow.createSpan({
+        cls: 'claudian-history-item-attention',
+        attr: {
+          'aria-label': attentionDot.label,
+          'data-attention': attentionDot.state,
+          role: 'img',
+          title: attentionDot.label,
+        },
+      });
+    }
     content.createDiv({
       cls: 'claudian-history-item-date',
       text: this.getHistoryItemStatusText(
