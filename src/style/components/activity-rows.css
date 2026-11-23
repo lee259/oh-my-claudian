@@ -59,6 +59,10 @@
   gap: 6px;
 }
 
+.claudian-tool-exploration-row--duplicate {
+  display: none;
+}
+
 .claudian-tool-exploration-row .claudian-tool-icon {
   align-self: flex-start;
   margin-block-start: 2px;
