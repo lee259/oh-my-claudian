@@ -142,6 +142,9 @@ export interface InputControllerDeps {
   getInputEl: () => ComposerInputElement | null;
   getQuotedMessageTexts?: () => string[];
   clearQuotedMessages?: () => void;
+  /** Formatted diff review notes waiting to ride with the next message. */
+  getDiffNoteTexts?: () => string[];
+  clearDiffNotes?: () => void;
   getWelcomeEl: () => HTMLElement | null;
   getMessagesEl: () => HTMLElement | null;
   getFileContextManager: () => FileContextManager | null;
@@ -537,8 +540,12 @@ export class InputController {
     const rawContent = (contentOverride ?? inputEl.value).trim();
     const quotedMessageTexts = shouldUseInput ? this.deps.getQuotedMessageTexts?.() ?? [] : [];
     const formattedQuotes = quotedMessageTexts.map(formatSelectionQuote).join('\n\n');
-    const content = formattedQuotes
-      ? `${formattedQuotes}\n\n${rawContent}`.trim()
+    const diffNoteTexts = shouldUseInput ? this.deps.getDiffNoteTexts?.() ?? [] : [];
+    const contextPrefix = [diffNoteTexts.join('\n\n'), formattedQuotes]
+      .filter(Boolean)
+      .join('\n\n');
+    const content = contextPrefix
+      ? `${contextPrefix}\n\n${rawContent}`.trim()
       : rawContent;
     const imageOverride = options?.images;
     const hasImages = imageOverride !== undefined
@@ -588,6 +595,7 @@ export class InputController {
     if (state.isStreaming || isFollowUp) {
       const itemId = this.queueStreamingMessage(content, imageOverride, hasImages, shouldUseInput, options, followsStop);
       if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
+      if (shouldUseInput && diffNoteTexts.length > 0) this.deps.clearDiffNotes?.();
       if (options?.deliveryMode === 'steer') await this.steerQueuedMessage(itemId);
       if (!state.isStreaming && !this.turnCoordinator.current) this.processQueuedMessage();
       return;
@@ -623,6 +631,7 @@ export class InputController {
       this.preparingTurn = false;
     }
     if (shouldUseInput && quotedMessageTexts.length > 0) this.deps.clearQuotedMessages?.();
+    if (shouldUseInput && diffNoteTexts.length > 0) this.deps.clearDiffNotes?.();
 
     // Slash commands are passed directly to SDK for handling
     // SDK handles expansion, $ARGUMENTS, @file references, and frontmatter options

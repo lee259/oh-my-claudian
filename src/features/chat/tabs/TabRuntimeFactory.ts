@@ -9,6 +9,7 @@ import { getEnabledProviderForModel } from '../../../core/providers/modelRouting
 import { DEFAULT_CHAT_PROVIDER_ID } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
 import { createPreactRoot } from '../../../shared/ui/PreactRoot';
+import type { DiffNote } from '../../../utils/diffNotes';
 import { createWelcomeElement } from '../rendering/WelcomeRenderer';
 import { ConversationRuntime } from '../sessions/ConversationRuntime';
 import { createEmptyPresentationUI } from '../sessions/RuntimePresentation';
@@ -19,6 +20,7 @@ import { generateTabId } from './types';
 
 export interface TabRuntimeFactoryHooks {
   onStreamingStateChanged?: (tab: TabData, isStreaming: boolean) => void;
+  onDiffNotesChanged?: (tab: TabData, notes: readonly DiffNote[]) => void;
 }
 
 export function createConversationRuntime(options: Pick<TabCreateOptions, 'plugin' | 'conversation' | 'tabId' | 'draftModel' | 'lifecycleState'>): ConversationRuntime {
@@ -141,6 +143,7 @@ export function createTabRuntime(
     onRewindingStateChanged: onRewindingChanged,
     onAttentionChanged,
     onConversationChanged: onConversationIdChanged,
+    onDiffNotesChanged: (notes) => hooks.onDiffNotesChanged?.(tab, notes),
     onStreamingStateChanged: (isStreaming) => {
       onStreamingChanged?.(isStreaming);
       hooks.onStreamingStateChanged?.(tab, isStreaming);

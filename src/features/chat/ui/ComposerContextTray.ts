@@ -14,6 +14,7 @@ export type ComposerContextSlot =
   | 'files'
   | 'external-contexts'
   | 'message-quotes'
+  | 'diff-notes'
   | 'editor-selection'
   | 'browser-selection'
   | 'canvas-selection'
@@ -50,6 +51,7 @@ const SLOT_ORDER: readonly ComposerContextSlot[] = [
   'files',
   'external-contexts',
   'message-quotes',
+  'diff-notes',
   'editor-selection',
   'browser-selection',
   'canvas-selection',

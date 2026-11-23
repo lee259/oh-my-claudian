@@ -1,4 +1,5 @@
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
+import { formatDiffNote } from '../../../utils/diffNotes';
 import type { FeatureHost } from '../../FeatureHost';
 import { InputController } from '../controllers/InputController';
 import { getTabProviderId } from './providerResolution';
@@ -42,6 +43,8 @@ export function createTabInputController(
     composer: tab.session.composer,
     getInputEl: () => tab.session.presentation?.dom.inputEl ?? null,
     getQuotedMessageTexts: () => tab.ui.quotedMessages.map(quote => quote.text),
+    getDiffNoteTexts: () => tab.state.diffNotes.map(formatDiffNote),
+    clearDiffNotes: () => tab.state.clearDiffNotes(),
     clearQuotedMessages: () => {
       tab.ui.quotedMessages = [];
       tab.ui.contextTray?.clearItems('message-quotes');

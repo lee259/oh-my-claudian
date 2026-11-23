@@ -36,6 +36,12 @@
     "errorDetails": "{message} : {error}"
   },
   "chat": {
+    "diffNotes": {
+      "add": "Ajouter une note de relecture",
+      "heading": "Note de diff",
+      "itemLabel": "Note de relecture sur {{location}}",
+      "placeholder": "Que faut-il changer sur cette ligne ?"
+    },
     "rewind": {
       "confirmMessage": "Rembobiner jusqu'à ce point ? Les modifications de fichiers postérieures à ce message peuvent être écrasées ou supprimées. Cette action est irréversible.",
       "confirmMessageConflicts": "Rembobiner jusqu'à ce point ? {count} fichier(s) modifié(s) hors de l’agent seront écrasés :\n{files}",

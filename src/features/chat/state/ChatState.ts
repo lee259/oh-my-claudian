@@ -5,6 +5,7 @@ import {
 import type { ProviderInteractionDismissReason } from '@/core/execution/ProviderInteractionPort';
 
 import type { UsageInfo } from '../../../core/types';
+import { type DiffNote, upsertDiffNote } from '../../../utils/diffNotes';
 import { AsyncQuestionPrompts, type AsyncQuestionPromptsDeps } from './AsyncQuestionPrompts';
 import { FollowUpQueue } from './FollowUpQueue';
 import { PendingChatInteractions } from './PendingChatInteractions';
@@ -68,6 +69,7 @@ export class ChatState {
   private _callbacks: ChatStateCallbacks;
   private readonly pendingActionIds = new Set<string>();
   private pendingReview: { outcome?: TabReviewOutcome; since: number } | null = null;
+  private diffNotesValue: readonly DiffNote[] = [];
   private thinkingIndicatorTimeoutWindow: Window | null = null;
   private flavorTimerIntervalWindow: Window | null = null;
 
@@ -403,6 +405,35 @@ export class ChatState {
   }
 
   // ============================================
+  // Diff Review Notes
+  // ============================================
+
+  get diffNotes(): readonly DiffNote[] {
+    return this.diffNotesValue;
+  }
+
+  /** Adding again on the same file and line replaces that note's body. */
+  addDiffNote(note: DiffNote): void {
+    this.setDiffNotes(upsertDiffNote(this.diffNotesValue, note));
+  }
+
+  removeDiffNote(id: string): void {
+    const next = this.diffNotesValue.filter(note => note.id !== id);
+    if (next.length === this.diffNotesValue.length) return;
+    this.setDiffNotes(next);
+  }
+
+  clearDiffNotes(): void {
+    if (this.diffNotesValue.length === 0) return;
+    this.setDiffNotes([]);
+  }
+
+  private setDiffNotes(notes: readonly DiffNote[]): void {
+    this.diffNotesValue = notes;
+    this._callbacks.onDiffNotesChanged?.(notes);
+  }
+
+  // ============================================
   // Auto-Scroll Control
   // ============================================
 
@@ -532,6 +563,7 @@ export class ChatState {
     this.usage = null;
     this.currentTodos = null;
     this.clearAttention();
+    this.clearDiffNotes();
     this.autoScrollEnabled = true;
   }
 

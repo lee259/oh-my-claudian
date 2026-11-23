@@ -4,8 +4,10 @@ import { getToolIcon } from '../../../core/tools/toolIcons';
 import type { ToolCallInfo, ToolDiffData } from '../../../core/types';
 import type { DiffLine } from '../../../core/types/diff';
 import { t } from '../../../i18n/i18n';
+import type { DiffNote } from '../../../utils/diffNotes';
 import { type FileReference,parseFileReference } from '../../../utils/FileReference';
 import { setupCollapsible } from './collapsible';
+import type { DiffNoteTarget } from './DiffRenderer';
 import { renderDiffContent, renderDiffStats } from './DiffRenderer';
 import { fileNameOnly, getToolName, getToolSummary, makeFileSummaryInteractive as makeToolFileSummaryInteractive } from './ToolCallRenderer';
 import { attachToolDuration } from './ToolDuration';
@@ -21,12 +23,21 @@ export interface WriteEditState {
   toolCall: ToolCallInfo;
   isExpanded: boolean;
   diffLines?: DiffLine[];
+  onAddDiffNote?: (note: DiffNote) => void;
   refreshHeader: () => void;
 }
 
 export interface WriteEditRenderOptions {
   initiallyExpanded?: boolean;
   onOpenFile?: (fileReference: FileReference) => void;
+  onAddDiffNote?: (note: DiffNote) => void;
+}
+
+function buildDiffNoteTarget(
+  filePath: string,
+  onAddNote: ((note: DiffNote) => void) | undefined,
+): DiffNoteTarget | undefined {
+  return onAddNote && filePath && filePath !== 'file' ? { filePath, onAddNote } : undefined;
 }
 
 function makeFileSummaryInteractive(
@@ -116,6 +127,7 @@ export function createWriteEditBlock(
     statusEl,
     toolCall,
     isExpanded: false,
+    onAddDiffNote: options.onAddDiffNote,
     refreshHeader: () => {
       const tool = state.toolCall;
       refreshDuration(tool);
@@ -150,7 +162,12 @@ export function updateWriteEditWithDiff(state: WriteEditState, diffData: ToolDif
   // Render diff content
   const row = state.contentEl.createDiv({ cls: 'claudian-write-edit-diff-row' });
   const diffEl = row.createDiv({ cls: 'claudian-write-edit-diff' });
-  renderDiffContent(diffEl, diffLines);
+  renderDiffContent(
+    diffEl,
+    diffLines,
+    3,
+    buildDiffNoteTarget((state.toolCall.input.file_path as string) || 'file', state.onAddDiffNote),
+  );
 }
 
 export function finalizeWriteEditBlock(state: WriteEditState, isError: boolean): void {
@@ -251,7 +268,12 @@ export function renderStoredWriteEdit(
 
     if (toolCall.diffData && toolCall.diffData.diffLines.length > 0) {
       const diffEl = row.createDiv({ cls: 'claudian-write-edit-diff' });
-      renderDiffContent(diffEl, toolCall.diffData.diffLines);
+      renderDiffContent(
+        diffEl,
+        toolCall.diffData.diffLines,
+        3,
+        buildDiffNoteTarget(filePath, options.onAddDiffNote),
+      );
     } else if (isError && toolCall.result) {
       const errorEl = row.createDiv({ cls: 'claudian-write-edit-error' });
       errorEl.setText(toolCall.result);

@@ -1,5 +1,17 @@
+import { setIcon } from 'obsidian';
+
 import type { DiffLine, DiffStats } from '../../../core/types/diff';
 import { t } from '../../../i18n/i18n';
+import { type DiffNote, diffNoteId } from '../../../utils/diffNotes';
+
+/** Where a rendered diff sends the review note a user writes on one of its lines. */
+export interface DiffNoteTarget {
+  readonly filePath: string;
+  readonly onAddNote: (note: DiffNote) => void;
+}
+
+const NOTE_TEXTAREA_MIN_HEIGHT = 60;
+const NOTE_TEXTAREA_MAX_HEIGHT = 240;
 
 export interface DiffHunk {
   lines: DiffLine[];
@@ -76,23 +88,152 @@ export function splitIntoHunks(diffLines: DiffLine[], contextLines = 3): DiffHun
 /** Max lines to render for all-inserts diffs (new file creation). */
 const NEW_FILE_DISPLAY_CAP = 20;
 
+/** A line's note affordance opens one inline draft under it; a non-empty draft is kept when another line is clicked. */
+function openNoteDraft(
+  containerEl: HTMLElement,
+  parent: HTMLElement,
+  lineEl: HTMLElement,
+  line: DiffLine,
+  lineNumber: number,
+  target: DiffNoteTarget,
+): void {
+  const existing = containerEl.querySelector<HTMLElement>('.claudian-diff-note-draft');
+  if (existing) {
+    const existingInput = existing.querySelector('textarea');
+    if (existingInput && existingInput.value.trim().length > 0) {
+      existingInput.focus();
+      return;
+    }
+    existing.remove();
+  }
+
+  const draft = parent.createDiv({ cls: 'claudian-diff-note-draft' });
+  lineEl.after(draft);
+
+  const textarea = draft.createEl('textarea', {
+    cls: 'claudian-diff-note-input',
+    attr: {
+      'aria-label': t('chat.diffNotes.add'),
+      placeholder: t('chat.diffNotes.placeholder'),
+      rows: '2',
+    },
+  });
+  const actions = draft.createDiv({ cls: 'claudian-diff-note-actions' });
+  const cancelButton = actions.createEl('button', {
+    cls: 'claudian-diff-note-cancel',
+    text: t('common.cancel'),
+    attr: { type: 'button' },
+  });
+  const saveButton = actions.createEl('button', {
+    cls: 'claudian-diff-note-save',
+    text: t('common.save'),
+    attr: { type: 'button' },
+  });
+
+  const cleanup = (): void => {
+    draft.remove();
+  };
+  const submit = (): void => {
+    const body = textarea.value.trim();
+    if (!body) return;
+    target.onAddNote({
+      body,
+      ...(line.text.trim() ? { excerpt: line.text.trim() } : {}),
+      filePath: target.filePath,
+      id: diffNoteId(target.filePath, lineNumber),
+      line: lineNumber,
+    });
+    cleanup();
+  };
+  const resize = (): void => {
+    textarea.setCssProps({ height: 'auto' });
+    textarea.setCssProps({
+      height: `${Math.min(
+        Math.max(textarea.scrollHeight, NOTE_TEXTAREA_MIN_HEIGHT),
+        NOTE_TEXTAREA_MAX_HEIGHT,
+      )}px`,
+    });
+  };
+
+  textarea.addEventListener('input', resize);
+  textarea.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      cleanup();
+      return;
+    }
+    if (event.key !== 'Enter' || event.isComposing) return;
+    // Plain Enter sends, Shift+Enter adds a line, and Cmd/Ctrl+Enter sends even with Shift.
+    if (event.metaKey || event.ctrlKey || !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      submit();
+    }
+  });
+  cancelButton.addEventListener('click', event => {
+    event.preventDefault();
+    cleanup();
+  });
+  saveButton.addEventListener('click', event => {
+    event.preventDefault();
+    submit();
+  });
+
+  resize();
+  textarea.focus();
+}
+
+function addNoteAffordance(
+  containerEl: HTMLElement,
+  parent: HTMLElement,
+  lineEl: HTMLElement,
+  line: DiffLine,
+  lineNumber: number,
+  target: DiffNoteTarget,
+): void {
+  lineEl.addClass('claudian-diff-line--commentable');
+  const addButton = lineEl.createEl('button', {
+    cls: 'claudian-diff-note-add',
+    attr: {
+      type: 'button',
+      'aria-label': t('chat.diffNotes.add'),
+      title: t('chat.diffNotes.add'),
+    },
+  });
+  setIcon(addButton, 'plus');
+  addButton.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    openNoteDraft(containerEl, parent, lineEl, line, lineNumber, target);
+  });
+}
+
 export function renderDiffContent(
   containerEl: HTMLElement,
   diffLines: DiffLine[],
-  contextLines = 3
+  contextLines = 3,
+  noteTarget?: DiffNoteTarget,
 ): void {
   containerEl.empty();
+
+  const appendLine = (parent: HTMLElement, line: DiffLine): void => {
+    const lineEl = parent.createDiv({ cls: `claudian-diff-line claudian-diff-${line.type}` });
+    const prefixEl = lineEl.createSpan({ cls: 'claudian-diff-prefix' });
+    prefixEl.setText(line.type === 'insert' ? '+' : line.type === 'delete' ? '-' : ' ');
+    const contentEl = lineEl.createSpan({ cls: 'claudian-diff-text' });
+    contentEl.setText(line.text || ' ');
+    if (noteTarget && line.type !== 'delete' && typeof line.newLineNum === 'number') {
+      addNoteAffordance(containerEl, parent, lineEl, line, line.newLineNum, noteTarget);
+    }
+  };
 
   // New file creation: all lines are inserts — cap display to avoid large DOM
   const allInserts = diffLines.length > 0 && diffLines.every(l => l.type === 'insert');
   if (allInserts && diffLines.length > NEW_FILE_DISPLAY_CAP) {
     const hunkEl = containerEl.createDiv({ cls: 'claudian-diff-hunk' });
     for (const line of diffLines.slice(0, NEW_FILE_DISPLAY_CAP)) {
-      const lineEl = hunkEl.createDiv({ cls: 'claudian-diff-line claudian-diff-insert' });
-      const prefixEl = lineEl.createSpan({ cls: 'claudian-diff-prefix' });
-      prefixEl.setText('+');
-      const contentEl = lineEl.createSpan({ cls: 'claudian-diff-text' });
-      contentEl.setText(line.text || ' ');
+      appendLine(hunkEl, line);
     }
     const remaining = diffLines.length - NEW_FILE_DISPLAY_CAP;
     const separator = containerEl.createDiv({ cls: 'claudian-diff-separator' });
@@ -120,16 +261,7 @@ export function renderDiffContent(
     const hunkEl = containerEl.createDiv({ cls: 'claudian-diff-hunk' });
 
     for (const line of hunk.lines) {
-      const lineEl = hunkEl.createDiv({ cls: `claudian-diff-line claudian-diff-${line.type}` });
-
-      // Line prefix
-      const prefix = line.type === 'insert' ? '+' : line.type === 'delete' ? '-' : ' ';
-      const prefixEl = lineEl.createSpan({ cls: 'claudian-diff-prefix' });
-      prefixEl.setText(prefix);
-
-      // Line content
-      const contentEl = lineEl.createSpan({ cls: 'claudian-diff-text' });
-      contentEl.setText(line.text || ' '); // Show space for empty lines
+      appendLine(hunkEl, line);
     }
   });
 }

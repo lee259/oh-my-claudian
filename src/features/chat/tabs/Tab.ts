@@ -49,6 +49,7 @@ import {
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
+import { formatDiffNote } from '../../../utils/diffNotes';
 import { getEnhancedPath } from '../../../utils/env';
 import { openVaultFile } from '../../../utils/obsidianCompat';
 import { getVaultPath } from '../../../utils/path';
@@ -603,6 +604,7 @@ export function onProviderAvailabilityChanged(tab: TabData, plugin: FeatureHost)
 /** Creates a new Tab instance with all required state. */
 export function createTab(options: TabCreateOptions): TabData {
   const tab = createTabRuntime(options, {
+    onDiffNotesChanged: updateDiffNoteContext,
     onStreamingStateChanged: updateSendButton,
   });
   updateSendButton(tab);
@@ -866,6 +868,35 @@ function reportBackgroundCompletionDrop(
     sessionInstanceId: event.scope.sessionInstanceId,
     turnId: event.scope.turnId,
   });
+}
+
+/** Projects the runtime's unsent diff review notes into the composer context tray. */
+function updateDiffNoteContext(tab: TabData): void {
+  const notes = tab.state.diffNotes;
+  if (notes.length === 0) {
+    tab.ui.contextTray?.clearItems('diff-notes');
+    return;
+  }
+  tab.ui.contextTray?.setItems('diff-notes', notes.map(note => {
+    const fileName = note.filePath.split('/').pop() || note.filePath;
+    const location = `${fileName}:${note.line}`;
+    return {
+      id: note.id,
+      kind: 'selection' as const,
+      label: location,
+      icon: 'message-square-plus',
+      title: formatDiffNote(note),
+      ariaLabel: t('chat.diffNotes.itemLabel', { location }),
+      removeLabel: t('common.remove'),
+      preview: {
+        heading: `${t('chat.diffNotes.heading')}:`,
+        content: note.body,
+        deleteLabel: t('common.delete'),
+        onDelete: () => tab.state.removeDiffNote(note.id),
+      },
+      onRemove: () => tab.state.removeDiffNote(note.id),
+    };
+  }));
 }
 
 async function handleTabSessionEvent(
