@@ -2,10 +2,12 @@ import type { Component } from 'obsidian';
 import { Menu, Notice, Platform, setIcon } from 'obsidian';
 
 import type {
+  BackgroundTurnCompletionDropCause,
   ProviderBackgroundOutputEvent,
   ProviderInteractionPort,
   ProviderSessionEvent,
 } from '../../../core/execution';
+import { reportBackgroundTurnCompletionDrop } from '../../../core/execution';
 import type { ProviderCliLifecyclePort } from '../../../core/providers/cli/ProviderCliLifecycle';
 import { createCatalogCommandDiscoveryStore } from '../../../core/providers/commands/catalogCommandDiscovery';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
@@ -655,6 +657,8 @@ function createTabExecutionCoordinator(
       plugin.providerHost,
       providerId,
     ),
+    onBackgroundTurnCompletionDropped: report =>
+      reportBackgroundTurnCompletionDrop(plugin.providerHost.diagnosticLog, report),
     persistence: plugin.executionPersistence,
     interactionPort,
     vaultWorkingDirectory: getVaultPath(plugin.app) ?? '.',
@@ -841,6 +845,29 @@ async function applyProviderModeChange(
   await updatePlanModeUI(tab, plugin, mode);
 }
 
+/** Names a background turn the tab itself ended without a reviewable completion; other traffic is normal. */
+function reportBackgroundCompletionDrop(
+  tab: TabData,
+  plugin: FeatureHost,
+  event: ProviderSessionEvent,
+  cause: BackgroundTurnCompletionDropCause,
+): void {
+  if (event.scope.kind !== 'background') return;
+  if (
+    event.type !== 'background_turn_started'
+    && event.type !== 'background_turn_completed'
+  ) {
+    return;
+  }
+  reportBackgroundTurnCompletionDrop(plugin.providerHost.diagnosticLog, {
+    cause,
+    providerId: tab.providerId,
+    sequence: event.scope.sequence,
+    sessionInstanceId: event.scope.sessionInstanceId,
+    turnId: event.scope.turnId,
+  });
+}
+
 async function handleTabSessionEvent(
   tab: TabData,
   plugin: FeatureHost,
@@ -848,7 +875,10 @@ async function handleTabSessionEvent(
   context: ChatExecutionEventContext,
   isCurrent: () => boolean,
 ): Promise<void> {
-  if (!isCurrent()) return;
+  if (!isCurrent()) {
+    reportBackgroundCompletionDrop(tab, plugin, event, 'superseded-presentation');
+    return;
+  }
   if (event.type === 'session_state_changed') {
     tab.controllers.inputController?.updateQueueIndicator();
     updateSendButton(tab);
@@ -891,11 +921,22 @@ async function handleTabSessionEvent(
     const turn = turns.get(event.scope.turnId);
     turns.delete(event.scope.turnId);
     deleteBackgroundTurnBuffersIfEmpty(tab, context.bindingId, turns);
-    if (!turn) return;
+    if (!turn) {
+      reportBackgroundCompletionDrop(tab, plugin, event, 'missing-render-state');
+      return;
+    }
     if (event.nativeAssistantId) {
       turn.assistantMsg.assistantMessageId = event.nativeAssistantId;
     }
     const hasVisibleOutput = await finalizeBackgroundTurn(tab, turn, isCurrent);
+    if (!hasVisibleOutput) {
+      reportBackgroundCompletionDrop(
+        tab,
+        plugin,
+        event,
+        isCurrent() ? 'no-visible-output' : 'superseded-presentation',
+      );
+    }
     if (isCurrent()) {
       const reportReviewableSettlement = hasVisibleOutput
         ? tab.captureReviewableSettlement?.()

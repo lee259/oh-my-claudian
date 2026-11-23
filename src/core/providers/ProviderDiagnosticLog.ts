@@ -11,6 +11,7 @@ export type ProviderDiagnosticLogEvent =
   | 'process-stderr'
   | 'process-exited'
   | 'execution-error'
+  | 'background-turn-completion-dropped'
   | 'uncaught-exception'
   | 'unhandled-rejection';
 

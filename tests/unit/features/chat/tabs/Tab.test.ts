@@ -1188,6 +1188,46 @@ describe('Tab provider execution ownership', () => {
     now.mockRestore();
   });
 
+  it('records a background turn that completed without visible output', async () => {
+    const write = jest.fn(async () => undefined);
+    const plugin = createPlugin({
+      providerHost: { diagnosticLog: { write }, executionLifecycleRegistry: {} },
+    });
+    const onReviewableSettlement = jest.fn();
+    const tab = createTab({
+      plugin,
+      containerEl: createMockEl() as any,
+      captureReviewableSettlement: () => onReviewableSettlement,
+    });
+    tab.controllers.conversationController = {
+      save: jest.fn().mockResolvedValue(undefined),
+    } as any;
+    const backgroundScope = {
+      kind: 'background' as const,
+      sequence: 1,
+      sessionInstanceId: 'session-instance-1',
+      turnId: 'quiet-turn',
+    };
+    const context = createEventContext();
+
+    await coordinatorDeps[0].onSessionEvent?.({
+      type: 'background_turn_started',
+      scope: backgroundScope,
+    }, context);
+    await coordinatorDeps[0].onSessionEvent?.({
+      type: 'background_turn_completed',
+      reason: 'completed',
+      scope: { ...backgroundScope, sequence: 2 },
+    }, context);
+
+    expect(onReviewableSettlement).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'background-turn-completion-dropped',
+      message: expect.stringContaining('no-visible-output'),
+      source: 'claude',
+    }));
+  });
+
   it('restores the foreground stream target between background output events', async () => {
     const plugin = createPlugin();
     const tab = createTab({ plugin, containerEl: createMockEl() as any });

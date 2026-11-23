@@ -178,4 +178,34 @@ describe('AntigravityBackgroundTurn', () => {
     jest.advanceTimersByTime(1);
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
+
+  it('records why a reply with a tool still open never settles', () => {
+    const notify = jest.fn();
+    const onSettled = jest.fn();
+    const onCompletionDropped = jest.fn();
+    const turn = new AntigravityBackgroundTurn({
+      notify,
+      onCompletionDropped,
+      onSettled,
+      providerSessionId: 'session-1',
+      sessionInstanceId: 'instance-1',
+    });
+
+    turn.handleUpdate({
+      name: 'read_file',
+      rawInput: { Path: 'README.md' },
+      sessionUpdate: 'tool_call',
+      status: 'in_progress',
+      title: 'Read README.md',
+      toolCallId: 'stuck-read',
+    });
+
+    jest.advanceTimersByTime(119_999);
+    expect(onCompletionDropped).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(onCompletionDropped).toHaveBeenCalledTimes(1);
+    expect(onCompletionDropped).toHaveBeenCalledWith('open-tools');
+  });
 });

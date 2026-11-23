@@ -26,6 +26,8 @@ import {
 } from '@/providers/acp';
 
 import {
+  type BackgroundTurnCompletionDropCause,
+  type BackgroundTurnCompletionDropReport,
   type ProviderExecutionRequest,
   type ProviderExecutionRun,
   type ProviderExecutionSession,
@@ -91,6 +93,10 @@ export interface AntigravityExecutionSessionOptions {
   readonly buildDefaultPrompt?: (vaultPath: string) => string;
   readonly obsidianWorkspaceToolBridge?: ObsidianWorkspaceToolBridge;
   readonly modelSink?: AntigravityLiveModelSink;
+  /** Receives every reply branch that stopped short of a reviewable completion. */
+  readonly onBackgroundTurnCompletionDropped?: (
+    report: BackgroundTurnCompletionDropReport,
+  ) => void;
 }
 
 /** What agy does on its own between runs. */
@@ -813,11 +819,28 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
    */
   #backgroundFor(sessionId: string, open = true): AntigravityBackgroundTurn | null {
     const current = this.#backgroundTurn();
-    if (current || !open || this.active || this.disposed || sessionId !== this.providerSessionId) return current;
-    if (this.nativeSlot.current?.loaded?.systemPromptAppend === undefined) return null;
+    if (current) return current;
+    if (!open) return null;
+    if (this.active) {
+      this.#reportCompletionDrop('run-active');
+      return null;
+    }
+    if (this.disposed) {
+      this.#reportCompletionDrop('session-disposed');
+      return null;
+    }
+    if (sessionId !== this.providerSessionId) {
+      this.#reportCompletionDrop('foreign-session');
+      return null;
+    }
+    if (this.nativeSlot.current?.loaded?.systemPromptAppend === undefined) {
+      this.#reportCompletionDrop('auxiliary-session');
+      return null;
+    }
     const background = new AntigravityBackgroundTurn({
       notify: event => this.state.notify(event),
       onSettled: () => this.#closeBackground('completed'),
+      onCompletionDropped: cause => this.#reportCompletionDrop(cause),
       providerSessionId: this.providerSessionId,
       sessionInstanceId: this.sessionInstanceId,
       takeAnswers: toolCallId => this.questionRouter.takeAnswers(toolCallId),
@@ -856,6 +879,16 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
 
   #backgroundTurn(): AntigravityBackgroundTurn | null {
     return this.lateWork.phase === 'replying' ? this.lateWork.turn : null;
+  }
+
+  #reportCompletionDrop(cause: BackgroundTurnCompletionDropCause): void {
+    const turn = this.#backgroundTurn();
+    this.options.onBackgroundTurnCompletionDropped?.({
+      cause,
+      providerId: this.providerId,
+      sessionInstanceId: this.sessionInstanceId,
+      ...(turn ? { turnId: turn.turnId } : {}),
+    });
   }
 
   #interactionTurnId(): string | null {
