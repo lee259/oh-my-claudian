@@ -133,7 +133,9 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       expect(inspected.querySelector('.claudian-tool-content')?.textContent).toContain('Native output');
       expect(inspected.querySelector('.claudian-tool-exit')?.textContent).toBe('成功');
       const read = messagesEl.querySelector('[data-tool-id="read"] .claudian-tool-header');
-      expect(read?.querySelector('.claudian-tool-exploration-value')?.getAttribute('title')).toBe('b.md');
+      // Its summary already says b.md, so the same file is no longer repeated as an action.
+      expect(read?.querySelector('.claudian-tool-exploration-value')).toBeNull();
+      expect(read?.querySelector('.claudian-tool-summary')?.textContent).toBe('b.md');
       expect(read?.getAttribute('aria-expanded')).toBe('false');
       const failed = messagesEl.querySelector('[data-tool-id="failed"]');
       failed?.querySelector<HTMLButtonElement>('.claudian-tool-header')?.click();
