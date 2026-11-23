@@ -92,6 +92,7 @@ export class AcpInteractionController {
           ? { decisionReason: presentation.decisionReason }
           : {}),
         description: presentation.description,
+        exactOptionSelection: true,
         input,
         interactionId,
         kind: 'approval',

@@ -14,3 +14,4 @@
 - ACP sessions and interactions must release transports, pending requests, and interaction waiters during disposal.
 - A disposed transport or session must not accept new requests or publish late events into a replacement provider session.
 - Test transport, interaction, normalization, cancellation, and disposal contracts here; test provider extensions in the provider directory.
+- Permission approvals preserve the selected native ACP option. Mark the interaction request `exactOptionSelection` and reply with that option's value; never collapse the answer to an allow/deny family and pick the first matching kind.
