@@ -95,8 +95,8 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
   });
 
   it.each([
-    ['all exploration', false, '探索了项目'],
-    ['with a failed command', true, '探索了项目和执行了 1 条命令'],
+    ['all exploration', false, '探索了项目和执行了 2 条命令'],
+    ['with a failed command', true, '探索了项目和执行了 3 条命令'],
   ] as const)('summarizes stored command activity %s', (_case, includeFailure, expected) => {
     setLocale('zh-CN');
     const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
