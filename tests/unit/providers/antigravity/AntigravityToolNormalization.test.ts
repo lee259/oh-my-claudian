@@ -1,4 +1,7 @@
-import { presentAntigravityUpdate } from '@/providers/antigravity/normalization/antigravityToolNormalization';
+import {
+  antigravityPermissionWarning,
+  presentAntigravityUpdate,
+} from '@/providers/antigravity/normalization/antigravityToolNormalization';
 
 describe('presentAntigravityUpdate', () => {
   it('presents an unseen tool update as the call it completes', () => {
@@ -34,5 +37,23 @@ describe('presentAntigravityUpdate', () => {
       sessionUpdate: 'tool_call_update',
       title: 'write_file',
     });
+  });
+
+  it('exposes the provider warning attached to a persistent approval', () => {
+    expect(antigravityPermissionWarning({
+      _meta: {
+        'agy.security.warning': {
+          message: 'Future shell calls may run without asking.',
+        },
+      },
+      kind: 'allow_always',
+      name: 'Always allow',
+      optionId: 'always',
+    })).toBe('Future shell calls may run without asking.');
+    expect(antigravityPermissionWarning({
+      kind: 'allow_once',
+      name: 'Allow once',
+      optionId: 'once',
+    })).toBeUndefined();
   });
 });

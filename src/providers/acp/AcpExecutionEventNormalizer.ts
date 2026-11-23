@@ -94,6 +94,10 @@ export class AcpExecutionEventNormalizer {
     };
   }
 
+  get hasOpenTools(): boolean {
+    return this.normalizer.hasOpenTools;
+  }
+
   reset(): void {
     if (this.disposed) return;
     this.normalizer.reset();

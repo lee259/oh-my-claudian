@@ -1,7 +1,10 @@
 import * as fs from 'node:fs';
+import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
+  hasAntigravityOutstandingSubagents,
   parseAntigravityTranscript,
   readAntigravityLatestRequest,
 } from '@/providers/antigravity/history/AntigravityHistoryStore';
@@ -75,5 +78,40 @@ describe('Antigravity history and models', () => {
         { step_index: 5, type: 'SYSTEM_MESSAGE' },
       ],
     })).toBe(4);
+  });
+
+  it('stops waiting for a subagent only when its native record is killed', async () => {
+    const storeRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'antigravity-history-'));
+    const records = path.join(storeRoot, 'brain', 'session-1', '.system_generated', 'subagents');
+    await fsp.mkdir(records, { recursive: true });
+    const transcript = {
+      argumentsEncoded: false,
+      steps: ['sub-1', 'sub-2'].map(id => ({
+        content: `Created the following subagent:\n${JSON.stringify({ conversationId: id })}`,
+        type: 'GENERIC',
+      })),
+    };
+
+    try {
+      await fsp.writeFile(
+        path.join(records, 'sub-1.json'),
+        JSON.stringify({ conversationId: 'sub-1', state: 'SUBAGENT_STATE_KILLED' }),
+      );
+      await fsp.writeFile(
+        path.join(records, 'sub-2.json'),
+        JSON.stringify({ conversationId: 'sub-2', state: 'SUBAGENT_STATE_RUNNING' }),
+      );
+      await expect(hasAntigravityOutstandingSubagents(transcript, 0, storeRoot, 'session-1'))
+        .resolves.toBe(true);
+
+      await fsp.writeFile(
+        path.join(records, 'sub-2.json'),
+        JSON.stringify({ conversationId: 'sub-2', state: 'SUBAGENT_STATE_KILLED' }),
+      );
+      await expect(hasAntigravityOutstandingSubagents(transcript, 0, storeRoot, 'session-1'))
+        .resolves.toBe(false);
+    } finally {
+      await fsp.rm(storeRoot, { force: true, recursive: true });
+    }
   });
 });

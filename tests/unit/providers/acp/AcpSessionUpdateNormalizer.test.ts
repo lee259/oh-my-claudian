@@ -98,6 +98,25 @@ describe('AcpSessionUpdateNormalizer', () => {
     });
   });
 
+  it('reports tools that have not reached a terminal state', () => {
+    const normalizer = new AcpSessionUpdateNormalizer();
+    expect(normalizer.hasOpenTools).toBe(false);
+
+    normalizer.normalize({
+      sessionUpdate: 'tool_call',
+      title: 'Read file',
+      toolCallId: 'tool-1',
+    });
+    expect(normalizer.hasOpenTools).toBe(true);
+
+    normalizer.normalize({
+      sessionUpdate: 'tool_call_update',
+      status: 'completed',
+      toolCallId: 'tool-1',
+    });
+    expect(normalizer.hasOpenTools).toBe(false);
+  });
+
   it('preserves native diff content through a status-only completion', () => {
     const normalizer = new AcpSessionUpdateNormalizer();
 

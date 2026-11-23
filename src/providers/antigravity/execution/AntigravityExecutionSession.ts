@@ -62,6 +62,7 @@ import {
   readAntigravityThinkingLevels,
 } from '../models';
 import {
+  antigravityPermissionWarning,
   createAntigravityToolStreamAdapter,
   normalizeAntigravityToolName,
   presentAntigravityUpdate,
@@ -224,6 +225,7 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
       this.providerSessionId && providerState.nativeConversationContextEstablished !== false,
     );
     this.interactionController = new ACPInteractionController({
+      describePermissionOption: antigravityPermissionWarning,
       getTurnId: () => this.#interactionTurnId(),
       interactionPort: config.interactionPort,
       presentPermission: request => {
@@ -714,7 +716,9 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
     if (background) {
       // Fail closed: approvals between runs follow the configuration agy last ran under.
       if (!this.latestPolicy) return Promise.resolve(CANCELLED_PERMISSION);
-      return this.#decidePermission(request, this.latestPolicy, background.signal).then(response => {
+      return background.holdForRequest(
+        this.#decidePermission(request, this.latestPolicy, background.signal),
+      ).then(response => {
         if (!grantsPermission(request, response)) background.toolDenied(request.toolCall.toolCallId);
         return response;
       });
@@ -743,7 +747,7 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
 
   #handleElicitation(request: ACPCreateElicitationRequest): Promise<ACPCreateElicitationResponse> {
     const background = this.#backgroundFor(request.sessionId);
-    if (background) return this.questionRouter.handle(request, background.signal);
+    if (background) return background.holdForRequest(this.questionRouter.handle(request, background.signal));
     const active = this.active;
     if (!active || this.#isCancellationRequested(active)) return Promise.resolve({ action: 'cancel' });
     return this.questionRouter.handle(request, active.abortController.signal);
