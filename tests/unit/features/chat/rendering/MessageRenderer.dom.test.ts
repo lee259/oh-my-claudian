@@ -125,6 +125,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       phase?.click();
       const inspected = messagesEl.querySelector('[data-tool-id="inspect"]')!;
       const inspectHeader = inspected.querySelector<HTMLElement>('.claudian-tool-header')!;
+      expect(inspectHeader.textContent).toContain('rg match && cat a.md');
       expect([...inspectHeader.querySelectorAll('.claudian-tool-exploration-value')].map(el => el.getAttribute('title')))
         .toEqual(['match.*value · notes/', 'notes/a.md']);
       inspectHeader.click();
