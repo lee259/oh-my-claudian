@@ -1081,7 +1081,13 @@ export function makeFileSummaryInteractive(
 }
 
 function getExplorationActions(toolCall: ToolCallInfo): readonly ToolExplorationAction[] {
-  return toolCall.status === 'completed' ? toolCall.exploration?.actions ?? [] : [];
+  const actions = toolCall.status === 'completed' ? toolCall.exploration?.actions ?? [] : [];
+  // A tool that read its own file already names it in the summary; repeating it as an action is noise.
+  const ownPath = typeof toolCall.input.file_path === 'string'
+    ? toolCall.input.file_path.trim()
+    : '';
+  if (!ownPath) return actions;
+  return actions.filter(action => !(action.type === 'read' && action.path === ownPath));
 }
 
 function getExplorationValue(action: ToolExplorationAction): string {
