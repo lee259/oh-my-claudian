@@ -29,6 +29,7 @@ Core must consume provider data through explicit contracts. Do not branch on pro
 - For an unavailable durable conversation selection, `ConversationModelResolution.model` remains the readable stored value and `modelToPersist` carries the desired fallback. Readers must not project `modelToPersist`; the application repository publishes it only after persistence succeeds.
 - Provider alias canonicalization used during availability checks must not choose a fallback model. Fallback policy remains a separate ordered/default resolution step.
 - Provider fallback order is the registry's explicit blank-tab display order. Do not derive fallback from display-name sorting, registration insertion order, or the current settings projection.
+- Permission modes are provider-owned projections. A switch or inactive-provider projection may reuse the top-level mode only when it already belongs to that provider; missing or malformed saved modes resolve to that provider's safe fallback instead of carrying another provider's mode (for example YOLO).
 
 ## Gotchas
 

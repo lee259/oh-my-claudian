@@ -1,5 +1,10 @@
 import type { Conversation } from '../types';
 import { toProviderRuntimeModelId } from './modelSelection';
+import {
+  type PermissionModePolicy,
+  resolvePermissionMode,
+  resolvePermissionModePolicy,
+} from './permissionModes';
 import { ProviderRegistry } from './ProviderRegistry';
 import {
   ensureProviderProjectionMap,
@@ -39,19 +44,41 @@ function cloneProviderSettings(settings: Record<string, unknown>): Record<string
     savedProviderEffort: normalizeProviderProjectionMap(settings.savedProviderEffort),
     savedProviderServiceTier: normalizeProviderProjectionMap(settings.savedProviderServiceTier),
     savedProviderThinkingBudget: normalizeProviderProjectionMap(settings.savedProviderThinkingBudget),
-    savedProviderPermissionMode: normalizeProviderProjectionMap(settings.savedProviderPermissionMode),
+    savedProviderPermissionMode: normalizeSavedPermissionModes(settings.savedProviderPermissionMode, settings),
   };
 }
 
-function normalizeToggleValue(
+/** Malformed saved entries still represent a choice; fail them closed instead of dropping them. */
+function normalizeSavedPermissionModes(
   value: unknown,
-  allowedValues: Set<string>,
-): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
+  settings: Record<string, unknown>,
+): ProviderProjectionMap {
+  const normalized = normalizeProviderProjectionMap(value);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return normalized;
+  const registered = ProviderRegistry.getRegisteredProviderIds();
+  for (const [providerId, saved] of Object.entries(value)) {
+    if (typeof saved === 'string' || !registered.includes(providerId)) continue;
+    const policy = resolvePermissionModePolicy(
+      ProviderRegistry.getChatUIConfig(providerId),
+      settings,
+    );
+    if (policy) normalized[providerId] = policy.fallbackValue;
   }
+  return normalized;
+}
 
-  return allowedValues.has(value) ? value : undefined;
+function ensureSavedPermissionModeMap(settings: Record<string, unknown>): ProviderProjectionMap {
+  const normalized = normalizeSavedPermissionModes(settings.savedProviderPermissionMode, settings);
+  settings.savedProviderPermissionMode = normalized;
+  return normalized;
+}
+
+/** A known saved value, else the provider's fail-closed fallback. */
+function normalizeStoredPermissionMode(
+  policy: PermissionModePolicy,
+  value: unknown,
+): string | undefined {
+  return resolvePermissionMode(policy, value);
 }
 
 function mergeProviderSettings(
@@ -228,6 +255,18 @@ export class ProviderSettingsCoordinator {
     }
 
     settings.settingsProvider = next;
+    const policy = resolvePermissionModePolicy(
+      ProviderRegistry.getChatUIConfig(next),
+      settings,
+    );
+    if (policy) {
+      const saved = normalizeSavedPermissionModes(
+        settings.savedProviderPermissionMode,
+        settings,
+      );
+      settings.permissionMode = normalizeStoredPermissionMode(policy, saved[next])
+        ?? policy.fallbackValue;
+    }
     return true;
   }
 
@@ -295,7 +334,7 @@ export class ProviderSettingsCoordinator {
     const savedEffort = ensureProviderProjectionMap(settings, 'savedProviderEffort');
     const savedServiceTier = ensureProviderProjectionMap(settings, 'savedProviderServiceTier');
     const savedBudget = ensureProviderProjectionMap(settings, 'savedProviderThinkingBudget');
-    const savedPermissionMode = ensureProviderProjectionMap(settings, 'savedProviderPermissionMode');
+    const savedPermissionMode = ensureSavedPermissionModeMap(settings);
     const uiConfig = ProviderRegistry.getChatUIConfig(providerId);
     const normalizedModel = normalizeProviderModel(
       uiConfig,
@@ -325,8 +364,16 @@ export class ProviderSettingsCoordinator {
     } else {
       delete savedBudget[providerId];
     }
-    if (typeof settings.permissionMode === 'string' && uiConfig.getPermissionModeToggle?.()) {
-      savedPermissionMode[providerId] = settings.permissionMode;
+    const permissionPolicy = resolvePermissionModePolicy(uiConfig, projectedSettings);
+    if (
+      permissionPolicy
+      && savedPermissionMode[providerId] === undefined
+      && typeof settings.permissionMode === 'string'
+    ) {
+      savedPermissionMode[providerId] = normalizeStoredPermissionMode(
+        permissionPolicy,
+        settings.permissionMode,
+      ) ?? permissionPolicy.fallbackValue;
     }
   }
 
@@ -342,7 +389,7 @@ export class ProviderSettingsCoordinator {
     const savedEffort = projection('savedProviderEffort');
     const savedServiceTier = projection('savedProviderServiceTier');
     const savedBudget = projection('savedProviderThinkingBudget');
-    const savedPermissionMode = projection('savedProviderPermissionMode');
+    const savedPermissionMode = ensureSavedPermissionModeMap(settings);
 
     const shouldPreferCurrentProjection = providerId === getSettingsProviderId(settings);
     const currentModelRaw = typeof settings.model === 'string' ? settings.model : '';
@@ -432,35 +479,22 @@ export class ProviderSettingsCoordinator {
       settings.thinkingBudget = normalizeReasoningValue(uiConfig, settings, model, settings.thinkingBudget);
     }
 
-    const permissionToggle = uiConfig.getPermissionModeToggle?.() ?? null;
-    if (!permissionToggle) {
-      return;
-    }
-
-    const allowedPermissionModes = new Set([
-      permissionToggle.inactiveValue,
-      permissionToggle.activeValue,
-      ...(permissionToggle.values ?? []),
-      ...(permissionToggle.planValue ? [permissionToggle.planValue] : []),
-    ]);
-    const currentPermissionMode = normalizeToggleValue(settings.permissionMode, allowedPermissionModes);
-    const derivedPermissionMode = normalizeToggleValue(
-      uiConfig.resolvePermissionMode?.(settings),
-      allowedPermissionModes,
-    );
-    const savedPermissionModeValue = normalizeToggleValue(
-      savedPermissionMode?.[providerId],
-      allowedPermissionModes,
-    );
-
-    const projectedPermissionMode = savedPermissionModeValue
-      ?? derivedPermissionMode
-      ?? (shouldPreferCurrentProjection ? currentPermissionMode : undefined)
-      ?? currentPermissionMode;
-
-    if (projectedPermissionMode !== undefined) {
-      settings.permissionMode = projectedPermissionMode;
-    }
+    const permissionPolicy = resolvePermissionModePolicy(uiConfig, settings);
+    if (!permissionPolicy) return;
+    // The current mode may belong to another provider and be YOLO; reuse it only for its owner.
+    const ownsCurrentPermissionMode = shouldPreferCurrentProjection || settings.settingsProvider === providerId;
+    const derivedPermissionMode = ownsCurrentPermissionMode
+      ? normalizeStoredPermissionMode(permissionPolicy, uiConfig.resolvePermissionMode?.(settings))
+      : undefined;
+    const currentPermissionMode = ownsCurrentPermissionMode
+      ? normalizeStoredPermissionMode(permissionPolicy, settings.permissionMode)
+      : undefined;
+    settings.permissionMode = normalizeStoredPermissionMode(
+      permissionPolicy,
+      savedPermissionMode[providerId],
+    ) ?? derivedPermissionMode
+      ?? currentPermissionMode
+      ?? permissionPolicy.fallbackValue;
   }
 
   /** Each provider's reconciler only processes its own conversations. */

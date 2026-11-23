@@ -202,6 +202,30 @@ describe('ProviderSettingsCoordinator', () => {
       };
       expect(ProviderSettingsCoordinator.normalizeProviderSelection(settings)).toBe(false);
     });
+
+    it.each(['codex', 'antigravity'])(
+      'fails closed instead of carrying YOLO into %s',
+      (nextProvider) => {
+        const settingsProviderSpy = jest.spyOn(ProviderRegistry, 'resolveSettingsProviderId')
+          .mockReturnValue(nextProvider as never);
+        const settings: Record<string, unknown> = {
+          settingsProvider: 'claude',
+          permissionMode: 'yolo',
+          providerConfigs: {
+            [nextProvider]: { enabled: true },
+          },
+          savedProviderPermissionMode: { claude: 'yolo' },
+        };
+
+        try {
+          expect(ProviderSettingsCoordinator.normalizeProviderSelection(settings)).toBe(true);
+          expect(settings.settingsProvider).toBe(nextProvider);
+          expect(settings.permissionMode).toBe('normal');
+        } finally {
+          settingsProviderSpy.mockRestore();
+        }
+      },
+    );
   });
 
   describe('applyProviderEnablement', () => {
@@ -812,7 +836,7 @@ describe('ProviderSettingsCoordinator', () => {
 
   });
 
-  describe('persistProjectedProviderState', () => {
+  describe('permission mode persistence', () => {
     it('stores the current top-level projection for the settings provider', () => {
       const settings: Record<string, unknown> = {
         settingsProvider: 'codex',
@@ -978,6 +1002,67 @@ describe('ProviderSettingsCoordinator', () => {
       ProviderSettingsCoordinator.projectProviderState(settings, 'grok');
 
       expect(settings.permissionMode).toBe(mode);
+    });
+
+    it('fails closed when a projected provider has no saved permission mode', () => {
+      const settings: Record<string, unknown> = {
+        settingsProvider: 'claude',
+        permissionMode: 'yolo',
+        providerConfigs: {
+          codex: { enabled: true, discoveredModels: TEST_CODEX_CATALOG },
+        },
+        model: 'haiku',
+        effortLevel: 'high',
+        serviceTier: 'default',
+        thinkingBudget: 'off',
+        savedProviderModel: {},
+        savedProviderEffort: {},
+        savedProviderServiceTier: {},
+        savedProviderThinkingBudget: {},
+        savedProviderPermissionMode: { claude: 'yolo' },
+      };
+
+      ProviderSettingsCoordinator.projectProviderState(settings, 'codex');
+
+      expect(settings.permissionMode).toBe('normal');
+    });
+
+    it('fails a malformed saved permission mode closed instead of reusing the current YOLO', () => {
+      const settings: Record<string, unknown> = {
+        settingsProvider: 'claude',
+        permissionMode: 'yolo',
+        providerConfigs: {
+          codex: { enabled: true, discoveredModels: TEST_CODEX_CATALOG },
+        },
+        model: 'haiku',
+        effortLevel: 'high',
+        serviceTier: 'default',
+        thinkingBudget: 'off',
+        savedProviderModel: {},
+        savedProviderEffort: {},
+        savedProviderServiceTier: {},
+        savedProviderThinkingBudget: {},
+        savedProviderPermissionMode: { claude: 'yolo', codex: 42 },
+      };
+
+      ProviderSettingsCoordinator.projectProviderState(settings, 'codex');
+
+      expect(settings.permissionMode).toBe('normal');
+    });
+  });
+
+  describe('persistProjectedProviderState', () => {
+    it('does not overwrite a malformed saved mode with a stale top-level YOLO', () => {
+      const settings: Record<string, unknown> = {
+        settingsProvider: 'claude',
+        permissionMode: 'yolo',
+        providerConfigs: { claude: { enabled: true } },
+        savedProviderPermissionMode: { claude: 42 },
+      };
+
+      ProviderSettingsCoordinator.persistProjectedProviderState(settings, 'claude');
+
+      expect(settings.savedProviderPermissionMode).toEqual({ claude: 'normal' });
     });
   });
 
