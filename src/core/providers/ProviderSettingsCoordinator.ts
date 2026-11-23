@@ -138,25 +138,8 @@ function normalizeModelDependentSettings(
     );
   }
 
-  const serviceTierToggle = uiConfig.getServiceTierToggle?.(settings) ?? null;
-  if (!serviceTierToggle) {
-    settings.serviceTier = 'default';
-    return;
-  }
-
-  const currentServiceTier = typeof settings.serviceTier === 'string'
-    ? settings.serviceTier
-    : undefined;
-  if (currentServiceTier === 'fast') {
-    settings.serviceTier = serviceTierToggle.activeValue;
-    return;
-  }
-  if (
-    currentServiceTier !== serviceTierToggle.inactiveValue
-    && currentServiceTier !== serviceTierToggle.activeValue
-  ) {
-    settings.serviceTier = serviceTierToggle.inactiveValue;
-  }
+  const serviceTierPolicy = uiConfig.getServiceTierToggle?.(settings) ?? null;
+  settings.serviceTier = serviceTierPolicy?.selectedValue ?? 'default';
 }
 
 export class ProviderSettingsCoordinator {
@@ -354,8 +337,8 @@ export class ProviderSettingsCoordinator {
       delete savedEffort[providerId];
     }
     const serviceTierToggle = uiConfig.getServiceTierToggle?.(projectedSettings) ?? null;
-    if (serviceTierToggle && typeof settings.serviceTier === 'string') {
-      savedServiceTier[providerId] = settings.serviceTier;
+    if (serviceTierToggle) {
+      savedServiceTier[providerId] = serviceTierToggle.selectedValue;
     }
     const usesBudget = normalizedModel !== undefined
       && !uiConfig.isAdaptiveReasoningModel(normalizedModel, projectedSettings);
@@ -433,7 +416,7 @@ export class ProviderSettingsCoordinator {
       }
     }
 
-    const serviceTierToggle = uiConfig.getServiceTierToggle?.({
+    const serviceTierPolicy = uiConfig.getServiceTierToggle?.({
       ...settings,
       ...(model ? { model } : {}),
     }) ?? null;
@@ -458,13 +441,16 @@ export class ProviderSettingsCoordinator {
       delete settings.effortLevel;
     }
 
-    if (savedServiceTier?.[providerId] !== undefined) {
-      settings.serviceTier = savedServiceTier[providerId];
-    } else if (canReuseCurrentProjection && currentServiceTier !== undefined) {
-      settings.serviceTier = currentServiceTier;
-    } else {
-      settings.serviceTier = serviceTierToggle?.inactiveValue ?? 'default';
-    }
+    const serviceTierCandidate = savedServiceTier?.[providerId]
+      ?? (canReuseCurrentProjection ? currentServiceTier : undefined)
+      ?? serviceTierPolicy?.options[0]?.value
+      ?? 'default';
+    const projectedServiceTierPolicy = uiConfig.getServiceTierToggle?.({
+      ...settings,
+      ...(model ? { model } : {}),
+      serviceTier: serviceTierCandidate,
+    }) ?? serviceTierPolicy;
+    settings.serviceTier = projectedServiceTierPolicy?.selectedValue ?? serviceTierCandidate;
 
     const usesBudget = Boolean(model) && !isAdaptive;
 

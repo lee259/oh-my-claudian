@@ -301,14 +301,14 @@ export interface ProviderPermissionModeOption extends ProviderUIOption {
   isDangerous?: boolean;
 }
 
-/** Compact service-tier toggle descriptor for providers that expose a fast/standard toolbar control. */
+/** Provider-reported service-tier choices and the resolved selection. */
 export interface ProviderServiceTierToggleConfig {
-  inactiveValue: string;
-  inactiveLabel: string;
-  activeValue: string;
-  activeLabel: string;
-  isActive?: boolean;
-  description?: string;
+  /** Choices in menu order; the first is the standard tier, which turns acceleration off. */
+  options: ProviderUIOption[];
+  /** The option the provider will use for the next request. */
+  selectedValue: string;
+  /** The option `/fast` switches to from the standard tier; null when the provider has no Fast tier. */
+  fastValue: string | null;
 }
 
 export interface ProviderModeSelectorConfig {

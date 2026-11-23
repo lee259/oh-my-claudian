@@ -706,7 +706,7 @@ describe('ProviderSettingsCoordinator', () => {
 
       expect(settings.model).toBe(TEST_CODEX_MODEL);
       expect(settings.effortLevel).toBe('medium');
-      expect(settings.serviceTier).toBe('fast');
+      expect(settings.serviceTier).toBe('priority');
       expect(settings.thinkingBudget).toBe('off');
       expect(settings.permissionMode).toBe('normal');
     });
@@ -730,7 +730,7 @@ describe('ProviderSettingsCoordinator', () => {
       const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(settings, 'codex');
 
       expect(snapshot.model).toBe(TEST_CODEX_MODEL);
-      expect(snapshot.serviceTier).toBe('fast');
+      expect(snapshot.serviceTier).toBe('priority');
     });
 
     it('rejects arrays as provider projection maps when creating a snapshot', () => {
@@ -867,7 +867,7 @@ describe('ProviderSettingsCoordinator', () => {
       });
       expect(settings.savedProviderServiceTier).toEqual({
         claude: 'default',
-        codex: 'fast',
+        codex: 'priority',
       });
       expect(settings.savedProviderPermissionMode).toEqual({
         claude: 'yolo',
@@ -928,6 +928,34 @@ describe('ProviderSettingsCoordinator', () => {
 
       expect(settings.model).toBe('gpt-5.4-mini');
       expect(settings.serviceTier).toBe('fast');
+    });
+
+    it.each([
+      ['fast', 'priority'],
+      ['retired-tier', 'default'],
+    ])('projects a saved Codex service tier %s to %s', (savedTier, projectedTier) => {
+      const settings: Record<string, unknown> = {
+        settingsProvider: 'codex',
+        providerConfigs: {
+          codex: {
+            enabled: true,
+            discoveredModels: TEST_CODEX_CATALOG,
+            environmentVariables: '',
+          },
+        },
+        model: TEST_CODEX_MODEL,
+        effortLevel: 'medium',
+        serviceTier: 'default',
+        thinkingBudget: 'off',
+        savedProviderModel: { codex: TEST_CODEX_MODEL },
+        savedProviderEffort: { codex: 'medium' },
+        savedProviderServiceTier: { codex: savedTier },
+        savedProviderThinkingBudget: { codex: 'off' },
+      };
+
+      ProviderSettingsCoordinator.projectProviderState(settings, 'codex');
+
+      expect(settings.serviceTier).toBe(projectedTier);
     });
 
     it('projects native OpenCode Build to ordinary execution mode', () => {
@@ -1107,7 +1135,7 @@ describe('ProviderSettingsCoordinator', () => {
       });
       expect(settings.savedProviderServiceTier).toEqual({
         claude: 'default',
-        codex: 'fast',
+        codex: 'priority',
       });
     });
   });

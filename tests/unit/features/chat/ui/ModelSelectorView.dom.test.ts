@@ -46,11 +46,10 @@ describe('ModelSelectorView browsing', () => {
       reasoningDefaultValue: 'low',
       reasoningLabel: 'Effort',
       serviceTier: null,
-      serviceTierActive: false,
       onModelChange: jest.fn(),
       onFavoriteToggle: jest.fn(),
       onReasoningChange: jest.fn(),
-      onServiceTierToggle: jest.fn(),
+      onServiceTierChange: jest.fn(),
     };
     await act(() => render(h(ModelSelectorView, props), container));
     await click('.claudian-model-btn');
@@ -158,15 +157,47 @@ describe('ModelSelectorView browsing', () => {
     // The owner publishes the successful provider switch and its native options.
     props = { ...props, currentProviderId: 'codex', currentModel: 'shared-id', displayModelLabel: 'GPT Sol',
       reasoningOptions: [{ value: 'medium', label: 'Medium' }, { value: 'xhigh', label: 'Extra high' }],
-      reasoningValue: 'xhigh', serviceTier: { inactiveValue: 'default', inactiveLabel: 'Standard',
-        activeValue: 'fast', activeLabel: 'Fast' }, serviceTierActive: true };
+      reasoningValue: 'xhigh', serviceTier: {
+        fastValue: 'fast',
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Fast', value: 'fast' },
+        ],
+        selectedValue: 'fast',
+      } };
     await act(() => render(h(ModelSelectorView, props), container));
     expect(container.querySelector('.claudian-model-dropdown')?.hasAttribute('hidden')).toBe(false);
     expect(container.querySelector('.claudian-model-menu-footer')?.textContent).toContain('GPT Sol');
     expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.getAttribute('aria-valuetext')).toBe('Extra high');
     expect(container.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
     await click('[role="switch"]');
-    expect(props.onServiceTierToggle).toHaveBeenCalledTimes(1);
+    expect(props.onServiceTierChange).toHaveBeenCalledWith('default');
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('renders every advertised service tier and selects the requested tier', async () => {
+    props = {
+      ...props,
+      currentProviderId: 'codex',
+      currentModel: 'shared-id',
+      serviceTier: {
+        fastValue: 'fast',
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Fast', value: 'fast' },
+          { label: 'Ultrafast', value: 'ultrafast' },
+        ],
+        selectedValue: 'fast',
+      },
+    };
+    await act(() => render(h(ModelSelectorView, props), container));
+    await click('[data-provider-filter="codex"]');
+
+    const tiers = Array.from(container.querySelectorAll<HTMLButtonElement>('.claudian-model-service-tier-option'));
+    expect(tiers.map(tier => tier.getAttribute('aria-label'))).toEqual(['Standard', 'Fast', 'Ultrafast']);
+    expect(tiers.map(tier => tier.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    await act(() => tiers[2]!.click());
+    expect(props.onServiceTierChange).toHaveBeenCalledWith('ultrafast');
     expect((await axe(container)).violations).toEqual([]);
   });
 

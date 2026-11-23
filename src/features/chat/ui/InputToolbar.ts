@@ -151,9 +151,6 @@ export class ModelSelector {
       : uiConfig.getReasoningOptions(currentModel, settings);
     const reasoningValue = adaptiveReasoning ? settings.effortLevel : settings.thinkingBudget;
     const serviceTier = uiConfig.getServiceTierToggle?.(settings) ?? null;
-    const serviceTierActive = serviceTier
-      ? serviceTier.isActive ?? settings.serviceTier === serviceTier.activeValue
-      : false;
 
     this.root.render(h(ModelSelectorView, {
       id: this.menuId,
@@ -178,7 +175,6 @@ export class ModelSelector {
         ? t('chat.modelPicker.effort')
         : t('chat.modelPicker.thinkingBudget'),
       serviceTier,
-      serviceTierActive,
       onModelChange: model => runToolbarAction(async () => {
         await this.callbacks.onModelChange(model.value, model.providerId);
         this.updateDisplay();
@@ -191,8 +187,8 @@ export class ModelSelector {
           this.updateDisplay();
         }
       }, t('chat.modelPicker.reasoningChangeFailed')),
-      onServiceTierToggle: () => runToolbarAction(async () => {
-        await toggleServiceTier(this.callbacks);
+      onServiceTierChange: serviceTierValue => runToolbarAction(async () => {
+        await this.callbacks.onServiceTierChange(serviceTierValue);
         this.updateDisplay();
       }, t('chat.modelPicker.serviceTierChangeFailed')),
     }));

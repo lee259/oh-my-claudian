@@ -683,8 +683,12 @@ describe('CodexChatUIConfig', () => {
       };
 
       expect(codexChatUIConfig.getServiceTierToggle!(settings)).toMatchObject({
-        activeValue: 'priority',
-        activeLabel: 'Fast',
+        fastValue: 'priority',
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Fast', value: 'priority' },
+        ],
+        selectedValue: 'default',
       });
     });
 
@@ -704,9 +708,8 @@ describe('CodexChatUIConfig', () => {
       });
 
       expect(codexChatUIConfig.getServiceTierToggle!(settings)).toMatchObject({
-        activeValue: 'priority',
-        activeLabel: 'Fast',
-        isActive: true,
+        fastValue: 'priority',
+        selectedValue: 'priority',
       });
     });
 
@@ -719,12 +722,12 @@ describe('CodexChatUIConfig', () => {
       };
 
       expect(codexChatUIConfig.getServiceTierToggle!(settings)).toEqual({
-        inactiveValue: 'default',
-        inactiveLabel: 'Standard',
-        activeValue: 'priority',
-        activeLabel: 'Fast',
-        isActive: false,
-        description: '1.5x speed',
+        fastValue: 'priority',
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Fast', value: 'priority', description: '1.5x speed' },
+        ],
+        selectedValue: 'default',
       });
     });
 
@@ -734,15 +737,49 @@ describe('CodexChatUIConfig', () => {
       }))).toBeNull();
     });
 
-    it('ignores service tiers that are not Fast mode', () => {
+    it('offers advertised tiers even when the model has no Fast tier', () => {
       const settings = withDiscoveredModels({ model: TEST_CODEX_MODEL });
       const config = settings.providerConfigs as { codex: { discoveredModels: any[] } };
       config.codex.discoveredModels[1] = {
         ...config.codex.discoveredModels[1],
-        serviceTiers: [{ id: 'batch', name: 'Batch', description: 'Background work' }],
+        serviceTiers: [{ id: 'ultrafast', name: 'Ultrafast', description: 'Maximum speed' }],
       };
 
-      expect(codexChatUIConfig.getServiceTierToggle!(settings)).toBeNull();
+      expect(codexChatUIConfig.getServiceTierToggle!(settings)).toEqual({
+        fastValue: null,
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Ultrafast', value: 'ultrafast', description: 'Maximum speed' },
+        ],
+        selectedValue: 'default',
+      });
+    });
+
+    it('keeps Fast first and exposes every other advertised tier', () => {
+      const settings = withDiscoveredModels({
+        model: TEST_CODEX_MODEL,
+        serviceTier: 'ultrafast',
+      });
+      const config = settings.providerConfigs as { codex: { discoveredModels: any[] } };
+      config.codex.discoveredModels[1] = {
+        ...config.codex.discoveredModels[1],
+        serviceTiers: [
+          { id: 'ultrafast', name: 'Ultrafast', description: 'Maximum speed' },
+          { id: 'priority', name: 'Fast', description: '1.5x speed' },
+          { id: 'batch', name: 'Batch', description: 'Background work' },
+        ],
+      };
+
+      expect(codexChatUIConfig.getServiceTierToggle!(settings)).toEqual({
+        fastValue: 'priority',
+        options: [
+          { label: 'Standard', value: 'default' },
+          { label: 'Fast', value: 'priority', description: '1.5x speed' },
+          { label: 'Ultrafast', value: 'ultrafast', description: 'Maximum speed' },
+          { label: 'Batch', value: 'batch', description: 'Background work' },
+        ],
+        selectedValue: 'ultrafast',
+      });
     });
   });
 });

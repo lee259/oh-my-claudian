@@ -27,10 +27,9 @@ it('preserves the enabled DeepSeek order in the actual chat selector', async () 
     reasoningDefaultValue: '',
     reasoningLabel: 'Effort',
     serviceTier: null,
-    serviceTierActive: false,
     onModelChange: jest.fn(),
     onReasoningChange: jest.fn(),
-    onServiceTierToggle: jest.fn(),
+    onServiceTierChange: jest.fn(),
   };
   try {
     await act(() => render(h(ModelSelectorView, props), container));

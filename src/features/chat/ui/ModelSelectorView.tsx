@@ -27,10 +27,9 @@ export interface ModelSelectorViewProps {
   reasoningDefaultValue: string;
   reasoningLabel: string;
   serviceTier: ProviderServiceTierToggleConfig | null;
-  serviceTierActive: boolean;
   onModelChange: (model: ProviderUIOption) => void;
   onReasoningChange: (value: string) => void | Promise<void>;
-  onServiceTierToggle: () => void;
+  onServiceTierChange: (serviceTier: string) => void;
 }
 
 function ProviderIcon({ icon }: { icon: ProviderIconSvg }) {
@@ -70,10 +69,9 @@ export function ModelSelectorView({
   reasoningDefaultValue,
   reasoningLabel,
   serviceTier,
-  serviceTierActive,
   onModelChange,
   onReasoningChange,
-  onServiceTierToggle,
+  onServiceTierChange,
 }: ModelSelectorViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -113,7 +111,13 @@ export function ModelSelectorView({
     : committedReasoningIndex;
   const selectedReasoning = reasoningOptions[selectedIndex];
   const sliderProgress = selectedIndex / Math.max(1, reasoningOptions.length - 1);
-  const isServiceTierActive = Boolean(serviceTier && serviceTierActive);
+  const serviceTierOptions = serviceTier?.options ?? [];
+  const standardTier = serviceTierOptions[0];
+  const selectedTier = serviceTierOptions.find(option => option.value === serviceTier?.selectedValue);
+  const isServiceTierActive = Boolean(
+    serviceTier && standardTier && selectedTier && selectedTier.value !== standardTier.value,
+  );
+  const isFastModeActive = isServiceTierActive && selectedTier?.value === serviceTier?.fastValue;
 
   useEffect(() => {
     reasoningInteractionRef.current++;
@@ -253,7 +257,11 @@ export function ModelSelectorView({
         aria-label={[
           `${t('chat.modelPicker.model')}: ${displayModelLabel}`,
           reasoningHasChoice ? `${reasoningLabel}: ${displayReasoning}` : null,
-          isServiceTierActive ? t('chat.modelPicker.fastMode') : null,
+          isServiceTierActive
+            ? isFastModeActive
+              ? t('chat.modelPicker.fastMode')
+              : t('chat.modelPicker.speedActive', { label: selectedTier?.label ?? '' })
+            : null,
         ].filter(Boolean).join(', ')}
         className="claudian-model-btn"
         ref={triggerRef}
@@ -342,20 +350,58 @@ export function ModelSelectorView({
               <section aria-label={t('chat.modelPicker.currentSettings')} className="claudian-model-menu-footer">
                 <div className="claudian-model-settings-heading">
                   <span className="claudian-model-settings-name" title={displayModelLabel}>{displayModelLabel}</span>
-                  {serviceTier && (
-                    <button
-                      aria-checked={isServiceTierActive}
-                      aria-label={t('chat.modelPicker.fastMode')}
-                      className={`claudian-model-service-tier${isServiceTierActive ? ' active' : ''}`}
-                      role="switch"
-                      title={serviceTier.description ?? (isServiceTierActive ? serviceTier.activeLabel : serviceTier.inactiveLabel)}
-                      type="button"
-                      onClick={onServiceTierToggle}
-                    >
-                      <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
-                      <span>{t('chat.modelPicker.fast')}</span>
-                      <span aria-hidden="true" className="claudian-toggle-switch" />
-                    </button>
+                  {serviceTier && standardTier && (
+                    serviceTierOptions.length === 2 && serviceTierOptions[1]?.value === serviceTier.fastValue
+                      ? (
+                        <button
+                          aria-checked={isFastModeActive}
+                          aria-label={t('chat.modelPicker.fastMode')}
+                          className={`claudian-model-service-tier${isFastModeActive ? ' active' : ''}`}
+                          role="switch"
+                          title={[
+                            `${t('chat.modelPicker.fastMode')}: ${selectedTier?.label ?? standardTier.label}`,
+                            serviceTierOptions[1]?.description,
+                          ].filter(Boolean).join('\n')}
+                          type="button"
+                          onClick={() => onServiceTierChange(
+                            isFastModeActive ? standardTier.value : serviceTier.fastValue!,
+                          )}
+                        >
+                          <ObsidianIcon className="claudian-model-service-tier-icon" icon="zap" />
+                          <span>{t('chat.modelPicker.fast')}</span>
+                          <span aria-hidden="true" className="claudian-toggle-switch" />
+                        </button>
+                      )
+                      : (
+                        <div
+                          aria-label={t('chat.modelPicker.speed')}
+                          aria-orientation="horizontal"
+                          className="claudian-model-service-tiers"
+                          role="listbox"
+                        >
+                          {serviceTierOptions.map((option, index) => (
+                            <button
+                              aria-label={option.label}
+                              aria-selected={option.value === serviceTier.selectedValue}
+                              className={`claudian-model-service-tier-option${option.value === serviceTier.selectedValue ? ' selected' : ''}`}
+                              key={option.value}
+                              role="option"
+                              title={[option.label, option.description].filter(Boolean).join('\n')}
+                              type="button"
+                              onClick={() => onServiceTierChange(option.value)}
+                            >
+                              <span aria-hidden="true" className="claudian-model-service-tier-glyph">
+                                {index === 0
+                                  ? <ObsidianIcon icon="zap-off" />
+                                  : Array.from({ length: index }, (_, zapIndex) => (
+                                    <ObsidianIcon icon="zap" key={`${option.value}:${zapIndex}`} />
+                                  ))}
+                              </span>
+                              <span className="claudian-model-service-tier-label">{option.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )
                   )}
                 </div>
                 <div className="claudian-model-settings-controls">

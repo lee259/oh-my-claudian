@@ -50,8 +50,6 @@ const CODEX_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   planLabel: t('chat.composer.plan'),
 };
 
-const DEFAULT_SERVICE_TIER_LABEL = 'Standard';
-
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 
 function getVisibleDiscoveredModels(settings: Record<string, unknown>) {
@@ -220,22 +218,33 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       getCodexProviderSettings(settings).discoveredModels,
       modelId,
     );
-    const tier = model
+    const fastTier = model
       ? getCodexFastServiceTier(model)
       : modelId
         ? getCodexFastServiceTierForModelId(modelId)
         : null;
-    if (!tier) {
+    // Fast leads the accelerated tiers, whatever the catalog order, so `/fast` keeps one meaning.
+    const tiers = (model?.serviceTiers ?? []).filter(tier => (
+      tier.id !== CODEX_DEFAULT_SERVICE_TIER && tier.id !== fastTier?.id
+    ));
+    const options: ProviderUIOption[] = [
+      { value: CODEX_DEFAULT_SERVICE_TIER, label: t('chat.modelPicker.standard') },
+      ...[...(fastTier ? [fastTier] : []), ...tiers].map(tier => ({
+        value: tier.id,
+        label: tier.name,
+        description: tier.description || undefined,
+      })),
+    ];
+    if (options.length < 2) {
       return null;
     }
 
+    const resolved = resolveCodexModelServiceTier(model, settings.serviceTier, modelId);
     return {
-      inactiveValue: CODEX_DEFAULT_SERVICE_TIER,
-      inactiveLabel: DEFAULT_SERVICE_TIER_LABEL,
-      activeValue: tier.id,
-      activeLabel: tier.name,
-      isActive: resolveCodexModelServiceTier(model, settings.serviceTier, modelId) === tier.id,
-      description: tier.description || undefined,
+      options,
+      selectedValue: options.find(option => option.value === resolved)?.value
+        ?? CODEX_DEFAULT_SERVICE_TIER,
+      fastValue: fastTier?.id ?? null,
     };
   },
 

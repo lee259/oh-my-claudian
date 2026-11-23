@@ -13,16 +13,15 @@ export interface ServiceTierActionContext {
 export async function toggleServiceTier(
   context: ServiceTierActionContext,
 ): Promise<boolean> {
-  const settings = context.getSettings();
-  const toggleConfig = context.getUIConfig().getServiceTierToggle?.(settings) ?? null;
-  if (!toggleConfig) {
+  const policy = context.getUIConfig().getServiceTierToggle?.(context.getSettings()) ?? null;
+  const standardValue = policy?.options[0]?.value;
+  if (!policy || standardValue === undefined) {
     return false;
   }
 
-  const isActive = toggleConfig.isActive ?? settings.serviceTier === toggleConfig.activeValue;
-  const next = isActive
-    ? toggleConfig.inactiveValue
-    : toggleConfig.activeValue;
+  // Turning acceleration off needs no Fast tier; only turning it on does.
+  const next = policy.selectedValue === standardValue ? policy.fastValue : standardValue;
+  if (next === null) return false;
   await context.onServiceTierChange(next);
   return true;
 }
