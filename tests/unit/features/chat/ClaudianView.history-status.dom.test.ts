@@ -44,6 +44,7 @@ function createHistoryHarness() {
   const tab = createTabRuntime({
     plugin: { settings: DEFAULT_CLAUDIAN_SETTINGS } as FeatureHost,
     containerEl: tabContainer,
+    onAttentionChanged: () => view.notifyConversationRuntimeStateChanged(),
     onStreamingChanged: () => view.notifyConversationRuntimeStateChanged(),
   });
   tab.conversationId = conversation.id;
@@ -138,6 +139,29 @@ describe('ClaudianView history runtime status', () => {
     expect(historyDropdown.querySelector('.claudian-history-item')?.getAttribute('data-running'))
       .toBe('false');
     expect(historyDropdown.querySelector('.claudian-session-running-indicator')).toBeNull();
+  });
+
+  it('marks a history row the user still has to read or answer', () => {
+    const harness = createHistoryHarness();
+    cleanup = harness.cleanup;
+    const { historyDropdown, state } = harness;
+    state.isStreaming = false;
+
+    const dot = () => historyDropdown.querySelector('.claudian-history-item-attention');
+
+    state.beginActionRequired('approval-1');
+    expect(dot()?.getAttribute('data-attention')).toBe('needs-you');
+
+    state.endActionRequired('approval-1');
+    state.markReviewRequired();
+    expect(dot()?.getAttribute('data-attention')).toBe('done');
+
+    state.acknowledgeReview();
+    state.markReviewRequired('error');
+    expect(dot()?.getAttribute('data-attention')).toBe('error');
+
+    state.acknowledgeReview();
+    expect(dot()).toBeNull();
   });
 
   it('updates the welcome recent row from a background tab streaming transition', () => {
