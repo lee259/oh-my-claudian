@@ -6,7 +6,7 @@ import type { ZenPreview } from './ZenModeController';
 /** Bounded text projection, independent of whether the transcript is visible. */
 export function getZenActivityPreview(state: ChatState | null | undefined): ZenPreview {
   const working = state?.isStreaming ?? false;
-  const requiresAction = state?.requiresAction ?? false;
+  const requiresAction = state?.phase === 'needs-you';
   const hasMessages = (state?.messages.length ?? 0) > 0;
   if (requiresAction) return { text: t('chat.zen.actionRequired'), hasMessages, working, requiresAction };
   const message = state?.messages.at(-1);

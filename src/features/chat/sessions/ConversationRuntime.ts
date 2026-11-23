@@ -1,4 +1,5 @@
 import type { ComposerDraftStorage } from '../../../core/bootstrap/ComposerDraftStorage';
+import { agentAttentionIsBusy } from '../../../core/execution/AgentAttention';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
 import type { Conversation, ImageAttachment } from '../../../core/types';
@@ -141,15 +142,15 @@ export class ConversationRuntime {
   ): Promise<boolean> {
     const id = this.conversationId;
     if (!id || this.hydrationState !== 'ready') return true;
-    if (this.state.isStreaming || this.state.requiresAction) return true;
+    if (agentAttentionIsBusy(this.state.phase)) return true;
     const history = ProviderRegistry.getConversationHistoryService(this.providerId);
     if (!history.readNativeHistoryRevision) return true;
     if (this.nativeHistoryGuard?.conversationId !== id) {
       const guard = new NativeHistoryGuard(
         () => host.readNativeHistoryRevision(id),
         async () => {
-          if (this.conversationId !== id || this.state.isStreaming || this.state.isRewinding
-            || this.state.requiresAction || this.state.hasPendingConversationSave || this.hasBackgroundWork) return false;
+          if (this.conversationId !== id || agentAttentionIsBusy(this.state.phase) || this.state.isRewinding
+            || this.state.hasPendingConversationSave || this.hasBackgroundWork) return false;
           const before = JSON.stringify(this.state.messages);
           const coordinator = this.coordinator;
           const turn = this.nativeHistoryPreflightCount > 0 ? this.activeTurn : null;

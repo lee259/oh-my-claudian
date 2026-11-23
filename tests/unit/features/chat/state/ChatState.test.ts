@@ -366,6 +366,22 @@ describe('ChatState', () => {
       });
     });
 
+    it('derives the attention phase from streaming, actions, and review', () => {
+      const chatState = new ChatState();
+
+      expect(chatState.phase).toBe('rest');
+      chatState.isStreaming = true;
+      expect(chatState.phase).toBe('working');
+      chatState.beginActionRequired('approval-1');
+      expect(chatState.phase).toBe('needs-you');
+      chatState.endActionRequired('approval-1');
+      chatState.isStreaming = false;
+      chatState.markReviewRequired();
+      expect(chatState.phase).toBe('done');
+      chatState.acknowledgeReview();
+      expect(chatState.phase).toBe('rest');
+    });
+
     it('tracks multiple action-required interactions until the last one ends', () => {
       jest.spyOn(Date, 'now')
         .mockReturnValueOnce(100)
