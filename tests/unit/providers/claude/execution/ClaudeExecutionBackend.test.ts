@@ -1353,7 +1353,7 @@ describe('ClaudeExecutionBackend', () => {
       'WebSearch',
       'WebFetch',
     ]);
-    const hook = options?.hooks?.PreToolUse?.[0].hooks[0];
+    const hook = options?.hooks?.PreToolUse?.at(-1)?.hooks[0];
     await expect(hook?.({
       hook_event_name: 'PreToolUse',
       tool_name: 'Edit',
@@ -1377,6 +1377,39 @@ describe('ClaudeExecutionBackend', () => {
       behavior: 'deny',
     }));
     expect(interactionPort.requestApproval).not.toHaveBeenCalled();
+  });
+
+  it('denies MCP tools through the native hook under passive policy', async () => {
+    sdkMock.setMockMessages([
+      { type: 'result', subtype: 'success' },
+    ], { appendResult: false });
+    const { services } = createServices();
+    const session = new ClaudeExecutionBackend(createHost(), services)
+      .createSession(createConfig({ lifecycle: 'ephemeral' }));
+
+    await collectEvents(session.execute(createRequest({
+      toolPolicy: { kind: 'passive' },
+    })).events);
+
+    const options = sdkMock.getLastOptions();
+    expect(options?.tools).toEqual([]);
+    const hook = options?.hooks?.PreToolUse?.at(-1)?.hooks[0];
+    await expect(hook?.({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'mcp__notes__search',
+      tool_input: {},
+      cwd: '/vault',
+      session_id: 'session',
+      transcript_path: '',
+    } as never, 'tool-1', {
+      signal: new AbortController().signal,
+    } as never)).resolves.toEqual(expect.objectContaining({
+      continue: false,
+      hookSpecificOutput: expect.objectContaining({
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Passive execution: tool "mcp__notes__search" is not allowed.',
+      }),
+    }));
   });
 
   it('applies model, effort, permission, and MCP changes without replacing a compatible persistent query', async () => {
