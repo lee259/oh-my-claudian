@@ -2040,6 +2040,7 @@ export class MessageRenderer {
     let toolElementCount = 0;
     let explorationReads = 0;
     let explorationSearches = 0;
+    let explorationRows = 0;
     let supplementalLabel: string | undefined;
     for (const element of elements) {
       const toolCall = element.dataset.toolId
@@ -2054,6 +2055,7 @@ export class MessageRenderer {
       if (toolCall?.status === 'completed' && toolCall.exploration) {
         explorationReads += toolCall.exploration.reads;
         explorationSearches += toolCall.exploration.searches;
+        explorationRows += 1;
         continue;
       }
       const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
@@ -2083,7 +2085,8 @@ export class MessageRenderer {
       ]);
       const readNames = new Set<string>([TOOL_READ, TOOL_WEB_FETCH]);
       const searchNames = new Set<string>([TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_WEB_SEARCH, 'Search']);
-      const commands = names.filter((name) => commandNames.has(name)).length;
+      // One row, one count: an exploration call ran a command too, so it belongs in this number.
+      const commands = explorationRows + names.filter((name) => commandNames.has(name)).length;
       const reads = explorationReads + names.filter((name) => readNames.has(name)).length;
       const searches = explorationSearches + names.filter((name) => searchNames.has(name)).length;
       const edits = names.filter((name) => isWriteEditTool(name) || name === TOOL_APPLY_PATCH).length;

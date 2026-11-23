@@ -45,6 +45,13 @@
   gap: 4px;
 }
 
+.claudian-tool-exploration-command {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .claudian-tool-exploration-row {
   display: flex;
   align-items: baseline;

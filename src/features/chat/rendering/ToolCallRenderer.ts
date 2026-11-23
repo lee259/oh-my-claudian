@@ -1182,8 +1182,21 @@ function createToolElementStructure(
     header.toggleClass('claudian-tool-header--exploration', exploration.length > 0);
     nameEl.setText(name);
     nameEl.setAttribute('title', name);
-    if (exploration.length > 0) renderExplorationActions(summaryEl, exploration);
-    else summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
+    if (exploration.length > 0) {
+      renderExplorationActions(summaryEl, exploration);
+      // A bash row that only lists its exploration hides the command that ran it, so consecutive
+      // cards read as one block. Keep the command above the rows.
+      if (tool.name === TOOL_BASH) {
+        const command = getToolSummary(tool.name, tool.input, presentation);
+        if (command) {
+          const commandEl = summaryEl.createSpan({
+            cls: 'claudian-tool-exploration-command',
+            text: command,
+          });
+          summaryEl.insertBefore(commandEl, summaryEl.firstChild);
+        }
+      }
+    } else summaryEl.setText(getToolSummary(tool.name, tool.input, presentation));
     const fileReference = exploration.length > 1 ? undefined : getToolFilePath(tool);
     makeFileSummaryInteractive(summaryEl, fileReference, onOpenFile);
   };
