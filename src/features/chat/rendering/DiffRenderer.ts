@@ -89,6 +89,32 @@ export function splitIntoHunks(diffLines: DiffLine[], contextLines = 3): DiffHun
 const NEW_FILE_DISPLAY_CAP = 20;
 
 /** A line's note affordance opens one inline draft under it; a non-empty draft is kept when another line is clicked. */
+interface DiffNoteDraftHandle {
+  /** Grows the open draft's anchor to include another line. */
+  extendTo: (lineNumber: number) => void;
+}
+
+interface DiffNoteDraftRef {
+  current: DiffNoteDraftHandle | null;
+}
+
+/** Keeps the draft's range visible so a Shift+click extension is obvious. */
+function highlightNoteRange(containerEl: HTMLElement, startLine: number, endLine: number): void {
+  containerEl.querySelectorAll<HTMLElement>('[data-diff-line]').forEach(lineEl => {
+    const lineNumber = Number(lineEl.dataset.diffLine);
+    lineEl.classList.toggle(
+      'claudian-diff-note-range',
+      lineNumber >= startLine && lineNumber <= endLine,
+    );
+  });
+}
+
+function clearNoteRange(containerEl: HTMLElement): void {
+  containerEl.querySelectorAll<HTMLElement>('.claudian-diff-note-range').forEach(lineEl => {
+    lineEl.classList.remove('claudian-diff-note-range');
+  });
+}
+
 function openNoteDraft(
   containerEl: HTMLElement,
   parent: HTMLElement,
@@ -96,6 +122,7 @@ function openNoteDraft(
   line: DiffLine,
   lineNumber: number,
   target: DiffNoteTarget,
+  draftRef: DiffNoteDraftRef,
 ): void {
   const existing = containerEl.querySelector<HTMLElement>('.claudian-diff-note-draft');
   if (existing) {
@@ -105,10 +132,23 @@ function openNoteDraft(
       return;
     }
     existing.remove();
+    draftRef.current = null;
+    clearNoteRange(containerEl);
   }
 
+  let startLine = lineNumber;
+  let endLine = lineNumber;
   const draft = parent.createDiv({ cls: 'claudian-diff-note-draft' });
   lineEl.after(draft);
+  const handle: DiffNoteDraftHandle = {
+    extendTo: (next: number): void => {
+      startLine = Math.min(startLine, next);
+      endLine = Math.max(endLine, next);
+      highlightNoteRange(containerEl, startLine, endLine);
+    },
+  };
+  draftRef.current = handle;
+  highlightNoteRange(containerEl, startLine, endLine);
 
   const textarea = draft.createEl('textarea', {
     cls: 'claudian-diff-note-input',
@@ -132,6 +172,8 @@ function openNoteDraft(
 
   const cleanup = (): void => {
     draft.remove();
+    if (draftRef.current === handle) draftRef.current = null;
+    clearNoteRange(containerEl);
   };
   const submit = (): void => {
     const body = textarea.value.trim();
@@ -140,8 +182,9 @@ function openNoteDraft(
       body,
       ...(line.text.trim() ? { excerpt: line.text.trim() } : {}),
       filePath: target.filePath,
-      id: diffNoteId(target.filePath, lineNumber),
-      line: lineNumber,
+      id: diffNoteId(target.filePath, endLine, startLine),
+      line: endLine,
+      ...(startLine !== endLine ? { startLine } : {}),
     });
     cleanup();
   };
@@ -191,8 +234,10 @@ function addNoteAffordance(
   line: DiffLine,
   lineNumber: number,
   target: DiffNoteTarget,
+  draftRef: DiffNoteDraftRef,
 ): void {
   lineEl.addClass('claudian-diff-line--commentable');
+  lineEl.dataset.diffLine = String(lineNumber);
   const addButton = lineEl.createEl('button', {
     cls: 'claudian-diff-note-add',
     attr: {
@@ -205,7 +250,11 @@ function addNoteAffordance(
   addButton.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
-    openNoteDraft(containerEl, parent, lineEl, line, lineNumber, target);
+    if (event.shiftKey && draftRef.current) {
+      draftRef.current.extendTo(lineNumber);
+      return;
+    }
+    openNoteDraft(containerEl, parent, lineEl, line, lineNumber, target, draftRef);
   });
 }
 
@@ -216,6 +265,7 @@ export function renderDiffContent(
   noteTarget?: DiffNoteTarget,
 ): void {
   containerEl.empty();
+  const draftRef: DiffNoteDraftRef = { current: null };
 
   const appendLine = (parent: HTMLElement, line: DiffLine): void => {
     const lineEl = parent.createDiv({ cls: `claudian-diff-line claudian-diff-${line.type}` });
@@ -224,7 +274,7 @@ export function renderDiffContent(
     const contentEl = lineEl.createSpan({ cls: 'claudian-diff-text' });
     contentEl.setText(line.text || ' ');
     if (noteTarget && line.type !== 'delete' && typeof line.newLineNum === 'number') {
-      addNoteAffordance(containerEl, parent, lineEl, line, line.newLineNum, noteTarget);
+      addNoteAffordance(containerEl, parent, lineEl, line, line.newLineNum, noteTarget, draftRef);
     }
   };
 

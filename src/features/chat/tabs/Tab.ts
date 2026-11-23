@@ -879,7 +879,9 @@ function updateDiffNoteContext(tab: TabData): void {
   }
   tab.ui.contextTray?.setItems('diff-notes', notes.map(note => {
     const fileName = note.filePath.split('/').pop() || note.filePath;
-    const location = `${fileName}:${note.line}`;
+    const location = note.startLine !== undefined && note.startLine !== note.line
+      ? `${fileName}:${note.startLine}-${note.line}`
+      : `${fileName}:${note.line}`;
     return {
       id: note.id,
       kind: 'selection' as const,

@@ -46,6 +46,7 @@ import { createTurnStats } from '../../../core/types';
 import { getLocale, t } from '../../../i18n/i18n';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
+import type { DiffNote } from '../../../utils/diffNotes';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
 import type { FileReference } from '../../../utils/FileReference';
 import { replaceImageEmbedsWithHtml } from '../../../utils/imageEmbed';
@@ -208,6 +209,7 @@ export class MessageRenderer {
     private readonly shouldAutoFollow?: () => boolean,
     private readonly onSubagentRendered?: (state: SubagentState | AsyncSubagentState) => void,
     private readonly onSaveReply?: (markdown: string) => void,
+    private readonly onAddDiffNote?: (note: DiffNote) => void,
   ) {
     this.app = plugin.app;
     this.imagePreviewModal = new ImagePreviewModal(this.app);
@@ -2752,6 +2754,7 @@ export class MessageRenderer {
     if (isWriteEditTool(toolCall.name)) {
       renderStoredWriteEdit(contentEl, toolCall, {
         initiallyExpanded: this.shouldExpandFileEditsByDefault(),
+        onAddDiffNote: this.onAddDiffNote,
         onOpenFile: (fileReference: FileReference) => runRendererAction(async () => {
           await openVaultFile(this.app, fileReference);
         }),

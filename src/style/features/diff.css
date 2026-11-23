@@ -264,6 +264,10 @@
   background: var(--background-secondary);
 }
 
+.claudian-diff-note-range {
+  box-shadow: inset 2px 0 0 var(--text-accent);
+}
+
 .claudian-diff-note-input {
   width: 100%;
   min-height: 60px;
