@@ -17,6 +17,7 @@ import type { AskUserAnswers, ToolProviderPayload } from '@/core/types';
 import type { SDKToolUseResult } from '@/core/types/diff';
 import type { ACPSessionNotification } from '@/providers/acp';
 import {
+  type AcpPermissionOption,
   type ACPResolvedToolRawName,
   ACPToolStreamAdapter,
 } from '@/providers/acp';
@@ -141,6 +142,16 @@ export function presentAntigravityUpdate<T extends ACPSessionNotification['updat
   return typeof update.name === 'string' && update.name.trim()
     ? { ...presented, title: update.name.trim() }
     : presented;
+}
+
+export function antigravityPermissionWarning(option: AcpPermissionOption): string | undefined {
+  if (option.kind !== 'allow_always') return undefined;
+  const warning = option._meta?.['agy.security.warning'];
+  if (!isRecord(warning)) return undefined;
+  for (const text of [warning.message, warning.title]) {
+    if (typeof text === 'string' && text.trim()) return text.trim();
+  }
+  return undefined;
 }
 
 /** `takeAnswers` returns the answers the user gave to a question tool; agy's result does not report them. */

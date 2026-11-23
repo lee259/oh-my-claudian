@@ -100,6 +100,43 @@ describe('AcpInteractionController', () => {
     );
   });
 
+  it('adds provider-owned warnings to the matching native approval option', async () => {
+    const port = createPort();
+    port.requestApproval.mockImplementation(async (request) => ({
+      decision: 'allow-always',
+      interactionId: request.interactionId,
+    }));
+    const controller = new AcpInteractionController({
+      describePermissionOption: option => option.kind === 'allow_always'
+        ? 'Future shell calls may run without asking.'
+        : undefined,
+      getTurnId: () => 'turn-1',
+      interactionPort: port,
+      sessionInstanceId: 'session-instance-1',
+    });
+    const request = {
+      ...PERMISSION_REQUEST,
+      options: [
+        ...PERMISSION_REQUEST.options,
+        { kind: 'allow_always' as const, name: 'Always allow', optionId: 'always' },
+      ],
+    };
+
+    await controller.requestPermission(request);
+
+    expect(port.requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decisionOptions: expect.arrayContaining([{
+          decision: 'allow-always',
+          description: 'Future shell calls may run without asking.',
+          label: 'Always allow',
+          value: 'always',
+        }]),
+      }),
+      expect.any(AbortSignal),
+    );
+  });
+
   it('reports a denied permission so the matching tool result can become blocked', async () => {
     const port = createPort();
     port.requestApproval.mockImplementation(async (request) => ({

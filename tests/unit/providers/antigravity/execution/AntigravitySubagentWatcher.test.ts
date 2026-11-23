@@ -41,7 +41,7 @@ it('records the latest request after a failed read and releases the session once
     .mockRejectedValueOnce(new Error('EIO: i/o error, read'))
     .mockResolvedValue(transcript);
   jest.mocked(readAntigravityLatestRequest).mockReturnValue(1);
-  jest.mocked(hasAntigravityOutstandingSubagents).mockReturnValue(false);
+  jest.mocked(hasAntigravityOutstandingSubagents).mockResolvedValue(false);
   const watcher = new AntigravitySubagentWatcher({
     storeRoot: '/native',
     sessionId: 'session-1',
@@ -61,7 +61,7 @@ it('records the latest request after a failed read and releases the session once
 
     expect(read).toHaveBeenCalledTimes(2);
     expect(readAntigravityLatestRequest).toHaveBeenCalledWith(transcript);
-    expect(hasAntigravityOutstandingSubagents).toHaveBeenCalledWith(transcript, 1);
+    expect(hasAntigravityOutstandingSubagents).toHaveBeenCalledWith(transcript, 1, '/native', 'session-1');
     expect(watcher.isWatching).toBe(false);
   } finally {
     await watcher.dispose();
@@ -76,7 +76,7 @@ it('polls either transcript when directory watching is unavailable', async () =>
     throw new Error('watch unavailable');
   });
   jest.mocked(readAntigravityTranscript).mockResolvedValue(transcript);
-  jest.mocked(hasAntigravityOutstandingSubagents).mockReturnValue(true);
+  jest.mocked(hasAntigravityOutstandingSubagents).mockResolvedValue(true);
   jest.mocked(readAntigravityHistoryRevision).mockResolvedValue('revision-1');
   const watcher = new AntigravitySubagentWatcher({
     storeRoot: '/native',

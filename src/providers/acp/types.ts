@@ -550,6 +550,7 @@ export type AcpPermissionOptionKind =
   | 'reject_always';
 
 export interface AcpPermissionOption {
+  _meta?: AcpMetadata | null;
   kind: AcpPermissionOptionKind;
   name: string;
   optionId: AcpPermissionOptionId;

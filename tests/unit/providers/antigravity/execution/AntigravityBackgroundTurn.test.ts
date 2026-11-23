@@ -117,4 +117,65 @@ describe('AntigravityBackgroundTurn', () => {
     jest.advanceTimersByTime(1_000);
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
+
+  it('releases a quiet reply after two minutes when no tool is still open', () => {
+    const notify = jest.fn();
+    const onSettled = jest.fn();
+    const turn = new AntigravityBackgroundTurn({
+      notify,
+      onSettled,
+      providerSessionId: 'session-1',
+      sessionInstanceId: 'instance-1',
+    });
+
+    turn.handleUpdate({
+      content: { text: 'Quiet reply', type: 'text' },
+      messageId: 'quiet-message',
+      sessionUpdate: 'agent_message_chunk',
+    });
+    jest.advanceTimersByTime(119_999);
+    expect(onSettled).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a quiet reply open while a tool or client request is pending', async () => {
+    const notify = jest.fn();
+    const onSettled = jest.fn();
+    const turn = new AntigravityBackgroundTurn({
+      notify,
+      onSettled,
+      providerSessionId: 'session-1',
+      sessionInstanceId: 'instance-1',
+    });
+    let finishRequest!: () => void;
+    const pending = new Promise<void>(resolve => { finishRequest = resolve; });
+
+    turn.handleUpdate({
+      name: 'read_file',
+      rawInput: { Path: 'README.md' },
+      sessionUpdate: 'tool_call',
+      status: 'in_progress',
+      title: 'Read README.md',
+      toolCallId: 'open-read',
+    });
+    const held = turn.holdForRequest(pending);
+    jest.advanceTimersByTime(120_000);
+    expect(onSettled).not.toHaveBeenCalled();
+
+    finishRequest();
+    await held;
+    jest.advanceTimersByTime(120_000);
+    expect(onSettled).not.toHaveBeenCalled();
+
+    turn.handleUpdate({
+      sessionUpdate: 'tool_call_update',
+      status: 'completed',
+      toolCallId: 'open-read',
+    });
+    jest.advanceTimersByTime(119_999);
+    expect(onSettled).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
 });
