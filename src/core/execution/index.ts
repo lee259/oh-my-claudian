@@ -1,4 +1,10 @@
 export {
+  type AgentAttentionFacts,
+  agentAttentionIsBusy,
+  type AgentAttentionPhase,
+  resolveAgentAttentionPhase,
+} from './AgentAttention';
+export {
   type BackgroundTurnCompletionDropCause,
   backgroundTurnCompletionDropMessage,
   type BackgroundTurnCompletionDropReport,

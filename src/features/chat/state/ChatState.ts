@@ -1,3 +1,7 @@
+import {
+  type AgentAttentionPhase,
+  resolveAgentAttentionPhase,
+} from '@/core/execution/AgentAttention';
 import type { ProviderInteractionDismissReason } from '@/core/execution/ProviderInteractionPort';
 
 import type { UsageInfo } from '../../../core/types';
@@ -331,6 +335,15 @@ export class ChatState {
 
   get requiresAction(): boolean {
     return this.state.attention?.kind === 'action-required';
+  }
+
+  /** The single phase the tab is in, derived from the facts attention already tracks. */
+  get phase(): AgentAttentionPhase {
+    return resolveAgentAttentionPhase({
+      isStreaming: this.state.isStreaming,
+      requiresAction: this.requiresAction,
+      reviewPending: this.state.attention?.kind === 'review',
+    });
   }
 
   beginActionRequired(interactionId: string): void {
