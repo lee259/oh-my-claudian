@@ -62,6 +62,11 @@ Every Claudian-owned instance of an element listed below must use its required b
 - Textareas use `resize: none` and `overflow-y: auto` by default. A resizable textarea requires an explicit modifier and bounded sizing.
 - Error, warning, read-only, and semantic-mode treatments require explicit modifiers or scoped custom properties; they must override every affected interaction state.
 
+### Tooltips
+
+- A name-only hint uses `aria-label` plus `data-tooltip-position`; Obsidian renders it. Do not also set `title`, which makes the browser draw a second, unthemed tooltip.
+- A tooltip names a control. Teaching text, warnings, and errors belong in visible UI, not in a hover hint.
+
 ## Gotchas
 
 - Obsidian uses `body.theme-dark` and `body.theme-light` for theme detection.

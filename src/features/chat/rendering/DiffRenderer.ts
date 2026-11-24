@@ -251,7 +251,7 @@ function addNoteAffordance(
     attr: {
       type: 'button',
       'aria-label': t('chat.diffNotes.add'),
-      title: t('chat.diffNotes.add'),
+      'data-tooltip-position': 'top',
     },
   });
   setIcon(addButton, 'plus');
