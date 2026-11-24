@@ -141,7 +141,7 @@ export class MessageQuoteController {
   #addAction(menu: HTMLElement, label: string, icon: string, cls: string, action: (text: string) => void, format: 'text' | 'markdown'): void {
     const button = menu.createEl('button', {
       cls: `claudian-message-selection-action ${cls}`,
-      attr: { type: 'button', 'aria-label': label, title: label },
+      attr: { type: 'button', 'aria-label': label },
     });
     setIcon(button.createSpan({ attr: { 'aria-hidden': 'true' } }), icon);
     button.createSpan({ text: label });

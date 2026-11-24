@@ -1500,7 +1500,11 @@ export class ConversationController {
       const providerName = ProviderRegistry.getProviderDisplayName(conversation.providerId);
       const providerEl = titleRow.createSpan({
         cls: 'claudian-history-item-provider',
-        attr: { role: 'img', 'aria-label': providerName, title: providerName },
+        attr: {
+          role: 'img',
+          'aria-label': providerName,
+          'data-tooltip-position': 'top',
+        },
       });
       createProviderIconSvg(providerIcon, {
         parent: providerEl,
@@ -1512,7 +1516,11 @@ export class ConversationController {
     if (conversation.origin?.kind === 'fork') {
       const forkEl = titleRow.createSpan({
         cls: 'claudian-history-item-origin',
-        attr: { role: 'img', 'aria-label': t('chat.fork.badge'), title: t('chat.fork.badge') },
+        attr: {
+          role: 'img',
+          'aria-label': t('chat.fork.badge'),
+          'data-tooltip-position': 'top',
+        },
       });
       setIcon(forkEl, 'git-fork');
     }

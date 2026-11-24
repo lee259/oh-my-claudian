@@ -58,7 +58,8 @@ describe('ConversationController history provider icons', () => {
       expect(icon).not.toBeNull();
       expect(icon.getAttribute('role')).toBe('img');
       expect(icon.getAttribute('aria-label')).toBe(ProviderRegistry.getProviderDisplayName(providerId));
-      expect(icon.getAttribute('title')).toBe(ProviderRegistry.getProviderDisplayName(providerId));
+      expect(icon.getAttribute('title')).toBeNull();
+      expect(icon.getAttribute('data-tooltip-position')).toBe('top');
       const svg = icon.querySelector('svg')!;
       expect(svg.getAttribute('viewBox')).toBe(
         ProviderRegistry.getChatUIConfig(providerId).getProviderIcon!()!.viewBox,
