@@ -2040,9 +2040,6 @@ export class MessageRenderer {
     const toolLabels: string[] = [];
     const imageNames = new Set<string>([TOOL_GENERATE_IMAGE, TOOL_VIEW_IMAGE]);
     let toolElementCount = 0;
-    let explorationReads = 0;
-    let explorationSearches = 0;
-    let explorationRows = 0;
     let supplementalLabel: string | undefined;
     const commandToolNames = new Set<string>([
       TOOL_BASH,
@@ -2060,13 +2057,6 @@ export class MessageRenderer {
       }
       const isToolElement = element.hasClass('claudian-tool-call');
       if (isToolElement) toolElementCount += 1;
-      if (toolCall?.status === 'completed' && toolCall.exploration) {
-        explorationReads += toolCall.exploration.reads;
-        explorationSearches += toolCall.exploration.searches;
-        // Only a command executed something; a read that reports actions stays a read.
-        if (commandToolNames.has(toolCall.name)) explorationRows += 1;
-        continue;
-      }
       const renderedLabel = element.querySelector<HTMLElement>('.claudian-tool-name')?.textContent?.trim();
       const presentationName = toolCall?.presentation?.name;
       const label = presentationName && imageNames.has(presentationName)
@@ -2081,18 +2071,20 @@ export class MessageRenderer {
       && toolLabels.length === toolElementCount
       && toolLabels.every(label => label === toolLabels[0])
       && !imageNames.has(toolLabels[0])
+      // Commands keep the native "ran N commands" summary instead of collapsing into "Bash · N calls".
+      && !commandToolNames.has(toolLabels[0])
     ) {
       return t('chat.activity.repeatedCalls', { tool: toolLabels[0], count: toolElementCount });
     }
 
-    if (names.length > 0 || explorationReads > 0 || explorationSearches > 0) {
+    if (names.length > 0) {
       const commandNames = commandToolNames;
       const readNames = new Set<string>([TOOL_READ, TOOL_WEB_FETCH]);
       const searchNames = new Set<string>([TOOL_GREP, TOOL_GLOB, TOOL_LS, TOOL_WEB_SEARCH, 'Search']);
-      // One row, one count: an exploration call ran a command too, so it belongs in this number.
-      const commands = explorationRows + names.filter((name) => commandNames.has(name)).length;
-      const reads = explorationReads + names.filter((name) => readNames.has(name)).length;
-      const searches = explorationSearches + names.filter((name) => searchNames.has(name)).length;
+      // One row, one count: every call is counted once by its own tool name.
+      const commands = names.filter((name) => commandNames.has(name)).length;
+      const reads = names.filter((name) => readNames.has(name)).length;
+      const searches = names.filter((name) => searchNames.has(name)).length;
       const edits = names.filter((name) => isWriteEditTool(name) || name === TOOL_APPLY_PATCH).length;
       const generatedImages = names.filter(name => name === TOOL_GENERATE_IMAGE).length;
       const viewedImages = names.filter(name => name === TOOL_VIEW_IMAGE).length;

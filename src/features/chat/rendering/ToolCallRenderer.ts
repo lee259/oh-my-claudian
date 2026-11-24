@@ -27,7 +27,7 @@ import {
   TOOL_WRITE,
   TOOL_WRITE_STDIN,
 } from '../../../core/tools/toolNames';
-import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo, ToolExplorationAction, ToolResultImage } from '../../../core/types';
+import type { AskUserQuestionItem, AskUserQuestionOption, ToolCallInfo, ToolResultImage } from '../../../core/types';
 import type { DiffStats } from '../../../core/types/diff';
 import { appendMcpIcon } from '../../../shared/icons';
 import { parseApplyPatchDiffs, parseFileUpdateChangeDiffs } from '../../../utils/diff';
@@ -1080,42 +1080,7 @@ export function makeFileSummaryInteractive(
   summaryEl.setAttribute('title', `Open ${fileReference.path}`);
 }
 
-function getExplorationActions(toolCall: ToolCallInfo): readonly ToolExplorationAction[] {
-  return toolCall.status === 'completed' ? toolCall.exploration?.actions ?? [] : [];
-}
-
-function getExplorationValue(action: ToolExplorationAction): string {
-  return action.type === 'read' ? action.path : [action.query, action.path].filter(Boolean).join(' · ');
-}
-
-function renderExplorationActions(container: HTMLElement, actions: readonly ToolExplorationAction[]): void {
-  container.empty();
-  const seen = new Set<string>();
-  for (const action of actions) {
-    const key = JSON.stringify([action.type, action.path, action.type === 'search' ? action.query : undefined]);
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const row = container.createSpan({ cls: 'claudian-tool-exploration-row' });
-    const icon = row.createSpan({ cls: 'claudian-tool-icon', attr: { 'aria-hidden': 'true' } });
-    setToolIcon(icon, action.type === 'read' ? TOOL_READ : TOOL_GREP);
-    row.createSpan({ cls: 'claudian-tool-name', text: action.type === 'read' ? 'Read' : 'Find' });
-    const detail = getExplorationValue(action);
-    const value = row.createSpan({ cls: 'claudian-tool-exploration-value', attr: { title: detail } });
-    if (action.type === 'read') {
-      const directoryEnd = Math.max(detail.lastIndexOf('/'), detail.lastIndexOf('\\'));
-      const preview = directoryEnd > 0 ? `${detail.slice(directoryEnd + 1)} · ${detail.slice(0, directoryEnd)}` : detail;
-      value.createSpan({ cls: 'claudian-tool-exploration-preview', text: preview });
-      value.createSpan({ cls: 'claudian-tool-exploration-full', text: detail });
-    } else {
-      value.setText(detail);
-    }
-  }
-}
-
 function getToolDisclosureLabel(toolCall: ToolCallInfo): string {
-  const first = getExplorationActions(toolCall)[0];
-  if (first) return `${first.type === 'read' ? 'Read' : 'Find'}: ${getExplorationValue(first)}`;
   return getToolLabel(toolCall.name, toolCall.input, toolCall.presentation);
 }
 
@@ -1170,15 +1135,6 @@ function createToolElementStructure(
   const updateHeader = (tool: ToolCallInfo) => {
     const presentation = tool.presentation;
     const summary = getToolSummary(tool.name, tool.input, presentation);
-    // A tool whose own summary already names the file should not repeat it as an action.
-    const ownPaths = new Set<string>();
-    const filePath = typeof tool.input.file_path === 'string' ? tool.input.file_path.trim() : '';
-    if (filePath) ownPaths.add(filePath);
-    const ownReference = getToolFilePath(tool);
-    if (ownReference?.path) ownPaths.add(ownReference.path);
-    if (summary.trim()) ownPaths.add(summary.trim());
-    const exploration = getExplorationActions(tool)
-      .filter(action => !(action.type === 'read' && action.path && ownPaths.has(action.path.trim())));
     const name = getToolName(tool.name, tool.input, presentation);
     const icon = tool.name.startsWith('mcp__') ? tool.name
       : presentation?.name === 'Find' ? TOOL_GREP
@@ -1188,25 +1144,10 @@ function createToolElementStructure(
       setToolIcon(iconEl, icon);
       currentIcon = icon;
     }
-    header.toggleClass('claudian-tool-header--exploration', exploration.length > 0);
     nameEl.setText(name);
     nameEl.setAttribute('title', name);
-    if (exploration.length > 0) {
-      renderExplorationActions(summaryEl, exploration);
-      // A bash row that only lists its exploration hides the command that ran it, so consecutive
-      // cards read as one block. Keep the command above the rows.
-      if (tool.name === TOOL_BASH) {
-        if (summary) {
-          const commandEl = summaryEl.createSpan({
-            cls: 'claudian-tool-exploration-command',
-            text: summary,
-          });
-          summaryEl.insertBefore(commandEl, summaryEl.firstChild);
-        }
-      }
-    } else summaryEl.setText(summary);
-    const fileReference = exploration.length > 1 ? undefined : getToolFilePath(tool);
-    makeFileSummaryInteractive(summaryEl, fileReference, onOpenFile);
+    summaryEl.setText(summary);
+    makeFileSummaryInteractive(summaryEl, getToolFilePath(tool), onOpenFile);
   };
   updateHeader(toolCall);
 

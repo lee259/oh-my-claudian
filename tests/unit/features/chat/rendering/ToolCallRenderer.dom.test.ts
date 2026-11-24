@@ -75,7 +75,7 @@ describe('Tool row disclosures', () => {
     expect(succeeded.querySelector('.claudian-tool-exit')?.textContent).toBe('Success');
   });
 
-  it('lists each distinct exploration action on its own row with the filename first', () => {
+  it('shows a command that reports file actions as one row', () => {
     const path = '平台方案/SpreadFun Harness/README.md';
     const query = '6 个\\|五个\\|第一轮只做\\|MR 周期\\|变更失败率';
     const row = renderStoredToolCall(document.createElement('div'), call({
@@ -86,12 +86,8 @@ describe('Tool row disclosures', () => {
       ] },
     }));
     const header = row.querySelector<HTMLElement>('.claudian-tool-header')!;
-    const items = [...header.querySelectorAll('.claudian-tool-exploration-row')];
-    expect(items).toHaveLength(2);
-    expect(items[0].querySelector('.claudian-tool-exploration-preview')?.textContent)
-      .toBe('README.md · 平台方案/SpreadFun Harness');
-    expect(items[0].querySelector('.claudian-tool-exploration-full')?.textContent).toBe(path);
-    expect(items[1].querySelector('.claudian-tool-exploration-value')?.getAttribute('title')).toBe(`${query} · README.md`);
+    expect(header.querySelectorAll('.claudian-tool-exploration-row')).toHaveLength(0);
+    expect(header.textContent).toContain('rg checklist');
     header.click();
     expect(header.getAttribute('aria-expanded')).toBe('true');
     expect(row.querySelector('.claudian-tool-content')?.textContent).toContain('Original output');
