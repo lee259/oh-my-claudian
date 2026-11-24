@@ -336,6 +336,30 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
+  it('drops a completed shell call that carries no command or output', () => {
+    const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
+    try {
+      assistant.toolCalls = [
+        { id: 'list', name: 'Bash', input: { command: 'ls' }, status: 'completed', exitCode: 0 },
+        { id: 'empty', name: 'Bash', input: { command: '' }, status: 'completed', exitCode: 0 },
+        { id: 'pwd', name: 'Bash', input: { command: 'pwd' }, status: 'completed', exitCode: 0 },
+      ];
+      assistant.contentBlocks = [
+        { type: 'tool_use', toolId: 'list' },
+        { type: 'tool_use', toolId: 'empty' },
+        { type: 'tool_use', toolId: 'pwd' },
+        { type: 'text', content: assistant.content },
+      ];
+
+      renderer.renderMessages([user, assistant], () => 'Welcome');
+
+      expect(messagesEl.querySelector('[data-tool-id="empty"]')).toBeNull();
+      expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
+      expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent)
+        .toBe('Bash · 2 calls');
+    } finally { renderer.dispose(); component.unload(); }
+  });
+
   it.each(['claude', 'omp'] as const)('keeps a %s disclosure clickable while thinking tokens arrive', (providerId) => {
     const { renderer, component, messagesEl, user, assistant, tool } = createTurn(providerId);
     try {

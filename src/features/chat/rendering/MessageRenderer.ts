@@ -2784,6 +2784,7 @@ export class MessageRenderer {
   private shouldRenderToolCall(toolCall: ToolCallInfo, msg?: ChatMessage): boolean {
     if (toolCall.name === TOOL_WRITE_STDIN && this.isSilentWriteStdinTool(toolCall)) return false;
     if (toolCall.name === 'custom_tool_call_output') return false;
+    if (this.isEmptyShellCall(toolCall)) return false;
 
     const subagentAdapter = this.getSubagentAdapter(toolCall.name);
     if (
@@ -2797,6 +2798,26 @@ export class MessageRenderer {
       && this.isFullyOwnedProviderSubagentTool(toolCall, msg, subagentAdapter)
     ) return false;
 
+    return true;
+  }
+
+  /**
+   * Some providers persist a completion for a shell call that carries no command, output, or exploration.
+   * Rendering it leaves a bare "Bash" row that reads as part of the neighbouring card.
+   */
+  private isEmptyShellCall(toolCall: ToolCallInfo): boolean {
+    if (toolCall.name !== TOOL_BASH && toolCall.name !== 'exec_command') return false;
+    if (toolCall.status !== 'completed') return false;
+    // Only a shell call that names a command field and left it blank is malformed; a missing field may
+    // describe a different provider shape we should keep rendering.
+    if (!('command' in toolCall.input)) return false;
+    const command = toolCall.input.command;
+    if (typeof command !== 'string' || command.trim()) return false;
+    if (toolCall.result?.trim()) return false;
+    if (toolCall.resultImages?.length) return false;
+    if (toolCall.exploration?.actions?.length) return false;
+    if (toolCall.continuesInBackground) return false;
+    if (toolCall.subagent) return false;
     return true;
   }
 
