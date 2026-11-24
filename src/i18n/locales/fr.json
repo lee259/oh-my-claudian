@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "En cours · {seconds} s",
+      "inProgressMinutes": "En cours · {minutes} min {seconds} s",
       "label": "Terminé",
       "seconds": "Durée : {seconds} s",
       "minutes": "Durée : {minutes} min {seconds} s",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Afficher ou masquer l’historique Zen",
       "toggleVisibility": "Afficher ou masquer le panneau Zen",
+      "switchConversation": "Changer de conversation",
+      "minimize": "Réduire le panneau Zen",
+      "restore": "Rétablir le panneau Zen",
       "regionLabel": "Chat Claudian",
       "showHistory": "Afficher la conversation",
       "hideHistory": "Réduire la conversation",

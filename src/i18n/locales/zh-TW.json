@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "進行中 · 耗時 {seconds} 秒",
+      "inProgressMinutes": "已處理 {minutes} 分鐘 {seconds} 秒",
       "label": "已完成",
       "seconds": "耗時 {seconds} 秒",
       "minutes": "耗時 {minutes} 分 {seconds} 秒",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "展開或收起禪模式對話",
       "toggleVisibility": "顯示或隱藏禪模式面板",
+      "switchConversation": "切換對話",
+      "minimize": "縮小禪模式面板",
+      "restore": "還原禪模式面板",
       "regionLabel": "Claudian 聊天",
       "showHistory": "顯示對話",
       "hideHistory": "收合對話",

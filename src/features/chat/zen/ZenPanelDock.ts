@@ -5,6 +5,7 @@ export class ZenPanelDock {
   private position: ZenPosition | null;
   private observer: ResizeObserver | null = null;
   private drag: { id: number; x: number; y: number; left: number; top: number; before: ZenPosition | null } | null = null;
+  private minimized = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -40,6 +41,7 @@ export class ZenPanelDock {
   }
 
   refresh(): void {
+    if (this.minimized) return;
     const g = this.geometry();
     const left = Math.max(8, Math.min(g.maxX, g.homeX + (this.position?.x ?? 0) * g.width));
     const top = Math.max(8, Math.min(g.maxY, g.homeY + (this.position?.y ?? 0) * g.height));
@@ -53,6 +55,28 @@ export class ZenPanelDock {
     const below = host.bottom - anchor.bottom;
     this.root.classList.toggle('opens-below', below > above);
     this.root.style.setProperty('--claudian-zen-menu-height', `${Math.max(0, Math.max(above, below) - 16)}px`);
+
+    const header = this.root.querySelector('.claudian-zen-header')?.getBoundingClientRect();
+    if (header) {
+      const pickerAbove = header.top - host.top;
+      const pickerBelow = host.bottom - header.bottom;
+      this.root.classList.toggle('picker-opens-below', pickerBelow > pickerAbove);
+      this.root.style.setProperty('--claudian-zen-header-height', `${header.height}px`);
+      this.root.style.setProperty('--claudian-zen-picker-height', `${Math.max(0, Math.max(pickerAbove, pickerBelow) - 16)}px`);
+    }
+  }
+
+  setMinimized(minimized: boolean): void {
+    this.minimized = minimized;
+    if (minimized) {
+      if (this.drag) this.position = this.drag.before;
+      this.endDrag();
+      for (const property of ['left', 'top', 'bottom', 'transform']) {
+        this.root.style.removeProperty(property);
+      }
+    } else {
+      this.refresh();
+    }
   }
 
   private move(left: number, top: number, persist: boolean): void {

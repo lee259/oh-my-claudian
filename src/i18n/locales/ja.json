@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "作業中 · {seconds} 秒",
+      "inProgressMinutes": "処理中 · {minutes} 分 {seconds} 秒",
       "label": "完了",
       "seconds": "所要時間 {seconds} 秒",
       "minutes": "所要時間 {minutes} 分 {seconds} 秒",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Zen の会話履歴を切り替え",
       "toggleVisibility": "Zen パネルの表示を切り替え",
+      "switchConversation": "会話を切り替える",
+      "minimize": "Zen パネルを最小化",
+      "restore": "Zen パネルを元に戻す",
       "regionLabel": "Claudian チャット",
       "showHistory": "会話を表示",
       "hideHistory": "会話を折りたたむ",

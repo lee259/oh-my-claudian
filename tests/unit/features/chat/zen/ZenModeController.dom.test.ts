@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
+import { getByRole } from '@testing-library/dom';
 import type { App, WorkspaceLeaf } from 'obsidian';
+import { act } from 'preact/test-utils';
 
 import { ZenModeController, type ZenModeSource } from '@/features/chat/zen/ZenModeController';
 
@@ -26,12 +28,22 @@ function fixture() {
   const surface = parent.appendChild(document.createElement('div'));
   const input = surface.appendChild(document.createElement('textarea'));
   input.value = 'Keep my draft';
-  const source: ZenModeSource = { leaf, surface, focusInput: () => input.focus(), getPreview: () => ({ text: 'Working', hasMessages: true, working: true, requiresAction: false }) };
+  const picker = surface.appendChild(document.createElement('div'));
+  const source: ZenModeSource = {
+    leaf, surface,
+    conversationPicker: {
+      element: picker,
+      toggle: () => { picker.classList.toggle('visible'); },
+      close: () => { picker.classList.remove('visible'); },
+    },
+    focusInput: () => input.focus(),
+    getPreview: () => ({ text: 'Working', hasMessages: true, working: true, requiresAction: false }),
+  };
   let enabled = true;
   const controller = new ZenModeController({ app, isEnabled: () => enabled, getPosition: () => null, savePosition: jest.fn() });
   controller.start();
   const release = controller.register(source);
-  return { controller, release, source, parent, input, center, sidebar, app, listeners, disable: () => { enabled = false; controller.refresh(); } };
+  return { controller, release, source, parent, input, picker, center, sidebar, app, listeners, disable: () => { enabled = false; controller.refresh(); } };
 }
 
 afterEach(() => { document.body.replaceChildren(); });
@@ -58,7 +70,7 @@ it('shows bounded live activity and expands for an interaction without replacing
   f.sidebar.collapsed = true;
   f.controller.refresh();
   const toggle = f.center.querySelector<HTMLButtonElement>('.claudian-zen-disclosure')!;
-  expect(toggle.textContent).toContain('Reading note');
+  expect(getByRole(f.center, 'button', { name: /reading note.*switch conversation/i })).toBeDefined();
   expect(toggle.getAttribute('aria-expanded')).toBe('false');
   toggle.click();
   expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -264,6 +276,193 @@ it('temporarily hides and restores the same composer through commands without ch
   f.release();
   expect(toggle(true)).toBe(false);
   f.controller.dispose();
+});
+
+it('minimizes to a restore button and reopens the same composer and expanded conversation', () => {
+  const f = fixture();
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  getByRole(f.center, 'button', { name: 'Show conversation' }).click();
+  const minimize = getByRole(f.center, 'button', { name: 'Minimize Zen panel' });
+  minimize.click();
+
+  const restore = getByRole(f.center, 'button', { name: 'Restore Zen panel, Working…' });
+  expect(document.activeElement).toBe(restore);
+  expect(restore.getAttribute('aria-expanded')).toBe('false');
+  expect(f.center.contains(f.input)).toBe(true);
+  expect(f.input.closest('[hidden]')).not.toBeNull();
+  expect(f.sidebar.collapsed).toBe(true);
+
+  restore.click();
+  expect(getByRole(f.center, 'textbox')).toBe(f.input);
+  expect(document.activeElement).toBe(f.input);
+  expect(f.input.value).toBe('Keep my draft');
+  expect(getByRole(f.center, 'button', { name: 'Collapse conversation' }).getAttribute('aria-expanded')).toBe('true');
+  f.controller.dispose();
+});
+
+it('updates the restore button when a running turn needs input while minimized', async () => {
+  const f = fixture();
+  let activity = f.source.getPreview();
+  f.source.getPreview = () => activity;
+  f.sidebar.collapsed = true;
+  f.controller.refresh();
+  getByRole(f.center, 'button', { name: 'Minimize Zen panel' }).click();
+  const command = f.controller.createCommands().find(command => command.id === 'toggle-zen-mode-history')!;
+  expect(command.checkCallback!(true)).toBe(false);
+
+  activity = { ...activity, text: 'Approval needed', requiresAction: true };
+  f.source.surface.appendChild(document.createTextNode('new activity'));
+  await Promise.resolve();
+  const restore = getByRole(f.center, 'button', { name: 'Restore Zen panel, Needs your input' });
+  expect(f.input.closest('[hidden]')).not.toBeNull();
+  restore.click();
+  expect(getByRole(f.center, 'button', { name: 'Collapse conversation' }).getAttribute('aria-expanded')).toBe('true');
+  f.controller.dispose();
+});
+
+it('returns to the compact composer if an input request ended while minimized', () => {
+  const f = fixture();
+  try {
+    let requiresAction = false;
+    f.source.getPreview = () => ({
+      text: 'Release notes', hasMessages: true, requiresAction, working: false,
+    });
+    f.sidebar.collapsed = true;
+    f.controller.refresh();
+    getByRole(f.center, 'button', { name: 'Minimize Zen panel' }).click();
+
+    requiresAction = true;
+    f.controller.refresh();
+    expect(getByRole(f.center, 'button', { name: 'Restore Zen panel, Needs your input' })).toBeDefined();
+    requiresAction = false;
+    f.controller.refresh();
+
+    getByRole(f.center, 'button', { name: 'Restore Zen panel' }).click();
+    expect(getByRole(f.center, 'button', { name: 'Show conversation' }).getAttribute('aria-expanded')).toBe('false');
+    expect(getByRole(f.center, 'textbox')).toBe(f.input);
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it('keeps a titled composer with elapsed work visible when conversation history is collapsed', () => {
+  jest.useFakeTimers();
+  const f = fixture();
+  try {
+    let activity = {
+      ...f.source.getPreview(), title: 'Draft release notes', text: 'Reading changes', startedAt: 0,
+    };
+    f.source.getPreview = () => activity;
+    f.sidebar.collapsed = true;
+    f.controller.refresh();
+
+    const disclosure = getByRole(f.center, 'button', { name: /show conversation/i });
+    expect(getByRole(f.center, 'button', { name: /draft release notes.*switch conversation/i })).toBeDefined();
+    expect(disclosure.getAttribute('aria-expanded')).toBe('false');
+    expect(getByRole(f.center, 'textbox')).toBe(f.input);
+    expect(getByRole(f.center, 'timer').textContent).toBe('Working · 0s');
+    act(() => { jest.advanceTimersByTime(2000); });
+    expect(getByRole(f.center, 'timer').textContent).toBe('Working · 2s');
+    act(() => { jest.advanceTimersByTime(128_000); });
+    expect(getByRole(f.center, 'timer').textContent).toBe('Working · 2m 10s');
+
+    disclosure.click();
+    expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+    expect(f.center.querySelector('[role="timer"]')).toBeNull();
+    disclosure.click();
+    getByRole(f.center, 'button', { name: 'Minimize Zen panel' }).click();
+    getByRole(f.center, 'button', { name: 'Restore Zen panel, Working…' }).click();
+    expect(disclosure.getAttribute('aria-expanded')).toBe('false');
+    expect(getByRole(f.center, 'textbox')).toBe(f.input);
+
+    activity = { ...activity, working: false };
+    f.controller.refresh();
+    expect(f.center.querySelector('[role="timer"]')).toBeNull();
+  } finally {
+    f.controller.dispose();
+    jest.useRealTimers();
+  }
+});
+
+it('keeps the conversation title and working indicator visible when opening the transcript', () => {
+  const f = fixture();
+  try {
+    let text = 'Reading changes';
+    f.source.getPreview = () => ({
+      title: 'Draft release notes', text, hasMessages: true, working: true, requiresAction: false,
+    });
+    f.sidebar.collapsed = true;
+    f.controller.refresh();
+    getByRole(f.center, 'button', { name: /show conversation/i }).click();
+
+    text = 'Updating the draft';
+    f.controller.refresh();
+    expect(getByRole(f.center, 'button', { name: /draft release notes.*switch conversation/i })).toBeDefined();
+    expect(getByRole(f.center, 'img', { name: 'Working…' })).toBeDefined();
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it('opens the conversation picker independently of the transcript and switches the title from a picker selection', async () => {
+  const f = fixture();
+  try {
+    let title = 'Draft release notes';
+    const preview = f.source.getPreview();
+    f.source.getPreview = () => ({ ...preview, title });
+    const { picker } = f;
+    const choice = picker.appendChild(document.createElement('button'));
+    choice.textContent = 'Review checklist';
+    choice.onclick = () => {
+      title = 'Review checklist';
+      picker.classList.remove('visible');
+    };
+    f.sidebar.collapsed = true;
+    f.controller.refresh();
+
+    const titleButton = getByRole(f.center, 'button', { name: /draft release notes.*switch conversation/i });
+    const transcriptButton = getByRole(f.center, 'button', { name: 'Show conversation' });
+    titleButton.click();
+    expect(titleButton.getAttribute('aria-controls')).toBe(picker.id);
+    expect(titleButton.getAttribute('aria-expanded')).toBe('true');
+    expect(transcriptButton.getAttribute('aria-expanded')).toBe('false');
+
+    choice.click();
+    await Promise.resolve();
+    expect(titleButton.textContent).toContain('Review checklist');
+    expect(titleButton.getAttribute('aria-expanded')).toBe('false');
+
+    transcriptButton.click();
+    expect(transcriptButton.getAttribute('aria-expanded')).toBe('true');
+    expect(titleButton.getAttribute('aria-expanded')).toBe('false');
+    titleButton.click();
+    getByRole(f.center, 'button', { name: 'Minimize Zen panel' }).click();
+    expect(picker.classList.contains('visible')).toBe(false);
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it('keeps the transcript open while the user works in the note behind it', () => {
+  const f = fixture();
+  try {
+    f.sidebar.collapsed = true;
+    f.controller.refresh();
+    const disclosure = getByRole(f.center, 'button', { name: 'Show conversation' });
+    disclosure.click();
+    f.input.focus();
+
+    const note = f.center.appendChild(document.createElement('textarea'));
+    note.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    note.focus();
+
+    expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(note);
+    expect(f.app.keymap.popScope).toHaveBeenCalledTimes(1);
+  } finally {
+    f.controller.dispose();
+  }
 });
 
 it('toggles history without losing composer focus and remembers expansion across presentation changes', () => {

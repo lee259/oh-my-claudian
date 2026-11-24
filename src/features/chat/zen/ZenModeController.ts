@@ -8,6 +8,8 @@ import { ZenModePanel } from './ZenModePanel';
 
 export interface ZenPreview {
   text: string;
+  title?: string;
+  startedAt?: number | null;
   hasMessages: boolean;
   working: boolean;
   requiresAction: boolean;
@@ -17,6 +19,11 @@ export interface ZenModeSource {
   readonly leaf: WorkspaceLeaf;
   readonly surface: HTMLElement;
   readonly scope?: Scope | null;
+  readonly conversationPicker: {
+    readonly element: HTMLElement;
+    toggle(trigger: HTMLButtonElement): void;
+    close(): void;
+  };
   focusInput(): void;
   getPreview(): ZenPreview;
 }
@@ -62,12 +69,7 @@ export class ZenModeController {
     }, {
       id: 'toggle-zen-mode-history',
       name: t('chat.zen.toggleHistory'),
-      checkCallback: checking => {
-        const panel = this.active?.panel;
-        const activity = this.active?.source.getPreview();
-        if (!panel || !activity?.hasMessages || activity.requiresAction) return false;
-        return checking || panel.toggleHistory();
-      },
+      checkCallback: checking => this.active?.panel.toggleHistory(checking) ?? false,
     }];
   }
 

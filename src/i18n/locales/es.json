@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "En curso · {seconds} s",
+      "inProgressMinutes": "En curso · {minutes} min {seconds} s",
       "label": "Completado",
       "seconds": "Duró {seconds} s",
       "minutes": "Duró {minutes} min {seconds} s",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Alternar el historial de conversación Zen",
       "toggleVisibility": "Mostrar u ocultar el panel Zen",
+      "switchConversation": "Cambiar de conversación",
+      "minimize": "Minimizar el panel Zen",
+      "restore": "Restaurar el panel Zen",
       "regionLabel": "Chat de Claudian",
       "showHistory": "Mostrar conversación",
       "hideHistory": "Contraer conversación",

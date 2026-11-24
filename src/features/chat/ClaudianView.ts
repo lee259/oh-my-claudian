@@ -318,13 +318,21 @@ export class ClaudianView extends ItemView {
     this.attachNavRowContentToInputFooter();
     this.updateInputLocation();
     this.updateTabBarVisibility();
-    if (this.viewContainerEl) {
+    if (this.viewContainerEl && this.historyDropdown) {
       this.releaseZen = this.plugin.zenMode?.register({
         leaf: this.leaf,
         surface: this.viewContainerEl,
         scope: this.scope,
+        conversationPicker: {
+          element: this.historyDropdown,
+          toggle: trigger => this.toggleHistoryDropdown(trigger),
+          close: () => this.closeHistoryDropdown(),
+        },
         focusInput: () => this.focusActiveInput(),
-        getPreview: () => getZenActivityPreview(this.getActiveTab()?.state),
+        getPreview: () => {
+          const tab = this.getActiveTab();
+          return getZenActivityPreview(tab?.state, this.getConversationHeaderTitle(tab));
+        },
       }) ?? null;
     }
   }
@@ -601,16 +609,20 @@ export class ClaudianView extends ItemView {
   private updateConversationHeaders(): void {
     for (const tab of this.tabManager?.getAllTabs?.() ?? []) {
       if (typeof tab.dom?.updateConversationHeader !== 'function') continue;
-      const title = tab.conversationId
-        ? this.plugin.getConversationSync?.(tab.conversationId)?.title
-        : null;
       const isHome = tab.conversationId === null && tab.state.messages?.length === 0;
       tab.dom.updateConversationHeader(
-        title?.trim() || t('chat.home.title'),
+        this.getConversationHeaderTitle(tab),
         isHome,
         tab.conversationId,
       );
     }
+  }
+
+  private getConversationHeaderTitle(tab: TabData | null): string {
+    const title = tab?.conversationId
+      ? this.plugin.getConversationSync?.(tab.conversationId)?.title
+      : null;
+    return title?.trim() || t('chat.home.title');
   }
 
   private restoreActiveInputToTabContent(): void {
@@ -682,19 +694,25 @@ export class ClaudianView extends ItemView {
   // History Dropdown
   // ============================================
 
-  private toggleHistoryDropdown(): void {
+  private toggleHistoryDropdown(trigger?: HTMLButtonElement): void {
     if (!this.historyDropdown) return;
 
-    const isVisible = this.historyDropdown.hasClass('visible');
-    if (isVisible) {
-      this.historyDropdown.removeClass('visible');
-      this.cancelHistoryRendering();
-      this.destroyHistorySurface();
-      this.historySearchQuery = '';
-    } else {
-      this.historyDropdown.addClass('visible');
-      this.renderHistoryDropdown();
+    if (this.historyDropdown.hasClass('visible')) {
+      this.closeHistoryDropdown();
+      return;
     }
+    trigger?.focus({ preventScroll: true });
+    this.historyDropdown.addClass('visible');
+    this.renderHistoryDropdown();
+    if (trigger) this.historyDropdown.querySelector<HTMLInputElement>('.claudian-home-history-search-input')?.focus();
+  }
+
+  private closeHistoryDropdown(): void {
+    if (!this.historyDropdown?.hasClass('visible')) return;
+    this.historyDropdown.removeClass('visible');
+    this.cancelHistoryRendering();
+    this.destroyHistorySurface();
+    this.historySearchQuery = '';
   }
 
   private historyDropdownDirty = true;
@@ -1083,14 +1101,14 @@ export class ClaudianView extends ItemView {
     const openOptions = activeTab?.state.isStreaming
       ? { preferNewTab: true }
       : undefined;
-    const doc = options?.source === 'keyboard' ? this.historyDropdown?.ownerDocument : undefined;
+    const restoreFocus = options?.source === 'keyboard' || this.historyDropdown?.closest('.claudian-zen');
+    const doc = restoreFocus ? this.historyDropdown?.ownerDocument : undefined;
     const previousFocus = doc?.activeElement;
     await this.tabManager?.openConversation(conversationId, openOptions);
     const canRestoreFocus = !!doc && !!previousFocus && doc.hasFocus()
       && (doc.activeElement === previousFocus
         || (!previousFocus.isConnected && doc.activeElement === doc.body));
-    this.historyDropdown?.removeClass('visible');
-    this.cancelHistoryRendering();
+    this.closeHistoryDropdown();
     const selectedTab = this.tabManager?.getActiveTab();
     if (canRestoreFocus && selectedTab?.conversationId === conversationId) selectedTab.dom.inputEl.focus();
   }
@@ -1166,7 +1184,7 @@ export class ClaudianView extends ItemView {
       if (event.target && this.historyDropdown?.contains(event.target as Node)) {
         return;
       }
-      this.historyDropdown?.removeClass('visible');
+      this.closeHistoryDropdown();
     });
 
     // View-level Shift+Tab cycles the active provider's permission modes.

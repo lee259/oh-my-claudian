@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "In Arbeit · {seconds} Sek.",
+      "inProgressMinutes": "In Arbeit · {minutes} Min. {seconds} Sek.",
       "label": "Abgeschlossen",
       "seconds": "Dauer: {seconds} Sek.",
       "minutes": "Dauer: {minutes} Min. {seconds} Sek.",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Zen-Gesprächsverlauf umschalten",
       "toggleVisibility": "Zen-Panel ein-/ausblenden",
+      "switchConversation": "Unterhaltung wechseln",
+      "minimize": "Zen-Fenster minimieren",
+      "restore": "Zen-Fenster wiederherstellen",
       "regionLabel": "Claudian-Chat",
       "showHistory": "Unterhaltung anzeigen",
       "hideHistory": "Unterhaltung einklappen",

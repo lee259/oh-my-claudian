@@ -4,11 +4,13 @@ import { t } from '@/i18n/i18n';
 import type { ZenPreview } from './ZenModeController';
 
 /** Bounded text projection, independent of whether the transcript is visible. */
-export function getZenActivityPreview(state: ChatState | null | undefined): ZenPreview {
+export function getZenActivityPreview(state: ChatState | null | undefined, title: string): ZenPreview {
   const working = state?.isStreaming ?? false;
   const requiresAction = state?.phase === 'needs-you';
   const hasMessages = (state?.messages.length ?? 0) > 0;
-  if (requiresAction) return { text: t('chat.zen.actionRequired'), hasMessages, working, requiresAction };
+  const startedAt = working ? state?.responseStartTime : null;
+  const status = { title, startedAt, hasMessages, working, requiresAction };
+  if (requiresAction) return { ...status, text: t('chat.zen.actionRequired') };
   const message = state?.messages.at(-1);
   const runningTool = message?.toolCalls?.slice().reverse().find(tool => tool.status === 'running');
   let text: string;
@@ -24,5 +26,5 @@ export function getZenActivityPreview(state: ChatState | null | undefined): ZenP
   const prefix = text.slice(0, scanEnd).replace(/\s+/g, ' ').trim();
   // Array.from keeps a trailing supplementary-plane character intact.
   const characters = Array.from(prefix);
-  return { text: characters.length > 240 ? `${characters.slice(0, 239).join('')}…` : prefix, hasMessages, working, requiresAction };
+  return { ...status, text: characters.length > 240 ? `${characters.slice(0, 239).join('')}…` : prefix };
 }
