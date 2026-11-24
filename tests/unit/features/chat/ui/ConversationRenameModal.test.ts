@@ -59,9 +59,11 @@ jest.mock('obsidian', () => {
     addButton(callback: (button: any) => void) {
       const button = {
         label: '',
+        disabled: false,
         clickHandler: undefined as (() => void) | undefined,
         setButtonText(label: string) { this.label = label; return this; },
         setCta() { return this; },
+        setDisabled(value: boolean) { this.disabled = value; return this; },
         onClick(handler: () => void) { this.clickHandler = handler; return this; },
       };
       MockSetting.buttons.push(button);
@@ -83,7 +85,7 @@ import { Setting } from 'obsidian';
 import { ConversationRenameModal } from '@/features/chat/ui/ConversationRenameModal';
 
 const mockSetting = Setting as typeof Setting & {
-  buttons: Array<{ label: string; clickHandler?: () => void }>;
+  buttons: Array<{ label: string; disabled?: boolean; clickHandler?: () => void }>;
   textInputs: Array<{ setValue: (value: string) => unknown }>;
 };
 
@@ -110,5 +112,22 @@ describe('ConversationRenameModal', () => {
 
     expect(onSave).toHaveBeenCalledWith('New title');
     expect(lastModalInstance.isClosed).toBe(true);
+  });
+
+  it('disables save while the rename is in flight and restores it on failure', async () => {
+    const onSave = jest.fn().mockRejectedValue(new Error('vault busy'));
+    const modal = new ConversationRenameModal({} as any, 'Old title', onSave);
+    modal.open();
+    mockSetting.textInputs[0].setValue('New title');
+    const saveButton = mockSetting.buttons.find(button => button.label === 'Save');
+
+    saveButton?.clickHandler?.();
+    expect(saveButton?.disabled).toBe(true);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(saveButton?.disabled).toBe(false);
+    expect(lastModalInstance.isClosed).toBe(false);
   });
 });

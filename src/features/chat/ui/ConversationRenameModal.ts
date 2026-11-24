@@ -1,9 +1,17 @@
-import { type App, Modal, Notice, Setting, type TextComponent } from 'obsidian';
+import {
+  type App,
+  type ButtonComponent,
+  Modal,
+  Notice,
+  Setting,
+  type TextComponent,
+} from 'obsidian';
 
 import { t } from '../../../i18n/i18n';
 
 export class ConversationRenameModal extends Modal {
   private titleInput: TextComponent | null = null;
+  private saveButton: ButtonComponent | null = null;
   private isSaving = false;
 
   constructor(
@@ -39,10 +47,13 @@ export class ConversationRenameModal extends Modal {
       .addButton((button) => button
         .setButtonText(t('common.cancel'))
         .onClick(() => this.close()))
-      .addButton((button) => button
-        .setButtonText(t('common.save'))
-        .setCta()
-        .onClick(() => void this.save()));
+      .addButton((button) => {
+        this.saveButton = button;
+        button
+          .setButtonText(t('common.save'))
+          .setCta()
+          .onClick(() => void this.save());
+      });
 
     this.titleInput?.inputEl.focus();
     this.titleInput?.inputEl.select();
@@ -64,6 +75,8 @@ export class ConversationRenameModal extends Modal {
     }
 
     this.isSaving = true;
+    // Disable immediately so a slow save cannot be submitted twice; the label stays the only feedback.
+    this.saveButton?.setDisabled(true);
     try {
       await this.onSave(nextTitle);
       this.close();
@@ -71,6 +84,7 @@ export class ConversationRenameModal extends Modal {
       new Notice(t('chat.errors.renameConversation'));
     } finally {
       this.isSaving = false;
+      this.saveButton?.setDisabled(false);
     }
   }
 }

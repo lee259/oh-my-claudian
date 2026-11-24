@@ -67,6 +67,12 @@ Every Claudian-owned instance of an element listed below must use its required b
 - A name-only hint uses `aria-label` plus `data-tooltip-position`; Obsidian renders it. Do not also set `title`, which makes the browser draw a second, unthemed tooltip.
 - A tooltip names a control. Teaching text, warnings, and errors belong in visible UI, not in a hover hint.
 
+### In-flight feedback
+
+- Match the feedback to the duration: nothing under 100 ms, disabled only from 100 ms to 1 s, disabled with a spinner from 1 s to 3 s, and a stage label beyond 3 s.
+- Bind `disabled` immediately so a slow action cannot be submitted twice, and delay any visible loading state by about 200 ms so a fast local action does not flash. `ProviderReadinessPanel` floors its visible check at 120 ms; reuse that shape instead of a bare busy flag.
+- Reserve the space a control will occupy once its label or icon changes; a control that resizes mid-action reads as broken.
+
 ## Gotchas
 
 - Obsidian uses `body.theme-dark` and `body.theme-light` for theme detection.
