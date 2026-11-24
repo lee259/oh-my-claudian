@@ -151,6 +151,8 @@ describe('ClaudianView history runtime status', () => {
 
     state.beginActionRequired('approval-1');
     expect(dot()?.getAttribute('data-attention')).toBe('needs-you');
+    expect(dot()?.getAttribute('title')).toBeNull();
+    expect(dot()?.getAttribute('data-tooltip-position')).toBe('top');
 
     state.endActionRequired('approval-1');
     state.markReviewRequired();

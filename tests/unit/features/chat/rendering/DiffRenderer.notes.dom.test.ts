@@ -42,6 +42,9 @@ describe('DiffRenderer review notes', () => {
 
     expect(host.querySelectorAll('.claudian-diff-note-add')).toHaveLength(2);
     expect(host.querySelectorAll('.claudian-diff-note-draft')).toHaveLength(0);
+    const button = host.querySelector<HTMLElement>('.claudian-diff-note-add')!;
+    expect(button.getAttribute('title')).toBeNull();
+    expect(button.getAttribute('data-tooltip-position')).toBe('top');
   });
 
   it('saves the draft on Enter with the line it was written on', () => {

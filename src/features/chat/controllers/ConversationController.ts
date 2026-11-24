@@ -1528,8 +1528,8 @@ export class ConversationController {
         attr: {
           'aria-label': attentionDot.label,
           'data-attention': attentionDot.state,
+          'data-tooltip-position': 'top',
           role: 'img',
-          title: attentionDot.label,
         },
       });
     }
