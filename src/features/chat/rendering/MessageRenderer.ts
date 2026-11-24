@@ -369,7 +369,7 @@ export class MessageRenderer {
       const fullLabel = `${path}${line ? `:${line}` : ''}`;
       const button = parent.createEl('button', {
         cls: `claudian-message-input-context-file${chip ? ' claudian-message-input-context-file--chip' : ''}`,
-        attr: { type: 'button', title: fullLabel, 'aria-label': fullLabel },
+        attr: { type: 'button', 'aria-label': fullLabel },
       });
       const icon = button.createSpan({ cls: 'claudian-message-input-context-icon', attr: { 'aria-hidden': 'true' } });
       setIcon(icon, 'file-text');
@@ -1763,7 +1763,7 @@ export class MessageRenderer {
     }).replace(/^\s*·\s*/, '');
     const errorEl = headerEl.createSpan({
       cls: className,
-      attr: { role: 'img', 'aria-label': description, title: description },
+      attr: { role: 'img', 'aria-label': description, 'data-tooltip-position': 'top' },
     });
     setIcon(errorEl, 'alert-triangle');
     headerEl.insertBefore(errorEl, headerEl.firstChild);
