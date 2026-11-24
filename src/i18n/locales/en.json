@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "Working · {seconds}s",
+      "inProgressMinutes": "Working · {minutes}m {seconds}s",
       "label": "Completed",
       "seconds": "Took {seconds}s",
       "minutes": "Took {minutes}m {seconds}s",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Toggle Zen conversation history",
       "toggleVisibility": "Toggle Zen panel",
+      "switchConversation": "Switch conversation",
+      "minimize": "Minimize Zen panel",
+      "restore": "Restore Zen panel",
       "regionLabel": "Claudian chat",
       "showHistory": "Show conversation",
       "hideHistory": "Collapse conversation",

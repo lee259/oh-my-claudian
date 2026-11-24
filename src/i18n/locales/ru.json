@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "В процессе · {seconds} с",
+      "inProgressMinutes": "В работе · {minutes} мин {seconds} с",
       "label": "Завершено",
       "seconds": "Заняло {seconds} с",
       "minutes": "Заняло {minutes} мин {seconds} с",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Переключить историю беседы Zen",
       "toggleVisibility": "Показать или скрыть панель Zen",
+      "switchConversation": "Переключить беседу",
+      "minimize": "Свернуть панель Zen",
+      "restore": "Восстановить панель Zen",
       "regionLabel": "Чат Claudian",
       "showHistory": "Показать разговор",
       "hideHistory": "Свернуть беседу",

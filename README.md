@@ -105,11 +105,13 @@ Type `/` to discover commands and skills supported by the selected provider. Ins
 
 ### Keep chat available while reading
 
-On desktop, collapse the sidebar containing Oh My Claudian to move its existing chat into a floating panel over your notes. Click the activity preview to expand or collapse the conversation; reopen the sidebar to restore the full view. Drafts, running responses and pending approvals stay in the same session.
+On desktop, collapse the sidebar containing Oh My Claudian to move its chat into a floating panel over your notes. Click the conversation title to search for or switch conversations. Use the button next to **Minimize Zen panel** to show or collapse the current messages. The compact panel keeps the composer visible and shows elapsed time while a response runs.
+
+Click **Minimize Zen panel** to shrink the panel to a button at the bottom right of the workspace. Click that button to restore the panel and focus the composer. Drafts, running responses and pending approvals stay with their conversation. Reopen the sidebar to return the chat to its usual location.
 
 Drag the handle below the panel to move it, or focus the handle and use arrow keys (Shift for larger steps). Press Home or double-click the handle to return to the bottom-center dock. The position is remembered. Disable **Enable zen mode** in the plugin's general settings to keep the sidebar-only behavior. Main-area chat tabs and popout windows do not float.
 
-An empty conversation shows only the composer. Assign hotkeys to **Toggle Zen panel** to temporarily hide or restore it, and **Toggle Zen conversation history** to expand or collapse existing messages. Restoring the panel focuses the same composer; reopening its sidebar resets temporary hiding. Model and permission menus open toward available workspace space.
+Assign hotkeys to **Toggle Zen panel** to temporarily hide or restore the panel, and **Toggle Zen conversation history** to expand or collapse existing messages. Reopening the sidebar resets temporary hiding. Model, permission and conversation menus open toward available workspace space.
 
 ### Read a conversation and inspect changes
 

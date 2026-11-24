@@ -106,6 +106,7 @@
     },
     "completedWork": {
       "inProgress": "작업 중 · {seconds}초",
+      "inProgressMinutes": "작업 중 · {minutes}분 {seconds}초",
       "label": "완료됨",
       "seconds": "{seconds}초 소요",
       "minutes": "{minutes}분 {seconds}초 소요",
@@ -440,6 +441,9 @@
     "zen": {
       "toggleHistory": "Zen 대화 기록 전환",
       "toggleVisibility": "Zen 패널 표시 전환",
+      "switchConversation": "대화 전환",
+      "minimize": "Zen 패널 최소화",
+      "restore": "Zen 패널 복원",
       "regionLabel": "Claudian 채팅",
       "showHistory": "대화 표시",
       "hideHistory": "대화 접기",
