@@ -84,6 +84,19 @@ describe('DiffRenderer review notes', () => {
     expect(host.querySelector('.claudian-diff-note-draft')).toBeNull();
   });
 
+  it('keeps save disabled until the draft has text', () => {
+    const host = render(jest.fn());
+
+    (host.querySelectorAll<HTMLElement>('.claudian-diff-note-add')[0]).click();
+    const save = host.querySelector<HTMLButtonElement>('.claudian-diff-note-save')!;
+    expect(save.disabled).toBe(true);
+
+    const textarea = host.querySelector('textarea')!;
+    textarea.value = 'note';
+    textarea.dispatchEvent(new Event('input'));
+    expect(save.disabled).toBe(false);
+  });
+
   it('does not close a non-empty draft when another line is clicked', () => {
     const host = render(jest.fn());
 

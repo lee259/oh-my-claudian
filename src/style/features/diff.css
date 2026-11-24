@@ -268,17 +268,60 @@
   box-shadow: inset 2px 0 0 var(--text-accent);
 }
 
-.claudian-diff-note-input {
-  width: 100%;
-  min-height: 60px;
-  max-height: 240px;
-  resize: vertical;
-  font-family: var(--font-text);
-  font-size: var(--font-ui-small);
-}
-
 .claudian-diff-note-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Standalone textarea: base input pattern, with height owned by the auto-grow script. */
+.claudian-diff-note-input {
+  min-width: 0;
+  width: 100%;
+  min-height: 60px;
+  max-height: 240px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-family: var(--font-text);
+  font-size: var(--font-ui-small);
+  resize: none;
+  overflow-y: auto;
+}
+
+.claudian-diff-note-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.claudian-diff-note-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Buttons: base pattern in every interaction state so Obsidian cannot restore native chrome. */
+.claudian-diff-note-actions :is(button) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.claudian-diff-note-actions :is(button):hover,
+.claudian-diff-note-actions :is(button):focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.claudian-diff-note-actions :is(button):disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  cursor: default;
 }
