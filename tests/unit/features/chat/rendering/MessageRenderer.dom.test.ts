@@ -95,8 +95,8 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
   });
 
   it.each([
-    ['all exploration', false, '探索了项目和执行了 2 条命令'],
-    ['with a failed command', true, '探索了项目和执行了 3 条命令'],
+    ['two commands', false, '执行了 2 条命令'],
+    ['two commands and a failure', true, '执行了 3 条命令'],
   ] as const)('summarizes stored command activity %s', (_case, includeFailure, expected) => {
     setLocale('zh-CN');
     const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
@@ -126,8 +126,8 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       const inspected = messagesEl.querySelector('[data-tool-id="inspect"]')!;
       const inspectHeader = inspected.querySelector<HTMLElement>('.claudian-tool-header')!;
       expect(inspectHeader.textContent).toContain('rg match && cat a.md');
-      expect([...inspectHeader.querySelectorAll('.claudian-tool-exploration-value')].map(el => el.getAttribute('title')))
-        .toEqual(['match.*value · notes/', 'notes/a.md']);
+      // A command renders as one row; its file actions stay out of the transcript.
+      expect(inspectHeader.querySelectorAll('.claudian-tool-exploration-value')).toHaveLength(0);
       inspectHeader.click();
       expect(inspected.querySelector('.claudian-tool-bash-command-text')?.textContent).toBe('$ rg match && cat a.md');
       expect(inspected.querySelector('.claudian-tool-content')?.textContent).toContain('Native output');
@@ -271,7 +271,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     try {
       tool('first', 'running'); tool('second', 'running');
       sync();
-      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Bash · 2 次调用');
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('执行了 2 条命令');
       const header = content.querySelector<HTMLButtonElement>('.claudian-activity-phase-header')!;
       const expanded = header.getAttribute('aria-expanded');
       header.click();
@@ -293,7 +293,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
     } finally { renderer.dispose(); component.unload(); }
   });
 
-  it('does not repeat a tool\'s own file as an exploration row', () => {
+  it('renders a command that reports file actions as one row', () => {
     const { renderer, component, messagesEl, user, assistant } = createTurn('codex');
     try {
       const read: ToolCallInfo = {
@@ -314,8 +314,16 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       const bash: ToolCallInfo = {
         id: 'bash-1',
         name: 'Bash',
-        input: { command: 'cat notes/b.md' },
+        input: { command: 'cat notes/a.md notes/b.md' },
         status: 'completed',
+        exploration: {
+          reads: 2,
+          searches: 0,
+          actions: [
+            { type: 'read', path: 'notes/a.md' },
+            { type: 'read', path: 'notes/b.md' },
+          ],
+        },
         exitCode: 0,
       };
       assistant.toolCalls = [read, bash];
@@ -327,12 +335,11 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
 
       renderer.renderMessages([user, assistant], () => 'Welcome');
 
-      const rows = [...messagesEl.querySelectorAll('.claudian-tool-exploration-row')];
-      expect(rows).toHaveLength(1);
-      expect(rows[0].querySelector('.claudian-tool-exploration-value')?.getAttribute('title'))
-        .toBe('notes/b.md');
+      expect(messagesEl.querySelectorAll('.claudian-tool-exploration-row')).toHaveLength(0);
+      expect(messagesEl.querySelector('[data-tool-id="bash-1"] .claudian-tool-header')?.textContent)
+        .toContain('cat notes/a.md notes/b.md');
       expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent)
-        .toBe('Read 2 files and ran 1 command');
+        .toBe('Read 1 file and ran 1 command');
     } finally { renderer.dispose(); component.unload(); }
   });
 
@@ -356,7 +363,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
       expect(messagesEl.querySelector('[data-tool-id="empty"]')).toBeNull();
       expect(messagesEl.querySelectorAll('.claudian-tool-call')).toHaveLength(2);
       expect(messagesEl.querySelector('.claudian-activity-phase-label')?.textContent)
-        .toBe('Bash · 2 calls');
+        .toBe('Ran 2 commands');
     } finally { renderer.dispose(); component.unload(); }
   });
 
@@ -475,7 +482,7 @@ describe('MessageRenderer live turn disclosure in a real DOM', () => {
         node.querySelector('.claudian-tool-name')!.textContent = '$ npm view example versions --json';
       }
       sync();
-      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Bash · 2 calls');
+      expect(content.querySelector('.claudian-activity-phase-label')?.textContent).toBe('Ran 2 commands');
       expect(content.querySelector('.claudian-activity-phase-header')?.firstElementChild?.className)
         .toBe('claudian-activity-phase-indicator');
     } finally { renderer.dispose(); component.unload(); }

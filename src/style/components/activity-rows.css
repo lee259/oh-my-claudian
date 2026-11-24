@@ -37,62 +37,6 @@
   white-space: nowrap;
 }
 
-.claudian-messages .claudian-tool-header--exploration {
-  align-items: flex-start;
-}
-
-.claudian-tool-header--exploration > :is(.claudian-tool-icon, .claudian-tool-name) {
-  display: none;
-}
-
-.claudian-tool-header--exploration > .claudian-tool-summary {
-  display: grid;
-  gap: 4px;
-}
-
-.claudian-tool-exploration-command {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.claudian-tool-exploration-row {
-  display: flex;
-  align-items: baseline;
-  min-width: 0;
-  gap: 6px;
-}
-
-.claudian-tool-exploration-row .claudian-tool-icon {
-  align-self: flex-start;
-  margin-block-start: 2px;
-}
-
-.claudian-tool-exploration-row .claudian-tool-name {
-  flex-shrink: 0;
-}
-
-.claudian-tool-exploration-value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.claudian-tool-exploration-full,
-.claudian-tool-header--exploration[aria-expanded='true'] .claudian-tool-exploration-preview {
-  display: none;
-}
-
-.claudian-tool-header--exploration[aria-expanded='true'] .claudian-tool-exploration-full {
-  display: inline;
-}
-
-.claudian-tool-header--exploration[aria-expanded='true'] .claudian-tool-exploration-value {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .claudian-messages :is(.claudian-tool-icon, .claudian-subagent-icon, .claudian-write-edit-icon, .claudian-subagent-tool-icon) {
   color: inherit;
 }
