@@ -197,8 +197,15 @@ function openNoteDraft(
       )}px`,
     });
   };
+  // A disabled save is the only feedback an empty draft needs; Enter still routes through submit's guard.
+  const syncSaveState = (): void => {
+    saveButton.disabled = textarea.value.trim().length === 0;
+  };
 
-  textarea.addEventListener('input', resize);
+  textarea.addEventListener('input', () => {
+    resize();
+    syncSaveState();
+  });
   textarea.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -224,6 +231,7 @@ function openNoteDraft(
   });
 
   resize();
+  syncSaveState();
   textarea.focus();
 }
 
