@@ -3,6 +3,11 @@
   margin-block: 0;
 }
 
+/* Consecutive cards in one activity need a seam; with no gap they read as a single merged block. */
+.claudian-messages .claudian-activity-phase-details > :is(.claudian-tool-call, .claudian-write-edit-block, .claudian-subagent-list) + :is(.claudian-tool-call, .claudian-write-edit-block, .claudian-subagent-list) {
+  margin-block-start: 8px;
+}
+
 .claudian-messages :is(.claudian-tool-header, .claudian-thinking-header, .claudian-subagent-header, .claudian-write-edit-header, .claudian-subagent-tool-header) {
   position: relative;
   display: flex;
