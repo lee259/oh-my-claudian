@@ -79,7 +79,6 @@ import { parseAntigravityProviderState } from '../types';
 import { ANTIGRAVITY_REPLY_OUTPUT_KINDS, AntigravityBackgroundTurn } from './AntigravityBackgroundTurn';
 import {
   ANTIGRAVITY_ACP_ARGS,
-  ANTIGRAVITY_SKIP_PERMISSIONS_FLAG,
   AntigravityNativeConnection,
 } from './AntigravityNativeConnection';
 import { AntigravityQuestionRouter } from './AntigravityQuestionRouter';
@@ -160,12 +159,9 @@ interface LoadedNativeSession {
   readonly systemPromptAppend: string | undefined;
 }
 
-/** How the process must be launched for this run. */
-interface NativeLaunchRequirement {
-  /** Only for session/new: the agent the new session is created under; undefined `agentName` is agy's default agent. */
-  readonly creation?: { readonly agentName: string | undefined };
-  /** `--dangerously-skip-permissions`, which agy cannot change without restarting the process. */
-  readonly skipPermissions: boolean;
+/** Only for session/new: the agent the new session is created under; undefined `agentName` is agy's default agent. */
+interface NativeCreation {
+  readonly agentName: string | undefined;
 }
 
 interface NativeOwner {
@@ -176,7 +172,6 @@ interface NativeOwner {
   loaded: LoadedNativeSession | null;
   /** Agent selected by this process (`--agent`), checked only when creating a native session. */
   readonly creationAgentName?: string;
-  readonly skipPermissions: boolean;
   readonly native: AntigravityNativeConnection;
   unsubscribe: () => void;
 }
@@ -196,7 +191,7 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
   private active: ActiveExecution | null = null;
   /** Main-agent sessions only: what agy does on its own between runs. */
   private lateWork: LateWork = { phase: 'idle' };
-  /** The latest run's approval policy: agy runs under that run's configuration, so it decides approvals between runs. */
+  /** The policy of the latest run whose prompt reached agy: agy runs under that run's configuration. */
   private latestPolicy: ApprovalPolicy | null = null;
   /** Main-agent sessions only: holds idle release while a subagent has not reported. */
   private subagents: AntigravitySubagentWatcher | null = null;
@@ -284,7 +279,6 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
       }),
     };
     this.active = active;
-    this.latestPolicy = approvalPolicyOf(request);
     this.subagents?.turnStarted();
     this.#updateSnapshot('executing');
     this.#emitCurrentSnapshot();
@@ -436,6 +430,8 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
       const blocks = compact
         ? [{ text: `/compact${compact.instructions ? ` ${compact.instructions}` : ''}`, type: 'text' as const }]
         : buildPromptBlocks(active.request, !this.nativeConversationContextEstablished);
+      // agy's own reply to an earlier run keeps that run's policy until this prompt reaches agy.
+      this.latestPolicy = approvalPolicyOf(active.request);
       const promptIndex = this.#sendPrompt(active, owner.native, sessionId, blocks);
       // Consumers treat the first user boundary as the turn's own input; only later ones mark steers.
       active.run.emit({ content: getInputText(active.request), type: 'user_message_started' });
@@ -498,23 +494,21 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
   }
 
   /** Without `creation`, any live process can resume an existing session; creation needs the matching agent. */
-  async #ensureNative(active: ActiveExecution, { creation, skipPermissions }: NativeLaunchRequirement): Promise<NativeOwner> {
+  async #ensureNative(active: ActiveExecution, creation?: NativeCreation): Promise<NativeOwner> {
     const started = await this.nativeSlot.ensure(
-      owner => owner.initialized && owner.native.isAlive() && owner.skipPermissions === skipPermissions
-        && (!creation || owner.creationAgentName === creation.agentName),
-      () => this.#startNative(active, creation?.agentName, skipPermissions),
+      owner => owner.initialized && owner.native.isAlive() && (!creation || owner.creationAgentName === creation.agentName),
+      () => this.#startNative(active, creation?.agentName),
     );
     this.#throwIfCancellationRequested(active);
     return started;
   }
 
-  async #startNative(active: ActiveExecution, creationAgentName: string | undefined, skipPermissions: boolean): Promise<NativeOwner> {
+  async #startNative(active: ActiveExecution, creationAgentName: string | undefined): Promise<NativeOwner> {
     const previous = this.nativeSlot.current;
     if (previous) await this.nativeSlot.detach(previous);
     const args = [
       ...ANTIGRAVITY_ACP_ARGS,
       ...(creationAgentName ? ['--agent', creationAgentName] : []),
-      ...(skipPermissions ? [ANTIGRAVITY_SKIP_PERMISSIONS_FLAG] : []),
     ];
     const launch = await resolveAntigravityLaunchSpec(
       this.host,
@@ -535,7 +529,6 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
       initialized: false,
       loaded: null,
       creationAgentName,
-      skipPermissions,
       native,
       unsubscribe: () => {},
     };
@@ -588,27 +581,21 @@ export class AntigravityExecutionSession implements ProviderExecutionSession, St
     const systemPromptAppend = isMain && effectivePrompt.trim()
       ? effectivePrompt
       : undefined;
-    // YOLO main chat lets agy approve everything itself: Claudian never receives a subagent's approval request, so
-    // client-side approval alone would leave subagents stalled. Auxiliary sessions rely on Claudian's denials.
-    const { permissionMode } = active.request.configuration;
-    const policy = active.request.toolPolicy.kind;
-    const skipPermissions = isMain && shouldAutoApproveAntigravityPermission(permissionMode)
-      && (policy === 'provider-default' || policy === 'unrestricted');
     let owner: NativeOwner;
     if (this.providerSessionId) {
       // The saved session owns its agent. Restoration must not require or inspect any agent file.
-      owner = await this.#ensureNative(active, { skipPermissions });
+      owner = await this.#ensureNative(active);
       const loaded = owner.loaded;
       if (loaded?.sessionId === this.providerSessionId && loaded.systemPromptAppend === systemPromptAppend) return owner;
     } else if (isMain) {
-      owner = await this.#ensureNative(active, { creation: { agentName: undefined }, skipPermissions });
+      owner = await this.#ensureNative(active, { agentName: undefined });
     } else {
       const purpose = instructions.kind === 'explicit' ? instructions.purpose : undefined;
       const name = `claudian-${purpose ?? 'auxiliary'}`;
       const tools = purpose === 'inline-edit' ? ANTIGRAVITY_INLINE_EDIT_TOOLS : [];
       await prepareAntigravityAgentFile(this.config.vaultWorkingDirectory, name, effectivePrompt, tools);
       this.#throwIfCancellationRequested(active);
-      owner = await this.#ensureNative(active, { creation: { agentName: name }, skipPermissions });
+      owner = await this.#ensureNative(active, { agentName: name });
     }
     const bridge = active.obsidianWorkspaceToolConnection;
     const mcpServers: ACPMCPServer[] = isMain && bridge
