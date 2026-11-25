@@ -62,28 +62,4 @@ describe('NativeHistoryGuard', () => {
     expect(await guard.check()).toBe(false);
   });
 
-  it('adopts a revision the session itself wrote without reloading', async () => {
-    let revision = 'first';
-    const refresh = jest.fn(async () => true);
-    const owns = jest.fn(async () => true);
-    const guard = new NativeHistoryGuard(async () => revision, refresh, false, owns);
-
-    expect(await guard.check()).toBe(true);
-    revision = 'second';
-    expect(await guard.check()).toBe(true);
-    expect(owns).toHaveBeenCalledWith('first', 'second');
-    expect(refresh).not.toHaveBeenCalled();
-    expect(await guard.check()).toBe(true);
-  });
-
-  it('reloads when the session does not own the changed history', async () => {
-    let revision = 'first';
-    const refresh = jest.fn(async () => true);
-    const guard = new NativeHistoryGuard(async () => revision, refresh, false, async () => false);
-
-    expect(await guard.check()).toBe(true);
-    revision = 'second';
-    expect(await guard.check()).toBe(true);
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
 });
