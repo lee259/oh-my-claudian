@@ -95,7 +95,6 @@ jest.mock('@/providers/antigravity/execution/AntigravityNativeConnection', () =>
 
   return {
     ANTIGRAVITY_ACP_ARGS: ['acp'],
-    ANTIGRAVITY_SKIP_PERMISSIONS_FLAG: '--dangerously-skip-permissions',
     AntigravityNativeConnection: MockAntigravityNativeConnection,
   };
 });
@@ -117,6 +116,7 @@ import {
   AntigravityExecutionSession,
   type AntigravityExecutionSessionOptions,
 } from '@/providers/antigravity/execution/AntigravityExecutionSession';
+import { resolveAntigravityLaunchSpec } from '@/providers/antigravity/runtime/AntigravityExecutionContext';
 
 function createInteractionPort() {
   return {
@@ -457,6 +457,96 @@ describe('AntigravityExecutionSession agy 1.5.10 streaming', () => {
       mockNativeConnections[0].emit({ sessionUpdate: 'usage_update', size: 1_000, used: 200 });
       await jest.advanceTimersByTimeAsync(1_000);
       expect(allowed.at(-1)).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+      await session.dispose();
+    }
+  });
+
+  it('keeps one agy process across YOLO switches and never passes the skip-permissions flag', async () => {
+    const launchSpec = resolveAntigravityLaunchSpec as jest.MockedFunction<typeof resolveAntigravityLaunchSpec>;
+    launchSpec.mockClear();
+    const { session } = createSession();
+    for (const [index, permissionMode] of (['yolo', 'normal', 'yolo'] as const).entries()) {
+      const run = session.execute({
+        ...request(`turn ${index}`),
+        configuration: { ...request().configuration, permissionMode },
+      });
+      const events = collect(run.events);
+      await until(() => mockNativeConnections[0]?.prompts === index + 1);
+      mockNativeConnections[0].finishPrompt();
+      await events;
+    }
+
+    expect(mockNativeConnections).toHaveLength(1);
+    expect(launchSpec.mock.calls.map(([, args]) => args)).toEqual([['acp']]);
+    await session.dispose();
+  });
+
+  it('decides agy\'s own reply under the run it follows while a YOLO run waits, then auto-approves in YOLO', async () => {
+    const { interactionPort, session } = createSession();
+    (interactionPort.requestApproval as jest.Mock).mockImplementation(
+      async (approval: ProviderApprovalInteractionRequest) => ({
+        decision: 'deny', interactionId: approval.interactionId,
+      }),
+    );
+    const first = session.execute(request());
+    const firstEvents = collect(first.events);
+    await until(() => mockNativeConnections[0]?.prompts === 1);
+    mockNativeConnections[0].finishPrompt();
+    await firstEvents;
+
+    jest.useFakeTimers();
+    try {
+      const write = {
+        kind: 'edit',
+        name: 'write_file',
+        rawInput: { Content: 'x', Path: 'a.md' },
+        sessionUpdate: 'tool_call',
+        status: 'pending',
+        title: 'Write a.md',
+        toolCallId: 'bg-write',
+      };
+      mockNativeConnections[0].emit(write);
+      await jest.advanceTimersByTimeAsync(0);
+
+      // The YOLO prompt waits for agy's own reply, so the reply still runs under the Ask run agy last ran.
+      const second = session.execute({
+        ...request('Meanwhile'),
+        configuration: { ...request().configuration, permissionMode: 'yolo' },
+      });
+      const secondEvents = collect(second.events);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockNativeConnections[0].prompts).toBe(1);
+
+      await expect(mockNativeConnections[0].requestPermission({
+        options: [
+          { kind: 'allow_once', name: 'Allow', optionId: 'allow' },
+          { kind: 'reject_once', name: 'Deny', optionId: 'reject' },
+        ],
+        sessionId: 'session-1',
+        toolCall: { kind: 'edit', name: 'write_file', title: 'Write a.md', toolCallId: 'bg-write' } as ACPRequestPermissionRequest['toolCall'],
+      })).resolves.toEqual({ outcome: { optionId: 'reject', outcome: 'selected' } });
+      expect(interactionPort.requestApproval).toHaveBeenCalledTimes(1);
+
+      mockNativeConnections[0].emit({ ...write, sessionUpdate: 'tool_call_update', status: 'failed' });
+      await jest.advanceTimersByTimeAsync(1_000);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockNativeConnections[0].prompts).toBe(2);
+
+      // Only once the prompt reached agy does the YOLO policy decide, and Claudian approves it itself.
+      await expect(mockNativeConnections[0].requestPermission({
+        options: [
+          { kind: 'allow_once', name: 'Allow', optionId: 'allow' },
+          { kind: 'reject_once', name: 'Deny', optionId: 'reject' },
+        ],
+        sessionId: 'session-1',
+        toolCall: { kind: 'edit', name: 'write_file', title: 'Write b.md', toolCallId: 'run-write' } as ACPRequestPermissionRequest['toolCall'],
+      })).resolves.toEqual({ outcome: { optionId: 'allow', outcome: 'selected' } });
+      expect(interactionPort.requestApproval).toHaveBeenCalledTimes(1);
+
+      mockNativeConnections[0].finishPrompt();
+      await secondEvents;
     } finally {
       jest.useRealTimers();
       await session.dispose();
