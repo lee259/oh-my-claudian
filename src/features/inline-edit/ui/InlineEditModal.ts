@@ -31,6 +31,8 @@ import { normalizeInsertionText } from '../../../utils/inlineEdit';
 import { getVaultPath, normalizePathForVault as normalizePathForVaultUtil } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { renderInlineEditMarkdownPreview } from './inlineEditMarkdownPreview';
+import { buildMarkdownDiffDocuments, computeMarkdownDiff, type DiffOp, diffOpsEqual } from './markdownLineDiff';
+import { highlightRenderedTextChanges } from './renderedTextDiff';
 
 type InlineEditHost = FeatureHost & Component;
 
@@ -161,83 +163,6 @@ const inlineEditField = StateField.define<DecorationSet>({
 
 const installedEditors = new WeakSet<EditorView>();
 
-interface DiffOp { type: 'equal' | 'insert' | 'delete'; text: string; }
-
-function splitLinesPreservingEndings(text: string): string[] {
-  if (!text) return [];
-  return text.match(/[^\n]*(?:\n|$)/g)?.filter(line => line.length > 0) ?? [];
-}
-
-function computeMarkdownDiff(oldText: string, newText: string): DiffOp[] {
-  const allOldLines = splitLinesPreservingEndings(oldText);
-  const allNewLines = splitLinesPreservingEndings(newText);
-  let oldEnd = allOldLines.length, newEnd = allNewLines.length;
-  while (oldEnd > 0 && newEnd > 0 && allOldLines[oldEnd - 1] === allNewLines[newEnd - 1]) {
-    oldEnd--; newEnd--;
-  }
-  let prefixLength = 0;
-  while (prefixLength < oldEnd && prefixLength < newEnd
-    && allOldLines[prefixLength] === allNewLines[prefixLength]) prefixLength++;
-  const oldLines = allOldLines.slice(prefixLength, oldEnd);
-  const newLines = allNewLines.slice(prefixLength, newEnd);
-  const m = oldLines.length, n = newLines.length;
-  let previous = new Uint32Array(n + 1);
-  let current = new Uint32Array(n + 1);
-  // One bit per cell records the original tie-breaking choice for traceback.
-  const insertChoices = new Uint8Array(Math.ceil(m * n / 8));
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldLines[i-1] === newLines[j-1]) {
-        current[j] = previous[j-1] + 1;
-      } else if (current[j-1] >= previous[j]) {
-        current[j] = current[j-1];
-        const index = (i - 1) * n + j - 1;
-        insertChoices[Math.floor(index / 8)] |= 1 << (index % 8);
-      } else {
-        current[j] = previous[j];
-      }
-    }
-    [previous, current] = [current, previous];
-  }
-
-  const temp: DiffOp[] = [];
-  let i = m, j = n;
-
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldLines[i-1] === newLines[j-1]) {
-      temp.push({ type: 'equal', text: oldLines[i-1] });
-      i--; j--;
-    } else if (j > 0 && (i === 0 || (() => {
-      const index = (i - 1) * n + j - 1;
-      return (insertChoices[Math.floor(index / 8)] & (1 << (index % 8))) !== 0;
-    })())) {
-      temp.push({ type: 'insert', text: newLines[j-1] });
-      j--;
-    } else {
-      temp.push({ type: 'delete', text: oldLines[i-1] });
-      i--;
-    }
-  }
-
-  const operations = temp.reverse();
-  if (prefixLength > 0) operations.unshift({ type: 'equal', text: allOldLines.slice(0, prefixLength).join('') });
-  if (oldEnd < allOldLines.length) operations.push({ type: 'equal', text: allOldLines.slice(oldEnd).join('') });
-  return mergeAdjacentDiffOps(operations);
-}
-
-function mergeAdjacentDiffOps(ops: DiffOp[]): DiffOp[] {
-  const merged: DiffOp[] = [];
-  for (const op of ops) {
-    if (merged.length > 0 && merged[merged.length-1].type === op.type) {
-      merged[merged.length-1].text += op.text;
-    } else {
-      merged.push({ ...op });
-    }
-  }
-  return merged;
-}
-
 function getDiffBlockClass(type: DiffOp['type']): string {
   switch (type) {
     case 'delete':
@@ -249,42 +174,6 @@ function getDiffBlockClass(type: DiffOp['type']): string {
   }
 }
 
-function buildMarkdownDiffDocuments(diffOps: DiffOp[]): Array<{ type: DiffOp['type']; markdown: string }> {
-  const oldMarkdown = diffOps
-    .filter(op => op.type !== 'insert')
-    .map(op => op.text)
-    .join('');
-  const newMarkdown = diffOps
-    .filter(op => op.type !== 'delete')
-    .map(op => op.text)
-    .join('');
-  const hasDeletion = diffOps.some(op => op.type === 'delete');
-  const hasInsertion = diffOps.some(op => op.type === 'insert');
-
-  const documents: Array<{ type: DiffOp['type']; markdown: string }> = [];
-
-  if (hasDeletion && oldMarkdown) {
-    documents.push({ type: 'delete', markdown: oldMarkdown });
-  }
-
-  if (hasInsertion && newMarkdown) {
-    documents.push({ type: 'insert', markdown: newMarkdown });
-  }
-
-  if (documents.length === 0 && newMarkdown) {
-    documents.push({ type: 'equal', markdown: newMarkdown });
-  }
-
-  return documents;
-}
-
-function diffOpsEqual(left: DiffOp[], right: DiffOp[]): boolean {
-  if (left.length !== right.length) return false;
-  return left.every((op, index) => {
-    const other = right[index];
-    return op.type === other.type && op.text === other.text;
-  });
-}
 
 /** The edit mode, not the wrapper the model chose, decides how a proposal is applied. */
 export function resolveInlineEditProposal(
@@ -685,11 +574,17 @@ export class InlineEditSession {
 
   private async renderMarkdownDiffPreview(container: HTMLElement, diffOps: DiffOp[]): Promise<void> {
     container.empty();
+    const rendered = new Map<DiffOp['type'], HTMLElement>();
     for (const document of buildMarkdownDiffDocuments(diffOps)) {
       if (!document.markdown) continue;
 
       const opEl = container.createDiv({ cls: `claudian-diff-block ${getDiffBlockClass(document.type)}` });
       await this.renderMarkdownPreview(opEl, document.markdown);
+      rendered.set(document.type, opEl);
+    }
+    const deleted = rendered.get('delete'), inserted = rendered.get('insert');
+    if (deleted && inserted) {
+      highlightRenderedTextChanges(deleted, inserted);
     }
   }
 
