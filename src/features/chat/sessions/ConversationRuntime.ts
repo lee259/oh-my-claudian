@@ -181,7 +181,6 @@ export class ConversationRuntime {
         },
         // Hydration may have finished before this runtime observed its first revision.
         true,
-        (from, to) => this.coordinator?.ownsNativeHistoryChange?.(from, to) ?? Promise.resolve(false),
       );
       this.nativeHistoryGuard = { conversationId: id, guard };
     }

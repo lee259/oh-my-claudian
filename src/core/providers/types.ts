@@ -601,8 +601,8 @@ export interface ProviderConversationHistoryService {
     options?: { projectionOnly?: boolean },
   ): boolean;
   /**
-   * Reads an opaque revision for the live native history without starting a provider session. Callers compare
-   * revisions, or hand two back to the bound execution session, which may verify an in-session write.
+   * Reads an opaque revision for the live native history without starting a provider session. Callers only
+   * compare revisions for equality; a change is history written outside the caller's turn.
    */
   readNativeHistoryRevision?(
     conversation: Conversation,
