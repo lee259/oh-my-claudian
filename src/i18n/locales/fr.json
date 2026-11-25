@@ -549,7 +549,13 @@
       "added": "Instruction ajoutée à l’invite système personnalisée",
       "empty": "Aucune instruction reçue"
     },
+    "agent": "Agent : {agent}",
+    "promptLine": "Instruction : {prompt}",
     "tools": {
+      "startAgent": "Démarrer l’Agent",
+      "closeAgent": "Fermer l’Agent",
+      "listAgents": "Lister les Agents",
+      "messageAgent": "Envoyer un message à l’Agent",
       "noResult": "Aucun résultat",
       "noMatches": "Aucune correspondance",
       "fileDeleted": "Fichier supprimé",

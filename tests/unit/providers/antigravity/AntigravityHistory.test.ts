@@ -3,6 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { TOOL_SEND_MESSAGE, TOOL_WORKFLOW } from '@/core/tools/toolNames';
 import {
   parseAntigravityTranscript,
   readAntigravityAppendedSteps,
@@ -156,5 +157,36 @@ describe('Antigravity history and models', () => {
     } finally {
       await fsp.rm(storeRoot, { force: true, recursive: true });
     }
+  });
+
+  it('treats a background launch receipt as a completed call', () => {
+    const steps = [
+      { content: '<USER_REQUEST>\nRun it.\n</USER_REQUEST>', created_at: '2026-01-01T00:00:00Z', source: 'USER_EXPLICIT', status: 'DONE', step_index: 0, type: 'USER_INPUT' },
+      { created_at: '2026-01-01T00:00:01Z', source: 'MODEL', status: 'DONE', step_index: 1, tool_calls: [{ args: { Description: 'Build', Script: 'print(1)' }, name: 'run_workflow' }], type: 'PLANNER_RESPONSE' },
+      { content: 'Tool is running as a background task', created_at: '2026-01-01T00:00:02Z', source: 'MODEL', status: 'RUNNING', step_index: 2, type: 'GENERIC' },
+      { content: 'Started the workflow.', created_at: '2026-01-01T00:00:03Z', source: 'MODEL', status: 'DONE', step_index: 3, type: 'PLANNER_RESPONSE' },
+    ];
+
+    const tool = parseAntigravityTranscript(steps as never, 'session-1')
+      .flatMap(message => message.toolCalls ?? [])
+      .find(candidate => candidate.name === TOOL_WORKFLOW);
+
+    expect(tool).toMatchObject({ status: 'completed' });
+  });
+
+  it('applies the live tool-result normalization to history', () => {
+    const steps = [
+      { content: '<USER_REQUEST>\nTell it to go on.\n</USER_REQUEST>', created_at: '2026-01-01T00:00:00Z', source: 'USER_EXPLICIT', status: 'DONE', step_index: 0, type: 'USER_INPUT' },
+      { created_at: '2026-01-01T00:00:01Z', source: 'MODEL', status: 'DONE', step_index: 1, tool_calls: [{ args: { Message: 'Go on', Target: 'sub-1' }, name: 'send_message' }], type: 'PLANNER_RESPONSE' },
+      { content: 'Message sent to "sub-1".', created_at: '2026-01-01T00:00:02Z', source: 'MODEL', status: 'DONE', step_index: 2, type: 'GENERIC' },
+      { content: 'Sent.', created_at: '2026-01-01T00:00:03Z', source: 'MODEL', status: 'DONE', step_index: 3, type: 'PLANNER_RESPONSE' },
+    ];
+
+    const tool = parseAntigravityTranscript(steps as never, 'session-1')
+      .flatMap(message => message.toolCalls ?? [])
+      .find(candidate => candidate.name === TOOL_SEND_MESSAGE);
+
+    expect(tool).toMatchObject({ status: 'completed' });
+    expect(tool?.result).toBeUndefined();
   });
 });

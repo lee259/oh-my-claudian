@@ -549,7 +549,13 @@
       "added": "Инструкция добавлена в системный промпт",
       "empty": "Инструкция не получена"
     },
+    "agent": "Agent: {agent}",
+    "promptLine": "Промпт: {prompt}",
     "tools": {
+      "startAgent": "Запустить Agent",
+      "closeAgent": "Завершить работу Agent",
+      "listAgents": "Список Agents",
+      "messageAgent": "Отправить сообщение Agent",
       "noResult": "Нет результата",
       "noMatches": "Совпадений не найдено",
       "fileDeleted": "Файл удалён",

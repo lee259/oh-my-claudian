@@ -549,7 +549,13 @@
       "added": "Instrução adicionada ao prompt de sistema personalizado",
       "empty": "Nenhuma instrução recebida"
     },
+    "agent": "Agent: {agent}",
+    "promptLine": "Instrução: {prompt}",
     "tools": {
+      "startAgent": "Iniciar Agent",
+      "closeAgent": "Encerrar Agent",
+      "listAgents": "Listar Agents",
+      "messageAgent": "Enviar mensagem ao Agent",
       "noResult": "Sem resultado",
       "noMatches": "Nenhuma correspondência encontrada",
       "fileDeleted": "Arquivo excluído",

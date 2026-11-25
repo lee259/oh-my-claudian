@@ -10,20 +10,25 @@ import {
   TOOL_APPLY_PATCH,
   TOOL_ASK_USER_QUESTION,
   TOOL_BASH,
+  TOOL_CLOSE_AGENT,
   TOOL_EDIT,
   TOOL_ENTER_PLAN_MODE,
   TOOL_EXIT_PLAN_MODE,
   TOOL_GENERATE_IMAGE,
   TOOL_GLOB,
   TOOL_GREP,
+  TOOL_LIST_AGENTS,
   TOOL_LS,
   TOOL_READ,
+  TOOL_SEND_MESSAGE,
   TOOL_SKILL,
+  TOOL_SPAWN_AGENT,
   TOOL_TODO_WRITE,
   TOOL_TOOL_SEARCH,
   TOOL_VIEW_IMAGE,
   TOOL_WEB_FETCH,
   TOOL_WEB_SEARCH,
+  TOOL_WORKFLOW,
   TOOL_WRITE,
   TOOL_WRITE_STDIN,
 } from '../../../core/tools/toolNames';
@@ -73,6 +78,14 @@ export function getToolName(
   if (displayedName === TOOL_VIEW_IMAGE) return t('chat.activity.viewImage');
   if (presentation?.name) return presentation.name;
   switch (name) {
+    case TOOL_SPAWN_AGENT:
+      return t('chat.tools.startAgent');
+    case TOOL_CLOSE_AGENT:
+      return t('chat.tools.closeAgent');
+    case TOOL_LIST_AGENTS:
+      return t('chat.tools.listAgents');
+    case TOOL_SEND_MESSAGE:
+      return t('chat.tools.messageAgent');
     case TOOL_TODO_WRITE: {
       const todos = input.todos as Array<{ status: string }> | undefined;
       if (todos && Array.isArray(todos) && todos.length > 0) {
@@ -126,6 +139,8 @@ export function getToolSummary(
       return getApplyPatchSummary(input);
     case TOOL_WRITE_STDIN:
       return getWriteStdinSummary(input);
+    case TOOL_WORKFLOW:
+      return getInputText(input, 'title');
     default:
       if (isAgentLifecycleTool(name)) {
         return getAgentLifecycleSummary(name, input);
@@ -203,7 +218,8 @@ export function getToolLabel(
     default:
       if (isAgentLifecycleTool(name)) {
         const summary = getAgentLifecycleSummary(name, input);
-        return summary ? `${name}: ${summary}` : name;
+        const displayedName = getToolName(name, input);
+        return summary ? `${displayedName}: ${summary}` : displayedName;
       }
       return name;
   }
@@ -251,7 +267,8 @@ function getAgentLifecycleSummary(name: string, input: Record<string, unknown>):
       const msg = typeof input.message === 'string' ? input.message : '';
       return msg.length > 50 ? `${msg.slice(0, 50)}...` : msg;
     }
-    case 'send_input': {
+    case 'send_input':
+    case 'send_message': {
       const msg = typeof input.message === 'string' ? input.message : '';
       return msg.length > 40 ? `${msg.slice(0, 40)}...` : msg;
     }
@@ -264,6 +281,7 @@ function getAgentLifecycleSummary(name: string, input: Record<string, unknown>):
       return parts.join(', ');
     }
     case 'resume_agent':
+    case 'list_agents':
     case 'close_agent':
       return '';
     default:
@@ -785,7 +803,30 @@ function getDiffStatsAriaLabel(stats: DiffStats): string {
   return t('chat.tools.changes', { added: stats.added, removed: stats.removed });
 }
 
-function renderAgentLifecycleExpanded(container: HTMLElement, result: string): void {
+/** `labelMessage` marks the message as the prompt a new agent starts from. */
+function renderAgentLifecycleExpanded(
+  container: HTMLElement,
+  result: string,
+  input: Record<string, unknown> = {},
+  labelMessage = false,
+): void {
+  const target = getInputText(input, 'target');
+  const message = getInputText(input, 'message');
+  if (target || message) {
+    const inputEl = container.createDiv({ cls: 'claudian-tool-lines' });
+    if (target) inputEl.createDiv({ cls: 'claudian-tool-line', text: t('chat.agent', { agent: target }) });
+    if (message) {
+      inputEl.createDiv({
+        cls: 'claudian-tool-line claudian-tool-line-wrap',
+        text: labelMessage ? t('chat.promptLine', { prompt: message }) : message,
+      });
+    }
+  }
+  if (!result) {
+    // The input already describes a settled call; only a bare call needs a placeholder.
+    if (!(target || message)) contentFallback(container, t('chat.tools.noResult'));
+    return;
+  }
   // Try to parse as JSON for structured display
   const trimmed = result.trim();
   if (trimmed.startsWith('{')) {
@@ -801,6 +842,15 @@ function renderAgentLifecycleExpanded(container: HTMLElement, result: string): v
     } catch { /* fall through to plain text */ }
   }
   renderLinesExpanded(container, result, 20);
+}
+
+/** A workflow's script is the call's input, so its output alone would hide what ran. */
+function renderWorkflowExpanded(container: HTMLElement, input: Record<string, unknown>, result: string): void {
+  const title = getInputText(input, 'title');
+  const code = getInputText(input, 'code');
+  if (title) container.createDiv({ cls: 'claudian-tool-line', text: title });
+  if (code) container.createEl('pre', { cls: 'claudian-tool-full-output', text: code });
+  if (result.trim()) renderLinesExpanded(container, result, 20);
 }
 
 function formatToolDisplayValue(value: unknown): string {
@@ -824,7 +874,11 @@ export function renderExpandedContent(
   exitCode?: number,
 ): void {
   const hasImages = resultImages.length > 0;
-  if (!result && !hasImages && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH) {
+  if (
+    !result && !hasImages
+    && toolName !== TOOL_WEB_SEARCH && toolName !== TOOL_BASH && toolName !== TOOL_APPLY_PATCH
+    && toolName !== TOOL_WORKFLOW && !isAgentLifecycleTool(toolName)
+  ) {
     container.createDiv({ cls: 'claudian-tool-empty', text: t('chat.tools.noResult') });
     return;
   }
@@ -834,7 +888,9 @@ export function renderExpandedContent(
   if (!resolvedResult && hasImages) {
     // Image-only results are rendered below without a text placeholder.
   } else if (isAgentLifecycleTool(toolName)) {
-    renderAgentLifecycleExpanded(container, resolvedResult);
+    renderAgentLifecycleExpanded(container, resolvedResult, input, toolName === TOOL_SPAWN_AGENT);
+  } else if (toolName === TOOL_WORKFLOW) {
+    renderWorkflowExpanded(container, input, resolvedResult);
   } else {
     switch (toolName) {
       case TOOL_BASH:

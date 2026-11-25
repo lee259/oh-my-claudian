@@ -31,14 +31,20 @@ export const TOOL_APPLY_PATCH = 'apply_patch' as const;
 export const TOOL_WRITE_STDIN = 'write_stdin' as const;
 export const TOOL_SPAWN_AGENT = 'spawn_agent' as const;
 export const TOOL_SEND_INPUT = 'send_input' as const;
+export const TOOL_SEND_MESSAGE = 'send_message' as const;
+export const TOOL_LIST_AGENTS = 'list_agents' as const;
 export const TOOL_WAIT = 'wait' as const;
 export const TOOL_WAIT_AGENT = 'wait_agent' as const;
 export const TOOL_RESUME_AGENT = 'resume_agent' as const;
 export const TOOL_CLOSE_AGENT = 'close_agent' as const;
+/** A provider workflow script; agy runs Python workflows this way. */
+export const TOOL_WORKFLOW = 'Workflow' as const;
 
 export const AGENT_LIFECYCLE_TOOLS = [
   TOOL_SPAWN_AGENT,
   TOOL_SEND_INPUT,
+  TOOL_SEND_MESSAGE,
+  TOOL_LIST_AGENTS,
   TOOL_WAIT,
   TOOL_WAIT_AGENT,
   TOOL_RESUME_AGENT,

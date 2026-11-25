@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { getByRole, queryByRole } from '@testing-library/dom';
 
+import { TOOL_SPAWN_AGENT, TOOL_WORKFLOW } from '@/core/tools/toolNames';
 import type { ToolCallInfo } from '@/core/types';
 import { addSubagentToolCall, createSubagentBlock, updateSubagentToolResult } from '@/features/chat/rendering/SubagentRenderer';
 import { refreshToolCallHeader, renderStoredToolCall, renderToolCall, updateToolCallResult } from '@/features/chat/rendering/ToolCallRenderer';
@@ -410,5 +411,41 @@ describe('Tool row disclosures', () => {
     const header = element.querySelector<HTMLElement>('.claudian-tool-header')!;
     header.click();
     expect(header.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('shows a launched agent\'s role and prompt instead of an empty result', () => {
+    const element = renderStoredToolCall(
+      document.createElement('div'),
+      call({
+        input: { message: 'Check the draft', target: 'reviewer' },
+        name: TOOL_SPAWN_AGENT,
+        result: '',
+        status: 'completed',
+      }),
+      { initiallyExpanded: true },
+    );
+    const content = element.querySelector('.claudian-tool-content')!;
+    expect(element.querySelector('.claudian-tool-name')?.textContent).toBe('Start agent');
+    expect(content.textContent).toContain('Agent: reviewer');
+    expect(content.textContent).toContain('Prompt: Check the draft');
+    expect(content.textContent).not.toContain('No result');
+  });
+
+  it('renders a workflow script and its output', () => {
+    const element = renderStoredToolCall(
+      document.createElement('div'),
+      call({
+        input: { code: 'print("hi")', language: 'Python', title: 'Build the site' },
+        name: TOOL_WORKFLOW,
+        result: 'hi',
+        status: 'completed',
+      }),
+      { initiallyExpanded: true },
+    );
+    const content = element.querySelector('.claudian-tool-content')!;
+    expect(element.querySelector('.claudian-tool-name')?.textContent).toBe('Workflow');
+    expect(content.textContent).toContain('Build the site');
+    expect(content.querySelector('pre')?.textContent).toContain('print("hi")');
+    expect(content.textContent).toContain('hi');
   });
 });

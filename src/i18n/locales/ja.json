@@ -549,7 +549,13 @@
       "added": "カスタムシステムプロンプトに指示を追加しました",
       "empty": "指示を受信していません"
     },
+    "agent": "Agent：{agent}",
+    "promptLine": "プロンプト：{prompt}",
     "tools": {
+      "startAgent": "Agent を開始",
+      "closeAgent": "Agent を終了",
+      "listAgents": "Agent 一覧",
+      "messageAgent": "Agent にメッセージを送信",
       "noResult": "結果なし",
       "noMatches": "一致する項目がありません",
       "fileDeleted": "ファイルを削除しました",

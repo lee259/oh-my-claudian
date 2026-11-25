@@ -549,7 +549,13 @@
       "added": "指令已新增至自訂系統提示詞",
       "empty": "未收到指令"
     },
+    "agent": "Agent：{agent}",
+    "promptLine": "提示詞：{prompt}",
     "tools": {
+      "startAgent": "啟動 Agent",
+      "closeAgent": "關閉 Agent",
+      "listAgents": "列出 Agents",
+      "messageAgent": "向 Agent 傳送訊息",
       "noResult": "無結果",
       "noMatches": "找不到符合項目",
       "fileDeleted": "檔案已刪除",
