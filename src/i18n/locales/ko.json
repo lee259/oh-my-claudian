@@ -203,7 +203,7 @@
       "externalContextAdded": "외부 컨텍스트 추가됨: {path}",
       "modeGrokAuto": "자동",
       "modeGrokAutoDescription": "Grok이 안전하다고 판단한 작업은 자동으로 수행하고 위험한 작업은 확인을 요청합니다.",
-      "modeAutoSafeActionsDescription": "안전하다고 판단한 작업은 자동으로 수행하고, 위험한 작업은 확인을 요청합니다.",
+      "modeAutoSafeActionsDescription": "샌드박스 명령어와 편집(보관함 밖 일부 편집 포함)을 자동으로 승인하고, 위험한 작업은 확인을 요청합니다.",
       "modeGrokAcceptEdits": "편집 허용",
       "modeGrokAcceptEditsDescription": "파일 편집은 자동으로 허용하고 다른 작업은 계속 확인을 요청합니다.",
       "placeholder": "변경 요청, @파일 참조, /명령 실행",

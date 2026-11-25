@@ -203,7 +203,7 @@
       "externalContextAdded": "Contexto externo adicionado: {path}",
       "modeGrokAuto": "Automático",
       "modeGrokAutoDescription": "O Grok pode executar ações que considerar seguras e pedir confirmação para as mais arriscadas.",
-      "modeAutoSafeActionsDescription": "Executa automaticamente ações consideradas seguras e pede confirmação antes das mais arriscadas.",
+      "modeAutoSafeActionsDescription": "Aprova automaticamente comandos em sandbox e edições, incluindo algumas fora do cofre; pede confirmação antes de ações mais arriscadas.",
       "modeGrokAcceptEdits": "Aceitar edições",
       "modeGrokAcceptEditsDescription": "Aceita edições de arquivos automaticamente e continua pedindo confirmação para outras ações.",
       "placeholder": "Peça alterações, mencione @arquivos, execute /comandos",

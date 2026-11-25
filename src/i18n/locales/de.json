@@ -203,7 +203,7 @@
       "externalContextAdded": "Externer Kontext hinzugefügt: {path}",
       "modeGrokAuto": "Automatisch",
       "modeGrokAutoDescription": "Grok kann als sicher eingestufte Aktionen ausführen und fragt bei riskanteren Aktionen nach.",
-      "modeAutoSafeActionsDescription": "Führt als sicher eingestufte Aktionen automatisch aus und fragt bei riskanteren Aktionen nach.",
+      "modeAutoSafeActionsDescription": "Genehmigt Sandbox-Befehle und Änderungen automatisch, teils auch außerhalb des Vaults, und fragt bei riskanteren Aktionen nach.",
       "modeGrokAcceptEdits": "Änderungen akzeptieren",
       "modeGrokAcceptEditsDescription": "Dateiänderungen automatisch akzeptieren; bei anderen Aktionen weiterhin nachfragen.",
       "placeholder": "Änderungen anfordern, @Dateien erwähnen, /Befehle ausführen",
