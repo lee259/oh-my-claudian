@@ -249,14 +249,20 @@ export function createMockEl(tag = 'div'): any {
     createDiv(opts?: { cls?: string; text?: string }) {
       const child = createMockEl('div');
       if (opts?.cls) child.addClass(opts.cls);
-      if (opts?.text) child.textContent = opts.text;
+      if (opts?.text) {
+        child.textContent = opts.text;
+        textContent += opts.text;
+      }
       children.push(child);
       return child;
     },
     createSpan(opts?: { cls?: string; text?: string; attr?: Record<string, string> }) {
       const child = createMockEl('span');
       if (opts?.cls) child.addClass(opts.cls);
-      if (opts?.text) child.textContent = opts.text;
+      if (opts?.text) {
+        child.textContent = opts.text;
+        textContent += opts.text;
+      }
       if (opts?.attr) {
         for (const [name, value] of Object.entries(opts.attr)) child.setAttribute(name, value);
       }
@@ -266,7 +272,10 @@ export function createMockEl(tag = 'div'): any {
     createEl(tagName: string, opts?: { cls?: string; text?: string; attr?: Record<string, string> }) {
       const child = createMockEl(tagName);
       if (opts?.cls) child.addClass(opts.cls);
-      if (opts?.text) child.textContent = opts.text;
+      if (opts?.text) {
+        child.textContent = opts.text;
+        textContent += opts.text;
+      }
       if (opts?.attr) {
         for (const [name, value] of Object.entries(opts.attr)) {
           child.setAttribute(name, value);

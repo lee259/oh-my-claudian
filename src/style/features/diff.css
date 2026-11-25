@@ -188,6 +188,20 @@
   color: var(--color-green);
 }
 
+/* Intra-line changes sit on top of the row tint, so they mix against transparency. */
+.claudian-diff-inline-delete,
+.claudian-diff-inline-insert {
+  border-radius: 2px;
+}
+
+.claudian-diff-inline-delete {
+  background: color-mix(in srgb, var(--color-red) 55%, transparent);
+}
+
+.claudian-diff-inline-insert {
+  background: color-mix(in srgb, var(--color-green) 55%, transparent);
+}
+
 /* Hunk separator */
 .claudian-diff-separator {
   color: var(--text-muted);
