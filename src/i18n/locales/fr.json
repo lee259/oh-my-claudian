@@ -434,6 +434,23 @@
       "allow": "Autoriser une fois",
       "always": "Toujours autoriser",
       "agent": "Agent : {agent}",
+      "review": {
+        "inProgress": "Vérification de {action}",
+        "approved": "Action approuvée automatiquement : {action}",
+        "denied": "Action refusée automatiquement : {action}",
+        "timedOut": "Délai de vérification dépassé pour {action}",
+        "aborted": "Vérification interrompue pour {action}",
+        "terminalInput": "Saisie du terminal pour {process} : {input}",
+        "fileChange": "Modifications de fichiers",
+        "risk": "Risque : {level}",
+        "riskLevels": {
+          "low": "faible",
+          "medium": "moyen",
+          "high": "élevé",
+          "critical": "critique"
+        },
+        "strictRequired": "Ce tour exige une vérification automatique stricte."
+      },
       "details": "Détails d’autorisation de {tool}",
       "unexpected": "Choix d’autorisation inattendu : « {value} »",
       "suspicious": "Cette commande contient des caractères invisibles ou de contrôle bidirectionnel. Vérifiez-la attentivement."

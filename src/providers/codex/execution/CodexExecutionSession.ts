@@ -821,6 +821,8 @@ export class CodexExecutionSession
       const completed = params as TurnCompletedNotification;
       if (this.subagents.turnCompleted(completed.threadId, completed.turn)) return;
     }
+    // Guardian warnings carry a thread but no turn, including on child threads.
+    if (method === 'guardianWarning' && (params as { threadId: string }).threadId !== this.threadId) return;
     const childScope = extractNotificationScope(method, params);
     if (childScope && this.subagents.handleNotification(childScope.threadId, childScope.turnId, method, params)) return;
 

@@ -434,6 +434,23 @@
       "allow": "Permitir una vez",
       "always": "Permitir siempre",
       "agent": "Agente: {agent}",
+      "review": {
+        "inProgress": "Revisando {action}",
+        "approved": "La revisión automática aprobó {action}",
+        "denied": "La revisión automática denegó {action}",
+        "timedOut": "Se agotó el tiempo de revisión de {action}",
+        "aborted": "Se interrumpió la revisión de {action}",
+        "terminalInput": "Entrada de terminal para {process}: {input}",
+        "fileChange": "Cambios en archivos",
+        "risk": "Riesgo: {level}",
+        "riskLevels": {
+          "low": "bajo",
+          "medium": "medio",
+          "high": "alto",
+          "critical": "crítico"
+        },
+        "strictRequired": "Este turno requiere revisión automática estricta."
+      },
       "details": "Detalles de aprobación de {tool}",
       "unexpected": "Selección de aprobación inesperada: «{value}»",
       "suspicious": "Este comando contiene caracteres invisibles o de control bidireccional. Revísalo con cuidado."

@@ -434,6 +434,23 @@
       "allow": "允許一次",
       "always": "一律允許",
       "agent": "Agent：{agent}",
+      "review": {
+        "inProgress": "正在審查：{action}",
+        "approved": "自動審查已核准：{action}",
+        "denied": "自動審查已拒絕：{action}",
+        "timedOut": "自動審查逾時：{action}",
+        "aborted": "自動審查已中斷：{action}",
+        "terminalInput": "傳送至 {process} 的終端輸入：{input}",
+        "fileChange": "檔案變更",
+        "risk": "風險：{level}",
+        "riskLevels": {
+          "low": "低",
+          "medium": "中",
+          "high": "高",
+          "critical": "嚴重"
+        },
+        "strictRequired": "本輪需要嚴格自動審查。"
+      },
       "details": "{tool} 審批詳情",
       "unexpected": "非預期的審批選項：「{value}」",
       "suspicious": "此命令包含不可見字元或雙向控制字元，請仔細檢查命令。"

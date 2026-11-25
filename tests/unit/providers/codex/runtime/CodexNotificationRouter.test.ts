@@ -5747,4 +5747,57 @@ describe('CodexNotificationRouter', () => {
       expect(turnMetadata).toEqual([]);
     });
   });
+
+  describe('auto-review notices', () => {
+    const review = (status: 'approved' | 'denied', rationale: string | null = null) => ({
+      action: { command: 'npm install', cwd: '/workspace/site', source: 'shell', type: 'command' },
+      decisionSource: 'agent',
+      review: { rationale, riskLevel: 'medium', status, userAuthorization: null },
+      reviewId: 'review-1',
+      targetItemId: null,
+      threadId: 't1',
+      turnId: 'turn-1',
+    });
+
+    it('reports a denied automatic review as a notice', () => {
+      router.handleNotification('item/autoApprovalReview/completed', review('denied', 'Runs unreviewed scripts.'));
+
+      expect(chunks).toContainEqual({
+        content: 'Auto-review denied ` npm install (/workspace/site) `\n\nRisk: medium · Runs unreviewed scripts.',
+        type: 'notice',
+      });
+    });
+
+    it('stays quiet when the automatic review approved the action', () => {
+      router.handleNotification('item/autoApprovalReview/completed', review('approved'));
+
+      expect(chunks).toEqual([]);
+    });
+
+    it('does not repeat a guardian warning that restates a review result', () => {
+      router.handleNotification('guardianWarning', {
+        message: 'Automatic approval review denied (high risk): npm install',
+        threadId: 't1',
+      });
+
+      expect(chunks).toEqual([]);
+    });
+
+    it('shows other guardian warnings', () => {
+      router.handleNotification('guardianWarning', { message: 'Network access to registry.example', threadId: 't1' });
+
+      expect(chunks).toEqual([
+        { content: 'Network access to registry.example', level: 'warning', type: 'notice' },
+      ]);
+    });
+
+    it('warns when the turn needs strict auto-review', () => {
+      router.handleNotification('autoApprovalReview/strictReviewRequired', { threadId: 't1', turnId: 'turn-1' });
+
+      expect(chunks).toContainEqual({
+        content: 'Strict auto-review is required for this turn.',
+        type: 'notice',
+      });
+    });
+  });
 });
