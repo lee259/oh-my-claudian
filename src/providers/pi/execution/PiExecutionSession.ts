@@ -1266,12 +1266,9 @@ implements ProviderExecutionSession, SteerableExecutionSession, BranchableExecut
     signal: AbortSignal,
   ): Promise<void> {
     if (!this.kernel) throw new Error('Pi execution kernel is unavailable.');
-    const response = await this.kernel.request<unknown>(
-      'get_state',
-      {},
-      10_000,
-      signal,
-    );
+    // The first request a new process answers, so its deadline covers startup (a cold WSL launch can take
+    // over 10s), as the first request of a fresh session does.
+    const response = await this.kernel.request<unknown>('get_state', {}, undefined, signal);
     if (this.shouldDisableNativePersistence()) {
       this.providerSessionId = null;
       this.removeNativeProviderState();
