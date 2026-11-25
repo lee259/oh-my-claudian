@@ -343,6 +343,37 @@ describe('AntigravityExecutionSession agy 1.5.10 streaming', () => {
     await session.dispose();
   });
 
+  it('keeps a cancelled run\'s late call failure in the stopped turn', async () => {
+    const { session } = createSession();
+    const events: ProviderSessionEvent[] = [];
+    session.onEvent(event => {
+      if (event.scope.kind === 'background') events.push(event);
+    });
+    const run = session.execute(request());
+    const runEvents = collect(run.events);
+    await until(() => mockNativeConnections[0]?.prompts === 1);
+    mockNativeConnections[0].emit({
+      name: 'run_command',
+      rawInput: { CommandLine: 'sleep 5' },
+      sessionUpdate: 'tool_call',
+      status: 'in_progress',
+      toolCallId: 'run-command',
+    });
+
+    session.cancel();
+    await runEvents;
+    expect(mockNativeConnections[0].cancels).toBe(1);
+
+    // agy reports the call its cancel ended after the prompt settles; it belongs to the stopped turn.
+    mockNativeConnections[0].emit({
+      sessionUpdate: 'tool_call_update',
+      status: 'failed',
+      toolCallId: 'run-command',
+    });
+    expect(events.filter(event => event.type === 'background_turn_started')).toHaveLength(0);
+    await session.dispose();
+  });
+
   it('holds the next prompt until the late reply closes', async () => {
     const { session } = createSession();
     const first = session.execute(request());
