@@ -3,6 +3,12 @@ import { setIcon } from 'obsidian';
 import type { DiffLine, DiffStats } from '../../../core/types/diff';
 import { t } from '../../../i18n/i18n';
 import { type DiffNote, diffNoteId } from '../../../utils/diffNotes';
+import {
+  computeBlockInlineDiffs,
+  createInlineDiffBudget,
+  type InlineDiffBudget,
+  type InlineDiffSegment,
+} from '../../../utils/inlineLineDiff';
 
 /** Where a rendered diff sends the review note a user writes on one of its lines. */
 export interface DiffNoteTarget {
@@ -271,16 +277,32 @@ export function renderDiffContent(
   diffLines: DiffLine[],
   contextLines = 3,
   noteTarget?: DiffNoteTarget,
+  /** Shared across every diff in one tool card; defaults to a fresh budget. */
+  inlineDiffBudget: InlineDiffBudget = createInlineDiffBudget(),
 ): void {
   containerEl.empty();
   const draftRef: DiffNoteDraftRef = { current: null };
 
-  const appendLine = (parent: HTMLElement, line: DiffLine): void => {
+  const appendLine = (
+    parent: HTMLElement,
+    line: DiffLine,
+    segments: readonly InlineDiffSegment[] | null = null,
+  ): void => {
     const lineEl = parent.createDiv({ cls: `claudian-diff-line claudian-diff-${line.type}` });
     const prefixEl = lineEl.createSpan({ cls: 'claudian-diff-prefix' });
     prefixEl.setText(line.type === 'insert' ? '+' : line.type === 'delete' ? '-' : ' ');
     const contentEl = lineEl.createSpan({ cls: 'claudian-diff-text' });
-    contentEl.setText(line.text || ' ');
+    if (!segments) {
+      contentEl.setText(line.text || ' ');
+    } else {
+      const highlightCls = line.type === 'delete'
+        ? 'claudian-diff-inline-delete'
+        : 'claudian-diff-inline-insert';
+      for (const segment of segments) {
+        if (segment.changed) contentEl.createSpan({ cls: highlightCls, text: segment.text });
+        else contentEl.appendText(segment.text);
+      }
+    }
     if (noteTarget && line.type !== 'delete' && typeof line.newLineNum === 'number') {
       addNoteAffordance(containerEl, parent, lineEl, line, line.newLineNum, noteTarget, draftRef);
     }
@@ -315,11 +337,39 @@ export function renderDiffContent(
       separator.setText('...');
     }
 
-    // Render hunk lines
+    // Render hunk lines, pairing contiguous delete/insert runs for intra-line highlights
     const hunkEl = containerEl.createDiv({ cls: 'claudian-diff-hunk' });
 
-    for (const line of hunk.lines) {
-      appendLine(hunkEl, line);
+    let index = 0;
+    while (index < hunk.lines.length) {
+      if (hunk.lines[index].type !== 'delete') {
+        appendLine(hunkEl, hunk.lines[index++]);
+        continue;
+      }
+
+      const deleteStart = index;
+      do {
+        index++;
+      } while (index < hunk.lines.length && hunk.lines[index].type === 'delete');
+      const insertStart = index;
+      while (index < hunk.lines.length && hunk.lines[index].type === 'insert') {
+        index++;
+      }
+
+      const deletedLines = hunk.lines.slice(deleteStart, insertStart);
+      const insertedLines = hunk.lines.slice(insertStart, index);
+      const { deleteSegments, insertSegments } = computeBlockInlineDiffs(
+        deletedLines.map(entry => entry.text),
+        insertedLines.map(entry => entry.text),
+        inlineDiffBudget,
+      );
+
+      for (let lineIndex = 0; lineIndex < deletedLines.length; lineIndex++) {
+        appendLine(hunkEl, deletedLines[lineIndex], deleteSegments[lineIndex] ?? null);
+      }
+      for (let lineIndex = 0; lineIndex < insertedLines.length; lineIndex++) {
+        appendLine(hunkEl, insertedLines[lineIndex], insertSegments[lineIndex] ?? null);
+      }
     }
   });
 }
