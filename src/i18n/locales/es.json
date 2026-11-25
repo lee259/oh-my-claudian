@@ -450,7 +450,13 @@
           "high": "alto",
           "critical": "crítico"
         },
-        "strictRequired": "Este turno requiere revisión automática estricta."
+        "strictRequired": "Este turno requiere revisión automática estricta.",
+        "retryHint": "Mientras esta sesión esté conectada, usa /approve para autorizar un reintento.",
+        "noDenials": "No hay denegaciones automáticas recientes en esta sesión.",
+        "chooseRetry": "Selecciona una acción denegada para autorizar un reintento.",
+        "pickerSubtitle": "Aprobarla permite un reintento. La revisión automática lo sigue comprobando.",
+        "pickerTitle": "Aprobar una acción denegada",
+        "retryRecorded": "Se autorizó un reintento. Codex lo revisará."
       },
       "details": "Detalles de aprobación de {tool}",
       "unexpected": "Selección de aprobación inesperada: «{value}»",

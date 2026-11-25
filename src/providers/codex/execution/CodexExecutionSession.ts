@@ -10,6 +10,7 @@ import {
   type ProviderExecutionRun,
   type ProviderExecutionSession,
   type ProviderRequestedEventScope,
+  type ProviderReviewDenialOption,
   type ProviderSessionConfig,
   type ProviderSessionEvent,
   type ProviderSessionInvalidation,
@@ -61,6 +62,7 @@ import {
 import type {
   ConfigReadParams,
   ConfigReadResult,
+  GuardianReviewCompleted,
   ItemCompletedNotification,
   SandboxPolicy,
   ServerRequestResolvedNotification,
@@ -96,6 +98,7 @@ import {
   CODEX_WORKSPACE_DEPENDENCY_TOOL_VERSION,
   createCodexWorkspaceDependencyTool,
 } from '../runtime/CodexWorkspaceDependencyTool';
+import { describeReviewAction, guardianOverrideParams } from '../runtime/notifications/codexAutoReview';
 import {
   type CodexSafeMode,
   getCodexProviderSettings,
@@ -295,6 +298,7 @@ export class CodexExecutionSession
   private runtimeContext: CodexRuntimeContext | null = null;
   private dynamicToolRegistry = new CodexDynamicToolRegistry();
   private notificationRouter: CodexNotificationRouter | null = null;
+  private recentDenials: GuardianReviewCompleted[] = [];
   private activeRun: CodexExecutionRun | null = null;
   private pendingTurnNotifications: Array<{ method: string; params: unknown }> = [];
   private processExitHandler: (() => void) | null = null;
@@ -401,6 +405,47 @@ export class CodexExecutionSession
 
   getStatus(): ProviderSessionStatus {
     return this.snapshot.status;
+  }
+
+  /**
+   * Denials the CLI still holds for this thread, newest first. Approving one writes
+   * `thread/approveGuardianDeniedAction`, which authorizes exactly one retry.
+   */
+  getReviewDenials(): readonly ProviderReviewDenialOption[] {
+    if (!this.#canApproveReview) return [];
+    const threadId = this.threadId;
+    return this.recentDenials
+      .filter(event => event.threadId === threadId)
+      .map(event => ({
+        approve: async (): Promise<boolean> => {
+          const transport = this.transport;
+          if (!transport || !this.#canApproveReview || threadId !== this.threadId || !this.recentDenials.includes(event)) {
+            return false;
+          }
+          this.recentDenials = this.recentDenials.filter(entry => entry !== event);
+          try {
+            await transport.request('thread/approveGuardianDeniedAction', guardianOverrideParams(event));
+            return true;
+          } catch (error) {
+            // The action is still denied, so offer it again.
+            this.#rememberReview(event, true);
+            throw error;
+          }
+        },
+        description: event.review.rationale ?? undefined,
+        label: describeReviewAction(event.action),
+        value: event.reviewId,
+      }));
+  }
+
+  get #canApproveReview(): boolean {
+    return supportsCodexReviewGrants(this.runtimeContext?.initializeResult.userAgent);
+  }
+
+  #rememberReview(event: GuardianReviewCompleted, force = false): void {
+    if (!force && (!this.#canApproveReview || event.review.status !== 'denied')) return;
+    const others = this.recentDenials.filter(entry => entry.threadId !== event.threadId || entry.reviewId !== event.reviewId);
+    this.recentDenials = [event, ...others].slice(0, 10);
   }
 
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void {
@@ -575,6 +620,8 @@ export class CodexExecutionSession
         chunk => this.handleStreamChunk(run, chunk),
         undefined,
         this.resolveTargetWorkingDirectory(),
+        false,
+        () => this.#canApproveReview,
       );
       const isPlanTurn = request.configuration.mode === 'plan'
         || request.configuration.permissionMode === 'plan'
@@ -881,6 +928,9 @@ export class CodexExecutionSession
       };
     }
     this.captureResponseUsage(run, method, params);
+    if (method === 'item/autoApprovalReview/completed') {
+      this.#rememberReview(params as GuardianReviewCompleted);
+    }
     this.notificationRouter?.handleNotification(method, params);
   }
 
@@ -1667,6 +1717,7 @@ export class CodexExecutionSession
 
     this.launchSpec = null;
     this.runtimeContext = null;
+    this.recentDenials = [];
     this.loadedThreadId = null;
     this.setLoadedThreadSandbox(null);
     this.dynamicToolRegistry = new CodexDynamicToolRegistry();

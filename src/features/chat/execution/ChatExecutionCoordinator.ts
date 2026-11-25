@@ -13,6 +13,7 @@ import type {
   ConversationBranchRequest,
   ConversationBranchResult,
   ConversationBranchState,
+  ProviderApprovalInteractionResponse,
   ProviderExecutionBackend,
   ProviderExecutionConfiguration,
   ProviderExecutionDiagnostics,
@@ -41,6 +42,7 @@ import type {
   ImageAttachment,
   ProviderId,
 } from '@/core/types';
+import { t } from '@/i18n/i18n';
 import { throwIfAborted } from '@/utils/abort';
 import { toError } from '@/utils/error';
 
@@ -524,6 +526,42 @@ export class ChatExecutionCoordinator {
     active.requestController.abort();
     this.dismissInteractionsForTurn(active.run.turnId, 'cancelled');
     active.run.cancel();
+  }
+
+  /**
+   * Offers the session's recent auto-review denials for a one-shot re-approval. The picker is not a
+   * turn: it creates no boundary, and a stale binding or selection approves nothing.
+   */
+  async approveRecentDenial(): Promise<'approved' | 'empty' | 'dismissed'> {
+    return this.runProtectedOperation(async () => {
+      const binding = this.sessionBinding;
+      const denials = binding?.session.getReviewDenials?.() ?? [];
+      if (!binding || denials.length === 0) return 'empty';
+      const interactionId = this.deps.createId();
+      let response: ProviderApprovalInteractionResponse;
+      try {
+        response = await this.deps.interactionPort.requestApproval({
+          decisionOptions: denials.map(({ description, label, value }) => ({ description, label, value })),
+          description: t('chat.approval.review.pickerSubtitle'),
+          input: {},
+          interactionId,
+          kind: 'approval',
+          presentation: 'action-picker',
+          sessionInstanceId: binding.session.sessionInstanceId,
+          toolName: '/approve',
+          turnId: interactionId,
+        }, new AbortController().signal);
+      } catch (error) {
+        if (error instanceof ChatExecutionInteractionStaleError) return 'dismissed';
+        throw error;
+      }
+      if (response.interactionId !== interactionId || !this.isBindingCurrent(binding)) return 'dismissed';
+      const decision = response.decision;
+      const value = typeof decision === 'object' && decision.type === 'select-option' ? decision.value : undefined;
+      const selected = denials.find(option => option.value === value);
+      if (!selected) return 'dismissed';
+      return await selected.approve() ? 'approved' : 'dismissed';
+    });
   }
 
   async steer(submission: ChatTurnSubmission): Promise<boolean> {

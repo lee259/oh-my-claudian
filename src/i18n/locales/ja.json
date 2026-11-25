@@ -450,7 +450,13 @@
           "high": "高",
           "critical": "重大"
         },
-        "strictRequired": "このターンには厳格な自動審査が必要です。"
+        "strictRequired": "このターンには厳格な自動審査が必要です。",
+        "retryHint": "このセッションの接続中は、/approve で再試行を1回許可できます。",
+        "noDenials": "このセッションには最近の自動審査による拒否はありません。",
+        "chooseRetry": "再試行を1回許可する操作を選択してください。",
+        "pickerSubtitle": "承認すると1回だけ再試行できます。再試行も自動審査で確認されます。",
+        "pickerTitle": "拒否された操作を承認",
+        "retryRecorded": "再試行を1回許可しました。再試行も Codex が審査します。"
       },
       "details": "{tool} の承認詳細",
       "unexpected": "予期しない承認の選択: 「{value}」",

@@ -450,7 +450,13 @@
           "high": "hoch",
           "critical": "kritisch"
         },
-        "strictRequired": "Diese Runde erfordert eine strenge automatische Prüfung."
+        "strictRequired": "Diese Runde erfordert eine strenge automatische Prüfung.",
+        "retryHint": "Solange diese Sitzung verbunden ist, lässt sich mit /approve ein erneuter Versuch genehmigen.",
+        "noDenials": "Keine aktuellen automatischen Ablehnungen in dieser Sitzung.",
+        "chooseRetry": "Eine abgelehnte Aktion für einen erneuten Versuch auswählen.",
+        "pickerSubtitle": "Die Genehmigung erlaubt einen erneuten Versuch. Die automatische Prüfung bewertet ihn trotzdem.",
+        "pickerTitle": "Abgelehnte Aktion genehmigen",
+        "retryRecorded": "Ein erneuter Versuch wurde genehmigt. Codex wird ihn prüfen."
       },
       "details": "Genehmigungsdetails für {tool}",
       "unexpected": "Unerwartete Genehmigungsauswahl: „{value}“",

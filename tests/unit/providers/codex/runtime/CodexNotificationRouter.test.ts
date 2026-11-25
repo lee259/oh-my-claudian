@@ -5799,5 +5799,18 @@ describe('CodexNotificationRouter', () => {
         type: 'notice',
       });
     });
+
+    it('mentions /approve when the session can re-authorize the denial', () => {
+      const approving = new CodexNotificationRouter(
+        chunk => chunks.push(chunk), undefined, '/workspace', false, () => true,
+      );
+
+      approving.handleNotification('item/autoApprovalReview/completed', review('denied'));
+
+      expect(chunks).toContainEqual({
+        content: expect.stringContaining('use /approve to authorize one retry'),
+        type: 'notice',
+      });
+    });
   });
 });

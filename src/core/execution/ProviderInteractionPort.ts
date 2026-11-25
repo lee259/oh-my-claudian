@@ -29,6 +29,8 @@ export interface ProviderApprovalInteractionRequest
   readonly decisionReason?: string;
   readonly blockedPath?: string;
   readonly decisionOptions?: readonly ProviderApprovalDecisionOption[];
+  /** The options are review denials to re-authorize, not a permission question. */
+  readonly presentation?: 'action-picker';
   /** The selected option's native value is the answer; do not collapse it to a semantic decision. */
   readonly exactOptionSelection?: boolean;
   readonly additionalPermissions?: unknown;

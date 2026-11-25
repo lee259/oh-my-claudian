@@ -18,6 +18,8 @@ export interface BuiltInCommandControllerDeps {
   showResumeDropdown: () => void;
   onForkAll?: () => Promise<void>;
   toggleFastMode?: () => Promise<boolean>;
+  /** Offers recent auto-review denials; unavailable when the provider has no session. */
+  approveRecentDenial?: () => Promise<'approved' | 'empty' | 'dismissed'>;
 }
 
 /** Routes provider-neutral slash commands to the feature-owned capabilities. */
@@ -71,6 +73,16 @@ export class BuiltInCommandController {
           new Notice(t('chat.errors.fastFailed'));
         }
         return;
+      case 'approve': {
+        try {
+          const result = await this.deps.approveRecentDenial?.() ?? 'empty';
+          if (result === 'approved') new Notice(t('chat.approval.review.retryRecorded'));
+          if (result === 'empty') new Notice(t('chat.approval.review.noDenials'));
+        } catch (error) {
+          new Notice(error instanceof Error ? error.message : String(error));
+        }
+        return;
+      }
       default: {
         const action = typeof (command as { action?: unknown }).action === 'string'
           ? (command as { action: string }).action

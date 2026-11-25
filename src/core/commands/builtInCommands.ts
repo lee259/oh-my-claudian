@@ -9,7 +9,7 @@ import { t } from '@/i18n/i18n';
 import { ProviderRegistry } from '../providers/ProviderRegistry';
 import type { ProviderCapabilities, ProviderId } from '../providers/types';
 
-export type BuiltInCommandAction = 'clear' | 'add-dir' | 'resume' | 'fork' | 'fast';
+export type BuiltInCommandAction = 'clear' | 'add-dir' | 'resume' | 'fork' | 'fast' | 'approve';
 type BuiltInCommandCapability = 'supportsNativeHistory' | 'supportsFork';
 type BuiltInCommandCapabilityContext =
   Pick<ProviderCapabilities, BuiltInCommandCapability>
@@ -67,6 +67,12 @@ export const BUILT_IN_COMMANDS: BuiltInCommand[] = [
     name: 'fast',
     get description() { return t('chat.commands.fast'); },
     action: 'fast',
+    supportedProviderIds: ['codex'],
+  },
+  {
+    name: 'approve',
+    get description() { return t('chat.approval.review.chooseRetry'); },
+    action: 'approve',
     supportedProviderIds: ['codex'],
   },
 ];

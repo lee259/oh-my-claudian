@@ -32,6 +32,15 @@ export interface ProviderExecutionRun {
  * prevents later execution. Requested events are never duplicated through
  * the session-level listener channel.
  */
+/** A review the provider denied, which the user may approve again for one retry. */
+export interface ProviderReviewDenialOption {
+  readonly value: string;
+  readonly label: string;
+  readonly description?: string;
+  /** Records the approval natively; false when the session moved on before it could. */
+  approve(): Promise<boolean>;
+}
+
 export interface ProviderExecutionSession {
   readonly providerId: ProviderId;
   readonly sessionInstanceId: string;
@@ -43,6 +52,8 @@ export interface ProviderExecutionSession {
   hasBackgroundWork?(): boolean;
   /** Process-bound work may prevent cooling without making the chat busy. */
   blocksIdleRelease?(): boolean;
+  /** Recent denials eligible for an explicit user-approved retry in this session. */
+  getReviewDenials?(): readonly ProviderReviewDenialOption[];
   onEvent(listener: (event: ProviderSessionEvent) => void): () => void;
   dispose(): Promise<void>;
 }
