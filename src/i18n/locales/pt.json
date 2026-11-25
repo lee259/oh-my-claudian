@@ -450,7 +450,13 @@
           "high": "alto",
           "critical": "crítico"
         },
-        "strictRequired": "Este turno exige revisão automática rigorosa."
+        "strictRequired": "Este turno exige revisão automática rigorosa.",
+        "retryHint": "Enquanto esta sessão estiver conectada, use /approve para autorizar uma nova tentativa.",
+        "noDenials": "Nenhuma ação foi negada recentemente pela revisão automática nesta sessão.",
+        "chooseRetry": "Selecione uma ação negada para autorizar uma nova tentativa.",
+        "pickerSubtitle": "Aprovar permite uma nova tentativa. A revisão automática ainda a verifica.",
+        "pickerTitle": "Aprovar uma ação negada",
+        "retryRecorded": "Uma nova tentativa foi autorizada. O Codex vai revisá-la."
       },
       "details": "Detalhes de aprovação de {tool}",
       "unexpected": "Seleção de aprovação inesperada: «{value}»",

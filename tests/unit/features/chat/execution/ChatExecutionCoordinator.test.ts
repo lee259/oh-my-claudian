@@ -100,6 +100,7 @@ class FakeSession implements ProviderExecutionSession,
   readonly listeners = new Set<(event: ProviderSessionEvent) => void>();
   hasBackgroundWork?: () => boolean;
   blocksIdleRelease?: () => boolean;
+  getReviewDenials?: ProviderExecutionSession['getReviewDenials'];
   cancelCalls = 0;
   disposeCalls = 0;
   status: ProviderSessionStatus = 'idle';
@@ -375,6 +376,59 @@ async function reserveProtectedWarmSlots(
 }
 
 describe('ChatExecutionCoordinator', () => {
+  describe('approveRecentDenial', () => {
+    it('reports an empty picker when the session has no denials', async () => {
+      const harness = createHarness();
+      await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'claude' });
+      await harness.coordinator.prepare();
+
+      await expect(harness.coordinator.approveRecentDenial()).resolves.toBe('empty');
+      expect(harness.interactionPort.requestApproval).not.toHaveBeenCalled();
+    });
+
+    it('shows the denials as an action picker and approves the selection', async () => {
+      const harness = createHarness();
+      await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'codex' });
+      await harness.coordinator.prepare();
+      const session = harness.backends.get('codex')!.sessions[0];
+      const approve = jest.fn(async () => true);
+      session.getReviewDenials = () => [{
+        approve,
+        description: 'Installs unreviewed code.',
+        label: 'npm install (/vault)',
+        value: 'review-1',
+      }];
+      harness.interactionPort.requestApproval.mockImplementation(async ({ interactionId }) => ({
+        decision: { type: 'select-option', value: 'review-1' },
+        interactionId,
+      }));
+
+      await expect(harness.coordinator.approveRecentDenial()).resolves.toBe('approved');
+      expect(harness.interactionPort.requestApproval).toHaveBeenCalledWith(expect.objectContaining({
+        decisionOptions: [{ description: 'Installs unreviewed code.', label: 'npm install (/vault)', value: 'review-1' }],
+        presentation: 'action-picker',
+        toolName: '/approve',
+      }), expect.any(AbortSignal));
+      expect(approve).toHaveBeenCalledTimes(1);
+    });
+
+    it('approves nothing when the picker is dismissed', async () => {
+      const harness = createHarness();
+      await harness.coordinator.bindConversation({ conversationId: 'conversation-1', providerId: 'codex' });
+      await harness.coordinator.prepare();
+      const session = harness.backends.get('codex')!.sessions[0];
+      const approve = jest.fn(async () => true);
+      session.getReviewDenials = () => [{ approve, label: 'npm install (/vault)', value: 'review-1' }];
+      harness.interactionPort.requestApproval.mockImplementation(async ({ interactionId }) => ({
+        decision: 'cancel',
+        interactionId,
+      }));
+
+      await expect(harness.coordinator.approveRecentDenial()).resolves.toBe('dismissed');
+      expect(approve).not.toHaveBeenCalled();
+    });
+  });
+
   it('binds cold and acquires a persistent execution session only on prepare or execute', async () => {
     const harness = createHarness();
 

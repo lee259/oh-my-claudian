@@ -186,6 +186,8 @@ export class CodexNotificationRouter {
     private readonly onTurnMetadata?: TurnMetadataListener,
     private readonly workingDirectory?: string,
     private readonly streamRawExecCalls = false,
+    /** Whether this session may re-authorize a denied review through /approve. */
+    private readonly canOverrideReview: () => boolean = () => false,
   ) {}
 
   private emit(chunk: StreamChunk): void {
@@ -393,7 +395,9 @@ export class CodexNotificationRouter {
         break;
       case 'item/autoApprovalReview/completed': {
         const event = params as GuardianReviewCompleted;
-        if (isReportedReview(event)) this.emit({ type: 'notice', content: describeAutoReview(event) });
+        if (isReportedReview(event)) {
+          this.emit({ type: 'notice', content: describeAutoReview(event, this.canOverrideReview()) });
+        }
         break;
       }
       case 'guardianWarning': {

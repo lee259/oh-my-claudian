@@ -107,6 +107,7 @@ export {
 export {
   type ProviderExecutionRun,
   type ProviderExecutionSession,
+  type ProviderReviewDenialOption,
 } from './ProviderExecutionSession';
 export {
   type ProviderApprovalDecisionOption,

@@ -1,5 +1,10 @@
 import type { GuardianReviewAction, GuardianReviewCompleted } from '@/providers/codex/runtime/codexAppServerTypes';
-import { describeAutoReview, describeReviewAction, isReportedReview } from '@/providers/codex/runtime/notifications/codexAutoReview';
+import {
+  describeAutoReview,
+  describeReviewAction,
+  guardianOverrideParams,
+  isReportedReview,
+} from '@/providers/codex/runtime/notifications/codexAutoReview';
 
 function completed(
   action: GuardianReviewAction,
@@ -60,5 +65,55 @@ describe('isReportedReview', () => {
       { cwd: '/vault', files: ['a.md'], type: 'applyPatch' },
       { ...approved, status: 'denied' },
     ))).toBe(true);
+  });
+});
+
+describe('guardianOverrideParams', () => {
+  it.each<[GuardianReviewAction, unknown]>([
+    [{ command: 'pwd', cwd: '/vault', source: 'unifiedExec', type: 'command' },
+      { command: 'pwd', cwd: '/vault', source: 'unified_exec', type: 'command' }],
+    [{ cwd: '/vault', files: ['one.md', 'two.md'], type: 'applyPatch' },
+      { cwd: '/vault', files: ['one.md', 'two.md'], type: 'apply_patch' }],
+    [{ host: 'registry.example', port: 443, protocol: 'socks5Tcp', target: 'https://registry.example', type: 'networkAccess' },
+      { host: 'registry.example', port: 443, protocol: 'socks5_tcp', target: 'https://registry.example', type: 'network_access' }],
+    [{ connectorId: 'kb', connectorName: 'KB', server: 'docs', toolName: 'read', toolTitle: 'Read docs', type: 'mcpToolCall' },
+      { connector_id: 'kb', connector_name: 'KB', server: 'docs', tool_name: 'read', tool_title: 'Read docs', type: 'mcp_tool_call' }],
+    [{ approvalId: 'a', cwd: '/vault', processId: 'p1', stdin: 'yes\n', type: 'writeStdin' },
+      { approval_id: 'a', cwd: 'file:///vault', process_id: 'p1', stdin: 'yes\n', type: 'write_stdin' }],
+    [{ permissions: { fileSystem: { read: ['/vault'], write: ['/vault/notes'] } }, reason: 'Index', type: 'requestPermissions' },
+      {
+        permissions: {
+          file_system: {
+            entries: [
+              { access: 'read', path: { path: '/vault', type: 'path' } },
+              { access: 'write', path: { path: '/vault/notes', type: 'path' } },
+            ],
+          },
+        },
+        reason: 'Index',
+        type: 'request_permissions',
+      }],
+  ])('serializes $type for the native denial override', (action, expected) => {
+    const params = guardianOverrideParams({
+      ...completed(action),
+      completedAtMs: 1_000,
+      startedAtMs: 900,
+    });
+
+    expect(params).toEqual({
+      event: {
+        action: expected,
+        completed_at_ms: 1_000,
+        decision_source: 'agent',
+        id: 'review-1',
+        rationale: null,
+        risk_level: null,
+        started_at_ms: 900,
+        status: 'denied',
+        turn_id: 'turn-1',
+        user_authorization: null,
+      },
+      threadId: 'thread-1',
+    });
   });
 });

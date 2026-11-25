@@ -234,12 +234,13 @@ describe('builtInCommands', () => {
 
     it('excludes Codex-only commands for the Claude provider', () => {
       const commands = getBuiltInCommandsForDropdown('claude');
-      expect(commands.length).toBe(BUILT_IN_COMMANDS.length - 1);
+      expect(commands.length).toBe(BUILT_IN_COMMANDS.length - 2);
       expect(commands.map(c => c.name)).toContain('clear');
       expect(commands.map(c => c.name)).toContain('add-dir');
       expect(commands.map(c => c.name)).toContain('resume');
       expect(commands.map(c => c.name)).toContain('fork');
       expect(commands.map(c => c.name)).not.toContain('fast');
+      expect(commands.map(c => c.name)).not.toContain('approve');
     });
 
     it('returns all capability-supported commands for codex provider', () => {
@@ -254,8 +255,8 @@ describe('builtInCommands', () => {
 
     it('returns only commands supported by codex capabilities', () => {
       const commands = getBuiltInCommandsForDropdown('codex');
-      expect(commands.length).toBe(5);
-      expect(commands.map(c => c.name)).toEqual(['clear', 'add-dir', 'resume', 'fork', 'fast']);
+      expect(commands.length).toBe(6);
+      expect(commands.map(c => c.name)).toEqual(['clear', 'add-dir', 'resume', 'fork', 'fast', 'approve']);
     });
   });
 

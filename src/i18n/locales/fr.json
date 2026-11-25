@@ -450,7 +450,13 @@
           "high": "élevé",
           "critical": "critique"
         },
-        "strictRequired": "Ce tour exige une vérification automatique stricte."
+        "strictRequired": "Ce tour exige une vérification automatique stricte.",
+        "retryHint": "Tant que cette session est connectée, utilisez /approve pour autoriser un nouvel essai.",
+        "noDenials": "Aucun refus automatique récent dans cette session.",
+        "chooseRetry": "Sélectionnez une action refusée pour autoriser un nouvel essai.",
+        "pickerSubtitle": "L’approbation autorise un nouvel essai. La revue automatique le vérifie quand même.",
+        "pickerTitle": "Approuver une action refusée",
+        "retryRecorded": "Un nouvel essai a été autorisé. Codex le vérifiera."
       },
       "details": "Détails d’autorisation de {tool}",
       "unexpected": "Choix d’autorisation inattendu : « {value} »",

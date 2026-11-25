@@ -450,7 +450,13 @@
           "high": "high",
           "critical": "critical"
         },
-        "strictRequired": "Strict auto-review is required for this turn."
+        "strictRequired": "Strict auto-review is required for this turn.",
+        "retryHint": "While this session is connected, use /approve to authorize one retry.",
+        "noDenials": "No recent auto-review denials in this session.",
+        "chooseRetry": "Select a denied action to approve for one retry.",
+        "pickerSubtitle": "Approving allows one retry. Auto-review still checks it.",
+        "pickerTitle": "Approve a denied action",
+        "retryRecorded": "Approval recorded for one retry. Codex will review the retry."
       },
       "details": "{tool} approval details",
       "unexpected": "Unexpected approval selection: \"{value}\"",

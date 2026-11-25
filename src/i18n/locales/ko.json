@@ -450,7 +450,13 @@
           "high": "높음",
           "critical": "심각"
         },
-        "strictRequired": "이 턴에는 엄격한 자동 검토가 필요합니다."
+        "strictRequired": "이 턴에는 엄격한 자동 검토가 필요합니다.",
+        "retryHint": "이 세션이 연결된 동안 /approve 명령으로 재시도를 한 번 허용할 수 있습니다.",
+        "noDenials": "이 세션에 최근 자동 검토에서 거부된 작업이 없습니다.",
+        "chooseRetry": "재시도를 한 번 허용할 작업을 선택하세요.",
+        "pickerSubtitle": "승인하면 한 번 재시도할 수 있습니다. 재시도도 자동 검토를 거칩니다.",
+        "pickerTitle": "거부된 작업 승인",
+        "retryRecorded": "재시도를 한 번 허용했습니다. Codex가 재시도를 검토합니다."
       },
       "details": "{tool} 승인 세부 정보",
       "unexpected": "예상치 못한 승인 선택: \"{value}\"",

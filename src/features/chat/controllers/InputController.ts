@@ -114,6 +114,7 @@ interface ApprovalCallbackOptions {
   decisionOptions?: ApprovalDecisionOption[];
   exactOptionSelection?: boolean;
   additionalPermissions?: unknown;
+  presentation?: 'action-picker';
 }
 
 const DEFAULT_APPROVAL_DECISION_OPTIONS: ApprovalDecisionOption[] =
@@ -287,6 +288,7 @@ export class InputController {
       showResumeDropdown: () => this.resumeDropdownController.show(),
       onForkAll: deps.onForkAll,
       toggleFastMode: deps.toggleFastMode,
+      approveRecentDenial: () => deps.getExecutionCoordinator()?.approveRecentDenial() ?? Promise.resolve('empty'),
     });
     this.turnCompletionCoordinator = new TurnCompletionCoordinator({
       state: deps.state,
@@ -352,6 +354,7 @@ export class InputController {
           decisionOptions: request.decisionOptions?.map(option => ({ ...option })),
           exactOptionSelection: request.exactOptionSelection,
           additionalPermissions: request.additionalPermissions,
+          presentation: request.presentation,
         }, signal),
       }),
       askUserQuestion: async (request, signal) => ({
@@ -1835,6 +1838,7 @@ export class InputController {
     if (!inputContainerEl || !parentEl) {
       throw new Error('Input container is detached from DOM');
     }
+    const actionPicker = approvalOptions?.presentation === 'action-picker';
 
     // Build header element, then detach — InlineAskUserQuestion will re-attach it
     const headerEl = parentEl.createDiv({ cls: 'claudian-ask-approval-info' });
@@ -1894,7 +1898,7 @@ export class InputController {
     });
     const input = {
       questions: [{
-        question: t('chat.approval.question'),
+        question: actionPicker ? t('chat.approval.review.chooseRetry') : t('chat.approval.question'),
         options: questionOptions,
         isOther: false,
         isSecret: false,
@@ -1907,7 +1911,10 @@ export class InputController {
       input,
       (inline) => { this.pendingApprovalInline = inline; },
       signal,
-      { title: t('chat.approval.title'), headerEl, showCustomInput: false, immediateSelect: true },
+      {
+        title: actionPicker ? t('chat.approval.review.pickerTitle') : t('chat.approval.title'),
+        headerEl, showCustomInput: false, immediateSelect: true,
+      },
     );
 
     if (!result) return 'cancel';
