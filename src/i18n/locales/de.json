@@ -549,7 +549,13 @@
       "added": "Anweisung zum eigenen Systemprompt hinzugefügt",
       "empty": "Keine Anweisung erhalten"
     },
+    "agent": "Agent: {agent}",
+    "promptLine": "Prompt: {prompt}",
     "tools": {
+      "startAgent": "Agent starten",
+      "closeAgent": "Agent beenden",
+      "listAgents": "Agents auflisten",
+      "messageAgent": "Agent benachrichtigen",
       "noResult": "Kein Ergebnis",
       "noMatches": "Keine Treffer gefunden",
       "fileDeleted": "Datei gelöscht",

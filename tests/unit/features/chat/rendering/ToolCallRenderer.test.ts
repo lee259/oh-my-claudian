@@ -823,7 +823,7 @@ describe('ToolCallRenderer', () => {
     });
 
     it('labels spawn_agent with message', () => {
-      expect(getToolLabel('spawn_agent', { message: 'Fix bug' })).toBe('spawn_agent: Fix bug');
+      expect(getToolLabel('spawn_agent', { message: 'Fix bug' })).toBe('Start agent: Fix bug');
     });
 
     it('labels wait with count', () => {
@@ -831,7 +831,7 @@ describe('ToolCallRenderer', () => {
     });
 
     it('returns raw name for lifecycle tools with no summary', () => {
-      expect(getToolLabel('close_agent', {})).toBe('close_agent');
+      expect(getToolLabel('close_agent', {})).toBe('Close agent');
     });
   });
 

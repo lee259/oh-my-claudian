@@ -549,7 +549,13 @@
       "added": "Instruction added to custom system prompt",
       "empty": "No instruction received"
     },
+    "agent": "Agent: {agent}",
+    "promptLine": "Prompt: {prompt}",
     "tools": {
+      "startAgent": "Start agent",
+      "closeAgent": "Close agent",
+      "listAgents": "List agents",
+      "messageAgent": "Message agent",
       "noResult": "No result",
       "noMatches": "No matches found",
       "fileDeleted": "File deleted",
