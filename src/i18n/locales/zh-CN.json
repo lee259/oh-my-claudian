@@ -434,6 +434,23 @@
       "allow": "允许一次",
       "always": "始终允许",
       "agent": "Agent：{agent}",
+      "review": {
+        "inProgress": "正在审核：{action}",
+        "approved": "自动审核已批准：{action}",
+        "denied": "自动审核已拒绝：{action}",
+        "timedOut": "自动审核超时：{action}",
+        "aborted": "自动审核已中断：{action}",
+        "terminalInput": "向 {process} 发送的终端输入：{input}",
+        "fileChange": "文件更改",
+        "risk": "风险：{level}",
+        "riskLevels": {
+          "low": "低",
+          "medium": "中",
+          "high": "高",
+          "critical": "严重"
+        },
+        "strictRequired": "本轮需要严格自动审核。"
+      },
       "details": "{tool} 审批详情",
       "unexpected": "意外的审批选项：“{value}”",
       "suspicious": "此命令包含不可见字符或双向控制字符，请仔细检查命令。"

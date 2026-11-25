@@ -434,6 +434,23 @@
       "allow": "한 번 허용",
       "always": "항상 허용",
       "agent": "에이전트: {agent}",
+      "review": {
+        "inProgress": "검토 중: {action}",
+        "approved": "자동 검토 승인: {action}",
+        "denied": "자동 검토 거부: {action}",
+        "timedOut": "검토 시간 초과: {action}",
+        "aborted": "검토 중단: {action}",
+        "terminalInput": "{process}에 보낼 터미널 입력: {input}",
+        "fileChange": "파일 변경",
+        "risk": "위험도: {level}",
+        "riskLevels": {
+          "low": "낮음",
+          "medium": "보통",
+          "high": "높음",
+          "critical": "심각"
+        },
+        "strictRequired": "이 턴에는 엄격한 자동 검토가 필요합니다."
+      },
       "details": "{tool} 승인 세부 정보",
       "unexpected": "예상치 못한 승인 선택: \"{value}\"",
       "suspicious": "이 명령에는 보이지 않거나 양방향 제어 문자가 있습니다. 주의 깊게 검토하세요."

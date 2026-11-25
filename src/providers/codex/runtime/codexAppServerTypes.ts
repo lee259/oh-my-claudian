@@ -653,6 +653,38 @@ export interface ItemCompletedNotification {
   turnId: string;
 }
 
+// -- Automatic approval review (item/autoApprovalReview/*) -------------------
+
+export type GuardianReviewAction =
+  | { type: 'command'; source: 'shell' | 'unifiedExec'; command: string; cwd: string }
+  | { type: 'execve'; source: 'shell' | 'unifiedExec'; program: string; argv: string[]; cwd: string }
+  | { type: 'writeStdin'; approvalId: string; processId: string; stdin: string; cwd: string }
+  | { type: 'applyPatch'; cwd: string; files: string[] }
+  | { type: 'networkAccess'; target: string; host: string; protocol: 'http' | 'https' | 'socks5Tcp' | 'socks5Udp'; port: number }
+  | { type: 'mcpToolCall'; server: string; toolName: string; connectorId: string | null; connectorName: string | null; toolTitle: string | null }
+  | { type: 'requestPermissions'; reason: string | null; permissions: RequestPermissionProfile };
+
+export interface GuardianReviewStarted {
+  threadId: string;
+  turnId: string;
+  /** Review timestamps first appeared in Codex 0.130. */
+  startedAtMs?: number;
+  reviewId: string;
+  targetItemId: string | null;
+  action: GuardianReviewAction;
+  review: {
+    status: 'inProgress' | 'approved' | 'denied' | 'timedOut' | 'aborted';
+    riskLevel: 'low' | 'medium' | 'high' | 'critical' | null;
+    userAuthorization: 'unknown' | 'low' | 'medium' | 'high' | null;
+    rationale: string | null;
+  };
+}
+
+export interface GuardianReviewCompleted extends GuardianReviewStarted {
+  completedAtMs?: number;
+  decisionSource: 'agent';
+}
+
 export interface AgentMessageDeltaNotification {
   threadId: string;
   turnId: string;

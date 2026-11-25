@@ -434,6 +434,23 @@
       "allow": "Einmal erlauben",
       "always": "Immer erlauben",
       "agent": "Agent: {agent}",
+      "review": {
+        "inProgress": "{action} wird geprüft",
+        "approved": "Automatisch genehmigt: {action}",
+        "denied": "Automatisch abgelehnt: {action}",
+        "timedOut": "Zeitüberschreitung bei der Prüfung von {action}",
+        "aborted": "Prüfung unterbrochen: {action}",
+        "terminalInput": "Terminaleingabe für {process}: {input}",
+        "fileChange": "Dateiänderungen",
+        "risk": "Risiko: {level}",
+        "riskLevels": {
+          "low": "niedrig",
+          "medium": "mittel",
+          "high": "hoch",
+          "critical": "kritisch"
+        },
+        "strictRequired": "Diese Runde erfordert eine strenge automatische Prüfung."
+      },
       "details": "Genehmigungsdetails für {tool}",
       "unexpected": "Unerwartete Genehmigungsauswahl: „{value}“",
       "suspicious": "Dieser Befehl enthält unsichtbare oder bidirektionale Steuerzeichen. Sorgfältig prüfen."

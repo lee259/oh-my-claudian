@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 import type { CitationGroup, StreamChunk, ToolCallPresentation, UsageInfo } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import {
   extractCodexUserVisibleText,
   getCodexStopHookFeedback,
@@ -44,6 +45,7 @@ import type {
   ErrorNotification,
   FileChangeItem,
   FileChangePatchUpdatedNotification,
+  GuardianReviewCompleted,
   ImageViewItem,
   ItemCompletedNotification,
   ItemStartedNotification,
@@ -58,6 +60,9 @@ import type {
   UserMessageItem,
   WebSearchItem,
 } from './codexAppServerTypes';
+import { describeAutoReview, isReportedReview } from './notifications/codexAutoReview';
+
+const REVIEW_RESULT_WARNING = /^Automatic approval review (?:approved \(|denied \(|timed out |failed: )/;
 
 type ChunkEmitter = (chunk: StreamChunk) => void;
 type TurnMetadataListener = (update: {
@@ -385,6 +390,20 @@ export class CodexNotificationRouter {
         break;
       case 'turn/plan/updated':
         this.onPlanUpdated(params as TurnPlanUpdatedNotification);
+        break;
+      case 'item/autoApprovalReview/completed': {
+        const event = params as GuardianReviewCompleted;
+        if (isReportedReview(event)) this.emit({ type: 'notice', content: describeAutoReview(event) });
+        break;
+      }
+      case 'guardianWarning': {
+        const { message } = params as { message: string };
+        // Legacy text repeating a structured review result, which the review notice already shows.
+        if (!REVIEW_RESULT_WARNING.test(message)) this.emit({ type: 'notice', content: message, level: 'warning' });
+        break;
+      }
+      case 'autoApprovalReview/strictReviewRequired':
+        this.emit({ type: 'notice', content: t('chat.approval.review.strictRequired') });
         break;
       case 'turn/completed':
         this.onTurnCompleted(params as TurnCompletedNotification);
