@@ -5,6 +5,7 @@ import type {
   ProviderToolPolicy,
 } from '../../../core/execution';
 import type { ApprovalDecision } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import { normalizeCodexToolName } from '../normalization/codexToolNormalization';
 import type {
   CommandApprovalRequest,
@@ -40,6 +41,16 @@ interface PendingInteraction {
 
 type NativeTurnObserver = (threadId: string, turnId: string) => boolean;
 
+/** Offered only when the CLI advertises review grants; the last two options keep Claudian's usual answers. */
+function permissionsApprovalOptions(): readonly ProviderApprovalDecisionOption[] {
+  return [
+    { decision: 'allow', label: t('chat.approval.allow'), value: 'allow-turn' },
+    { label: t('chat.approval.allowStrictTurn'), value: 'allow-strict-turn' },
+    { decision: 'allow-always', label: t('chat.approval.always'), value: 'allow-session' },
+    { decision: 'deny', label: t('chat.approval.deny'), value: 'deny' },
+  ];
+}
+
 export class CodexExecutionServerRequestRouter {
   private activeTurn: ActiveInteractionTurn | null = null;
   private dynamicToolRegistry: CodexDynamicToolRegistry | null = null;
@@ -51,6 +62,7 @@ export class CodexExecutionServerRequestRouter {
     private readonly sessionInstanceId: string,
     private readonly interactionPort: ProviderInteractionPort,
     private readonly observeNativeTurn: NativeTurnObserver,
+    private readonly supportsStrictReview: () => boolean = () => false,
   ) {}
 
   setActiveTurn(turn: ActiveInteractionTurn | null): void {
@@ -232,9 +244,11 @@ export class CodexExecutionServerRequestRouter {
       return { permissions: {}, scope: 'turn' };
     }
 
+    const strict = this.supportsStrictReview();
     const pending = this.createPending(requestId, params.threadId);
     try {
       const response = await this.interactionPort.requestApproval({
+        ...(strict ? { decisionOptions: permissionsApprovalOptions() } : {}),
         interactionId: pending.interactionId,
         sessionInstanceId: this.sessionInstanceId,
         turnId: turn.localTurnId,
@@ -254,6 +268,11 @@ export class CodexExecutionServerRequestRouter {
       }, pending.controller.signal);
       if (response.interactionId !== pending.interactionId) {
         return { permissions: {}, scope: 'turn' };
+      }
+      if (strict && typeof response.decision === 'object' && response.decision.type === 'select-option') {
+        return response.decision.value === 'allow-strict-turn'
+          ? { permissions: params.permissions, scope: 'turn', strictAutoReview: true }
+          : { permissions: {}, scope: 'turn' };
       }
       if (response.decision === 'allow') {
         return { permissions: params.permissions, scope: 'turn' };

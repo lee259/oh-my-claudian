@@ -434,6 +434,7 @@
       "allow": "한 번 허용",
       "always": "항상 허용",
       "agent": "에이전트: {agent}",
+      "allowStrictTurn": "이번 턴에 엄격한 자동 검토를 조건으로 허용",
       "review": {
         "inProgress": "검토 중: {action}",
         "approved": "자동 검토 승인: {action}",

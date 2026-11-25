@@ -434,6 +434,7 @@
       "allow": "Allow once",
       "always": "Always allow",
       "agent": "Agent: {agent}",
+      "allowStrictTurn": "Allow for this turn with strict auto-review",
       "review": {
         "inProgress": "Reviewing {action}",
         "approved": "Auto-review approved {action}",

@@ -434,6 +434,7 @@
       "allow": "允許一次",
       "always": "一律允許",
       "agent": "Agent：{agent}",
+      "allowStrictTurn": "本輪允許，並啟用嚴格自動審查",
       "review": {
         "inProgress": "正在審查：{action}",
         "approved": "自動審查已核准：{action}",
