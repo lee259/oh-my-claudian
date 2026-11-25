@@ -20,6 +20,15 @@ export function getCodexAppServerWorkingDirectory(plugin: ProviderHost): string 
   return getVaultPath(plugin.app) ?? process.cwd();
 }
 
+/**
+ * Codex 0.124 added strict per-turn approval grants and `thread/approveGuardianDeniedAction`.
+ * A CLI that does not advertise them would ignore the extra field, so the option is not offered.
+ */
+export function supportsCodexReviewGrants(userAgent: string | null | undefined): boolean {
+  const version = /^\S+?\/(\d+)\.(\d+)\.\d+/.exec(userAgent ?? '');
+  return !!version && (Number(version[1]) > 0 || Number(version[2]) >= 124);
+}
+
 export function buildCodexAppServerEnvironment(
   plugin: ProviderHost,
   providerId: ProviderId = 'codex',

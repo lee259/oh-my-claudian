@@ -434,6 +434,7 @@
       "allow": "Permitir uma vez",
       "always": "Permitir sempre",
       "agent": "Agente: {agent}",
+      "allowStrictTurn": "Permitir neste turno com revisão automática rigorosa",
       "review": {
         "inProgress": "Revisando {action}",
         "approved": "A revisão automática aprovou {action}",

@@ -434,6 +434,7 @@
       "allow": "Autoriser une fois",
       "always": "Toujours autoriser",
       "agent": "Agent : {agent}",
+      "allowStrictTurn": "Autoriser pour ce tour avec vérification automatique stricte",
       "review": {
         "inProgress": "Vérification de {action}",
         "approved": "Action approuvée automatiquement : {action}",

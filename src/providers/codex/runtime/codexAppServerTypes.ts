@@ -867,6 +867,7 @@ export interface PermissionsApprovalRequest {
 export interface PermissionsApprovalResponse {
   permissions: GrantedPermissionProfile;
   scope?: PermissionGrantScope;
+  strictAutoReview?: boolean;
 }
 
 // -- Tool request user input (item/tool/requestUserInput) --------------------

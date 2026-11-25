@@ -434,6 +434,7 @@
       "allow": "Einmal erlauben",
       "always": "Immer erlauben",
       "agent": "Agent: {agent}",
+      "allowStrictTurn": "Für diese Runde mit strenger automatischer Prüfung erlauben",
       "review": {
         "inProgress": "{action} wird geprüft",
         "approved": "Automatisch genehmigt: {action}",

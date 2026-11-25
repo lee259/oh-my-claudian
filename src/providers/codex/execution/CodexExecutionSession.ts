@@ -56,6 +56,7 @@ import { CodexAppServerProcess } from '../runtime/CodexAppServerProcess';
 import {
   initializeCodexAppServerTransport,
   resolveCodexAppServerLaunchSpec,
+  supportsCodexReviewGrants,
 } from '../runtime/codexAppServerSupport';
 import type {
   ConfigReadParams,
@@ -362,6 +363,7 @@ export class CodexExecutionSession
       this.sessionInstanceId,
       config.interactionPort,
       (threadId, turnId) => this.observeNativeTurn(threadId, turnId),
+      () => supportsCodexReviewGrants(this.runtimeContext?.initializeResult.userAgent),
     );
   }
 
