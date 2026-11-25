@@ -203,7 +203,7 @@
       "externalContextAdded": "已新增外部上下文：{path}",
       "modeGrokAuto": "自動",
       "modeGrokAutoDescription": "Grok 會自行執行其判斷為安全的操作，並對風險較高的操作詢問確認。",
-      "modeAutoSafeActionsDescription": "自動執行判斷為安全的操作，風險較高的操作會詢問確認。",
+      "modeAutoSafeActionsDescription": "自動核准沙箱內的指令與檔案編輯（含部分 Vault 外的編輯），風險較高的操作會詢問確認。",
       "modeGrokAcceptEdits": "接受編輯",
       "modeGrokAcceptEditsDescription": "自動接受檔案編輯，其他操作仍會詢問確認。",
       "placeholder": "描述修改需求，@引用檔案，執行 /命令",
